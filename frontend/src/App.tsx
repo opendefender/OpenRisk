@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react'; // Ajout useState
 import { useRiskStore } from './hooks/useRiskStore';
 import { motion } from 'framer-motion';
-import { ShieldAlert, Activity, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Plus } from 'lucide-react'; // Ajout Plus icon
+import { Button } from './components/ui/Button'; // Utilisation Button pro
+import { CreateRiskModal } from './features/risks/components/CreateRiskModal'; // Import Modal
 
 function App() {
   const { risks, fetchRisks, isLoading } = useRiskStore();
+  const [isModalOpen, setIsModalOpen] = useState(false); // State Modal
 
   useEffect(() => {
     fetchRisks();
@@ -12,36 +15,28 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-white p-8">
-      {/* Header */}
+      {/* ... Header existant ... */}
       <header className="max-w-5xl mx-auto mb-12 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+           {/* ... Titre ... */}
+           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
             OpenRisk
           </h1>
-          <p className="text-zinc-400 mt-1">OpenDefender Risk Management</p>
         </div>
-        <button 
-          onClick={() => fetchRisks()}
-          className="p-2 bg-surface border border-border rounded-lg hover:bg-zinc-800 transition-colors"
-        >
-          <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex gap-3">
+          {/* Nouveau Bouton d'action */}
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus size={16} className="mr-2" /> Nouveau Risque
+          </Button>
+        </div>
       </header>
 
-      {/* Stats Rapides */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-surface border border-border p-6 rounded-xl">
-          <div className="flex items-center gap-3 text-zinc-400 mb-2">
-            <ShieldAlert size={20} /> Total Risks
-          </div>
-          <div className="text-4xl font-bold text-white">{risks.length}</div>
-        </div>
-      </div>
-
-      {/* Liste des Risques */}
+      {/* ... Reste du code (Stats et Liste) identique ... */}
       <div className="max-w-5xl mx-auto grid grid-cols-1 gap-4">
-        {risks.map((risk) => (
-          <motion.div 
+          {/* ... Liste des risques ... */}
+          {risks.map((risk) => (
+            // ... Ta carte de risque existante ...
+             <motion.div 
             key={risk.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -50,7 +45,8 @@ function App() {
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex gap-2 mb-2">
-                  {risk.tags.map(tag => (
+                    {/* Gestion safe des tags s'ils sont null */}
+                  {risk.tags && risk.tags.map(tag => (
                     <span key={tag} className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-zinc-800 text-zinc-400 rounded-full">
                       {tag}
                     </span>
@@ -75,14 +71,11 @@ function App() {
               </div>
             </div>
           </motion.div>
-        ))}
-
-        {risks.length === 0 && !isLoading && (
-          <div className="text-center py-20 text-zinc-500">
-            Aucun risque détecté. Tout est calme... pour l'instant.
-          </div>
-        )}
+          ))}
       </div>
+
+      {/* Le Modal intégré ici */}
+      <CreateRiskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
