@@ -1,80 +1,61 @@
-import { useEffect, useState } from 'react'; // Ajout useState
-import { useRiskStore } from './hooks/useRiskStore';
+import { useState } from 'react';
+import { Sidebar } from './components/layout/Sidebar';
+import { DashboardGrid } from './features/dashboard/DashboardGrid';
+import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
+import { Button } from './components/ui/Button';
+import { Plus, Bell, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ShieldAlert, Plus } from 'lucide-react'; // Ajout Plus icon
-import { Button } from './components/ui/Button'; // Utilisation Button pro
-import { CreateRiskModal } from './features/risks/components/CreateRiskModal'; // Import Modal
 
 function App() {
-  const { risks, fetchRisks, isLoading } = useRiskStore();
-  const [isModalOpen, setIsModalOpen] = useState(false); // State Modal
-
-  useEffect(() => {
-    fetchRisks();
-  }, [fetchRisks]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background text-white p-8">
-      {/* ... Header existant ... */}
-      <header className="max-w-5xl mx-auto mb-12 flex justify-between items-center">
-        <div>
-           {/* ... Titre ... */}
-           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            OpenRisk
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          {/* Nouveau Bouton d'action */}
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus size={16} className="mr-2" /> Nouveau Risque
-          </Button>
-        </div>
-      </header>
+    <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-primary/30">
+      {/* 1. Sidebar Fixe */}
+      <Sidebar />
 
-      {/* ... Reste du code (Stats et Liste) identique ... */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 gap-4">
-          {/* ... Liste des risques ... */}
-          {risks.map((risk) => (
-            // ... Ta carte de risque existante ...
-             <motion.div 
-            key={risk.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-surface border border-border p-6 rounded-xl hover:border-primary/50 transition-colors cursor-pointer group"
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="flex gap-2 mb-2">
-                    {/* Gestion safe des tags s'ils sont null */}
-                  {risk.tags && risk.tags.map(tag => (
-                    <span key={tag} className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-zinc-800 text-zinc-400 rounded-full">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <h3 className="text-xl font-semibold group-hover:text-primary transition-colors">
-                  {risk.title}
-                </h3>
-                <p className="text-zinc-500 mt-1">{risk.description}</p>
-              </div>
+      {/* 2. Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        
+        {/* Header Flottant / Glassmorphism */}
+        <header className="h-16 shrink-0 border-b border-border bg-background/50 backdrop-blur-md flex items-center justify-between px-6 z-10">
+          
+          {/* Search Bar (Linear style) */}
+          <div className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-white transition-colors">
+            <Search size={14} />
+            <input 
+                type="text" 
+                placeholder="Search risks, assets..." 
+                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-600"
+            />
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-zinc-500 bg-zinc-800 rounded border border-zinc-700">⌘K</kbd>
+          </div>
 
-              {/* Score Badge */}
-              <div className="flex flex-col items-end">
-                <div className={`text-2xl font-bold ${
-                  risk.score >= 20 ? 'text-risk-critical' : 
-                  risk.score >= 15 ? 'text-risk-high' : 
-                  risk.score >= 10 ? 'text-risk-medium' : 'text-risk-low'
-                }`}>
-                  {risk.score}
-                </div>
-                <div className="text-xs text-zinc-500 uppercase font-mono mt-1">Risk Score</div>
-              </div>
-            </div>
-          </motion.div>
-          ))}
+          <div className="flex items-center gap-4">
+             <button className="relative text-zinc-400 hover:text-white transition-colors">
+                <Bell size={20} />
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+             </button>
+             
+             <Button onClick={() => setIsModalOpen(true)} className="shadow-lg shadow-blue-500/20">
+                <Plus size={16} className="mr-2" /> New Risk
+             </Button>
+          </div>
+        </header>
+
+        {/* Dashboard Scrollable Area */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 relative scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.5 }}
+           >
+              <DashboardGrid />
+           </motion.div>
+        </main>
+
       </div>
 
-      {/* Le Modal intégré ici */}
       <CreateRiskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );

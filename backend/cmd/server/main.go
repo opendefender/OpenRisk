@@ -15,10 +15,10 @@ func main() {
 	// 1. Database
 	database.Connect()
 	
-	// 🔄 AUTO-MIGRATION : Crée la table 'risks' dans Postgres automatiquement
+	// AUTO-MIGRATION : Crée la table 'risks' dans Postgres automatiquement
 	// C'est vital pour le déploiement facile "One Command"
 	log.Println("🔃 Running Auto-Migration...")
-	database.DB.AutoMigrate(&domain.Risk{})
+	database.DB.AutoMigrate(&domain.Risk{}, &domain.Mitigation{})
 
 	// 2. App Setup
 	app := fiber.New(fiber.Config{
@@ -30,6 +30,7 @@ func main() {
 
 	// 3. Routes API
 	api := app.Group("/api/v1") // Versioning API
+	api.Get("/stats", handlers.GetDashboardStats)
 	
 	// Routes Risques
 	api.Post("/risks", handlers.CreateRisk)
