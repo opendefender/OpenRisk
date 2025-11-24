@@ -2,37 +2,181 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
-	"github.com/opendefender/openrisk/internal/repositories"
 )
+
+// CreateRiskInput : DTO pour séparer la logique API de la logique DB
+// Permet de recevoir une liste d'IDs d'assets (strings) au lieu d'objets complets
+type CreateRiskInput struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Impact      int      `json:"impact"`
+	Probability int      `json:"probability"`
+	Tags        []string `json:"tags"`
+	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
+}
+
+// UpdateRiskInput : DTO pour la mise à jour partielle
+type UpdateRiskInput struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Impact      int      `json:"impact"`
+	Probability int      `json:"probability"`
+	Status      string   `json:"status"`
+	Tags        []string `json:"tags"`
+}
 
 // CreateRisk godoc
 // @Summary Créer un nouveau risque
-// @Description Ajoute un risque et calcule automatiquement son score.
+// @Description Ajoute un risque, calcule son score et lie les assets.
 func CreateRisk(c *fiber.Ctx) error {
-	risk := new(domain.Risk)
-
-	// Parsing du JSON reçu
-	if err := c.BodyParser(risk); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input", "details": err.Error()})
+	input := new(CreateRiskInput)
+	
+	// 1. Validation de l'input JSON
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid input format",
+			"details": err.Error(),
+		})
 	}
 
-	// Sauvegarde (Le Hook BeforeSave calculera le score)
-	if err := repositories.CreateRisk(risk); err != nil {
+	// 2. Mapping DTO -> Domain Entity
+	risk := domain.Risk{
+		Title:       input.Title,
+		Description: input.Description,
+		Impact:      input.Impact,
+		Probability: input.Probability,
+		Tags:        input.Tags,
+		Status:      domain.StatusDraft, // Statut par défaut
+		Source:      "MANUAL",           // Créé via l'UI
+	}
+
+	// 3. Gestion des relations Assets (Many-to-Many)
+	if len(input.AssetIDs) > 0 {
+		var assets []*domain.Asset
+		// GORM est intelligent : "id IN ?" fonctionne avec un slice de strings
+		result := database.DB.Where("id IN ?", input.AssetIDs).Find(&assets)
+		if result.Error != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to verify assets"})
+		}
+		
+		// On associe les objets Assets trouvés au Risque
+		risk.Assets = assets
+	}
+
+	// 4. Sauvegarde en base
+	// Note: Le Hook BeforeSave dans le modèle Risk calculera automatiquement le Score
+	if err := database.DB.Create(&risk).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not create risk"})
 	}
 
-	// Retourne le risque créé avec son score calculé
+	// 5. Retourne l'objet créé avec son ID et son Score calculé
+	// On recharge pour être sûr d'avoir les relations si besoin (optionnel ici, mais propre)
 	return c.Status(201).JSON(risk)
 }
 
 // GetRisks godoc
-// @Summary Lister les risques
-// @Description Retourne la liste des risques triés par criticité.
+// @Summary Lister tous les risques
+// @Description Récupère les risques triés par score décroissant (les plus critiques en premier).
 func GetRisks(c *fiber.Ctx) error {
-	risks, err := repositories.GetAllRisks()
-	if err != nil {
+	var risks []domain.Risk
+
+	// Preload "Mitigations" et "Assets" est crucial pour l'affichage complet dans le Dashboard
+	// Order("score desc") assure que l'utilisateur voit les urgences en haut
+	result := database.DB.
+		Preload("Mitigations").
+		Preload("Assets").
+		Order("score desc").
+		Find(&risks)
+
+	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch risks"})
 	}
+
 	return c.JSON(risks)
+}
+
+// GetRisk godoc
+// @Summary Récupérer un risque unique
+// @Description Détails complets d'un risque par ID.
+func GetRisk(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if _, err := uuid.Parse(id); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+
+	var risk domain.Risk
+	result := database.DB.
+		Preload("Mitigations").
+		Preload("Assets").
+		First(&risk, "id = ?", id)
+
+	if result.Error != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+	}
+
+	return c.JSON(risk)
+}
+
+// UpdateRisk godoc
+// @Summary Mettre à jour un risque
+// @Description Mise à jour des champs (Titre, Score, Statut). Recalcule le score automatiquement.
+func UpdateRisk(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var risk domain.Risk
+
+	// 1. Vérifier l'existence
+	if err := database.DB.First(&risk, "id = ?", id).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+	}
+
+	// 2. Parser les nouvelles données
+	input := new(UpdateRiskInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	// 3. Mise à jour des champs (uniquement si fournis)
+	if input.Title != "" { risk.Title = input.Title }
+	if input.Description != "" { risk.Description = input.Description }
+	if input.Status != "" { risk.Status = domain.RiskStatus(input.Status) }
+	if len(input.Tags) > 0 { risk.Tags = input.Tags }
+	
+	// Si Impact ou Proba change, le hook BeforeSave recalculera le Score
+	if input.Impact != 0 { risk.Impact = input.Impact }
+	if input.Probability != 0 { risk.Probability = input.Probability }
+
+	// 4. Sauvegarde
+	if err := database.DB.Save(&risk).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not update risk"})
+	}
+
+	return c.JSON(risk)
+}
+
+// DeleteRisk godoc
+// @Summary Supprimer un risque
+// @Description Soft delete d'un risque.
+func DeleteRisk(c *fiber.Ctx) error {
+	id := c.Params("id")
+	
+	// Validation UUID
+	if _, err := uuid.Parse(id); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+
+	// Delete avec GORM (Soft Delete par défaut grâce au champ DeletedAt dans le modèle)
+	result := database.DB.Delete(&domain.Risk{}, "id = ?", id)
+
+	if result.Error != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not delete risk"})
+	}
+
+	if result.RowsAffected == 0 {
+		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+	}
+
+	return c.SendStatus(204) // No Content
 }
