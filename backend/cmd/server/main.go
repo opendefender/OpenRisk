@@ -153,10 +153,12 @@ func main() {
 
 	api.Get("/stats/risk-matrix", handlers.GetRiskMatrixData)
 
-	api.Get("/stats/risk-matrix", handlers.GetRiskMatrixData)
 	api.Get("/export/pdf", handlers.ExportRisksPDF)
 
 	api.Get("/stats/trends", middleware.Protected(), handlers.GetGlobalRiskTrend)
+
+	api.Get("/mitigations/recommended", handlers.GetRecommendedMitigations) 
+	
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
 	// =========================================================================

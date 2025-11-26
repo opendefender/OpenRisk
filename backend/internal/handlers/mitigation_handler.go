@@ -5,6 +5,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/services"
+	"sort"
 )
 
 // AddMitigation ajoute une action corrective à un risque
@@ -52,4 +54,23 @@ func ToggleMitigationStatus(c *fiber.Ctx) error {
 
 	database.DB.Save(&mitigation)
 	return c.JSON(mitigation)
+}
+
+// GetRecommendedMitigations expose la liste des mitigations triées par SPP.
+func GetRecommendedMitigations(c *fiber.Ctx) error {
+	service := services.NewRecommendationService()
+	
+	// 1. Récupérer et calculer les priorités
+	mitigations, err := service.GetPrioritizedMitigations()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to get prioritized mitigations"})
+	}
+
+	// 2. Trier la liste dans le Handler avant l'envoi (meilleure pratique)
+	// On veut le SPP le plus élevé en premier.
+	sort.Slice(mitigations, func(i, j int) bool {
+		return mitigations[i].WeightedPriority > mitigations[j].WeightedPriority
+	})
+
+	return c.JSON(mitigations)
 }

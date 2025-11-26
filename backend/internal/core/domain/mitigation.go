@@ -33,5 +33,11 @@ type Mitigation struct {
 	Cost           int       `gorm:"default:1" json:"cost"`             // Catégorie de coût: 1 (Faible) à 3 (Élevé)
 	MitigationTime int       `gorm:"default:1" json:"mitigation_time"` // Temps estimé en Jours
 
+	// Champ non-persistant pour le calcul du SPP
+	WeightedPriority float64 `gorm:"-" json:"weighted_priority"` 
+
+	// Relation avec le Risque (pour la lecture)
+	Risk *Risk `json:"risk,omitempty"` // Preload	
+
 	gorm.Model
 }
