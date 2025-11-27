@@ -9,7 +9,7 @@ import { useAssetStore } from '../../../hooks/useAssetStore';
 import { useAuthStore } from '../../../hooks/useAuthStore';
 import { RiskMatrix } from './RiskMatrix';
 import { Button } from '../../../components/ui/Button';
-import { RiskTrendChart } from './components/RiskTrendChart';
+import { RiskTrendChart } from './RiskTrendChart';
 
 // =================================================================
 // Composants UI Internes (Widgets)

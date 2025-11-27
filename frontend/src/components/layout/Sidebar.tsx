@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Overview', path: '/'},
-  { icon: ShieldAlert, label: 'Risks' },
+  { icon: ShieldAlert, label: 'Risks', path: '/risks' },
   { icon: Activity, label: 'Incidents' },
   { icon: Map, label: 'Threat Map' },
   { icon: FileText, label: 'Reports' },
   { icon: Settings, label: 'Settings', path: '/settings'},
   { icon: Server,  label: 'Assets', path: '/assets' },
+  { icon: Sparkles, label: 'Intelligence', path: '/recommendations', active: false },
 ];
 
 export const Sidebar = () => {
@@ -33,7 +34,7 @@ export const Sidebar = () => {
           animate={{ opacity: isCollapsed ? 0 : 1 }}
           className="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent"
         >
-          OpenDefender
+          OpenRisk
         </motion.span>
       </div>
 
@@ -42,6 +43,7 @@ export const Sidebar = () => {
         {menuItems.map((item) => (
           <button
             key={item.label}
+            onClick={() => item.path && navigate(item.path)}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
               item.active 
@@ -65,7 +67,7 @@ export const Sidebar = () => {
 
       {/* Collapse Button */}
       <button 
-        onClick={() => navigate(item.path)}
+        onClick={() => setIsCollapsed(!isCollapsed)}
         // onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-10 w-6 h-6 bg-zinc-900 border border-border rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:border-primary transition-colors z-20 shadow-lg"
       >

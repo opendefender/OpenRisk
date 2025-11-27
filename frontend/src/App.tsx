@@ -16,6 +16,8 @@ import { DashboardGrid } from './features/dashboard/components/DashboardGrid';
 import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
 import { RiskDetails } from './features/risks/components/RiskDetails';
 import { Assets } from './pages/Assets';
+import { Recommendations } from './pages/Recommendations';
+
 
 // --- Imports UI Components ---
 import { Button } from './components/ui/Button';
@@ -175,6 +177,7 @@ function App() {
                 <Route index element={<DashboardView />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="assets" element={<Assets />} />
+                <Route path="recommendations" element={<Recommendations />} />
                 {/* Tu pourras ajouter /reports, /threats ici plus tard */}
               </Routes>
             </DashboardLayout>

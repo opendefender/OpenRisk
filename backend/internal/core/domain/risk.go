@@ -41,7 +41,7 @@ type Risk struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Mitigations []Mitigation `gorm:"foreignKey:RiskID" json:"mitigations"`
+	Mitigations []Mitigation `gorm:"-" json:"mitigations,omitempty"`
 
 	Assets []*Asset `gorm:"many2many:asset_risks;" json:"assets,omitempty"`
 }
