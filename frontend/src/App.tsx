@@ -17,6 +17,7 @@ import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
 import { RiskDetails } from './features/risks/components/RiskDetails';
 import { EditRiskModal } from './features/risks/components/EditRiskModal';
 import { Assets } from './pages/Assets';
+import { Risks } from './pages/Risks';
 import { Recommendations } from './pages/Recommendations';
 
 
@@ -182,6 +183,7 @@ function App() {
               <Routes>
                 {/* Sous-routes injectées dans le Layout */}
                 <Route index element={<DashboardView />} />
+                <Route path="risks" element={<Risks />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="assets" element={<Assets />} />
                 <Route path="recommendations" element={<Recommendations />} />
