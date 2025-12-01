@@ -105,8 +105,14 @@ func CreateRisk(c *fiber.Ctx) error {
 	final := services.ComputeRiskScore(risk.Impact, risk.Probability, risk.Assets)
 	risk.Score = final
 
-	if err := database.DB.Create(&risk).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create risk"})
+	if len(input.Tags) == 0 {
+		if err := database.DB.Omit("tags").Create(&risk).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Could not create risk"})
+		}
+	} else {
+		if err := database.DB.Create(&risk).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Could not create risk"})
+		}
 	}
 
 	// 5. Reload with relations for the response
@@ -310,8 +316,14 @@ func UpdateRisk(c *fiber.Ctx) error {
 	final := services.ComputeRiskScore(risk.Impact, risk.Probability, risk.Assets)
 	risk.Score = final
 
-	if err := database.DB.Save(&risk).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not update risk"})
+	if len(input.Tags) == 0 {
+		if err := database.DB.Omit("tags").Save(&risk).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Could not update risk"})
+		}
+	} else {
+		if err := database.DB.Save(&risk).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Could not update risk"})
+		}
 	}
 
 	// Reload with relations for response
