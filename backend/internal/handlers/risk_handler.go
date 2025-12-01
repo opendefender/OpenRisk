@@ -79,7 +79,6 @@ func CreateRisk(c *fiber.Ctx) error {
 		Impact:      input.Impact,
 		Probability: input.Probability,
 		Status:      domain.StatusDraft, // Statut par défaut
-		Source:      "MANUAL",           // Créé via l'UI
 	}
 
 	// Only set Tags if provided to avoid inserting NULL into databases that
