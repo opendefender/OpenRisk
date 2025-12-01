@@ -54,7 +54,7 @@ func ExportRisksPDF(c *fiber.Ctx) error {
 		}
 
 		// Pour la lisibilité, les cellules sont définies par ligne
-		pdf.CellFormat(colWidths[0], 6, fmt.Sprintf("%d", risk.Score), "1", 0, "C", false, 0, "")
+		pdf.CellFormat(colWidths[0], 6, fmt.Sprintf("%.2f", risk.Score), "1", 0, "C", false, 0, "")
 		pdf.CellFormat(colWidths[1], 6, risk.Title, "1", 0, "L", false, 0, "")
 		pdf.CellFormat(colWidths[2], 6, fmt.Sprintf("%d", risk.Impact), "1", 0, "C", false, 0, "")
 		pdf.CellFormat(colWidths[3], 6, fmt.Sprintf("%d", risk.Probability), "1", 0, "C", false, 0, "")
