@@ -35,31 +35,7 @@ export const Risks = () => {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold">Risk Register</h2>
         <div className="flex items-center gap-3">
-          <label className="text-sm text-zinc-400">Sort</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-surface p-2 rounded">
-            <option value="score">Score</option>
-            <option value="title">Title</option>
-            <option value="created_at">Created</option>
-            <option value="updated_at">Updated</option>
-            <option value="impact">Impact</option>
-            <option value="probability">Probability</option>
-            <option value="status">Status</option>
-            <option value="source">Source</option>
-          </select>
-          <div className="flex items-center gap-2">
-            <select value={sortDir} onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')} className="bg-surface p-2 rounded">
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-            <button
-              type="button"
-              aria-label="Toggle sort direction"
-              onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-              className="p-2 bg-surface rounded"
-            >
-              {sortDir === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-          </div>
+          <div className="text-sm text-zinc-400">Sort by clicking table headers</div>
           <label className="text-sm text-zinc-400">Per page</label>
           <select value={localPageSize} onChange={(e) => { setLocalPageSize(Number(e.target.value)); setLocalPage(1); }} className="bg-surface p-2 rounded">
             <option value={5}>5</option>
@@ -71,7 +47,7 @@ export const Risks = () => {
 
       <div className="bg-surface border border-border rounded-md overflow-hidden">
         <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-zinc-400 border-b border-border">
-          <div className="col-span-6">
+          <div className="col-span-4">
             <button
               type="button"
               className="flex items-center gap-2 focus:outline-none"
@@ -79,6 +55,7 @@ export const Risks = () => {
                 if (sortBy === 'title') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                 setSortBy('title');
               }}
+              aria-sort={sortBy === 'title' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
             >
               <span>Title</span>
               {sortBy === 'title' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
@@ -92,9 +69,38 @@ export const Risks = () => {
                 if (sortBy === 'score') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                 setSortBy('score');
               }}
+              aria-sort={sortBy === 'score' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
             >
               <span>Score</span>
               {sortBy === 'score' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+            </button>
+          </div>
+          <div className="col-span-1">
+            <button
+              type="button"
+              className="flex items-center gap-2 focus:outline-none"
+              onClick={() => {
+                if (sortBy === 'impact') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                setSortBy('impact');
+              }}
+              aria-sort={sortBy === 'impact' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            >
+              <span>Impact</span>
+              {sortBy === 'impact' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+            </button>
+          </div>
+          <div className="col-span-1">
+            <button
+              type="button"
+              className="flex items-center gap-2 focus:outline-none"
+              onClick={() => {
+                if (sortBy === 'probability') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                setSortBy('probability');
+              }}
+              aria-sort={sortBy === 'probability' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            >
+              <span>Probability</span>
+              {sortBy === 'probability' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
             </button>
           </div>
           <div className="col-span-2">
@@ -105,12 +111,26 @@ export const Risks = () => {
                 if (sortBy === 'status') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                 setSortBy('status');
               }}
+              aria-sort={sortBy === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
             >
               <span>Status</span>
               {sortBy === 'status' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
             </button>
           </div>
-          <div className="col-span-2">Tags</div>
+          <div className="col-span-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 focus:outline-none"
+              onClick={() => {
+                if (sortBy === 'created_at') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                setSortBy('created_at');
+              }}
+              aria-sort={sortBy === 'created_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            >
+              <span>Created</span>
+              {sortBy === 'created_at' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+            </button>
+          </div>
           <div className="col-span-1">Actions</div>
         </div>
 
