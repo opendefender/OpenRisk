@@ -98,6 +98,22 @@ func GetRisks(c *fiber.Ctx) error {
 		Preload("Assets").
 		Order("score desc")
 
+	// Pagination
+	pageStr := c.Query("page")
+	limitStr := c.Query("limit")
+	page := 1
+	limit := 20
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 200 {
+			limit = l
+		}
+	}
+
 	if q != "" {
 		like := fmt.Sprintf("%%%s%%", q)
 		db = db.Where("title ILIKE ? OR description ILIKE ?", like, like)
@@ -124,12 +140,18 @@ func GetRisks(c *fiber.Ctx) error {
 		db = db.Where("? = ANY(tags)", tag)
 	}
 
-	result := db.Find(&risks)
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not count risks"})
+	}
+
+	offset := (page - 1) * limit
+	result := db.Limit(limit).Offset(offset).Find(&risks)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch risks"})
 	}
 
-	return c.JSON(risks)
+	return c.JSON(fiber.Map{"items": risks, "total": total})
 }
 
 // GetRisk godoc

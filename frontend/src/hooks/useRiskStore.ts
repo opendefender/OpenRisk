@@ -36,22 +36,48 @@ interface RiskFetchParams {
 interface RiskStore {
   risks: Risk[];
   isLoading: boolean;
-  fetchRisks: (params?: RiskFetchParams) => Promise<void>;
+  // pagination
+  total: number;
+  page: number;
+  pageSize: number;
+  setPage: (p: number) => Promise<void>;
+
+  fetchRisks: (params?: RiskFetchParams & { page?: number; limit?: number }) => Promise<void>;
 }
 
 // --- STORE ZUSTAND ---
 
-export const useRiskStore = create<RiskStore>((set) => ({
+export const useRiskStore = create<RiskStore>((set, get) => ({
   risks: [],
   isLoading: false,
+  total: 0,
+  page: 1,
+  pageSize: 20,
+
+  setPage: async (p: number) => {
+    set({ page: p });
+    // Re-fetch with current filters (if any)
+    await get().fetchRisks({ page: p, limit: get().pageSize });
+  },
+
   fetchRisks: async (params) => {
     set({ isLoading: true });
     try {
       const response = await api.get('/risks', { params });
-      set({ risks: response.data });
+
+      // Support new paginated response: { items: [...], total: number }
+      if (response.data && response.data.items) {
+        set({ risks: response.data.items, total: response.data.total || 0 });
+      } else if (Array.isArray(response.data)) {
+        set({ risks: response.data, total: response.data.length });
+      } else {
+        // Fallback
+        set({ risks: [], total: 0 });
+      }
     } catch (error) {
       console.error('Failed to fetch risks', error);
       // In production, set an error state or show a toast
+      set({ risks: [], total: 0 });
     } finally {
       set({ isLoading: false });
     }
