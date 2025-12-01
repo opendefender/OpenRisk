@@ -17,64 +17,68 @@ import (
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
+// Test-only lightweight structs to avoid DB-specific defaults (used with sqlite in-memory)
+type UserT struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Email     string    `gorm:"not null"`
+	Password  string
+	FullName  string
+	Role      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (UserT) TableName() string { return "users" }
+
+type RiskT struct {
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Title       string    `gorm:"size:255;not null"`
+	Description string    `gorm:"type:text"`
+	Impact      int
+	Probability int
+	Score       float64
+	Status      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
+}
+
+func (RiskT) TableName() string { return "risks" }
+
+type MitigationT struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	RiskID    uuid.UUID
+	Title     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (MitigationT) TableName() string { return "mitigations" }
+
+type AssetT struct {
+	ID   uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Name string
+}
+
+func (AssetT) TableName() string { return "assets" }
+
+type RiskHistoryT struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	RiskID    uuid.UUID
+	Score     float64
+	CreatedAt time.Time
+}
+
+func (RiskHistoryT) TableName() string { return "risk_histories" }
+
 func setupAppWithDB(t *testing.T) *fiber.App {
 	// In-memory SQLite for fast tests
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
-
-	// For sqlite tests, avoid DB-specific default expressions (gen_random_uuid) by
-	// creating lightweight test-only structs that map to the same table names.
-	type UserT struct {
-		ID        uuid.UUID      `gorm:"type:uuid;primaryKey"`
-		Email     string         `gorm:"not null"`
-		Password  string
-		FullName  string
-		Role      string
-		CreatedAt time.Time
-		UpdatedAt time.Time
-		DeletedAt gorm.DeletedAt `gorm:"index"`
-	}
-	func (UserT) TableName() string { return "users" }
-
-	type RiskT struct {
-		ID          uuid.UUID      `gorm:"type:uuid;primaryKey"`
-		Title       string         `gorm:"size:255;not null"`
-		Description string         `gorm:"type:text"`
-		Impact      int
-		Probability int
-		Score       float64
-		Status      string
-		CreatedAt   time.Time
-		UpdatedAt   time.Time
-		DeletedAt   gorm.DeletedAt `gorm:"index"`
-	}
-	func (RiskT) TableName() string { return "risks" }
-
-	type MitigationT struct {
-		ID        uuid.UUID      `gorm:"type:uuid;primaryKey"`
-		RiskID    uuid.UUID
-		Title     string
-		CreatedAt time.Time
-		UpdatedAt time.Time
-		DeletedAt gorm.DeletedAt `gorm:"index"`
-	}
-	func (MitigationT) TableName() string { return "mitigations" }
-
-	type AssetT struct {
-		ID   uuid.UUID `gorm:"type:uuid;primaryKey"`
-		Name string
-	}
-	func (AssetT) TableName() string { return "assets" }
-
-	type RiskHistoryT struct {
-		ID        uuid.UUID      `gorm:"type:uuid;primaryKey"`
-		RiskID    uuid.UUID
-		Score     float64
-		CreatedAt time.Time
-	}
-	func (RiskHistoryT) TableName() string { return "risk_histories" }
 
 	// migrate schema using test-only structs
 	if err := db.AutoMigrate(&UserT{}, &RiskT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}); err != nil {
