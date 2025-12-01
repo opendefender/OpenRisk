@@ -25,6 +25,10 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
   const setPage = useRiskStore((s) => s.setPage);
 
   const debounceRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [highlighted, setHighlighted] = useState<number>(-1);
+  const [suggestionsOpen, setSuggestionsOpen] = useState<boolean>(false);
 
   useEffect(() => {
     // Debounce typing for 300ms
@@ -34,12 +38,32 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
     debounceRef.current = window.setTimeout(() => {
       // When typing, fetch few suggestions only
       fetchRisks(query ? { q: query, limit: 5 } : { page, limit: pageSize });
+      setSuggestionsOpen(Boolean(query));
+      setHighlighted(-1);
     }, 300);
 
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [query, fetchRisks, page, pageSize]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) {
+        setSuggestionsOpen(false);
+        setHighlighted(-1);
+      }
+    };
+    window.addEventListener('click', onClick);
+    return () => window.removeEventListener('click', onClick);
+  }, []);
+
+  // Reset highlight when risks list changes
+  useEffect(() => {
+    setHighlighted(-1);
+  }, [risks]);
 
   const applyFilters = async () => {
     setShowFilters(false);
@@ -63,12 +87,36 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
       
       {/* Search Bar (Linear style) */}
       <div className="relative">
-        <div className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-white transition-colors group">
+        <div ref={containerRef} className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-white transition-colors group">
           <Search size={14} className="group-focus-within:text-primary transition-colors" />
           <input 
               type="text" 
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              ref={inputRef}
+              onChange={(e) => { setQuery(e.target.value); setSuggestionsOpen(true); }}
+              onKeyDown={(e) => {
+                if (!suggestionsOpen) return;
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setHighlighted((h) => Math.min(h + 1, Math.max(0, risks.length - 1)));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setHighlighted((h) => Math.max(h - 1, 0));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (highlighted >= 0 && highlighted < risks.length) {
+                    const r = risks[highlighted];
+                    setQuery(r.title);
+                    setSuggestionsOpen(false);
+                    // trigger a focused search for the selected item
+                    fetchRisks({ q: r.title, limit: 5 });
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setSuggestionsOpen(false);
+                  setHighlighted(-1);
+                }
+              }}
               placeholder="Search risks, assets..." 
               className="bg-transparent border-none outline-none text-sm w-56 placeholder:text-zinc-600"
           />
@@ -79,10 +127,22 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
         </div>
 
         {/* Suggestions / Typeahead Panel */}
-        {query && !isLoading && risks.length > 0 && (
+        {suggestionsOpen && query && !isLoading && risks.length > 0 && (
           <div className="absolute mt-1 w-64 bg-surface border border-white/5 rounded-md shadow-lg z-20">
-            {risks.slice(0, 5).map((r) => (
-              <div key={r.id} className="px-3 py-2 hover:bg-white/5 cursor-pointer">
+            {risks.slice(0, 5).map((r, idx) => (
+              <div
+                key={r.id}
+                role="option"
+                aria-selected={highlighted === idx}
+                onMouseEnter={() => setHighlighted(idx)}
+                onMouseLeave={() => setHighlighted(-1)}
+                onClick={() => {
+                  setQuery(r.title);
+                  setSuggestionsOpen(false);
+                  fetchRisks({ q: r.title, limit: 5 });
+                }}
+                className={`px-3 py-2 cursor-pointer ${highlighted === idx ? 'bg-primary/10' : 'hover:bg-white/5'}`}
+              >
                 <div className="text-sm font-medium">{r.title}</div>
                 <div className="text-xs text-zinc-400">Score: {r.score} · {r.tags?.slice(0,2).join(', ')}</div>
               </div>
