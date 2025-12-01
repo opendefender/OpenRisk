@@ -27,7 +27,8 @@ const getAssetIcon = (type: string) => {
 // --- Composant Principal ---
 
 export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
-  const { fetchRisks } = useRiskStore();
+    const { fetchRisks } = useRiskStore();
+    const deleteRisk = useRiskStore((s) => s.deleteRisk);
   const [activeTab, setActiveTab] = useState<'overview' | 'mitigations'>('overview');
   const [newMitigationTitle, setNewMitigationTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -40,7 +41,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
 
     setIsAdding(true);
     try {
-      // Endpoint /risks/:id/mitigations défini au Commit #8
+      // Endpoint /risks/:id/mitigations défini
       await api.post(`/risks/${risk.id}/mitigations`, {
         title: newMitigationTitle,
         assignee: 'Current User',
@@ -98,9 +99,8 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
                 <Button onClick={async () => {
                     if (!confirm('Supprimer ce risque ? Cette action est irréversible.')) return;
                     try {
-                        await api.delete(`/risks/${risk.id}`);
+                        await deleteRisk(risk.id);
                         toast.success('Risque supprimé');
-                        fetchRisks();
                         if (onClose) onClose();
                     } catch (e) {
                         toast.error('Erreur lors de la suppression');
@@ -113,7 +113,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
       </p>
 
             {/* Edit Modal */}
-            <EditRiskModal isOpen={openEdit} onClose={() => setOpenEdit(false)} risk={risk} />
+            <EditRiskModal isOpen={openEdit} onClose={() => setOpenEdit(false)} risk={risk} onSuccess={() => { setOpenEdit(false); if (onClose) onClose(); }} />
 
       {/* 2. Assets Impactés (Ajout Commit #13) */}
       {risk.assets && risk.assets.length > 0 && (

@@ -26,6 +26,7 @@ interface EditRiskModalProps {
   isOpen: boolean;
   onClose: () => void;
   risk: any | null;
+  onSuccess?: () => void;
 }
 
 export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => {
@@ -56,6 +57,26 @@ export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => 
     }
   }, [isOpen, risk, setValue, reset, fetchAssets]);
 
+  // Accessibility: focus title input when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = window.setTimeout(() => {
+      const el = document.querySelector('input[name="title"]') as HTMLInputElement | null;
+      el?.focus();
+    }, 40);
+    return () => window.clearTimeout(t);
+  }, [isOpen]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
   const selectedAssetIds = watch('asset_ids') || [];
   const toggleAsset = (assetId: string) => {
     const current = selectedAssetIds;
@@ -69,6 +90,11 @@ export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => 
       await updateRisk(risk.id, data);
       toast.success('Risque mis à jour');
       onClose();
+      if (typeof ({} as any) !== 'undefined') {
+        // call onSuccess if provided
+      }
+      // call provided onSuccess from props
+      try { (onSuccess as any)?.(); } catch (_) {}
     } catch (err) {
       toast.error('Erreur lors de la mise à jour');
     }
