@@ -6,6 +6,7 @@ import { api } from '../../../lib/api';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { useRiskStore, type Risk } from '../../../hooks/useRiskStore';
+import { EditRiskModal } from './EditRiskModal';
 
 // --- Interfaces et Types (à mettre idéalement dans les stores respectifs) ---
 
@@ -29,6 +30,7 @@ export const RiskDetails = ({ risk }: RiskDetailsProps) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'mitigations'>('overview');
   const [newMitigationTitle, setNewMitigationTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+    const [openEdit, setOpenEdit] = useState(false);
 
   // Ajout d'une mitigation
   const handleAddMitigation = async (e: React.FormEvent) => {
@@ -74,7 +76,7 @@ export const RiskDetails = ({ risk }: RiskDetailsProps) => {
 
   return (
     <div className="space-y-6">
-      {/* 1. En-tête et Badges */}
+            {/* 1. En-tête et Badges */}
       <div className="flex flex-wrap gap-2 items-center">
         <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getScoreStyle(risk.score)}`}>
             SCORE: {risk.score}
@@ -89,9 +91,27 @@ export const RiskDetails = ({ risk }: RiskDetailsProps) => {
         ))}
       </div>
 
-      <p className="text-zinc-300 leading-relaxed text-sm">
+            {/* Actions: Edit / Delete */}
+            <div className="flex items-center gap-2">
+                <Button onClick={() => setOpenEdit(true)} variant="ghost">Modifier</Button>
+                <Button onClick={async () => {
+                    if (!confirm('Supprimer ce risque ? Cette action est irréversible.')) return;
+                    try {
+                        await api.delete(`/risks/${risk.id}`);
+                        toast.success('Risque supprimé');
+                        fetchRisks();
+                    } catch (e) {
+                        toast.error('Erreur lors de la suppression');
+                    }
+                }} variant="destructive">Supprimer</Button>
+            </div>
+
+            <p className="text-zinc-300 leading-relaxed text-sm">
         {risk.description}
       </p>
+
+            {/* Edit Modal */}
+            <EditRiskModal isOpen={openEdit} onClose={() => setOpenEdit(false)} risk={risk} />
 
       {/* 2. Assets Impactés (Ajout Commit #13) */}
       {risk.assets && risk.assets.length > 0 && (
