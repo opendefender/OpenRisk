@@ -19,14 +19,20 @@ import (
 
 // Test-only lightweight structs to avoid DB-specific defaults (used with sqlite in-memory)
 type UserT struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
-	Email     string    `gorm:"not null"`
-	Password  string
-	FullName  string
-	Role      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Email        string    `gorm:"not null"`
+	Password     string
+	FullName     string
+	Role         string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Tags         string
+	Owner        string
+	Source       string
+	ExternalID   string
+	CustomFields string
+	Frameworks   string
+	DeletedAt    gorm.DeletedAt `gorm:"index"`
 }
 
 func (UserT) TableName() string { return "users" }
