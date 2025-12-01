@@ -49,6 +49,10 @@ func CreateRisk(c *fiber.Ctx) error {
 	}
 
 	// 2. Basic validation
+	if input.Title == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Title is required"})
+	}
+
 	if input.Impact < 1 || input.Impact > 5 {
 		return c.Status(400).JSON(fiber.Map{"error": "Impact must be between 1 and 5"})
 	}

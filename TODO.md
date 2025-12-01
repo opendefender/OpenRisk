@@ -12,15 +12,15 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 ## Priorités immédiates (Top 5)
 - ✅ 7. Add tests for `Risks` pagination (tests unitaires + RTL)
-- ⬜ 8. Design Risk schema (domain model: Risk, Score, Fields)
+- ✅ 8. Design Risk schema (domain model: Risk, Score, Fields)
   
-	 - ⬜ Subtasks for `Design Risk schema`:
+	 - ✅ Subtasks for `Design Risk schema`:
 		 - schema definition (fields, types, relations)
 		 - DB migration plan
 		 - domain models (backend)
 		 - TypeScript interfaces (frontend)
 		 - sample fixtures & seeds
-- ⬜ 9. Implement Risk CRUD API (backend handlers + validation)
+- ✅ 9. Implement Risk CRUD API (backend handlers + validation)
   
 	 - ⬜ Subtasks for `Implement Risk CRUD API`:
 		 - schema & migrations
@@ -57,8 +57,8 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 - ✅ Add server-side sorting
 - ✅ Wire Risks Edit button
 - ✅ 7. Add tests for Risks pagination
-- ⬜ 8. Design Risk schema
-- ⬜ 9. Implement Risk CRUD API
+- ✅ 8. Design Risk schema
+- ✅ 9. Implement Risk CRUD API
 - ⬜ 10. Implement Risk CRUD frontend
 - ⬜ 11. Add score calculation engine
 - ⬜ 12. Add frameworks classification (ISO27001, CIS, NIST, OWASP)
@@ -96,6 +96,9 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 - ⬜ 26. Charts & animated cards (Recharts, Framer Motion)
 - ⬜ 27. Global security score widget
 - ⬜ 28. Trends (30/60/90 days)
+- ⬜ UI Kit + composant Atom/Molecule/Organism
+- ⬜ Standardisation animations & theme
+- ⬜ Composants réutilisables dans toute la suite
 
 ## 4. Backend & API
 - ⬜ 29. Unified API endpoints (risks, mitigations, assets, stats)
@@ -186,7 +189,133 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 - ⬜ 49. Accessibility & a11y polish
 - ⬜ 50. UX polish & theme/dark mode
 
+
+## 9. Ajouter un "OpenDefender Design System"
+> couleurs
+> spacing
+> composants tailwind réutilisables
+> typography scale
+> badges
+> alerts
+> cards
+> states (loading/error/empty/success)
+> animations standardisées
+
+- ⬜ OpenDefender UI Kit (frontend library)
+- ⬜ Standardisation des composants (atoms/molecules/organisms)
+
+## 10. Ajouter les événements (Webhooks + EventBus)
+> # OpenRisk doit envoyer :
+> risk.created
+> risk.updated
+> risk.mitigated
+> risk.deleted
+> asset.linked
+> mitigation.progress
+
+- ⬜ EventBus interne (Redis / NATS / Kafka)
+- ⬜ Webhooks configuration UI
+- ⬜ Retry logic
+- ⬜ Signature HMAC des webhooks
+
+## Ajouter un module Notifications (email + Slack + webhook)
+> Très important pour :
+> deadlines
+> risques critiques
+> nouvelles vulnérabilités
+> actions assignées
+
+- ⬜ Notification service (backend)
+- ⬜ Notification rules engine
+- ⬜ Templates email
+- ⬜ Slack & Teams support
+- ⬜ UI de configuration
+
+## Ajouter l'Export Pro (PDF / HTML / JSON)
+> rapport des risques
+> rapport mitigation
+> tableau complet heatmap
+
+- ⬜ Service de génération PDF
+- ⬜ Modèle “Executive Summary”
+- ⬜ Export HTML interactif
+- ⬜ Export JSON via API
+
+## Ajouter un vrai système de tags & taxonomies
+
+- ⬜ Taxonomie centrale OpenDefender : ISO27001, CIS Controls, NIST 800-53, MITRE ATT&CK, OWASP Top 10
+- ⬜ Mapping automatique (IA suggérée plus tard)
+
+## Ajouter un module “Risk Templates”
+> Réutilisables lors de la création d’un risque.
+> Exemples : “Risque intrusion externe”, “Risque données sensibles exposées”, “Risque CVE critique non patchée”, “Risque configuration cloud non conforme”
+
+À ajouter :
+
+- ⬜ templates backend
+- ⬜ mapping automatique metadata
+- ⬜ UI de gestion des templates
+
+
+## Ajouter un SLA / SLO pour la mitigation
+> Très utile pour les équipes :
+> Critique → SLA 7 jours
+> High → SLA 14 jours
+> Medium → 30 jours
+> Low → 90 jours
+À ajouter :
+
+- ⬜ SLA module
+- ⬜ badges SLA respectés / dépassés
+- ⬜ graphes SLA
 ---
+
+## Risk Timeline avancée
+Déjà dans ta roadmap, mais il faut la détailler :
+À ajouter :
+
+- ⬜ Zoom / Pan
+- ⬜ Événements clés (changement probabilité/impact)
+- ⬜ État avant/après mitigation
+- ⬜ Snapshots historiques
+
+## Risk Matrix Designer
+> Donner à l’utilisateur la possibilité de :
+> définir sa propre matrice
+> changer le nombre de niveaux
+> personnaliser la couleur
+> adapter aux réalités locales
+
+## Risk Comments / Discussion Thread
+> Comme GitHub issues mais pour les risques :
+> commentaires
+> mentions @user
+> pièces jointes
+> historique complet
+
+## Gestion des Assets enrichie (mini-CMDB)
+> OpenRisk doit afficher :
+> asset
+> criticité
+> propriétaire
+> type
+> statut
+> localisation
+> Cela renforce les calculs de risques.
+
+## Playbooks Automations (inspiré de Zapier)
+> Exemples :
+> “Si CVE > 9 → créer un risque critique”
+> “Si action en retard → envoyer email responsable”
+
+## Mode auditor (lecture seule avancée)
+> Pour les audits externes (ISO, SOC2, RGPD).
+
+
+
+## Marketplace (futur)
+
+⬜ Place pour modules externes
 
 ## PoC requirement for backend-critical tasks
 - Pour toutes les tâches backend critiques (ex: `Integrations`, `sync-engine`, `RBAC & multi-tenant`), ajouter une phase PoC (prototype) avant d'industrialiser. La phase PoC doit produire :
@@ -200,25 +329,3 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 ---
 
-## Notes & recommandations
-- Je recommande de découper chaque gros item (par ex. `Implement Risk CRUD API`) en sous-tâches : schema, migrations, handlers, validation, tests, openapi contract.
-- Pour les tâches backend critiques (sync, integrations), ajouter une phase PoC (prototype) avant d'industrialiser.
-- Prioriser tests automatisés (unit + API) avant d'ajouter des features majeures.
-
----
-
-Fichier généré automatiquement par l'assistant. Pour committer :
-
-```bash
-git add TODO.md
-git commit -m "Add project TODO roadmap"
-```
-
----
-
-Si vous voulez, je peux :
-- Prioriser cette liste (réduire à 10 items) ;
-- Créer des issues GitHub à partir de ces tâches ;
-- Commencer l'implémentation du premier item (`Add tests for Risks pagination`).
-
-Dites-moi la prochaine action souhaitée.
