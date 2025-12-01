@@ -78,9 +78,14 @@ func CreateRisk(c *fiber.Ctx) error {
 		Description: input.Description,
 		Impact:      input.Impact,
 		Probability: input.Probability,
-		Tags:        input.Tags,
 		Status:      domain.StatusDraft, // Statut par défaut
 		Source:      "MANUAL",           // Créé via l'UI
+	}
+
+	// Only set Tags if provided to avoid inserting NULL into databases that
+	// do not have the tags column (tests using sqlite in-memory).
+	if len(input.Tags) > 0 {
+		risk.Tags = input.Tags
 	}
 
 	// 3. Gestion des relations Assets (Many-to-Many)
