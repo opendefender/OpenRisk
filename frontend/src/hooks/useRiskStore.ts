@@ -92,11 +92,31 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   },
   createRisk: async (payload) => {
     set({ isLoading: true });
+    // optimistic create: add a temporary item to the list
+    const tempId = `tmp-${Date.now()}`;
+    const optimistic: Risk = {
+      id: tempId,
+      title: payload.title || 'Nouvel élément',
+      description: payload.description || '',
+      score: payload.score ?? 0,
+      impact: payload.impact ?? 0,
+      probability: payload.probability ?? 0,
+      status: payload.status || 'DRAFT',
+      tags: payload.tags || [],
+      assets: undefined,
+      source: payload.source || '',
+      mitigations: [],
+    };
+
+    set((state) => ({ risks: [optimistic, ...state.risks], total: state.total + 1 }));
     try {
-      await api.post('/risks', payload);
-      // refresh current page
-      await get().fetchRisks({ page: get().page, limit: get().pageSize });
+      const response = await api.post('/risks', payload);
+      const created = response.data;
+      // replace temp item with created item from server
+      set((state) => ({ risks: state.risks.map((r) => (r.id === tempId ? created : r)) }));
     } catch (err) {
+      // rollback optimistic add
+      set((state) => ({ risks: state.risks.filter((r) => r.id !== tempId), total: Math.max(0, state.total - 1) }));
       console.error('Failed to create risk', err);
       throw err;
     } finally {
@@ -105,10 +125,16 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   },
   updateRisk: async (id, payload) => {
     set({ isLoading: true });
+    const prev = get().risks.find((r) => r.id === id);
+    // apply optimistic patch
+    set((state) => ({ risks: state.risks.map((r) => (r.id === id ? { ...r, ...payload } : r)) }));
     try {
-      await api.patch(`/risks/${id}`, payload);
-      await get().fetchRisks({ page: get().page, limit: get().pageSize });
+      const response = await api.patch(`/risks/${id}`, payload);
+      const updated = response.data;
+      set((state) => ({ risks: state.risks.map((r) => (r.id === id ? updated : r)) }));
     } catch (err) {
+      // rollback
+      if (prev) set((state) => ({ risks: state.risks.map((r) => (r.id === id ? prev : r)) }));
       console.error('Failed to update risk', err);
       throw err;
     } finally {
@@ -117,12 +143,15 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   },
   deleteRisk: async (id) => {
     set({ isLoading: true });
+    const prevList = get().risks;
+    const prevTotal = get().total;
+    // optimistic remove
+    set((state) => ({ risks: state.risks.filter((r) => r.id !== id), total: Math.max(0, state.total - 1) }));
     try {
       await api.delete(`/risks/${id}`);
-      // After delete, refetch current page (ensure page bounds)
-      const nextPage = Math.max(1, get().page);
-      await get().fetchRisks({ page: nextPage, limit: get().pageSize });
     } catch (err) {
+      // rollback
+      set({ risks: prevList, total: prevTotal });
       console.error('Failed to delete risk', err);
       throw err;
     } finally {

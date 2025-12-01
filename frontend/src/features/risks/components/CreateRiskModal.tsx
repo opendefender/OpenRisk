@@ -41,7 +41,7 @@ const getAssetIcon = (type: string) => {
 
 
 export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
-  const { fetchRisks, createRisk } = useRiskStore();
+  const { fetchRisks, createRisk, isLoading } = useRiskStore();
   const { assets, fetchAssets } = useAssetStore(); // Store pour les Assets
   
   // Charger les assets dès que le modal est ouvert
@@ -104,16 +104,17 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
         <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{label}</label>
         <div className="flex bg-zinc-900 border border-border rounded-lg p-1">
             {[1, 2, 3, 4, 5].map(score => (
-                <motion.button
-                    key={score}
-                    type="button"
-                    onClick={() => setValue(field, score, { shouldValidate: true })}
-                    className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${
-                        watch(field) === score ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'
-                    }`}
-                >
-                    {score}
-                </motion.button>
+              <motion.button
+                key={score}
+                type="button"
+                onClick={() => setValue(field, score, { shouldValidate: true })}
+                disabled={isLoading}
+                className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${
+                  watch(field) === score ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'
+                } ${isLoading ? 'opacity-70' : ''}`}
+              >
+                {score}
+              </motion.button>
             ))}
         </div>
         {errors[field] && <p className="text-xs text-red-500 mt-1">{errors[field]?.message as string}</p>}
@@ -153,7 +154,7 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]">
               
               {/* Titre et Description */}
-              <Input label="Titre" {...register('title')} error={errors.title?.message} />
+              <Input label="Titre" {...register('title')} error={errors.title?.message} disabled={isLoading} />
               
               <div className="space-y-1.5">
                   <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Description</label>
@@ -187,16 +188,17 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
                           assets.map(asset => {
                               const isSelected = selectedAssetIds.includes(asset.id);
                               return (
-                                  <button
+                                    <button
                                       key={asset.id}
                                       type="button"
                                       onClick={() => toggleAsset(asset.id)}
+                                      disabled={isLoading}
                                       className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                                          isSelected 
-                                          ? 'bg-blue-500/20 border-blue-500 text-blue-400 shadow-sm' 
-                                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-                                      }`}
-                                  >
+                                        isSelected 
+                                        ? 'bg-blue-500/20 border-blue-500 text-blue-400 shadow-sm' 
+                                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                                      } ${isLoading ? 'opacity-70' : ''}`}
+                                    >
                                       {getAssetIcon(asset.type)}
                                       {asset.name}
                                   </button>
@@ -207,12 +209,12 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
               </div>
 
               {/* Tags */}
-              <Input label="Tags (séparés par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" />
+              <Input label="Tags (séparés par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
 
               {/* Footer Buttons */}
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/5 sticky bottom-0 bg-surface">
-                <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
-                <Button type="submit" isLoading={isSubmitting}>Créer le Risque</Button>
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
+                <Button type="submit" isLoading={isLoading || isSubmitting}>Créer le Risque</Button>
               </div>
             </form>
           </motion.div>

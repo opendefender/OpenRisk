@@ -30,7 +30,7 @@ interface EditRiskModalProps {
 }
 
 export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => {
-  const { updateRisk } = useRiskStore();
+  const { updateRisk, isLoading } = useRiskStore();
   const { assets, fetchAssets } = useAssetStore();
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting }, reset } = useForm<RiskFormData>({
@@ -117,11 +117,11 @@ export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => 
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]">
-              <Input label="Titre" {...register('title')} error={errors.title?.message} />
+              <Input label="Titre" {...register('title')} error={errors.title?.message} disabled={isLoading} />
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Description</label>
-                <textarea {...register('description')} rows={4} className={`w-full bg-zinc-900 border ${errors.description ? 'border-red-500' : 'border-border'} rounded-lg p-3 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none transition-colors`} />
+                <textarea {...register('description')} rows={4} disabled={isLoading} className={`w-full bg-zinc-900 border ${errors.description ? 'border-red-500' : 'border-border'} rounded-lg p-3 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none transition-colors ${isLoading ? 'opacity-70' : ''}`} />
                 {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description?.message}</p>}
               </div>
 
@@ -130,7 +130,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => 
                   <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Impact (1-5)</label>
                   <div className="flex bg-zinc-900 border border-border rounded-lg p-1">
                     {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => setValue('impact', n as any)} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('impact') === n ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>
+                      <button key={n} type="button" onClick={() => setValue('impact', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('impact') === n ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'} ${isLoading ? 'opacity-70' : ''}`}>
                         {n}
                       </button>
                     ))}
@@ -141,7 +141,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => 
                   <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Probabilité (1-5)</label>
                   <div className="flex bg-zinc-900 border border-border rounded-lg p-1">
                     {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => setValue('probability', n as any)} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('probability') === n ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>
+                      <button key={n} type="button" onClick={() => setValue('probability', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('probability') === n ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'} ${isLoading ? 'opacity-70' : ''}`}>
                         {n}
                       </button>
                     ))}
@@ -157,18 +157,18 @@ export const EditRiskModal = ({ isOpen, onClose, risk }: EditRiskModalProps) => 
                 </label>
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg bg-zinc-900/30">
                   {assets.length === 0 ? <div className="text-zinc-500 text-xs w-full text-center py-2">Aucun asset.</div> : assets.map(a => (
-                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} disabled={isLoading} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'} ${isLoading ? 'opacity-70' : ''}`}>
                       {a.name}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <Input label="Tags (séparés par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" />
+              <Input label="Tags (séparés par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
 
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/5 sticky bottom-0 bg-surface">
-                <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
-                <Button type="submit" isLoading={isSubmitting}>Enregistrer</Button>
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
+                <Button type="submit" isLoading={isLoading || isSubmitting}>Enregistrer</Button>
               </div>
             </form>
           </motion.div>
