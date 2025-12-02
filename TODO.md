@@ -49,6 +49,21 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 ---
 
+## Strategic Initiatives (long-term)
+
+- ⬜ 60. Strategic: API-First — Full API coverage & CI/CD integration
+	- Purpose: Make OpenRisk fully scriptable and automatable via API; enable DevSecOps integration (GitHub Actions, GitLab CI) so the platform can block or annotate risky deployments.
+- ⬜ 61. Strategic: Contextualization — correlate threat intel with internal risk
+	- Purpose: Reduce false positives by combining external threat indicators (CVE, actors, TTPs) with internal context (asset exposure, data sensitivity, business impact).
+- ⬜ 62. Strategic: CTEM Integration — external threat → internal asset mapping
+	- Purpose: Implement Continuous Threat Exposure Management: map external threat events to owned assets and compute exposure.
+- ⬜ 63. Strategic: Reporting for C-Level — automated PDF/HTML reports
+	- Purpose: Executive-ready reports that show risk posture trends and business impact (downloadable PDF/HTML).
+- ⬜ 64. Strategic: Templates — Default compliance templates (ISO27001, SOC2, PCI-DSS)
+	- Purpose: Provide out-of-the-box templates and mappings to accelerate audits and adoption.
+- ⬜ 65. Strategic: False-Positive Reduction — enrichment & context rules
+	- Purpose: Enrichment pipelines, heuristics, and ML/IA assists to prioritize true positives and suppress noise.
+
 ## 1. Risk Register (coeur du produit)
 - ✅ Typeahead keyboard nav
 - ✅ Create Risks list page
