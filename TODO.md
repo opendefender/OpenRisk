@@ -46,6 +46,14 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 		 - hook into create/update flows
 		 - frontend display & recalculation UI
 		 - tests & fixtures
+ - ✅ 11. Add score calculation engine (probability × impact × criticité asset)
+  
+	 - ✅ Subtasks for `Add score calculation engine`:
+		 - ✅ define formula & edge cases
+		 - ✅ backend calculation service (unit tested)
+		 - ✅ hook into create/update flows
+		 - ✅ frontend display & recalculation UI
+		 - ✅ tests & fixtures
 
 ---
 
@@ -59,7 +67,7 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 - ✅ 7. Add tests for Risks pagination
 - ✅ 8. Design Risk schema
 - ✅ 9. Implement Risk CRUD API
-- ⬜ 10. Implement Risk CRUD frontend
+- ✅ 10. Implement Risk CRUD frontend
 - ⬜ 11. Add score calculation engine
 - ⬜ 12. Add frameworks classification (ISO27001, CIS, NIST, OWASP)
 - ⬜ 13. Advanced multi-criteria filters
