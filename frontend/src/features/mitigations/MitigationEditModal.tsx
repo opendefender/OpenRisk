@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { Button } from '../../components/ui/Button';
@@ -15,6 +15,7 @@ interface Props {
 
 export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Props) => {
   const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm();
+  const [newSubTitle, setNewSubTitle] = useState('');
 
   useEffect(() => {
     if (isOpen && mitigation) {
@@ -42,6 +43,39 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     }
   };
 
+  const addSubAction = async () => {
+    if (!mitigation || !newSubTitle.trim()) return;
+    try {
+      await api.post(`/mitigations/${mitigation.id}/subactions`, { title: newSubTitle });
+      setNewSubTitle('');
+      toast.success('Sous-action ajoutée');
+      onSaved?.();
+    } catch (e) {
+      toast.error('Impossible d\'ajouter la sous-action');
+    }
+  };
+
+  const toggleSub = async (sub: any) => {
+    if (!mitigation) return;
+    try {
+      await api.patch(`/mitigations/${mitigation.id}/subactions/${sub.id}/toggle`);
+      onSaved?.();
+    } catch (e) {
+      toast.error('Impossible de basculer la sous-action');
+    }
+  };
+
+  const deleteSub = async (sub: any) => {
+    if (!mitigation) return;
+    try {
+      await api.delete(`/mitigations/${mitigation.id}/subactions/${sub.id}`);
+      toast.success('Sous-action supprimée');
+      onSaved?.();
+    } catch (e) {
+      toast.error('Impossible de supprimer la sous-action');
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -59,6 +93,26 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
               <div className="grid grid-cols-2 gap-2">
                 <Input type="number" label="Coût (1-3)" {...register('cost')} />
                 <Input type="date" label="Due date" {...register('due_date')} />
+              </div>
+              {/* Sub-actions checklist */}
+              <div className="mt-3">
+                <h4 className="text-sm font-medium text-white mb-2">Checklist</h4>
+                <div className="space-y-2">
+                  {mitigation?.sub_actions?.length ? mitigation.sub_actions.map((s: any) => (
+                    <div key={s.id} className="flex items-center justify-between bg-muted p-2 rounded">
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={s.completed} onChange={() => toggleSub(s)} />
+                        <span className={s.completed ? 'line-through text-muted-foreground' : ''}>{s.title}</span>
+                      </div>
+                      <button type="button" className="text-sm text-red-400" onClick={() => deleteSub(s)}>Supprimer</button>
+                    </div>
+                  )) : <div className="text-xs text-muted-foreground">Aucune sous-action</div>}
+                </div>
+
+                <div className="flex gap-2 mt-2">
+                  <Input value={newSubTitle} onChange={(e:any) => setNewSubTitle(e.target.value)} placeholder="Nouvelle sous-action" />
+                  <Button type="button" onClick={addSubAction}>Ajouter</Button>
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="ghost" type="button" onClick={onClose}>Annuler</Button>

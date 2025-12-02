@@ -149,6 +149,10 @@ func main() {
 	protected.Post("/risks/:id/mitigations", writerRole, handlers.AddMitigation)
 	protected.Patch("/mitigations/:mitigationId/toggle", writerRole, handlers.ToggleMitigationStatus)
 	protected.Patch("/mitigations/:mitigationId", writerRole, handlers.UpdateMitigation)
+	// Sub-actions (checklist) for mitigations
+	protected.Post("/mitigations/:id/subactions", writerRole, handlers.CreateMitigationSubAction)
+	protected.Patch("/mitigations/:id/subactions/:subactionId/toggle", writerRole, handlers.ToggleMitigationSubAction)
+	protected.Delete("/mitigations/:id/subactions/:subactionId", writerRole, handlers.DeleteMitigationSubAction)
 
 	api.Get("/users/me", handlers.GetMe)
 

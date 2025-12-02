@@ -69,7 +69,6 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 		 - ✅ API handlers (create/update/assign/complete)
 		 - ✅ unit & integration tests
 		 - ✅ OpenAPI contract
-- ⬜ 18. Design Mitigation model & API
  - ✅ 18. Design Mitigation model & API
   
 	 - ✅ Subtasks for `Design Mitigation model & API`:

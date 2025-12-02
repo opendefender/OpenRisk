@@ -39,5 +39,8 @@ type Mitigation struct {
 	// Relation avec le Risque (pour la lecture)
 	Risk *Risk `json:"risk,omitempty"` // Preload
 
+	// Checklist / Sub-actions
+	SubActions []MitigationSubAction `gorm:"foreignKey:MitigationID" json:"sub_actions,omitempty"`
+
 	gorm.Model
 }

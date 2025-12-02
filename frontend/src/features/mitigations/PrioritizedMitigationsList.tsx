@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Loader2, Zap, Clock, DollarSign, ShieldAlert } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge'; // Assurez-vous que Badge existe
+import { Badge } from '../../components/ui/Badge'; 
 
 interface RiskData {
   title: string;
@@ -15,7 +15,7 @@ interface MitigationData {
   cost: number;
   mitigation_time: number;
   weighted_priority: number;
-  risk: RiskData; // Risque associé
+  risk: RiskData; 
 }
 
 const formatCost = (cost: number) => {

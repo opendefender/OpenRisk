@@ -132,3 +132,56 @@ func UpdateMitigation(c *fiber.Ctx) error {
 
 	return c.JSON(mitigation)
 }
+
+// CreateMitigationSubAction ajoute une sous-action (checklist) à une mitigation
+func CreateMitigationSubAction(c *fiber.Ctx) error {
+	mitigationID := c.Params("id")
+	if _, err := uuid.Parse(mitigationID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid mitigation ID"})
+	}
+
+	payload := struct {
+		Title string `json:"title"`
+	}{}
+	if err := c.BodyParser(&payload); err != nil || payload.Title == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
+	}
+
+	sa := domain.MitigationSubAction{
+		MitigationID: uuid.MustParse(mitigationID),
+		Title:        payload.Title,
+	}
+
+	if err := database.DB.Create(&sa).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not create sub-action"})
+	}
+
+	return c.Status(201).JSON(sa)
+}
+
+// ToggleMitigationSubAction bascule l'état d'une sous-action
+func ToggleMitigationSubAction(c *fiber.Ctx) error {
+	subID := c.Params("subactionId")
+	var sa domain.MitigationSubAction
+	if err := database.DB.First(&sa, "id = ?", subID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
+	}
+
+	sa.Completed = !sa.Completed
+	if err := database.DB.Save(&sa).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not toggle sub-action"})
+	}
+
+	return c.JSON(sa)
+}
+
+// DeleteMitigationSubAction supprime une sous-action
+func DeleteMitigationSubAction(c *fiber.Ctx) error {
+	subID := c.Params("subactionId")
+	if result := database.DB.Delete(&domain.MitigationSubAction{}, "id = ?", subID); result.Error != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not delete sub-action"})
+	} else if result.RowsAffected == 0 {
+		return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
+	}
+	return c.SendStatus(204)
+}

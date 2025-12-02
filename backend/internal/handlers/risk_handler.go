@@ -144,7 +144,7 @@ func CreateRisk(c *fiber.Ctx) error {
 
 	// 5. Reload with relations for the response
 	var out domain.Risk
-	if err := database.DB.Preload("Mitigations").Preload("Assets").First(&out, "id = ?", risk.ID).Error; err != nil {
+	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", risk.ID).Error; err != nil {
 		return c.Status(201).JSON(risk) // fallback
 	}
 
@@ -166,6 +166,7 @@ func GetRisks(c *fiber.Ctx) error {
 
 	db := database.DB.Model(&domain.Risk{}).
 		Preload("Mitigations").
+		Preload("Mitigations.SubActions").
 		Preload("Assets")
 
 	// Server-side sorting: safe-guard allowed fields and map friendly names
@@ -276,6 +277,7 @@ func GetRisk(c *fiber.Ctx) error {
 	var risk domain.Risk
 	result := database.DB.
 		Preload("Mitigations").
+		Preload("Mitigations.SubActions").
 		Preload("Assets").
 		First(&risk, "id = ?", id)
 
@@ -374,7 +376,7 @@ func UpdateRisk(c *fiber.Ctx) error {
 
 	// Reload with relations for response
 	var out domain.Risk
-	if err := database.DB.Preload("Mitigations").Preload("Assets").First(&out, "id = ?", id).Error; err != nil {
+	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", id).Error; err != nil {
 		return c.JSON(risk)
 	}
 
