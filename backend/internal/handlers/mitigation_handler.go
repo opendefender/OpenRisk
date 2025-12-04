@@ -147,6 +147,12 @@ func CreateMitigationSubAction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
 	}
 
+	// Ensure mitigation exists
+	var m domain.Mitigation
+	if err := database.DB.First(&m, "id = ?", mitigationID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
+	}
+
 	sa := domain.MitigationSubAction{
 		MitigationID: uuid.MustParse(mitigationID),
 		Title:        payload.Title,
@@ -167,6 +173,15 @@ func ToggleMitigationSubAction(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
 	}
 
+	// If route contains mitigation id, verify ownership to avoid mismatch
+	if mid := c.Params("id"); mid != "" {
+		if _, err := uuid.Parse(mid); err == nil {
+			if sa.MitigationID.String() != mid {
+				return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found for given mitigation"})
+			}
+		}
+	}
+
 	sa.Completed = !sa.Completed
 	if err := database.DB.Save(&sa).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not toggle sub-action"})
@@ -178,6 +193,19 @@ func ToggleMitigationSubAction(c *fiber.Ctx) error {
 // DeleteMitigationSubAction supprime une sous-action
 func DeleteMitigationSubAction(c *fiber.Ctx) error {
 	subID := c.Params("subactionId")
+	// Verify ownership if mitigation id present in path
+	if mid := c.Params("id"); mid != "" {
+		if _, err := uuid.Parse(mid); err == nil {
+			var sa domain.MitigationSubAction
+			if err := database.DB.First(&sa, "id = ?", subID).Error; err != nil {
+				return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
+			}
+			if sa.MitigationID.String() != mid {
+				return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found for given mitigation"})
+			}
+		}
+	}
+
 	if result := database.DB.Delete(&domain.MitigationSubAction{}, "id = ?", subID); result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not delete sub-action"})
 	} else if result.RowsAffected == 0 {
