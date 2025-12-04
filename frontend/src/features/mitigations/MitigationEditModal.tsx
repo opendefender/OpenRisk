@@ -39,6 +39,13 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
       onSaved?.();
       onClose();
     } catch (e) {
+      const status = (e as any)?.response?.status;
+      if (status === 404) {
+        toast.error('La mitigation est introuvable (peut-être supprimée). Le modal va se fermer.');
+        onSaved?.();
+        onClose();
+        return;
+      }
       toast.error('Erreur lors de la sauvegarde');
     }
   };
@@ -51,6 +58,13 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
       toast.success('Sous-action ajoutée');
       onSaved?.();
     } catch (e) {
+      const status = (e as any)?.response?.status;
+      if (status === 404) {
+        toast.error('La mitigation est introuvable. Le modal va se fermer.');
+        onSaved?.();
+        onClose();
+        return;
+      }
       toast.error('Impossible d\'ajouter la sous-action');
     }
   };
@@ -61,6 +75,13 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
       await api.patch(`/mitigations/${mitigation.id}/subactions/${sub.id}/toggle`);
       onSaved?.();
     } catch (e) {
+      const status = (e as any)?.response?.status;
+      if (status === 404) {
+        toast.error('Sous-action ou mitigation introuvable. Le modal va se fermer.');
+        onSaved?.();
+        onClose();
+        return;
+      }
       toast.error('Impossible de basculer la sous-action');
     }
   };
@@ -72,6 +93,13 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
       toast.success('Sous-action supprimée');
       onSaved?.();
     } catch (e) {
+      const status = (e as any)?.response?.status;
+      if (status === 404) {
+        toast.error('Sous-action ou mitigation introuvable. Le modal va se fermer.');
+        onSaved?.();
+        onClose();
+        return;
+      }
       toast.error('Impossible de supprimer la sous-action');
     }
   };
