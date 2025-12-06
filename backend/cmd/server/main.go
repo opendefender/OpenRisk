@@ -175,6 +175,13 @@ func main() {
 
 	api.Get("/gamification/me", middleware.Protected(), handlers.GetMyGamificationProfile)
 
+	// --- User Management (Admin only) ---
+	adminRole := middleware.RequireRole("admin")
+	protected.Get("/users", adminRole, handlers.GetUsers)
+	protected.Patch("/users/:id/status", adminRole, handlers.UpdateUserStatus)
+	protected.Patch("/users/:id/role", adminRole, handlers.UpdateUserRole)
+	protected.Delete("/users/:id", adminRole, handlers.DeleteUser)
+
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
 	// =========================================================================

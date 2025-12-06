@@ -219,36 +219,32 @@ Critères d'acceptation pour un connecteur prêt-prod:
 - SAML/OAuth2 integration (single sign-on)
 
 
-## V2 - Enterprise
+**Phase 3 : Saas Enterprise**
 
-⬜ Validation avancée (regex, formats, dépendances entre champs)
-⬜ Custom Fields v1 (users peuvent ajouter champs texte/choix/numérique)
-⬜ Fields templates par framework (ISO, NIST… → auto-population)
-⬜ Bulk actions (update, delete, assign mitigations, tags)
-⬜ Risk timeline (tous les évènements : création, update, mitigation, sync)
-⬜ Créer l’OpenDefender UI Kit (pensé pour toute la suite)
-⬜ Créer un composant “DataTable++” maison (filtre multiples, tri, tags, search instant)
-⬜ Heatmap dynamique (drag, hover, zoom)
-⬜ Dashboard widgets drag & drop type Airtable / Linear
-⬜ Onboarding “guided steps”: 
-- créer son premier risque
-- ajouter une mitigation
-- connecter TheHive
-- voir un premier dashboard
-⬜ Dependencies entre mitigations (bloqueur/conditionnel)
-⬜ Notifications internes (rappels, deadlines)
-⬜ Assignation multi-utilisateur
-⬜ Templates de plans (ISO, CIS, NIST…)
-⬜ Vue Gantt / Timeline des actions
-⬜ RBAC complet avec granularité par ressource
-(risk:update:own, risk:update:any, mitigation:view:team…)
+ **Stabilisation & Finition du Core Risk Register**
+- ⬜ Validation avancée (regex, formats, dépendances entre champs)
+- ⬜ Custom Fields v1 (users peuvent ajouter champs texte/choix/numérique)
+- ⬜ Fields templates par framework (ISO, NIST… → auto-population)
+- ⬜ Bulk actions (update, delete, assign mitigations, tags)
+- ⬜ Risk timeline (tous les évènements : création, update, mitigation, sync)
 
-⬜ Isoler tenant_id partout (DB + cache + logs)
+**UX & Design System**
+- ⬜ Créer l’OpenDefender UI Kit (pensé pour toute la suite)
+- ⬜ Créer un composant “DataTable++” maison (filtre multiples, tri, tags, search instant)
+- ⬜ Heatmap dynamique (drag, hover, zoom)
+- ⬜ Dashboard widgets drag & drop type Airtable / Linear
+- ⬜ Onboarding “guided steps”
+    créer son premier risque
+    ajouter une mitigation
+    connecter TheHive
+    voir un premier dashboard
 
-⬜ Audit logs (table & API, export JSON)
-
-⬜ Rate limiting + throttling (global & tenant)
-
+**Mitigations & Plans d’Actions**
+- ⬜ Dependencies entre mitigations (bloqueur/conditionnel)
+- ⬜ Notifications internes (rappels, deadlines)
+- ⬜ Assignation multi-utilisateur
+- ⬜ Templates de plans (ISO, CIS, NIST…)
+- ⬜ Vue Gantt / Timeline des actions
 ---
 
 

@@ -5,8 +5,28 @@ import (
 	// "github.com/golang-jwt/jwt/v5"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type UpdateUserStatusInput struct {
+	IsActive bool `json:"is_active"`
+}
+
+type UpdateUserRoleInput struct {
+	Role string `json:"role" validate:"required"`
+}
+
+type UserResponseDTO struct {
+	ID        string  `json:"id"`
+	Email     string  `json:"email"`
+	Username  string  `json:"username"`
+	FullName  string  `json:"full_name"`
+	Role      string  `json:"role"`
+	IsActive  bool    `json:"is_active"`
+	CreatedAt string  `json:"created_at"`
+	LastLogin *string `json:"last_login,omitempty"`
+}
 
 // GetMe : Récupère les infos de l'utilisateur connecté
 func GetMe(c *fiber.Ctx) error {
@@ -48,5 +68,159 @@ func SeedAdminUser() {
 		}
 		database.DB.Create(&admin)
 		println("🔐 Default Admin created: admin@opendefender.io / admin123")
+	}
+}
+
+// GetUsers retrieves all users (admin only)
+func GetUsers(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Check if user is admin
+	var user domain.User
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.Role.Name != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view users"})
+	}
+
+	var users []domain.User
+	if err := database.DB.Preload("Role").Find(&users).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve users"})
+	}
+
+	var response []UserResponseDTO
+	for _, u := range users {
+		dto := UserResponseDTO{
+			ID:       u.ID.String(),
+			Email:    u.Email,
+			Username: u.Username,
+			FullName: u.FullName,
+			Role:     u.Role.Name,
+			IsActive: u.IsActive,
+			CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
+		if u.LastLogin != nil {
+			lastLoginStr := u.LastLogin.Format("2006-01-02T15:04:05Z")
+			dto.LastLogin = &lastLoginStr
+		}
+		response = append(response, dto)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+// UpdateUserStatus enables or disables a user (admin only)
+func UpdateUserStatus(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Check if user is admin
+	var currentUser domain.User
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if currentUser.Role.Name != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can update user status"})
+	}
+
+	userID := c.Params("id")
+	input := new(UpdateUserStatusInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	var targetUser domain.User
+	if err := database.DB.First(&targetUser, "id = ?", userID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	targetUser.IsActive = input.IsActive
+	if err := database.DB.Save(&targetUser).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User status updated"})
+}
+
+// UpdateUserRole changes a user's role (admin only)
+func UpdateUserRole(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Check if user is admin
+	var currentUser domain.User
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if currentUser.Role.Name != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can update user roles"})
+	}
+
+	userID := c.Params("id")
+	input := new(UpdateUserRoleInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	// Get the role
+	var role domain.Role
+	if err := database.DB.Where("name = ?", input.Role).First(&role).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Role not found"})
+	}
+
+	var targetUser domain.User
+	if err := database.DB.First(&targetUser, "id = ?", userID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	targetUser.RoleID = role.ID
+	if err := database.DB.Save(&targetUser).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user role"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User role updated"})
+}
+
+// DeleteUser deletes a user (admin only)
+func DeleteUser(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Check if user is admin
+	var currentUser domain.User
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if currentUser.Role.Name != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can delete users"})
+	}
+
+	userID := c.Params("id")
+
+	// Prevent admin from deleting their own account
+	if userID == claims.ID.String() {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot delete your own account"})
+	}
+
+	if err := database.DB.Delete(&domain.User{}, "id = ?", userID).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete user"})
+	}
+
+	return c.Status(fiber.StatusNoContent).Send([]byte{})
+}
 	}
 }

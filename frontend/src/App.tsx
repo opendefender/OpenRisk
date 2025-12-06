@@ -11,6 +11,7 @@ import { useRiskStore, type Risk } from './hooks/useRiskStore';
 // --- Imports des Pages & Features ---
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
 import { Sidebar } from './components/layout/Sidebar';
 import { DashboardGrid } from './features/dashboard/components/DashboardGrid';
@@ -187,6 +188,7 @@ function App() {
                 <Route index element={<DashboardView />} />
                 <Route path="risks" element={<Risks />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="users" element={<Users />} />
                 <Route path="assets" element={<Assets />} />
                 <Route path="recommendations" element={<Recommendations />} />
                 {/* Tu pourras ajouter /reports, /threats ici plus tard */}
