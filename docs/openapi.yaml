@@ -2,121 +2,156 @@ openapi: 3.0.3
 info:
   title: OpenRisk API
   version: 1.0.0
-  description: Minimal OpenAPI spec for Risk CRUD endpoints
+  description: |
+    Modern, intelligent risk management platform API.
+    Part of the OpenDefender suite with AI-driven risk assessment, mitigation tracking, and security integration.
+    
+    **Authentication**: All protected endpoints require a Bearer JWT token in the `Authorization` header.
+    
+    **Base URL**: `/api/v1`
+  contact:
+    name: OpenDefender Team
+  license:
+    name: MIT
 servers:
   - url: /api/v1
+    description: Production API
+
+tags:
+  - name: Health
+    description: Health check and status
+  - name: Authentication
+    description: Login and user management
+  - name: Risks
+    description: Risk management - create, read, update, delete risks
+  - name: Mitigations
+    description: Mitigation planning and tracking
+  - name: Assets
+    description: Asset management
+  - name: Statistics
+    description: Dashboard and analytics
+  - name: Export
+    description: Data export
+  - name: Gamification
+    description: Gamification and user profiles
+
 paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: healthCheck
+      description: Check API health status
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  version:
+                    type: string
+                    example: 1.0.0
+                  db:
+                    type: string
+                    example: CONNECTED
+
+  # ==================== AUTHENTICATION ====================
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login with email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== RISKS ====================
   /risks:
     get:
-      summary: List risks
+      tags:
+        - Risks
+      summary: List all risks
+      operationId: listRisks
+      security:
+        - bearerAuth: []
       parameters:
         - name: page
           in: query
           schema:
             type: integer
+            default: 1
         - name: limit
           in: query
           schema:
             type: integer
+            default: 10
         - name: sort_by
           in: query
           schema:
             type: string
+            description: Field to sort by (e.g., score, title, impact)
       responses:
         '200':
-          description: OK
-    post:
-      summary: Create a risk
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateRiskInput'
-      responses:
-        '201':
-          description: Created
-  /risks/{id}:
-    get:
-      summary: Get a risk
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: OK
-    patch:
-      summary: Update a risk
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateRiskInput'
-      responses:
-        '200':
-          description: Updated
-    delete:
-      summary: Delete a risk
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '204':
-          description: Deleted
-components:
-  schemas:
-    CreateRiskInput:
-      type: object
-      properties:
-        title:
-          type: string
-        description:
-          type: string
-        impact:
-          type: integer
-        probability:
-          type: integer
-        tags:
-          type: array
-          items:
-            type: string
-        asset_ids:
-          type: array
-          items:
-            type: string
-      required:
-        - title
-        - impact
-        - probability
-    UpdateRiskInput:
-      type: object
-      properties:
-        title:
-          type: string
-        description:
-          type: string
-        impact:
-          type: integer
-        probability:
-          type: integer
-        tags:
-          type: array
-          items:
-            type: string
-        asset_ids:
-          type: array
-          items:
-            type: string
+          description: List of risks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Risk'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+           
