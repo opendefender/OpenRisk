@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: OpenRisk API
   version: 1.0.0
@@ -154,4 +154,887 @@ paths:
           description: Unauthorized
           content:
             application/json:
-           
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Risks
+      summary: Create a new risk
+      operationId: createRisk
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRiskInput'
+      responses:
+        '201':
+          description: Risk created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Risk'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /risks/{id}:
+    get:
+      tags:
+        - Risks
+      summary: Get risk details
+      operationId: getRisk
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Risk UUID
+      responses:
+        '200':
+          description: Risk details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Risk'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+    patch:
+      tags:
+        - Risks
+      summary: Update risk
+      operationId: updateRisk
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRiskInput'
+      responses:
+        '200':
+          description: Risk updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Risk'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+    delete:
+      tags:
+        - Risks
+      summary: Delete risk
+      operationId: deleteRisk
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Risk deleted
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+  # ==================== MITIGATIONS ====================
+  /risks/{id}/mitigations:
+    post:
+      tags:
+        - Mitigations
+      summary: Add mitigation to risk
+      operationId: addMitigation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Risk UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMitigationInput'
+      responses:
+        '201':
+          description: Mitigation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mitigation'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+  /mitigations/{mitigationId}:
+    patch:
+      tags:
+        - Mitigations
+      summary: Update mitigation details
+      operationId: updateMitigation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: mitigationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMitigationInput'
+      responses:
+        '200':
+          description: Mitigation updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mitigation'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Mitigation not found
+
+  /mitigations/{mitigationId}/toggle:
+    patch:
+      tags:
+        - Mitigations
+      summary: Toggle mitigation status (PLANNED ↔ DONE)
+      operationId: toggleMitigationStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: mitigationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mitigation'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Mitigation not found
+
+  # ==================== MITIGATION SUB-ACTIONS ====================
+  /mitigations/{id}/subactions:
+    post:
+      tags:
+        - Mitigations
+      summary: Create mitigation sub-action (checklist item)
+      operationId: createMitigationSubAction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mitigation UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubActionInput'
+      responses:
+        '201':
+          description: Sub-action created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitigationSubAction'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Mitigation not found
+
+  /mitigations/{id}/subactions/{subactionId}/toggle:
+    patch:
+      tags:
+        - Mitigations
+      summary: Toggle sub-action completed status
+      operationId: toggleSubAction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mitigation UUID
+        - name: subactionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Sub-action UUID
+      responses:
+        '200':
+          description: Sub-action toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitigationSubAction'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Sub-action not found
+
+  /mitigations/{id}/subactions/{subactionId}:
+    delete:
+      tags:
+        - Mitigations
+      summary: Delete mitigation sub-action
+      operationId: deleteSubAction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Mitigation UUID
+        - name: subactionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Sub-action UUID
+      responses:
+        '204':
+          description: Sub-action deleted
+        '401':
+          description: Unauthorized
+        '404':
+          description: Sub-action not found
+
+  /mitigations/recommended:
+    get:
+      tags:
+        - Mitigations
+      summary: Get recommended mitigations (sorted by SPP score)
+      operationId: getRecommendedMitigations
+      responses:
+        '200':
+          description: Recommended mitigations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mitigation'
+
+  # ==================== ASSETS ====================
+  /assets:
+    get:
+      tags:
+        - Assets
+      summary: List all assets
+      operationId: listAssets
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asset'
+        '401':
+          description: Unauthorized
+
+    post:
+      tags:
+        - Assets
+      summary: Create asset
+      operationId: createAsset
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssetInput'
+      responses:
+        '201':
+          description: Asset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+
+  # ==================== STATISTICS ====================
+  /stats:
+    get:
+      tags:
+        - Statistics
+      summary: Get dashboard statistics
+      operationId: getDashboardStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          description: Unauthorized
+
+  /stats/risk-matrix:
+    get:
+      tags:
+        - Statistics
+      summary: Get risk matrix data (impact vs probability)
+      operationId: getRiskMatrix
+      responses:
+        '200':
+          description: Risk matrix data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matrix:
+                    type: object
+
+  /stats/trends:
+    get:
+      tags:
+        - Statistics
+      summary: Get global risk trend
+      operationId: getRiskTrend
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Risk trend data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ==================== EXPORT ====================
+  /export/pdf:
+    get:
+      tags:
+        - Export
+      summary: Export risks to PDF
+      operationId: exportPDF
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized
+
+  # ==================== GAMIFICATION ====================
+  /gamification/me:
+    get:
+      tags:
+        - Gamification
+      summary: Get current user's gamification profile
+      operationId: getGamificationProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Gamification profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GamificationProfile'
+        '401':
+          description: Unauthorized
+
+# ==================== COMPONENTS ====================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token. Obtain via /auth/login
+
+  schemas:
+    # ========== INPUT SCHEMAS ==========
+    LoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@example.com
+        password:
+          type: string
+          format: password
+          example: password123
+
+    CreateRiskInput:
+      type: object
+      required:
+        - title
+        - impact
+        - probability
+      properties:
+        title:
+          type: string
+          minLength: 3
+          example: "Data breach risk"
+        description:
+          type: string
+          example: "Unauthorized access to sensitive customer data"
+        impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Impact level (1-5)
+          example: 5
+        probability:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Probability level (1-5)
+          example: 3
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["security", "data-protection"]
+        asset_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        framework:
+          type: string
+          enum: [ISO27001, CIS, NIST, OWASP]
+          example: ISO27001
+
+    UpdateRiskInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+        probability:
+          type: integer
+          minimum: 1
+          maximum: 5
+        tags:
+          type: array
+          items:
+            type: string
+        asset_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CreateMitigationInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 3
+          example: "Implement encryption"
+        assignee:
+          type: string
+          example: "security-team@example.com"
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 50
+        cost:
+          type: string
+          example: "High"
+        mitigation_time:
+          type: string
+          example: "2025-12-31"
+        due_date:
+          type: string
+          format: date
+          example: "2025-12-31"
+
+    UpdateMitigationInput:
+      type: object
+      properties:
+        title:
+          type: string
+        assignee:
+          type: string
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        cost:
+          type: string
+        mitigation_time:
+          type: string
+        due_date:
+          type: string
+          format: date
+
+    CreateSubActionInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          example: "Install security patches"
+
+    CreateAssetInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Production Database Server"
+        type:
+          type: string
+          enum: [Server, Laptop, Database, SaaS, Network, Storage]
+          example: Database
+        criticality:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          example: CRITICAL
+        owner:
+          type: string
+          example: "DBA Team"
+        external_id:
+          type: string
+          example: "db-prod-001"
+
+    # ========== RESPONSE SCHEMAS ==========
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Bearer token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, ANALYST, VIEWER]
+        avatar_url:
+          type: string
+          format: uri
+        last_login:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Risk:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+        probability:
+          type: integer
+          minimum: 1
+          maximum: 5
+        score:
+          type: number
+          format: float
+          description: Calculated risk score
+        status:
+          type: string
+          enum: [OPEN, MITIGATED, ACCEPTED, CLOSED]
+        framework:
+          type: string
+          enum: [ISO27001, CIS, NIST, OWASP]
+        tags:
+          type: array
+          items:
+            type: string
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        mitigations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mitigation'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Mitigation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        risk_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum: [PLANNED, IN_PROGRESS, DONE]
+        assignee:
+          type: string
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        cost:
+          type: string
+        mitigation_time:
+          type: string
+        due_date:
+          type: string
+          format: date
+        sub_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MitigationSubAction'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MitigationSubAction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        mitigation_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        completed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Asset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [Server, Laptop, Database, SaaS, Network, Storage]
+        criticality:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        owner:
+          type: string
+        source:
+          type: string
+          enum: [MANUAL, OPENASSET]
+        external_id:
+          type: string
+        risks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Risk'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DashboardStats:
+      type: object
+      properties:
+        total_risks:
+          type: integer
+        open_risks:
+          type: integer
+        mitigated_risks:
+          type: integer
+        accepted_risks:
+          type: integer
+        closed_risks:
+          type: integer
+        average_risk_score:
+          type: number
+          format: float
+        critical_assets:
+          type: integer
+        recent_risks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Risk'
+
+    GamificationProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        points:
+          type: integer
+        level:
+          type: integer
+        badges:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              earned_at:
+                type: string
+                format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid input"
+        code:
+          type: integer
+          example: 400
+        details:
+          type: object

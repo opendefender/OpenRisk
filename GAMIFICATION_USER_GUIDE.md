@@ -60,7 +60,7 @@ Badges Débloqués (4)
 ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐
 │  ★      │  │  ★      │  │  ◇      │  │  ◇      │
 │ Flag    │  │ Shield  │  │ Brain   │  │ Crown   │
-│Initiator│ │Guardian  │  │Strategist│ │ Legend  │
+│Initiator│  │Guardian │  │Strategist│ │ Legend  │
 └─────────┘  └─────────┘  └─────────┘  └─────────┘
 
 ★ = Déverrouillé (Couleur jaune/or)
