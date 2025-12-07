@@ -291,10 +291,10 @@ Critères d'acceptation pour un connecteur prêt-prod:
 ### Remaining Phase 2 Items
 
 - ✅ Advanced permission matrices (resource-level access control) — Completed Session #6
-- API token management for service accounts
+- ✅ API token management for service accounts — Completed Session #6
 - SAML/OAuth2 integration (single sign-on)
 
-**Next Session Focus**: API tokens + Permission integration with handlers (if time permits)
+**Next Session Focus**: API token handlers + Permission integration with handlers (if time permits)
 
 
 ---
