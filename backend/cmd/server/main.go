@@ -21,6 +21,7 @@ import (
 	"github.com/opendefender/openrisk/internal/handlers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
+	"github.com/opendefender/openrisk/internal/services"
 	"github.com/opendefender/openrisk/internal/workers"
 )
 
@@ -64,7 +65,18 @@ func main() {
 	handlers.SeedAdminUser()
 
 	// =========================================================================
-	// 3. HEXAGONAL ARCHITECTURE WIRING (Integrations)
+	// 3. SECURITY SERVICES INITIALIZATION
+	// =========================================================================
+
+	// Initialize Permission Service for advanced access control
+	permissionService := services.NewPermissionService()
+	permissionService.InitializeDefaultRoles()
+
+	// Initialize Token Service for API token management
+	tokenService := services.NewTokenService()
+
+	// =========================================================================
+	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
 	// =========================================================================
 
 	// Initialisation des Adapters (TheHive, OpenRMF, OpenCTI)
@@ -181,6 +193,18 @@ func main() {
 	protected.Get("/audit-logs", adminRole, auditHandler.GetAuditLogs)
 	protected.Get("/audit-logs/user/:user_id", adminRole, auditHandler.GetUserAuditLogs)
 	protected.Get("/audit-logs/action/:action", adminRole, auditHandler.GetAuditLogsByAction)
+
+	// --- API Token Management (Protected routes) ---
+	// Tokens can be managed by any authenticated user for their own tokens
+	tokenHandler := handlers.NewTokenHandler(tokenService)
+
+	protected.Post("/tokens", tokenHandler.CreateToken)
+	protected.Get("/tokens", tokenHandler.ListTokens)
+	protected.Get("/tokens/:id", tokenHandler.GetToken)
+	protected.Put("/tokens/:id", tokenHandler.UpdateToken)
+	protected.Post("/tokens/:id/revoke", tokenHandler.RevokeToken)
+	protected.Post("/tokens/:id/rotate", tokenHandler.RotateToken)
+	protected.Delete("/tokens/:id", tokenHandler.DeleteToken)
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
