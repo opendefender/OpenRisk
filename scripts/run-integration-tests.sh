@@ -36,12 +36,24 @@ for i in {1..30}; do
     sleep 1
 done
 
+# Run migrations
+echo ""
+echo "🔧 Running database migrations..."
+export DATABASE_URL="postgres://test:test@localhost:5435/openrisk_test"
+
+if command -v migrate &> /dev/null; then
+    cd "$PROJECT_ROOT"
+    migrate -path ./migrations -database "$DATABASE_URL" up
+    echo "✅ Migrations applied successfully"
+else
+    echo "⚠️  migrate tool not found, skipping migrations"
+fi
+
 # Run integration tests
 echo ""
 echo "🏃 Running integration tests..."
 cd "$PROJECT_ROOT/backend"
 
-export DATABASE_URL="postgres://test:test@localhost:5435/openrisk_test"
 export APP_ENV=test
 
 go test -v -tags=integration -coverprofile=coverage.out ./...
@@ -62,3 +74,4 @@ else
     echo "❌ Integration tests failed"
     exit 1
 fi
+

@@ -36,6 +36,7 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		&domain.Mitigation{},
 		&domain.Asset{},
 		&domain.RiskHistory{},
+		&domain.APIToken{},
 	); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -46,6 +47,7 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 // CleanupTestDB truncates all test data
 func CleanupTestDB(t *testing.T, db *gorm.DB) {
 	tables := []string{
+		"api_tokens",
 		"risk_assets",
 		"mitigations",
 		"mitigation_subactions",
