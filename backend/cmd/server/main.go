@@ -274,6 +274,16 @@ func main() {
 	protected.Get("/risks/:id/timeline/since/:timestamp", timelineHandler.GetChangesSince)
 	protected.Get("/timeline/recent", timelineHandler.GetRecentActivity)
 
+	// --- Analytics & Advanced Reporting (Protected routes) ---
+	analyticsService := services.NewAnalyticsService(database.DB)
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
+	protected.Get("/analytics/risks/metrics", analyticsHandler.GetRiskMetrics)
+	protected.Get("/analytics/risks/trends", analyticsHandler.GetRiskTrends)
+	protected.Get("/analytics/mitigations/metrics", analyticsHandler.GetMitigationMetrics)
+	protected.Get("/analytics/frameworks", analyticsHandler.GetFrameworkAnalytics)
+	protected.Get("/analytics/dashboard", analyticsHandler.GetDashboardSnapshot)
+	protected.Get("/analytics/export", analyticsHandler.GetExportData)
+
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
 	// =========================================================================

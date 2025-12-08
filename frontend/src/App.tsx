@@ -23,6 +23,7 @@ import { Assets } from './pages/Assets';
 import { Risks } from './pages/Risks';
 import { TokenManagement } from './pages/TokenManagement';
 import { Recommendations } from './pages/Recommendations';
+import Analytics from './pages/Analytics';
 
 
 // --- Imports UI Components ---
@@ -189,6 +190,7 @@ function App() {
                 {/* Sous-routes injectées dans le Layout */}
                 <Route index element={<DashboardView />} />
                 <Route path="risks" element={<Risks />} />
+                <Route path="analytics" element={<Analytics />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="users" element={<Users />} />
                 <Route path="audit-logs" element={<AuditLogs />} />

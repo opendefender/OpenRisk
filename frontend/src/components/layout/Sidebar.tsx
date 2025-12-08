@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3 } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Overview', path: '/'},
   { icon: ShieldAlert, label: 'Risks', path: '/risks' },
+  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Activity, label: 'Incidents' },
   { icon: Map, label: 'Threat Map' },
   { icon: FileText, label: 'Reports' },
