@@ -1,6 +1,10 @@
 version: '3.8'
 
 services:
+  # =========================================================================
+  # DATABASES
+  # =========================================================================
+
   # Production/Development Database
   db:
     image: postgres:15-alpine
@@ -20,6 +24,7 @@ services:
       retries: 5
     networks:
       - openrisk_network
+    restart: unless-stopped
 
   # Test Database (for integration tests)
   test_db:
@@ -40,13 +45,21 @@ services:
       retries: 5
     networks:
       - openrisk_network
+    restart: unless-stopped
 
-  # Redis for caching and session management (optional, for future features)
+  # =========================================================================
+  # CACHING & MESSAGING
+  # =========================================================================
+
+  # Redis for caching and session management
   redis:
     image: redis:7-alpine
     container_name: openrisk_redis
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ""
+    volumes:
+      - openrisk_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -54,10 +67,84 @@ services:
       retries: 5
     networks:
       - openrisk_network
+    restart: unless-stopped
+
+  # =========================================================================
+  # BACKEND SERVICE (Development Mode)
+  # =========================================================================
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: openrisk_backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-openrisk}
+      DB_PASSWORD: ${DB_PASSWORD:-openrisk}
+      DB_NAME: ${DB_NAME:-openrisk}
+      # Server
+      PORT: ${PORT:-8080}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # Environment
+      APP_ENV: ${APP_ENV:-development}
+    ports:
+      - "8080:8080"
+    networks:
+      - openrisk_network
+    restart: unless-stopped
+    # For development, you can override the CMD with:
+    # command: go run ./cmd/server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # FRONTEND SERVICE (Development Mode)
+  # =========================================================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: openrisk_frontend
+    depends_on:
+      - backend
+    environment:
+      # API Configuration
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api}
+      # Build
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "5173:5173"
+    networks:
+      - openrisk_network
+    restart: unless-stopped
+    # For hot-reload during development:
+    # command: npm run dev -- --host 0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   openrisk_data:
   openrisk_test_data:
+  openrisk_redis_data:
 
 networks:
   openrisk_network:

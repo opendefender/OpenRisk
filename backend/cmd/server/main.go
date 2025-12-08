@@ -56,6 +56,10 @@ func main() {
 		&domain.Mitigation{},
 		&domain.Asset{},
 		&domain.RiskHistory{},
+		&domain.CustomField{},
+		&domain.CustomFieldTemplate{},
+		&domain.BulkOperation{},
+		&domain.BulkOperationLog{},
 	); err != nil {
 		log.Fatalf("❌ Database Migration Failed: %v", err)
 	}
@@ -139,6 +143,9 @@ func main() {
 	// Initialize auth handler
 	authHandler := handlers.NewAuthHandler()
 
+	// Initialize OAuth2 and SAML2 configurations
+	handlers.InitializeOAuth2()
+
 	// --- Routes Publiques ---
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -151,46 +158,54 @@ func main() {
 	api.Post("/auth/register", authHandler.Register)
 	api.Post("/auth/refresh", authHandler.RefreshToken)
 
+	// --- OAuth2 Routes ---
+	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
+	api.Get("/auth/oauth2/callback/:provider", handlers.OAuth2Callback)
+
+	// --- SAML2 Routes ---
+	api.Get("/auth/saml2/login", handlers.SAML2InitiateLogin)
+	api.Post("/auth/saml2/acs", handlers.SAML2ACS)
+	api.Get("/auth/saml2/metadata", handlers.SAMLMetadata)
+
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
 	protected := api.Use(middleware.Protected())
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", handlers.GetDashboardStats)
-        protected.Get("/risks",
-                middleware.RequirePermissions(permissionService, domain.Permission{
-                        Resource: domain.PermissionResourceRisk,
-                        Action:   domain.PermissionRead,
-                }),
-                handlers.GetRisks)
-        protected.Get("/risks/:id",
-                middleware.RequirePermissions(permissionService, domain.Permission{
-                        Resource: domain.PermissionResourceRisk,
-                        Action:   domain.PermissionRead,
-                }),
-                handlers.GetRisk)
+	protected.Get("/risks",
+		middleware.RequirePermissions(permissionService, domain.Permission{
+			Resource: domain.PermissionResourceRisk,
+			Action:   domain.PermissionRead,
+		}),
+		handlers.GetRisks)
+	protected.Get("/risks/:id",
+		middleware.RequirePermissions(permissionService, domain.Permission{
+			Resource: domain.PermissionResourceRisk,
+			Action:   domain.PermissionRead,
+		}),
+		handlers.GetRisk)
 
-        // Gestion des Risques (Écriture = Analyst & Admin uniquement)
-        // Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
-        riskCreate := middleware.RequirePermissions(permissionService, domain.Permission{
-                Resource: domain.PermissionResourceRisk,
-                Action:   domain.PermissionCreate,
-        })
-        riskUpdate := middleware.RequirePermissions(permissionService, domain.Permission{
-                Resource: domain.PermissionResourceRisk,
-                Action:   domain.PermissionUpdate,
-        })
-        riskDelete := middleware.RequirePermissions(permissionService, domain.Permission{
-                Resource: domain.PermissionResourceRisk,
-                Action:   domain.PermissionDelete,
-        })
-        // Backward compatibility: writerRole for other RBAC-based endpoints
-        writerRole := middleware.RequireRole("admin", "analyst")
+	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
+	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
+	riskCreate := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceRisk,
+		Action:   domain.PermissionCreate,
+	})
+	riskUpdate := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceRisk,
+		Action:   domain.PermissionUpdate,
+	})
+	riskDelete := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceRisk,
+		Action:   domain.PermissionDelete,
+	})
+	// Backward compatibility: writerRole for other RBAC-based endpoints
+	writerRole := middleware.RequireRole("admin", "analyst")
 
-
-        protected.Post("/risks", riskCreate, handlers.CreateRisk)
-        protected.Patch("/risks/:id", riskUpdate, handlers.UpdateRisk)
-        protected.Delete("/risks/:id", riskDelete, handlers.DeleteRisk)
+	protected.Post("/risks", riskCreate, handlers.CreateRisk)
+	protected.Patch("/risks/:id", riskUpdate, handlers.UpdateRisk)
+	protected.Delete("/risks/:id", riskDelete, handlers.DeleteRisk)
 	protected.Post("/risks/:id/mitigations", writerRole, handlers.AddMitigation)
 	protected.Patch("/mitigations/:mitigationId/toggle", writerRole, handlers.ToggleMitigationStatus)
 	protected.Patch("/mitigations/:mitigationId", writerRole, handlers.UpdateMitigation)
@@ -232,6 +247,32 @@ func main() {
 	protected.Post("/tokens/:id/revoke", tokenHandler.RevokeToken)
 	protected.Post("/tokens/:id/rotate", tokenHandler.RotateToken)
 	protected.Delete("/tokens/:id", tokenHandler.DeleteToken)
+
+	// --- Custom Fields Management (Protected routes) ---
+	customFieldHandler := handlers.NewCustomFieldHandler()
+	protected.Post("/custom-fields", customFieldHandler.CreateCustomField)
+	protected.Get("/custom-fields", customFieldHandler.ListCustomFields)
+	protected.Get("/custom-fields/:id", customFieldHandler.GetCustomField)
+	protected.Patch("/custom-fields/:id", customFieldHandler.UpdateCustomField)
+	protected.Delete("/custom-fields/:id", customFieldHandler.DeleteCustomField)
+	protected.Get("/custom-fields/scope/:scope", customFieldHandler.ListCustomFieldsByScope)
+	protected.Post("/custom-fields/templates/:id/apply", customFieldHandler.ApplyTemplate)
+
+	// --- Bulk Operations (Protected routes) ---
+	bulkOpHandler := handlers.NewBulkOperationHandler()
+	protected.Post("/bulk-operations", bulkOpHandler.CreateBulkOperation)
+	protected.Get("/bulk-operations", bulkOpHandler.ListBulkOperations)
+	protected.Get("/bulk-operations/:id", bulkOpHandler.GetBulkOperation)
+
+	// --- Risk Timeline (Protected routes) ---
+	timelineHandler := handlers.NewRiskTimelineHandler()
+	protected.Get("/risks/:id/timeline", timelineHandler.GetRiskTimeline)
+	protected.Get("/risks/:id/timeline/status-changes", timelineHandler.GetStatusChanges)
+	protected.Get("/risks/:id/timeline/score-changes", timelineHandler.GetScoreChanges)
+	protected.Get("/risks/:id/timeline/trend", timelineHandler.GetRiskTrend)
+	protected.Get("/risks/:id/timeline/changes/:type", timelineHandler.GetChangesByType)
+	protected.Get("/risks/:id/timeline/since/:timestamp", timelineHandler.GetChangesSince)
+	protected.Get("/timeline/recent", timelineHandler.GetRecentActivity)
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
