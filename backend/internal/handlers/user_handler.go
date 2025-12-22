@@ -20,6 +20,23 @@ type UpdateUserRoleInput struct {
 	Role string `json:"role" validate:"required"`
 }
 
+type CreateUserInput struct {
+	Email      string `json:"email" validate:"required,email"`
+	Username   string `json:"username" validate:"required,min=3"`
+	FullName   string `json:"full_name" validate:"required"`
+	Password   string `json:"password" validate:"required,min=8"`
+	Role       string `json:"role" validate:"required"` // admin, analyst, viewer
+	Department string `json:"department,omitempty"`
+}
+
+type UpdateUserProfileInput struct {
+	FullName   string `json:"full_name"`
+	Bio        string `json:"bio"`
+	Phone      string `json:"phone"`
+	Department string `json:"department"`
+	Timezone   string `json:"timezone"`
+}
+
 type UserResponseDTO struct {
 	ID        string  `json:"id"`
 	Email     string  `json:"email"`
@@ -276,4 +293,138 @@ func parseIPAddressHelper(ipStr string) *net.IP {
 	}
 	ip := net.ParseIP(ipStr)
 	return &ip
+}
+
+// CreateUser creates a new user (admin only)
+func CreateUser(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	// Check if user is admin
+	var currentUser domain.User
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if currentUser.Role.Name != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can create users"})
+	}
+
+	input := new(CreateUserInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	// Check if email already exists
+	var existingUser domain.User
+	if err := database.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
+	}
+
+	// Check if username already exists
+	if err := database.DB.Where("username = ?", input.Username).First(&existingUser).Error; err == nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Username already exists"})
+	}
+
+	// Get the role
+	var role domain.Role
+	if err := database.DB.Where("name = ?", input.Role).First(&role).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Role not found"})
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process password"})
+	}
+
+	newUser := domain.User{
+		Email:      input.Email,
+		Username:   input.Username,
+		FullName:   input.FullName,
+		Password:   string(hashedPassword),
+		RoleID:     role.ID,
+		Department: input.Department,
+		IsActive:   true,
+	}
+
+	if err := database.DB.Create(&newUser).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
+	}
+
+	// Log the action
+	_ = auditService.LogAction(&domain.AuditLog{
+		UserID:     &claims.ID,
+		Action:     domain.ActionUserCreate,
+		Resource:   domain.ResourceUser,
+		ResourceID: &newUser.ID,
+		Result:     domain.ResultSuccess,
+		IPAddress:  parseIPAddressHelper(c.IP()),
+		UserAgent:  c.Get("User-Agent"),
+	})
+
+	response := UserResponseDTO{
+		ID:        newUser.ID.String(),
+		Email:     newUser.Email,
+		Username:  newUser.Username,
+		FullName:  newUser.FullName,
+		Role:      role.Name,
+		IsActive:  newUser.IsActive,
+		CreatedAt: newUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(response)
+}
+
+// UpdateUserProfile updates the current user's profile
+func UpdateUserProfile(c *fiber.Ctx) error {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	input := new(UpdateUserProfileInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	var user domain.User
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// Update only provided fields
+	if input.FullName != "" {
+		user.FullName = input.FullName
+	}
+	if input.Bio != "" {
+		user.Bio = input.Bio
+	}
+	if input.Phone != "" {
+		user.Phone = input.Phone
+	}
+	if input.Department != "" {
+		user.Department = input.Department
+	}
+	if input.Timezone != "" {
+		user.Timezone = input.Timezone
+	}
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update profile"})
+	}
+
+	response := UserResponseDTO{
+		ID:        user.ID.String(),
+		Email:     user.Email,
+		Username:  user.Username,
+		FullName:  user.FullName,
+		Role:      user.Role.Name,
+		IsActive:  user.IsActive,
+		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response)
 }

@@ -21,19 +21,23 @@ type Role struct {
 
 // User represents an authenticated system user with a role
 type User struct {
-	ID        uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Email     string         `gorm:"uniqueIndex;not null" json:"email"`
-	Username  string         `gorm:"uniqueIndex;not null" json:"username"`
-	Password  string         `json:"-"` // Never return in JSON
-	FullName  string         `json:"full_name"`
-	RoleID    uuid.UUID      `gorm:"index" json:"role_id"`
-	Role      *Role          `json:"role,omitempty"`
-	IsActive  bool           `gorm:"default:true" json:"is_active"`
-	AvatarURL string         `json:"avatar_url"`
-	LastLogin *time.Time     `json:"last_login,omitempty"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID         uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	Email      string         `gorm:"uniqueIndex;not null" json:"email"`
+	Username   string         `gorm:"uniqueIndex;not null" json:"username"`
+	Password   string         `json:"-"` // Never return in JSON
+	FullName   string         `json:"full_name"`
+	Bio        string         `json:"bio"`
+	Phone      string         `json:"phone"`
+	Department string         `json:"department"`
+	Timezone   string         `gorm:"default:'UTC'" json:"timezone"`
+	RoleID     uuid.UUID      `gorm:"index" json:"role_id"`
+	Role       *Role          `json:"role,omitempty"`
+	IsActive   bool           `gorm:"default:true" json:"is_active"`
+	AvatarURL  string         `json:"avatar_url"`
+	LastLogin  *time.Time     `json:"last_login,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // UserClaims represents JWT claims with user and role information

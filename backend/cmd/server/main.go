@@ -60,6 +60,8 @@ func main() {
 		&domain.CustomFieldTemplate{},
 		&domain.BulkOperation{},
 		&domain.BulkOperationLog{},
+		&domain.Team{},
+		&domain.TeamMember{},
 	); err != nil {
 		log.Fatalf("❌ Database Migration Failed: %v", err)
 	}
@@ -226,9 +228,23 @@ func main() {
 	// --- User Management (Admin only) ---
 	adminRole := middleware.RequireRole("admin")
 	protected.Get("/users", adminRole, handlers.GetUsers)
+	protected.Post("/users", adminRole, handlers.CreateUser)
 	protected.Patch("/users/:id/status", adminRole, handlers.UpdateUserStatus)
 	protected.Patch("/users/:id/role", adminRole, handlers.UpdateUserRole)
 	protected.Delete("/users/:id", adminRole, handlers.DeleteUser)
+	protected.Patch("/users/:id", handlers.UpdateUserProfile)
+
+	// --- Team Management (Admin only) ---
+	protected.Post("/teams", adminRole, handlers.CreateTeam)
+	protected.Get("/teams", adminRole, handlers.GetTeams)
+	protected.Get("/teams/:id", adminRole, handlers.GetTeam)
+	protected.Patch("/teams/:id", adminRole, handlers.UpdateTeam)
+	protected.Delete("/teams/:id", adminRole, handlers.DeleteTeam)
+	protected.Post("/teams/:id/members/:userId", adminRole, handlers.AddTeamMember)
+	protected.Delete("/teams/:id/members/:userId", adminRole, handlers.RemoveTeamMember)
+
+	// --- Integration Testing (Protected routes) ---
+	protected.Post("/integrations/:id/test", handlers.TestIntegration)
 
 	// --- Audit Logs (Admin only) ---
 	auditHandler := handlers.NewAuditLogHandler()

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { motion } from 'framer-motion';
-import { Plus, Bell, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
@@ -15,6 +15,7 @@ import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
 import AuditLogs from './pages/AuditLogs';
 import { Sidebar } from './components/layout/Sidebar';
+import { NotificationCenter } from './components/layout/NotificationCenter';
 import { DashboardGrid } from './features/dashboard/components/DashboardGrid';
 import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
 import { RiskDetails } from './features/risks/components/RiskDetails';
@@ -89,10 +90,7 @@ const DashboardView = () => {
 
         {/* Actions Droite */}
         <div className="flex items-center gap-4">
-           <button className="relative text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-background"></span>
-           </button>
+           <NotificationCenter />
            
            <Button onClick={() => setIsModalOpen(true)} className="shadow-lg shadow-blue-500/20">
               <Plus size={16} className="mr-2" /> New Risk

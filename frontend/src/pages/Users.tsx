@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { useAuthStore } from '../hooks/useAuthStore';
+import { CreateUserModal } from '../features/users/CreateUserModal';
 
 interface User {
   id: string;
@@ -22,7 +23,9 @@ export const Users = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'ADMIN';
 
   useEffect(() => {
     fetchUsers();
@@ -124,8 +127,8 @@ export const Users = () => {
                 <p className="text-sm text-zinc-400">Manage users and permissions</p>
               </div>
             </div>
-            <Button className="shadow-lg shadow-blue-500/20">
-              <Plus size={16} className="mr-2" /> Invite User
+            <Button className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
+              <Plus size={16} className="mr-2" /> Create User
             </Button>
           </div>
 
@@ -247,6 +250,17 @@ export const Users = () => {
           </motion.div>
         )}
       </div>
+
+      {/* Create User Modal - Only visible for admins */}
+      {isAdmin && (
+        <CreateUserModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={fetchUsers}
+        />
+      )}
     </div>
   );
 };
+
+export default Users;
