@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./OpenRisk.png" alt="OpenRisk Logo" width="200" height="200" />
+  <img src="https://raw.githubusercontent.com/opendefender/OpenRisk/master/OpenRisk.png" alt="OpenRisk Logo" width="200" height="200" />
   
   # OpenRisk
   
