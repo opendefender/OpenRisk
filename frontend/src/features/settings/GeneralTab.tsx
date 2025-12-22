@@ -45,7 +45,7 @@ export const GeneralTab = () => {
 
       {/* Gamification Section */}
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-        <h4 className="text-lg font-bold text-white mb-6">🎮 Your Gamification Profile</h4>
+        <h4 className="text-lg font-bold text-white mb-6">🎮 Your Profile</h4>
         <UserLevelCard />
       </div>
 
