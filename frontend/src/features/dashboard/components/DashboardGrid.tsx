@@ -3,6 +3,8 @@ import { ShieldAlert, CheckCircle2, Server, TrendingUp, AlertTriangle, ChevronRi
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import GridLayout, { Layout } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 
 // Stores & Components
 import { useRiskStore } from '../../../hooks/useRiskStore';
@@ -77,6 +79,22 @@ export const DashboardGrid: React.FC = () => {
   const { user } = useAuthStore();
   const [layout, setLayout] = useState<Layout[]>(defaultLayout);
   const [isDragging, setIsDragging] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(1200);
+  
+  // Track container width for responsive grid
+  useEffect(() => {
+    const handleResize = () => {
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        // Account for padding (p-6 = 24px on each side)
+        setContainerWidth(Math.max(mainElement.clientWidth - 48, 300));
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Calcul des Stats Rapides
   const totalRisks = risks.length;
@@ -156,12 +174,12 @@ export const DashboardGrid: React.FC = () => {
 
         {/* Grille Draggable */}
         <GridLayout 
-          className="bg-transparent"
+          className="bg-transparent w-full"
           layout={layout}
           onLayoutChange={handleLayoutChange}
           cols={12}
           rowHeight={80}
-          width={1200}
+          width={containerWidth}
           isDraggable={true}
           isResizable={true}
           compactType="vertical"
@@ -171,11 +189,12 @@ export const DashboardGrid: React.FC = () => {
           onDragStop={() => setIsDragging(false)}
           containerPadding={[0, 0]}
           margin={[24, 24]}
+          draggableHandle=".react-grid-dragHandleExampleStyle"
         >
           {/* 1. Risk Matrix */}
           <div key="risk-matrix" className="rounded-xl border border-border bg-surface shadow-lg overflow-hidden">
-            <div className="text-lg font-semibold text-white mb-4 flex items-center gap-2 p-6">
-              <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
+            <div className="text-lg font-semibold text-white mb-4 flex items-center gap-2 p-6 react-grid-dragHandleExampleStyle cursor-grab active:cursor-grabbing">
+              <GripVertical size={16} className="text-zinc-600" />
               Risk Matrix
             </div>
             <div className="p-6 pt-0">
@@ -185,8 +204,8 @@ export const DashboardGrid: React.FC = () => {
 
           {/* 2. Key Indicators */}
           <div key="key-indicators" className="rounded-xl border border-border bg-surface shadow-lg p-6 space-y-4 overflow-y-auto">
-            <div className="text-lg font-semibold text-white flex items-center gap-2">
-              <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
+            <div className="text-lg font-semibold text-white flex items-center gap-2 react-grid-dragHandleExampleStyle cursor-grab active:cursor-grabbing">
+              <GripVertical size={16} className="text-zinc-600" />
               Key Indicators
             </div>
             <div className="space-y-4">
