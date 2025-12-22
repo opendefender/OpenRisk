@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { motion } from 'framer-motion';
 import { Plus, Bell, Search } from 'lucide-react';
@@ -24,6 +24,9 @@ import { Risks } from './pages/Risks';
 import { TokenManagement } from './pages/TokenManagement';
 import { Recommendations } from './pages/Recommendations';
 import Analytics from './pages/Analytics';
+import { Incidents } from './pages/Incidents';
+import { ThreatMap } from './pages/ThreatMap';
+import { Reports } from './pages/Reports';
 
 
 // --- Imports UI Components ---
@@ -44,12 +47,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
  * COMPOSANT 2: LAYOUT GLOBAL
  * Contient la Sidebar fixe et la zone de contenu dynamique.
  */
-const DashboardLayout = ({ children }: { children: React.ReactNode }) => (
+const DashboardLayout = () => (
   <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-primary/30">
     <Sidebar />
     <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
       <main className="flex-1 overflow-hidden relative flex flex-col">
-        {children}
+        <Outlet />
       </main>
     </div>
   </div>
@@ -183,25 +186,26 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Routes Protégées (Layout Global) */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Routes>
-                {/* Sous-routes injectées dans le Layout */}
-                <Route index element={<DashboardView />} />
-                <Route path="risks" element={<Risks />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="users" element={<Users />} />
-                <Route path="audit-logs" element={<AuditLogs />} />
-                <Route path="tokens" element={<TokenManagement />} />
-                <Route path="assets" element={<Assets />} />
-                <Route path="recommendations" element={<Recommendations />} />
-                {/* Tu pourras ajouter /reports, /threats ici plus tard */}
-              </Routes>
-            </DashboardLayout>
-          </ProtectedRoute>
-        } />
+        <Route
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DashboardView />} />
+          <Route path="risks" element={<Risks />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="incidents" element={<Incidents />} />
+          <Route path="threat-map" element={<ThreatMap />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="users" element={<Users />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="tokens" element={<TokenManagement />} />
+          <Route path="assets" element={<Assets />} />
+          <Route path="recommendations" element={<Recommendations />} />
+        </Route>
         
         {/* Redirection par défaut */}
         <Route path="*" element={<Navigate to="/" replace />} />

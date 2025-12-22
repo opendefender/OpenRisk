@@ -2,26 +2,27 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3 } from 'lucide-react';
 import { cn } from '../ui/Button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Overview', path: '/'},
   { icon: ShieldAlert, label: 'Risks', path: '/risks' },
   { icon: BarChart3, label: 'Analytics', path: '/analytics' },
-  { icon: Activity, label: 'Incidents' },
-  { icon: Map, label: 'Threat Map' },
-  { icon: FileText, label: 'Reports' },
+  { icon: Activity, label: 'Incidents', path: '/incidents' },
+  { icon: Map, label: 'Threat Map', path: '/threat-map' },
+  { icon: FileText, label: 'Reports', path: '/reports' },
   { icon: Settings, label: 'Settings', path: '/settings'},
   { icon: Users, label: 'Users', path: '/users'},
   { icon: Clock, label: 'Audit Logs', path: '/audit-logs'},
   { icon: Key, label: 'API Tokens', path: '/tokens'},
   { icon: Server,  label: 'Assets', path: '/assets' },
-  { icon: Sparkles, label: 'Intelligence', path: '/recommendations', active: false },
+  { icon: Sparkles, label: 'Intelligence', path: '/recommendations' },
 ];
 
 export const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <motion.div 
@@ -43,29 +44,32 @@ export const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {menuItems.map((item) => (
+        {menuItems.map((item) => {
+          const isActive = item.path === location.pathname;
+          return (
           <button
             key={item.label}
             onClick={() => item.path && navigate(item.path)}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
-              item.active 
+              isActive 
                 ? "bg-primary/10 text-primary" 
                 : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
             )}
           >
-            <item.icon size={20} className={cn("shrink-0", item.active && "text-primary drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]")} />
+            <item.icon size={20} className={cn("shrink-0", isActive && "text-primary drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]")} />
             
             {!isCollapsed && (
               <span className="font-medium text-sm">{item.label}</span>
             )}
             
             {/* Active Indicator */}
-            {item.active && (
+            {isActive && (
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
             )}
           </button>
-        ))}
+        );
+        })}
       </nav>
 
       {/* Collapse Button */}
