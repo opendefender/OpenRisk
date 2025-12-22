@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Download, Calendar, Eye, Share2, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { useReportStore, type Report } from '../hooks/useReportStore';
+import { useReportStore } from '../hooks/useReportStore';
 
 export const Reports = () => {
   const { reports, stats, total, page, pageSize, isLoading, error, fetchReports, fetchReportStats } = useReportStore();
@@ -197,21 +197,18 @@ export const Reports = () => {
                     <>
                       <Button
                         variant="ghost"
-                        size="sm"
                         title="Download"
                       >
                         <Download size={16} />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
                         title="Preview"
                       >
                         <Eye size={16} />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
                         title="Share"
                       >
                         <Share2 size={16} />
@@ -220,7 +217,6 @@ export const Reports = () => {
                   )}
                   <Button
                     variant="ghost"
-                    size="sm"
                     title="Delete"
                   >
                     <Trash2 size={16} className="text-red-400" />
@@ -236,7 +232,7 @@ export const Reports = () => {
       <div className="mt-6 bg-surface border border-border rounded-lg p-6">
         <h3 className="text-lg font-bold mb-4">Scheduled Reports</h3>
         <p className="text-zinc-400 mb-4">Configure automatic report generation</p>
-        <Button variant="outline">Add Scheduled Report</Button>
+        <Button variant="secondary">Add Scheduled Report</Button>
       </div>
     </div>
   );
