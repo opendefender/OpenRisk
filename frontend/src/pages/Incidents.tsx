@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Clock, User, Filter, Search } from 'lucide-react';
+import { AlertTriangle, Clock, User, Filter, Search, MapPin, Users } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { ViewToggle } from '../components/ViewToggle';
 import { useIncidentStore, type Incident } from '../hooks/useIncidentStore';
 
 export const Incidents = () => {
@@ -9,6 +10,14 @@ export const Incidents = () => {
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [view, setView] = useState<'table' | 'card'>(() => {
+    const saved = localStorage.getItem('incidentView');
+    return (saved as 'table' | 'card') || 'table';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('incidentView', view);
+  }, [view]);
 
   useEffect(() => {
     const severity = filterSeverity === 'all' ? undefined : filterSeverity;
@@ -51,9 +60,12 @@ export const Incidents = () => {
   return (
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">Incidents</h2>
-        <p className="text-zinc-400">Track and manage security incidents across your infrastructure</p>
+      <div className="mb-6 flex justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Incidents</h2>
+          <p className="text-zinc-400">Track and manage security incidents across your infrastructure</p>
+        </div>
+        <ViewToggle view={view} onViewChange={setView} />
       </div>
 
       {/* Stats */}
@@ -116,61 +128,137 @@ export const Incidents = () => {
         </div>
       </div>
 
-      {/* Incidents List */}
-      <div className="space-y-3">
-        {isLoading && (
-          <div className="text-center py-12">
-            <p className="text-zinc-400">Loading incidents...</p>
-          </div>
-        )}
-        {error && (
-          <div className="text-center py-12">
-            <p className="text-red-400">Error: {error}</p>
-          </div>
-        )}
-        {!isLoading && filteredIncidents.length === 0 ? (
-          <div className="text-center py-12">
-            <AlertTriangle size={48} className="mx-auto text-zinc-600 mb-4" />
-            <p className="text-zinc-400">No incidents found</p>
-          </div>
-        ) : (
-          filteredIncidents.map((incident, index) => (
-            <motion.div
-              key={incident.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              className="bg-surface border border-border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer hover:bg-surface/80"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-white">{incident.title}</h3>
-                    <span className={`text-xs font-bold px-2 py-1 rounded border ${getSeverityColor(incident.severity)}`}>
-                      {incident.severity.toUpperCase()}
+      {/* Incidents List / Grid */}
+      {view === 'table' && (
+        <div className="space-y-3">
+          {isLoading && (
+            <div className="text-center py-12">
+              <p className="text-zinc-400">Loading incidents...</p>
+            </div>
+          )}
+          {error && (
+            <div className="text-center py-12">
+              <p className="text-red-400">Error: {error}</p>
+            </div>
+          )}
+          {!isLoading && filteredIncidents.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertTriangle size={48} className="mx-auto text-zinc-600 mb-4" />
+              <p className="text-zinc-400">No incidents found</p>
+            </div>
+          ) : (
+            filteredIncidents.map((incident, index) => (
+              <motion.div
+                key={incident.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className="bg-surface border border-border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer hover:bg-surface/80"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold text-white">{incident.title}</h3>
+                      <span className={`text-xs font-bold px-2 py-1 rounded border ${getSeverityColor(incident.severity)}`}>
+                        {incident.severity.toUpperCase()}
+                      </span>
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${getStatusColor(incident.status)}`}>
+                        {incident.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-400 mb-3">{incident.description}</p>
+                    <div className="flex items-center gap-6 text-xs text-zinc-500">
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} />
+                        {new Date(incident.date).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User size={14} />
+                        {incident.assignee}
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" className="ml-4">View Details</Button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      )}
+
+      {view === 'card' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {isLoading && (
+            <div className="col-span-full text-center py-12">
+              <p className="text-zinc-400">Loading incidents...</p>
+            </div>
+          )}
+          {error && (
+            <div className="col-span-full text-center py-12">
+              <p className="text-red-400">Error: {error}</p>
+            </div>
+          )}
+          {!isLoading && filteredIncidents.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <AlertTriangle size={48} className="mx-auto text-zinc-600 mb-4" />
+              <p className="text-zinc-400">No incidents found</p>
+            </div>
+          ) : (
+            filteredIncidents.map((incident) => (
+              <motion.div
+                key={incident.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -4 }}
+                className="bg-surface border border-border rounded-lg p-6 hover:border-primary/50 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white group-hover:text-primary transition-colors mb-2">
+                      {incident.title}
+                    </h3>
+                    <p className="text-xs text-zinc-500">{incident.description?.slice(0, 100)}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-1 rounded ml-2 flex-shrink-0 ${getSeverityColor(incident.severity)}`}>
+                    {incident.severity.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+
+                <div className="space-y-3 mb-4 border-t border-border pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400 flex items-center gap-1">
+                      <AlertTriangle size={14} /> Severity
                     </span>
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${getStatusColor(incident.status)}`}>
+                    <span className="text-sm font-medium capitalize">{incident.severity}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400 flex items-center gap-1">
+                      <Users size={14} /> Status
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(incident.status)}`}>
                       {incident.status.toUpperCase()}
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-400 mb-3">{incident.description}</p>
-                  <div className="flex items-center gap-6 text-xs text-zinc-500">
-                    <div className="flex items-center gap-2">
-                      <Clock size={14} />
-                      {new Date(incident.date).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User size={14} />
-                      {incident.assignee}
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400 flex items-center gap-1">
+                      <User size={14} /> Assignee
+                    </span>
+                    <span className="text-sm">{incident.assignee}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400 flex items-center gap-1">
+                      <Clock size={14} /> Date
+                    </span>
+                    <span className="text-sm">{new Date(incident.date).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <Button variant="ghost" className="ml-4">View Details</Button>
-              </div>
-            </motion.div>
-          ))
-        )}
-      </div>
+
+                <Button className="w-full mt-4" variant="ghost">View Details</Button>
+              </motion.div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };
