@@ -13,18 +13,18 @@ import (
 type AuditLogAction string
 
 const (
-	ActionLogin            AuditLogAction = "login"
-	ActionLoginFailed      AuditLogAction = "login_failed"
-	ActionRegister         AuditLogAction = "register"
-	ActionLogout           AuditLogAction = "logout"
-	ActionTokenRefresh     AuditLogAction = "token_refresh"
-	ActionRoleChange       AuditLogAction = "role_change"
-	ActionUserDelete       AuditLogAction = "user_delete"
-	ActionUserDeactivate   AuditLogAction = "user_deactivate"
-	ActionUserActivate     AuditLogAction = "user_activate"
-	ActionUserCreate       AuditLogAction = "user_create"
-	ActionPasswordChange   AuditLogAction = "password_change"
-	ActionIntegrationTest  AuditLogAction = "integration_test"
+	ActionLogin           AuditLogAction = "login"
+	ActionLoginFailed     AuditLogAction = "login_failed"
+	ActionRegister        AuditLogAction = "register"
+	ActionLogout          AuditLogAction = "logout"
+	ActionTokenRefresh    AuditLogAction = "token_refresh"
+	ActionRoleChange      AuditLogAction = "role_change"
+	ActionUserDelete      AuditLogAction = "user_delete"
+	ActionUserDeactivate  AuditLogAction = "user_deactivate"
+	ActionUserActivate    AuditLogAction = "user_activate"
+	ActionUserCreate      AuditLogAction = "user_create"
+	ActionPasswordChange  AuditLogAction = "password_change"
+	ActionIntegrationTest AuditLogAction = "integration_test"
 )
 
 func (a AuditLogAction) String() string {
