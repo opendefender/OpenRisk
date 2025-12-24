@@ -120,7 +120,7 @@ Password: admin123
 
 ## 📋 Features
 
-### Phase 1-2: Core Risk Management ✅
+### Phase 1: Core Risk Management ✅
 - ✅ Risk CRUD operations (Create, Read, Update, Delete, List)
 - ✅ Risk scoring engine with weighted calculations
 - ✅ Mitigation tracking with checklist sub-actions
