@@ -33,7 +33,7 @@ func main() {
 	// Chargement de la configuration (.env)
 	cfg := config.LoadConfig()
 	// if err != nil {
-	// 	log.Printf("⚠️ Warning: No config file found, using environment variables. Error: %v", err)
+	// 	log.Printf("Warning: No config file found, using environment variables. Error: %v", err)
 	// }
 
 	// Initialisation de la Timezone (Important pour les logs/dates)
@@ -63,7 +63,7 @@ func main() {
 		&domain.Team{},
 		&domain.TeamMember{},
 	); err != nil {
-		log.Fatalf("❌ Database Migration Failed: %v", err)
+		log.Fatalf("Database Migration Failed: %v", err)
 	}
 
 	// Création du compte Admin par défaut si la DB est vide
@@ -336,12 +336,12 @@ func main() {
 	}()
 
 	<-quit // Bloque jusqu'à réception du signal
-	log.Println("🛑 Shutting down server...")
+	log.Println("Shutting down server...")
 
 	// Timeout de 5 secondes pour finir les requêtes en cours
 	if err := app.Shutdown(); err != nil {
 		log.Fatal("Forced shutdown:", err)
 	}
 
-	log.Println("✅ Server exited properly")
+	log.Println("Server exited properly")
 }

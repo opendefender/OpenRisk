@@ -90,7 +90,7 @@ func SeedAdminUser() {
 			IsActive: true,
 		}
 		database.DB.Create(&admin)
-		println("🔐 Default Admin created: admin@opendefender.io / admin123")
+		println("Default Admin created: admin@opendefender.io / admin123")
 	}
 }
 

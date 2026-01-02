@@ -1,0 +1,41 @@
+# Build stage
+FROM golang:1.25.4-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy go mod files
+COPY backend/go.mod backend/go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY backend/ .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o server ./cmd/server/main.go
+
+# Runtime stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata curl
+
+WORKDIR /root/
+
+# Copy binary from builder
+COPY --from=builder /app/server .
+
+# Copy migrations if needed
+COPY backend/migrations ./migrations
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
+
+EXPOSE ${PORT:-8080}
+
+CMD ["./server"]

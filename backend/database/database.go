@@ -55,14 +55,14 @@ func Connect() {
 	})
 
 	if err != nil {
-		log.Fatal("❌ Failed to connect to database! \n", err)
+		log.Fatal("Failed to connect to database! \n", err)
 	}
 
-	log.Println("✅ Connected to PostgreSQL database successfully")
+	log.Println("Connected to PostgreSQL database successfully")
 
 	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Fatal("❌ Failed to get database instance")
+		log.Fatal("Failed to get database instance")
 	}
 
 	sqlDB.SetMaxIdleConns(10)

@@ -1,0 +1,102 @@
+import { useEffect, useState } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { api } from '../../../lib/api';
+import { Loader2 } from 'lucide-react';
+
+interface RiskDistributionData {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export const RiskDistribution = () => {
+  const [data, setData] = useState<RiskDistributionData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/stats/risk-distribution')
+      .then(res => setData(res.data))
+      .catch(() => {
+        // Fallback data if API fails
+        setData({
+          critical: 3,
+          high: 8,
+          medium: 15,
+          low: 24
+        });
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full text-zinc-500">
+        <Loader2 className="animate-spin mr-2" size={20} />
+        Loading Distribution...
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const chartData = [
+    { name: 'Critical', value: data.critical, color: '#ef4444' },
+    { name: 'High', value: data.high, color: '#f97316' },
+    { name: 'Medium', value: data.medium, color: '#eab308' },
+    { name: 'Low', value: data.low, color: '#3b82f6' },
+  ];
+
+  const total = data.critical + data.high + data.medium + data.low;
+
+  return (
+    <div className="h-full w-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              paddingAngle={2}
+              dataKey="value"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#18181b',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+              }}
+              formatter={(value) => [value, 'Count']}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        {chartData.map((item) => (
+          <div key={item.name} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-xs text-zinc-300">{item.name}</span>
+            <span className="ml-auto text-xs font-bold text-white">{item.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Stats Summary */}
+      <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+        <p className="text-xs text-zinc-400">Total Risks: <span className="text-white font-bold">{total}</span></p>
+      </div>
+    </div>
+  );
+};

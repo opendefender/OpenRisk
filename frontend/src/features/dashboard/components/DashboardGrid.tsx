@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, CheckCircle2, Server, TrendingUp, AlertTriangle, ChevronRight, Loader2, Zap, FileDown, GripVertical } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Server, TrendingUp, AlertTriangle, ChevronRight, Loader2, FileDown, GripVertical, Clock, TrendingDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import GridLayout, { Layout } from 'react-grid-layout';
+import type { Layout } from 'react-grid-layout';
+import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -10,7 +11,9 @@ import 'react-resizable/css/styles.css';
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
 import { useAuthStore } from '../../../hooks/useAuthStore';
-import { RiskMatrix } from './RiskMatrix';
+import { RiskDistribution } from './RiskDistribution';
+import { TopVulnerabilities } from './TopVulnerabilities';
+import { AverageMitigationTime } from './AverageMitigationTime';
 import { Button } from '../../../components/ui/Button';
 import { RiskTrendChart } from './RiskTrendChart';
 
@@ -24,16 +27,27 @@ interface WidgetProps {
   className?: string;
   padding?: string;
   isDragging?: boolean;
+  icon?: React.ElementType;
 }
 
-const Widget: React.FC<WidgetProps> = ({ title, children, className = '', padding = 'p-6', isDragging = false }) => (
-  <div className={`rounded-xl border border-border bg-surface shadow-lg ${isDragging ? 'opacity-50' : ''} ${className}`}>
-    <div className={`text-lg font-semibold text-white mb-4 flex items-center gap-2 ${padding}`}>
-      <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
+// Enhanced Glassmorphic Widget Component
+const GlassmorphicWidget: React.FC<WidgetProps> = ({ 
+  title, 
+  children, 
+  className = '', 
+  padding = 'p-6', 
+  isDragging = false,
+  icon: Icon 
+}) => (
+  <div className={`rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl shadow-2xl 
+                  ${isDragging ? 'opacity-50' : ''} hover:border-white/20 transition-all duration-300 ${className}`}>
+    <div className={`text-lg font-semibold text-white mb-4 flex items-center gap-2 ${padding} react-grid-dragHandleExampleStyle cursor-grab active:cursor-grabbing`}>
+      <GripVertical size={16} className="text-zinc-600" />
+      {Icon && <Icon size={20} className="text-primary" />}
       {title}
     </div>
     <div className={padding}>
-        {children}
+      {children}
     </div>
   </div>
 );
@@ -46,9 +60,10 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, icon: Icon, color = 'text-blue-400' }) => (
-  <div className="flex items-center justify-between p-4 bg-zinc-900/50 rounded-lg border border-white/5 transition-colors hover:bg-zinc-900">
+  <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 to-white/0 rounded-lg border border-white/10 
+                  transition-all duration-200 hover:bg-white/10 hover:border-white/20">
     <div className="flex items-center">
-      <div className={`p-2 rounded-full ${color}/20 mr-3`}>
+      <div className={`p-2 rounded-full ${color}/20 mr-3 bg-gradient-to-br from-${color}/20 to-transparent`}>
         <Icon size={18} className={color} />
       </div>
       <div>
@@ -64,13 +79,17 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, icon: Icon, color = '
 // Le Composant Principal : DashboardGrid avec Drag-and-Drop
 // =================================================================
 
+// =================================================================
+// Le Composant Principal : DashboardGrid avec Drag-and-Drop
+// =================================================================
+
 const defaultLayout: Layout[] = [
-  { i: 'risk-matrix', x: 0, y: 0, w: 7, h: 4 },
-  { i: 'key-indicators', x: 7, y: 0, w: 5, h: 4 },
-  { i: 'top-risks', x: 0, y: 4, w: 12, h: 4 },
-  { i: 'mitigation-progress', x: 0, y: 8, w: 6, h: 3 },
-  { i: 'risk-trend', x: 6, y: 8, w: 6, h: 3 },
-  { i: 'asset-distribution', x: 0, y: 11, w: 6, h: 3 },
+  { i: 'risk-distribution', x: 0, y: 0, w: 6, h: 4 },
+  { i: 'risk-trend', x: 6, y: 0, w: 6, h: 4 },
+  { i: 'top-vulnerabilities', x: 0, y: 4, w: 6, h: 4 },
+  { i: 'mitigation-time', x: 6, y: 4, w: 6, h: 4 },
+  { i: 'key-indicators', x: 0, y: 8, w: 12, h: 3 },
+  { i: 'top-risks', x: 0, y: 11, w: 12, h: 4 },
 ];
 
 export const DashboardGrid: React.FC = () => {
@@ -78,7 +97,6 @@ export const DashboardGrid: React.FC = () => {
   const { assets, fetchAssets, isLoading: isAssetsLoading } = useAssetStore();
   const { user } = useAuthStore();
   const [layout, setLayout] = useState<Layout[]>(defaultLayout);
-  const [isDragging, setIsDragging] = useState(false);
   const [containerWidth, setContainerWidth] = useState(1200);
   
   // Track container width for responsive grid
@@ -146,24 +164,24 @@ export const DashboardGrid: React.FC = () => {
     <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
-        className="p-8 space-y-8 h-full overflow-y-auto"
+        className="p-8 space-y-8 h-full overflow-y-auto bg-gradient-to-br from-background via-background to-blue-950/10"
     >
-        {/* Header Dashboard */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-white/5 gap-4">
+        {/* Enhanced Header with Gradient */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-white/10 gap-4">
             <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                    <Zap className="text-primary" size={28} /> {welcomeMessage}
+                <h1 className="text-4xl font-bold text-white flex items-center gap-3 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                    <ShieldAlert className="text-primary drop-shadow-lg" size={32} /> {welcomeMessage}
                 </h1>
-                <p className="text-zinc-400 text-sm mt-1 ml-10">Drag and drop widgets to customize your dashboard.</p>
+                <p className="text-zinc-400 text-sm mt-2 ml-12">Real-time security risk assessment and monitoring</p>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
                 <Link to="/assets">
-                    <Button variant="ghost" className="text-zinc-400 hover:text-white border-zinc-700">
+                    <Button variant="ghost" className="text-zinc-400 hover:text-white border-white/20 hover:bg-white/5">
                         <Server size={16} className="mr-2" /> Inventory
                     </Button>
                 </Link>
-                <Button onClick={resetLayout} variant="ghost" className="text-zinc-400 hover:text-white border-zinc-700">
+                <Button onClick={resetLayout} variant="ghost" className="text-zinc-400 hover:text-white border-white/20 hover:bg-white/5">
                     Reset Layout
                 </Button>
                 <Button onClick={handleExport} variant="secondary">
@@ -185,130 +203,140 @@ export const DashboardGrid: React.FC = () => {
           compactType="vertical"
           preventCollision={false}
           useCSSTransforms={true}
-          onDragStart={() => setIsDragging(true)}
-          onDragStop={() => setIsDragging(false)}
+          onDragStart={() => {}}
+          onDragStop={() => {}}
           containerPadding={[0, 0]}
           margin={[24, 24]}
           draggableHandle=".react-grid-dragHandleExampleStyle"
         >
-          {/* 1. Risk Matrix */}
-          <div key="risk-matrix" className="rounded-xl border border-border bg-surface shadow-lg overflow-hidden">
-            <div className="text-lg font-semibold text-white mb-4 flex items-center gap-2 p-6 react-grid-dragHandleExampleStyle cursor-grab active:cursor-grabbing">
-              <GripVertical size={16} className="text-zinc-600" />
-              Risk Matrix
-            </div>
-            <div className="p-6 pt-0">
-              <RiskMatrix />
-            </div>
+          {/* 1. Risk Distribution Donut Chart */}
+          <div key="risk-distribution">
+            <GlassmorphicWidget 
+              title="Risk Distribution" 
+              icon={TrendingUp}
+              className="rounded-2xl overflow-hidden h-full"
+            >
+              <RiskDistribution />
+            </GlassmorphicWidget>
           </div>
 
-          {/* 2. Key Indicators */}
-          <div key="key-indicators" className="rounded-xl border border-border bg-surface shadow-lg p-6 space-y-4 overflow-y-auto">
-            <div className="text-lg font-semibold text-white flex items-center gap-2 react-grid-dragHandleExampleStyle cursor-grab active:cursor-grabbing">
-              <GripVertical size={16} className="text-zinc-600" />
-              Key Indicators
-            </div>
-            <div className="space-y-4">
-              <StatCard 
-                  label="Risques Critiques (Score >= 15)" 
-                  value={criticalRisks} 
-                  icon={AlertTriangle} 
-                  color="text-red-400" 
-              />
-              <StatCard 
-                  label="Total Risques Actifs" 
-                  value={totalRisks} 
-                  icon={ShieldAlert} 
-                  color="text-yellow-400" 
-              />
-              <StatCard 
-                  label="Risques Mitigés" 
-                  value={`${mitigatedCount} / ${totalRisks}`} 
-                  icon={CheckCircle2} 
-                  color="text-emerald-400" 
-              />
-              <StatCard 
-                  label="Total Assets Inventoriés" 
-                  value={assets.length} 
-                  icon={Server} 
-                  color="text-blue-400" 
-              />
-            </div>
+          {/* 2. Risk Score Trends Line Chart */}
+          <div key="risk-trend">
+            <GlassmorphicWidget 
+              title="Risk Score Trends" 
+              icon={TrendingDown}
+              className="rounded-2xl overflow-hidden h-full"
+            >
+              <RiskTrendChart />
+            </GlassmorphicWidget>
           </div>
 
-          {/* 3. Top Risks */}
-          <div key="top-risks" className="rounded-xl border border-border bg-surface shadow-lg p-6 overflow-y-auto">
-            <div className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-              <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
-              Top 5 Unmitigated Risks
-            </div>
-            {topRisks.length > 0 ? (
-                <div className="space-y-3">
-                    {topRisks.map((risk) => (
-                        <Link 
-                            to={`/?riskId=${risk.id}`} 
-                            key={risk.id} 
-                            className="flex justify-between items-center p-3 rounded-lg border border-white/5 hover:bg-white/5 transition-colors cursor-pointer group"
-                        >
-                            <div className="flex items-center gap-3 flex-1">
-                                <TrendingUp size={16} className="text-red-500 group-hover:scale-110 transition-transform flex-shrink-0" />
-                                <div className="min-w-0">
-                                    <div className="font-medium text-white group-hover:text-primary transition-colors truncate">{risk.title}</div>
-                                    <div className="text-xs text-zinc-500 truncate">{risk.description}</div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4 flex-shrink-0 ml-2">
-                                <span className={`text-xs font-bold px-2 py-1 rounded border whitespace-nowrap ${
-                                    risk.score >= 15 
-                                    ? 'bg-red-500/10 text-red-400 border-red-500/20' 
-                                    : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-                                }`}>
-                                    SCORE: {risk.score}
-                                </span>
-                                <ChevronRight size={16} className="text-zinc-600 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                        </Link>
-                    ))}
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-zinc-500">
-                    <CheckCircle2 size={32} className="mb-2 text-emerald-500/50" />
-                    <p>No high priority risks found. Excellent work!</p>
-                </div>
-            )}
+          {/* 3. Top Vulnerabilities List */}
+          <div key="top-vulnerabilities">
+            <GlassmorphicWidget 
+              title="Top Vulnerabilities" 
+              icon={AlertTriangle}
+              padding="p-6"
+              className="rounded-2xl overflow-hidden h-full"
+            >
+              <TopVulnerabilities />
+            </GlassmorphicWidget>
           </div>
 
-          {/* 4. Mitigation Progress */}
-          <div key="mitigation-progress" className="rounded-xl border border-border bg-surface shadow-lg p-6">
-            <div className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-              <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
-              Mitigation Progress Overview
-            </div>
-            <div className="flex flex-col justify-center items-center h-full text-zinc-600 border border-dashed border-zinc-800 rounded-lg p-4">
-               <TrendingUp size={24} className="mb-2 opacity-50" />
-               <span className="text-xs uppercase tracking-widest">Chart Coming Soon</span>
-            </div>
+          {/* 4. Average Mitigation Time Gauge */}
+          <div key="mitigation-time">
+            <GlassmorphicWidget 
+              title="Average Mitigation Time" 
+              icon={Clock}
+              className="rounded-2xl overflow-hidden h-full"
+            >
+              <AverageMitigationTime />
+            </GlassmorphicWidget>
           </div>
 
-          {/* 5. Risk Trend */}
-          <div key="risk-trend" className="rounded-xl border border-border bg-surface shadow-lg p-6 overflow-hidden">
-            <div className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-              <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
-              Global Risk Trend
-            </div>
-            <RiskTrendChart />
+          {/* 5. Key Indicators Stats */}
+          <div key="key-indicators">
+            <GlassmorphicWidget 
+              title="Key Indicators" 
+              icon={ShieldAlert}
+              className="rounded-2xl overflow-hidden h-full"
+              padding="p-6"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard 
+                    label="Critical Risks" 
+                    value={criticalRisks} 
+                    icon={AlertTriangle} 
+                    color="text-red-400" 
+                />
+                <StatCard 
+                    label="Total Active Risks" 
+                    value={totalRisks} 
+                    icon={ShieldAlert} 
+                    color="text-yellow-400" 
+                />
+                <StatCard 
+                    label="Mitigated Risks" 
+                    value={`${mitigatedCount} / ${totalRisks}`} 
+                    icon={CheckCircle2} 
+                    color="text-emerald-400" 
+                />
+                <StatCard 
+                    label="Total Assets" 
+                    value={assets.length} 
+                    icon={Server} 
+                    color="text-blue-400" 
+                />
+              </div>
+            </GlassmorphicWidget>
           </div>
 
-          {/* 6. Asset Distribution */}
-          <div key="asset-distribution" className="rounded-xl border border-border bg-surface shadow-lg p-6">
-            <div className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-              <GripVertical size={16} className="text-zinc-600 cursor-grab active:cursor-grabbing" />
-              Asset Criticality Distribution
-            </div>
-            <div className="flex flex-col justify-center items-center h-full text-zinc-600 border border-dashed border-zinc-800 rounded-lg p-4">
-                <Server size={24} className="mb-2 opacity-50" />
-                <span className="text-xs uppercase tracking-widest">Distribution Chart Coming Soon</span>
-            </div>
+          {/* 6. Top Unmitigated Risks */}
+          <div key="top-risks">
+            <GlassmorphicWidget 
+              title="Top Unmitigated Risks" 
+              icon={AlertTriangle}
+              padding="p-6"
+              className="rounded-2xl overflow-hidden h-full"
+            >
+              {topRisks.length > 0 ? (
+                  <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2">
+                      {topRisks.map((risk, index) => (
+                          <Link 
+                              to={`/?riskId=${risk.id}`} 
+                              key={risk.id} 
+                              className="flex justify-between items-center p-3 rounded-lg border border-white/10 
+                                        bg-gradient-to-r from-white/5 to-white/0 hover:bg-white/10 
+                                        hover:border-white/20 transition-all duration-200 cursor-pointer group"
+                          >
+                              <div className="flex items-center gap-3 flex-1">
+                                  <span className="text-sm font-bold text-primary w-6">{index + 1}</span>
+                                  <TrendingUp size={16} className="text-red-500 group-hover:scale-110 transition-transform flex-shrink-0" />
+                                  <div className="min-w-0">
+                                      <div className="font-medium text-white group-hover:text-primary transition-colors truncate">{risk.title}</div>
+                                      <div className="text-xs text-zinc-500 truncate">{risk.description}</div>
+                                  </div>
+                              </div>
+                              <div className="flex items-center gap-4 flex-shrink-0 ml-2">
+                                  <span className={`text-xs font-bold px-3 py-1.5 rounded-lg border whitespace-nowrap transition-all ${
+                                      risk.score >= 15 
+                                      ? 'bg-red-500/20 text-red-400 border-red-500/30' 
+                                      : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                  }`}>
+                                      SCORE: {risk.score}
+                                  </span>
+                                  <ChevronRight size={16} className="text-zinc-600 group-hover:translate-x-1 transition-transform" />
+                              </div>
+                          </Link>
+                      ))}
+                  </div>
+              ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-zinc-500">
+                      <CheckCircle2 size={32} className="mb-2 text-emerald-500/50" />
+                      <p>No high priority risks found. Excellent work!</p>
+                  </div>
+              )}
+            </GlassmorphicWidget>
           </div>
         </GridLayout>
     </motion.div>
