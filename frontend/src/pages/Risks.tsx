@@ -147,7 +147,14 @@ export const Risks = () => {
           </div>
 
           {isLoading ? (
-            <div className="p-6 text-center">Loading…</div>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="inline-block animate-spin mb-4">
+                  <div className="h-8 w-8 border-4 border-primary border-t-primary/40 rounded-full"></div>
+                </div>
+                <p className="text-zinc-400">Loading risks...</p>
+              </div>
+            </div>
           ) : risks.length === 0 ? (
             <div className="p-6 text-center">No risks found.</div>
           ) : (
@@ -175,7 +182,14 @@ export const Risks = () => {
       {view === 'card' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading ? (
-            <div className="col-span-full p-6 text-center">Loading…</div>
+            <div className="col-span-full flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="inline-block animate-spin mb-4">
+                  <div className="h-8 w-8 border-4 border-primary border-t-primary/40 rounded-full"></div>
+                </div>
+                <p className="text-zinc-400">Loading risks...</p>
+              </div>
+            </div>
           ) : risks.length === 0 ? (
             <div className="col-span-full p-6 text-center">No risks found.</div>
           ) : (
