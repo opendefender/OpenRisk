@@ -62,6 +62,10 @@ func main() {
 		&domain.BulkOperationLog{},
 		&domain.Team{},
 		&domain.TeamMember{},
+		&domain.Connector{},
+		&domain.MarketplaceApp{},
+		&domain.ConnectorUpdate{},
+		&domain.MarketplaceLog{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -318,6 +322,33 @@ func main() {
 	protected.Get("/reports", reportHandler.GetReports)
 	protected.Get("/reports/:id", reportHandler.GetReport)
 	protected.Get("/reports/stats", reportHandler.GetReportStats)
+
+	// --- Marketplace Management (Protected routes) ---
+	// Marketplace can be browsed by all authenticated users
+	// Installation requires analyst or admin role
+	marketplaceService := services.NewMarketplaceService(database.DB, log.New(os.Stderr, "[Marketplace] ", log.LstdFlags))
+	marketplaceHandler := handlers.NewMarketplaceHandler(marketplaceService)
+
+	// Public marketplace endpoints (all authenticated users can browse)
+	protected.Get("/marketplace/connectors", marketplaceHandler.ListConnectors)
+	protected.Get("/marketplace/connectors/:id", marketplaceHandler.GetConnector)
+	protected.Get("/marketplace/connectors/search", marketplaceHandler.SearchConnectors)
+
+	// Protected marketplace endpoints (analysts and admins only)
+	protectedMarketplace := protected.Use(middleware.RequireRole("admin", "analyst"))
+	protectedMarketplace.Post("/marketplace/apps", marketplaceHandler.InstallApp)
+	protectedMarketplace.Get("/marketplace/apps", marketplaceHandler.ListApps)
+	protectedMarketplace.Get("/marketplace/apps/:id", marketplaceHandler.GetApp)
+	protectedMarketplace.Put("/marketplace/apps/:id", marketplaceHandler.UpdateApp)
+	protectedMarketplace.Post("/marketplace/apps/:id/enable", marketplaceHandler.EnableApp)
+	protectedMarketplace.Post("/marketplace/apps/:id/disable", marketplaceHandler.DisableApp)
+	protectedMarketplace.Delete("/marketplace/apps/:id", marketplaceHandler.UninstallApp)
+	protectedMarketplace.Put("/marketplace/apps/:id/sync", marketplaceHandler.UpdateAppSync)
+	protectedMarketplace.Post("/marketplace/apps/:id/sync", marketplaceHandler.TriggerSync)
+	protectedMarketplace.Get("/marketplace/apps/:id/logs", marketplaceHandler.GetAppLogs)
+
+	// Connector reviews (all authenticated users can review)
+	protected.Post("/marketplace/connectors/:id/reviews", marketplaceHandler.AddConnectorReview)
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)

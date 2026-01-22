@@ -28,6 +28,7 @@ import Analytics from './pages/Analytics';
 import { Incidents } from './pages/Incidents';
 import { ThreatMap } from './pages/ThreatMap';
 import { Reports } from './pages/Reports';
+import Marketplace from './pages/Marketplace';
 
 
 // --- Imports UI Components ---
@@ -197,6 +198,7 @@ function App() {
           <Route path="incidents" element={<Incidents />} />
           <Route path="threat-map" element={<ThreatMap />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="marketplace" element={<Marketplace />} />
           <Route path="settings" element={<Settings />} />
           <Route path="users" element={<Users />} />
           <Route path="audit-logs" element={<AuditLogs />} />
