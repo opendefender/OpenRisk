@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/opendefender/openrisk/config"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/adapters/thehive"
+	"github.com/opendefender/openrisk/internal/cache"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/handlers"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -378,4 +380,15 @@ func main() {
 	}
 
 	log.Println("Server exited properly")
+}
+
+
+// parseEnvInt safely parses environment variables to integers
+func parseEnvInt(key string, defaultVal int) int {
+	if val := os.Getenv(key); val != "" {
+		if parsed, err := strconv.Atoi(val); err == nil {
+			return parsed
+		}
+	}
+	return defaultVal
 }
