@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { api } from '../../../lib/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+
+interface RiskDistributionRecord {
+  level: string;
+  count: number;
+}
 
 interface RiskDistributionData {
   critical: number;
@@ -13,20 +18,41 @@ interface RiskDistributionData {
 export const RiskDistribution = () => {
   const [data, setData] = useState<RiskDistributionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get('/stats/risk-distribution')
-      .then(res => setData(res.data))
-      .catch(() => {
-        // Fallback data if API fails
-        setData({
-          critical: 3,
-          high: 8,
-          medium: 15,
-          low: 24
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/stats/risk-distribution');
+        const records: RiskDistributionRecord[] = res.data || [];
+        
+        // Transform backend response format to match UI expectations
+        const transformed: RiskDistributionData = {
+          critical: 0,
+          high: 0,
+          medium: 0,
+          low: 0
+        };
+        
+        records.forEach((record: RiskDistributionRecord) => {
+          const level = record.level?.toUpperCase() || 'LOW';
+          if (level in transformed) {
+            transformed[level as keyof RiskDistributionData] = record.count || 0;
+          }
         });
-      })
-      .finally(() => setIsLoading(false));
+        
+        setData(transformed);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch risk distribution:', err);
+        setError('Failed to load risk distribution data');
+        setData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -38,7 +64,14 @@ export const RiskDistribution = () => {
     );
   }
 
-  if (!data) return null;
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+        <AlertTriangle size={32} className="mb-2 text-orange-500/50" />
+        <p className="text-sm">{error || 'No distribution data available'}</p>
+      </div>
+    );
+  }
 
   const chartData = [
     { name: 'Critical', value: data.critical, color: '#ef4444' },

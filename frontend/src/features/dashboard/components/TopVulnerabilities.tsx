@@ -39,44 +39,40 @@ const getSeverityIcon = (severity: string) => {
 export const TopVulnerabilities = () => {
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Try to fetch from API, fallback to demo data
-    api.get('/stats/top-vulnerabilities')
-      .then(res => setVulnerabilities(res.data || getDemoData()))
-      .catch(() => setVulnerabilities(getDemoData()))
-      .finally(() => setIsLoading(false));
-  }, []);
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/stats/top-vulnerabilities?limit=5');
+        setVulnerabilities(res.data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch top vulnerabilities:', err);
+        setError('Failed to load vulnerabilities');
+        setVulnerabilities([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const getDemoData = (): Vulnerability[] => [
-    {
-      id: '1',
-      title: 'SQL Injection',
-      severity: 'Critical',
-      cvssScore: 9.8,
-      affectedAssets: 3,
-    },
-    {
-      id: '2',
-      title: 'Cross-Site Scripting (XSS)',
-      severity: 'High',
-      cvssScore: 7.5,
-      affectedAssets: 5,
-    },
-    {
-      id: '3',
-      title: 'Broken Authentication',
-      severity: 'High',
-      cvssScore: 7.2,
-      affectedAssets: 2,
-    },
-  ];
+    fetchData();
+  }, []);
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full text-zinc-500">
         <Loader2 className="animate-spin mr-2" size={20} />
         Loading Vulnerabilities...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+        <AlertTriangle size={32} className="mb-2 text-orange-500/50" />
+        <p className="text-sm">{error}</p>
       </div>
     );
   }

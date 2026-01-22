@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../../../lib/api';
-import { Loader2, TrendingDown } from 'lucide-react';
+import { Loader2, TrendingDown, AlertTriangle } from 'lucide-react';
 
 interface TrendPoint {
   date: string;
@@ -11,23 +11,25 @@ interface TrendPoint {
 export const RiskTrendChart = () => {
   const [data, setData] = useState<TrendPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get('/stats/trends')
-       .then(res => setData(res.data))
-       .catch(() => {
-         // Fallback demo data
-         setData([
-           { date: '2024-12-01', score: 65 },
-           { date: '2024-12-05', score: 62 },
-           { date: '2024-12-10', score: 58 },
-           { date: '2024-12-15', score: 55 },
-           { date: '2024-12-20', score: 52 },
-           { date: '2024-12-25', score: 48 },
-           { date: '2024-12-30', score: 45 },
-         ]);
-       })
-       .finally(() => setIsLoading(false));
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/stats/trends');
+        const trendData = res.data || [];
+        setData(trendData);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch risk trends:', err);
+        setError('Failed to load trend data');
+        setData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -38,13 +40,22 @@ export const RiskTrendChart = () => {
     );
   }
 
+  if (error || data.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-zinc-500">
+        <AlertTriangle size={32} className="mb-2 text-orange-500/50" />
+        <p className="text-sm">{error || 'No trend data available'}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full flex flex-col">
       <div className="mb-4 flex items-center gap-2">
         <TrendingDown size={20} className="text-emerald-400" />
         <div>
-          <p className="text-sm font-semibold text-white">Positive Trend</p>
-          <p className="text-xs text-zinc-400">Risk score improving over time</p>
+          <p className="text-sm font-semibold text-white">Risk Score Timeline</p>
+          <p className="text-xs text-zinc-400">Historical trend data from backend</p>
         </div>
       </div>
       

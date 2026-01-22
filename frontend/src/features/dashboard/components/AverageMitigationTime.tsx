@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { api } from '../../../lib/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+
+interface MitigationMetricsData {
+  total_mitigations: number;
+  completed_mitigations: number;
+  in_progress_mitigations: number;
+  planned_mitigations: number;
+  average_time_days: number;
+  completion_rate: number;
+}
 
 interface MitigationMetrics {
   averageTimeHours: number;
@@ -14,21 +23,35 @@ interface MitigationMetrics {
 export const AverageMitigationTime = () => {
   const [metrics, setMetrics] = useState<MitigationMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get('/stats/mitigation-metrics')
-      .then(res => setMetrics(res.data))
-      .catch(() => {
-        // Fallback demo data
-        setMetrics({
-          averageTimeHours: 96,
-          averageTimeDays: 4,
-          completedCount: 28,
-          pendingCount: 12,
-          completionRate: 70,
-        });
-      })
-      .finally(() => setIsLoading(false));
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/stats/mitigation-metrics');
+        const data: MitigationMetricsData = res.data || {};
+        
+        // Transform backend response format to match UI expectations
+        const transformed: MitigationMetrics = {
+          averageTimeHours: (data.average_time_days || 0) * 24,
+          averageTimeDays: data.average_time_days || 0,
+          completedCount: data.completed_mitigations || 0,
+          pendingCount: data.in_progress_mitigations || data.planned_mitigations || 0,
+          completionRate: data.completion_rate || 0,
+        };
+        
+        setMetrics(transformed);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch mitigation metrics:', err);
+        setError('Failed to load mitigation metrics');
+        setMetrics(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -40,7 +63,14 @@ export const AverageMitigationTime = () => {
     );
   }
 
-  if (!metrics) return null;
+  if (error || !metrics) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+        <AlertTriangle size={32} className="mb-2 text-orange-500/50" />
+        <p className="text-sm">{error || 'No metrics available'}</p>
+      </div>
+    );
+  }
 
   const gaugeLevels = [
     { name: 'Completed', value: metrics.completedCount, color: '#10b981' },
