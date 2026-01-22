@@ -18,6 +18,7 @@ import (
 	"github.com/opendefender/openrisk/config"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/adapters/thehive"
+	"github.com/opendefender/openrisk/internal/cache"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/handlers"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -45,6 +46,45 @@ func main() {
 
 	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
 	migrations.RunMigrations()
+
+	// =========================================================================
+	// 1.5 CACHE INITIALIZATION
+	// =========================================================================
+
+	// Initialize Redis cache for performance optimization
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		redisHost = "localhost"
+	}
+	redisPort := os.Getenv("REDIS_PORT")
+	if redisPort == "" {
+		redisPort = "6379"
+	}
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	if redisPassword == "" {
+		redisPassword = "redis123" // Development default
+	}
+
+	var cacheInstance cache.Cache
+	var cacheErr error
+
+	// Create Redis cache instance
+	cacheInstance, cacheErr = cache.NewRedisCache(
+		redisHost,
+		redisPort,
+		redisPassword,
+	)
+	if cacheErr != nil {
+		log.Printf("Warning: Redis cache initialization failed: %v. Using in-memory cache.", cacheErr)
+		cacheInstance = cache.NewMemoryCache()
+	} else {
+		log.Println("Cache: Redis initialized successfully")
+	}
+	defer cacheInstance.Close()
+
+	// Initialize caching handler utilities
+	cacheableHandlers := handlers.NewCacheableHandlers(cacheInstance)
+	log.Println("Cache: Handler utilities initialized")
 
 	// =========================================================================
 	// 2. MIGRATIONS & SEEDING (DevOps Friendly)
@@ -179,19 +219,19 @@ func main() {
 	protected := api.Use(middleware.Protected())
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
-	protected.Get("/stats", handlers.GetDashboardStats)
+	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
 	protected.Get("/risks",
 		middleware.RequirePermissions(permissionService, domain.Permission{
 			Resource: domain.PermissionResourceRisk,
 			Action:   domain.PermissionRead,
 		}),
-		handlers.GetRisks)
+		cacheableHandlers.CacheRiskListGET(handlers.GetRisks))
 	protected.Get("/risks/:id",
 		middleware.RequirePermissions(permissionService, domain.Permission{
 			Resource: domain.PermissionResourceRisk,
 			Action:   domain.PermissionRead,
 		}),
-		handlers.GetRisk)
+		cacheableHandlers.CacheRiskGetByIDGET(handlers.GetRisk))
 
 	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
 	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
@@ -224,12 +264,12 @@ func main() {
 	api.Get("/users/me", authHandler.GetProfile)
 	api.Get("/assets", middleware.Protected(), handlers.GetAssets)
 	api.Post("/assets", middleware.Protected(), handlers.CreateAsset)
-	api.Get("/stats/risk-matrix", handlers.GetRiskMatrixData)
+	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
 	api.Get("/stats/risk-distribution", handlers.GetRiskDistribution)
 	api.Get("/stats/mitigation-metrics", handlers.GetMitigationMetrics)
 	api.Get("/stats/top-vulnerabilities", handlers.GetTopVulnerabilities)
 	api.Get("/export/pdf", handlers.ExportRisksPDF)
-	api.Get("/stats/trends", middleware.Protected(), handlers.GetGlobalRiskTrend)
+	api.Get("/stats/trends", middleware.Protected(), cacheableHandlers.CacheDashboardTimelineGET(handlers.GetGlobalRiskTrend))
 	api.Get("/mitigations/recommended", handlers.GetRecommendedMitigations)
 	api.Get("/gamification/me", middleware.Protected(), handlers.GetMyGamificationProfile)
 
@@ -380,7 +420,6 @@ func main() {
 
 	log.Println("Server exited properly")
 }
-
 
 // parseEnvInt safely parses environment variables to integers
 func parseEnvInt(key string, defaultVal int) int {

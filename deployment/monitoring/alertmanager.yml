@@ -1,0 +1,60 @@
+# AlertManager configuration for OpenRisk performance monitoring
+global:
+  resolve_timeout: 5m
+  slack_api_url: ${SLACK_WEBHOOK_URL}
+
+# Inhibition rules - when to suppress alerts
+inhibit_rules:
+  # Suppress warning if critical is already firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+# Notification routing - how to handle different alerts
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'instance']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  
+  routes:
+    # Critical cache alerts to Slack and on-call
+    - match:
+        severity: 'critical'
+      receiver: 'critical-channel'
+      continue: true
+      repeat_interval: 5m
+    
+    # Warning performance alerts to Slack
+    - match:
+        severity: 'warning'
+      receiver: 'performance-alerts'
+      repeat_interval: 1h
+
+# Receivers define where to send notifications
+receivers:
+  - name: 'default'
+    slack_configs:
+      - channel: '#openrisk-alerts'
+        title: 'OpenRisk Performance Alert'
+        text: '{{ .GroupLabels.alertname }}'
+        send_resolved: true
+  
+  - name: 'critical-channel'
+    slack_configs:
+      - channel: '#critical-alerts'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+  
+  - name: 'performance-alerts'
+    slack_configs:
+      - channel: '#performance-alerts'
+        title: '⚠️ {{ .GroupLabels.alertname }}'
+        text: '{{ .GroupLabels.instance }} - {{ .Alerts.Firing | len }} firing'
+        send_resolved: true
+        color: 'warning'

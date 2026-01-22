@@ -1,0 +1,43 @@
+groups:
+  - name: openrisk_performance
+    interval: 30s
+    rules:
+      # Cache Hit Rate Alert
+      - alert: LowCacheHitRate
+        expr: (redis_commands_processed_total - redis_keyspace_misses_total) / redis_commands_processed_total < 0.75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate detected"
+          description: "Cache hit rate is below 75% threshold"
+
+      # Redis Memory Alert
+      - alert: HighRedisMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using more than 85% of allocated memory"
+
+      # Database Connection Pool Alert
+      - alert: HighDatabaseConnections
+        expr: pg_stat_activity_count > 40
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool near capacity"
+          description: "{{ $value }} connections active (max: 50)"
+
+      # Slow Database Queries
+      - alert: SlowDatabaseQueries
+        expr: rate(pg_stat_statements_mean_time[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time exceeds 1 second"
