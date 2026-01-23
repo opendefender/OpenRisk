@@ -13,6 +13,7 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Users } from './pages/Users';
 import { RoleManagement } from './pages/RoleManagement';
+import { TenantManagement } from './pages/TenantManagement';
 import { Settings } from './pages/Settings';
 import AuditLogs from './pages/AuditLogs';
 import { Sidebar } from './components/layout/Sidebar';
@@ -203,6 +204,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="users" element={<Users />} />
           <Route path="roles" element={<RoleManagement />} />
+          <Route path="tenants" element={<TenantManagement />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="tokens" element={<TokenManagement />} />
           <Route path="assets" element={<Assets />} />
