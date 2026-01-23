@@ -77,7 +77,7 @@ export const TokenManagement = () => {
       await fetchTokens();
       toast.success('Token created successfully. Copy the token value now - you won\'t see it again!');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Couldn't create the API token. Please check your input and try again.');
+      toast.error(err.response?.data?.message || 'Couldn't create the API token. Please check your input and try again.");
     } finally {
       setIsCreating(false);
     }
@@ -93,7 +93,7 @@ export const TokenManagement = () => {
       setTokens(tokens.map(t => t.id === tokenId ? { ...t, status: 'revoked' } : t));
       toast.success('Token revoked');
     } catch (err) {
-      toast.error('We couldn't disable this token. Please try again.');
+      toast.error("We couldn't disable this token. Please try again.");
     }
   };
 
@@ -107,7 +107,7 @@ export const TokenManagement = () => {
       setTokens(tokens.filter(t => t.id !== tokenId));
       toast.success('Token deleted');
     } catch (err) {
-      toast.error('We couldn't remove this token. Please try again.');
+      toast.error("We couldn't remove this token. Please try again.");
     }
   };
 
@@ -122,7 +122,7 @@ export const TokenManagement = () => {
       await fetchTokens();
       toast.success('Token rotated successfully. Copy the new token value now!');
     } catch (err) {
-      toast.error('We couldn't refresh the token. Please try again.');
+      toast.error("We couldn't refresh the token. Please try again.");
     }
   };
 

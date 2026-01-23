@@ -71,7 +71,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'We couldn't add the new user. Please verify all information is correct and try again.');
+      toast.error(error.response?.data?.message || 'We couldn't add the new user. Please verify all information is correct and try again.");
     } finally {
       setIsLoading(false);
     }

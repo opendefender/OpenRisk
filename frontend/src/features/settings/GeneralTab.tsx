@@ -26,7 +26,7 @@ export const GeneralTab = () => {
       toast.success('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
-      toast.error('We couldn't save your profile changes. Please verify your information and try again.');
+      toast.error("We couldn't save your profile changes. Please verify your information and try again.");
     } finally {
       setIsSaving(false);
     }

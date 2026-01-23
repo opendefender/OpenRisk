@@ -37,7 +37,7 @@ export const Users = () => {
       const response = await api.get('/users');
       setUsers(response.data || []);
     } catch (err: any) {
-      toast.error('We couldn't load the user list. Please refresh the page and try again.');
+      toast.error("We couldn't load the user list. Please refresh the page and try again.");
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -50,7 +50,7 @@ export const Users = () => {
       setUsers(users.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
       toast.success(isActive ? 'User disabled' : 'User enabled');
     } catch (err) {
-      toast.error('We couldn't update this user's status. Please try again.');
+      toast.error("We couldn't update this user's status. Please try again.");
     }
   };
 
@@ -60,7 +60,7 @@ export const Users = () => {
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
       toast.success('User role updated');
     } catch (err) {
-      toast.error('Couldn't change the user's role. Please verify the selection and try again.');
+      toast.error('Couldn't change the user's role. Please verify the selection and try again.");
     }
   };
 
@@ -79,7 +79,7 @@ export const Users = () => {
       setUsers(users.filter(u => u.id !== userId));
       toast.success('User deleted');
     } catch (err) {
-      toast.error('We couldn't delete this user. Please try again or contact support if the problem persists.');
+      toast.error("We couldn't delete this user. Please try again or contact support if the problem persists.');
     }
   };
 

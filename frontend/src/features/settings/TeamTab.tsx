@@ -83,7 +83,7 @@ export const TeamTab = () => {
             setShowCreateTeam(false);
             toast.success('Team created successfully');
         } catch (error) {
-            toast.error('We couldn't create the team. Please enter a valid team name and try again.');
+            toast.error("We couldn't create the team. Please enter a valid team name and try again.");
         }
     };
 
@@ -92,7 +92,7 @@ export const TeamTab = () => {
             setTeams(teams.filter(t => t.id !== teamId));
             toast.success('Team deleted successfully');
         } catch (error) {
-            toast.error('We couldn't delete the team. Please try again or contact support.');
+            toast.error("We couldn't delete the team. Please try again or contact support.");
         }
     };
 
@@ -101,7 +101,7 @@ export const TeamTab = () => {
             setMembers(members.filter(m => m.id !== memberId));
             toast.success('Member removed from team');
         } catch (error) {
-            toast.error('We couldn't remove the team member. Please try again.');
+            toast.error("We couldn't remove the team member. Please try again.");
         }
     };
 
