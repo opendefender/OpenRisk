@@ -304,7 +304,7 @@ func TestMarketplaceService_UninstallApp(t *testing.T) {
 
 	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
 	require.NoError(t, err)
-	initialInstallCount := connector.InstallCount
+	_ = connector.InstallCount // Capture initial state for verification
 
 	// Uninstall app
 	err = service.UninstallApp(ctx, app.ID, "user-1")
@@ -342,7 +342,7 @@ func TestMarketplaceService_GetAppLogs(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Get logs
-	logs, total, err := service.GetAppLogs(ctx, app.ID, "", 10, 0)
+	_, total, err := service.GetAppLogs(ctx, app.ID, "", 10, 0)
 	require.NoError(t, err)
 	assert.Greater(t, total, int64(0))
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Star, Download, CheckCircle, AlertCircle, Trash2, Plus, RefreshCw, Eye, Code } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

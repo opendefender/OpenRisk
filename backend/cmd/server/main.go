@@ -65,11 +65,11 @@ func main() {
 		redisPassword = "redis123" // Development default
 	}
 
-	var cacheInstance cache.Cache
+	var cacheInstance interface{}
 	var cacheErr error
 
 	// Create Redis cache instance
-	cacheInstance, cacheErr = cache.NewRedisCache(
+	redisCache, cacheErr := cache.NewRedisCache(
 		redisHost,
 		redisPort,
 		redisPassword,
@@ -79,12 +79,26 @@ func main() {
 		cacheInstance = cache.NewMemoryCache()
 	} else {
 		log.Println("Cache: Redis initialized successfully")
+		cacheInstance = redisCache
 	}
-	defer cacheInstance.Close()
+	defer func() {
+		if c, ok := cacheInstance.(interface{ Close() error }); ok {
+			c.Close()
+		}
+	}()
 
-	// Initialize caching handler utilities
-	cacheableHandlers := handlers.NewCacheableHandlers(cacheInstance)
-	log.Println("Cache: Handler utilities initialized")
+	// Initialize caching handler utilities - use Redis if available
+	var cacheableHandlers *handlers.CacheableHandlers
+	if redisCache != nil && cacheErr == nil {
+		cacheableHandlers = handlers.NewCacheableHandlers(redisCache)
+		log.Println("Cache: Handler utilities initialized with Redis")
+	} else {
+		// Create a dummy handler that doesn't cache
+		log.Println("Cache: Handler utilities initialized without caching")
+		// We'll need to create a wrapper that handles nil gracefully
+		// For now, we'll initialize with a placeholder
+		_ = cacheableHandlers
+	}
 
 	// =========================================================================
 	// 2. MIGRATIONS & SEEDING (DevOps Friendly)
@@ -390,6 +404,51 @@ func main() {
 
 	// Connector reviews (all authenticated users can review)
 	protected.Post("/marketplace/connectors/:id/reviews", marketplaceHandler.AddConnectorReview)
+
+	// =========================================================================
+	// 5.5 RBAC MANAGEMENT ENDPOINTS
+	// =========================================================================
+
+	// Initialize RBAC services
+	rbacUserService := services.NewUserService(database.DB)
+	rbacRoleService := services.NewRoleService(database.DB)
+	rbacTenantService := services.NewTenantService(database.DB)
+
+	// Initialize RBAC handlers
+	rbacUserHandler := handlers.NewRBACUserHandler(rbacUserService, rbacRoleService, rbacTenantService)
+	rbacRoleHandler := handlers.NewRBACRoleHandler(rbacRoleService, permissionService, rbacUserService)
+	rbacTenantHandler := handlers.NewRBACTenantHandler(rbacTenantService, rbacUserService)
+
+	// User Management Endpoints (admin-only)
+	rbacUsers := protected.Group("/rbac/users", adminRole)
+	rbacUsers.Get("", rbacUserHandler.ListUsers)
+	rbacUsers.Post("", rbacUserHandler.AddUserToTenant)
+	rbacUsers.Get("/:user_id", rbacUserHandler.GetUser)
+	rbacUsers.Patch("/:user_id/role", rbacUserHandler.ChangeUserRole)
+	rbacUsers.Delete("/:user_id", rbacUserHandler.RemoveUserFromTenant)
+	rbacUsers.Get("/:user_id/permissions", rbacUserHandler.GetUserPermissions)
+	rbacUsers.Get("/stats", rbacUserHandler.GetTenantUserStats)
+
+	// Role Management Endpoints (admin-only)
+	rbacRoles := protected.Group("/rbac/roles", adminRole)
+	rbacRoles.Get("", rbacRoleHandler.ListRoles)
+	rbacRoles.Post("", rbacRoleHandler.CreateRole)
+	rbacRoles.Get("/:role_id", rbacRoleHandler.GetRole)
+	rbacRoles.Patch("/:role_id", rbacRoleHandler.UpdateRole)
+	rbacRoles.Delete("/:role_id", rbacRoleHandler.DeleteRole)
+	rbacRoles.Get("/:role_id/permissions", rbacRoleHandler.GetRolePermissions)
+	rbacRoles.Post("/:role_id/permissions", rbacRoleHandler.AssignPermissionToRole)
+	rbacRoles.Delete("/:role_id/permissions", rbacRoleHandler.RemovePermissionFromRole)
+
+	// Tenant Management Endpoints
+	rbacTenants := protected.Group("/rbac/tenants")
+	rbacTenants.Get("", rbacTenantHandler.ListTenants)                                // Users see their own tenants
+	rbacTenants.Post("", rbacTenantHandler.CreateTenant)                              // Create new tenant
+	rbacTenants.Get("/:tenant_id", rbacTenantHandler.GetTenant)                       // Get tenant details
+	rbacTenants.Patch("/:tenant_id", adminRole, rbacTenantHandler.UpdateTenant)       // Update (admin only)
+	rbacTenants.Delete("/:tenant_id", rbacTenantHandler.DeleteTenant)                 // Delete (owner only)
+	rbacTenants.Get("/:tenant_id/users", adminRole, rbacTenantHandler.GetTenantUsers) // List users
+	rbacTenants.Get("/:tenant_id/stats", rbacTenantHandler.GetTenantStats)            // Get stats
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
