@@ -60,7 +60,7 @@ export const Users = () => {
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
       toast.success('User role updated');
     } catch (err) {
-      toast.error('Couldn't change the user's role. Please verify the selection and try again.");
+      toast.error("Couldn't change the user's role. Please verify the selection and try again.");
     }
   };
 

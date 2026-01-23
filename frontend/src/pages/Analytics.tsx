@@ -59,7 +59,7 @@ export default function Analytics() {
     try {
       setRefreshing(true);
       const response = await fetch('/api/v1/analytics/dashboard');
-      if (!response.ok) throw new Error('We couldn't load your dashboard. Please refresh the page.');
+      if (!response.ok) throw new Error("We couldn't load your dashboard. Please refresh the page.");
       const data = await response.json();
       setDashboard(data);
       setError(null);
@@ -81,7 +81,7 @@ export default function Analytics() {
   const handleExport = async (format: 'json' | 'csv') => {
     try {
       const response = await fetch(`/api/v1/analytics/export?format=${format}`);
-      if (!response.ok) throw new Error('We couldn't export the data. Please try again.');
+      if (!response.ok) throw new Error("We couldn't export the data. Please try again.");
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -93,7 +93,7 @@ export default function Analytics() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'We couldn't export the data. Please try again.');
+      setError(err instanceof Error ? err.message : "We couldn't export the data. Please try again.");
     }
   };
 
