@@ -77,7 +77,7 @@ export const TokenManagement = () => {
       await fetchTokens();
       toast.success('Token created successfully. Copy the token value now - you won\'t see it again!');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Couldn't create the API token. Please check your input and try again.");
+      toast.error(err.response?.data?.message || "Couldn't create the API token. Please check your input and try again.");
     } finally {
       setIsCreating(false);
     }
