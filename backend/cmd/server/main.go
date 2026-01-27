@@ -362,13 +362,8 @@ func main() {
 	protected.Get("/analytics/dashboard", analyticsHandler.GetDashboardSnapshot)
 	protected.Get("/analytics/export", analyticsHandler.GetExportData)
 
-	// --- Incidents Management (Protected routes) ---
-	incidentHandler := handlers.NewIncidentHandler(database.DB)
-	protected.Get("/incidents", incidentHandler.GetIncidents)
-	protected.Get("/incidents/:id", incidentHandler.GetIncident)
-
-	// --- Threat Intelligence (Protected routes) ---
-	threatHandler := handlers.NewThreatHandler(database.DB)
+	// --- Time Series Analytics (Protected routes) ---
+	handlers.RegisterTimeSeriesRoutes(app, database.DB)
 	protected.Get("/threats", threatHandler.GetThreats)
 	protected.Get("/threats/stats", threatHandler.GetThreatStats)
 
