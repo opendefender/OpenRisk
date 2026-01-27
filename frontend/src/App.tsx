@@ -31,6 +31,7 @@ import { Incidents } from './pages/Incidents';
 import { ThreatMap } from './pages/ThreatMap';
 import { Reports } from './pages/Reports';
 import Marketplace from './pages/Marketplace';
+import PermissionAnalyticsPage from './pages/PermissionAnalytics';
 
 
 // --- Imports UI Components ---
@@ -206,6 +207,7 @@ function App() {
           <Route path="roles" element={<RoleManagement />} />
           <Route path="tenants" element={<TenantManagement />} />
           <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="analytics/permissions" element={<PermissionAnalyticsPage />} />
           <Route path="tokens" element={<TokenManagement />} />
           <Route path="assets" element={<Assets />} />
           <Route path="recommendations" element={<Recommendations />} />

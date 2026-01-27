@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3, Store, Shield, Building2 } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3, Store, Shield, Building2, PieChart } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -16,6 +16,7 @@ const menuItems = [
   { icon: Users, label: 'Users', path: '/users'},
   { icon: Shield, label: 'Roles', path: '/roles'},
   { icon: Building2, label: 'Tenants', path: '/tenants'},
+  { icon: PieChart, label: 'Permissions', path: '/analytics/permissions'},
   { icon: Clock, label: 'Audit Logs', path: '/audit-logs'},
   { icon: Key, label: 'API Tokens', path: '/tokens'},
   { icon: Server,  label: 'Assets', path: '/assets' },
