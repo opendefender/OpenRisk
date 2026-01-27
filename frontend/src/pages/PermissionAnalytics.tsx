@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, HeatMap, ScatterChart, Scatter } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Activity, TrendingUp, Users, Shield, Lock, AlertCircle } from 'lucide-react';
 import { useAuthStore } from "../hooks/useAuthStore";
 import { AdminOnly } from "../components/rbac/PermissionGates";
