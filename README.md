@@ -8,7 +8,7 @@
   Part of the [OpenDefender](https://github.com/opendefender) Ecosystem
   
   [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-  [![GitHub release](https://img.shields.io/badge/version-1.0.4-brightgreen.svg)](https://github.com/alex-dembele/OpenRisk/releases)
+  [![GitHub release](https://img.shields.io/badge/version-1.0.4-brightgreen.svg)](https://github.com/opendefender/OpenRisk/releases)
   [![Go version](https://img.shields.io/badge/go-1.25.4-blue.svg)](https://golang.org)
   [![React version](https://img.shields.io/badge/react-19.2.0-61dafb.svg)](https://react.dev)
 </div>
@@ -65,7 +65,7 @@ OpenRisk allows every organization to:
 
 ```bash
 # Clone the repository
-git clone https://github.com/alex-dembele/OpenRisk.git
+git clone https://github.com/opendefender/OpenRisk.git
 cd OpenRisk
 
 # Start all services (PostgreSQL, Redis, Backend, Frontend)
@@ -369,8 +369,8 @@ OpenRisk is licensed under the MIT License - see the [LICENSE](LICENSE) file for
 
 ## 🙋 Support & Contact
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/alex-dembele/OpenRisk/issues)
-- **Discussions**: [Join community discussions](https://github.com/alex-dembele/OpenRisk/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/opendefender/OpenRisk/issues)
+- **Discussions**: [Join community discussions](https://github.com/opendefender/OpenRisk/discussions)
 - **Security**: See [SECURITY.md](SECURITY.md) for security vulnerability reporting
 
 ---
@@ -414,13 +414,13 @@ OpenRisk is licensed under the MIT License - see the [LICENSE](LICENSE) file for
 ## 📞 Questions?
 
 - 📖 Check the [documentation](docs/)
-- 🐛 Search existing [issues](https://github.com/alex-dembele/OpenRisk/issues)
-- 💬 Ask in [discussions](https://github.com/alex-dembele/OpenRisk/discussions)
+- 🐛 Search existing [issues](https://github.com/opendefender/OpenRisk/issues)
+- 💬 Ask in [discussions](https://github.com/opendefender/OpenRisk/discussions)
 
 ---
 
 <div align="center">
   Made with ❤️ by OpenDefender Community
   
-  [⭐ Star us on GitHub](https://github.com/alex-dembele/OpenRisk)
+  [⭐ Star us on GitHub](https://github.com/opendefender/OpenRisk)
 </div>

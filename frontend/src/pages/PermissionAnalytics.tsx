@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, HeatMap, ScatterChart, Scatter } from 'recharts';
 import { Activity, TrendingUp, Users, Shield, Lock, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
-import { AdminOnly } from '../../components/rbac/PermissionGates';
+import { useAuthStore } from "../hooks/useAuthStore";
+import { AdminOnly } from "../components/rbac/PermissionGates";
 import { motion } from 'framer-motion';
 
 interface PermissionStat {
@@ -282,7 +282,7 @@ const PermissionAnalyticsPage: React.FC = () => {
           <h3 className="font-semibold text-blue-900 mb-3">📊 Insights</h3>
           <ul className="space-y-2 text-sm text-blue-800">
             <li>• Most used permission: {stats.mostUsedPermission.permission} ({stats.mostUsedPermission.usageCount} uses)</li>
-            <li>• {stats.activeRoles} out of 4 roles show high activity (>50% usage rate)</li>
+            <li>• {stats.activeRoles} out of 4 roles show high activity (&gt;50% usage rate)</li>
             <li>• Denial rate is {stats.denialRate}% - monitor for access issues</li>
             <li>• Administrator role has 100% permission coverage</li>
           </ul>

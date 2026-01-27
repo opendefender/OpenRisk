@@ -1,6 +1,6 @@
 import React from 'react';
-import { usePermissions } from '../hooks/usePermissions';
-import type { PermissionAction, PermissionResource } from '../utils/rbacHelpers';
+import { usePermissions } from '../../hooks/usePermissions';
+import type { PermissionAction, PermissionResource } from '../../utils/rbacHelpers';
 
 /**
  * Component wrapper that shows children only if user has required permission
