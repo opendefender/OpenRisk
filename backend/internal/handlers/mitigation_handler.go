@@ -58,18 +58,18 @@ func ToggleMitigationStatus(c fiber.Ctx) error {
 	return c.JSON(mitigation)
 }
 
-// GetRecommendedMitigations expose la liste des mitigations triÃes par SPP.
+// GetRecommendedMitigations expose la liste des mitigations tries par SPP.
 func GetRecommendedMitigations(c fiber.Ctx) error {
 	service := services.NewRecommendationService()
 
-	// . RÃcupÃrer et calculer les prioritÃs
+	// . Rcuprer et calculer les priorits
 	mitigations, err := service.GetPrioritizedMitigations()
 	if err != nil {
 		return c.Status().JSON(fiber.Map{"error": "Failed to get prioritized mitigations"})
 	}
 
 	// . Trier la liste dans le Handler avant l'envoi (meilleure pratique)
-	// On veut le SPP le plus ÃlevÃ en premier.
+	// On veut le SPP le plus lev en premier.
 	sort.Slice(mitigations, func(i, j int) bool {
 		return mitigations[i].WeightedPriority > mitigations[j].WeightedPriority
 	})
@@ -77,7 +77,7 @@ func GetRecommendedMitigations(c fiber.Ctx) error {
 	return c.JSON(mitigations)
 }
 
-// UpdateMitigation met Ã  jour les champs Ãditables d'une mitigation
+// UpdateMitigation met Ã  jour les champs ditables d'une mitigation
 func UpdateMitigation(c fiber.Ctx) error {
 	mitigationID := c.Params("mitigationId")
 	var mitigation domain.Mitigation
@@ -165,7 +165,7 @@ func CreateMitigationSubAction(c fiber.Ctx) error {
 	return c.Status().JSON(sa)
 }
 
-// ToggleMitigationSubAction bascule l'Ãtat d'une sous-action
+// ToggleMitigationSubAction bascule l'tat d'une sous-action
 func ToggleMitigationSubAction(c fiber.Ctx) error {
 	subID := c.Params("subactionId")
 	var sa domain.MitigationSubAction

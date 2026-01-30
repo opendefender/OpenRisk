@@ -1,41 +1,41 @@
-  √âtat du Projet OpenRisk - D√cembre , 
+  √âtat du Projet OpenRisk - Dcembre , 
 
-  R√capitulatif Global
+  Rcapitulatif Global
 
 Status Global:  % Complet - Pr√™t pour Phase /
 
- Phases Compl√t√es
+ Phases Compltes
 -  Phase  (MVP): % - Risk CRUD, Mitigations, Sync Engine
 -  Phase  (Auth): % - RBAC, Token API, User Management
 -  Phase  (Infrastructure): % - Docker, CI/CD, Kubernetes Helm
 -  Phase  (Entreprise): % - Custom Fields, Bulk Ops, Timeline, SAML/OAuth
-- üü° Phase  (Analytics): % - Dashboard compl√te, API endpoints
-- ‚¨ú Phase  (Marketplace): % - Non commenc√
+-  Phase  (Analytics): % - Dashboard complte, API endpoints
+-  Phase  (Marketplace): % - Non commenc
 
 ---
 
-  CE QUI EST FAIT (Session du  D√cembre)
+  CE QUI EST FAIT (Session du  Dcembre)
 
- Impl√mentation Backend - Endpoints Demand√s
-Status:  COMPLET - Tous les  endpoints impl√ment√s et test√s
+ Implmentation Backend - Endpoints Demands
+Status:  COMPLET - Tous les  endpoints implments et tests
 
 | Endpoint | Status | Type | Notes |
 |----------|--------|------|-------|
-| POST /users |  Done | Admin | Cr√er utilisateur + validation |
+| POST /users |  Done | Admin | Crer utilisateur + validation |
 | PATCH /users/{id} |  Done | Any | Update profil (bio, phone, dept, tz) |
-| POST /teams |  Done | Admin | Cr√er √quipe avec soft delete |
-| GET /teams |  Done | Admin | Lister √quipes + count membres |
-| DELETE /teams/{id} |  Done | Admin | Supprimer √quipe + nettoyage |
-| POST /integrations/{id}/test |  Done | Auth | Test int√gration + retry logic |
+| POST /teams |  Done | Admin | Crer quipe avec soft delete |
+| GET /teams |  Done | Admin | Lister quipes + count membres |
+| DELETE /teams/{id} |  Done | Admin | Supprimer quipe + nettoyage |
+| POST /integrations/{id}/test |  Done | Auth | Test intgration + retry logic |
 
-Fichiers Cr√√s:
-- backend/internal/core/domain/team.go - Mod√les Team & TeamMember
+Fichiers Crs:
+- backend/internal/core/domain/team.go - Modles Team & TeamMember
 - backend/internal/handlers/team_handler.go -  team endpoints
 - backend/internal/handlers/integration_handler.go - Test integration
 - migrations/_add_user_profile_fields.sql - Profil utilisateur
 - migrations/_create_teams_table.sql - Tables teams & team_members
 
-Fichiers Modifi√s:
+Fichiers Modifis:
 - backend/internal/core/domain/user.go - + champs profil
 - backend/internal/core/domain/audit_log.go - + constantes audit
 - backend/internal/handlers/user_handler.go - + endpoints
@@ -48,32 +48,32 @@ Documentation:
 
 Build Status:
 -  Backend compiles sans erreurs
--  Tous les endpoints rout√s
+-  Tous les endpoints routs
 -  Migrations pr√™tes
--  Audit logging int√gr√
+-  Audit logging intgr
 
 ---
 
- ‚¨ú CE QUI RESTE √Ä FAIRE
+  CE QUI RESTE √Ä FAIRE
 
  Phase  - Finition (% Complete)
 
-. API Marketplace Framework ‚¨ú (%)
-- [ ] Dashboard pour g√rer les extensions/plugins
-- [ ] Syst√me de versioning pour les connecteurs
+. API Marketplace Framework  (%)
+- [ ] Dashboard pour grer les extensions/plugins
+- [ ] Systme de versioning pour les connecteurs
 - [ ] Marketplace repository public (GitHub)
-- [ ] Syst√me d'installation de plugins automatique
+- [ ] Systme d'installation de plugins automatique
 
-. Performance Optimization & Load Testing ‚¨ú (%)
-- [ ] Profiling de la base de donn√es
-- [ ] Caching layer (Redis) pour queries fr√quentes
+. Performance Optimization & Load Testing  (%)
+- [ ] Profiling de la base de donnes
+- [ ] Caching layer (Redis) pour queries frquentes
 - [ ] Tests de charge avec k+ risques
 - [ ] Optimisation des indexes
 - [ ] Query optimization avec EXPLAIN ANALYZE
 
-. Mobile App MVP ‚¨ú (%)
+. Mobile App MVP  (%)
 - [ ] React Native ou Flutter setup
-- [ ] Dashboard mobile simplifi√
+- [ ] Dashboard mobile simplifi
 - [ ] Risk list avec filtrage
 - [ ] Push notifications
 - [ ] Offline mode basic
@@ -82,36 +82,36 @@ Build Status:
 
  Phase  - √âtapes Futures (% Complete)
 
-. Multi-Tenant SaaS ‚¨ú
+. Multi-Tenant SaaS 
 - [ ] Isolation tenant_id dans toutes les tables
 - [ ] Namespace/Tenant switching
 - [ ] Billing & Usage tracking
 - [ ] Tenant-specific branding
 
-. Advanced Int√grations ‚¨ú
+. Advanced Intgrations 
 - [ ] OpenCTI connector (threats syncing)
 - [ ] Cortex integration (playbooks)
 - [ ] Splunk/Elastic (log ‚Üí risk triggers)
 - [ ] AWS Security Hub import
 - [ ] Azure Security Center
 
-. IA/ML Layer ‚¨ú
-- [ ] D√duplication intelligente des risques
+. IA/ML Layer 
+- [ ] Dduplication intelligente des risques
 - [ ] Priorisation automatique
-- [ ] G√n√ration de mitigations suggestions
+- [ ] Gnration de mitigations suggestions
 - [ ] Anomaly detection
 - [ ] Predictive risk scoring
 
-. UI/UX Enhancements ‚¨ú
+. UI/UX Enhancements 
 - [ ] Design System complet (Storybook)
 - [ ] Dashboard drag-and-drop
-- [ ] Dark mode compl√te
+- [ ] Dark mode complte
 - [ ] Mobile responsive improvements
 - [ ] Accessibility (WCAG AA)
 
 ---
 
-  M√triques du Projet
+  Mtriques du Projet
 
  Code
 - Backend: ,+ lignes (Phase )
@@ -134,7 +134,7 @@ Build Status:
 - Admin-only: + (role check)
 - OpenAPI: Complet pour tous endpoints
 
- S√curit√
+ Scurit
 -  JWT authentication
 -  RBAC avec wildcards
 -  SAML/OAuth support
@@ -197,25 +197,25 @@ Build Status:
 
   Recommandations pour les Prochaines √âtapes
 
- Priorit√  (Imm√diate - - jours)
-. [ ] Tester les endpoints cr√√s avec Postman/Insomnia
+ Priorit  (Immdiate - - jours)
+. [ ] Tester les endpoints crs avec Postman/Insomnia
 . [ ] Connecter frontend aux nouveaux endpoints
-. [ ] Valider les migrations en base de donn√es
+. [ ] Valider les migrations en base de donnes
 . [ ] Tester le flow complet User + Team
 
- Priorit√  (Court terme - - jours)
+ Priorit  (Court terme - - jours)
 . [ ] Performance testing (load test k+ risks)
 . [ ] Database optimization (indexes, query profiling)
 . [ ] Frontend EE tests (Cypress)
 . [ ] Security audit (OWASP Top )
 
- Priorit√  (Moyen terme - - semaines)
+ Priorit  (Moyen terme - - semaines)
 . [ ] Deployer en staging (DO/AWS/Azure)
 . [ ] User acceptance testing
 . [ ] Mobile app MVP (React Native)
 . [ ] API marketplace framework
 
- Priorit√  (Long terme - Q )
+ Priorit  (Long terme - Q )
 . [ ] Multi-tenant SaaS
 . [ ] Advanced integrations (OpenCTI, Cortex)
 . [ ] IA/ML layer
@@ -225,32 +225,32 @@ Build Status:
 
   Points Forts du Projet
 
--  Architecture hexagonale bien structur√e
+-  Architecture hexagonale bien structure
 -  RBAC/PBAC complet avec wildcards
 -  Tests unitaires exhaustifs
--  CI/CD automatis√
+-  CI/CD automatis
 -  Kubernetes ready
 -  Documentation professionnelle
--  Audit logging int√gr√
+-  Audit logging intgr
 -  API tokens pour service accounts
 -  Sync engine production-grade
 -  Analytics dashboard moderne
 
 ---
 
-  Fichiers Cl√s √† Conna√tre
+  Fichiers Cls √† Connatre
 
  Backend
-- backend/cmd/server/main.go - Point d'entr√e, routes enregistr√es
-- backend/internal/core/domain/ - Mod√les de donn√es
+- backend/cmd/server/main.go - Point d'entre, routes enregistres
+- backend/internal/core/domain/ - Modles de donnes
 - backend/internal/handlers/ - HTTP handlers
-- backend/internal/services/ - Logique m√tier
+- backend/internal/services/ - Logique mtier
 - backend/internal/middleware/ - Auth, RBAC, logging
 
  Frontend
 - frontend/src/App.tsx - Router et layout
 - frontend/src/pages/ - Pages principales
-- frontend/src/components/ - Composants r√utilisables
+- frontend/src/components/ - Composants rutilisables
 - frontend/src/hooks/ - Custom hooks (stores)
 - frontend/src/lib/api.ts - Client API
 
@@ -262,14 +262,14 @@ Build Status:
 - migrations/ - Database migrations
 
  Documentation
-- BACKEND_ENDPOINTS_GUIDE.md - R√f√rence API
+- BACKEND_ENDPOINTS_GUIDE.md - Rfrence API
 - docs/LOCAL_DEVELOPMENT.md - Setup local
-- docs/KUBERNETES_DEPLOYMENT.md - D√ploiement Ks
+- docs/KUBERNETES_DEPLOYMENT.md - Dploiement Ks
 - docs/SAML_OAUTH_INTEGRATION.md - SSO
 
 ---
 
- üìû R√sum√ Quick Start
+  Rsum Quick Start
 
 Pour tester les nouveaux endpoints:
 bash
@@ -285,23 +285,23 @@ npm install && npm run dev
  Frontend at http://localhost:
 
 
-Pour acc√der aux endpoints:
+Pour accder aux endpoints:
 bash
- Cr√er un utilisateur
+ Crer un utilisateur
 POST /api/v/users (requires admin token)
 
  Mettre √† jour profil
 PATCH /api/v/users/:id
 
- Cr√er une √quipe
+ Crer une quipe
 POST /api/v/teams (requires admin token)
 
- Tester une int√gration
+ Tester une intgration
 POST /api/v/integrations/:id/test
 
 
 ---
 
-Status:  Pr√™t pour test & d√ploiement staging
-Date:  D√cembre 
+Status:  Pr√™t pour test & dploiement staging
+Date:  Dcembre 
 Prochaine Session: Performance & Mobile MVP

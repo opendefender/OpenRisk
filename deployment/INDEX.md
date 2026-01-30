@@ -10,7 +10,7 @@ Complete solution to deploy OpenRisk for FREE and get a public demo link in  min
 
 ---
 
- 📚 Quick Navigation
+  Quick Navigation
 
   Start Here (Choose Your Path)
 
@@ -24,9 +24,9 @@ Complete solution to deploy OpenRisk for FREE and get a public demo link in  min
 
 ---
 
- 📖 Documentation Files
+  Documentation Files
 
- ⭐ [README_DEPLOYMENT.txt](./README_DEPLOYMENT.txt)
+  [README_DEPLOYMENT.txt](./README_DEPLOYMENT.txt)
 Your main deployment guide
 - Complete -minute walkthrough
 - All  deployment phases
@@ -42,7 +42,7 @@ Fast track to demo link ( minutes)
 - Default credentials
 - Status:  Ready to use
 
- 📖 [DEPLOYMENT_FREE_SERVICES.md](./DEPLOYMENT_FREE_SERVICES.md)
+  [DEPLOYMENT_FREE_SERVICES.md](./DEPLOYMENT_FREE_SERVICES.md)
 Comprehensive detailed guide
 - Every service explained
 - Step-by-step instructions
@@ -50,7 +50,7 @@ Comprehensive detailed guide
 - Advanced troubleshooting
 - Status:  Ready to use
 
- 🔌 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)
+  [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)
 Technical integration reference
 - Frontend configuration
 - Backend configuration
@@ -59,7 +59,7 @@ Technical integration reference
 - CORS debugging
 - Status:  Ready to use
 
- 🏗 [ARCHITECTURE_DEPLOYMENT.md](./ARCHITECTURE_DEPLOYMENT.md)
+  [ARCHITECTURE_DEPLOYMENT.md](./ARCHITECTURE_DEPLOYMENT.md)
 Visual architecture reference
 - Component diagrams
 - Data flow examples
@@ -74,7 +74,7 @@ Progress tracking checklist
 - Troubleshooting reference
 - Status:  Ready to use
 
- 📍 [DEPLOYMENT_START_HERE.md](./DEPLOYMENT_START_HERE.md)
+  [DEPLOYMENT_START_HERE.md](./DEPLOYMENT_START_HERE.md)
 Orientation & file guide
 - Overview of all docs
 - File descriptions
@@ -179,14 +179,14 @@ Docs: https://openrisk-api.onrender.com/swagger
 
 ---
 
- 📞 Troubleshooting Quick Links
+  Troubleshooting Quick Links
 
 | Issue | Solution |
 |-------|----------|
 | CORS Error | See [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - CORS debugging |
-| API not responding | See [QUICK_DEPLOY_GUIDE.md](./QUICK_DEPLOY_GUIDE.md) - D�pannage rapide |
+| API not responding | See [QUICK_DEPLOY_GUIDE.md](./QUICK_DEPLOY_GUIDE.md) - Dpannage rapide |
 | Database error | See [DEPLOYMENT_FREE_SERVICES.md](./DEPLOYMENT_FREE_SERVICES.md) - Troubleshooting |
-| Frontend blank | See [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - Diagnostic avanc� |
+| Frontend blank | See [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - Diagnostic avanc |
 
 ---
 
@@ -206,33 +206,33 @@ Docs: https://openrisk-api.onrender.com/swagger
 
 
 OpenRisk/
-├── 📖 Documentation/
-│   ├── README_DEPLOYMENT.txt ..................... Main guide
-│   ├── QUICK_DEPLOY_GUIDE.md ..................... -min quick start
-│   ├── DEPLOYMENT_FREE_SERVICES.md .............. Complete guide
-│   ├── INTEGRATION_GUIDE.md ...................... Technical reference
-│   ├── ARCHITECTURE_DEPLOYMENT.md ............... Visual diagrams
-│   ├── DEPLOYMENT_START_HERE.md ................. Orientation
-│   ├── DEPLOYMENT_CHECKLIST.txt ................. Progress tracker
-│   └── INDEX.md (this file) ..................... Navigation
-│
-├──  Configuration/
-│   ├── Dockerfile.render ......................... For Render.com
-│   ├── frontend/vercel.json ..................... For Vercel
-│   ├── frontend/.env.production ................. Env variables
-│   └── GIT_COMMANDS.md .......................... Push to GitHub
-│
-├──  Scripts/
-│   ├── deploy-free-setup.sh ..................... Interactive setup
-│   ├── create-checklist.sh ...................... Generate checklist
-│   └── FILES_CREATED.sh ......................... This summary
-│
-└── 🏠 Project Root/
-    ├── README.md ................................ Original project docs
-    ├── backend/ ................................. Go backend
-    ├── frontend/ ................................ React frontend
-    ├── migrations/ .............................. DB migrations
-    └── docs/ .................................... Other documentation
+  Documentation/
+    README_DEPLOYMENT.txt ..................... Main guide
+    QUICK_DEPLOY_GUIDE.md ..................... -min quick start
+    DEPLOYMENT_FREE_SERVICES.md .............. Complete guide
+    INTEGRATION_GUIDE.md ...................... Technical reference
+    ARCHITECTURE_DEPLOYMENT.md ............... Visual diagrams
+    DEPLOYMENT_START_HERE.md ................. Orientation
+    DEPLOYMENT_CHECKLIST.txt ................. Progress tracker
+    INDEX.md (this file) ..................... Navigation
+
+  Configuration/
+    Dockerfile.render ......................... For Render.com
+    frontend/vercel.json ..................... For Vercel
+    frontend/.env.production ................. Env variables
+    GIT_COMMANDS.md .......................... Push to GitHub
+
+  Scripts/
+    deploy-free-setup.sh ..................... Interactive setup
+    create-checklist.sh ...................... Generate checklist
+    FILES_CREATED.sh ......................... This summary
+
+  Project Root/
+     README.md ................................ Original project docs
+     backend/ ................................. Go backend
+     frontend/ ................................ React frontend
+     migrations/ .............................. DB migrations
+     docs/ .................................... Other documentation
 
 
 ---
@@ -278,7 +278,7 @@ OpenRisk/
 
 ---
 
- 🤝 Support
+  Support
 
 Questions or issues?
 
@@ -291,7 +291,7 @@ Questions or issues?
 
   Ready?
 
-👉 [Start with README_DEPLOYMENT.txt →](./README_DEPLOYMENT.txt)
+ [Start with README_DEPLOYMENT.txt →](./README_DEPLOYMENT.txt)
 
 Or choose your path from the [Quick Navigation](-quick-navigation) table above.
 

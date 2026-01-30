@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"math/rand" // UtilisÃ pour simuler une variation rÃaliste
+	"math/rand" // Utilis pour simuler une variation raliste
 	"time"
 
 	"github.com/gofiber/fiber/v"
@@ -10,21 +10,21 @@ import (
 
 // --- Structures pour la Matrice des Risques ---
 
-// RiskMatrixCell reprÃsente le dÃcompte des risques pour une cellule (Impact, Proba)
+// RiskMatrixCell reprsente le dcompte des risques pour une cellule (Impact, Proba)
 type RiskMatrixCell struct {
 	Impact      int json:"impact"
 	Probability int json:"probability"
 	Count       int json:"count"
 }
 
-// GetRiskMatrixData calcule et retourne les donnÃes pour la matrice x.
+// GetRiskMatrixData calcule et retourne les donnes pour la matrice x.
 func GetRiskMatrixData(c fiber.Ctx) error {
 	var results []RiskMatrixCell
 
-	// RequÃªte groupÃe pour compter les risques par paire (Impact, Probability)
+	// RequÃªte groupe pour compter les risques par paire (Impact, Probability)
 	err := database.DB.Table("risks").
 		Select("impact, probability, COUNT() as count").
-		Where("deleted_at IS NULL"). // N'inclut pas les risques archivÃs
+		Where("deleted_at IS NULL"). // N'inclut pas les risques archivs
 		Group("impact, probability").
 		Find(&results).Error
 
@@ -38,32 +38,32 @@ func GetRiskMatrixData(c fiber.Ctx) error {
 // ----------------------------------------------------------------------
 // --- Structures et Handler pour la Tendance des Risques (Timeline) ---
 
-// TrendPoint reprÃsente un point de donnÃes pour le graphique de tendance.
+// TrendPoint reprsente un point de donnes pour le graphique de tendance.
 type TrendPoint struct {
 	Date  string json:"date"  // Format YYYY-MM-DD
 	Score int    json:"score" // Score global ce jour-lÃ 
 }
 
-// GetGlobalRiskTrend calcule l'Ãvolution du score de sÃcuritÃ total sur  jours.
-// NOTE: L'implÃmentation de production lirait la table 'risk_histories' pour une prÃcision
-// mais nous simulons des donnÃes pour que le widget fonctionne immÃdiatement.
+// GetGlobalRiskTrend calcule l'volution du score de scurit total sur  jours.
+// NOTE: L'implmentation de production lirait la table 'risk_histories' pour une prcision
+// mais nous simulons des donnes pour que le widget fonctionne immdiatement.
 func GetGlobalRiskTrend(c fiber.Ctx) error {
 	trends := []TrendPoint{}
 	now := time.Now()
 
-	// Initialiser la graine du gÃnÃrateur alÃatoire pour une simulation plus crÃdible
+	// Initialiser la graine du gnrateur alatoire pour une simulation plus crdible
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// Simulation du score de sÃcuritÃ (oÃ¹  est parfait)
+	// Simulation du score de scurit (oÃ¹  est parfait)
 	currentScore := 
 
-	// GÃnÃrer les  derniers jours
+	// Gnrer les  derniers jours
 	for i := ; i >= ; i-- {
 		date := now.AddDate(, , -i).Format("--")
 
 		// Variation: +/-  points pour simuler la fluctuation due aux mitigations/nouveaux risques
-		// et garantir qu'il y ait des donnÃes pour le graphique.
-		variation := rand.Intn() -  // GÃnÃre un nombre entre - et +
+		// et garantir qu'il y ait des donnes pour le graphique.
+		variation := rand.Intn() -  // Gnre un nombre entre - et +
 		currentScore += variation
 
 		// S'assurer que le score reste dans une plage raisonnable (ex: -)
@@ -90,11 +90,11 @@ type RiskDistributionData struct {
 	Count int    json:"count"
 }
 
-// GetRiskDistribution retourne le nombre de risques par niveau de sÃvÃritÃ
+// GetRiskDistribution retourne le nombre de risques par niveau de svrit
 func GetRiskDistribution(c fiber.Ctx) error {
 	var results []RiskDistributionData
 
-	// RequÃªte groupÃe pour compter les risques par niveau
+	// RequÃªte groupe pour compter les risques par niveau
 	err := database.DB.Table("risks").
 		Select("level, COUNT() as count").
 		Where("deleted_at IS NULL").
@@ -109,7 +109,7 @@ func GetRiskDistribution(c fiber.Ctx) error {
 	return c.JSON(results)
 }
 
-// --- Structures et Handler pour les MÃtriques de Mitigation ---
+// --- Structures et Handler pour les Mtriques de Mitigation ---
 
 type MitigationMetricsData struct {
 	TotalMitigations      int     json:"total_mitigations"
@@ -129,7 +129,7 @@ func GetMitigationMetrics(c fiber.Ctx) error {
 		Where("deleted_at IS NULL").
 		Count(&total)
 
-	// Compter les mitigations complÃtement faites
+	// Compter les mitigations compltement faites
 	database.DB.Table("mitigations").
 		Where("deleted_at IS NULL AND status = ?", "DONE").
 		Count(&completed)
@@ -139,7 +139,7 @@ func GetMitigationMetrics(c fiber.Ctx) error {
 		Where("deleted_at IS NULL AND status = ?", "IN_PROGRESS").
 		Count(&inProgress)
 
-	// Compter les mitigations planifiÃes
+	// Compter les mitigations planifies
 	database.DB.Table("mitigations").
 		Where("deleted_at IS NULL AND status = ?", "PLANNED").
 		Count(&planned)
@@ -181,7 +181,7 @@ type TopVulnerability struct {
 func GetTopVulnerabilities(c fiber.Ctx) error {
 	limit := c.QueryInt("limit", )
 	if limit >  {
-		limit =  // Limiter pour Ãviter les requÃªtes trop lourdes
+		limit =  // Limiter pour viter les requÃªtes trop lourdes
 	}
 
 	var vulnerabilities []TopVulnerability

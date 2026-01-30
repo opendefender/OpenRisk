@@ -1,40 +1,40 @@
-  Guide de d√ploiement gratuit - OpenRisk
+  Guide de dploiement gratuit - OpenRisk
 
-Ce guide vous explique comment d√ployer OpenRisk totalement gratuitement pour obtenir un lien de d√mo.
+Ce guide vous explique comment dployer OpenRisk totalement gratuitement pour obtenir un lien de dmo.
 
 ---
 
-  Services utilis√s (% gratuits)
+  Services utiliss (% gratuits)
 
 | Service | Utilisation | Lien |
 |---------|-----------|------|
 | Vercel | Frontend (React/Vite) | https://vercel.com |
 | Render.com | Backend (Go API) | https://render.com |
-| Supabase | PostgreSQL manag√ | https://supabase.com |
+| Supabase | PostgreSQL manag | https://supabase.com |
 | Redis Cloud | Cache Redis | https://app.redislabs.com |
-| GitHub | D√p√t + CI/CD | https://github.com |
+| GitHub | Dpt + CI/CD | https://github.com |
 
 ---
 
-  Pr√requis
+  Prrequis
 
 - [ ] Un compte GitHub (gratuit)
-- [ ] Un d√p√t GitHub avec le code OpenRisk
-- [ ] Accounts cr√√s sur : Vercel, Render.com, Supabase, Redis Cloud
+- [ ] Un dpt GitHub avec le code OpenRisk
+- [ ] Accounts crs sur : Vercel, Render.com, Supabase, Redis Cloud
 
 ---
 
-  √âtape  : Pr√parer la base de donn√es (Supabase)
+  √âtape  : Prparer la base de donnes (Supabase)
 
- . Cr√er un compte Supabase
+ . Crer un compte Supabase
 . Allez sur https://supabase.com
 . Connectez-vous avec GitHub
-. Cr√ez un nouveau projet :
+. Crez un nouveau projet :
    - Nom : openrisk-demo
-   - R√gion : Choisissez la plus proche
+   - Rgion : Choisissez la plus proche
    - Mot de passe BD : Notez-le
 
- . R√cup√rer les informations de connexion
+ . Rcuprer les informations de connexion
 . Allez dans Settings ‚Üí Database
 . Copiez la Connection string format PostgreSQL :
    
@@ -43,11 +43,11 @@ Ce guide vous explique comment d√ployer OpenRisk totalement gratuitement pour ob
 
 ---
 
-  √âtape  : D√ployer le Backend (Render.com)
+  √âtape  : Dployer le Backend (Render.com)
 
- . Pr√parer le Dockerfile du backend
+ . Prparer le Dockerfile du backend
 
-Le Dockerfile doit √™tre adapt√ pour Render. Cr√ez le fichier :
+Le Dockerfile doit √™tre adapt pour Render. Crez le fichier :
 
 backend/Dockerfile.render
 dockerfile
@@ -82,8 +82,8 @@ CMD ["./server"]
  . Connecter √† Render.com
 
 . Allez sur https://render.com
-. Cr√ez un nouveau Web Service
-. Connectez votre d√p√t GitHub
+. Crez un nouveau Web Service
+. Connectez votre dpt GitHub
 . Configuration :
    - Name : openrisk-api
    - Environment : Docker
@@ -106,7 +106,7 @@ API_BASE_URL=https://openrisk-api.onrender.com
 LOG_LEVEL=info
 
 
- . D√ployer
+ . Dployer
 - Cliquez sur Create Web Service
 - Attendre - minutes
 - Vous obtenez une URL : https://openrisk-api.onrender.com
@@ -115,7 +115,7 @@ LOG_LEVEL=info
 
   √âtape  : Configurer Redis (Redis Cloud)
 
- . Cr√er une instance Redis gratuite
+ . Crer une instance Redis gratuite
 
 . Allez sur https://app.redislabs.com
 . New Subscription ‚Üí Free ‚Üí Continue
@@ -124,8 +124,8 @@ LOG_LEVEL=info
    - Region : Frankfurt (ou proche)
    - Database : openrisk-cache
 
- . R√cup√rer l'URL
-. Cliquez sur votre base de donn√es
+ . Rcuprer l'URL
+. Cliquez sur votre base de donnes
 . Dans Connectivity ‚Üí Public endpoint :
    
    redis-.c.eu-west--.ec.cloud.redislabs.com:
@@ -136,7 +136,7 @@ LOG_LEVEL=info
 
   √âtape  : Adapter le Frontend pour Vercel
 
- . Cr√er .env.production
+ . Crer .env.production
 
 frontend/.env.production
 env
@@ -170,9 +170,9 @@ export default defineConfig({
 
  . Mettre √† jour l'appel API dans le code React
 
-V√rifiez que votre client API utilise la variable d'environnement :
+Vrifiez que votre client API utilise la variable d'environnement :
 
-frontend/src/lib/api.ts (ou √quivalent)
+frontend/src/lib/api.ts (ou quivalent)
 typescript
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:'
 
@@ -186,12 +186,12 @@ const api = axios.create({
 
 ---
 
-  √âtape  : D√ployer le Frontend (Vercel)
+  √âtape  : Dployer le Frontend (Vercel)
 
  . Connecter Vercel √† GitHub
 
 . Allez sur https://vercel.com
-. Import Project ‚Üí S√lectionnez votre d√p√t OpenRisk
+. Import Project ‚Üí Slectionnez votre dpt OpenRisk
 . Configuration :
    - Root Directory : frontend
    - Framework Preset : Vite
@@ -205,16 +205,16 @@ env
 VITE_API_URL=https://openrisk-api.onrender.com
 
 
- . D√ployer
+ . Dployer
 - Cliquez sur Deploy
 - Attendre - minutes
 - Vous obtenez : https://openrisk-xxxx.vercel.app
 
 ---
 
-  R√sum√ des URLs
+  Rsum des URLs
 
-Apr√s d√ploiement, vous aurez :
+Aprs dploiement, vous aurez :
 
 | Service | URL |
 |---------|-----|
@@ -224,7 +224,7 @@ Apr√s d√ploiement, vous aurez :
 
 ---
 
- üß™ Tester la d√mo
+  Tester la dmo
 
 . Ouvrez https://openrisk-xxxx.vercel.app
 . Connectez-vous avec :
@@ -233,20 +233,20 @@ Apr√s d√ploiement, vous aurez :
 
 ---
 
-  Limitations gratuits √† conna√tre
+  Limitations gratuits √† connatre
 
 | Service | Limitation |
 |---------|-----------|
-| Vercel | GB bande passante/mois, builds illimit√s |
-| Render.com | Puts to sleep apr√s  min inactivit√ (free tier) |
-| Supabase |  MB stockage,  GB transfert donn√es/mois |
+| Vercel | GB bande passante/mois, builds illimits |
+| Render.com | Puts to sleep aprs  min inactivit (free tier) |
+| Supabase |  MB stockage,  GB transfert donnes/mois |
 | Redis Cloud |  MB RAM |
 
 ---
 
-  Optimisations recommand√es
+  Optimisations recommandes
 
- Pour Render.com (√viter le sleep)
+ Pour Render.com (viter le sleep)
 Ajouter un cron job gratuit pour faire un ping toutes les  minutes :
 bash
  Service de ping externe
@@ -256,7 +256,7 @@ bash
 
  Pour la DB Supabase
 - Limiter les logs aux erreurs seulement
-- Archiver les risques historiques apr√s  jours
+- Archiver les risques historiques aprs  jours
 - Configurer le vacuum automatique
 
 ---
@@ -265,7 +265,7 @@ bash
 
 Le backend doit autoriser votre frontend :
 
-backend/cmd/server/main.go (v√rifier la config CORS)
+backend/cmd/server/main.go (vrifier la config CORS)
 go
 app.Use(cors.New(cors.Config{
     AllowOrigins: "https://openrisk-xxxx.vercel.app, http://localhost:",
@@ -276,25 +276,25 @@ app.Use(cors.New(cors.Config{
 
 ---
 
- üìû D√pannage
+  Dpannage
 
  Le frontend ne peut pas appeler l'API
--  V√rifiez VITE_API_URL dans Vercel
--  V√rifiez CORS_ORIGINS dans Render
+-  Vrifiez VITE_API_URL dans Vercel
+-  Vrifiez CORS_ORIGINS dans Render
 -  Testez manuellement : curl https://openrisk-api.onrender.com/api/health
 
  Render sleep mode
--  Utilisez un service de monitoring gratuit pour √viter le sleep
+-  Utilisez un service de monitoring gratuit pour viter le sleep
 -  Ou passez √† un plan payant ($/mois minimum)
 
- Base de donn√es pleine ( MB Supabase)
--  Nettoyez les risques archiv√s
+ Base de donnes pleine ( MB Supabase)
+-  Nettoyez les risques archivs
 -  Upgradez vers un plan payant
--  Utilisez Railway.app pour PostgreSQL illimit√ (plan gratuit)
+-  Utilisez Railway.app pour PostgreSQL illimit (plan gratuit)
 
 ---
 
-  Am√liorations futures
+  Amliorations futures
 
 Quand vous voudrez passer en production (avec plus de ressources) :
 
@@ -305,4 +305,4 @@ Quand vous voudrez passer en production (avec plus de ressources) :
 
 ---
 
-Bon d√ploiement ! 
+Bon dploiement ! 

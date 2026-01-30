@@ -1,16 +1,16 @@
-  Quick Start - D�ploiement gratuit en  minutes
+  Quick Start - Dploiement gratuit en  minutes
 
- R�sum� rapide
+ Rsum rapide
 
-Pour obtenir un lien de d�mo en  minutes avec z�ro frais, voici les  �tapes :
+Pour obtenir un lien de dmo en  minutes avec zro frais, voici les  tapes :
 
- ⃣ Base de donn�es PostgreSQL (Supabase) -  min
+ ⃣ Base de donnes PostgreSQL (Supabase) -  min
 
 bash
 . Allez sur https://supabase.com
 . Sign up with GitHub
 . New Project → openrisk-demo
-. R�cup�rez: CONNECTION STRING (Settings → Database)
+. Rcuprez: CONNECTION STRING (Settings → Database)
    Format: postgresql://postgres:PASSWORD@host.supabase.co:/postgres
 
 
@@ -20,7 +20,7 @@ bash
 . Allez sur https://app.redislabs.com
 . Sign up → Free tier
 . New Database →  MB
-. R�cup�rez: redis-endpoint:port et PASSWORD
+. Rcuprez: redis-endpoint:port et PASSWORD
    Format: redis://default:PASSWORD@host.redislabs.com:
 
 
@@ -37,12 +37,12 @@ bash
 . Environment Variables:
    DATABASE_URL=postgresql://postgres:PASSWORD@...
    REDIS_URL=redis://default:PASSWORD@...
-   JWT_SECRET=generez-une-cl�-de--chars
-   CORS_ORIGINS=https://openrisk-xxxx.vercel.app (ajouter apr�s Vercel)
+   JWT_SECRET=generez-une-cl-de--chars
+   CORS_ORIGINS=https://openrisk-xxxx.vercel.app (ajouter aprs Vercel)
    API_BASE_URL=https://openrisk-api.onrender.com
    
 . Deploy → Attendre - minutes
-   URL r�sultante: https://openrisk-api.onrender.com
+   URL rsultante: https://openrisk-api.onrender.com
 
 
  ⃣ Frontend (Vercel) -  min
@@ -60,12 +60,12 @@ bash
    VITE_API_URL=https://openrisk-api.onrender.com
    
 . Deploy → Attendre - minutes
-   URL r�sultante: https://openrisk-xxxx.vercel.app
+   URL rsultante: https://openrisk-xxxx.vercel.app
 
 
 ---
 
-  V�rification finale
+  Vrification finale
 
 . Testez l'API:
    bash
@@ -86,54 +86,54 @@ bash
 
 ---
 
-  Cl�s d'acc�s par d�faut
+  Cls d'accs par dfaut
 
 Email: admin@openrisk.local  
 Password: admin
 
 ---
 
-  Stack de d�ploiement
+  Stack de dploiement
 
 
-┌─────────────────────────────────────┐
-│   Vercel                            │
-│   https://openrisk-xxxx.vercel.app  │
-│   (Frontend React/Vite)             │
-└──────────────┬──────────────────────┘
-               │ HTTPS API calls
-               ▼
-┌─────────────────────────────────────┐
-│   Render.com                        │
-│   https://openrisk-api.onrender.com │
-│   (Backend Go/Fiber)                │
-└──────────────┬──────────────────────┘
-               │
-      ┌────────�────────┐
-      ▼                  ▼
-┌──────────────┐  ┌──────────────────┐
-│   Supabase   │  │   Redis Cloud    │
-│  PostgreSQL  │  │   Cache ( MB)  │
-│  ( MB)    │  └──────────────────┘
-└──────────────┘
+
+   Vercel                            
+   https://openrisk-xxxx.vercel.app  
+   (Frontend React/Vite)             
+
+                HTTPS API calls
+               
+
+   Render.com                        
+   https://openrisk-api.onrender.com 
+   (Backend Go/Fiber)                
+
+               
+      
+                        
+  
+   Supabase        Redis Cloud    
+  PostgreSQL       Cache ( MB)  
+  ( MB)      
+
 
 
 ---
 
-  Limites gratuites à conna�tre
+  Limites gratuites à connatre
 
 | Service | Limite | Contournement |
 |---------|--------|---------------|
-| Render.com | Sleep apr�s  min inactivit� | Utilisez uptimerobot.com (gratuit) pour ping |
+| Render.com | Sleep aprs  min inactivit | Utilisez uptimerobot.com (gratuit) pour ping |
 | Vercel |  GB/mois bande passante | Optimisez images, utilisez CDN |
 | Supabase |  MB DB +  GB transfert | Archivez les anciens risques |
-| Redis Cloud |  MB RAM | Nettoyez le cache r�guli�rement |
+| Redis Cloud |  MB RAM | Nettoyez le cache rgulirement |
 
 ---
 
   Commandes utiles
 
- G�n�rer un JWT_SECRET robuste
+ Gnrer un JWT_SECRET robuste
 bash
 openssl rand -base 
 
@@ -150,17 +150,17 @@ redis-cli -h host.redislabs.com -p  -a PASSWORD ping
 
 ---
 
-  D�pannage rapide
+  Dpannage rapide
 
   "CORS error - frontend cannot reach API"
 
-→ Dans Render, v�rifier CORS_ORIGINS contient votre Vercel URL
+→ Dans Render, vrifier CORS_ORIGINS contient votre Vercel URL
 → Exemple: CORS_ORIGINS=https://openrisk-xxxx.vercel.app
 
 
   "Database connection error"
 
-→ V�rifier DATABASE_URL dans Render env
+→ Vrifier DATABASE_URL dans Render env
 → Tester: psql "postgresql://..."
 
 
@@ -172,34 +172,34 @@ redis-cli -h host.redislabs.com -p  -a PASSWORD ping
 
   "Cannot login - admin user not created"
 
-→ V�rifier que les migrations DB ont roul�
+→ Vrifier que les migrations DB ont roul
 → Dans Render logs, chercher "Database: Running Auto-Migrations"
 
 
 ---
 
- 📚 Documentation compl�te
+  Documentation complte
 
-Pour les d�tails complets, consultez: DEPLOYMENT_FREE_SERVICES.md
+Pour les dtails complets, consultez: DEPLOYMENT_FREE_SERVICES.md
 
 ---
 
- � Coût total
+  Coût total
 
  $./mois
 
-Tous les services utilis�s ont des plans gratuits g�n�reux !
+Tous les services utiliss ont des plans gratuits gnreux !
 
 ---
 
-  Prochaines �tapes apr�s le d�ploiement
+  Prochaines tapes aprs le dploiement
 
-.  Cr�ez des comptes utilisateur
+.  Crez des comptes utilisateur
 .  Ajoutez des risques de test
-.  Testez la cr�ation de mitigations
+.  Testez la cration de mitigations
 .  Validez les dashboards
-.  Partagez le lien de d�mo : https://openrisk-xxxx.vercel.app
+.  Partagez le lien de dmo : https://openrisk-xxxx.vercel.app
 
 ---
 
-Bon d�ploiement ! 
+Bon dploiement ! 

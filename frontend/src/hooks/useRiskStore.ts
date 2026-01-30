@@ -21,8 +21,8 @@ export interface Risk {
   tags: string[];
   assets?: Asset[]; // Important pour l'association Risk-Asset
   
-  source: string; // Important pour l'√tape d'int√gration (THEHIVE, etc.)
-  mitigations?: Mitigation[]; // Important pour le drawer de d√tails
+  source: string; // Important pour l'tape d'intgration (THEHIVE, etc.)
+  mitigations?: Mitigation[]; // Important pour le drawer de dtails
   created_at?: string;
   level?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 }
@@ -100,7 +100,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     const tempId = tmp-${Date.now()};
     const optimistic: Risk = {
       id: tempId,
-      title: payload.title || 'Nouvel √l√ment',
+      title: payload.title || 'Nouvel lment',
       description: payload.description || '',
       score: payload.score ?? ,
       impact: payload.impact ?? ,

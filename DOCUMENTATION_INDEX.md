@@ -12,7 +12,7 @@ Status:  PRODUCTION READY
 - Need detailed keyboard guide? → [Full Keyboard Shortcuts Guide](docs/KEYBOARD_SHORTCUTS.md) ( lines)
 - Using the app? → [README](README.md) includes shortcuts section
 
- ‍ For Developers/DevOps
+  For Developers/DevOps
 - Deploying to staging? → [Staging Validation Checklist](STAGING_VALIDATION_CHECKLIST.md) (+ lines)
 - Running load tests? → [Load Testing Procedure](LOAD_TESTING_PROCEDURE.md) (+ lines)
 - Understanding cache integration? → [Cache Implementation Guide](docs/CACHE_INTEGRATION_IMPLEMENTATION.md) ( lines)

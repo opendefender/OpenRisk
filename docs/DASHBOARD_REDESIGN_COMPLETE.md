@@ -265,7 +265,7 @@ Neutral:       a (Zinc)
  Quick access to key metrics
 
 
- ‍ For Developers
+  For Developers
 
  TypeScript type-safe code
  Reusable components

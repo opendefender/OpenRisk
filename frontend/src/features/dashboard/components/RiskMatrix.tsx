@@ -8,7 +8,7 @@ interface MatrixCellData {
     count: number;
 }
 
-// Fonction pour d√terminer la couleur du risque 
+// Fonction pour dterminer la couleur du risque 
 const getCellColor = (impact: number, probability: number, count: number) => {
     const score = impact  probability;
     if (count === ) return 'bg-zinc- border-zinc- hover:bg-zinc-';
@@ -30,7 +30,7 @@ export const RiskMatrix = () => {
             .finally(() => setIsLoading(false));
     }, []);
 
-    // Transformation des donn√es en un format de carte x
+    // Transformation des donnes en un format de carte x
     const matrixMap = useMemo(() => {
         const map = new Map<string, number>();
         data.forEach(cell => {
@@ -43,8 +43,8 @@ export const RiskMatrix = () => {
         return <div className="flex justify-center items-center h-full text-zinc-"><Loader className="animate-spin mr-" size={} /> Loading Matrix...</div>;
     }
 
-    // Le Risk Matrix est g√n√ralement repr√sent√ avec la Probabilit√ sur l'axe Y et l'Impact sur l'axe X.
-    const dimensions = [, , , , ]; // Pour l'axe Y (Probabilit√, de haut en bas)
+    // Le Risk Matrix est gnralement reprsent avec la Probabilit sur l'axe Y et l'Impact sur l'axe X.
+    const dimensions = [, , , , ]; // Pour l'axe Y (Probabilit, de haut en bas)
     const columns = [, , , , ]; // Pour l'axe X (Impact)
 
     return (
@@ -52,7 +52,7 @@ export const RiskMatrix = () => {
             <h className="text-lg font-bold text-white mb-">Risk Exposure Matrix (x)</h>
             
             <div className="flex">
-                {/ Axe Y (Probabilit√) /}
+                {/ Axe Y (Probabilit) /}
                 <div className="flex flex-col justify-end text-right pr- text-xs text-zinc- font-mono tracking-wider">
                     {dimensions.map(p => (
                         <div key={p} className="h- flex items-center justify-end">{p}</div>
@@ -63,7 +63,7 @@ export const RiskMatrix = () => {
                 {/ La Grille (Cells) /}
                 <div className="flex-">
                     <div className="grid grid-cols- gap-">
-                        {dimensions.map(p => ( // Lignes (Probabilit√)
+                        {dimensions.map(p => ( // Lignes (Probabilit)
                             columns.map(i => { // Colonnes (Impact)
                                 const key = ${i}-${p};
                                 const count = matrixMap.get(key) || ;

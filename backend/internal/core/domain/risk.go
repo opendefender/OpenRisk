@@ -26,14 +26,14 @@ type Risk struct {
 	// Smart Scoring :  (Low) Ã   (Critical)
 	Impact      int     gorm:"default:;check:impact >=  AND impact <= " json:"impact"
 	Probability int     gorm:"default:;check:probability >=  AND probability <= " json:"probability"
-	Score       float gorm:"type:numeric(,);default:" json:"score" // Champ calculÃ (Impact  Probability  asset factor)
+	Score       float gorm:"type:numeric(,);default:" json:"score" // Champ calcul (Impact  Probability  asset factor)
 
-	// Contextualisation & ConformitÃ
+	// Contextualisation & Conformit
 	Status RiskStatus     gorm:"default:'DRAFT';index" json:"status"
 	Tags   pq.StringArray gorm:"type:text[]" json:"tags" // Ex: ["CIS", "ISO", "GDPR"]
 	Owner  string         json:"owner"                   // Email ou UserID
 
-	// IntÃgrations OpenDefender (TheHive, OpenCTI, OpenRMF)
+	// Intgrations OpenDefender (TheHive, OpenCTI, OpenRMF)
 	Source     string gorm:"default:'MANUAL'" json:"source" // "MANUAL", "THEHIVE", "OPENRMF"
 	ExternalID string gorm:"index" json:"external_id"       // ID dans l'outil tiers
 
@@ -61,8 +61,8 @@ func (r Risk) BeforeSave(tx gorm.DB) (err error) {
 	return
 }
 
-// AfterSave : GÃre la logique aprÃs la sauvegarde (enregistrement de l'historique)
-// Ce hook est essentiel pour les fonctionnalitÃs de Timeline et de Trends.
+// AfterSave : Gre la logique aprs la sauvegarde (enregistrement de l'historique)
+// Ce hook est essentiel pour les fonctionnalits de Timeline et de Trends.
 func (r Risk) AfterSave(tx gorm.DB) (err error) {
 	// Always create a history snapshot after save for timeline and trends.
 	history := RiskHistory{

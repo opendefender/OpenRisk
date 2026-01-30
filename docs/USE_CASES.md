@@ -1,51 +1,51 @@
- OpenRisk - Cas d'Usage R√els
+ OpenRisk - Cas d'Usage Rels
 
-Ce document pr√sente  cas d'usage concrets o√π OpenRisk cr√e de la valeur imm√diate.
+Ce document prsente  cas d'usage concrets o√π OpenRisk cre de la valeur immdiate.
 
 ---
 
   Cas : Startup SaaS - Mesurer & Prioriser les Risques Prod
 
- Le Probl√me
-TechStart.io est une startup SaaS avec  employ√s et  clients. Leur infrastructure grandit mais leur processus de gestion des risques est artisanal:
-- Risques document√s dans Google Sheets
-- Pas de scoring centralis√
-- Les alertes s√curit√ s'accumulent sans priorisation
+ Le Problme
+TechStart.io est une startup SaaS avec  employs et  clients. Leur infrastructure grandit mais leur processus de gestion des risques est artisanal:
+- Risques documents dans Google Sheets
+- Pas de scoring centralis
+- Les alertes scurit s'accumulent sans priorisation
 - CISO travaille h/semaine √† tracker manuellement
 
  Solution avec OpenRisk
 
  ‚É£ Configuration Initiale ( min)
 bash
- D√marrer OpenRisk
+ Dmarrer OpenRisk
 docker compose up -d
 
- Acc√der √† l'interface
+ Accder √† l'interface
  ‚Üí http://localhost:
  Email: admin@openrisk.local | Password: admin
 
 
- ‚É£ Cr√er les Cat√gories de Risques
+ ‚É£ Crer les Catgories de Risques
 Depuis l'interface:
-- Infrastructure (serveurs, bases de donn√es, r√seaux)
-- Application (bugs, vuln√rabilit√s logicielles)
-- Data (fuites, conformit√ RGPD)
-- Op√rations (incidents, RTO/RPO)
+- Infrastructure (serveurs, bases de donnes, rseaux)
+- Application (bugs, vulnrabilits logicielles)
+- Data (fuites, conformit RGPD)
+- Oprations (incidents, RTO/RPO)
 
  ‚É£ √âvaluer les Risques Existants
-Exemple: Vuln√rabilit√ dans Node.js v
+Exemple: Vulnrabilit dans Node.js v
 
 
-Titre: Vuln√rabilit√ Node.js  - Injection HTTP
+Titre: Vulnrabilit Node.js  - Injection HTTP
 Description: Un attaquant peut envoyer des headers malveillants
 Framework: OWASP Top  - Injection
-Criticit√: Haute (Availability)
-Probabilit√: Moyenne (besoin d'exploitation)
+Criticit: Haute (Availability)
+Probabilit: Moyenne (besoin d'exploitation)
 
-Score Automatique: ./ (Haute Priorit√)
+Score Automatique: ./ (Haute Priorit)
 
 
- ‚É£ Cr√er le Plan d'Att√nuation
+ ‚É£ Crer le Plan d'Attnuation
 
 Mitigation: Upgrade Node.js  ‚Üí  LTS
 Status: En Cours
@@ -53,44 +53,44 @@ Responsable: DevOps Lead
 Deadline:  janvier 
 
 Sub-actions (Checklist):
-‚òë Tester sur environnement staging
-‚òë Valider les d√pendances
-‚òê D√ployer en prod
-‚òê Monitoring h apr√s d√ploiement
+ Tester sur environnement staging
+ Valider les dpendances
+ Dployer en prod
+ Monitoring h aprs dploiement
 
 
- ‚É£ Dashboard Temps R√el
+ ‚É£ Dashboard Temps Rel
 Le CISO voit en un coup d'≈ìil:
--  risques Hauts ‚Üí Demandent action imm√diate
+-  risques Hauts ‚Üí Demandent action immdiate
 -  risques Moyens ‚Üí √Ä planifier
 -  risques Bas ‚Üí √Ä monitorer
-- Graphique de tendance ‚Üí Montre  risques r√solus ce mois-ci
+- Graphique de tendance ‚Üí Montre  risques rsolus ce mois-ci
 
-  Impact R√el
-| Avant | Apr√s |
+  Impact Rel
+| Avant | Aprs |
 |-------|-------|
 | h/semaine de gestion manuelle | h/semaine de suivi |
-| Pas de visibilit√ pour l'√quipe exec | Dashboard en temps r√el |
-| Risques oubli√s | % trac√s |
-| Rapports mensuels = urgence | Rapports g√n√r√s en  clics |
+| Pas de visibilit pour l'quipe exec | Dashboard en temps rel |
+| Risques oublis | % tracs |
+| Rapports mensuels = urgence | Rapports gnrs en  clics |
 
-R√sultat: Le CISO peut se concentrer sur la strat√gie au lieu de l'administratif.
+Rsultat: Le CISO peut se concentrer sur la stratgie au lieu de l'administratif.
 
 ---
 
-  Cas : PME - Centraliser les Alertes S√curit√
+  Cas : PME - Centraliser les Alertes Scurit
 
- Le Probl√me
-SecureLogistics.fr est une PME de  employ√s avec une infrastructure hybride:
+ Le Problme
+SecureLogistics.fr est une PME de  employs avec une infrastructure hybride:
 - Serveurs on-premise + AWS
 - Elastic Stack pour les logs
-- Splunk pour la s√curit√
+- Splunk pour la scurit
 - Les alertes arrivent partout: mail, Slack, tickets Jira
 - Impossible de tracker "qui doit faire quoi"
 
  Solution avec OpenRisk
 
- ‚É£ Importer les Donn√es Existantes
+ ‚É£ Importer les Donnes Existantes
 OpenRisk peut se connecter √† vos outils existants:
 
 bash
@@ -113,33 +113,33 @@ IMPORT_ALERTS=true
 
 L'alerte arrive:
 
-[CRITICAL]  tentatives SSH √chou√es sur srv-prod-
+[CRITICAL]  tentatives SSH choues sur srv-prod-
 Source: ...
 Temps: -- ::
 
 
 Dans OpenRisk:
-- Cr√er un Risque: "Attaque par force brute sur SSH"
-- Scorer automatiquement: ./ (Crit√re: tentatives r√p√t√es + prod)
+- Crer un Risque: "Attaque par force brute sur SSH"
+- Scorer automatiquement: ./ (Critre: tentatives rptes + prod)
 - Assigner √†: Responsable Infrastructure
-- Lier √† Mitigation: "Impl√menter failban"
+- Lier √† Mitigation: "Implmenter failban"
 - Sub-actions:
   
-  ‚òë Bloquer l'IP imm√diatement
-  ‚òê V√rifier si acc√s granted
-  ‚òê Impl√menter rate limiting
-  ‚òê Ajouter FA obligatoire
+   Bloquer l'IP immdiatement
+   Vrifier si accs granted
+   Implmenter rate limiting
+   Ajouter FA obligatoire
   
 
- ‚É£ Tableau de Bord Centralis√
+ ‚É£ Tableau de Bord Centralis
 Un seul endroit pour voir:
-- üî Critiques actifs: 
-- üü† Hauts: 
-- üü° Moyens: 
-- üü¢ Bas: 
+-  Critiques actifs: 
+-  Hauts: 
+-  Moyens: 
+-  Bas: 
 - Graphique: Tendance des  derniers jours
 
- ‚É£ Int√gration Team
+ ‚É£ Intgration Team
 
 Slack Integration:
 - Notification quand nouveau risque Critique
@@ -147,24 +147,24 @@ Slack Integration:
 - Rapport hebdomadaire
 
 
-  Impact R√el
-| Avant | Apr√s |
+  Impact Rel
+| Avant | Aprs |
 |-------|-------|
-| Alertes dispers√es = beaucoup oubli√es | % centralis√ |
+| Alertes disperses = beaucoup oublies | % centralis |
 | -h de temps pour chercher "o√π est l'alerte" | s pour retrouver l'info |
-| Pas d'ordre de priorit√ | Score automatique qui trie |
-| Responsabilit√s floues | Chaque risque a un proprio |
+| Pas d'ordre de priorit | Score automatique qui trie |
+| Responsabilits floues | Chaque risque a un proprio |
 
-R√sultat: Les alertes deviennent des actions trac√es, plus du bruit.
+Rsultat: Les alertes deviennent des actions traces, plus du bruit.
 
 ---
 
-  Cas : RSSI - Rapports Trimestriels Automatis√s
+  Cas : RSSI - Rapports Trimestriels Automatiss
 
- Le Probl√me
-MegatechCorp.com est une grande entreprise avec  employ√s. Le RSSI doit:
-- Produire un rapport de conformit√ chaque trimestre
-- Montrer les risques identifi√s
+ Le Problme
+MegatechCorp.com est une grande entreprise avec  employs. Le RSSI doit:
+- Produire un rapport de conformit chaque trimestre
+- Montrer les risques identifis
 - Prouver que les mitigations avancent
 - Remettre √† la direction + auditeurs externes
 - Actuellement:  jours de travail par rapport
@@ -186,52 +186,52 @@ Recipients:
 
  ‚É£ Exemple de Rapport Q 
 
-OpenRisk g√n√re automatiquement:
+OpenRisk gnre automatiquement:
 
 
  RAPPORT TRIMESTRIEL - GESTION DES RISQUES
-P√riode: Oct - D√c 
-G√n√r√ le:  D√cembre 
+Priode: Oct - Dc 
+Gnr le:  Dcembre 
 
 . R√âSUM√â EX√âCUTIF
-     risques identifi√s
-     risques r√solus ce trimestre (-%)
+     risques identifis
+     risques rsolus ce trimestre (-%)
      mitigations en cours (deadline: Q )
-      risques Critiques remont√s √† la Direction
+      risques Critiques remonts √† la Direction
 
 . TENDANCES
    [Graphique] √âvolution du nombre de risques
    - Trend: ‚Üì -% vs Q (Positif!)
-   - R√solutions:  risques
+   - Rsolutions:  risques
    - Nouveaux:  risques
 
 . D√âTAIL PAR DOMAINE
    
    Infrastructure:  risques
-   ‚îú‚îÄ Critiques:  (Vieux serveur Windows XP)
-   ‚îú‚îÄ Hauts: 
-   ‚îî‚îÄ Moyens: 
+    Critiques:  (Vieux serveur Windows XP)
+    Hauts: 
+    Moyens: 
 
    Application:  risques
-   ‚îú‚îÄ Critiques:  (D√pendances outdated)
-   ‚îú‚îÄ Hauts: 
-   ‚îî‚îÄ Moyens: 
+    Critiques:  (Dpendances outdated)
+    Hauts: 
+    Moyens: 
 
    Data & Compliance:  risques
-   ‚îú‚îÄ Critiques: 
-   ‚îú‚îÄ Hauts: 
-   ‚îî‚îÄ Moyens: 
+    Critiques: 
+    Hauts: 
+    Moyens: 
 
 . MITIGATIONS EN COURS
    
     Upgrade Node.js (% complete)
-      ‚îî‚îÄ Deadline:  Jan 
+       Deadline:  Jan 
    
-    Impl√menter MFA (% complete)
-      ‚îî‚îÄ Deadline:  Feb 
+    Implmenter MFA (% complete)
+       Deadline:  Feb 
    
-    Audit s√curit√ externe (% complete)
-      ‚îî‚îÄ Deadline:  Mar 
+    Audit scurit externe (% complete)
+       Deadline:  Mar 
 
 . CONFORMIT√â
    ISO :  % couvert (vs % Q)
@@ -239,12 +239,12 @@ G√n√r√ le:  D√cembre
    SOC:  % en cours
 
 . RECOMMANDATIONS
-   - Acc√l√rer l'upgrade Node.js (Critique)
-   - Impl√menter MFA imm√diatement (S√curit√)
+   - Acclrer l'upgrade Node.js (Critique)
+   - Implmenter MFA immdiatement (Scurit)
    - Refondre l'architecture legacy (Moyen terme)
 
 ---
-Sign√ num√riquement par OpenRisk v..
+Sign numriquement par OpenRisk v..
 
 
  ‚É£ Exporter le Rapport
@@ -258,12 +258,12 @@ bash
  - JSON (pour BI tools)
 
 
- ‚É£ Temps N√cessaire
+ ‚É£ Temps Ncessaire
 
 Avant:  jours (collecte manuelle + mise en forme)
 
-Jour : Envoyer des mails aux √quipes
-Jour -: Collecter les r√ponses
+Jour : Envoyer des mails aux quipes
+Jour -: Collecter les rponses
 Jour : Formatter en PowerPoint
 Jour : Validation + corrections
 
@@ -271,23 +271,23 @@ Jour : Validation + corrections
 Avec OpenRisk:  minutes
 
 . Click "Generate Quarterly Report"
-. T√l√charger PDF
+. Tlcharger PDF
 . Envoyer aux stakeholders
 
 
-  Impact R√el
-| Avant | Apr√s |
+  Impact Rel
+| Avant | Aprs |
 |-------|-------|
-|  jours/mois de pr√paration |  min/trimestre |
-| Donn√es potentiellement outdated | Donn√es en temps r√el |
-| Impossible de tracker l'√volution | Graphiques de tendance |
-| Format varie chaque fois | Format coh√rent & professionnel |
+|  jours/mois de prparation |  min/trimestre |
+| Donnes potentiellement outdated | Donnes en temps rel |
+| Impossible de tracker l'volution | Graphiques de tendance |
+| Format varie chaque fois | Format cohrent & professionnel |
 
-R√sultat: Le RSSI peut justifier son budget aupr√s de la direction avec donn√es pr√cises.
+Rsultat: Le RSSI peut justifier son budget auprs de la direction avec donnes prcises.
 
 ---
 
-  Synth√se: Pourquoi OpenRisk?
+  Synthse: Pourquoi OpenRisk?
 
  Pour les Startups
  Automatiser = moins de temps manuel  
@@ -295,19 +295,19 @@ R√sultat: Le RSSI peut justifier son budget aupr√s de la direction avec donn√es 
  √âcheller = passer de  √†  risques facilement
 
  Pour les PME
- Centraliser = une source de v√rit√  
- Int√grer = connecter outils existants  
- Rapporter = prouver la s√curit√
+ Centraliser = une source de vrit  
+ Intgrer = connecter outils existants  
+ Rapporter = prouver la scurit
 
  Pour les Entreprises
- Automatiser = √conomiser + jours/an par RSSI  
- Auditer = rapports conformit√ en  min  
- Gouverner = visibilit√ compl√te pour la direction
+ Automatiser = conomiser + jours/an par RSSI  
+ Auditer = rapports conformit en  min  
+ Gouverner = visibilit complte pour la direction
 
 ---
 
- üìû Pr√™t √† essayer?
+  Pr√™t √† essayer?
 
-[‚Üí D√marrer en  minutes](QUICK_ONBOARDING.md)
+[‚Üí Dmarrer en  minutes](QUICK_ONBOARDING.md)
 
 Des questions? Consultez [API_REFERENCE.md](API_REFERENCE.md) ou ouvrez une [discussion](https://github.com/alex-dembele/OpenRisk/discussions).

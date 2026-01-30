@@ -48,7 +48,7 @@ Status:  PRODUCTION READY - Infrastructure % Complete
 
  For Different Roles
 
- ‍ Backend Developer
+  Backend Developer
 Start Here: [PHASE__QUICK_REFERENCE.md](./PHASE__QUICK_REFERENCE.md)
 Then Read: [CACHE_INTEGRATION_IMPLEMENTATION.md](./CACHE_INTEGRATION_IMPLEMENTATION.md)
 Key Tasks:

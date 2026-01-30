@@ -17,7 +17,7 @@ const (
 
 type Mitigation struct {
 	ID     uuid.UUID gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"
-	RiskID uuid.UUID gorm:"type:uuid;index" json:"risk_id" // Cl√ √trang√re
+	RiskID uuid.UUID gorm:"type:uuid;index" json:"risk_id" // Cl trangre
 
 	Title    string           gorm:"not null" json:"title"
 	Assignee string           json:"assignee" // Ex: "john@opendefender.io"
@@ -30,8 +30,8 @@ type Mitigation struct {
 	DeletedAt gorm.DeletedAt gorm:"index" json:"-"
 
 	// Recommendation Engine
-	Cost           int gorm:"default:" json:"cost"            // Cat√gorie de co√ªt:  (Faible) √†  (√âlev√)
-	MitigationTime int gorm:"default:" json:"mitigation_time" // Temps estim√ en Jours
+	Cost           int gorm:"default:" json:"cost"            // Catgorie de co√ªt:  (Faible) √†  (√âlev)
+	MitigationTime int gorm:"default:" json:"mitigation_time" // Temps estim en Jours
 
 	// Champ non-persistant pour le calcul du SPP
 	WeightedPriority float gorm:"-" json:"weighted_priority"

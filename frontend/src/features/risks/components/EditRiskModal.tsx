@@ -149,7 +149,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
 
                 <div className="space-y-.">
-                  <label className="text-xs font-medium text-zinc- uppercase tracking-wider">Probabilit√ (-)</label>
+                  <label className="text-xs font-medium text-zinc- uppercase tracking-wider">Probabilit (-)</label>
                   <div className="flex bg-zinc- border border-border rounded-lg p-">
                     {[,,,,].map(n => (
                       <button key={n} type="button" onClick={() => setValue('probability', n as any)} disabled={isLoading} className={flex- text-center py- text-sm font-medium rounded-md transition-colors ${watch('probability') === n ? 'bg-primary text-white' : 'text-zinc- hover:bg-zinc-'} ${isLoading ? 'opacity-' : ''}}>
@@ -163,8 +163,8 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
               {/ Assets selector /}
               <div className="space-y- pt-">
                 <label className="text-xs font-medium text-zinc- uppercase tracking-wider flex justify-between">
-                  Assets Affect√s
-                  <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedAssetIds.length} s√lectionn√(s)</span>
+                  Assets Affects
+                  <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedAssetIds.length} slectionn(s)</span>
                 </label>
                 <div className="flex flex-wrap gap- max-h- overflow-y-auto p- border border-border rounded-lg bg-zinc-/">
                   {assets.length ===  ? <div className="text-zinc- text-xs w-full text-center py-">Aucun asset.</div> : assets.map(a => (
@@ -175,13 +175,13 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
               </div>
 
-              <Input label="Tags (s√par√s par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
+              <Input label="Tags (spars par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
 
               {/ Frameworks selector /}
               <div className="space-y- pt-">
                 <label className="text-xs font-medium text-zinc- uppercase tracking-wider flex justify-between">
                   Frameworks
-                  <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedFrameworks.length} s√lectionn√(s)</span>
+                  <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedFrameworks.length} slectionn(s)</span>
                 </label>
                 <div className="flex flex-wrap gap- p-">
                   {frameworksList.map(f => (

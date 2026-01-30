@@ -2,7 +2,7 @@
 
  OpenRisk - Open Source Risk Management Platform
 
-Copyright Â - OpenDefender Contributors  
+Copyright  - OpenDefender Contributors  
 All rights reserved under the GNU General Public License v.
 
 ---

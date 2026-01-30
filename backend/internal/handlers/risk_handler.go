@@ -13,7 +13,7 @@ import (
 	"github.com/opendefender/openrisk/internal/validation"
 )
 
-// CreateRiskInput : DTO pour s√parer la logique API de la logique DB
+// CreateRiskInput : DTO pour sparer la logique API de la logique DB
 // Permet de recevoir une liste d'IDs d'assets (strings) au lieu d'objets complets
 type CreateRiskInput struct {
 	Title       string   json:"title" validate:"required"
@@ -21,7 +21,7 @@ type CreateRiskInput struct {
 	Impact      int      json:"impact" validate:"required,min=,max="
 	Probability int      json:"probability" validate:"required,min=,max="
 	Tags        []string json:"tags"
-	AssetIDs    []string json:"asset_ids" // Liste des UUIDs des assets concern√s
+	AssetIDs    []string json:"asset_ids" // Liste des UUIDs des assets concerns
 	Frameworks  []string json:"frameworks"
 	// New validation tags will be added here
 	// Example: Tags        []string json:"tags" validate:"omitempty,dive,required"
@@ -44,7 +44,7 @@ type UpdateRiskInput struct {
 }
 
 // CreateRisk godoc
-// @Summary Cr√er un nouveau risque
+// @Summary Crer un nouveau risque
 // @Description Ajoute un risque, calcule son score et lie les assets.
 func CreateRisk(c fiber.Ctx) error {
 	input := new(CreateRiskInput)
@@ -80,7 +80,7 @@ func CreateRisk(c fiber.Ctx) error {
 		Description: input.Description,
 		Impact:      input.Impact,
 		Probability: input.Probability,
-		Status:      domain.StatusDraft, // Statut par d√faut
+		Status:      domain.StatusDraft, // Statut par dfaut
 	}
 
 	// Only set Tags if provided to avoid inserting NULL into databases that
@@ -103,7 +103,7 @@ func CreateRisk(c fiber.Ctx) error {
 			return c.Status().JSON(fiber.Map{"error": "Failed to verify assets"})
 		}
 
-		// On associe les objets Assets trouv√s au Risque
+		// On associe les objets Assets trouvs au Risque
 		risk.Assets = assets
 	}
 
@@ -153,7 +153,7 @@ func CreateRisk(c fiber.Ctx) error {
 
 // GetRisks godoc
 // @Summary Lister tous les risques
-// @Description R√cup√re les risques tri√s par score d√croissant (les plus critiques en premier).
+// @Description Rcupre les risques tris par score dcroissant (les plus critiques en premier).
 func GetRisks(c fiber.Ctx) error {
 	var risks []domain.Risk
 
@@ -266,8 +266,8 @@ func GetRisks(c fiber.Ctx) error {
 }
 
 // GetRisk godoc
-// @Summary R√cup√rer un risque unique
-// @Description D√tails complets d'un risque par ID.
+// @Summary Rcuprer un risque unique
+// @Description Dtails complets d'un risque par ID.
 func GetRisk(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -295,12 +295,12 @@ func UpdateRisk(c fiber.Ctx) error {
 	id := c.Params("id")
 	var risk domain.Risk
 
-	// . V√rifier l'existence
+	// . Vrifier l'existence
 	if err := database.DB.First(&risk, "id = ?", id).Error; err != nil {
 		return c.Status().JSON(fiber.Map{"error": "Risk not found"})
 	}
 
-	// . Parser les nouvelles donn√es
+	// . Parser les nouvelles donnes
 	input := new(UpdateRiskInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status().JSON(fiber.Map{"error": "Invalid input"})
@@ -394,7 +394,7 @@ func DeleteRisk(c fiber.Ctx) error {
 		return c.Status().JSON(fiber.Map{"error": "Invalid UUID"})
 	}
 
-	// Delete avec GORM (Soft Delete par d√faut gr√¢ce au champ DeletedAt dans le mod√le)
+	// Delete avec GORM (Soft Delete par dfaut gr√¢ce au champ DeletedAt dans le modle)
 	result := database.DB.Delete(&domain.Risk{}, "id = ?", id)
 
 	if result.Error != nil {

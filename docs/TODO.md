@@ -1,18 +1,18 @@
- OpenRisk â€” Roadmap & TODO (vÃrifiÃ le dÃpÃt)
+ OpenRisk â€” Roadmap & TODO (vrifi le dpt)
 
 Date: --
 
-Ce fichier centralise la roadmap priorisÃe et l'Ãtat actuel du projet. J'ai effectuÃ une vÃrification rapide du dÃpÃt pour marquer l'Ãtat des prioritÃs.
+Ce fichier centralise la roadmap priorise et l'tat actuel du projet. J'ai effectu une vrification rapide du dpt pour marquer l'tat des priorits.
 
-LÃgende:
--  = implÃmentÃ / livrÃ
--  = partiellement livrÃ / PoC / Ã  stabiliser
-- â¬œ = non dÃmarrÃ / Ã  planifier
+Lgende:
+-  = implment / livr
+-  = partiellement livr / PoC / Ã  stabiliser
+-  = non dmarr / Ã  planifier
 
-PRINCIPES : garder la liste focalisÃe (â€“ prioritÃs actives), commencer les features critiques par un PoC, ajouter critÃres d'acceptation pour chaque prioritÃ.
+PRINCIPES : garder la liste focalise (â€“ priorits actives), commencer les features critiques par un PoC, ajouter critres d'acceptation pour chaque priorit.
 
-=== RÃ‰CAPITULATIF RAPIDE (vÃrifiÃ) ===
--  Risk CRUD API : backend/internal/handlers/risk_handler.go (handlers, validation), migrations prÃsentes.
+=== RÃ‰CAPITULATIF RAPIDE (vrifi) ===
+-  Risk CRUD API : backend/internal/handlers/risk_handler.go (handlers, validation), migrations prsentes.
 -  Risk CRUD Frontend : composants CreateRiskModal, EditRiskModal, store/hooks (useRiskStore).
 -  Score engine : backend/internal/services/score_service.go + tests (score_service_test.go) + docs (docs/score_calculation.md).
 -  Frameworks classification : DB (migrations), backend model, frontend selectors.
@@ -20,31 +20,31 @@ PRINCIPES : garder la liste focalisÃe (â€“ prioritÃs actives), commencer les fea
 -  Mitigation sub-actions (checklist) : migration + model exist in docs/migrations, handlers work in-progress.
 -  OpenAPI spec: docs/openapi.yaml (minimal OpenAPI pour Risk endpoints).
 -  Sync PoC & TheHive adapter: backend/internal/adapters/thehive/client.go + workers/sync_engine.go (PoC adapter + sync engine wiring).
-- â¬œ RBAC & multi-tenant: mentionnÃ en docs mais non implÃmentÃ.
-- â¬œ Helm / ks charts: docs/README mention Helm, pas de chart produit.
-- â¬œ Marketplace, advanced connectors (Splunk, Elastic, AWS Security Hub): listed as PoC priorities, non implÃmentÃs.
+-  RBAC & multi-tenant: mentionn en docs mais non implment.
+-  Helm / ks charts: docs/README mention Helm, pas de chart produit.
+-  Marketplace, advanced connectors (Splunk, Elastic, AWS Security Hub): listed as PoC priorities, non implments.
 
 ---
 
- PrioritÃs ImmÃdiates (MVP â†’  jours)
+ Priorits Immdiates (MVP â†’  jours)
 
 ) Stabiliser le MVP Risques & Mitigations (status:  % DONE)
  - Actions:
-   -  Finaliser Mitigation sub-actions : migration / crÃÃes, endpoints (create/toggle/delete) implÃmentÃs, frontend checklist fonctionnelle.
-   -  Couvrir handlers critiques par tests unitaires : fichier mitigation_subaction_handler_test.go crÃÃ (HTTP validation layer); full integration tests docker-compose pending.
-   - â¬œ Lier events: Ãmettre webhook risk.created et mitigation.updated depuis handlers (PoC) (- jours).
- - CritÃres d'acceptation:
+   -  Finaliser Mitigation sub-actions : migration / cres, endpoints (create/toggle/delete) implments, frontend checklist fonctionnelle.
+   -  Couvrir handlers critiques par tests unitaires : fichier mitigation_subaction_handler_test.go cr (HTTP validation layer); full integration tests docker-compose pending.
+   -  Lier events: mettre webhook risk.created et mitigation.updated depuis handlers (PoC) (- jours).
+ - Critres d'acceptation:
    -  Checklist sub-actions CRUD fonctionne (API + UI) ; + unit tests couvrent validation layer.
-   -  Tests d'intÃgration complets nÃcessitent docker-compose + test DB setup.
-   - â¬œ Webhook documentÃ et PoC implÃmentÃ.
+   -  Tests d'intgration complets ncessitent docker-compose + test DB setup.
+   -  Webhook document et PoC implment.
 
 ) API-First & OpenAPI completion (status:  DONE)
  - Actions:
-   -  Ã‰tendre docs/openapi.yaml : couverture complÃte des  endpoints (Health, Auth, Risks CRUD, Mitigations CRUD, Sub-actions, Assets, Statistics, Export, Gamification).
-   -  CrÃer docs/API_REFERENCE.md : documentation exhaustive avec exemples request/response pour tous endpoints.
-   -  DÃfinir security schemes (Bearer JWT) et validation schemas.
- - CritÃres d'acceptation:  OpenAPI . complÃte avec tous endpoints;  API_REFERENCE.md dÃtaillÃ avec + exemples.
- - Statut: LivrÃ le --. PrÃªt pour tooling (swagger-ui, redoc, code generation).
+   -  Ã‰tendre docs/openapi.yaml : couverture complte des  endpoints (Health, Auth, Risks CRUD, Mitigations CRUD, Sub-actions, Assets, Statistics, Export, Gamification).
+   -  Crer docs/API_REFERENCE.md : documentation exhaustive avec exemples request/response pour tous endpoints.
+   -  Dfinir security schemes (Bearer JWT) et validation schemas.
+ - Critres d'acceptation:  OpenAPI . complte avec tous endpoints;  API_REFERENCE.md dtaill avec + exemples.
+ - Statut: Livr le --. PrÃªt pour tooling (swagger-ui, redoc, code generation).
 
 ) Tests & CI (status:  % DONE â€” pipeline & local test setup complete)
  - Actions:
@@ -52,14 +52,14 @@ PRINCIPES : garder la liste focalisÃe (â€“ prioritÃs actives), commencer les fea
    -  GitHub Actions pipeline: golangci-lint, go test, npm test, Docker build, GHCR push.
    -  Integration test suite: risk_handler_integration_test.go ( test cases: create, read, update, delete, list).
    -  Pending: Full integration test run in CI (requires GHCR secrets setup).
- - LivrÃ:
+ - Livr:
    -  .github/workflows/ci.yml : lint â†’ test â†’ build â†’ push pipeline.
    -  Dockerfile : multi-stage build (Go backend + Node frontend).
    -  docker-compose.yaml : enhanced with test_db, Redis, networks.
    -  Makefile : common development tasks (build, test, lint, docker).
    -  scripts/run-integration-tests.sh : local integration test runner.
    -  docs/CI_CD.md : comprehensive pipeline documentation.
- - CritÃres d'acceptation:
+ - Critres d'acceptation:
    -  Pipeline vert on PRs (lint + unit tests).
    -  Integration tests run locally avec test DB.
    -  Docker image push to GHCR (needs credentials).
@@ -74,13 +74,13 @@ PRINCIPES : garder la liste focalisÃe (â€“ prioritÃs actives), commencer les fea
    -  Add complete test suite:  sync engine tests +  adapter tests (/ passing).
    -  Implement graceful shutdown with context cancellation.
    -  Add comprehensive documentation (SYNC_ENGINE.md).
- - LivrÃ:
+ - Livr:
    -  backend/internal/workers/sync_engine.go :  lines, production-grade.
    -  backend/internal/adapters/thehive/client.go : real API integration with fallback.
    -  backend/internal/workers/sync_engine_test.go :  comprehensive tests.
    -  backend/internal/adapters/thehive/client_test.go :  integration tests.
    -  docs/SYNC_ENGINE.md : architecture, features, troubleshooting guide.
- - CritÃres d'acceptation:
+ - Critres d'acceptation:
    -  Sync engine with retry logic ( attempts, exponential backoff).
    -  Metrics tracking with thread-safe access.
    -  JSON structured logging for all operations.
@@ -88,33 +88,33 @@ PRINCIPES : garder la liste focalisÃe (â€“ prioritÃs actives), commencer les fea
    -  Test coverage â‰¥ % for production paths.
    -  Graceful lifecycle (start/stop with context).
    -  Error handling with automatic fallback.
- - Statut: LivrÃ le --. Production-ready with comprehensive test suite.
+ - Statut: Livr le --. Production-ready with comprehensive test suite.
 
 ---
 
- Plateforme & IntÃgrations (Quarter)
+ Plateforme & Intgrations (Quarter)
 
-- Sync Engine: PoC prÃsent (workers/sync_engine.go), TheHive adapter, OpenCTI Adapter; transformer PoC en connecteur stable (idempotency, retries, metrics).
-- PrioritÃs PoC â†’ Production : TheHive (done/PoC) â†’ OpenCTI (config existante) â†’ Cortex (playbooks) â†’ Splunk/Elastic.
-- Ajouter EventBus / Webhooks et un broker lÃger (NATS / Redis streams) pour dÃcoupler intÃgrations.
+- Sync Engine: PoC prsent (workers/sync_engine.go), TheHive adapter, OpenCTI Adapter; transformer PoC en connecteur stable (idempotency, retries, metrics).
+- Priorits PoC â†’ Production : TheHive (done/PoC) â†’ OpenCTI (config existante) â†’ Cortex (playbooks) â†’ Splunk/Elastic.
+- Ajouter EventBus / Webhooks et un broker lger (NATS / Redis streams) pour dcoupler intgrations.
 
-CritÃres d'acceptation pour un connecteur prÃªt-prod:
-- tests d'intÃgration simulant l'API tierce.
-- idempotency et retry policy implÃmentÃs.
-- metrics & logs exposÃs.
+Critres d'acceptation pour un connecteur prÃªt-prod:
+- tests d'intgration simulant l'API tierce.
+- idempotency et retry policy implments.
+- metrics & logs exposs.
 
 ---
 
- SÃcuritÃ, Multi-tenant & Gouvernance
+ Scurit, Multi-tenant & Gouvernance
 
-- RBAC & Multi-tenant : planifier PoC (phase : RBAC simple basÃ sur roles, phase : tenant isolation via tenant_id sur tables). Non implÃmentÃ â†’ PrioritÃ Q.
-- Hardening: dependency SCA, security scans, CSP, rate limiting (dÃjÃ  headers Helmet middleware prÃsent).
+- RBAC & Multi-tenant : planifier PoC (phase : RBAC simple bas sur roles, phase : tenant isolation via tenant_id sur tables). Non implment â†’ Priorit Q.
+- Hardening: dependency SCA, security scans, CSP, rate limiting (djÃ  headers Helmet middleware prsent).
 
 ---
 
  UX & Design System
 
-- CrÃer OpenDefender Design System (tokens Tailwind + Storybook) â€” planifier sprint dÃdiÃ.
+- Crer OpenDefender Design System (tokens Tailwind + Storybook) â€” planifier sprint ddi.
 - Prioriser onboarding flows et dashboard widgets (drag & drop futur).
 
 ---
@@ -124,7 +124,7 @@ CritÃres d'acceptation pour un connecteur prÃªt-prod:
 . OpenAPI full coverage + API_REFERENCE â€”  jours 
 . CI (GitHub Actions) + integration tests â€”  jours 
 . Sync Engine hardening (idempotency, retries, metrics) â€”  jours 
-. RBAC PoC (role-based, auth middleware) â€”  jours â¬œ
+. RBAC PoC (role-based, auth middleware) â€”  jours 
 
 ---
 
@@ -668,77 +668,77 @@ Next Steps:
 Phase : Saas Enterprise
 
  Stabilisation & Finition du Core Risk Register
--  Validation avancÃe (regex, formats, dÃpendances entre champs) â€” PoC in form components, needs framework templates
--  Custom Fields v (users peuvent ajouter champs texte/choix/numÃrique) â€” DONE Phase 
-- â¬œ Fields templates par framework (ISO, NISTâ€ â†’ auto-population) â€” BLOCKED: needs security expertise/data
+-  Validation avance (regex, formats, dpendances entre champs) â€” PoC in form components, needs framework templates
+-  Custom Fields v (users peuvent ajouter champs texte/choix/numrique) â€” DONE Phase 
+-  Fields templates par framework (ISO, NIST â†’ auto-population) â€” BLOCKED: needs security expertise/data
 -  Bulk actions (update, delete, assign mitigations, tags) â€” DONE Phase 
--  Risk timeline (tous les ÃvÃnements : crÃation, update, mitigation, sync) â€” DONE Phase 
+-  Risk timeline (tous les vnements : cration, update, mitigation, sync) â€” DONE Phase 
 
 UX & Design System
-- â¬œ CrÃer l'OpenDefender UI Kit (pensÃ pour toute la suite) â€” BLOCKED: needs design team decision
-- â¬œ CrÃer un composant "DataTable++" maison (filtre multiples, tri, tags, search instant) â€” Feasible: extend current table
-- â¬œ Heatmap dynamique (drag, hover, zoom) â€” Feasible: use Recharts or D.js
-- â¬œ Dashboard widgets drag & drop type Airtable / Linear â€” BLOCKED: needs UI Kit
+-  Crer l'OpenDefender UI Kit (pens pour toute la suite) â€” BLOCKED: needs design team decision
+-  Crer un composant "DataTable++" maison (filtre multiples, tri, tags, search instant) â€” Feasible: extend current table
+-  Heatmap dynamique (drag, hover, zoom) â€” Feasible: use Recharts or D.js
+-  Dashboard widgets drag & drop type Airtable / Linear â€” BLOCKED: needs UI Kit
 -  Onboarding "guided steps" â€” PoC: components exist (CreateRiskModal, MitigationEditModal, sync engine, Analytics), needs Shepherd.js wrapper
 
 Mitigations & Plans d'Actions
-- â¬œ Dependencies entre mitigations (bloqueur/conditionnel) â€” Feasible: schema design only
-- â¬œ Notifications internes (rappels, deadlines) â€” Feasible: use cron jobs or event bus
-- â¬œ Assignation multi-utilisateur â€” Feasible: extend current handler
-- â¬œ Templates de plans (ISO, CIS, NISTâ€) â€” BLOCKED: needs domain expertise/security best practices DB
-- â¬œ Vue Gantt / Timeline des actions â€” Feasible: use react-gantt-chart
+-  Dependencies entre mitigations (bloqueur/conditionnel) â€” Feasible: schema design only
+-  Notifications internes (rappels, deadlines) â€” Feasible: use cron jobs or event bus
+-  Assignation multi-utilisateur â€” Feasible: extend current handler
+-  Templates de plans (ISO, CIS, NIST) â€” BLOCKED: needs domain expertise/security best practices DB
+-  Vue Gantt / Timeline des actions â€” Feasible: use react-gantt-chart
 
-SÃcuritÃ : RBAC & Multi-Tenant version complÃte
--  RBAC complet avec granularitÃ par ressource â€” DONE Phase /
-  (risk:update:own, risk:update:any, mitigation:view:teamâ€)
+Scurit : RBAC & Multi-Tenant version complte
+-  RBAC complet avec granularit par ressource â€” DONE Phase /
+  (risk:update:own, risk:update:any, mitigation:view:team)
    Permission domain model with wildcards
    Permission middleware for routes
    Integrated with risk endpoints
-- â¬œ Isoler tenant_id partout (DB + cache + logs) â€” BLOCKED: needs business model decision (SaaS vs self-hosted)
+-  Isoler tenant_id partout (DB + cache + logs) â€” BLOCKED: needs business model decision (SaaS vs self-hosted)
 -  Audit logs (table & API, export JSON) â€” DONE Phase 
    Audit service with full tracking
    AuditLog API endpoints
    Frontend AuditLogs page
-- â¬œ Rate limiting + throttling (global & tenant) â€” Feasible: use middleware + Redis
+-  Rate limiting + throttling (global & tenant) â€” Feasible: use middleware + Redis
 
 Rapports & Export
-- â¬œ PDF export (ÃlÃgant, brandÃ OpenDefender) â€” Feasible: use pdfkit or puppeteer
-- â¬œ HTML interactive export (offline) â€” Feasible: static HTML generation
--  JSON export + API (interopÃrabilitÃ) â€” DONE Phase : Analytics export endpoint
-- â¬œ GÃnÃration auto de "Rapport de risques" pour audit â€” Feasible: depends on PDF export
+-  PDF export (lgant, brand OpenDefender) â€” Feasible: use pdfkit or puppeteer
+-  HTML interactive export (offline) â€” Feasible: static HTML generation
+-  JSON export + API (interoprabilit) â€” DONE Phase : Analytics export endpoint
+-  Gnration auto de "Rapport de risques" pour audit â€” Feasible: depends on PDF export
 
-IntÃgrations & Connecteurs
-- â¬œ OpenCTI (risks â†” threats syncing) â€” BLOCKED: needs OpenCTI instance + API access
-- â¬œ Cortex (actions automatisÃes) â€” BLOCKED: needs Cortex instance + analyzers
-- â¬œ Elastic & Splunk (logs â†’ risk triggers) â€” BLOCKED: needs running clusters
-- â¬œ SIEM OpenWatch (intÃgration native OpenDefender) â€” BLOCKED: ecosystem decision
-- â¬œ AWS Security Hub (import findings) â€” BLOCKED: needs AWS account
-- â¬œ Azure Security Center (idem) â€” BLOCKED: needs Azure account
-- â¬œ Google SCC â€” BLOCKED: needs GCP account
-- â¬œ EventBus (Redis Streams ou NATS) â€” BLOCKED: needs architecture decision (Redis vs NATS vs Kafka)
+Intgrations & Connecteurs
+-  OpenCTI (risks â†” threats syncing) â€” BLOCKED: needs OpenCTI instance + API access
+-  Cortex (actions automatises) â€” BLOCKED: needs Cortex instance + analyzers
+-  Elastic & Splunk (logs â†’ risk triggers) â€” BLOCKED: needs running clusters
+-  SIEM OpenWatch (intgration native OpenDefender) â€” BLOCKED: ecosystem decision
+-  AWS Security Hub (import findings) â€” BLOCKED: needs AWS account
+-  Azure Security Center (idem) â€” BLOCKED: needs Azure account
+-  Google SCC â€” BLOCKED: needs GCP account
+-  EventBus (Redis Streams ou NATS) â€” BLOCKED: needs architecture decision (Redis vs NATS vs Kafka)
 
 Module Assets
-- â¬œ Inventory associÃ aux risques â€” Feasible: extend risk-asset relationship
-- â¬œ Lien direct avec OpenAsset â€” BLOCKED: ecosystem alignment decision
-- â¬œ Impact based on asset business value â€” BLOCKED: needs OpenAsset integration
-- â¬œ Auto-risks depuis assets critiques â€” BLOCKED: needs OpenAsset + asset data
+-  Inventory associ aux risques â€” Feasible: extend risk-asset relationship
+-  Lien direct avec OpenAsset â€” BLOCKED: ecosystem alignment decision
+-  Impact based on asset business value â€” BLOCKED: needs OpenAsset integration
+-  Auto-risks depuis assets critiques â€” BLOCKED: needs OpenAsset + asset data
 
 IA Intelligence Layer
-- â¬œ DÃduplication AI : Compare risques similaires et propose fusion ou suggestion. â€” BLOCKED: needs LLM provider decision
-- â¬œ Priorisation intelligente : Analyse probabilitÃ Ã— impact Ã— criticitÃ des assets Ã— tendances. â€” BLOCKED: needs LLM + prioritization formula
-- â¬œ GÃnÃration Mitigations : Propose automatiquement : contrÃles Ã  appliquer, actions correctives, sous-actions, estimation du coÃ»t & effort â€” BLOCKED: needs LLM + security best practices DB
-- â¬œ Detection automation : Construit des risques automatiquement depuis logs / SIEM. â€” BLOCKED: needs SIEM integration + event bus
+-  Dduplication AI : Compare risques similaires et propose fusion ou suggestion. â€” BLOCKED: needs LLM provider decision
+-  Priorisation intelligente : Analyse probabilit Ã— impact Ã— criticit des assets Ã— tendances. â€” BLOCKED: needs LLM + prioritization formula
+-  Gnration Mitigations : Propose automatiquement : contrles Ã  appliquer, actions correctives, sous-actions, estimation du coÃ»t & effort â€” BLOCKED: needs LLM + security best practices DB
+-  Detection automation : Construit des risques automatiquement depuis logs / SIEM. â€” BLOCKED: needs SIEM integration + event bus
 
 Installer universel & Ops
 -  Helm chart complet â€” DONE Phase :  files (Chart.yaml, values.yaml,  Ks manifests,  env configs)
--  Installer deploy.sh â€” DONE Phase : + lines with prÃ-checks, rollback, post-install tests
+-  Installer deploy.sh â€” DONE Phase : + lines with pr-checks, rollback, post-install tests
 -  Observability Ã  % :
        Prometheus metrics ready in Helm chart
        Grafana dashboards included
-      â¬œ Distributed tracing (OpenTelemetry) â€” Feasible future enhancement
+       Distributed tracing (OpenTelemetry) â€” Feasible future enhancement
 
 OpenDefender Ecosystem Alignment
-  OpenRisk sera utilisÃ avec :
+  OpenRisk sera utilis avec :
       OpenAsset
       OpenWatch
       OpenShield
@@ -747,21 +747,21 @@ OpenDefender Ecosystem Alignment
       OpenResponse
 Donc :
 
-- â¬œ Normaliser : â€” BLOCKED: ecosystem alignment decision
-    â¬œ Identifiants d'assets â€” needs OpenAsset coordination
-    â¬œ Score modÃles â€” needs ecosystem decision
-    â¬œ Events â€” needs EventBus + other products alignment
-    â¬œ Permissions â€” needs ecosystem IAM decision
-    â¬œ UI Kit â€” needs design system decision
-- â¬œ SSO / IAM commun (Keycloak, Auth, ou maison) â€” BLOCKED: needs business decision on centralized IAM
+-  Normaliser : â€” BLOCKED: ecosystem alignment decision
+     Identifiants d'assets â€” needs OpenAsset coordination
+     Score modles â€” needs ecosystem decision
+     Events â€” needs EventBus + other products alignment
+     Permissions â€” needs ecosystem IAM decision
+     UI Kit â€” needs design system decision
+-  SSO / IAM commun (Keycloak, Auth, ou maison) â€” BLOCKED: needs business decision on centralized IAM
 
 Community & Adoption
-- â¬œ Roadmap publique (GitHub Projects) â€” Feasible: GitHub Projects setup
-- â¬œ Demo en live (Vercel / Render / Fly.io) â€” BLOCKED: needs hosting platform + domain decision
-- â¬œ Templates d'issues (bug, feature request) â€” Feasible: GitHub issue templates
-- â¬œ Branding + Site Web OpenRisk â€” BLOCKED: needs marketing/design
-- â¬œ Post Reddit + LinkedIn + HackerNews â€” Feasible: marketing effort
-- â¬œ Onboarding vidÃo (tu peux le faire une fois) â€” BLOCKED: needs video production resource
+-  Roadmap publique (GitHub Projects) â€” Feasible: GitHub Projects setup
+-  Demo en live (Vercel / Render / Fly.io) â€” BLOCKED: needs hosting platform + domain decision
+-  Templates d'issues (bug, feature request) â€” Feasible: GitHub issue templates
+-  Branding + Site Web OpenRisk â€” BLOCKED: needs marketing/design
+-  Post Reddit + LinkedIn + HackerNews â€” Feasible: marketing effort
+-  Onboarding vido (tu peux le faire une fois) â€” BLOCKED: needs video production resource
 ---
 
  Session  Summary (--, Afternoon)
@@ -945,12 +945,12 @@ Database Schema Created:
 
 Verification Results:
 
-âœ“  columns in api_tokens table
-âœ“  indexes created (primary key + unique token_hash +  custom)
-âœ“ Foreign key constraints on user_id and created_by_id
-âœ“ JSONB fields for permissions, scopes, ip_whitelist, metadata
-âœ“ Automatic updated_at timestamp trigger
-âœ“ All  migrations marked successfully in schema_migrations
+  columns in api_tokens table
+  indexes created (primary key + unique token_hash +  custom)
+ Foreign key constraints on user_id and created_by_id
+ JSONB fields for permissions, scopes, ip_whitelist, metadata
+ Automatic updated_at timestamp trigger
+ All  migrations marked successfully in schema_migrations
 
 
 Status: Production-ready database infrastructure
@@ -1115,7 +1115,7 @@ Lines of Code:
 |  | Integration Tests |  | + | - |
 |  | Permission Middleware |  |  |  |
 |  | Frontend Token UI |  | + |  |
-|  | SAML/OAuth | â¬œ | - | - |
+|  | SAML/OAuth |  | - | - |
 
 Overall Phase : % Complete (/ priorities)
 
@@ -1483,7 +1483,7 @@ Completed Phases:
 -  Phase : Authentication & RBAC (%)
 -  Phase : Infrastructure & Deployment (%)
 -  Phase : Intermediate Enterprise Features (%)
-- ðŸŸ¡ Phase : Kubernetes & Advanced Analytics (%)
+-  Phase : Kubernetes & Advanced Analytics (%)
 
 Total Production Code:
 - Phase : , lines ( files)
@@ -1514,7 +1514,7 @@ Phase Completion Summary:
 |  | Authentication & RBAC |  COMPLETE | % | JWT Auth, Roles, Permissions, Tokens |
 |  | Infrastructure & Deployment |  COMPLETE | % | Docker, CI/CD, Ks, Local Dev |
 |  | Enterprise Features |  COMPLETE | % | SSO, Custom Fields, Bulk Ops, Timeline |
-|  | Ks & Analytics | ðŸŸ¡ IN PROGRESS | % | Ks , Analytics , Marketplace â¬œ |
+|  | Ks & Analytics |  IN PROGRESS | % | Ks , Analytics , Marketplace  |
 
 Overall Project Status: % COMPLETE
 
@@ -1620,9 +1620,9 @@ Feature Coverage:
 - Custom Fields: % 
 - Bulk Operations: % 
 - Risk Timeline: % 
-- Marketplace: % â¬œ
-- Mobile App: % â¬œ
-- Performance Optimization: % â¬œ
+- Marketplace: % 
+- Mobile App: % 
+- Performance Optimization: % 
 
  Recommendations for Next Session
 

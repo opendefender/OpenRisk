@@ -7,7 +7,7 @@ interface PageHeaderProps {
   onNewRisk: () => void;
 }
 
-// Le header flottant, dÃsormais gÃnÃrique et rÃutilisable
+// Le header flottant, dsormais gnrique et rutilisable
 export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);

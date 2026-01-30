@@ -1,13 +1,13 @@
- OpenRisk - Guide de D√marrage Rapide
+ OpenRisk - Guide de Dmarrage Rapide
 
-Bienvenue! Ce guide vous permet de d√marrer en  minutes et d'explorer OpenRisk avec des donn√es r√alistes.
+Bienvenue! Ce guide vous permet de dmarrer en  minutes et d'explorer OpenRisk avec des donnes ralistes.
 
 ---
 
- ‚ö° √âtape : D√marrer le Syst√me ( min)
+  √âtape : Dmarrer le Systme ( min)
 
- Pr√requis
-- Docker & Docker Compose install√s
+ Prrequis
+- Docker & Docker Compose installs
 - Git
 - Un terminal (Bash, Zsh, PowerShell, etc.)
 
@@ -18,37 +18,37 @@ bash
 git clone https://github.com/alex-dembele/OpenRisk.git
 cd OpenRisk
 
- . D√marrer tous les services
+ . Dmarrer tous les services
 docker compose up -d
 
- . V√rifier que tout fonctionne
+ . Vrifier que tout fonctionne
 docker compose ps
  Devrait afficher: db, redis, backend, frontend (tous UP)
 
- . Acc√der √† l'interface
+ . Accder √† l'interface
  ‚Üí Frontend: http://localhost:
  ‚Üí API Backend: http://localhost:
 
 
-  Contr√le de Sant√
+  Contrle de Sant
 
 bash
- V√rifier que les services r√pondent
+ Vrifier que les services rpondent
 curl http://localhost:/health
- R√sultat attendu: {"status":"healthy"}
+ Rsultat attendu: {"status":"healthy"}
 
 
 ---
 
   √âtape : Se Connecter ( min)
 
- Identifiants par d√faut
+ Identifiants par dfaut
 
-üìß Email: admin@openrisk.local
+ Email: admin@openrisk.local
  Mot de passe: admin
 
 
- Premi√re Connexion
+ Premire Connexion
 
 . Ouvrir http://localhost: dans votre navigateur
 . Entrer les identifiants ci-dessus
@@ -62,45 +62,45 @@ Vous arrivez sur le Dashboard!
 
 Vous voyez  sections:
 
- üìà Haut Gauche: Vue d'Ensemble
+  Haut Gauche: Vue d'Ensemble
 
  Risques Hauts
  Risques Moyens
  Risques Bas
 
 
- üìâ Haut Droit: Graphique de Tendance
+  Haut Droit: Graphique de Tendance
 
-Montre l'√volution des risques sur les  derniers jours
-(Actuellement vide, on va ajouter des donn√es)
+Montre l'volution des risques sur les  derniers jours
+(Actuellement vide, on va ajouter des donnes)
 
 
- üó∫ Bas Gauche: Heatmap
+  Bas Gauche: Heatmap
 
-Matrice de probabilit√ vs impact
+Matrice de probabilit vs impact
 Permet de visualiser les risques visuellement
 
 
-  Bas Droit: Risques R√cents
+  Bas Droit: Risques Rcents
 
-Liste des derniers risques cr√√s
+Liste des derniers risques crs
 (Actuellement vide)
 
 
 ---
 
- üì• √âtape : Importer des Donn√es de Test ( min)
+  √âtape : Importer des Donnes de Test ( min)
 
- Option A: Importer via API (Recommand√)
+ Option A: Importer via API (Recommand)
 
-T√l√charger le fichier de test:
+Tlcharger le fichier de test:
 
 bash
  Le fichier est inclus dans le repo
 cat dev/fixtures/risks.json
 
 
-Importer les donn√es:
+Importer les donnes:
 
 bash
  Option : Via cURL (ligne de commande)
@@ -112,43 +112,43 @@ curl -X POST http://localhost:/api/risks/bulk-import \
  Option : Via l'interface (plus simple)
  . Aller √† Settings ‚Üí Data Management
  . Cliquer "Import Data"
- . T√l√charger dev/fixtures/risks.json
+ . Tlcharger dev/fixtures/risks.json
  . Cliquer "Import"
 
 
- Option B: Cr√er Manuellement un Risque
+ Option B: Crer Manuellement un Risque
 
 . Cliquer sur "Risks" dans le menu
 . Cliquer "Create Risk"
 . Remplir le formulaire:
 
 
-Titre: Vuln√rabilit√ SQL Injection dans formulaire login
-Description: L'input utilisateur n'est pas √chapp√
+Titre: Vulnrabilit SQL Injection dans formulaire login
+Description: L'input utilisateur n'est pas chapp
 Framework: OWASP Top  - A: Injection
-Criticit√: Haute
-Probabilit√: Moyenne
-Status: Identifi√
+Criticit: Haute
+Probabilit: Moyenne
+Status: Identifi
 
-Score Calcul√ Automatiquement: ./ 
+Score Calcul Automatiquement: ./ 
 
 
 . Cliquer "Save"
 
 ---
 
-  √âtape : Cr√er une Mitigation ( min)
+  √âtape : Crer une Mitigation ( min)
 
  Depuis un Risque Existant
 
-. Cliquer sur un risque (ex: "Vuln√rabilit√ SQL")
+. Cliquer sur un risque (ex: "Vulnrabilit SQL")
 . Aller √† l'onglet "Mitigations"
 . Cliquer "Add Mitigation"
 . Remplir:
 
 
 Titre: Utiliser des Prepared Statements
-Description: Refactoriser la couche base de donn√es
+Description: Refactoriser la couche base de donnes
 Status: In Progress
 Owner: Backend Team Lead
 Deadline:  Janvier 
@@ -158,68 +158,68 @@ Deadline:  Janvier
 
 
 Sub-actions:
-‚òê Valider avec l'√quipe s√curit√
-‚òê √âcrire les tests unitaires
-‚òê D√ployer en staging
-‚òê Tester h en prod
-‚òê Monitorer les logs
+ Valider avec l'quipe scurit
+ √âcrire les tests unitaires
+ Dployer en staging
+ Tester h en prod
+ Monitorer les logs
 
 
 Cocher au fur et √† mesure:
 bash
- Quand l'action est faite, cliquer la case ‚òê ‚Üí ‚òë
- Le syst√me track automatiquement la progression
+ Quand l'action est faite, cliquer la case  ‚Üí 
+ Le systme track automatiquement la progression
 
 
 ---
 
-  √âtape : G√n√rer un Rapport ( min)
+  √âtape : Gnrer un Rapport ( min)
 
- Cr√er un Rapport Simple
+ Crer un Rapport Simple
 
 . Cliquer "Reports" dans le menu
 . Cliquer "Create Report"
-. S√lectionner:
+. Slectionner:
    - Type: Risk Summary
-   - P√riode: Ce mois-ci
+   - Priode: Ce mois-ci
    - Format: PDF
 . Cliquer "Generate"
 
-Le rapport est g√n√r√ en  secondes!
+Le rapport est gnr en  secondes!
 
  Ce qu'on Voit dans le Rapport
 
 
  RAPPORT DE GESTION DES RISQUES
-G√n√r√ le:  D√cembre 
+Gnr le:  Dcembre 
 
-R√sum√:
+Rsum:
 - Total risques: 
 - Critiques: 
 - Hauts: 
 - Moyens: 
 
-D√tail:
-. Vuln√rabilit√ SQL (Score: .) ‚Üí Mitigation en cours
+Dtail:
+. Vulnrabilit SQL (Score: .) ‚Üí Mitigation en cours
 . ...
 
-Actions Recommand√es:
-- Acc√l√rer la mitigation Critique
+Actions Recommandes:
+- Acclrer la mitigation Critique
 - ...
 
 
 ---
 
- üîå √âtape : Connecter vos Outils (Optionnel)
+  √âtape : Connecter vos Outils (Optionnel)
 
  Splunk Integration
 
-Si vous utilisez Splunk pour la s√curit√:
+Si vous utilisez Splunk pour la scurit:
 
 bash
  . Aller √† Settings ‚Üí Integrations
  . Cliquer "Add Integration"
- . S√lectionner "Splunk"
+ . Slectionner "Splunk"
  . Entrer:
    SPLUNK_URL=https://splunk.votreentreprise.com:
    SPLUNK_API_TOKEN=xxxxxxxxxxxxx
@@ -228,7 +228,7 @@ bash
  . Cliquer "Enable"
 
 
-Apr√s activation, les alertes Splunk s'importeront automatiquement dans OpenRisk!
+Aprs activation, les alertes Splunk s'importeront automatiquement dans OpenRisk!
 
  TheHive Integration
 
@@ -238,7 +238,7 @@ bash
  Settings ‚Üí Integrations ‚Üí TheHive
    THEHIVE_URL=https://thehive.votreentreprise.com
    THEHIVE_API_KEY=xxxxxxxxxxxxx
- Synchronisation bi-directionnelle activ√e!
+ Synchronisation bi-directionnelle active!
 
 
 ---
@@ -250,10 +250,10 @@ bash
 . Aller √† "Settings" ‚Üí "Team"
 . Cliquer "Invite User"
 . Entrer l'email: john@votreentreprise.com
-. S√lectionner le r√le:
+. Slectionner le rle:
    
-   - Admin: Acc√s complet
-   - Risk Manager: Cr√er/modifier risques
+   - Admin: Accs complet
+   - Risk Manager: Crer/modifier risques
    - Analyst: Voir & commenter
    - Viewer: Lecture seule
    
@@ -265,7 +265,7 @@ L'utilisateur recevra un email d'invitation!
 
   Commandes Utiles
 
- V√rifier l'√âtat
+ Vrifier l'√âtat
 
 bash
  Est-ce que tout fonctionne?
@@ -275,30 +275,30 @@ docker compose ps
 docker compose logs backend
 docker compose logs frontend
 
- Red√marrer les services
+ Redmarrer les services
 docker compose restart
 
 
- Arr√™ter / Red√marrer
+ Arr√™ter / Redmarrer
 
 bash
  Arr√™ter
 docker compose down
 
- Arr√™ter et effacer les donn√es
+ Arr√™ter et effacer les donnes
 docker compose down -v
 
- Red√marrer
+ Redmarrer
 docker compose up -d
 
 
- R√initialiser les Donn√es de Test
+ Rinitialiser les Donnes de Test
 
 bash
- Effacer et recommencer z√ro
+ Effacer et recommencer zro
 docker compose down -v
 docker compose up -d
- Puis importer les donn√es (√âtape )
+ Puis importer les donnes (√âtape )
 
 
 ---
@@ -308,20 +308,20 @@ docker compose up -d
  "Connection refused" sur localhost:
 
 bash
- Le frontend n'a pas d√marr√
+ Le frontend n'a pas dmarr
  Solution:
 docker compose restart frontend
 docker compose logs frontend   Voir l'erreur
 
- Ou attendre  secondes, Docker est lent au premier d√marrage
+ Ou attendre  secondes, Docker est lent au premier dmarrage
 
 
  "Database connection error"
 
 bash
- La base de donn√es n'est pas pr√™te
+ La base de donnes n'est pas pr√™te
  Solution:
-docker compose logs db   V√rifier les logs
+docker compose logs db   Vrifier les logs
 
  Ou:
 docker compose down -v
@@ -331,24 +331,24 @@ docker compose up -d
  "Can't login with admin@openrisk.local"
 
 bash
- Les credentials par d√faut ne fonctionnent pas
+ Les credentials par dfaut ne fonctionnent pas
  Solution:
- . V√rifier que le backend est bien d√marr√
+ . Vrifier que le backend est bien dmarr
 docker compose ps | grep backend
  Doit √™tre "UP"
 
- . V√rifier les migrations sont appliqu√es
+ . Vrifier les migrations sont appliques
 docker compose logs backend | grep "migration"
 
- . R√initialiser complet
+ . Rinitialiser complet
 docker compose down -v
 docker compose up -d
  Attendre  secondes
 
- . R√essayer
+ . Ressayer
 
 
- Port  d√j√† utilis√
+ Port  dj√† utilis
 
 bash
  Un autre processus utilise le port
@@ -365,42 +365,42 @@ docker compose down
      - ":"   ‚Üê Changer  en 
 docker compose up -d
 
- Acc√der √† http://localhost:
+ Accder √† http://localhost:
 
 
 ---
 
- üìö Prochaines √âtapes
+  Prochaines √âtapes
 
  Pour Aller Plus Loin
 
-. Lire les cas d'usage r√els: [USE_CASES.md](USE_CASES.md)
-. Explorer l'API compl√te: [API_REFERENCE.md](API_REFERENCE.md)
+. Lire les cas d'usage rels: [USE_CASES.md](USE_CASES.md)
+. Explorer l'API complte: [API_REFERENCE.md](API_REFERENCE.md)
 . Configurer SSO: [SAML_OAUTH_INTEGRATION.md](SAML_OAUTH_INTEGRATION.md)
-. D√ployer en Production: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
-. Int√grer vos outils: [SYNC_ENGINE.md](SYNC_ENGINE.md)
+. Dployer en Production: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
+. Intgrer vos outils: [SYNC_ENGINE.md](SYNC_ENGINE.md)
 
- Documentation Recommand√e
+ Documentation Recommande
 
 | Doc | Pour Qui | Temps |
 |-----|----------|-------|
-| [USE_CASES.md](USE_CASES.md) | D√couvrir la valeur r√elle |  min |
-| [API_REFERENCE.md](API_REFERENCE.md) | D√veloppeurs & API |  min |
+| [USE_CASES.md](USE_CASES.md) | Dcouvrir la valeur relle |  min |
+| [API_REFERENCE.md](API_REFERENCE.md) | Dveloppeurs & API |  min |
 | [SAML_OAUTH_INTEGRATION.md](SAML_OAUTH_INTEGRATION.md) | IT & Admins |  min |
 | [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Contribuer au projet |  min |
 
 ---
 
- ‚ùì Questions?
+  Questions?
 
-- üí¨ Chat: [GitHub Discussions](https://github.com/alex-dembele/OpenRisk/discussions)
-- üêõ Bug: [Ouvrir une Issue](https://github.com/alex-dembele/OpenRisk/issues)
-- üìñ Docs: [Voir tous les guides](./README.md)
+-  Chat: [GitHub Discussions](https://github.com/alex-dembele/OpenRisk/discussions)
+-  Bug: [Ouvrir une Issue](https://github.com/alex-dembele/OpenRisk/issues)
+-  Docs: [Voir tous les guides](./README.md)
 
 ---
 
   Bravo!
 
-Vous venez de mettre en place une plateforme de gestion des risques compl√te en  minutes!
+Vous venez de mettre en place une plateforme de gestion des risques complte en  minutes!
 
-Prochaine √tape? ‚Üí Lire [USE_CASES.md](USE_CASES.md) pour voir comment l'utiliser pour votre √quipe 
+Prochaine tape? ‚Üí Lire [USE_CASES.md](USE_CASES.md) pour voir comment l'utiliser pour votre quipe 

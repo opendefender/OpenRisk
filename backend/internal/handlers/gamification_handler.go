@@ -6,7 +6,7 @@ import (
 )
 
 func GetMyGamificationProfile(c fiber.Ctx) error {
-	// R√cup√rer l'ID utilisateur depuis le Token JWT (inject√ par middleware Protected)
+	// Rcuprer l'ID utilisateur depuis le Token JWT (inject par middleware Protected)
 	userID := c.Locals("user_id").(string)
 
 	if userID == "" {

@@ -35,7 +35,7 @@ describe('CreateRiskModal', () => {
     fireEvent.change(description, { target: { value: 'This is a test description with enough length.' } });
 
     // Submit
-    const submit = screen.getByRole('button', { name: /CrÃer le Risque/i });
+    const submit = screen.getByRole('button', { name: /Crer le Risque/i });
     fireEvent.click(submit);
 
     await waitFor(() => expect(createRiskMock).toHaveBeenCalled());

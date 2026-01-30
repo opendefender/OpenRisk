@@ -7,7 +7,7 @@ export const Recommendations = () => {
         <div className="mb-">
             <h className="text-xl font-bold text-white mb-">Intelligence & Recommendations</h>
             <p className="text-zinc-">
-                Optimisez vos efforts de s√curit√ en traitant d'abord ce qui compte vraiment.
+                Optimisez vos efforts de scurit en traitant d'abord ce qui compte vraiment.
             </p>
         </div>
         

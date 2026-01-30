@@ -12,7 +12,7 @@ type Badge struct {
 	ID          string json:"id"
 	Name        string json:"name"
 	Description string json:"description"
-	Icon        string json:"icon" // Nom de l'icÃne Lucide (ex: "Shield")
+	Icon        string json:"icon" // Nom de l'icne Lucide (ex: "Shield")
 	Unlocked    bool   json:"unlocked"
 }
 
@@ -33,17 +33,17 @@ func NewGamificationService() GamificationService {
 	return &GamificationService{}
 }
 
-// GetUserStats calcule tout le profil de jeu Ã  la volÃe
+// GetUserStats calcule tout le profil de jeu Ã  la vole
 func (s GamificationService) GetUserStats(userID string) (UserStats, error) {
 	stats := &UserStats{Badges: []Badge{}}
 	
-	// . Calculer les mÃtriques brutes depuis la DB
-	// (Note: Dans un vrai SaaS scalable, on incrmenterait des compteurs. Ici on compte Ã  la volÃe pour la fiabilitÃ)
+	// . Calculer les mtriques brutes depuis la DB
+	// (Note: Dans un vrai SaaS scalable, on incrmenterait des compteurs. Ici on compte Ã  la vole pour la fiabilit)
 	var riskCount int
 	database.DB.Model(&domain.Risk{}).Where("owner = ?", userID).Count(&riskCount) // Simplification: owner est string ici
 	
 	// On compte les mitigations "DONE"
-	// Note: IdÃalement, Mitigation devrait avoir un "CompletedBy". On assume que c'est l'assignee ou via logs.
+	// Note: Idalement, Mitigation devrait avoir un "CompletedBy". On assume que c'est l'assignee ou via logs.
 	// Pour ce commit, on compte globalement les mitigations finies pour l'exemple.
 	var mitiCount int
 	database.DB.Model(&domain.Mitigation{}).Where("status = ?", "DONE").Count(&mitiCount)
@@ -52,7 +52,7 @@ func (s GamificationService) GetUserStats(userID string) (UserStats, error) {
 	stats.MitigationsDone = mitiCount
 
 	// . Calcul de l'XP
-	// RÃgle :  XP par Risque CrÃÃ,  XP par Mitigation TerminÃe
+	// Rgle :  XP par Risque Cr,  XP par Mitigation Termine
 	xp := (riskCount  ) + (mitiCount  )
 	stats.TotalXP = int(xp)
 
@@ -75,11 +75,11 @@ func (s GamificationService) GetUserStats(userID string) (UserStats, error) {
 	}
 	stats.NextLevelXP = int(nextLevelBaseXP)
 
-	// . SystÃme de Badges (Evaluation des conditions)
+	// . Systme de Badges (Evaluation des conditions)
 	allBadges := []Badge{
-		{ID: "first_blood", Name: "Initiator", Description: "CrÃer votre premier risque", Icon: "Flag", Unlocked: riskCount >= },
-		{ID: "guardian", Name: "Guardian", Description: "AttÃnuer  risques", Icon: "ShieldCheck", Unlocked: mitiCount >= },
-		{ID: "strategist", Name: "Strategist", Description: "GÃrer plus de  risques", Icon: "Brain", Unlocked: riskCount >= },
+		{ID: "first_blood", Name: "Initiator", Description: "Crer votre premier risque", Icon: "Flag", Unlocked: riskCount >= },
+		{ID: "guardian", Name: "Guardian", Description: "Attnuer  risques", Icon: "ShieldCheck", Unlocked: mitiCount >= },
+		{ID: "strategist", Name: "Strategist", Description: "Grer plus de  risques", Icon: "Brain", Unlocked: riskCount >= },
 		{ID: "legend", Name: "Legend", Description: "Atteindre  XP", Icon: "Crown", Unlocked: xp >= },
 	}
 	stats.Badges = allBadges

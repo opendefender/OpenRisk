@@ -6,10 +6,10 @@ import (
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
-// GetAssets : Liste avec pagination optionnelle (simplifi√e ici)
+// GetAssets : Liste avec pagination optionnelle (simplifie ici)
 func GetAssets(c fiber.Ctx) error {
 	var assets []domain.Asset
-	// On pr√charge les risques pour afficher le nombre de risques par asset
+	// On prcharge les risques pour afficher le nombre de risques par asset
 	if err := database.DB.Preload("Risks").Find(&assets).Error; err != nil {
 		return c.Status().JSON(fiber.Map{"error": "Could not fetch assets"})
 	}

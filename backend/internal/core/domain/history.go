@@ -6,12 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// RiskHistory : Trace l'√volution d'un risque dans le temps
+// RiskHistory : Trace l'volution d'un risque dans le temps
 type RiskHistory struct {
 	ID     uuid.UUID gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"
 	RiskID uuid.UUID gorm:"type:uuid;index" json:"risk_id"
 
-	// Snapshot des valeurs cl√s
+	// Snapshot des valeurs cls
 	Score       float    json:"score"
 	Impact      int        json:"impact"
 	Probability int        json:"probability"

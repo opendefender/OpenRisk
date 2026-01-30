@@ -119,17 +119,17 @@ export const DashboardGrid: React.FC = () => {
   const criticalRisks = risks.filter(r => r.score >= ).length;
   const mitigatedCount = risks.filter(r => r.status === 'MITIGATED').length;
   
-  // Top  des risques non mitig√s (Tri√s par score d√croissant)
+  // Top  des risques non mitigs (Tris par score dcroissant)
   const topRisks = [...risks]
     .filter(r => r.status !== 'MITIGATED' && r.status !== 'CLOSED')
     .sort((a, b) => b.score - a.score)
     .slice(, );
 
-  // Chargement initial des donn√es
+  // Chargement initial des donnes
   useEffect(() => {
     fetchRisks();
     fetchAssets();
-    // La matrice g√re son propre fetch via /stats/risk-matrix
+    // La matrice gre son propre fetch via /stats/risk-matrix
   }, [fetchRisks, fetchAssets]);
 
   // Handler pour l'export PDF

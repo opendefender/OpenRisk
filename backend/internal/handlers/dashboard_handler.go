@@ -8,18 +8,18 @@ import (
 
 type DashboardStats struct {
 	TotalRisks      int            json:"total_risks"
-	GlobalRiskScore int              json:"global_risk_score" // Moyenne pond√r√e ou max
+	GlobalRiskScore int              json:"global_risk_score" // Moyenne pondre ou max
 	HighRisks       int            json:"high_risks"
 	MitigatedRisks  int            json:"mitigated_risks"
 	RisksBySeverity map[string]int json:"risks_by_severity"
 }
 
-// GetDashboardStats calcule tout en une seule requ√™te optimis√e
+// GetDashboardStats calcule tout en une seule requ√™te optimise
 func GetDashboardStats(c fiber.Ctx) error {
 	var stats DashboardStats
 	var risks []domain.Risk
 
-	// . R√cup√re tout (pour l'instant ok, plus tard on paginera)
+	// . Rcupre tout (pour l'instant ok, plus tard on paginera)
 	database.DB.Find(&risks).Count(&stats.TotalRisks)
 
 	// . Calculs
@@ -48,11 +48,11 @@ func GetDashboardStats(c fiber.Ctx) error {
 		stats.RisksBySeverity[severity]++
 	}
 
-	// Score global invers√ ( = S√ªr,  = Danger)
+	// Score global invers ( = S√ªr,  = Danger)
 	// Formule simple :  - (Moyenne des scores de risques  facteur)
 	if stats.TotalRisks >  {
 		avgRisk := totalScore / float(stats.TotalRisks)
-		// Si avgRisk est  (max), le score de s√cu est . Si avgRisk est , score est .
+		// Si avgRisk est  (max), le score de scu est . Si avgRisk est , score est .
 		// Formule :  - (avgRisk  )
 		securityScore :=  - int(avgRisk)
 		if securityScore <  {

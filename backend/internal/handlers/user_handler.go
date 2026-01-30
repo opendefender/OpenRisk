@@ -51,9 +51,9 @@ type UserResponseDTO struct {
 // Create a global audit service instance for user handlers
 var auditService = services.NewAuditService()
 
-// GetMe : R√cup√re les infos de l'utilisateur connect√
+// GetMe : Rcupre les infos de l'utilisateur connect
 func GetMe(c fiber.Ctx) error {
-	userID := c.Locals("user_id") // R√cup√r√ depuis le middleware JWT
+	userID := c.Locals("user_id") // Rcupr depuis le middleware JWT
 	var user domain.User
 
 	if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
@@ -62,8 +62,8 @@ func GetMe(c fiber.Ctx) error {
 	return c.JSON(user)
 }
 
-// SeedAdminUser : Cr√e un admin par d√faut si la base est vide
-// √Ä appeler au d√marrage dans main.go
+// SeedAdminUser : Cre un admin par dfaut si la base est vide
+// √Ä appeler au dmarrage dans main.go
 func SeedAdminUser() {
 	var count int
 	database.DB.Model(&domain.User{}).Count(&count)

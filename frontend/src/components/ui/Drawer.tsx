@@ -29,7 +29,7 @@ export const Drawer = ({ isOpen, onClose, children, title }: DrawerProps) => {
             className="fixed inset- z- bg-black/ backdrop-blur-sm"
           />
           
-          {/ Panneau LatÃral /}
+          {/ Panneau Latral /}
           <motion.div
             initial={{ x: '%' }}
             animate={{ x:  }}

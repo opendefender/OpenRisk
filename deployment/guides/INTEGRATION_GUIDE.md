@@ -1,6 +1,6 @@
- üîå Integration Guide - Connexion Frontend/Backend
+  Integration Guide - Connexion Frontend/Backend
 
-Ce guide couvre les √tapes d'int√gration pour que le frontend communique correctement avec le backend d√ploy√.
+Ce guide couvre les tapes d'intgration pour que le frontend communique correctement avec le backend dploy.
 
 ---
 
@@ -127,11 +127,11 @@ const createRisk = async (riskData) => {
 
 ---
 
- üîí Configuration Backend (CORS)
+  Configuration Backend (CORS)
 
  Backend Configuration (cmd/server/main.go)
 
-V√rifiez que le CORS est configur√ correctement :
+Vrifiez que le CORS est configur correctement :
 
 go
 import "github.com/gofiber/fiber/v/middleware/cors"
@@ -154,7 +154,7 @@ func main() {
 
  Variables d'environnement Backend
 
-Pour d√veloppement local (.env)
+Pour dveloppement local (.env)
 env
 CORS_ORIGINS=http://localhost:,http://localhost:
 
@@ -166,7 +166,7 @@ CORS_ORIGINS=https://openrisk-xxxx.vercel.app
 
 ---
 
- üß™ √âtapes de test d'int√gration
+  √âtapes de test d'intgration
 
  Test : Ping l'API
 
@@ -180,7 +180,7 @@ curl -X GET https://openrisk-api.onrender.com/api/health
 
  Test : Test CORS depuis le frontend
 
-Ouvrez la console DevTools du browser et ex√cutez :
+Ouvrez la console DevTools du browser et excutez :
 
 javascript
 // Test de la requ√™te
@@ -215,9 +215,9 @@ const risks = await risksResponse.json()
 console.log('Risks:', risks)
 
 
- Test : V√rifier depuis la console du browser
+ Test : Vrifier depuis la console du browser
 
-Une fois le frontend charg√, testez dans la console :
+Une fois le frontend charg, testez dans la console :
 
 javascript
 // Check environment
@@ -232,7 +232,7 @@ api.get('/api/health')
 
 ---
 
-  D√pannage des erreurs courantes
+  Dpannage des erreurs courantes
 
  . CORS Error: "No 'Access-Control-Allow-Origin'"
 
@@ -243,7 +243,7 @@ bash
  Dans Render.com, mettre √† jour:
 CORS_ORIGINS=https://openrisk-xxxx.vercel.app
 
- Puis red√ployer le service
+ Puis redployer le service
 
 
  .  Unauthorized - "Token invalid or expired"
@@ -252,8 +252,8 @@ Cause: JWT_SECRET ne correspond pas entre services
 
 Solution:
 bash
- V√rifier que JWT_SECRET est identique sur Render
- Red√ployer si chang√
+ Vrifier que JWT_SECRET est identique sur Render
+ Redployer si chang
 
 
  . API Endpoint returns 
@@ -262,7 +262,7 @@ Cause: Mauvaise API URL ou endpoint invalide
 
 Solution:
 bash
- V√rifier l'API URL dans Vercel env:
+ Vrifier l'API URL dans Vercel env:
 VITE_API_URL=https://openrisk-api.onrender.com
 
  Tester l'endpoint:
@@ -274,16 +274,16 @@ curl https://openrisk-api.onrender.com/api/risks
 Cause: 
 - Backend service is sleeping (Render free tier)
 - API URL est incorrecte
-- Connexion r√seau
+- Connexion rseau
 
 Solution:
 bash
- . V√rifier que Render service est "Live":
+ . Vrifier que Render service est "Live":
 curl https://openrisk-api.onrender.com/api/health
 
- . Si dormant, attendre le r√veil (- sec)
+ . Si dormant, attendre le rveil (- sec)
 
- . Configurer monitoring gratuit pour √viter le sleep:
+ . Configurer monitoring gratuit pour viter le sleep:
  https://uptimerobot.com
 
 
@@ -293,9 +293,9 @@ Cause: Erreur JavaScript ou build
 
 Solution:
 bash
- V√rifier les logs Vercel
- V√rifier la console DevTools
- V√rifier Network tab
+ Vrifier les logs Vercel
+ Vrifier la console DevTools
+ Vrifier Network tab
 
  Rebuild sur Vercel:
  Dans dashboard ‚Üí Deployments ‚Üí Redeploy
@@ -303,9 +303,9 @@ bash
 
 ---
 
- üîç Diagnostic avanc√
+  Diagnostic avanc
 
- V√rifier les logs backend (Render)
+ Vrifier les logs backend (Render)
 
 . Allez sur https://render.com
 . Cliquez sur votre service openrisk-api
@@ -316,12 +316,12 @@ bash
    - "ERROR"
    - "Connection refused"
 
- V√rifier les logs frontend (Vercel)
+ Vrifier les logs frontend (Vercel)
 
 . Allez sur https://vercel.com
 . Cliquez sur votre projet
 . Onglet Deployments
-. Cliquez sur le dernier d√ploiement
+. Cliquez sur le dernier dploiement
 . Onglet Logs ‚Üí Build ou Runtime
 
  Network Debugging (Browser DevTools)
@@ -330,7 +330,7 @@ bash
 . F ‚Üí Network tab
 . Testez une action (login, fetch data)
 . Cherchez votre API call
-. V√rifiez:
+. Vrifiez:
    - Status ( = ok, xx = client error, xx = server error)
    - Response headers (Access-Control-Allow-Origin)
    - Response body
@@ -345,25 +345,25 @@ bash
 - [ ] VITE_API_URL est l'URL Render sans trailing slash
 - [ ] Backend a CORS_ORIGINS contenant l'URL Vercel exact
 - [ ] JWT_SECRET est identique sur backend
-- [ ] Database connection fonctionne (v√rifier logs Render)
+- [ ] Database connection fonctionne (vrifier logs Render)
 - [ ] Redis connection fonctionne
 - [ ] Frontend peut atteindre /api/health
 - [ ] Frontend peut authenticater (login)
-- [ ] Frontend peut fetch des donn√es (risks, etc.)
+- [ ] Frontend peut fetch des donnes (risks, etc.)
 - [ ] Pas d'erreurs console dans browser
 - [ ] Pas d'erreurs CORS
-- [ ] Pas d'erreurs / (sauf apr√s logout)
+- [ ] Pas d'erreurs / (sauf aprs logout)
 
 ---
 
-  Prochaines √tapes
+  Prochaines tapes
 
-Une fois l'int√gration valid√e :
+Une fois l'intgration valide :
 
 . Testez toutes les features (create, update, delete)
 . Testez la pagination et le filtrage
 . Testez l'export PDF
 . Testez les notifications
-. Testez les permissions et les r√les
+. Testez les permissions et les rles
 
-Puis partagez votre d√mo ! 
+Puis partagez votre dmo ! 

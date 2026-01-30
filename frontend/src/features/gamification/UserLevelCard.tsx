@@ -49,7 +49,7 @@ export const UserLevelCard = () => {
       <div className="bg-white/ backdrop-blur-xl border border-white/ rounded-xl p-">
         <div className="flex items-center gap- text-orange-">
           <AlertCircle className="w- h-" />
-          <p className="text-sm">{error || 'Impossible de charger les donn√es'}</p>
+          <p className="text-sm">{error || 'Impossible de charger les donnes'}</p>
         </div>
       </div>
     );
@@ -113,7 +113,7 @@ export const UserLevelCard = () => {
                 className="bg-white/ border border-white/ rounded-lg p- text-center"
               >
                 <div className="text-xl font-bold text-blue-">{stats.risks_managed}</div>
-                <div className="text-xs text-zinc- uppercase tracking-wide mt-">Risques G√r√s</div>
+                <div className="text-xs text-zinc- uppercase tracking-wide mt-">Risques Grs</div>
               </motion.div>
 
               <motion.div
@@ -123,7 +123,7 @@ export const UserLevelCard = () => {
                 className="bg-white/ border border-white/ rounded-lg p- text-center"
               >
                 <div className="text-xl font-bold text-green-">{stats.mitigations_done}</div>
-                <div className="text-xs text-zinc- uppercase tracking-wide mt-">Att√nuations</div>
+                <div className="text-xs text-zinc- uppercase tracking-wide mt-">Attnuations</div>
               </motion.div>
             </div>
           </div>
@@ -140,7 +140,7 @@ export const UserLevelCard = () => {
         >
           <h className="text-lg font-bold text-white mb- flex items-center gap-">
             <Trophy className="w- h- text-yellow-" />
-            Badges D√bloqu√s
+            Badges Dbloqus
           </h>
 
           <div className="grid grid-cols- md:grid-cols- gap-">
@@ -188,7 +188,7 @@ export const UserLevelCard = () => {
 
           {stats.badges.filter((b) => !b.unlocked).length >  && (
             <p className="text-xs text-zinc- mt-">
-              {stats.badges.filter((b) => !b.unlocked).length} badge(s) √† d√verrouiller
+              {stats.badges.filter((b) => !b.unlocked).length} badge(s) √† dverrouiller
             </p>
           )}
         </motion.div>

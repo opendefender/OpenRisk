@@ -20,7 +20,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === ) {
       localStorage.removeItem('auth_token');
-      window.location.href = '/login'; // Redirection forc√e
+      window.location.href = '/login'; // Redirection force
     }
     return Promise.reject(error);
   }

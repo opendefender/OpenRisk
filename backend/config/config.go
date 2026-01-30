@@ -12,7 +12,7 @@ type ServerConfig struct {
 	JWTSecret string
 }
 
-// Structure pour la configuration de la base de donn√es (r√sout "undefined: DatabaseConfig")
+// Structure pour la configuration de la base de donnes (rsout "undefined: DatabaseConfig")
 type DatabaseConfig struct {
 	Host string
 	Port int
@@ -42,10 +42,10 @@ type ExternalService struct {
 
 // LoadConfig charge les configurations depuis les variables d'environnement
 func LoadConfig() Config {
-	// Impl√mentation simplifi√e
+	// Implmentation simplifie
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	
-	// Dans un environnement de dev, le port DB est souvent le  par d√faut
+	// Dans un environnement de dev, le port DB est souvent le  par dfaut
 	dbPort :=  
 
 	return &Config{

@@ -1,63 +1,63 @@
- ğŸ“– README - Guides de dÃploiement crÃÃs
+  README - Guides de dploiement crs
 
-Les guides suivants ont ÃtÃ gÃnÃrÃs pour vous aider Ã  dÃployer OpenRisk gratuitement :
+Les guides suivants ont t gnrs pour vous aider Ã  dployer OpenRisk gratuitement :
 
 ---
 
- ğŸ“š Fichiers de documentation crÃÃs
+  Fichiers de documentation crs
 
-  QUICK_DEPLOY_GUIDE.md â­ START HERE
-- DurÃe:  minutes
-- ComplexitÃ: Facile
-- Ã‰tapes rapides pour dÃployer sur Supabase, Redis Cloud, Render.com et Vercel
-- Parfait pour avoir une dÃmo rapidement
+  QUICK_DEPLOY_GUIDE.md  START HERE
+- Dure:  minutes
+- Complexit: Facile
+- Ã‰tapes rapides pour dployer sur Supabase, Redis Cloud, Render.com et Vercel
+- Parfait pour avoir une dmo rapidement
 
- ğŸ“– DEPLOYMENT_FREE_SERVICES.md ğŸ“– COMPREHENSIVE GUIDE
-- DurÃe: - heures
-- ComplexitÃ: IntermÃdiaire
-- Guide complet avec explications dÃtaillÃes
-- DÃpannage avancÃ
+  DEPLOYMENT_FREE_SERVICES.md  COMPREHENSIVE GUIDE
+- Dure: - heures
+- Complexit: Intermdiaire
+- Guide complet avec explications dtailles
+- Dpannage avanc
 - Architecture et limitations
 
- ğŸ”Œ INTEGRATION_GUIDE.md ğŸ”Œ TECHNICAL REFERENCE
-- Configuration complÃte du frontend/backend
+  INTEGRATION_GUIDE.md  TECHNICAL REFERENCE
+- Configuration complte du frontend/backend
 - Code d'exemple (axios, fetch)
-- Tests d'intÃgration
-- Debugging avancÃ (CORS, logs, etc.)
+- Tests d'intgration
+- Debugging avanc (CORS, logs, etc.)
 
   DEPLOYMENT_CHECKLIST.txt  PROGRESS TRACKING
--  phases de dÃploiement
+-  phases de dploiement
 - Checkboxes pour suivre votre progression
-- RÃfÃrence rapide pour troubleshooting
-- Temps estimÃ:  minutes
+- Rfrence rapide pour troubleshooting
+- Temps estim:  minutes
 
 ---
 
- ğŸ“ Fichiers de configuration crÃÃs
+  Fichiers de configuration crs
 
  . Dockerfile.render
-- Dockerfile optimisÃ pour Render.com
+- Dockerfile optimis pour Render.com
 - Multi-stage build pour le backend Go
 - Healthcheck inclus
 
  . frontend/vercel.json
 - Configuration optimale pour Vercel
-- Framework Vite prÃconfigurÃ
+- Framework Vite prconfigur
 - Build settings
 
  . frontend/.env.production
 - Variables d'environnement pour production
-- VITE_API_URL configurÃe
+- VITE_API_URL configure
 - PrÃªte Ã  l'emploi
 
  . deploy-free-setup.sh
 - Script Bash d'automation
-- GÃnÃre automatiquement les fichiers de configuration
+- Gnre automatiquement les fichiers de configuration
 - Explications interactives
 
 ---
 
-  Plan d'action recommandÃ
+  Plan d'action recommand
 
  Ã‰tape : Lire le guide rapide ( min)
 bash
@@ -65,32 +65,32 @@ Ouvrir: QUICK_DEPLOY_GUIDE.md
 Objectif: Comprendre l'architecture globale
 
 
- Ã‰tape : PrÃparer les services ( min)
+ Ã‰tape : Prparer les services ( min)
 
-. CrÃer compte Supabase
-. CrÃer projet PostgreSQL
-. CrÃer compte Redis Cloud
-. CrÃer compte Render.com
-. CrÃer compte Vercel
+. Crer compte Supabase
+. Crer projet PostgreSQL
+. Crer compte Redis Cloud
+. Crer compte Render.com
+. Crer compte Vercel
 
 
- Ã‰tape : DÃployer le backend ( min)
+ Ã‰tape : Dployer le backend ( min)
 
 . Render.com â†’ New Web Service
 . Connecter GitHub repo
 . Configurer env variables (DB, Redis, JWT)
-. DÃployer et attendre
+. Dployer et attendre
 
 
- Ã‰tape : DÃployer le frontend ( min)
+ Ã‰tape : Dployer le frontend ( min)
 
 . Vercel â†’ Import Project
 . Root directory: frontend
 . Ajouter VITE_API_URL
-. DÃployer
+. Dployer
 
 
- Ã‰tape : IntÃgrer ( min)
+ Ã‰tape : Intgrer ( min)
 
 . Mettre Ã  jour CORS sur Render
 . Tester API connectivity
@@ -101,56 +101,56 @@ TOTAL: ~ minutes â±
 
 ---
 
-  RÃcapitulatif des services gratuits
+  Rcapitulatif des services gratuits
 
 | Service | Plan Gratuit | Limites |
 |---------|-------------|----------|
-| Vercel | IllimitÃ |  GB/mois bande passante |
-| Render.com | IllimitÃ | Sleep aprÃs  min inactivitÃ |
+| Vercel | Illimit |  GB/mois bande passante |
+| Render.com | Illimit | Sleep aprs  min inactivit |
 | Supabase | Inclus |  MB DB,  GB transfert/mois |
 | Redis Cloud | Inclus |  MB RAM |
-| GitHub | Public repos | Gratuit illimitiÃ |
+| GitHub | Public repos | Gratuit illimiti |
 
-CoÃ»t total: $./mois ğŸ’
+CoÃ»t total: $./mois 
 
 ---
 
-  Documentation supplÃmentaire disponible
+  Documentation supplmentaire disponible
 
  Dans le projet:
 - docs/LOCAL_DEVELOPMENT.md - Setup local
 - docs/API_REFERENCE.md - API documentation
 - docs/BACKEND_ENDPOINTS_GUIDE.md - Endpoints
 - docs/ADVANCED_PERMISSIONS.md - Permissions
-- README.md - Vue d'ensemble gÃnÃrale
+- README.md - Vue d'ensemble gnrale
 
  En ligne:
-- Backend Docs: https://openrisk-api.onrender.com/swagger (aprÃs dÃploiement)
+- Backend Docs: https://openrisk-api.onrender.com/swagger (aprs dploiement)
 - Repository: https://github.com/alex-dembele/OpenRisk
 
 ---
 
- ğŸ†˜ Aide et support
+  Aide et support
 
- Documentation rapide par problÃme:
+ Documentation rapide par problme:
 
  CORS Error
-â†’ INTEGRATION_GUIDE.md â†’ DÃpannage â†’ CORS Error
+â†’ INTEGRATION_GUIDE.md â†’ Dpannage â†’ CORS Error
 
  API non accessible
-â†’ QUICK_DEPLOY_GUIDE.md â†’ DÃpannage rapide
+â†’ QUICK_DEPLOY_GUIDE.md â†’ Dpannage rapide
 
  Database connection error
 â†’ DEPLOYMENT_FREE_SERVICES.md â†’ Troubleshooting
 
  Frontend ne charge pas
-â†’ INTEGRATION_GUIDE.md â†’ Diagnostic avancÃ
+â†’ INTEGRATION_GUIDE.md â†’ Diagnostic avanc
 
 ---
 
   Tips & Tricks
 
- GÃnÃrer JWT_SECRET sÃcurisÃ
+ Gnrer JWT_SECRET scuris
 bash
 openssl rand -base 
 
@@ -179,47 +179,47 @@ Vercel logs: https://vercel.com â†’ Deployments â†’ Logs
 
 ---
 
-  Prochaines Ãtapes aprÃs dÃploiement
+  Prochaines tapes aprs dploiement
 
-.  CrÃer des utilisateurs de test
+.  Crer des utilisateurs de test
 .  Ajouter des risques d'exemple
-.  Tester les crÃations de mitigations
+.  Tester les crations de mitigations
 .  Valider les dashboards et graphiques
-.  VÃrifier les permissions et rÃles
-.  Tester la gÃnÃration PDF
-.  Partager le lien de dÃmo! 
+.  Vrifier les permissions et rles
+.  Tester la gnration PDF
+.  Partager le lien de dmo! 
 
 ---
 
- ğŸ“ Fichiers clÃs du projet
+  Fichiers cls du projet
 
 
 OpenRisk/
-â”œâ”€â”€ QUICK_DEPLOY_GUIDE.md          â­ START HERE
-â”œâ”€â”€ DEPLOYMENT_FREE_SERVICES.md    ğŸ“– Full guide
-â”œâ”€â”€ INTEGRATION_GUIDE.md            ğŸ”Œ Technical
-â”œâ”€â”€ DEPLOYMENT_CHECKLIST.txt        Progress
-â”œâ”€â”€ Dockerfile.render              ğŸ³ Docker
-â”œâ”€â”€ deploy-free-setup.sh            Automation
-â”œâ”€â”€ frontend/
-â”‚   â”œâ”€â”€ vercel.json                Vercel config
-â”‚   â””â”€â”€ .env.production            Env vars
-â”œâ”€â”€ backend/
-â”‚   â”œâ”€â”€ go.mod
-â”‚   â””â”€â”€ cmd/server/main.go
-â”œâ”€â”€ migrations/
-â”œâ”€â”€ docs/
-â”‚   â”œâ”€â”€ API_REFERENCE.md
-â”‚   â”œâ”€â”€ LOCAL_DEVELOPMENT.md
-â”‚   â””â”€â”€ ...
-â””â”€â”€ README.md
+ QUICK_DEPLOY_GUIDE.md           START HERE
+ DEPLOYMENT_FREE_SERVICES.md     Full guide
+ INTEGRATION_GUIDE.md             Technical
+ DEPLOYMENT_CHECKLIST.txt        Progress
+ Dockerfile.render               Docker
+ deploy-free-setup.sh            Automation
+ frontend/
+    vercel.json                Vercel config
+    .env.production            Env vars
+ backend/
+    go.mod
+    cmd/server/main.go
+ migrations/
+ docs/
+    API_REFERENCE.md
+    LOCAL_DEVELOPMENT.md
+    ...
+ README.md
 
 
 ---
 
-  AprÃs le dÃploiement
+  Aprs le dploiement
 
-Une fois votre lien de dÃmo obtenu :
+Une fois votre lien de dmo obtenu :
 
 
 https://openrisk-xxxx.vercel.app
@@ -229,36 +229,36 @@ Partagez-le:
 -  Sur GitHub en description du repo
 -  Sur votre portfolio
 -  Avec les stakeholders
--  Sur les rÃseaux sociaux
+-  Sur les rseaux sociaux
 -  Dans les CVs/portfolios
 
 ---
 
   Notes importantes
 
-. Render.com sleep mode: Service s'endort aprÃs  min d'inactivitÃ (free tier)
-   - Solution: Utiliser uptimerobot.com pour des pings rÃguliers
+. Render.com sleep mode: Service s'endort aprs  min d'inactivit (free tier)
+   - Solution: Utiliser uptimerobot.com pour des pings rguliers
 
 . Supabase limitations:  MB de stockage
-   - Archivez rÃguliÃrement les anciens risques
+   - Archivez rgulirement les anciens risques
 
 . Redis Cloud limitations:  MB de cache
-   - GÃrez bien les sessions
+   - Grez bien les sessions
 
 . Vercel bandwidth:  GB/mois
    - Optimisez les images et utilisez le CDN
 
 ---
 
-  PrÃªt Ã  dÃployer?
+  PrÃªt Ã  dployer?
 
 . Ouvrez QUICK_DEPLOY_GUIDE.md
-. Suivez les  Ãtapes principales
-. En cas de problÃme, consultez INTEGRATION_GUIDE.md
-. Partagez votre dÃmo! 
+. Suivez les  tapes principales
+. En cas de problme, consultez INTEGRATION_GUIDE.md
+. Partagez votre dmo! 
 
 ---
 
-Bon dÃploiement ! 
+Bon dploiement ! 
 
-Questions? Consultez les guides crÃÃs ou la documentation du projet.
+Questions? Consultez les guides crs ou la documentation du projet.

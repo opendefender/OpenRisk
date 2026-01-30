@@ -1,127 +1,127 @@
- � Guide d'Utilisation - Gamification UI
+  Guide d'Utilisation - Gamification UI
 
- Acc�der à Your Gamification Profile
+ Accder à Your Gamification Profile
 
  Chemin Utilisateur
 
 Navigation Sidebar
-  └──  Settings
-      └── General Tab
-          └── � Your Gamification Profile (NEW!)
+    Settings
+       General Tab
+            Your Gamification Profile (NEW!)
 
 
  Visuellement
 . Cliquez sur  Settings dans la sidebar
-. Assurez-vous que l'onglet General est s�lectionn�
-. Scrollez vers le bas, vous verrez "� Your Gamification Profile"
+. Assurez-vous que l'onglet General est slectionn
+. Scrollez vers le bas, vous verrez " Your Gamification Profile"
 
 ---
 
- Composants Affich�s
+ Composants Affichs
 
  ⃣ Level Card (Cercle Principal)
 
-┌─────────────────────────────────────┐
-│      Level Card Premium             │
-│  ┌───────────────────────────┐      │
-│  │                           │      │
-│  │       Circle Badge        │      │
-│  │         Level            │      │
-│  │                           │      │
-│  └───────────────────────────┘      │
-│      (Gradient dynamique)           │
-│                                     │
-│  Progression XP                     │
-│   /  XP                       │
-│  ���������� .%                   │
-│  Vers niveau                       │
-└─────────────────────────────────────┘
+
+      Level Card Premium             
+        
+                                   
+         Circle Badge              
+           Level                  
+                                   
+        
+      (Gradient dynamique)           
+                                     
+  Progression XP                     
+   /  XP                       
+   .%                   
+  Vers niveau                       
+
 
 
 Couleurs par Niveau:
-- Niveau : 🟢 Green → Teal
-- Niveau : 🔵 Blue → Cyan
-- Niveau : 🟣 Purple → Indigo
-- Niveau : � Pink → Rose
-- Niveau +: 🟠 Orange → Red
+- Niveau :  Green → Teal
+- Niveau :  Blue → Cyan
+- Niveau :  Purple → Indigo
+- Niveau :  Pink → Rose
+- Niveau +:  Orange → Red
 
  ⃣ Achievement Stats (Compteurs)
 
-┌──────────────────────────────────┐
-│                 │              │
-│  Risques G�r�s   │  Att�nuations │
-└──────────────────────────────────┘
+
+                               
+  Risques Grs     Attnuations 
+
 
 
  ⃣ Badges Section
 
-Badges D�bloqu�s ()
+Badges Dbloqus ()
 
-┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐
-│  ★      │  │  ★      │  │  ◇      │  │  ◇      │
-│ Flag    │  │ Shield  │  │ Brain   │  │ Crown   │
-│Initiator│  │Guardian │  │Strategist│ │ Legend  │
-└─────────┘  └─────────┘  └─────────┘  └─────────┘
+      
+                                      
+ Flag       Shield     Brain      Crown   
+Initiator  Guardian   Strategist  Legend  
+      
 
-★ = D�verrouill� (Couleur jaune/or)
-◇ = Verrouill� (Couleur grise)
+ = Dverrouill (Couleur jaune/or)
+ = Verrouill (Couleur grise)
 
 Hover sur badge → Affiche description
 
 
 ---
 
- Syst�me de Badges
+ Systme de Badges
 
  Les  Badges
 
 | Badge | Nom | Description | Condition |
 |-------|-----|-------------|-----------|
-| � | Initiator | Cr�er votre premier risque | + risque cr�� |
-|  | Guardian | Att�nuer  risques | + mitigations compl�t�es |
-| 🧠 | Strategist | G�rer plus de  risques | + risques g�r�s |
-| 👑 | Legend | Atteindre  XP |  XP ou plus |
+|  | Initiator | Crer votre premier risque | + risque cr |
+|  | Guardian | Attnuer  risques | + mitigations compltes |
+|  | Strategist | Grer plus de  risques | + risques grs |
+|  | Legend | Atteindre  XP |  XP ou plus |
 
- Comment D�bloquer les Badges
+ Comment Dbloquer les Badges
 
 
-INITIATOR (D�marrage)
-└─ Action: Cr�er votre er risque
+INITIATOR (Dmarrage)
+ Action: Crer votre er risque
     Dashboard > "+ New Risk"
-   ✓ Remplir titre + description
-   ✓ S�lectionner assets (optionnel)
-   ✓ Valider
+    Remplir titre + description
+    Slectionner assets (optionnel)
+    Valider
 
 GUARDIAN (Protection)
-└─ Action: Compl�ter  mitigations
+ Action: Complter  mitigations
     Ajouter mitigation à risque
-   ✓ D�tails du risque > "+ Add Mitigation"
-   ✓ Cocher "DONE" quand termin�e
+    Dtails du risque > "+ Add Mitigation"
+    Cocher "DONE" quand termine
    ×  fois = Badge!
 
-STRATEGIST (Strat�gie)
-└─ Action: G�rer + risques
-    Cr�er progressivement
+STRATEGIST (Stratgie)
+ Action: Grer + risques
+    Crer progressivement
     Dashboard affiche votre compte
 
-LEGEND (Ma�trise)
-└─ Action: Accumuler  XP
-   📈 + XP par risque cr��
-   📈 + XP par mitigation compl�t�e
+LEGEND (Matrise)
+ Action: Accumuler  XP
+    + XP par risque cr
+    + XP par mitigation complte
     (~ risques +  mitigations)
 
 
 ---
 
- XP & Syst�me de Progression
+ XP & Systme de Progression
 
  Formule de Calcul
 
 
-XP = (Nombre Risques × ) + (Mitigations Compl�t�es × )
+XP = (Nombre Risques × ) + (Mitigations Compltes × )
 
 Exemple:
--  risques cr��s      =  XP
+-  risques crs      =  XP
 -  mitigations faites =  XP
 - TOTAL               =  XP → Niveau 
 
@@ -130,10 +130,10 @@ Exemple:
 
 
 Niveau : - XP        (Base)
-Niveau : - XP     (Interm�diaire)
-Niveau : - XP     (Avanc�)
+Niveau : - XP     (Intermdiaire)
+Niveau : - XP     (Avanc)
 Niveau : - XP    (Expert)
-Niveau : + XP       (Ma�tre)
+Niveau : + XP       (Matre)
 
 Formule: Level = √(XP/) + 
 
@@ -145,7 +145,7 @@ La barre affiche votre progression vers le niveau suivant:
 
 Exemple: Niveau , / XP
 
-[████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] .%
+[] .%
 
 
 ---
@@ -155,18 +155,18 @@ Exemple: Niveau , / XP
  Animations
 
 . Chargement Initial
-   - Skeleton loader anim�
-   - Dur�e: ~ seconde
+   - Skeleton loader anim
+   - Dure: ~ seconde
 
 . Barre XP
-   - Anim�e au montage ( → X%)
-   - Dur�e: . secondes
+   - Anime au montage ( → X%)
+   - Dure: . secondes
    - Easing: easeOut
 
 . Badges
-   - Apparaissent en cascade (d�cal�)
-   - Chaque badge: d�lai + .s
-   - Glow effect si d�verrouill�
+   - Apparaissent en cascade (dcal)
+   - Chaque badge: dlai + .s
+   - Glow effect si dverrouill
 
 . Level Circle
    - Pop animation (scale)
@@ -177,19 +177,19 @@ Exemple: Niveau , / XP
 
 Hover sur un Badge:
   • Border s'illumine (couleur niveau)
-  • Tooltip appara�t (description)
-  • L�g�re animation scale
+  • Tooltip apparat (description)
+  • Lgre animation scale
 
 Hover sur compteur stats:
-  • Background s'�claircie
+  • Background s'claircie
   • Cursor devient pointer
 
 
- États Affich�s
+ États Affichs
 
 
  SUCCESS (Chargement ok)
-   → Affiche tous les �l�ments
+   → Affiche tous les lments
 
 ⏳ LOADING
    → Skeleton placeholder
@@ -203,53 +203,53 @@ Hover sur compteur stats:
 
 ---
 
- Exemples de Sc�narios
+ Exemples de Scnarios
 
- Sc�nario : Utilisateur Nouveau
+ Scnario : Utilisateur Nouveau
 
 
 . Premier login
 . Va à Settings > General
 . Voit: "Vous avez  risques,  mitigations"
 . Level ,  XP, % progression
-.  badges d�verrouill�s
-. → Invite à cr�er son er risque
+.  badges dverrouills
+. → Invite à crer son er risque
 
 
 Action: Retour Dashboard > "+ New Risk"
 
 ---
 
- Sc�nario : Utilisateur Actif
+ Scnario : Utilisateur Actif
 
 
-.  risques cr��s,  mitigations compl�t�es
+.  risques crs,  mitigations compltes
 . XP = (×) + (×) =  XP
 . Level = √(/) +  ≈ Level 
 . Progression vers Level : / = %
 . Badges:
-   ✓ Initiator (+ risque)
-   ✓ Guardian ( mitigations)
-   ✓ Strategist ( risques)
-   ◇ Legend (besoin  XP)
+    Initiator (+ risque)
+    Guardian ( mitigations)
+    Strategist ( risques)
+    Legend (besoin  XP)
 
 
-Prochaine �tape:  XP manquants pour Legend
+Prochaine tape:  XP manquants pour Legend
 
 ---
 
- Sc�nario : User Compl�te une Mitigation
+ Scnario : User Complte une Mitigation
 
 
 AVANT:
-└─  risques,  mitigations, Level ,  XP
+  risques,  mitigations, Level ,  XP
 
-ACTION: Compl�ter  mitigation
+ACTION: Complter  mitigation
 
-APRÈS (apr�s refresh):
-└─  risques,  mitigations, Level ,  XP
-   ✓ Guardian badge d�verrouille! 
-   └─ Toast notification: "Guardian Badge Unlocked!"
+APRÈS (aprs refresh):
+  risques,  mitigations, Level ,  XP
+    Guardian badge dverrouille! 
+    Toast notification: "Guardian Badge Unlocked!"
 
 
 ---
@@ -260,15 +260,15 @@ APRÈS (apr�s refresh):
 -  Pas d'auto-refresh actuellement
 -  Refresh manuel: F ou Reload Page
 
- Mise à Jour apr�s Action
-. Cr�er risque → Dashboard retour
+ Mise à Jour aprs Action
+. Crer risque → Dashboard retour
 . Statut ne s'update pas automatiquement
-. Solution: Aller Settings > General (fetch effectu�)
+. Solution: Aller Settings > General (fetch effectu)
 . Ou: F pour refresh complet
 
  Prochainement (Backlog)
-- 🔄 WebSocket events pour live update
--  Toast "XP Earned +" quand risque cr��
+-  WebSocket events pour live update
+-  Toast "XP Earned +" quand risque cr
 -  Real-time stats refresh
 
 ---
@@ -278,19 +278,19 @@ APRÈS (apr�s refresh):
  "Impossible de charger les statistiques"
 
 Causes Possibles:
-. JWT Token expir�
+. JWT Token expir
    → Solution: Logout > Reconnexion
 . Backend non accessible
-   → Solution: V�rifier docker-compose up
+   → Solution: Vrifier docker-compose up
 . Mauvais CORS
-   → Solution: V�rifier allowOrigins dans main.go
+   → Solution: Vrifier allowOrigins dans main.go
 
-V�rifier:
+Vrifier:
 bash
  Terminal : Backend
 docker-compose up
 
- Terminal : V�rifier API
+ Terminal : Vrifier API
 curl -H "Authorization: Bearer YOUR_JWT" \
   http://localhost:/api/v/gamification/me
 
@@ -299,7 +299,7 @@ curl -H "Authorization: Bearer YOUR_JWT" \
 
  Badges ne s'affichent pas
 
-Cause: Icons non mapp�es (backend retourne icon name non g�r�)
+Cause: Icons non mappes (backend retourne icon name non gr)
 
 Solution: Ajouter le mapping dans getBadgeIcon():
 typescript
@@ -312,35 +312,35 @@ const icons: Record<string, React.ReactNode> = {
 
 ---
 
- XP ne s'update pas apr�s cr�ation risque
+ XP ne s'update pas aprs cration risque
 
 Cause: Pas d'auto-refresh
 
-Solution Imm�diate:
+Solution Immdiate:
 - Appuyez sur F
 - Ou: Allez Settings > General (trigger fetch)
 
-Solution Future: Impl�mentation WebSocket
+Solution Future: Implmentation WebSocket
 
 ---
 
- R�gles et Contraintes
+ Rgles et Contraintes
 
- R�gles de Gamification
+ Rgles de Gamification
 
 . XP
    - S'accumule, ne diminue jamais
-   - + XP par risque cr��
-   - + XP par mitigation compl�t�e
+   - + XP par risque cr
+   - + XP par mitigation complte
    - Seul l'utilisateur voit ses stats
 
 . Level
-   - Bas� sur XP total
+   - Bas sur XP total
    - Formule quadratique
-   - Max visible: + (peut d�passer)
+   - Max visible: + (peut dpasser)
 
 . Badges
-   - Une fois d�verrouill�s, ne peuvent pas être perdus
+   - Une fois dverrouills, ne peuvent pas être perdus
    - Conditions permanentes
 
 . Privacy
@@ -349,45 +349,45 @@ Solution Future: Impl�mentation WebSocket
 
 ---
 
- Int�gration avec Workflow
+ Intgration avec Workflow
 
  Flux Typique de Travail
 
 
 . LOGIN
-   └─ Directed to Dashboard
+    Directed to Dashboard
 
 . CREATE RISK (Dashboard)
-   └─ "+ XP"
-   └─ Stats mises à jour (apr�s refresh)
+    "+ XP"
+    Stats mises à jour (aprs refresh)
 
 . ADD MITIGATION (Risk Details)
-   └─ Statut = "DONE"
-   └─ "+ XP"
+    Statut = "DONE"
+    "+ XP"
 
 . CHECK PROGRESS (Settings > General)
-   └─ Voir progression XP
-   └─ Voir badges d�verrouill�s
-   └─ Motivation pour continuer
+    Voir progression XP
+    Voir badges dverrouills
+    Motivation pour continuer
 
 . REPEAT
-   └─ Plus on g�re de risques
-   └─ Plus on monte de niveau
-   └─ Plus on d�verrouille de badges
+    Plus on gre de risques
+    Plus on monte de niveau
+    Plus on dverrouille de badges
 
 
 ---
 
  Support & Contacte
 
-- 📧 Backend Issues: V�rifier gamification_handler.go
--  Frontend Issues: V�rifier UserLevelCard.tsx
--  Data Issues: V�rifier gamification_service.go
-- 📚 Docs: Voir GAMIFICATION_IMPLEMENTATION.md
+-  Backend Issues: Vrifier gamification_handler.go
+-  Frontend Issues: Vrifier UserLevelCard.tsx
+-  Data Issues: Vrifier gamification_service.go
+-  Docs: Voir GAMIFICATION_IMPLEMENTATION.md
 -  Checklist: Voir VALIDATION_CHECKLIST.md
 
 ---
 
 Version: ..  
-Derni�re Mise à Jour:  D�cembre   
+Dernire Mise à Jour:  Dcembre   
 Statut: Production Ready 

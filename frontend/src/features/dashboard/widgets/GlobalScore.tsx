@@ -22,7 +22,7 @@ export const GlobalScore = ({ score }: { score: number }) => {
         </CircularProgressbarWithChildren>
       </div>
       <p className="mt- text-center text-sm text-zinc-">
-        Votre posture de s√curit√ est <span className="text-emerald- font-medium">optimale</span>.
+        Votre posture de scurit est <span className="text-emerald- font-medium">optimale</span>.
       </p>
     </div>
   );

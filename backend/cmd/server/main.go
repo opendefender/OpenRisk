@@ -41,7 +41,7 @@ func main() {
 	// Initialisation de la Timezone (Important pour les logs/dates)
 	time.Local = time.UTC
 
-	// Connexion Base de Donn√es
+	// Connexion Base de Donnes
 	database.Connect()
 
 	// Run SQL migrations (if DATABASE_URL is set). This uses the migrations folder.
@@ -125,8 +125,8 @@ func main() {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
 
-	// Cr√ation du compte Admin par d√faut si la DB est vide
-	// Cela garantit que l'app est utilisable imm√diatement apr√s d√ploiement.
+	// Cration du compte Admin par dfaut si la DB est vide
+	// Cela garantit que l'app est utilisable immdiatement aprs dploiement.
 	handlers.SeedAdminUser()
 
 	// =========================================================================
@@ -145,11 +145,11 @@ func main() {
 	// =========================================================================
 
 	// Initialisation des Adapters (TheHive, OpenRMF, OpenCTI)
-	// Ils respectent les interfaces d√finies dans core/ports
+	// Ils respectent les interfaces dfinies dans core/ports
 	theHiveAdapter := thehive.NewTheHiveAdapter(cfg.Integrations.TheHive)
 
 	// Initialisation du Moteur de Synchro (Background Worker)
-	// Il tourne ind√pendamment de l'API HTTP
+	// Il tourne indpendamment de l'API HTTP
 	syncEngine := workers.NewSyncEngine(theHiveAdapter)
 	syncEngine.Start(context.Background())
 
@@ -182,7 +182,7 @@ func main() {
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${method} ${path} (${latency})\n",
 	}))
-	app.Use(helmet.New()) // S√curit√ headers (XSS, Content-Type, etc.)
+	app.Use(helmet.New()) // Scurit headers (XSS, Content-Type, etc.)
 
 	// Configuration CORS Stricte pour la Prod, Permissive pour Dev
 	allowOrigins := "http://localhost:,http://localhost:"
@@ -228,11 +228,11 @@ func main() {
 	api.Post("/auth/saml/acs", handlers.SAMLACS)
 	api.Get("/auth/saml/metadata", handlers.SAMLMetadata)
 
-	// --- Routes Prot√g√es (N√cessitent JWT) ---
+	// --- Routes Protges (Ncessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
 	protected := api.Use(middleware.Protected())
 
-	// Dashboard & Analytics (Read-Only accessible √† tous les connect√s)
+	// Dashboard & Analytics (Read-Only accessible √† tous les connects)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
 	protected.Get("/risks",
 		middleware.RequirePermissions(permissionService, domain.Permission{
@@ -248,7 +248,7 @@ func main() {
 		cacheableHandlers.CacheRiskGetByIDGET(handlers.GetRisk))
 
 	// Gestion des Risques (√âcriture = Analyst & Admin uniquement)
-	// Respect du principe "Simplicit√ & S√curit√" + Fine-grained Permission Checks
+	// Respect du principe "Simplicit & Scurit" + Fine-grained Permission Checks
 	riskCreate := middleware.RequirePermissions(permissionService, domain.Permission{
 		Resource: domain.PermissionResourceRisk,
 		Action:   domain.PermissionCreate,
@@ -449,7 +449,7 @@ func main() {
 	// . GRACEFUL SHUTDOWN (Kubernetes Ready)
 	// =========================================================================
 
-	// Channel pour √couter les signaux OS (Ctrl+C, Docker Stop, Ks Terminate)
+	// Channel pour couter les signaux OS (Ctrl+C, Docker Stop, Ks Terminate)
 	quit := make(chan os.Signal, )
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -458,13 +458,13 @@ func main() {
 		if port == "" {
 			port = ""
 		}
-		log.Printf("‚ö° OpenRisk API listening on port %s", port)
+		log.Printf(" OpenRisk API listening on port %s", port)
 		if err := app.Listen(":" + port); err != nil {
 			log.Panic(err)
 		}
 	}()
 
-	<-quit // Bloque jusqu'√† r√ception du signal
+	<-quit // Bloque jusqu'√† rception du signal
 	log.Println("Shutting down server...")
 
 	// Timeout de  secondes pour finir les requ√™tes en cours

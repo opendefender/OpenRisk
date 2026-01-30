@@ -66,7 +66,7 @@ Location: API routes section (starting around line )
 
 BEFORE:
 go
-    // Dashboard & Analytics (Read-Only accessible à tous les connect�s)
+    // Dashboard & Analytics (Read-Only accessible à tous les connects)
     protected.Get("/stats", handlers.GetDashboardStats)
     protected.Get("/risks",
         middleware.RequirePermissions(permissionService, domain.Permission{
@@ -84,7 +84,7 @@ go
 
 AFTER:
 go
-    // Dashboard & Analytics (Read-Only accessible à tous les connect�s)
+    // Dashboard & Analytics (Read-Only accessible à tous les connects)
     protected.Get("/stats",
         cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
     protected.Get("/risks",

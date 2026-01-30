@@ -35,13 +35,13 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     if (!mitigation) return;
     try {
       await api.patch(/mitigations/${mitigation.id}, data);
-      toast.success('Mitigation sauvegardÃe');
+      toast.success('Mitigation sauvegarde');
       onSaved?.();
       onClose();
     } catch (e) {
       const status = (e as any)?.response?.status;
       if (status === ) {
-        toast.error('La mitigation est introuvable (peut-Ãªtre supprimÃe). Le modal va se fermer.');
+        toast.error('La mitigation est introuvable (peut-Ãªtre supprime). Le modal va se fermer.');
         onSaved?.();
         onClose();
         return;
@@ -55,7 +55,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     try {
       await api.post(/mitigations/${mitigation.id}/subactions, { title: newSubTitle });
       setNewSubTitle('');
-      toast.success('Sous-action ajoutÃe');
+      toast.success('Sous-action ajoute');
       onSaved?.();
     } catch (e) {
       const status = (e as any)?.response?.status;
@@ -90,7 +90,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     if (!mitigation) return;
     try {
       await api.delete(/mitigations/${mitigation.id}/subactions/${sub.id});
-      toast.success('Sous-action supprimÃe');
+      toast.success('Sous-action supprime');
       onSaved?.();
     } catch (e) {
       const status = (e as any)?.response?.status;
@@ -113,7 +113,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
             <h className="text-lg font-semibold text-white mb-">Modifier la mitigation</h>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-">
               <Input label="Titre" {...register('title')} />
-              <Input label="AssignÃ Ã " {...register('assignee')} />
+              <Input label="Assign Ã " {...register('assignee')} />
               <div className="grid grid-cols- gap-">
                 <Input type="number" label="Progress (%)" {...register('progress')} />
                 <Input type="number" label="Temps (jours)" {...register('mitigation_time')} />

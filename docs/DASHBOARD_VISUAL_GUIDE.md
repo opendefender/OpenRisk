@@ -3,64 +3,64 @@
  Dashboard Layout Overview
 
 
-┌─────────────────────────────────────────────────────────────────┐
-│   OpenRisk Dashboard - Risk Management & Analytics            │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│  [ Inventory ] [ Reset Layout ] [ Export Report ]              │
-└─────────────────────────────────────────────────────────────────┘
 
-┌──────────────────────────────┬──────────────────────────────────┐
-│  Risk Distribution            │  Risk Score Trends              │
-│  (Donut Chart)               │  (Line Chart)                   │
-│                               │                                 │
-│  • Critical:                 │  ▲ Positive Trend              │
-│  • High:                     │  │     ╱╲                     │
-│  • Medium:                  │  │    ╱  ╲   ╱╲              │
-│  • Low:                     │  │   ╱    ╲ ╱  ╲             │
-│                               │  └────────────────             │
-│  Total:  Risks              │  Score:  (↓ improving)       │
-└──────────────────────────────�──────────────────────────────────┘
+   OpenRisk Dashboard - Risk Management & Analytics            
+    
+                                                                 
+  [ Inventory ] [ Reset Layout ] [ Export Report ]              
 
-┌──────────────────────────────┬──────────────────────────────────┐
-│  Top Vulnerabilities          │  Avg Mitigation Time            │
-│  (Ranked List)               │  (Gauge + Progress)             │
-│                               │                                 │
-│  . � SQL Injection          │          h                   │
-│     CVSS: . |  assets      │       ◐─────◑                 │
-│                               │       ↑       ↑                │
-│  . 🟠 XSS                    │  Completed  Pending            │
-│     CVSS: . |  assets      │                            │
-│                               │                                 │
-│  . 🟠 Broken Auth            │  Completion: ████████░░ %   │
-│     CVSS: . |  assets      │                                 │
-└──────────────────────────────�──────────────────────────────────┘
 
-┌──────────────────────────────────────────────────────────────────┐
-│  Key Indicators                                                   │
-│  ─────────────────────────────────────────────────────────────  │
-│    Critical Risks    │    Total Risks    │   Mitigated   │ � Assets
-│                      │                    │      /       │    
-└──────────────────────────────────────────────────────────────────┘
 
-┌──────────────────────────────────────────────────────────────────┐
-│  Top Unmitigated Risks                                            │
-│  ─────────────────────────────────────────────────────────────  │
-│  . � Critical Vulnerability in API Gateway           SCORE:  →
-│     "Authentication bypass in REST endpoints"                    │
-│                                                                   │
-│  . 🟠 Outdated SSL/TLS Configuration                 SCORE:  →
-│     "Server supports deprecated protocols"                       │
-│                                                                   │
-│  . 🟠 Unpatched Service Application                  SCORE:  →
-│     "Missing security patches for known CVEs"                    │
-│                                                                   │
-│  . 🟡 Weak Access Control Implementation              SCORE:   →
-│     "Insufficient privilege separation"                          │
-│                                                                   │
-│  . 🟡 Data Encryption Gap                             SCORE:   →
-│     "Unencrypted data transmission detected"                     │
-└──────────────────────────────────────────────────────────────────┘
+  Risk Distribution              Risk Score Trends              
+  (Donut Chart)                 (Line Chart)                   
+                                                                
+  • Critical:                    Positive Trend              
+  • High:                                                 
+  • Medium:                                           
+  • Low:                                              
+                                              
+  Total:  Risks                Score:  (↓ improving)       
+
+
+
+  Top Vulnerabilities            Avg Mitigation Time            
+  (Ranked List)                 (Gauge + Progress)             
+                                                                
+  .  SQL Injection                    h                   
+     CVSS: . |  assets                              
+                                      ↑       ↑                
+  .  XSS                      Completed  Pending            
+     CVSS: . |  assets                                  
+                                                                
+  .  Broken Auth              Completion:  %   
+     CVSS: . |  assets                                       
+
+
+
+  Key Indicators                                                   
+    
+    Critical Risks        Total Risks       Mitigated     Assets
+                                                /           
+
+
+
+  Top Unmitigated Risks                                            
+    
+  .  Critical Vulnerability in API Gateway           SCORE:  →
+     "Authentication bypass in REST endpoints"                    
+                                                                   
+  .  Outdated SSL/TLS Configuration                 SCORE:  →
+     "Server supports deprecated protocols"                       
+                                                                   
+  .  Unpatched Service Application                  SCORE:  →
+     "Missing security patches for known CVEs"                    
+                                                                   
+  .  Weak Access Control Implementation              SCORE:   →
+     "Insufficient privilege separation"                          
+                                                                   
+  .  Data Encryption Gap                             SCORE:   →
+     "Unencrypted data transmission detected"                     
+
 
 
 ---
@@ -75,31 +75,31 @@ Primary Colors:
   • Bright Blue:       bf   (Primary Accent)
   
 Risk Severity Colors:
-  • Critical (Red):    ef   (�)
-  • High (Orange):     f   (🟠)
-  • Medium (Yellow):   eab   (🟡)
-  • Low (Blue):        bf   (🔵)
+  • Critical (Red):    ef   ()
+  • High (Orange):     f   ()
+  • Medium (Yellow):   eab   ()
+  • Low (Blue):        bf   ()
 
 
  Visual Effects
 
 Glassmorphism:
-  ├── Backdrop Blur: px (blur-xl)
-  ├── Background: linear-gradient(from-white/ to-white/)
-  ├── Border: px solid rgba(, , , .)
-  └── Shadow:  px px rgba(, , , .)
+   Backdrop Blur: px (blur-xl)
+   Background: linear-gradient(from-white/ to-white/)
+   Border: px solid rgba(, , , .)
+   Shadow:  px px rgba(, , , .)
 
 Neon Glowing:
-  ├── Box Glow:   px rgba(, , , .)
-  ├── Animation: Pulsing glow every s
-  ├── Critical Badge Glow: Red with . opacity
-  └── High Badge Glow: Orange with . opacity
+   Box Glow:   px rgba(, , , .)
+   Animation: Pulsing glow every s
+   Critical Badge Glow: Red with . opacity
+   High Badge Glow: Orange with . opacity
 
 Animations:
-  ├── Fade In: .s ease-out
-  ├── Glow Pulse: s infinite
-  ├── Neon Flicker: s infinite
-  └── Hover Scale: % on interaction
+   Fade In: .s ease-out
+   Glow Pulse: s infinite
+   Neon Flicker: s infinite
+   Hover Scale: % on interaction
 
 
 ---
@@ -196,25 +196,25 @@ Sorting: By score (descending)
 - Color-matched glows for different risk levels
 - Creates modern, eye-catching appearance
 
- 🎬 Smooth Animations
+  Smooth Animations
 - Page fade-in on load
 - Hover effects with subtle scale
 - Glowing animations on badges
 - Smooth grid transitions
 
- 📱 Responsive Layout
+  Responsive Layout
 - -column grid system
 - Auto-resizing widgets
 - Mobile-optimized layout
 - Flexible widget sizing
 
- 🔄 Draggable & Customizable
+  Draggable & Customizable
 - Users can reorder widgets
 - Resize widget dimensions
 - Layout saved to localStorage
 - Reset to default layout option
 
- ♿ Accessibility
+  Accessibility
 - Semantic HTML structure
 - Proper color contrast
 - Icon + text labels
@@ -227,23 +227,23 @@ Sorting: By score (descending)
 
 
 DashboardGrid (Main Container)
-├── Header Section
-│   ├── Welcome Message
-│   ├── Action Buttons (Inventory, Reset, Export)
-│   └── Responsive Layout
-│
-├── GridLayout (react-grid-layout)
-│   ├── Risk Distribution
-│   ├── Risk Score Trends
-│   ├── Top Vulnerabilities
-│   ├── Average Mitigation Time
-│   ├── Key Indicators (Stats)
-│   └── Top Unmitigated Risks
-│
-└── GlassmorphicWidget (Wrapper)
-    ├── Header (with icon, title, drag handle)
-    ├── Content (chart/list/stats)
-    └── Footer (if needed)
+ Header Section
+    Welcome Message
+    Action Buttons (Inventory, Reset, Export)
+    Responsive Layout
+
+ GridLayout (react-grid-layout)
+    Risk Distribution
+    Risk Score Trends
+    Top Vulnerabilities
+    Average Mitigation Time
+    Key Indicators (Stats)
+    Top Unmitigated Risks
+
+ GlassmorphicWidget (Wrapper)
+     Header (with icon, title, drag handle)
+     Content (chart/list/stats)
+     Footer (if needed)
 
 
 ---
@@ -259,7 +259,7 @@ DashboardGrid (Main Container)
 
 ---
 
- � Future Enhancements
+  Future Enhancements
 
 . Widget Settings: Customize metrics and thresholds
 . Export Options: PDF, CSV, Excel export
@@ -271,7 +271,7 @@ DashboardGrid (Main Container)
 
 ---
 
- � Screenshot Guidelines
+  Screenshot Guidelines
 
 When capturing dashboard screenshots:
 - Use high resolution (K if possible)

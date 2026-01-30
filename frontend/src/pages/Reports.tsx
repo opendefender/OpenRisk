@@ -41,7 +41,7 @@ export const Reports = () => {
       case 'completed':
         return '';
       case 'generating':
-        return '⟳';
+        return '';
       case 'scheduled':
         return '';
       default:

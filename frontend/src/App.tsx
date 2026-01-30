@@ -40,7 +40,7 @@ import { Drawer } from './components/ui/Drawer';
 
 /
   COMPOSANT : PROTECTION DE ROUTE
-  V√rifie si le token existe, sinon redirige vers Login.
+  Vrifie si le token existe, sinon redirige vers Login.
  /
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore((state) => state.token);
@@ -65,7 +65,7 @@ const DashboardLayout = () => (
 
 /
   COMPOSANT : VUE DASHBOARD (La page d'accueil)
-  Contient le Header sp√cifique, la Grille, et les Modals.
+  Contient le Header spcifique, la Grille, et les Modals.
  /
 const DashboardView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,12 +73,12 @@ const DashboardView = () => {
   const setSelectedRisk = useRiskStore((s) => s.setSelectedRisk);
   const [editRisk, setEditRisk] = useState<Risk | null>(null);
   
-  // Pour la d√mo : On r√cup√re les risques pour la liste du bas
+  // Pour la dmo : On rcupre les risques pour la liste du bas
   const { risks } = useRiskStore();
 
   return (
     <>
-      {/ --- HEADER FLOTTANT (Sp√cifique Dashboard) --- /}
+      {/ --- HEADER FLOTTANT (Spcifique Dashboard) --- /}
       <header className="h- shrink- border-b border-border bg-background/ backdrop-blur-md flex items-center justify-between px- z- sticky top-">
         
         {/ Search Bar (Linear style) /}
@@ -168,7 +168,7 @@ const DashboardView = () => {
         <Drawer 
           isOpen={!!selectedRisk} 
           onClose={() => setSelectedRisk(null)}
-          title={selectedRisk?.title || "D√tails du Risque"}
+          title={selectedRisk?.title || "Dtails du Risque"}
         >
           {selectedRisk && <RiskDetails risk={selectedRisk} onClose={() => setSelectedRisk(null)} />}
         </Drawer>
@@ -187,7 +187,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/ Routes Prot√g√es (Layout Global) /}
+        {/ Routes Protges (Layout Global) /}
         <Route
           element={
             <ProtectedRoute>
@@ -213,7 +213,7 @@ function App() {
           <Route path="recommendations" element={<Recommendations />} />
         </Route>
         
-        {/ Redirection par d√faut /}
+        {/ Redirection par dfaut /}
         <Route path="" element={<Navigate to="/" replace />} />
       </Routes>
 

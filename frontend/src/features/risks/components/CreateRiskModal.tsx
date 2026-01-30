@@ -10,7 +10,7 @@ import { useAssetStore } from '../../../hooks/useAssetStore'; // Import Assets S
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 
-// --- . Sch√ma de Validation Zod ---
+// --- . Schma de Validation Zod ---
 const riskSchema = z.object({
   title: z.string().min(, "Titre requis (min  chars)").max(),
   description: z.string().min(, "Description requise (min  chars)"),
@@ -28,7 +28,7 @@ interface CreateRiskModalProps {
   onClose: () => void;
 }
 
-// Helper pour ic√ne Asset (pour le s√lecteur visuel)
+// Helper pour icne Asset (pour le slecteur visuel)
 const getAssetIcon = (type: string) => {
     switch (type.toLowerCase()) {
         case 'server': return <Server size={} />;
@@ -43,7 +43,7 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
   const { fetchRisks, createRisk, isLoading } = useRiskStore();
   const { assets, fetchAssets } = useAssetStore(); // Store pour les Assets
   
-  // Charger les assets d√s que le modal est ouvert
+  // Charger les assets ds que le modal est ouvert
   useEffect(() => {
       if (isOpen) {
           fetchAssets();
@@ -61,17 +61,17 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
     }
   });
 
-  // Pour g√rer la s√lection visuelle des assets
+  // Pour grer la slection visuelle des assets
   const selectedAssetIds = watch('asset_ids') || [];
   const selectedFrameworks = watch('frameworks') || [];
 
   const toggleAsset = (assetId: string) => {
       const current = selectedAssetIds;
       if (current.includes(assetId)) {
-          // D√s√lectionner
+          // Dslectionner
           setValue('asset_ids', current.filter(id => id !== assetId), { shouldValidate: true });
       } else {
-          // S√lectionner
+          // Slectionner
           setValue('asset_ids', [...current, assetId], { shouldValidate: true });
       }
   };
@@ -91,16 +91,16 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
   const onSubmit = async (data: RiskFormData) => {
     try {
       await createRisk(data);
-      toast.success('Risque cr√√ avec succ√s !', {
-        description: 'Le risque a √t√ enregistr√ et le score calcul√.',
+      toast.success('Risque cr avec succs !', {
+        description: 'Le risque a t enregistr et le score calcul.',
         icon: <Zap className="w- h- text-primary" />,
       });
       await fetchRisks();
       handleClose();
     } catch (error) {
       console.error(error);
-      toast.error("Erreur de cr√ation", {
-          description: "Veuillez v√rifier les champs et l'√tat du serveur.",
+      toast.error("Erreur de cration", {
+          description: "Veuillez vrifier les champs et l'tat du serveur.",
           icon: <ShieldAlert className="w- h- text-red-" />,
       });
     }
@@ -174,23 +174,23 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
                   {errors.description && <p className="text-xs text-red- mt-">{errors.description?.message}</p>}
               </div>
 
-              {/ Impact et Probabilit√ /}
+              {/ Impact et Probabilit /}
               <div className="grid grid-cols- gap- pt-">
                  {renderScoreSelector('impact', 'Impact (-)')}
-                 {renderScoreSelector('probability', 'Probabilit√ (-)')}
+                 {renderScoreSelector('probability', 'Probabilit (-)')}
               </div>
 
               {/ SECTION S√âLECTION ASSETS (Nouveau) /}
               <div className="space-y- pt-">
                   <label className="text-xs font-medium text-zinc- uppercase tracking-wider flex justify-between">
-                      Assets Affect√s
-                      <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedAssetIds.length} s√lectionn√(s)</span>
+                      Assets Affects
+                      <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedAssetIds.length} slectionn(s)</span>
                   </label>
                   
                   <div className="flex flex-wrap gap- max-h- overflow-y-auto p- border border-border rounded-lg bg-zinc-/">
                       {assets.length ===  ? (
                           <div className="text-zinc- text-xs w-full text-center py-">
-                            Aucun asset disponible. Veuillez en cr√er un dans l'Inventaire Assets.
+                            Aucun asset disponible. Veuillez en crer un dans l'Inventaire Assets.
                           </div>
                       ) : (
                           assets.map(asset => {
@@ -217,13 +217,13 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
               </div>
 
               {/ Tags /}
-              <Input label="Tags (s√par√s par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
+              <Input label="Tags (spars par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
 
                 {/ Frameworks /}
                 <div className="space-y- pt-">
                   <label className="text-xs font-medium text-zinc- uppercase tracking-wider flex justify-between">
                     Frameworks
-                    <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedFrameworks.length} s√lectionn√(s)</span>
+                    <span className="text-[px] bg-zinc- px- py-. rounded-full">{selectedFrameworks.length} slectionn(s)</span>
                   </label>
                   <div className="flex flex-wrap gap- p-">
                     {frameworksList.map(f => (
@@ -237,7 +237,7 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
               {/ Footer Buttons /}
               <div className="flex justify-end gap- mt- pt- border-t border-white/ sticky bottom- bg-surface">
                 <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
-                <Button type="submit" isLoading={isLoading || isSubmitting}>Cr√er le Risque</Button>
+                <Button type="submit" isLoading={isLoading || isSubmitting}>Crer le Risque</Button>
               </div>
             </form>
           </motion.div>

@@ -6,60 +6,60 @@ import (
 	"math"
 )
 
-// RecommendationService gÃre la logique de priorisation.
+// RecommendationService gre la logique de priorisation.
 type RecommendationService struct {}
 
 func NewRecommendationService() RecommendationService {
 	return &RecommendationService{}
 }
 
-// CalculateWeightedPriority calcule le score de prioritÃ pondÃrÃe pour une mitigation.
-// Le risque doit Ãªtre prÃchargÃ dans la mitigation (Mitigation.Risk).
+// CalculateWeightedPriority calcule le score de priorit pondre pour une mitigation.
+// Le risque doit Ãªtre prcharg dans la mitigation (Mitigation.Risk).
 func (s RecommendationService) CalculateWeightedPriority(m domain.Mitigation) float {
-	// SÃcuritÃ: Si le risque n'est pas associÃ, on retourne .
+	// Scurit: Si le risque n'est pas associ, on retourne .
 	if m.Risk == nil {
 		return 
 	}
 	
-	// Ã‰tape : Identifier la criticitÃ du risque
+	// Ã‰tape : Identifier la criticit du risque
 	riskCriticality := float(m.Risk.Score)
 
 	// Ã‰tape : Identifier l'effort total
-	// Note: Puisque Cost et MitigationTime sont des catÃgories (-, jours),
+	// Note: Puisque Cost et MitigationTime sont des catgories (-, jours),
 	// nous les combinons pour obtenir l'Effort total.
 	totalEffort := float(m.Cost + m.MitigationTime)
 	
-	// Si l'effort est  ou trop faible (devrait toujours Ãªtre >=  si dÃfaut Ã  ), on Ãvite la division par zÃro.
+	// Si l'effort est  ou trop faible (devrait toujours Ãªtre >=  si dfaut Ã  ), on vite la division par zro.
 	if totalEffort <  {
 		totalEffort =  // Minimum d'effort
 	}
 
-	// Ã‰tape : Calcul du Score de PrioritÃ PondÃrÃe (SPP)
+	// Ã‰tape : Calcul du Score de Priorit Pondre (SPP)
 	weightedPriority := riskCriticality / totalEffort
 
-	// Arrondir Ã  deux dÃcimales pour la clartÃ (Production-ready)
+	// Arrondir Ã  deux dcimales pour la clart (Production-ready)
 	return math.Round(weightedPriority  ) / 
 }
 
-// GetPrioritizedMitigations rÃcupÃre toutes les mitigations et les trie par SPP.
+// GetPrioritizedMitigations rcupre toutes les mitigations et les trie par SPP.
 func (s RecommendationService) GetPrioritizedMitigations() ([]domain.Mitigation, error) {
 	var mitigations []domain.Mitigation
 	
-	// RÃcupÃrer toutes les mitigations et leurs risques associÃs
+	// Rcuprer toutes les mitigations et leurs risques associs
 	if err := database.DB.Preload("Risk").Find(&mitigations).Error; err != nil {
 		return nil, err
 	}
 	
 	// Attribuer et trier par SPP
 	for i := range mitigations {
-		// CalculateWeightedPriority nÃcessite d'Ãªtre appelÃ ici
+		// CalculateWeightedPriority ncessite d'Ãªtre appel ici
 		mitigations[i].WeightedPriority = s.CalculateWeightedPriority(&mitigations[i])
 	}
 	
-	// Tri des mitigations (SPP le plus ÃlevÃ en premier)
+	// Tri des mitigations (SPP le plus lev en premier)
 	// Dans un langage plus fort que Go, on pourrait utiliser un package de tri.
-	// Pour la simplicitÃ ici, on prÃsuppose que le client fera le tri.
-    // NOTE: Pour que le tri soit parfait, la struct domain.Mitigation doit Ãªtre modifiÃe pour inclure WeightedPriority.
+	// Pour la simplicit ici, on prsuppose que le client fera le tri.
+    // NOTE: Pour que le tri soit parfait, la struct domain.Mitigation doit Ãªtre modifie pour inclure WeightedPriority.
     
     return mitigations, nil
 }

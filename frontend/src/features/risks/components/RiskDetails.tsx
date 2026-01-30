@@ -9,14 +9,14 @@ import { useRiskStore, type Risk } from '../../../hooks/useRiskStore';
 import { EditRiskModal } from './EditRiskModal';
 import { MitigationEditModal } from '../../mitigations/MitigationEditModal';
 
-// --- Interfaces et Types (√† mettre id√alement dans les stores respectifs) ---
+// --- Interfaces et Types (√† mettre idalement dans les stores respectifs) ---
 
 interface RiskDetailsProps {
     risk: Risk;
     onClose?: () => void;
 }
 
-// Helper pour l'ic√ne Asset
+// Helper pour l'icne Asset
 const getAssetIcon = (type: string) => {
     switch (type.toLowerCase()) {
         case 'server': return <Server size={} className="text-zinc-" />;
@@ -43,17 +43,17 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
 
     setIsAdding(true);
     try {
-      // Endpoint /risks/:id/mitigations d√fini
+      // Endpoint /risks/:id/mitigations dfini
       await api.post(/risks/${risk.id}/mitigations, {
         title: newMitigationTitle,
         assignee: 'Current User',
-        // Le backend g√re la cr√ation et l'association
+        // Le backend gre la cration et l'association
       });
-      toast.success("Plan d'action ajout√");
+      toast.success("Plan d'action ajout");
       setNewMitigationTitle('');
-      await fetchRisks(); // Refresh pour voir la nouvelle mitigation et le score r√siduel potentiel
+      await fetchRisks(); // Refresh pour voir la nouvelle mitigation et le score rsiduel potentiel
     } catch (err) {
-      toast.error("Erreur serveur lors de l'ajout de l'att√nuation");
+      toast.error("Erreur serveur lors de l'ajout de l'attnuation");
     } finally {
       setIsAdding(false);
     }
@@ -62,7 +62,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
   // Toggle statut (Done/Undo)
   const handleToggleMitigation = async (mitigationId: string) => {
     try {
-        // Endpoint /mitigations/:mitigationId/toggle d√fini au Commit 
+        // Endpoint /mitigations/:mitigationId/toggle dfini au Commit 
         await api.patch(/mitigations/${mitigationId}/toggle);
         toast.success("Statut mis √† jour");
         fetchRisks();
@@ -71,7 +71,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
     }
   };
 
-  // Badge du score (Pour un feedback visuel imm√diat)
+  // Badge du score (Pour un feedback visuel immdiat)
   const getScoreStyle = (score: number) => {
     if (score >= ) return 'bg-red-/ text-red- border-red-/';
     if (score >= ) return 'bg-orange-/ text-orange- border-orange-/';
@@ -99,10 +99,10 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
             <div className="flex items-center gap-">
                 <Button onClick={() => setOpenEdit(true)} variant="ghost">Modifier</Button>
                 <Button onClick={async () => {
-                    if (!confirm('Supprimer ce risque ? Cette action est irr√versible.')) return;
+                    if (!confirm('Supprimer ce risque ? Cette action est irrversible.')) return;
                     try {
                         await deleteRisk(risk.id);
-                        toast.success('Risque supprim√');
+                        toast.success('Risque supprim');
                         if (onClose) onClose();
                     } catch (e) {
                         toast.error('Erreur lors de la suppression');
@@ -117,10 +117,10 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
             {/ Edit Modal /}
             <EditRiskModal isOpen={openEdit} onClose={() => setOpenEdit(false)} risk={risk} onSuccess={() => { setOpenEdit(false); if (onClose) onClose(); }} />
 
-      {/ . Assets Impact√s /}
+      {/ . Assets Impacts /}
       {risk.assets && risk.assets.length >  && (
           <div className="mb- pt- border-t border-white/">
-              <h className="text-xs text-zinc- uppercase font-bold mb-">Assets Impact√s</h>
+              <h className="text-xs text-zinc- uppercase font-bold mb-">Assets Impacts</h>
               <div className="flex flex-wrap gap-">
                   {risk.assets.map(asset => (
                       <div key={asset.id} className="flex items-center gap- px- py-. rounded-lg bg-surface/ border border-white/ text-xs text-zinc-">
@@ -145,7 +145,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
             onClick={() => setActiveTab('mitigations')}
             className={pb- px- text-sm font-medium transition-colors relative ${activeTab === 'mitigations' ? 'text-white' : 'text-zinc- hover:text-zinc-'}}
         >
-            Plan d'Att√nuation
+            Plan d'Attnuation
             <span className="ml- bg-zinc- text-zinc- text-[px] px-. py-. rounded-full">{risk.mitigations?.length || }</span>
             {activeTab === 'mitigations' && <motion.div layoutId="activeTab" className="absolute bottom- left- right- h-. bg-primary" />}
         </button>
@@ -168,11 +168,11 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
                       <div className="text-xl font-mono text-white">{risk.impact}/</div>
                   </div>
                   <div className="p- rounded-xl bg-zinc-/ border border-white/">
-                      <h className="text-xs text-zinc- uppercase font-bold mb-">Probabilit√</h>
+                      <h className="text-xs text-zinc- uppercase font-bold mb-">Probabilit</h>
                       <div className="text-xl font-mono text-white">{risk.probability}/</div>
                   </div>
                   <div className="col-span- p- rounded-xl bg-zinc-/ border border-white/">
-                      <h className="text-xs text-zinc- uppercase font-bold mb-">Propri√taire</h>
+                      <h className="text-xs text-zinc- uppercase font-bold mb-">Propritaire</h>
                       <div className="flex items-center gap-">
                           <div className="w- h- rounded-full bg-indigo- flex items-center justify-center text-[px] font-bold">JD</div>
                           <span className="text-sm">John Doe (Security Team)</span>
@@ -204,7 +204,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
                                   </p>
                               </div>
                               <div className="flex items-center gap- text-zinc- text-xs">
-                                  <User size={} /> {mitigation.assignee || 'Non assign√'}
+                                  <User size={} /> {mitigation.assignee || 'Non assign'}
                               </div>
                               <div className="flex items-center gap-">
                                   <Button variant="ghost" onClick={() => setOpenMitEdit(mitigation.id)}>√âditer</Button>
@@ -214,7 +214,7 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
                       
                       {(!risk.mitigations || risk.mitigations.length === ) && (
                           <div className="text-center py- text-zinc- text-sm">
-                              Aucune action d√finie. Ajoutez-en une pour r√duire ce risque.
+                              Aucune action dfinie. Ajoutez-en une pour rduire ce risque.
                           </div>
                       )}
                   </div>

@@ -10,11 +10,11 @@ import (
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
-// ExportRisksPDF gÃnÃre un rapport PDF de tous les risques actifs.
+// ExportRisksPDF gnre un rapport PDF de tous les risques actifs.
 func ExportRisksPDF(c fiber.Ctx) error {
 	var risks []domain.Risk
 
-	// . RÃcupÃrer les donnÃes
+	// . Rcuprer les donnes
 	if err := database.DB.Preload("Assets").Find(&risks).Error; err != nil {
 		return c.Status().JSON(fiber.Map{"error": "Failed to fetch risks for export"})
 	}
@@ -25,14 +25,14 @@ func ExportRisksPDF(c fiber.Ctx) error {
 	pdf.SetFont("Arial", "B", )
 	pdf.SetFillColor(, , ) // Gris clair
 
-	// . Titre et MÃtadonnÃes
+	// . Titre et Mtadonnes
 	pdf.CellFormat(, , "OpenRisk - Rapport d'Ã‰valuation des Risques", "", , "C", false, , "")
 	pdf.SetFont("Arial", "", )
 	pdf.CellFormat(, , fmt.Sprintf("Date du rapport: %s", time.Now().Format(" Jan ")), "", , "C", false, , "")
 	pdf.Ln()
 
 	// . En-tÃªte du tableau
-	header := []string{"Score", "Titre du Risque", "Impact", "Proba", "Assets ImpactÃs"}
+	header := []string{"Score", "Titre du Risque", "Impact", "Proba", "Assets Impacts"}
 	colWidths := []float{, , , , }
 
 	pdf.SetFont("Arial", "B", )
@@ -53,20 +53,20 @@ func ExportRisksPDF(c fiber.Ctx) error {
 			}
 		}
 
-		// Pour la lisibilitÃ, les cellules sont dÃfinies par ligne
+		// Pour la lisibilit, les cellules sont dfinies par ligne
 		pdf.CellFormat(colWidths[], , fmt.Sprintf("%.f", risk.Score), "", , "C", false, , "")
 		pdf.CellFormat(colWidths[], , risk.Title, "", , "L", false, , "")
 		pdf.CellFormat(colWidths[], , fmt.Sprintf("%d", risk.Impact), "", , "C", false, , "")
 		pdf.CellFormat(colWidths[], , fmt.Sprintf("%d", risk.Probability), "", , "C", false, , "")
 
-		// GÃrer le cas oÃ¹ le texte des assets est trop long (multi-line)
+		// Grer le cas oÃ¹ le texte des assets est trop long (multi-line)
 		x, y := pdf.GetXY()
 		pdf.MultiCell(colWidths[], , assetNames, "", "L", false)
-		pdf.SetXY(x+colWidths[], y) // Repositionner le curseur aprÃs le MultiCell
+		pdf.SetXY(x+colWidths[], y) // Repositionner le curseur aprs le MultiCell
 
 		// IMPORTANT: Revenir Ã  la ligne si la cellule Assets a pris plusieurs lignes
 		_, h := pdf.GetPageSize()
-		if pdf.GetY() > h- { // Simple vÃrification de page break
+		if pdf.GetY() > h- { // Simple vrification de page break
 			pdf.AddPage()
 		}
 

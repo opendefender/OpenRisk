@@ -22,7 +22,7 @@ const formatCost = (cost: number) => {
     switch(cost) {
         case : return { label: 'Faible', color: 'bg-green-/ text-green-' };
         case : return { label: 'Moyen', color: 'bg-yellow-/ text-yellow-' };
-        case : return { label: '√âlev√', color: 'bg-red-/ text-red-' };
+        case : return { label: '√âlev', color: 'bg-red-/ text-red-' };
         default: return { label: 'N/A', color: 'bg-zinc-/ text-zinc-' };
     }
 };
@@ -49,16 +49,16 @@ export const PrioritizedMitigationsList = () => {
   }
   
   if (mitigations.length === ) {
-      return <div className="p- text-center text-zinc-">Aucune mitigation en cours. Cr√ez des risques pour g√n√rer des actions !</div>;
+      return <div className="p- text-center text-zinc-">Aucune mitigation en cours. Crez des risques pour gnrer des actions !</div>;
   }
 
   return (
     <div className="space-y- p-">
       <h className="text-xl font-bold text-white flex items-center">
-        <Zap size={} className="text-yellow- mr-" /> Priorit√ Intelligente
+        <Zap size={} className="text-yellow- mr-" /> Priorit Intelligente
       </h>
       <p className="text-zinc- text-sm">
-        Liste des actions class√es par leur impact maximal par rapport √† l'effort minimal (Co√ªt/Temps).
+        Liste des actions classes par leur impact maximal par rapport √† l'effort minimal (Co√ªt/Temps).
       </p>
 
       {mitigations.map((m) => {
@@ -99,7 +99,7 @@ export const PrioritizedMitigationsList = () => {
                     style={{ width: ${m.progress}% }}
                 ></div>
             </div>
-            <p className="text-xs text-zinc- mt-">{m.progress}% Compl√t√</p>
+            <p className="text-xs text-zinc- mt-">{m.progress}% Complt</p>
           </div>
         );
       })}

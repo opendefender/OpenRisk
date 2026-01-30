@@ -46,7 +46,7 @@ bash
 
 set -e
 
-echo "🔍 Pre-deployment verification..."
+echo " Pre-deployment verification..."
 
  Verify Docker images exist
 docker images | grep openrisk || { echo " Docker images not found"; exit ; }
@@ -112,7 +112,7 @@ for i in {..}; do
 done
 
  Run smoke tests
-echo "🧪 Running smoke tests..."
+echo " Running smoke tests..."
 ./tests/smoke-tests.sh || {
     echo " Smoke tests failed"
     docker-compose -f docker-compose.prod.yml down
@@ -120,7 +120,7 @@ echo "🧪 Running smoke tests..."
 }
 
  Switch traffic to new environment
-echo "🔄 Switching traffic..."
+echo " Switching traffic..."
 ln -sfn "$NEW_DIR" "$CURRENT_LINK"
 
  Stop old containers
@@ -273,7 +273,7 @@ set -e
 
 CURRENT=$(readlink /opt/openrisk-prod/current)
 
-echo "�  Initiating rollback from $CURRENT..."
+echo "  Initiating rollback from $CURRENT..."
 
  Restore from backup
 BACKUP_FILE="./backups/pre_migration_${PREVIOUS_DATE}.sql"
