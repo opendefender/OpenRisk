@@ -397,7 +397,7 @@ export const TenantManagement = () => {
             <div className="flex gap-3">
               <Button
                 onClick={() => setShowCreateModal(false)}
-                variant="outline"
+                variant="ghost"
                 className="flex-1"
               >
                 Cancel

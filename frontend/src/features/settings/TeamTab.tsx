@@ -22,7 +22,7 @@ interface TeamMember {
 }
 
 export const TeamTab = () => {
-    const [isAdmin, setIsAdmin] = useState(true); // Should come from auth store
+    const [isAdmin] = useState(true); // Should come from auth store
     const [teams, setTeams] = useState<Team[]>([
         {
             id: '1',
@@ -169,7 +169,6 @@ export const TeamTab = () => {
                                     </div>
                                     <Button
                                         variant="ghost"
-                                        size="sm"
                                         onClick={() => handleDeleteTeam(team.id)}
                                     >
                                         <Trash2 size={16} className="text-red-400" />
@@ -238,12 +237,11 @@ export const TeamTab = () => {
                                     {isAdmin && (
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex gap-2 justify-end">
-                                                <Button variant="ghost" size="sm" className="text-xs">
+                                                <Button variant="ghost" className="text-xs">
                                                     <Edit2 size={14} />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
-                                                    size="sm"
                                                     className="text-xs"
                                                     onClick={() => handleRemoveMember(member.id)}
                                                 >

@@ -1,7 +1,7 @@
 import React from 'react';
-import { useAuthStore } from '../store/authStore';
-import { usePermissions } from '../hooks/usePermissions';
-import type { PermissionAction, PermissionResource } from '../utils/rbacHelpers';
+import { useAuthStore } from '../../hooks/useAuthStore';
+import { usePermissions } from '../../hooks/usePermissions';
+import type { PermissionAction, PermissionResource } from '../../utils/rbacHelpers';
 
 /**
  * Route guard component for protecting routes based on authentication

@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts';
-import { TrendingUp, TrendingDown, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown3, Activity } from 'lucide-react';
 
 interface TimeSeriesData {
   timestamp: string;

@@ -4,8 +4,18 @@
  */
 
 import { ROLE_TEMPLATES } from '../config/rbacConfig';
-import type { User } from '../store/authStore';
 import type { RoleTemplate } from './roleTemplateUtils';
+
+interface User {
+  id: string;
+  email: string;
+  username?: string;
+  full_name: string;
+  name?: string;
+  role: string;
+  role_level?: number;
+  permissions?: string[];
+}
 
 /**
  * Create mock user for testing
@@ -14,6 +24,7 @@ export const createMockUser = (overrides?: Partial<User>): User => {
   return {
     id: 'user-123',
     email: 'test@example.com',
+    full_name: 'Test User',
     name: 'Test User',
     role: 'Analyst',
     permissions: ['dashboards:read', 'dashboards:create', 'audit-logs:read'],
@@ -25,13 +36,14 @@ export const createMockUser = (overrides?: Partial<User>): User => {
  * Create mock admin user
  */
 export const createMockAdminUser = (overrides?: Partial<User>): User => {
-  const adminTemplate = ROLE_TEMPLATES.ADMIN as RoleTemplate;
+  const adminTemplate = ROLE_TEMPLATES.ADMIN as unknown as RoleTemplate;
   return {
     id: 'admin-123',
     email: 'admin@example.com',
+    full_name: 'Admin User',
     name: 'Admin User',
     role: 'Administrator',
-    permissions: adminTemplate.permissions,
+    permissions: [...adminTemplate.permissions],
     ...overrides,
   };
 };
@@ -40,13 +52,14 @@ export const createMockAdminUser = (overrides?: Partial<User>): User => {
  * Create mock viewer user
  */
 export const createMockViewerUser = (overrides?: Partial<User>): User => {
-  const viewerTemplate = ROLE_TEMPLATES.VIEWER as RoleTemplate;
+  const viewerTemplate = ROLE_TEMPLATES.VIEWER as unknown as RoleTemplate;
   return {
     id: 'viewer-123',
     email: 'viewer@example.com',
+    full_name: 'Viewer User',
     name: 'Viewer User',
     role: 'Viewer',
-    permissions: viewerTemplate.permissions,
+    permissions: [...viewerTemplate.permissions],
     ...overrides,
   };
 };
@@ -57,13 +70,14 @@ export const createMockViewerUser = (overrides?: Partial<User>): User => {
 export const createUsersByRoles = (roles?: string[]): User[] => {
   const rolesArray = roles || ['Viewer', 'Analyst', 'Manager', 'Administrator'];
   return rolesArray.map((role, index) => {
-    const template = Object.values(ROLE_TEMPLATES).find((t) => (t as RoleTemplate).name === role) as RoleTemplate;
+    const template = Object.values(ROLE_TEMPLATES).find((t) => t.name === role) as unknown as RoleTemplate | undefined;
     return {
       id: `user-${index}`,
       email: `${role.toLowerCase()}@example.com`,
+      full_name: `${role} User`,
       name: `${role} User`,
       role,
-      permissions: template?.permissions || [],
+      permissions: template?.permissions ? [...template.permissions] : [],
     };
   });
 };

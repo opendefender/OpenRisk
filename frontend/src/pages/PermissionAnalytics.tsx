@@ -28,7 +28,7 @@ interface TrendData {
 }
 
 const PermissionAnalyticsPage: React.FC = () => {
-  const { user } = useAuthStore();
+  const { } = useAuthStore();
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
   // Mock data - in production, would come from API

@@ -94,7 +94,7 @@ export const ThreatMap = () => {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost">
               <RefreshCw size={16} />
             </Button>
           </div>
