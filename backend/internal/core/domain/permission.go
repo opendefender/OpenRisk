@@ -53,16 +53,16 @@ func (p Permission) String() string {
 }
 
 // ParsePermission parses a permission string into a Permission struct
-func ParsePermission(permStr string) (*Permission, error) {
+func ParsePermission(permStr string) (Permission, error) {
 	parts := strings.Split(permStr, ":")
-	if len(parts) != 3 {
+	if len(parts) !=  {
 		return nil, fmt.Errorf("invalid permission format: %s (expected resource:action:scope)", permStr)
 	}
 
 	perm := &Permission{
-		Resource: PermissionResource(parts[0]),
-		Action:   PermissionAction(parts[1]),
-		Scope:    PermissionScope(parts[2]),
+		Resource: PermissionResource(parts[]),
+		Action:   PermissionAction(parts[]),
+		Scope:    PermissionScope(parts[]),
 	}
 
 	// Validate parts
@@ -76,7 +76,7 @@ func ParsePermission(permStr string) (*Permission, error) {
 // Validate checks if the permission is valid
 func (p Permission) Validate() error {
 	validResources := map[PermissionResource]bool{
-		"*":                           true,
+		"":                           true,
 		PermissionResourceRisk:        true,
 		PermissionResourceMitigation:  true,
 		PermissionResourceAsset:       true,
@@ -87,7 +87,7 @@ func (p Permission) Validate() error {
 	}
 
 	validActions := map[PermissionAction]bool{
-		"*":              true,
+		"":              true,
 		PermissionRead:   true,
 		PermissionCreate: true,
 		PermissionUpdate: true,
@@ -116,20 +116,20 @@ func (p Permission) Validate() error {
 }
 
 // Matches checks if this permission matches the required permission
-// Supports wildcard matching (e.g., "risk:*:any" matches "risk:read:any")
+// Supports wildcard matching (e.g., "risk::any" matches "risk:read:any")
 func (p Permission) Matches(required Permission) bool {
 	// Exact match
 	if p == required {
 		return true
 	}
 
-	// Resource wildcard (e.g., "*:read:any")
-	if p.Resource == "*" && p.Action == required.Action && p.Scope == required.Scope {
+	// Resource wildcard (e.g., ":read:any")
+	if p.Resource == "" && p.Action == required.Action && p.Scope == required.Scope {
 		return true
 	}
 
-	// Action wildcard (e.g., "risk:*:any")
-	if p.Resource == required.Resource && p.Action == "*" && p.Scope == required.Scope {
+	// Action wildcard (e.g., "risk::any")
+	if p.Resource == required.Resource && p.Action == "" && p.Scope == required.Scope {
 		return true
 	}
 
@@ -138,13 +138,13 @@ func (p Permission) Matches(required Permission) bool {
 		return true
 	}
 
-	// Both wildcards (e.g., "risk:*:*")
-	if p.Resource == required.Resource && p.Action == "*" && p.Scope == "any" {
+	// Both wildcards (e.g., "risk::")
+	if p.Resource == required.Resource && p.Action == "" && p.Scope == "any" {
 		return true
 	}
 
-	// Full wildcard (e.g., "*:*:any")
-	if p.Resource == "*" && p.Action == "*" && p.Scope == "any" {
+	// Full wildcard (e.g., "::any")
+	if p.Resource == "" && p.Action == "" && p.Scope == "any" {
 		return true
 	}
 
@@ -160,7 +160,7 @@ type PermissionMatrix struct {
 }
 
 // HasPermission checks if the matrix has the given permission
-func (pm *PermissionMatrix) HasPermission(required Permission) bool {
+func (pm PermissionMatrix) HasPermission(required Permission) bool {
 	for _, perm := range pm.Permissions {
 		if perm.Matches(required) {
 			return true
@@ -170,7 +170,7 @@ func (pm *PermissionMatrix) HasPermission(required Permission) bool {
 }
 
 // AddPermission adds a new permission to the matrix
-func (pm *PermissionMatrix) AddPermission(p Permission) error {
+func (pm PermissionMatrix) AddPermission(p Permission) error {
 	if err := p.Validate(); err != nil {
 		return err
 	}
@@ -187,10 +187,10 @@ func (pm *PermissionMatrix) AddPermission(p Permission) error {
 }
 
 // RemovePermission removes a permission from the matrix
-func (pm *PermissionMatrix) RemovePermission(p Permission) error {
+func (pm PermissionMatrix) RemovePermission(p Permission) error {
 	for i, perm := range pm.Permissions {
 		if perm == p {
-			pm.Permissions = append(pm.Permissions[:i], pm.Permissions[i+1:]...)
+			pm.Permissions = append(pm.Permissions[:i], pm.Permissions[i+:]...)
 			return nil
 		}
 	}
@@ -200,7 +200,7 @@ func (pm *PermissionMatrix) RemovePermission(p Permission) error {
 // Standard permission matrices for common roles
 var (
 	AdminPermissions = []Permission{
-		{Resource: "*", Action: "*", Scope: "any"},
+		{Resource: "", Action: "", Scope: "any"},
 	}
 
 	AnalystPermissions = []Permission{

@@ -1,209 +1,209 @@
-# 📖 README - Guides de déploiement créés
+ 📖 README - Guides de d�ploiement cr��s
 
-Les guides suivants ont été générés pour vous aider à déployer OpenRisk gratuitement :
+Les guides suivants ont �t� g�n�r�s pour vous aider à d�ployer OpenRisk gratuitement :
 
 ---
 
-## 📚 Fichiers de documentation créés
+ 📚 Fichiers de documentation cr��s
 
-### 🚀 **QUICK_DEPLOY_GUIDE.md** ⭐ START HERE
-- **Durée**: 30 minutes
-- **Complexité**: Facile
-- Étapes rapides pour déployer sur Supabase, Redis Cloud, Render.com et Vercel
-- Parfait pour avoir une démo rapidement
+  QUICK_DEPLOY_GUIDE.md ⭐ START HERE
+- Dur�e:  minutes
+- Complexit�: Facile
+- Étapes rapides pour d�ployer sur Supabase, Redis Cloud, Render.com et Vercel
+- Parfait pour avoir une d�mo rapidement
 
-### 📖 **DEPLOYMENT_FREE_SERVICES.md** 📖 COMPREHENSIVE GUIDE
-- **Durée**: 1-2 heures
-- **Complexité**: Intermédiaire
-- Guide complet avec explications détaillées
-- Dépannage avancé
+ 📖 DEPLOYMENT_FREE_SERVICES.md 📖 COMPREHENSIVE GUIDE
+- Dur�e: - heures
+- Complexit�: Interm�diaire
+- Guide complet avec explications d�taill�es
+- D�pannage avanc�
 - Architecture et limitations
 
-### 🔌 **INTEGRATION_GUIDE.md** 🔌 TECHNICAL REFERENCE
-- Configuration complète du frontend/backend
+ 🔌 INTEGRATION_GUIDE.md 🔌 TECHNICAL REFERENCE
+- Configuration compl�te du frontend/backend
 - Code d'exemple (axios, fetch)
-- Tests d'intégration
-- Debugging avancé (CORS, logs, etc.)
+- Tests d'int�gration
+- Debugging avanc� (CORS, logs, etc.)
 
-### ✅ **DEPLOYMENT_CHECKLIST.txt** ✅ PROGRESS TRACKING
-- 8 phases de déploiement
+  DEPLOYMENT_CHECKLIST.txt  PROGRESS TRACKING
+-  phases de d�ploiement
 - Checkboxes pour suivre votre progression
-- Référence rapide pour troubleshooting
-- Temps estimé: 45 minutes
+- R�f�rence rapide pour troubleshooting
+- Temps estim�:  minutes
 
 ---
 
-## 📦 Fichiers de configuration créés
+ � Fichiers de configuration cr��s
 
-### 1. **Dockerfile.render**
-- Dockerfile optimisé pour Render.com
+ . Dockerfile.render
+- Dockerfile optimis� pour Render.com
 - Multi-stage build pour le backend Go
 - Healthcheck inclus
 
-### 2. **frontend/vercel.json**
+ . frontend/vercel.json
 - Configuration optimale pour Vercel
-- Framework Vite préconfiguré
+- Framework Vite pr�configur�
 - Build settings
 
-### 3. **frontend/.env.production**
+ . frontend/.env.production
 - Variables d'environnement pour production
-- VITE_API_URL configurée
+- VITE_API_URL configur�e
 - Prête à l'emploi
 
-### 4. **deploy-free-setup.sh**
+ . deploy-free-setup.sh
 - Script Bash d'automation
-- Génère automatiquement les fichiers de configuration
+- G�n�re automatiquement les fichiers de configuration
 - Explications interactives
 
 ---
 
-## 🎯 Plan d'action recommandé
+  Plan d'action recommand�
 
-### Étape 1: Lire le guide rapide (5 min)
-```bash
+ Étape : Lire le guide rapide ( min)
+bash
 Ouvrir: QUICK_DEPLOY_GUIDE.md
 Objectif: Comprendre l'architecture globale
-```
 
-### Étape 2: Préparer les services (10 min)
-```
-1. Créer compte Supabase
-2. Créer projet PostgreSQL
-3. Créer compte Redis Cloud
-4. Créer compte Render.com
-5. Créer compte Vercel
-```
 
-### Étape 3: Déployer le backend (15 min)
-```
-1. Render.com → New Web Service
-2. Connecter GitHub repo
-3. Configurer env variables (DB, Redis, JWT)
-4. Déployer et attendre
-```
+ Étape : Pr�parer les services ( min)
 
-### Étape 4: Déployer le frontend (10 min)
-```
-1. Vercel → Import Project
-2. Root directory: frontend
-3. Ajouter VITE_API_URL
-4. Déployer
-```
+. Cr�er compte Supabase
+. Cr�er projet PostgreSQL
+. Cr�er compte Redis Cloud
+. Cr�er compte Render.com
+. Cr�er compte Vercel
 
-### Étape 5: Intégrer (5 min)
-```
-1. Mettre à jour CORS sur Render
-2. Tester API connectivity
-3. Login et valider features
-```
 
-**TOTAL: ~45 minutes ⏱️**
+ Étape : D�ployer le backend ( min)
+
+. Render.com → New Web Service
+. Connecter GitHub repo
+. Configurer env variables (DB, Redis, JWT)
+. D�ployer et attendre
+
+
+ Étape : D�ployer le frontend ( min)
+
+. Vercel → Import Project
+. Root directory: frontend
+. Ajouter VITE_API_URL
+. D�ployer
+
+
+ Étape : Int�grer ( min)
+
+. Mettre à jour CORS sur Render
+. Tester API connectivity
+. Login et valider features
+
+
+TOTAL: ~ minutes ⏱
 
 ---
 
-## 🔗 Récapitulatif des services gratuits
+  R�capitulatif des services gratuits
 
 | Service | Plan Gratuit | Limites |
 |---------|-------------|----------|
-| **Vercel** | Illimité | 100 GB/mois bande passante |
-| **Render.com** | Illimité | Sleep après 15 min inactivité |
-| **Supabase** | Inclus | 500 MB DB, 2 GB transfert/mois |
-| **Redis Cloud** | Inclus | 30 MB RAM |
-| **GitHub** | Public repos | Gratuit illimitié |
+| Vercel | Illimit� |  GB/mois bande passante |
+| Render.com | Illimit� | Sleep apr�s  min inactivit� |
+| Supabase | Inclus |  MB DB,  GB transfert/mois |
+| Redis Cloud | Inclus |  MB RAM |
+| GitHub | Public repos | Gratuit illimiti� |
 
-**Coût total: $0.00/mois** 💰
-
----
-
-## 🎓 Documentation supplémentaire disponible
-
-### Dans le projet:
-- `docs/LOCAL_DEVELOPMENT.md` - Setup local
-- `docs/API_REFERENCE.md` - API documentation
-- `docs/BACKEND_ENDPOINTS_GUIDE.md` - Endpoints
-- `docs/ADVANCED_PERMISSIONS.md` - Permissions
-- `README.md` - Vue d'ensemble générale
-
-### En ligne:
-- Backend Docs: `https://openrisk-api.onrender.com/swagger` (après déploiement)
-- Repository: `https://github.com/alex-dembele/OpenRisk`
+Coût total: $./mois �
 
 ---
 
-## 🆘 Aide et support
+  Documentation suppl�mentaire disponible
 
-### Documentation rapide par problème:
+ Dans le projet:
+- docs/LOCAL_DEVELOPMENT.md - Setup local
+- docs/API_REFERENCE.md - API documentation
+- docs/BACKEND_ENDPOINTS_GUIDE.md - Endpoints
+- docs/ADVANCED_PERMISSIONS.md - Permissions
+- README.md - Vue d'ensemble g�n�rale
 
-**❌ CORS Error**
-→ INTEGRATION_GUIDE.md → Dépannage → CORS Error
+ En ligne:
+- Backend Docs: https://openrisk-api.onrender.com/swagger (apr�s d�ploiement)
+- Repository: https://github.com/alex-dembele/OpenRisk
 
-**❌ API non accessible**
-→ QUICK_DEPLOY_GUIDE.md → Dépannage rapide
+---
 
-**❌ Database connection error**
+ 🆘 Aide et support
+
+ Documentation rapide par probl�me:
+
+ CORS Error
+→ INTEGRATION_GUIDE.md → D�pannage → CORS Error
+
+ API non accessible
+→ QUICK_DEPLOY_GUIDE.md → D�pannage rapide
+
+ Database connection error
 → DEPLOYMENT_FREE_SERVICES.md → Troubleshooting
 
-**❌ Frontend ne charge pas**
-→ INTEGRATION_GUIDE.md → Diagnostic avancé
+ Frontend ne charge pas
+→ INTEGRATION_GUIDE.md → Diagnostic avanc�
 
 ---
 
-## 💡 Tips & Tricks
+  Tips & Tricks
 
-### Générer JWT_SECRET sécurisé
-```bash
-openssl rand -base64 32
-```
+ G�n�rer JWT_SECRET s�curis�
+bash
+openssl rand -base 
 
-### Tester API depuis CLI
-```bash
+
+ Tester API depuis CLI
+bash
 curl https://openrisk-api.onrender.com/api/health
 
-# Avec token
+ Avec token
 curl -H "Authorization: Bearer TOKEN" \
   https://openrisk-api.onrender.com/api/risks
-```
 
-### Eviter le sleep mode Render
-```
+
+ Eviter le sleep mode Render
+
 Utiliser: https://uptimerobot.com (free)
 Ping: https://openrisk-api.onrender.com/api/health
-Interval: toutes les 14 minutes
-```
+Interval: toutes les  minutes
 
-### Monitoring basique
-```
+
+ Monitoring basique
+
 Render logs: https://render.com → Services → Logs
 Vercel logs: https://vercel.com → Deployments → Logs
-```
+
 
 ---
 
-## ✨ Prochaines étapes après déploiement
+  Prochaines �tapes apr�s d�ploiement
 
-1. ✅ Créer des utilisateurs de test
-2. ✅ Ajouter des risques d'exemple
-3. ✅ Tester les créations de mitigations
-4. ✅ Valider les dashboards et graphiques
-5. ✅ Vérifier les permissions et rôles
-6. ✅ Tester la génération PDF
-7. ✅ Partager le lien de démo! 🎉
+.  Cr�er des utilisateurs de test
+.  Ajouter des risques d'exemple
+.  Tester les cr�ations de mitigations
+.  Valider les dashboards et graphiques
+.  V�rifier les permissions et r�les
+.  Tester la g�n�ration PDF
+.  Partager le lien de d�mo! 
 
 ---
 
-## 📞 Fichiers clés du projet
+ 📞 Fichiers cl�s du projet
 
-```
+
 OpenRisk/
 ├── QUICK_DEPLOY_GUIDE.md          ⭐ START HERE
 ├── DEPLOYMENT_FREE_SERVICES.md    📖 Full guide
 ├── INTEGRATION_GUIDE.md            🔌 Technical
-├── DEPLOYMENT_CHECKLIST.txt       ✅ Progress
+├── DEPLOYMENT_CHECKLIST.txt        Progress
 ├── Dockerfile.render              🐳 Docker
-├── deploy-free-setup.sh           ⚙️ Automation
+├── deploy-free-setup.sh            Automation
 ├── frontend/
-│   ├── vercel.json               📋 Vercel config
-│   └── .env.production           🔐 Env vars
+│   ├── vercel.json                Vercel config
+│   └── .env.production            Env vars
 ├── backend/
 │   ├── go.mod
 │   └── cmd/server/main.go
@@ -213,52 +213,52 @@ OpenRisk/
 │   ├── LOCAL_DEVELOPMENT.md
 │   └── ...
 └── README.md
-```
+
 
 ---
 
-## 🎉 Après le déploiement
+  Apr�s le d�ploiement
 
-Une fois votre lien de démo obtenu :
+Une fois votre lien de d�mo obtenu :
 
-```
+
 https://openrisk-xxxx.vercel.app
-```
+
 
 Partagez-le:
-- ✅ Sur GitHub en description du repo
-- ✅ Sur votre portfolio
-- ✅ Avec les stakeholders
-- ✅ Sur les réseaux sociaux
-- ✅ Dans les CVs/portfolios
+-  Sur GitHub en description du repo
+-  Sur votre portfolio
+-  Avec les stakeholders
+-  Sur les r�seaux sociaux
+-  Dans les CVs/portfolios
 
 ---
 
-## 📝 Notes importantes
+  Notes importantes
 
-1. **Render.com sleep mode**: Service s'endort après 15 min d'inactivité (free tier)
-   - Solution: Utiliser uptimerobot.com pour des pings réguliers
+. Render.com sleep mode: Service s'endort apr�s  min d'inactivit� (free tier)
+   - Solution: Utiliser uptimerobot.com pour des pings r�guliers
 
-2. **Supabase limitations**: 500 MB de stockage
-   - Archivez régulièrement les anciens risques
+. Supabase limitations:  MB de stockage
+   - Archivez r�guli�rement les anciens risques
 
-3. **Redis Cloud limitations**: 30 MB de cache
-   - Gérez bien les sessions
+. Redis Cloud limitations:  MB de cache
+   - G�rez bien les sessions
 
-4. **Vercel bandwidth**: 100 GB/mois
+. Vercel bandwidth:  GB/mois
    - Optimisez les images et utilisez le CDN
 
 ---
 
-## 🚀 Prêt à déployer?
+  Prêt à d�ployer?
 
-1. Ouvrez **QUICK_DEPLOY_GUIDE.md**
-2. Suivez les 4 étapes principales
-3. En cas de problème, consultez **INTEGRATION_GUIDE.md**
-4. Partagez votre démo! 🎉
+. Ouvrez QUICK_DEPLOY_GUIDE.md
+. Suivez les  �tapes principales
+. En cas de probl�me, consultez INTEGRATION_GUIDE.md
+. Partagez votre d�mo! 
 
 ---
 
-**Bon déploiement ! 🚀**
+Bon d�ploiement ! 
 
-*Questions? Consultez les guides créés ou la documentation du projet.*
+Questions? Consultez les guides cr��s ou la documentation du projet.

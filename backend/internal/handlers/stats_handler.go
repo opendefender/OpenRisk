@@ -1,35 +1,35 @@
 package handlers
 
 import (
-	"math/rand" // UtilisÃ© pour simuler une variation rÃ©aliste
+	"math/rand" // UtilisÃ pour simuler une variation rÃaliste
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/opendefender/openrisk/database"
 )
 
 // --- Structures pour la Matrice des Risques ---
 
-// RiskMatrixCell reprÃ©sente le dÃ©compte des risques pour une cellule (Impact, Proba)
+// RiskMatrixCell reprÃsente le dÃcompte des risques pour une cellule (Impact, Proba)
 type RiskMatrixCell struct {
-	Impact      int `json:"impact"`
-	Probability int `json:"probability"`
-	Count       int `json:"count"`
+	Impact      int json:"impact"
+	Probability int json:"probability"
+	Count       int json:"count"
 }
 
-// GetRiskMatrixData calcule et retourne les donnÃ©es pour la matrice 5x5.
-func GetRiskMatrixData(c *fiber.Ctx) error {
+// GetRiskMatrixData calcule et retourne les donnÃes pour la matrice x.
+func GetRiskMatrixData(c fiber.Ctx) error {
 	var results []RiskMatrixCell
 
-	// RequÃªte groupÃ©e pour compter les risques par paire (Impact, Probability)
+	// RequÃªte groupÃe pour compter les risques par paire (Impact, Probability)
 	err := database.DB.Table("risks").
-		Select("impact, probability, COUNT(*) as count").
-		Where("deleted_at IS NULL"). // N'inclut pas les risques archivÃ©s
+		Select("impact, probability, COUNT() as count").
+		Where("deleted_at IS NULL"). // N'inclut pas les risques archivÃs
 		Group("impact, probability").
 		Find(&results).Error
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to calculate matrix data"})
+		return c.Status().JSON(fiber.Map{"error": "Failed to calculate matrix data"})
 	}
 
 	return c.JSON(results)
@@ -38,40 +38,40 @@ func GetRiskMatrixData(c *fiber.Ctx) error {
 // ----------------------------------------------------------------------
 // --- Structures et Handler pour la Tendance des Risques (Timeline) ---
 
-// TrendPoint reprÃ©sente un point de donnÃ©es pour le graphique de tendance.
+// TrendPoint reprÃsente un point de donnÃes pour le graphique de tendance.
 type TrendPoint struct {
-	Date  string `json:"date"`  // Format YYYY-MM-DD
-	Score int    `json:"score"` // Score global ce jour-lÃ 
+	Date  string json:"date"  // Format YYYY-MM-DD
+	Score int    json:"score" // Score global ce jour-lÃ 
 }
 
-// GetGlobalRiskTrend calcule l'Ã©volution du score de sÃ©curitÃ© total sur 30 jours.
-// NOTE: L'implÃ©mentation de production lirait la table 'risk_histories' pour une prÃ©cision
-// mais nous simulons des donnÃ©es pour que le widget fonctionne immÃ©diatement.
-func GetGlobalRiskTrend(c *fiber.Ctx) error {
+// GetGlobalRiskTrend calcule l'Ãvolution du score de sÃcuritÃ total sur  jours.
+// NOTE: L'implÃmentation de production lirait la table 'risk_histories' pour une prÃcision
+// mais nous simulons des donnÃes pour que le widget fonctionne immÃdiatement.
+func GetGlobalRiskTrend(c fiber.Ctx) error {
 	trends := []TrendPoint{}
 	now := time.Now()
 
-	// Initialiser la graine du gÃ©nÃ©rateur alÃ©atoire pour une simulation plus crÃ©dible
+	// Initialiser la graine du gÃnÃrateur alÃatoire pour une simulation plus crÃdible
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// Simulation du score de sÃ©curitÃ© (oÃ¹ 100 est parfait)
-	currentScore := 85
+	// Simulation du score de sÃcuritÃ (oÃ¹  est parfait)
+	currentScore := 
 
-	// GÃ©nÃ©rer les 30 derniers jours
-	for i := 30; i >= 0; i-- {
-		date := now.AddDate(0, 0, -i).Format("2006-01-02")
+	// GÃnÃrer les  derniers jours
+	for i := ; i >= ; i-- {
+		date := now.AddDate(, , -i).Format("--")
 
-		// Variation: +/- 3 points pour simuler la fluctuation due aux mitigations/nouveaux risques
-		// et garantir qu'il y ait des donnÃ©es pour le graphique.
-		variation := rand.Intn(7) - 3 // GÃ©nÃ¨re un nombre entre -3 et +3
+		// Variation: +/-  points pour simuler la fluctuation due aux mitigations/nouveaux risques
+		// et garantir qu'il y ait des donnÃes pour le graphique.
+		variation := rand.Intn() -  // GÃnÃre un nombre entre - et +
 		currentScore += variation
 
-		// S'assurer que le score reste dans une plage raisonnable (ex: 70-95)
-		if currentScore > 95 {
-			currentScore = 95
+		// S'assurer que le score reste dans une plage raisonnable (ex: -)
+		if currentScore >  {
+			currentScore = 
 		}
-		if currentScore < 75 {
-			currentScore = 75
+		if currentScore <  {
+			currentScore = 
 		}
 
 		trends = append(trends, TrendPoint{
@@ -86,50 +86,50 @@ func GetGlobalRiskTrend(c *fiber.Ctx) error {
 // --- Structures et Handler pour la Distribution des Risques ---
 
 type RiskDistributionData struct {
-	Level string `json:"level"` // CRITICAL, HIGH, MEDIUM, LOW
-	Count int    `json:"count"`
+	Level string json:"level" // CRITICAL, HIGH, MEDIUM, LOW
+	Count int    json:"count"
 }
 
-// GetRiskDistribution retourne le nombre de risques par niveau de sÃ©vÃ©ritÃ©
-func GetRiskDistribution(c *fiber.Ctx) error {
+// GetRiskDistribution retourne le nombre de risques par niveau de sÃvÃritÃ
+func GetRiskDistribution(c fiber.Ctx) error {
 	var results []RiskDistributionData
 
-	// RequÃªte groupÃ©e pour compter les risques par niveau
+	// RequÃªte groupÃe pour compter les risques par niveau
 	err := database.DB.Table("risks").
-		Select("level, COUNT(*) as count").
+		Select("level, COUNT() as count").
 		Where("deleted_at IS NULL").
 		Group("level").
 		Order("count DESC").
 		Find(&results).Error
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to calculate distribution data"})
+		return c.Status().JSON(fiber.Map{"error": "Failed to calculate distribution data"})
 	}
 
 	return c.JSON(results)
 }
 
-// --- Structures et Handler pour les MÃ©triques de Mitigation ---
+// --- Structures et Handler pour les MÃtriques de Mitigation ---
 
 type MitigationMetricsData struct {
-	TotalMitigations      int     `json:"total_mitigations"`
-	CompletedMitigations  int     `json:"completed_mitigations"`
-	InProgressMitigations int     `json:"in_progress_mitigations"`
-	PlannedMitigations    int     `json:"planned_mitigations"`
-	AverageTime           float64 `json:"average_time_days"`
-	CompletionRate        float64 `json:"completion_rate"`
+	TotalMitigations      int     json:"total_mitigations"
+	CompletedMitigations  int     json:"completed_mitigations"
+	InProgressMitigations int     json:"in_progress_mitigations"
+	PlannedMitigations    int     json:"planned_mitigations"
+	AverageTime           float json:"average_time_days"
+	CompletionRate        float json:"completion_rate"
 }
 
 // GetMitigationMetrics retourne les statistiques sur les mitigations
-func GetMitigationMetrics(c *fiber.Ctx) error {
-	var total, completed, inProgress, planned int64
+func GetMitigationMetrics(c fiber.Ctx) error {
+	var total, completed, inProgress, planned int
 
 	// Compter le total des mitigations
 	database.DB.Table("mitigations").
 		Where("deleted_at IS NULL").
 		Count(&total)
 
-	// Compter les mitigations complÃ¨tement faites
+	// Compter les mitigations complÃtement faites
 	database.DB.Table("mitigations").
 		Where("deleted_at IS NULL AND status = ?", "DONE").
 		Count(&completed)
@@ -139,19 +139,19 @@ func GetMitigationMetrics(c *fiber.Ctx) error {
 		Where("deleted_at IS NULL AND status = ?", "IN_PROGRESS").
 		Count(&inProgress)
 
-	// Compter les mitigations planifiÃ©es
+	// Compter les mitigations planifiÃes
 	database.DB.Table("mitigations").
 		Where("deleted_at IS NULL AND status = ?", "PLANNED").
 		Count(&planned)
 
 	// Calculer le taux de completion
-	completionRate := 0.0
-	if total > 0 {
-		completionRate = float64(completed) / float64(total) * 100
+	completionRate := .
+	if total >  {
+		completionRate = float(completed) / float(total)  
 	}
 
 	// Calculer le temps moyen (simulation pour l'instant)
-	averageTime := 15.5 // Jours
+	averageTime := . // Jours
 
 	metrics := MitigationMetricsData{
 		TotalMitigations:      int(total),
@@ -168,20 +168,20 @@ func GetMitigationMetrics(c *fiber.Ctx) error {
 // --- Structures et Handler pour les Top Vulnerabilities ---
 
 type TopVulnerability struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Score       int    `json:"score"`
-	Impact      int    `json:"impact"`
-	Probability int    `json:"probability"`
-	Status      string `json:"status"`
-	Assets      int    `json:"assets_affected"`
+	ID          string json:"id"
+	Title       string json:"title"
+	Score       int    json:"score"
+	Impact      int    json:"impact"
+	Probability int    json:"probability"
+	Status      string json:"status"
+	Assets      int    json:"assets_affected"
 }
 
 // GetTopVulnerabilities retourne les risques les plus critiques
-func GetTopVulnerabilities(c *fiber.Ctx) error {
-	limit := c.QueryInt("limit", 10)
-	if limit > 100 {
-		limit = 100 // Limiter pour Ã©viter les requÃªtes trop lourdes
+func GetTopVulnerabilities(c fiber.Ctx) error {
+	limit := c.QueryInt("limit", )
+	if limit >  {
+		limit =  // Limiter pour Ãviter les requÃªtes trop lourdes
 	}
 
 	var vulnerabilities []TopVulnerability
@@ -195,7 +195,7 @@ func GetTopVulnerabilities(c *fiber.Ctx) error {
 		Find(&vulnerabilities).Error
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch top vulnerabilities"})
+		return c.Status().JSON(fiber.Map{"error": "Failed to fetch top vulnerabilities"})
 	}
 
 	return c.JSON(vulnerabilities)

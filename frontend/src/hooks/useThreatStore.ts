@@ -30,7 +30,7 @@ interface ThreatStore {
 }
 
 export const useThreatStore = create<ThreatStore>((set) => {
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:/api/v';
 
   return {
     threats: [],
@@ -43,24 +43,24 @@ export const useThreatStore = create<ThreatStore>((set) => {
       try {
         const token = useAuthStore.getState().token;
         
-        let url = `${apiBaseUrl}/threats`;
+        let url = ${apiBaseUrl}/threats;
         const queryParams = new URLSearchParams();
         if (params.severity) queryParams.append('severity', params.severity);
         if (params.country) queryParams.append('country', params.country);
         
         if (queryParams.toString()) {
-          url += `?${queryParams.toString()}`;
+          url += ?${queryParams.toString()};
         }
 
         const response = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: Bearer ${token},
             'Content-Type': 'application/json',
           },
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(HTTP ${response.status});
         }
 
         const data = await response.json();
@@ -77,15 +77,15 @@ export const useThreatStore = create<ThreatStore>((set) => {
     fetchThreatStats: async () => {
       try {
         const token = useAuthStore.getState().token;
-        const response = await fetch(`${apiBaseUrl}/threats/stats`, {
+        const response = await fetch(${apiBaseUrl}/threats/stats, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: Bearer ${token},
             'Content-Type': 'application/json',
           },
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(HTTP ${response.status});
         }
 
         const stats = await response.json();

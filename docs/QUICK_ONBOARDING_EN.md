@@ -1,406 +1,406 @@
-# OpenRisk - Quick Start Guide
+ OpenRisk - Quick Start Guide
 
-Welcome! This guide gets you up and running in **5 minutes** with realistic sample data.
+Welcome! This guide gets you up and running in  minutes with realistic sample data.
 
 ---
 
-## ⚡ Step 1: Start the System (2 min)
+  Step : Start the System ( min)
 
-### Prerequisites
+ Prerequisites
 - Docker & Docker Compose installed
 - Git
 - A terminal (Bash, Zsh, PowerShell, etc.)
 
-### Launch OpenRisk
+ Launch OpenRisk
 
-```bash
-# 1. Clone the repository
+bash
+ . Clone the repository
 git clone https://github.com/alex-dembele/OpenRisk.git
 cd OpenRisk
 
-# 2. Start all services
+ . Start all services
 docker compose up -d
 
-# 3. Verify everything is running
+ . Verify everything is running
 docker compose ps
-# Should show: db, redis, backend, frontend (all UP)
+ Should show: db, redis, backend, frontend (all UP)
 
-# 4. Access the interface
-# → Frontend: http://localhost:5173
-# → API Backend: http://localhost:8080
-```
+ . Access the interface
+ → Frontend: http://localhost:
+ → API Backend: http://localhost:
 
-### ✅ Health Check
 
-```bash
-# Verify services are responding
-curl http://localhost:8080/health
-# Expected result: {"status":"healthy"}
-```
+  Health Check
 
----
+bash
+ Verify services are responding
+curl http://localhost:/health
+ Expected result: {"status":"healthy"}
 
-## 🔐 Step 2: Login (1 min)
-
-### Default Credentials
-```
-📧 Email: admin@openrisk.local
-🔑 Password: admin123
-```
-
-### First Login
-
-1. Open http://localhost:5173 in your browser
-2. Enter the credentials above
-3. Click "Login"
-
-**You're now on the Dashboard!**
 
 ---
 
-## 📊 Step 3: Explore the Dashboard (30 sec)
+  Step : Login ( min)
 
-You'll see 4 sections:
+ Default Credentials
 
-### 📈 Top Left: Overview
-```
-8 High Risks
-12 Medium Risks
-5 Low Risks
-```
+ Email: admin@openrisk.local
+ Password: admin
 
-### 📉 Top Right: Trend Chart
-```
-Shows risk evolution over the last 30 days
+
+ First Login
+
+. Open http://localhost: in your browser
+. Enter the credentials above
+. Click "Login"
+
+You're now on the Dashboard!
+
+---
+
+  Step : Explore the Dashboard ( sec)
+
+You'll see  sections:
+
+  Top Left: Overview
+
+ High Risks
+ Medium Risks
+ Low Risks
+
+
+  Top Right: Trend Chart
+
+Shows risk evolution over the last  days
 (Currently empty, we'll add data next)
-```
 
-### 🗺️ Bottom Left: Heatmap
-```
+
+  Bottom Left: Heatmap
+
 Probability vs Impact matrix
 Visualize risks visually
-```
 
-### 📋 Bottom Right: Recent Risks
-```
+
+  Bottom Right: Recent Risks
+
 List of recently created risks
 (Currently empty)
-```
+
 
 ---
 
-## 📥 Step 4: Import Test Data (2 min)
+  Step : Import Test Data ( min)
 
-### Option A: Import via API (Recommended)
+ Option A: Import via API (Recommended)
 
-**Download test file:**
+Download test file:
 
-```bash
-# File is included in the repo
+bash
+ File is included in the repo
 cat dev/fixtures/risks.json
-```
 
-**Import the data:**
 
-```bash
-# Option 1: Via cURL (command line)
-curl -X POST http://localhost:8080/api/risks/bulk-import \
+Import the data:
+
+bash
+ Option : Via cURL (command line)
+curl -X POST http://localhost:/api/risks/bulk-import \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d @dev/fixtures/risks.json
 
-# Option 2: Via interface (easier)
-# 1. Go to Settings → Data Management
-# 2. Click "Import Data"
-# 3. Upload dev/fixtures/risks.json
-# 4. Click "Import"
-```
+ Option : Via interface (easier)
+ . Go to Settings → Data Management
+ . Click "Import Data"
+ . Upload dev/fixtures/risks.json
+ . Click "Import"
 
-### Option B: Create a Risk Manually
 
-1. Click "Risks" in the menu
-2. Click "Create Risk"
-3. Fill the form:
+ Option B: Create a Risk Manually
 
-```
+. Click "Risks" in the menu
+. Click "Create Risk"
+. Fill the form:
+
+
 Title: SQL Injection vulnerability in login form
 Description: User input is not escaped
-Framework: OWASP Top 10 - A03:2021 Injection
+Framework: OWASP Top  - A: Injection
 Criticality: High
 Probability: Medium
 Status: Identified
 
-Auto-calculated Score: 7.5/10 ✅
-```
+Auto-calculated Score: ./ 
 
-4. Click "Save"
+
+. Click "Save"
 
 ---
 
-## 🛡️ Step 5: Create a Mitigation (2 min)
+  Step : Create a Mitigation ( min)
 
-### From an Existing Risk
+ From an Existing Risk
 
-1. Click a risk (e.g., "SQL Injection")
-2. Go to "Mitigations" tab
-3. Click "Add Mitigation"
-4. Fill:
+. Click a risk (e.g., "SQL Injection")
+. Go to "Mitigations" tab
+. Click "Add Mitigation"
+. Fill:
 
-```
+
 Title: Use Prepared Statements
 Description: Refactor database layer
 Status: In Progress
 Owner: Backend Team Lead
-Deadline: January 15, 2026
-```
+Deadline: January , 
 
-### Add Sub-Actions (Checklist)
 
-```
+ Add Sub-Actions (Checklist)
+
+
 Sub-actions:
-☐ Validate with security team
-☐ Write unit tests
-☐ Deploy to staging
-☐ Test for 24 hours in production
-☐ Monitor logs
-```
+ Validate with security team
+ Write unit tests
+ Deploy to staging
+ Test for  hours in production
+ Monitor logs
 
-**Check as you go:**
-```bash
-# When action is done, click ☐ → ☑️
-# System auto-tracks progress
-```
+
+Check as you go:
+bash
+ When action is done, click  → 
+ System auto-tracks progress
+
 
 ---
 
-## 📊 Step 6: Generate a Report (1 min)
+  Step : Generate a Report ( min)
 
-### Create a Simple Report
+ Create a Simple Report
 
-1. Click "Reports" in menu
-2. Click "Create Report"
-3. Select:
-   - **Type**: Risk Summary
-   - **Period**: This Month
-   - **Format**: PDF
-4. Click "Generate"
+. Click "Reports" in menu
+. Click "Create Report"
+. Select:
+   - Type: Risk Summary
+   - Period: This Month
+   - Format: PDF
+. Click "Generate"
 
-**Report generated in 10 seconds!**
+Report generated in  seconds!
 
-### What's in the Report
+ What's in the Report
 
-```
-📊 RISK MANAGEMENT REPORT
-Generated: December 22, 2025
+
+ RISK MANAGEMENT REPORT
+Generated: December , 
 
 Summary:
-- Total risks: 3
-- Critical: 1
-- High: 1
-- Medium: 1
+- Total risks: 
+- Critical: 
+- High: 
+- Medium: 
 
 Details:
-1. SQL Injection (Score: 7.5) → Mitigation in progress
-2. ...
+. SQL Injection (Score: .) → Mitigation in progress
+. ...
 
 Recommended Actions:
 - Accelerate Critical mitigation
 - ...
-```
+
 
 ---
 
-## 🔌 Step 7: Connect Your Tools (Optional)
+  Step : Connect Your Tools (Optional)
 
-### Splunk Integration
+ Splunk Integration
 
 If you use Splunk for security:
 
-```bash
-# 1. Go to Settings → Integrations
-# 2. Click "Add Integration"
-# 3. Select "Splunk"
-# 4. Enter:
-   SPLUNK_URL=https://splunk.yourcompany.com:8089
+bash
+ . Go to Settings → Integrations
+ . Click "Add Integration"
+ . Select "Splunk"
+ . Enter:
+   SPLUNK_URL=https://splunk.yourcompany.com:
    SPLUNK_API_TOKEN=xxxxxxxxxxxxx
    IMPORT_ALERTS=true
-# 5. Click "Test Connection"
-# 6. Click "Enable"
-```
+ . Click "Test Connection"
+ . Click "Enable"
+
 
 Splunk alerts will auto-import to OpenRisk!
 
-### TheHive Integration
+ TheHive Integration
 
 If you use TheHive for incidents:
 
-```bash
-# Settings → Integrations → TheHive
+bash
+ Settings → Integrations → TheHive
    THEHIVE_URL=https://thehive.yourcompany.com
    THEHIVE_API_KEY=xxxxxxxxxxxxx
-# Bi-directional sync enabled!
-```
+ Bi-directional sync enabled!
+
 
 ---
 
-## 📝 Step 8: Invite Team Members (Optional)
+  Step : Invite Team Members (Optional)
 
-### Add a Team Member
+ Add a Team Member
 
-1. Go to "Settings" → "Team"
-2. Click "Invite User"
-3. Enter email: `john@yourcompany.com`
-4. Select role:
-   ```
+. Go to "Settings" → "Team"
+. Click "Invite User"
+. Enter email: john@yourcompany.com
+. Select role:
+   
    - Admin: Full access
    - Risk Manager: Create/edit risks
    - Analyst: View & comment
    - Viewer: Read-only
-   ```
-5. Click "Send Invite"
+   
+. Click "Send Invite"
 
 User receives invitation email!
 
 ---
 
-## 🎯 Useful Commands
+  Useful Commands
 
-### Check Status
+ Check Status
 
-```bash
-# Is everything running?
+bash
+ Is everything running?
 docker compose ps
 
-# View logs
+ View logs
 docker compose logs backend
 docker compose logs frontend
 
-# Restart services
+ Restart services
 docker compose restart
-```
 
-### Stop / Restart
 
-```bash
-# Stop
+ Stop / Restart
+
+bash
+ Stop
 docker compose down
 
-# Stop and remove data
+ Stop and remove data
 docker compose down -v
 
-# Restart
+ Restart
 docker compose up -d
-```
 
-### Reset Test Data
 
-```bash
-# Clear and start fresh
+ Reset Test Data
+
+bash
+ Clear and start fresh
 docker compose down -v
 docker compose up -d
-# Then import data (Step 4)
-```
+ Then import data (Step )
+
 
 ---
 
-## 🚨 Troubleshooting
+  Troubleshooting
 
-### "Connection refused" on localhost:5173
+ "Connection refused" on localhost:
 
-```bash
-# Frontend didn't start
-# Solution:
+bash
+ Frontend didn't start
+ Solution:
 docker compose restart frontend
-docker compose logs frontend  # See error
+docker compose logs frontend   See error
 
-# Or wait 30 seconds, Docker is slow on first start
-```
+ Or wait  seconds, Docker is slow on first start
 
-### "Database connection error"
 
-```bash
-# Database not ready
-# Solution:
-docker compose logs db  # Check logs
+ "Database connection error"
 
-# Or:
+bash
+ Database not ready
+ Solution:
+docker compose logs db   Check logs
+
+ Or:
 docker compose down -v
 docker compose up -d
-```
 
-### "Can't login with admin@openrisk.local"
 
-```bash
-# Default credentials not working
-# Solution:
-# 1. Verify backend is running
+ "Can't login with admin@openrisk.local"
+
+bash
+ Default credentials not working
+ Solution:
+ . Verify backend is running
 docker compose ps | grep backend
-# Should be "UP"
+ Should be "UP"
 
-# 2. Check migrations applied
+ . Check migrations applied
 docker compose logs backend | grep "migration"
 
-# 3. Full reset
+ . Full reset
 docker compose down -v
 docker compose up -d
-# Wait 30 seconds
+ Wait  seconds
 
-# 4. Try again
-```
+ . Try again
 
-### Port 5173 already in use
 
-```bash
-# Another process using the port
-# Solution:
+ Port  already in use
 
-# Option 1: Find the process
-lsof -i :5173
-kill -9 <PID>
+bash
+ Another process using the port
+ Solution:
 
-# Option 2: Use different port
+ Option : Find the process
+lsof -i :
+kill - <PID>
+
+ Option : Use different port
 docker compose down
-# Edit docker-compose.yaml, frontend section:
-#   ports:
-#     - "5174:5173"  # ← Change 5173 to 5174
+ Edit docker-compose.yaml, frontend section:
+   ports:
+     - ":"   ← Change  to 
 docker compose up -d
 
-# Access http://localhost:5174
-```
+ Access http://localhost:
+
 
 ---
 
-## 📚 Next Steps
+  Next Steps
 
-### Go Deeper
+ Go Deeper
 
-1. **Read real use cases**: [USE_CASES_EN.md](USE_CASES_EN.md)
-2. **Explore full API**: [API_REFERENCE.md](API_REFERENCE.md)
-3. **Configure SSO**: [SAML_OAUTH2_INTEGRATION.md](SAML_OAUTH2_INTEGRATION.md)
-4. **Deploy to Production**: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
-5. **Integrate your tools**: [SYNC_ENGINE.md](SYNC_ENGINE.md)
+. Read real use cases: [USE_CASES_EN.md](USE_CASES_EN.md)
+. Explore full API: [API_REFERENCE.md](API_REFERENCE.md)
+. Configure SSO: [SAML_OAUTH_INTEGRATION.md](SAML_OAUTH_INTEGRATION.md)
+. Deploy to Production: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
+. Integrate your tools: [SYNC_ENGINE.md](SYNC_ENGINE.md)
 
-### Recommended Reading
+ Recommended Reading
 
 | Doc | For | Time |
 |-----|-----|------|
-| [USE_CASES_EN.md](USE_CASES_EN.md) | Discover real value | 5 min |
-| [API_REFERENCE.md](API_REFERENCE.md) | Developers & API | 10 min |
-| [SAML_OAUTH2_INTEGRATION.md](SAML_OAUTH2_INTEGRATION.md) | IT & Admins | 15 min |
-| [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Contributing | 20 min |
+| [USE_CASES_EN.md](USE_CASES_EN.md) | Discover real value |  min |
+| [API_REFERENCE.md](API_REFERENCE.md) | Developers & API |  min |
+| [SAML_OAUTH_INTEGRATION.md](SAML_OAUTH_INTEGRATION.md) | IT & Admins |  min |
+| [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Contributing |  min |
 
 ---
 
-## ❓ Questions?
+  Questions?
 
-- 💬 **Chat**: [GitHub Discussions](https://github.com/alex-dembele/OpenRisk/discussions)
-- 🐛 **Bug**: [Open an Issue](https://github.com/alex-dembele/OpenRisk/issues)
-- 📖 **Docs**: [See all guides](./README.md)
+-  Chat: [GitHub Discussions](https://github.com/alex-dembele/OpenRisk/discussions)
+-  Bug: [Open an Issue](https://github.com/alex-dembele/OpenRisk/issues)
+-  Docs: [See all guides](./README.md)
 
 ---
 
-## 🎉 Congratulations!
+  Congratulations!
 
-You just deployed a **complete risk management platform** in 5 minutes!
+You just deployed a complete risk management platform in  minutes!
 
-**Next?** → Read [USE_CASES_EN.md](USE_CASES_EN.md) to see how to use it for your team 🚀
+Next? → Read [USE_CASES_EN.md](USE_CASES_EN.md) to see how to use it for your team 

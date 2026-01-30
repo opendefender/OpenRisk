@@ -11,10 +11,10 @@ import (
 )
 
 // TestDB initializes a test database connection
-func TestDB(t *testing.T) *gorm.DB {
+func TestDB(t testing.T) gorm.DB {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://test:test@localhost:5432/openrisk_test"
+		dsn = "postgres://test:test@localhost:/openrisk_test"
 	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -26,7 +26,7 @@ func TestDB(t *testing.T) *gorm.DB {
 }
 
 // SetupTestDB runs migrations and returns a database connection
-func SetupTestDB(t *testing.T) *gorm.DB {
+func SetupTestDB(t testing.T) gorm.DB {
 	db := TestDB(t)
 
 	// Run auto migrations
@@ -45,7 +45,7 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 }
 
 // CleanupTestDB truncates all test data
-func CleanupTestDB(t *testing.T, db *gorm.DB) {
+func CleanupTestDB(t testing.T, db gorm.DB) {
 	tables := []string{
 		"api_tokens",
 		"risk_assets",
@@ -64,7 +64,7 @@ func CleanupTestDB(t *testing.T, db *gorm.DB) {
 }
 
 // InitTestDB initializes database.DB singleton for tests
-func InitTestDB(t *testing.T) {
+func InitTestDB(t testing.T) {
 	db := SetupTestDB(t)
 	database.DB = db
 }

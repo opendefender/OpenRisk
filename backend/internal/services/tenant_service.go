@@ -12,16 +12,16 @@ import (
 
 // TenantService handles tenant lifecycle and operations
 type TenantService struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewTenantService creates a new tenant service
-func NewTenantService(db *gorm.DB) *TenantService {
+func NewTenantService(db gorm.DB) TenantService {
 	return &TenantService{db: db}
 }
 
 // CreateTenant creates a new tenant
-func (ts *TenantService) CreateTenant(ctx context.Context, tenant *domain.Tenant) error {
+func (ts TenantService) CreateTenant(ctx context.Context, tenant domain.Tenant) error {
 	if tenant.ID == uuid.Nil {
 		tenant.ID = uuid.New()
 	}
@@ -46,7 +46,7 @@ func (ts *TenantService) CreateTenant(ctx context.Context, tenant *domain.Tenant
 }
 
 // GetTenant retrieves a tenant by ID
-func (ts *TenantService) GetTenant(ctx context.Context, tenantID uuid.UUID) (*domain.Tenant, error) {
+func (ts TenantService) GetTenant(ctx context.Context, tenantID uuid.UUID) (domain.Tenant, error) {
 	var tenant domain.Tenant
 	err := ts.db.WithContext(ctx).
 		Where("id = ? AND deleted_at IS NULL", tenantID).
@@ -63,7 +63,7 @@ func (ts *TenantService) GetTenant(ctx context.Context, tenantID uuid.UUID) (*do
 }
 
 // GetTenantBySlug retrieves a tenant by slug
-func (ts *TenantService) GetTenantBySlug(ctx context.Context, slug string) (*domain.Tenant, error) {
+func (ts TenantService) GetTenantBySlug(ctx context.Context, slug string) (domain.Tenant, error) {
 	var tenant domain.Tenant
 	err := ts.db.WithContext(ctx).
 		Where("slug = ? AND deleted_at IS NULL", slug).
@@ -80,7 +80,7 @@ func (ts *TenantService) GetTenantBySlug(ctx context.Context, slug string) (*dom
 }
 
 // UpdateTenant updates an existing tenant
-func (ts *TenantService) UpdateTenant(ctx context.Context, tenant *domain.Tenant) error {
+func (ts TenantService) UpdateTenant(ctx context.Context, tenant domain.Tenant) error {
 	if tenant.ID == uuid.Nil {
 		return fmt.Errorf("tenant ID is required")
 	}
@@ -91,7 +91,7 @@ func (ts *TenantService) UpdateTenant(ctx context.Context, tenant *domain.Tenant
 }
 
 // ActivateTenant activates a suspended or deleted tenant
-func (ts *TenantService) ActivateTenant(ctx context.Context, tenantID uuid.UUID) error {
+func (ts TenantService) ActivateTenant(ctx context.Context, tenantID uuid.UUID) error {
 	return ts.db.WithContext(ctx).
 		Model(&domain.Tenant{}).
 		Where("id = ?", tenantID).
@@ -99,7 +99,7 @@ func (ts *TenantService) ActivateTenant(ctx context.Context, tenantID uuid.UUID)
 }
 
 // SuspendTenant suspends a tenant (soft-disable)
-func (ts *TenantService) SuspendTenant(ctx context.Context, tenantID uuid.UUID) error {
+func (ts TenantService) SuspendTenant(ctx context.Context, tenantID uuid.UUID) error {
 	return ts.db.WithContext(ctx).
 		Model(&domain.Tenant{}).
 		Where("id = ?", tenantID).
@@ -107,9 +107,9 @@ func (ts *TenantService) SuspendTenant(ctx context.Context, tenantID uuid.UUID) 
 }
 
 // DeleteTenant soft-deletes a tenant
-func (ts *TenantService) DeleteTenant(ctx context.Context, tenantID uuid.UUID) error {
+func (ts TenantService) DeleteTenant(ctx context.Context, tenantID uuid.UUID) error {
 	// Check if any users belong to this tenant
-	var count int64
+	var count int
 	if err := ts.db.WithContext(ctx).
 		Model(&domain.User{}).
 		Where("tenant_id = ?", tenantID).
@@ -117,7 +117,7 @@ func (ts *TenantService) DeleteTenant(ctx context.Context, tenantID uuid.UUID) e
 		return err
 	}
 
-	if count > 0 {
+	if count >  {
 		// Optionally transfer users or require explicit user removal
 		// For now, just warn
 		fmt.Printf("Warning: %d users belong to tenant being deleted\n", count)
@@ -131,16 +131,16 @@ func (ts *TenantService) DeleteTenant(ctx context.Context, tenantID uuid.UUID) e
 }
 
 // ListTenants retrieves all tenants with pagination
-func (ts *TenantService) ListTenants(ctx context.Context, limit int, offset int) ([]domain.Tenant, int64, error) {
+func (ts TenantService) ListTenants(ctx context.Context, limit int, offset int) ([]domain.Tenant, int, error) {
 	var tenants []domain.Tenant
-	var total int64
+	var total int
 
 	// Count total
 	if err := ts.db.WithContext(ctx).
 		Model(&domain.Tenant{}).
 		Where("deleted_at IS NULL").
 		Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, , err
 	}
 
 	// Fetch paginated results
@@ -155,7 +155,7 @@ func (ts *TenantService) ListTenants(ctx context.Context, limit int, offset int)
 }
 
 // ListTenantsByOwner retrieves all tenants owned by a user
-func (ts *TenantService) ListTenantsByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Tenant, error) {
+func (ts TenantService) ListTenantsByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Tenant, error) {
 	var tenants []domain.Tenant
 	err := ts.db.WithContext(ctx).
 		Where("owner_id = ? AND deleted_at IS NULL", ownerID).
@@ -166,7 +166,7 @@ func (ts *TenantService) ListTenantsByOwner(ctx context.Context, ownerID uuid.UU
 }
 
 // AddUserToTenant adds a user to a tenant with a specific role
-func (ts *TenantService) AddUserToTenant(ctx context.Context, userID, tenantID, roleID uuid.UUID) error {
+func (ts TenantService) AddUserToTenant(ctx context.Context, userID, tenantID, roleID uuid.UUID) error {
 	// Verify tenant exists
 	if _, err := ts.GetTenant(ctx, tenantID); err != nil {
 		return err
@@ -183,14 +183,14 @@ func (ts *TenantService) AddUserToTenant(ctx context.Context, userID, tenantID, 
 }
 
 // RemoveUserFromTenant removes a user from a tenant
-func (ts *TenantService) RemoveUserFromTenant(ctx context.Context, userID, tenantID uuid.UUID) error {
+func (ts TenantService) RemoveUserFromTenant(ctx context.Context, userID, tenantID uuid.UUID) error {
 	return ts.db.WithContext(ctx).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
 		Delete(&domain.UserTenant{}).Error
 }
 
 // GetUserTenants retrieves all tenants a user belongs to
-func (ts *TenantService) GetUserTenants(ctx context.Context, userID uuid.UUID) ([]domain.UserTenant, error) {
+func (ts TenantService) GetUserTenants(ctx context.Context, userID uuid.UUID) ([]domain.UserTenant, error) {
 	var userTenants []domain.UserTenant
 	err := ts.db.WithContext(ctx).
 		Preload("Tenant").
@@ -202,7 +202,7 @@ func (ts *TenantService) GetUserTenants(ctx context.Context, userID uuid.UUID) (
 }
 
 // UpdateUserTenantRole updates a user's role in a tenant
-func (ts *TenantService) UpdateUserTenantRole(ctx context.Context, userID, tenantID, roleID uuid.UUID) error {
+func (ts TenantService) UpdateUserTenantRole(ctx context.Context, userID, tenantID, roleID uuid.UUID) error {
 	return ts.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
@@ -210,16 +210,16 @@ func (ts *TenantService) UpdateUserTenantRole(ctx context.Context, userID, tenan
 }
 
 // GetTenantUsers retrieves all users in a tenant
-func (ts *TenantService) GetTenantUsers(ctx context.Context, tenantID uuid.UUID, limit int, offset int) ([]domain.User, int64, error) {
+func (ts TenantService) GetTenantUsers(ctx context.Context, tenantID uuid.UUID, limit int, offset int) ([]domain.User, int, error) {
 	var users []domain.User
-	var total int64
+	var total int
 
 	// Count total
 	if err := ts.db.WithContext(ctx).
 		Model(&domain.User{}).
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
 		Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, , err
 	}
 
 	// Fetch paginated results
@@ -234,33 +234,33 @@ func (ts *TenantService) GetTenantUsers(ctx context.Context, tenantID uuid.UUID,
 }
 
 // TenantExists checks if a tenant exists and is active
-func (ts *TenantService) TenantExists(ctx context.Context, tenantID uuid.UUID) (bool, error) {
-	var count int64
+func (ts TenantService) TenantExists(ctx context.Context, tenantID uuid.UUID) (bool, error) {
+	var count int
 	err := ts.db.WithContext(ctx).
 		Model(&domain.Tenant{}).
 		Where("id = ? AND is_active = true AND deleted_at IS NULL", tenantID).
 		Count(&count).Error
 
-	return count > 0, err
+	return count > , err
 }
 
 // ValidateUserInTenant verifies user belongs to tenant
-func (ts *TenantService) ValidateUserInTenant(ctx context.Context, userID, tenantID uuid.UUID) (bool, error) {
-	var count int64
+func (ts TenantService) ValidateUserInTenant(ctx context.Context, userID, tenantID uuid.UUID) (bool, error) {
+	var count int
 	err := ts.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
 		Count(&count).Error
 
-	return count > 0, err
+	return count > , err
 }
 
 // GetTenantStats returns statistics about a tenant
-func (ts *TenantService) GetTenantStats(ctx context.Context, tenantID uuid.UUID) (map[string]interface{}, error) {
+func (ts TenantService) GetTenantStats(ctx context.Context, tenantID uuid.UUID) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
 	// Count users
-	var userCount int64
+	var userCount int
 	if err := ts.db.WithContext(ctx).
 		Model(&domain.User{}).
 		Where("tenant_id = ?", tenantID).
@@ -270,7 +270,7 @@ func (ts *TenantService) GetTenantStats(ctx context.Context, tenantID uuid.UUID)
 	stats["user_count"] = userCount
 
 	// Count risks
-	var riskCount int64
+	var riskCount int
 	if err := ts.db.WithContext(ctx).
 		Model(&domain.Risk{}).
 		Where("tenant_id = ?", tenantID).
@@ -280,7 +280,7 @@ func (ts *TenantService) GetTenantStats(ctx context.Context, tenantID uuid.UUID)
 	stats["risk_count"] = riskCount
 
 	// Count mitigations
-	var mitigationCount int64
+	var mitigationCount int
 	if err := ts.db.WithContext(ctx).
 		Model(&domain.Mitigation{}).
 		Where("tenant_id = ?", tenantID).
@@ -295,5 +295,5 @@ func (ts *TenantService) GetTenantStats(ctx context.Context, tenantID uuid.UUID)
 
 // Helper to format time
 func formatTime(t time.Time) string {
-	return t.Format(time.RFC3339)
+	return t.Format(time.RFC)
 }

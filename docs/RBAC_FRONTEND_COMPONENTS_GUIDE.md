@@ -1,55 +1,55 @@
-# RBAC Frontend Components Documentation
+ RBAC Frontend Components Documentation
 
-## Overview
+ Overview
 
 This document provides comprehensive guidance on using the RBAC (Role-Based Access Control) components, hooks, and utilities in the frontend application.
 
-## Core RBAC System
+ Core RBAC System
 
-### Permissions
+ Permissions
 
-Permissions follow the pattern: `resource:action`
+Permissions follow the pattern: resource:action
 
-**Resources:**
-- `roles` - Role management
-- `users` - User management
-- `tenants` - Tenant management
-- `permissions` - Permission management
-- `audit-logs` - Audit log access
-- `settings` - System settings
-- `dashboards` - Dashboard management
-- `integrations` - Integration management
-- `api-keys` - API key management
+Resources:
+- roles - Role management
+- users - User management
+- tenants - Tenant management
+- permissions - Permission management
+- audit-logs - Audit log access
+- settings - System settings
+- dashboards - Dashboard management
+- integrations - Integration management
+- api-keys - API key management
 
-**Actions:**
-- `read` - View/retrieve
-- `create` - Create new
-- `update` - Modify existing
-- `delete` - Remove
-- `manage` - Full control (typically implies all actions)
-- `execute` - Run/execute
+Actions:
+- read - View/retrieve
+- create - Create new
+- update - Modify existing
+- delete - Remove
+- manage - Full control (typically implies all actions)
+- execute - Run/execute
 
-### Wildcard Support
+ Wildcard Support
 
 Permissions support flexible wildcard matching:
-- `*` - All permissions
-- `resource:*` - All actions on a resource
-- `*:action` - Action on any resource
+-  - All permissions
+- resource: - All actions on a resource
+- :action - Action on any resource
 
-**Example:**
-```typescript
-// User with "roles:*" can read, create, update, and delete roles
-// User with "*:read" can read any resource
-// User with "*" can do anything
-```
+Example:
+typescript
+// User with "roles:" can read, create, update, and delete roles
+// User with ":read" can read any resource
+// User with "" can do anything
 
-## Usage Patterns
 
-### 1. Permission Hook (`usePermissions`)
+ Usage Patterns
+
+ . Permission Hook (usePermissions)
 
 The most powerful way to check permissions in components:
 
-```typescript
+typescript
 import { usePermissions } from '../hooks/usePermissions';
 
 export const MyComponent = () => {
@@ -96,13 +96,13 @@ export const MyComponent = () => {
     </div>
   );
 };
-```
 
-### 2. Permission Gate Components
+
+ . Permission Gate Components
 
 Declarative conditional rendering with component wrappers:
 
-```typescript
+typescript
 import {
   CanAccess,
   CanAccessAll,
@@ -150,13 +150,13 @@ import {
 >
   <UsersList />
 </CanAccess>
-```
 
-### 3. Permission Button Component
+
+ . Permission Button Component
 
 Button that automatically disables based on permissions:
 
-```typescript
+typescript
 import { PermissionButton } from '../components/rbac/PermissionGates';
 
 // Check single permission
@@ -177,13 +177,13 @@ import { PermissionButton } from '../components/rbac/PermissionGates';
 >
   Delete
 </PermissionButton>
-```
 
-### 4. RBAC Utility Functions
+
+ . RBAC Utility Functions
 
 Direct permission checking utilities:
 
-```typescript
+typescript
 import {
   hasPermission,
   hasAllPermissions,
@@ -208,9 +208,9 @@ hasAllPermissions(userPerms, ['users:read', 'users:delete']); // false
 hasAnyPermission(userPerms, ['users:delete', 'users:read']); // true
 
 // Wildcard matching
-matchesPermissionPattern('users:*', 'users:delete'); // true
-matchesPermissionPattern('*:read', 'users:read'); // true
-matchesPermissionPattern('*', 'anything'); // true
+matchesPermissionPattern('users:', 'users:delete'); // true
+matchesPermissionPattern(':read', 'users:read'); // true
+matchesPermissionPattern('', 'anything'); // true
 
 // Protected permissions (admin-only)
 isProtectedPermission('roles:manage'); // true
@@ -221,44 +221,44 @@ buildPermissionString('users', 'create'); // "users:create"
 parsePermission('users:delete'); // { resource: 'users', action: 'delete' }
 
 // Role information
-getRoleLevel('Administrator'); // { name: 'Administrator', level: 9 }
+getRoleLevel('Administrator'); // { name: 'Administrator', level:  }
 
 // Feature flags
 isFeatureEnabled('role-management', ['role-management', 'user-management']); // true
-```
 
-## Role Templates
 
-### Standard Roles
+ Role Templates
+
+ Standard Roles
 
 Four built-in role templates with permissions:
 
-**Viewer (Level 0)**
+Viewer (Level )
 - Read-only access to dashboards and audit logs
 - No modification capabilities
 - Features: audit-logs
 
-**Analyst (Level 3)**
+Analyst (Level )
 - Can create and manage dashboards
 - Can view integrations and audit logs
 - No user or tenant management
 - Features: audit-logs, role-templates
 
-**Manager (Level 6)**
+Manager (Level )
 - Can manage users and dashboards
 - Can update settings and integrations
 - Cannot manage roles or tenants
 - Features: audit-logs, user-management, role-templates, bulk-operations
 
-**Administrator (Level 9)**
+Administrator (Level )
 - Full system access
 - Can manage all resources
 - All features enabled
 - Features: all
 
-### Using Role Templates
+ Using Role Templates
 
-```typescript
+typescript
 import { ROLE_TEMPLATES, FEATURES } from '../config/rbacConfig';
 
 // Get template for specific role
@@ -276,23 +276,23 @@ function createCustomRole() {
   
   return {
     name: 'Senior Manager',
-    level: 7,
+    level: ,
     permissions: customPermissions,
   };
 }
-```
 
-## Advanced Patterns
 
-### Conditional Rendering Based on Permissions
+ Advanced Patterns
 
-```typescript
+ Conditional Rendering Based on Permissions
+
+typescript
 export const AdminDashboard = () => {
   const { can, isAdmin } = usePermissions();
 
   return (
     <div>
-      <h1>Admin Dashboard</h1>
+      <h>Admin Dashboard</h>
       
       {isAdmin() ? (
         <AdminPanel />
@@ -326,11 +326,11 @@ export const AdminDashboard = () => {
     </div>
   );
 };
-```
 
-### Dynamic UI Enablement
 
-```typescript
+ Dynamic UI Enablement
+
+typescript
 export const UserForm = ({ userId }: { userId: string }) => {
   const { canDo, can } = usePermissions();
   const isEditMode = !!userId;
@@ -376,11 +376,11 @@ export const UserForm = ({ userId }: { userId: string }) => {
     </form>
   );
 };
-```
 
-### Feature-Gated Components
 
-```typescript
+ Feature-Gated Components
+
+typescript
 export const Dashboard = () => {
   return (
     <div>
@@ -404,132 +404,132 @@ export const Dashboard = () => {
     </div>
   );
 };
-```
 
-## Best Practices
 
-1. **Use the Permission Hook for Logic**
-   - Prefer `usePermissions()` hook for component logic
+ Best Practices
+
+. Use the Permission Hook for Logic
+   - Prefer usePermissions() hook for component logic
    - More flexible than gate components
    - Better performance with memoization
 
-2. **Use Gate Components for UI**
-   - Use `<CanAccess>` and similar for conditional rendering
+. Use Gate Components for UI
+   - Use <CanAccess> and similar for conditional rendering
    - Cleaner, more declarative code
    - Better for non-technical developers to understand
 
-3. **Check Permissions Early**
-   - Check at page level with `<ProtectedRoute>`
+. Check Permissions Early
+   - Check at page level with <ProtectedRoute>
    - Also check at component level for granularity
    - Use fallback UI to explain access denial
 
-4. **Don't Rely on Frontend Checks Alone**
+. Don't Rely on Frontend Checks Alone
    - Always validate permissions on the backend
    - Frontend checks are for UX only
    - Assume all data could be accessed if backend isn't secure
 
-5. **Document Permission Requirements**
+. Document Permission Requirements
    - Add comments explaining which permissions are needed
    - Keep permission requirements centralized
-   - Use `PERMISSION_REQUIREMENTS` config
+   - Use PERMISSION_REQUIREMENTS config
 
-6. **Use Appropriate Granularity**
+. Use Appropriate Granularity
    - Don't make permissions too granular (hard to manage)
    - Don't make permissions too broad (security risk)
    - Follow established pattern: resource:action
 
-7. **Test Permission Combinations**
+. Test Permission Combinations
    - Test with different role levels
    - Verify cascading permissions work correctly
    - Test wildcard matching in all scenarios
 
-## API Integration
+ API Integration
 
 The RBAC system integrates with the backend API:
 
-**Get User with Permissions**
-```
+Get User with Permissions
+
 GET /auth/me
 Response: { user: { id, email, role, permissions: ['users:read', ...] } }
-```
 
-**List Roles**
-```
+
+List Roles
+
 GET /rbac/roles
 Response: { roles: [{ id, name, level, permissions: [...] }] }
-```
 
-**Create Role**
-```
+
+Create Role
+
 POST /rbac/roles
 Body: { name, level, permissions: [...] }
-```
 
-**Manage Role Permissions**
-```
+
+Manage Role Permissions
+
 PUT /rbac/roles/:roleId
 Body: { permissions: [...] }
-```
 
-**Check Permission**
-```
+
+Check Permission
+
 GET /rbac/check-permission?permission=users:create
 Response: { allowed: true/false }
-```
+
 
 All permission checks happen in the useAuthStore and are passed from the backend during login.
 
-## Troubleshooting
+ Troubleshooting
 
-### Permissions Not Working
-- Check that user's permissions are loaded in `useAuthStore`
-- Verify permission format: `resource:action`
+ Permissions Not Working
+- Check that user's permissions are loaded in useAuthStore
+- Verify permission format: resource:action
 - Check wildcard matching logic
 - Ensure role level is correctly mapped
 
-### Components Not Rendering
+ Components Not Rendering
 - Verify permission string matches user's actual permissions
 - Check for typos in permission names
 - Test with admin user to confirm logic works
 - Check browser console for errors
 
-### Performance Issues
-- `usePermissions` hook is memoized but check if custom hooks are
+ Performance Issues
+- usePermissions hook is memoized but check if custom hooks are
 - Avoid creating new permission arrays in render methods
 - Cache permission checks in variables
 - Minimize re-renders of permission-dependent components
 
-## Migration Guide
+ Migration Guide
 
-### From Previous System
+ From Previous System
 If upgrading from a simpler permission system:
 
-**Old:**
-```typescript
+Old:
+typescript
 if (user.isAdmin) { ... }
-```
 
-**New:**
-```typescript
+
+New:
+typescript
 const { isAdmin } = usePermissions();
 if (isAdmin()) { ... }
-```
 
-**Old:**
-```typescript
+
+Old:
+typescript
 {user.role === 'admin' && <AdminPanel />}
-```
 
-**New:**
-```typescript
+
+New:
+typescript
 <AdminOnly><AdminPanel /></AdminOnly>
-```
 
-## Files Reference
 
-- **Hooks:** `src/hooks/usePermissions.ts`
-- **Utilities:** `src/utils/rbacHelpers.ts`
-- **Components:** `src/components/rbac/PermissionGates.tsx`
-- **Config:** `src/config/rbacConfig.ts`
-- **Pages:** `src/pages/RoleManagement.tsx`, `src/pages/TenantManagement.tsx`
-- **Settings:** `src/features/settings/RBACTab.tsx`
+ Files Reference
+
+- Hooks: src/hooks/usePermissions.ts
+- Utilities: src/utils/rbacHelpers.ts
+- Components: src/components/rbac/PermissionGates.tsx
+- Config: src/config/rbacConfig.ts
+- Pages: src/pages/RoleManagement.tsx, src/pages/TenantManagement.tsx
+- Settings: src/features/settings/RBACTab.tsx

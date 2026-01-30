@@ -11,69 +11,69 @@ export const NotificationCenter = () => {
   const getIconAndColor = (type: string) => {
     switch (type) {
       case 'success':
-        return { icon: Check, color: 'text-emerald-400', bg: 'bg-emerald-500/10' };
+        return { icon: Check, color: 'text-emerald-', bg: 'bg-emerald-/' };
       case 'error':
-        return { icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-500/10' };
+        return { icon: AlertCircle, color: 'text-red-', bg: 'bg-red-/' };
       case 'warning':
-        return { icon: AlertTriangle, color: 'text-yellow-400', bg: 'bg-yellow-500/10' };
+        return { icon: AlertTriangle, color: 'text-yellow-', bg: 'bg-yellow-/' };
       case 'info':
       default:
-        return { icon: Info, color: 'text-blue-400', bg: 'bg-blue-500/10' };
+        return { icon: Info, color: 'text-blue-', bg: 'bg-blue-/' };
     }
   };
 
   return (
     <div className="relative">
-      {/* Notification Bell Button */}
+      {/ Notification Bell Button /}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full"
+        className="relative text-zinc- hover:text-white transition-colors p- hover:bg-white/ rounded-full"
       >
-        <Bell size={20} />
-        {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full animate-pulse border border-background text-white text-xs flex items-center justify-center font-bold">
-            {unreadCount > 9 ? '9+' : unreadCount}
+        <Bell size={} />
+        {unreadCount >  && (
+          <span className="absolute top-. right-. w- h- bg-red- rounded-full animate-pulse border border-background text-white text-xs flex items-center justify-center font-bold">
+            {unreadCount >  ? '+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown Panel */}
+      {/ Dropdown Panel /}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
+            {/ Backdrop /}
             <div
-              className="fixed inset-0 z-40"
+              className="fixed inset- z-"
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Notification Panel */}
+            {/ Notification Panel /}
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute right-0 top-full mt-2 w-96 bg-surface border border-border rounded-lg shadow-xl z-50 max-h-[600px] flex flex-col"
+              initial={{ opacity: , y: - }}
+              animate={{ opacity: , y:  }}
+              exit={{ opacity: , y: - }}
+              className="absolute right- top-full mt- w- bg-surface border border-border rounded-lg shadow-xl z- max-h-[px] flex flex-col"
             >
-              {/* Header */}
-              <div className="border-b border-white/5 p-4 flex items-center justify-between">
+              {/ Header /}
+              <div className="border-b border-white/ p- flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-white">Notifications</h3>
-                  {unreadCount > 0 && (
-                    <p className="text-xs text-zinc-400">{unreadCount} unread</p>
+                  <h className="font-bold text-white">Notifications</h>
+                  {unreadCount >  && (
+                    <p className="text-xs text-zinc-">{unreadCount} unread</p>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  {notifications.length > 0 && (
+                <div className="flex gap-">
+                  {notifications.length >  && (
                     <>
                       <button
                         onClick={markAllAsRead}
-                        className="text-xs px-2 py-1 text-zinc-400 hover:text-white transition-colors"
+                        className="text-xs px- py- text-zinc- hover:text-white transition-colors"
                       >
                         Mark all read
                       </button>
                       <button
                         onClick={clearAll}
-                        className="text-xs px-2 py-1 text-zinc-400 hover:text-red-400 transition-colors"
+                        className="text-xs px- py- text-zinc- hover:text-red- transition-colors"
                       >
                         Clear all
                       </button>
@@ -82,54 +82,54 @@ export const NotificationCenter = () => {
                 </div>
               </div>
 
-              {/* Notifications List */}
-              <div className="overflow-y-auto flex-1">
-                {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-500">
-                    <Bell size={32} className="mx-auto mb-2 opacity-50" />
+              {/ Notifications List /}
+              <div className="overflow-y-auto flex-">
+                {notifications.length ===  ? (
+                  <div className="p- text-center text-zinc-">
+                    <Bell size={} className="mx-auto mb- opacity-" />
                     <p>No notifications</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/5">
+                  <div className="divide-y divide-white/">
                     {notifications.map((notification) => {
                       const { icon: Icon, color, bg } = getIconAndColor(notification.type);
                       return (
                         <motion.div
                           key={notification.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -20 }}
-                          className={`p-4 hover:bg-white/5 transition-colors ${!notification.read ? 'bg-white/2' : ''}`}
+                          initial={{ opacity: , x:  }}
+                          animate={{ opacity: , x:  }}
+                          exit={{ opacity: , x: - }}
+                          className={p- hover:bg-white/ transition-colors ${!notification.read ? 'bg-white/' : ''}}
                         >
-                          <div className="flex gap-3">
-                            <div className={`p-2 rounded-full ${bg} flex-shrink-0`}>
-                              <Icon size={16} className={color} />
+                          <div className="flex gap-">
+                            <div className={p- rounded-full ${bg} flex-shrink-}>
+                              <Icon size={} className={color} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
+                            <div className="flex- min-w-">
+                              <div className="flex items-start justify-between gap-">
+                                <div className="flex-">
                                   <p className="font-semibold text-white text-sm">
                                     {notification.title}
                                   </p>
-                                  <p className="text-xs text-zinc-400 mt-1">
+                                  <p className="text-xs text-zinc- mt-">
                                     {notification.message}
                                   </p>
-                                  <p className="text-xs text-zinc-600 mt-2">
+                                  <p className="text-xs text-zinc- mt-">
                                     {new Date(notification.timestamp).toLocaleString()}
                                   </p>
                                 </div>
                                 {!notification.read && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
+                                  <div className="w- h- bg-blue- rounded-full flex-shrink- mt-" />
                                 )}
                               </div>
-                              <div className="flex gap-2 mt-3">
+                              <div className="flex gap- mt-">
                                 {notification.action && (
                                   <button
                                     onClick={() => {
                                       notification.action?.onClick();
                                       markAsRead(notification.id);
                                     }}
-                                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                                    className="text-xs text-blue- hover:text-blue- transition-colors"
                                   >
                                     {notification.action.label}
                                   </button>
@@ -138,15 +138,15 @@ export const NotificationCenter = () => {
                                   onClick={() => {
                                     markAsRead(notification.id);
                                   }}
-                                  className="text-xs text-zinc-500 hover:text-zinc-400 transition-colors"
+                                  className="text-xs text-zinc- hover:text-zinc- transition-colors"
                                 >
                                   {notification.read ? 'Mark unread' : 'Mark read'}
                                 </button>
                                 <button
                                   onClick={() => removeNotification(notification.id)}
-                                  className="text-xs text-zinc-500 hover:text-red-400 transition-colors ml-auto"
+                                  className="text-xs text-zinc- hover:text-red- transition-colors ml-auto"
                                 >
-                                  <X size={14} />
+                                  <X size={} />
                                 </button>
                               </div>
                             </div>
@@ -158,9 +158,9 @@ export const NotificationCenter = () => {
                 )}
               </div>
 
-              {/* Footer */}
-              {notifications.length > 0 && (
-                <div className="border-t border-white/5 p-4">
+              {/ Footer /}
+              {notifications.length >  && (
+                <div className="border-t border-white/ p-">
                   <Button variant="ghost" className="w-full text-sm">
                     View all notifications
                   </Button>

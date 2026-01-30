@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md"
 	"encoding/hex"
 	"sync"
 	"time"
@@ -15,13 +15,13 @@ type CacheEntry struct {
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
 	TTL         time.Duration
-	AccessCount int64
+	AccessCount int
 	LastAccess  time.Time
-	Size        int64
+	Size        int
 }
 
 // IsExpired checks if the cache entry has expired
-func (ce *CacheEntry) IsExpired() bool {
+func (ce CacheEntry) IsExpired() bool {
 	return time.Now().After(ce.ExpiresAt)
 }
 
@@ -38,37 +38,37 @@ const (
 // AdvancedCache is a high-performance caching system with multiple strategies
 type AdvancedCache struct {
 	mu              sync.RWMutex
-	entries         map[string]*CacheEntry
-	maxSize         int64
-	currentSize     int64
+	entries         map[string]CacheEntry
+	maxSize         int
+	currentSize     int
 	policy          CachePolicy
 	defaultTTL      time.Duration
 	cleanupInterval time.Duration
-	stats           *CacheStats
+	stats           CacheStats
 	compression     bool
 }
 
 // CacheStats tracks cache statistics
 type CacheStats struct {
-	Hits            int64
-	Misses          int64
-	Evictions       int64
-	ExpirationCount int64
-	CurrentEntries  int64
-	CurrentSize     int64
+	Hits            int
+	Misses          int
+	Evictions       int
+	ExpirationCount int
+	CurrentEntries  int
+	CurrentSize     int
 	AvgAccessTime   time.Duration
-	HitRate         float64
+	HitRate         float
 }
 
 // NewAdvancedCache creates a new advanced cache instance
-func NewAdvancedCache(maxSize int64, policy CachePolicy, defaultTTL time.Duration) *AdvancedCache {
+func NewAdvancedCache(maxSize int, policy CachePolicy, defaultTTL time.Duration) AdvancedCache {
 	cache := &AdvancedCache{
-		entries:         make(map[string]*CacheEntry),
+		entries:         make(map[string]CacheEntry),
 		maxSize:         maxSize,
-		currentSize:     0,
+		currentSize:     ,
 		policy:          policy,
 		defaultTTL:      defaultTTL,
-		cleanupInterval: 1 * time.Minute,
+		cleanupInterval:   time.Minute,
 		stats:           &CacheStats{},
 		compression:     true,
 	}
@@ -80,14 +80,14 @@ func NewAdvancedCache(maxSize int64, policy CachePolicy, defaultTTL time.Duratio
 }
 
 // Set stores a value in the cache
-func (ac *AdvancedCache) Set(ctx context.Context, key string, value interface{}, ttl *time.Duration) error {
+func (ac AdvancedCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
 	// Use default TTL if not specified
 	duration := ac.defaultTTL
 	if ttl != nil {
-		duration = *ttl
+		duration = ttl
 	}
 
 	entry := &CacheEntry{
@@ -96,7 +96,7 @@ func (ac *AdvancedCache) Set(ctx context.Context, key string, value interface{},
 		CreatedAt:   time.Now(),
 		ExpiresAt:   time.Now().Add(duration),
 		TTL:         duration,
-		AccessCount: 0,
+		AccessCount: ,
 		LastAccess:  time.Now(),
 		Size:        ac.estimateSize(value),
 	}
@@ -114,13 +114,13 @@ func (ac *AdvancedCache) Set(ctx context.Context, key string, value interface{},
 	ac.entries[key] = entry
 	ac.currentSize += entry.Size
 	ac.stats.CurrentSize = ac.currentSize
-	ac.stats.CurrentEntries = int64(len(ac.entries))
+	ac.stats.CurrentEntries = int(len(ac.entries))
 
 	return nil
 }
 
 // Get retrieves a value from the cache
-func (ac *AdvancedCache) Get(ctx context.Context, key string) (interface{}, bool) {
+func (ac AdvancedCache) Get(ctx context.Context, key string) (interface{}, bool) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
@@ -136,7 +136,7 @@ func (ac *AdvancedCache) Get(ctx context.Context, key string) (interface{}, bool
 		delete(ac.entries, key)
 		ac.stats.Misses++
 		ac.stats.ExpirationCount++
-		ac.stats.CurrentEntries = int64(len(ac.entries))
+		ac.stats.CurrentEntries = int(len(ac.entries))
 		ac.stats.CurrentSize = ac.currentSize
 		ac.updateHitRate()
 		return nil, false
@@ -152,20 +152,20 @@ func (ac *AdvancedCache) Get(ctx context.Context, key string) (interface{}, bool
 }
 
 // Delete removes a key from the cache
-func (ac *AdvancedCache) Delete(ctx context.Context, key string) {
+func (ac AdvancedCache) Delete(ctx context.Context, key string) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
 	if entry, exists := ac.entries[key]; exists {
 		ac.currentSize -= entry.Size
 		delete(ac.entries, key)
-		ac.stats.CurrentEntries = int64(len(ac.entries))
+		ac.stats.CurrentEntries = int(len(ac.entries))
 		ac.stats.CurrentSize = ac.currentSize
 	}
 }
 
 // Invalidate removes all keys matching a pattern
-func (ac *AdvancedCache) Invalidate(ctx context.Context, pattern string) {
+func (ac AdvancedCache) Invalidate(ctx context.Context, pattern string) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
@@ -175,12 +175,12 @@ func (ac *AdvancedCache) Invalidate(ctx context.Context, pattern string) {
 			delete(ac.entries, key)
 		}
 	}
-	ac.stats.CurrentEntries = int64(len(ac.entries))
+	ac.stats.CurrentEntries = int(len(ac.entries))
 	ac.stats.CurrentSize = ac.currentSize
 }
 
 // evict removes entries based on the configured policy
-func (ac *AdvancedCache) evict(neededSpace int64) {
+func (ac AdvancedCache) evict(neededSpace int) {
 	switch ac.policy {
 	case LRU:
 		ac.evictLRU(neededSpace)
@@ -194,9 +194,9 @@ func (ac *AdvancedCache) evict(neededSpace int64) {
 }
 
 // evictLRU evicts least recently used entries
-func (ac *AdvancedCache) evictLRU(neededSpace int64) {
-	freed := int64(0)
-	var lruEntry *CacheEntry
+func (ac AdvancedCache) evictLRU(neededSpace int) {
+	freed := int()
+	var lruEntry CacheEntry
 	var lruKey string
 
 	for key, entry := range ac.entries {
@@ -219,8 +219,8 @@ func (ac *AdvancedCache) evictLRU(neededSpace int64) {
 }
 
 // evictLFU evicts least frequently used entries
-func (ac *AdvancedCache) evictLFU(neededSpace int64) {
-	var lfuEntry *CacheEntry
+func (ac AdvancedCache) evictLFU(neededSpace int) {
+	var lfuEntry CacheEntry
 	var lfuKey string
 
 	for key, entry := range ac.entries {
@@ -242,8 +242,8 @@ func (ac *AdvancedCache) evictLFU(neededSpace int64) {
 }
 
 // evictFIFO evicts entries in first-in-first-out order
-func (ac *AdvancedCache) evictFIFO(neededSpace int64) {
-	var oldestEntry *CacheEntry
+func (ac AdvancedCache) evictFIFO(neededSpace int) {
+	var oldestEntry CacheEntry
 	var oldestKey string
 
 	for key, entry := range ac.entries {
@@ -265,8 +265,8 @@ func (ac *AdvancedCache) evictFIFO(neededSpace int64) {
 }
 
 // evictTTL evicts entries closest to expiration
-func (ac *AdvancedCache) evictTTL(neededSpace int64) {
-	var soonestEntry *CacheEntry
+func (ac AdvancedCache) evictTTL(neededSpace int) {
+	var soonestEntry CacheEntry
 	var soonestKey string
 
 	for key, entry := range ac.entries {
@@ -288,7 +288,7 @@ func (ac *AdvancedCache) evictTTL(neededSpace int64) {
 }
 
 // cleanupExpired removes expired entries periodically
-func (ac *AdvancedCache) cleanupExpired() {
+func (ac AdvancedCache) cleanupExpired() {
 	ticker := time.NewTicker(ac.cleanupInterval)
 	defer ticker.Stop()
 
@@ -302,47 +302,47 @@ func (ac *AdvancedCache) cleanupExpired() {
 				ac.stats.ExpirationCount++
 			}
 		}
-		ac.stats.CurrentEntries = int64(len(ac.entries))
+		ac.stats.CurrentEntries = int(len(ac.entries))
 		ac.stats.CurrentSize = ac.currentSize
 		ac.mu.Unlock()
 	}
 }
 
 // GetStats returns current cache statistics
-func (ac *AdvancedCache) GetStats() *CacheStats {
+func (ac AdvancedCache) GetStats() CacheStats {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 
-	statsCopy := *ac.stats
+	statsCopy := ac.stats
 	return &statsCopy
 }
 
 // updateHitRate calculates the current hit rate
-func (ac *AdvancedCache) updateHitRate() {
+func (ac AdvancedCache) updateHitRate() {
 	total := ac.stats.Hits + ac.stats.Misses
-	if total > 0 {
-		ac.stats.HitRate = float64(ac.stats.Hits) / float64(total)
+	if total >  {
+		ac.stats.HitRate = float(ac.stats.Hits) / float(total)
 	}
 }
 
 // estimateSize estimates the size of a value
-func (ac *AdvancedCache) estimateSize(value interface{}) int64 {
+func (ac AdvancedCache) estimateSize(value interface{}) int {
 	// In production, use a more sophisticated approach
 	// This is a simplified estimate
-	return 1024 // 1KB default estimate
+	return  // KB default estimate
 }
 
 // matchPattern checks if a key matches a pattern
-func (ac *AdvancedCache) matchPattern(key, pattern string) bool {
+func (ac AdvancedCache) matchPattern(key, pattern string) bool {
 	// Simple glob-style pattern matching
-	if pattern == "*" {
+	if pattern == "" {
 		return true
 	}
 	if pattern == key {
 		return true
 	}
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
-		prefix := pattern[:len(pattern)-1]
+	if len(pattern) >  && pattern[len(pattern)-] == '' {
+		prefix := pattern[:len(pattern)-]
 		return len(key) >= len(prefix) && key[:len(prefix)] == prefix
 	}
 	return false
@@ -355,20 +355,20 @@ func GenerateCacheKey(components ...string) string {
 		key += comp + ":"
 	}
 
-	// Create MD5 hash for shorter, consistent keys
-	hash := md5.Sum([]byte(key))
+	// Create MD hash for shorter, consistent keys
+	hash := md.Sum([]byte(key))
 	return hex.EncodeToString(hash[:])
 }
 
 // CacheWarmup preloads frequently accessed data into cache
 type CacheWarmup struct {
-	cache    *AdvancedCache
+	cache    AdvancedCache
 	preload  map[string]interface{}
 	interval time.Duration
 }
 
 // NewCacheWarmup creates a new cache warmup utility
-func NewCacheWarmup(cache *AdvancedCache, interval time.Duration) *CacheWarmup {
+func NewCacheWarmup(cache AdvancedCache, interval time.Duration) CacheWarmup {
 	return &CacheWarmup{
 		cache:    cache,
 		preload:  make(map[string]interface{}),
@@ -377,12 +377,12 @@ func NewCacheWarmup(cache *AdvancedCache, interval time.Duration) *CacheWarmup {
 }
 
 // AddPreload adds a key-value pair to be preloaded
-func (cw *CacheWarmup) AddPreload(key string, value interface{}) {
+func (cw CacheWarmup) AddPreload(key string, value interface{}) {
 	cw.preload[key] = value
 }
 
 // Start begins the cache warmup process
-func (cw *CacheWarmup) Start(ctx context.Context) {
+func (cw CacheWarmup) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

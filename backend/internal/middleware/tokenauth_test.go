@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
@@ -13,11 +13,11 @@ import (
 	"github.com/opendefender/openrisk/internal/services"
 )
 
-func TestTokenAuth_ExtractTokenFromRequest_Success(t *testing.T) {
+func TestTokenAuth_ExtractTokenFromRequest_Success(t testing.T) {
 	tokenAuth := &TokenAuth{}
 
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		token, err := tokenAuth.ExtractTokenFromRequest(c)
 		if err != nil {
 			return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -33,11 +33,11 @@ func TestTokenAuth_ExtractTokenFromRequest_Success(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestTokenAuth_ExtractTokenFromRequest_MissingHeader(t *testing.T) {
+func TestTokenAuth_ExtractTokenFromRequest_MissingHeader(t testing.T) {
 	tokenAuth := &TokenAuth{}
 
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		_, err := tokenAuth.ExtractTokenFromRequest(c)
 		if err != nil {
 			return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
@@ -51,11 +51,11 @@ func TestTokenAuth_ExtractTokenFromRequest_MissingHeader(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestTokenAuth_ExtractTokenFromRequest_InvalidFormat(t *testing.T) {
+func TestTokenAuth_ExtractTokenFromRequest_InvalidFormat(t testing.T) {
 	tokenAuth := &TokenAuth{}
 
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		_, err := tokenAuth.ExtractTokenFromRequest(c)
 		if err != nil {
 			return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
@@ -70,11 +70,11 @@ func TestTokenAuth_ExtractTokenFromRequest_InvalidFormat(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestTokenAuth_ExtractTokenFromRequest_WrongScheme(t *testing.T) {
+func TestTokenAuth_ExtractTokenFromRequest_WrongScheme(t testing.T) {
 	tokenAuth := &TokenAuth{}
 
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		_, err := tokenAuth.ExtractTokenFromRequest(c)
 		if err != nil {
 			return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
@@ -89,13 +89,13 @@ func TestTokenAuth_ExtractTokenFromRequest_WrongScheme(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestTokenAuth_Verify_Success(t *testing.T) {
+func TestTokenAuth_Verify_Success(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use(tokenAuth.Verify)
-	app.Get("/protected", func(c *fiber.Ctx) error {
+	app.Get("/protected", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "protected resource"})
 	})
 
@@ -113,13 +113,13 @@ func TestTokenAuth_Verify_Success(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestTokenAuth_Verify_NoHeader(t *testing.T) {
+func TestTokenAuth_Verify_NoHeader(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use(tokenAuth.Verify)
-	app.Get("/protected", func(c *fiber.Ctx) error {
+	app.Get("/protected", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "protected"})
 	})
 
@@ -129,13 +129,13 @@ func TestTokenAuth_Verify_NoHeader(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestTokenAuth_Verify_InvalidToken(t *testing.T) {
+func TestTokenAuth_Verify_InvalidToken(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use(tokenAuth.Verify)
-	app.Get("/protected", func(c *fiber.Ctx) error {
+	app.Get("/protected", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "protected"})
 	})
 
@@ -147,13 +147,13 @@ func TestTokenAuth_Verify_InvalidToken(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestTokenAuth_Verify_RevokedToken(t *testing.T) {
+func TestTokenAuth_Verify_RevokedToken(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use(tokenAuth.Verify)
-	app.Get("/protected", func(c *fiber.Ctx) error {
+	app.Get("/protected", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "protected"})
 	})
 
@@ -174,14 +174,14 @@ func TestTokenAuth_Verify_RevokedToken(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestTokenAuth_RequireTokenPermission_Success(t *testing.T) {
+func TestTokenAuth_RequireTokenPermission_Success(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	// Register both Verify and RequireTokenPermission
 	app.Use("/risks", tokenAuth.Verify)
-	app.Get("/risks", tokenAuth.RequireTokenPermission("risk:read:any"), func(c *fiber.Ctx) error {
+	app.Get("/risks", tokenAuth.RequireTokenPermission("risk:read:any"), func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"risks": []string{}})
 	})
 
@@ -200,13 +200,13 @@ func TestTokenAuth_RequireTokenPermission_Success(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestTokenAuth_RequireTokenPermission_Denied(t *testing.T) {
+func TestTokenAuth_RequireTokenPermission_Denied(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use("/risks", tokenAuth.Verify)
-	app.Get("/risks", tokenAuth.RequireTokenPermission("risk:delete:any"), func(c *fiber.Ctx) error {
+	app.Get("/risks", tokenAuth.RequireTokenPermission("risk:delete:any"), func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "deleted"})
 	})
 
@@ -225,13 +225,13 @@ func TestTokenAuth_RequireTokenPermission_Denied(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
-func TestTokenAuth_RequireTokenScope_Success(t *testing.T) {
+func TestTokenAuth_RequireTokenScope_Success(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use("/risks", tokenAuth.Verify)
-	app.Get("/risks", tokenAuth.RequireTokenScope("risk"), func(c *fiber.Ctx) error {
+	app.Get("/risks", tokenAuth.RequireTokenScope("risk"), func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"risks": []string{}})
 	})
 
@@ -250,13 +250,13 @@ func TestTokenAuth_RequireTokenScope_Success(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestTokenAuth_RequireTokenScope_Denied(t *testing.T) {
+func TestTokenAuth_RequireTokenScope_Denied(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
 	app.Use("/assets", tokenAuth.Verify)
-	app.Get("/assets", tokenAuth.RequireTokenScope("asset"), func(c *fiber.Ctx) error {
+	app.Get("/assets", tokenAuth.RequireTokenScope("asset"), func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"assets": []string{}})
 	})
 
@@ -275,7 +275,7 @@ func TestTokenAuth_RequireTokenScope_Denied(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
-func TestTokenAuth_ContextPopulation(t *testing.T) {
+func TestTokenAuth_ContextPopulation(t testing.T) {
 	tokenService := services.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
@@ -287,7 +287,7 @@ func TestTokenAuth_ContextPopulation(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(tokenAuth.Verify)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		retrievedUserID := c.Locals("userID")
 		retrievedTokenID := c.Locals("tokenID")
 

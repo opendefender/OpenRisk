@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users as UsersIcon, Shield, Trash2, Lock, Unlock, Plus, Search } from 'lucide-react';
+import { Users as UsersIcon, Shield, Trash, Lock, Unlock, Plus, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
@@ -46,7 +46,7 @@ export const Users = () => {
 
   const toggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
-      await api.patch(`/users/${userId}/status`, { is_active: !isActive });
+      await api.patch(/users/${userId}/status, { is_active: !isActive });
       setUsers(users.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
       toast.success(isActive ? 'User disabled' : 'User enabled');
     } catch (err) {
@@ -56,7 +56,7 @@ export const Users = () => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      await api.patch(`/users/${userId}/role`, { role: newRole });
+      await api.patch(/users/${userId}/role, { role: newRole });
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
       toast.success('User role updated');
     } catch (err) {
@@ -75,7 +75,7 @@ export const Users = () => {
     }
 
     try {
-      await api.delete(`/users/${userId}`);
+      await api.delete(/users/${userId});
       setUsers(users.filter(u => u.id !== userId));
       toast.success('User deleted');
     } catch (err) {
@@ -94,60 +94,60 @@ export const Users = () => {
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
       case 'admin':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
+        return 'bg-red-/ text-red- border-red-/';
       case 'analyst':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        return 'bg-blue-/ text-blue- border-blue-/';
       case 'viewer':
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+        return 'bg-zinc-/ text-zinc- border-zinc-/';
       default:
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+        return 'bg-gray-/ text-gray- border-gray-/';
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h- w- border-t- border-b- border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border bg-surface/50 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <UsersIcon className="text-white" size={24} />
+      {/ Header /}
+      <div className="border-b border-border bg-surface/ backdrop-blur-md sticky top- z-">
+        <div className="max-w-xl mx-auto px- py-">
+          <div className="flex items-center justify-between mb-">
+            <div className="flex items-center gap-">
+              <div className="w- h- rounded-lg bg-gradient-to-br from-blue- to-purple- flex items-center justify-center">
+                <UsersIcon className="text-white" size={} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">User Management</h1>
-                <p className="text-sm text-zinc-400">Manage users and permissions</p>
+                <h className="text-xl font-bold text-white">User Management</h>
+                <p className="text-sm text-zinc-">Manage users and permissions</p>
               </div>
             </div>
-            <Button className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
-              <Plus size={16} className="mr-2" /> Create User
+            <Button className="shadow-lg shadow-blue-/" onClick={() => setShowCreateModal(true)}>
+              <Plus size={} className="mr-" /> Create User
             </Button>
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500" />
+          {/ Filters /}
+          <div className="flex flex-col sm:flex-row gap-">
+            <div className="flex- relative">
+              <Search size={} className="absolute left- top-/ transform -translate-y-/ text-zinc-" />
               <input
                 type="text"
                 placeholder="Search by name, email, or username..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-zinc-/ border border-border rounded-lg pl- pr- py- text-sm text-white placeholder:text-zinc- focus:outline-none focus:ring- focus:ring-primary/"
               />
             </div>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="bg-zinc-900/50 border border-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="bg-zinc-/ border border-border rounded-lg px- py- text-sm text-white focus:outline-none focus:ring- focus:ring-primary/"
             >
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
@@ -158,64 +158,64 @@ export const Users = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {filteredUsers.length === 0 ? (
+      {/ Content /}
+      <div className="max-w-xl mx-auto px- py-">
+        {filteredUsers.length ===  ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12"
+            initial={{ opacity: , y:  }}
+            animate={{ opacity: , y:  }}
+            className="text-center py-"
           >
-            <UsersIcon size={48} className="mx-auto text-zinc-600 mb-4" />
-            <p className="text-zinc-400">No users found</p>
+            <UsersIcon size={} className="mx-auto text-zinc- mb-" />
+            <p className="text-zinc-">No users found</p>
           </motion.div>
         ) : (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid gap-4"
+            initial={{ opacity:  }}
+            animate={{ opacity:  }}
+            className="grid gap-"
           >
             {filteredUsers.map((user) => (
               <motion.div
                 key={user.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-surface border border-border rounded-xl p-4 hover:border-primary/50 transition-all"
+                initial={{ opacity: , y:  }}
+                animate={{ opacity: , y:  }}
+                className="bg-surface border border-border rounded-xl p- hover:border-primary/ transition-all"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-center gap- flex- min-w-">
+                    <div className="w- h- rounded-full bg-gradient-to-br from-blue- to-purple- flex items-center justify-center flex-shrink-">
                       <span className="text-white font-bold text-sm">
-                        {user.full_name.charAt(0).toUpperCase()}
+                        {user.full_name.charAt().toUpperCase()}
                       </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-medium text-white truncate">{user.full_name}</h3>
-                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                    <div className="min-w- flex-">
+                      <h className="font-medium text-white truncate">{user.full_name}</h>
+                      <div className="flex items-center gap- text-xs text-zinc-">
                         <span className="truncate">{user.email}</span>
                         <span>•</span>
-                        <span className="flex-shrink-0">@{user.username}</span>
+                        <span className="flex-shrink-">@{user.username}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 ml-4">
+                  <div className="flex items-center gap- ml-">
                     <div className="text-right">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}>
-                        <Shield size={12} className="inline-block mr-1" />
+                      <span className={inline-block px- py- rounded-full text-xs font-medium border ${getRoleColor(user.role)}}>
+                        <Shield size={} className="inline-block mr-" />
                         {user.role}
                       </span>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        {user.last_login ? `Last: ${new Date(user.last_login).toLocaleDateString()}` : 'Never logged in'}
+                      <p className="text-xs text-zinc- mt-">
+                        {user.last_login ? Last: ${new Date(user.last_login).toLocaleDateString()} : 'Never logged in'}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="flex items-center gap- ml-">
                       <select
                         value={user.role}
                         onChange={(e) => updateUserRole(user.id, e.target.value)}
                         disabled={user.id === currentUser?.id}
-                        className="bg-zinc-900/50 border border-border rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                        className="bg-zinc-/ border border-border rounded px- py- text-xs text-white focus:outline-none focus:ring- focus:ring-primary/ disabled:opacity-"
                       >
                         <option value="viewer">Viewer</option>
                         <option value="analyst">Analyst</option>
@@ -224,23 +224,23 @@ export const Users = () => {
 
                       <button
                         onClick={() => toggleUserStatus(user.id, user.is_active)}
-                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                        className="p- hover:bg-zinc- rounded-lg transition-colors"
                         title={user.is_active ? 'Disable user' : 'Enable user'}
                       >
                         {user.is_active ? (
-                          <Unlock size={16} className="text-green-500" />
+                          <Unlock size={} className="text-green-" />
                         ) : (
-                          <Lock size={16} className="text-yellow-500" />
+                          <Lock size={} className="text-yellow-" />
                         )}
                       </button>
 
                       <button
                         onClick={() => deleteUser(user.id)}
                         disabled={user.id === currentUser?.id}
-                        className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p- hover:bg-red-/ rounded-lg transition-colors disabled:opacity- disabled:cursor-not-allowed"
                         title="Delete user"
                       >
-                        <Trash2 size={16} className="text-red-500" />
+                        <Trash size={} className="text-red-" />
                       </button>
                     </div>
                   </div>
@@ -251,7 +251,7 @@ export const Users = () => {
         )}
       </div>
 
-      {/* Create User Modal - Only visible for admins */}
+      {/ Create User Modal - Only visible for admins /}
       {isAdmin && (
         <CreateUserModal
           isOpen={showCreateModal}

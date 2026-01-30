@@ -2,9 +2,9 @@ import React from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import type { PermissionAction, PermissionResource } from '../../utils/rbacHelpers';
 
-/**
- * Component wrapper that shows children only if user has required permission
- */
+/
+  Component wrapper that shows children only if user has required permission
+ /
 export const CanAccess: React.FC<{
   permission: string;
   children: React.ReactNode;
@@ -19,9 +19,9 @@ export const CanAccess: React.FC<{
   return <>{fallback}</>;
 };
 
-/**
- * Show children if user has ALL required permissions
- */
+/
+  Show children if user has ALL required permissions
+ /
 export const CanAccessAll: React.FC<{
   permissions: string[];
   children: React.ReactNode;
@@ -36,9 +36,9 @@ export const CanAccessAll: React.FC<{
   return <>{fallback}</>;
 };
 
-/**
- * Show children if user has ANY of the required permissions
- */
+/
+  Show children if user has ANY of the required permissions
+ /
 export const CanAccessAny: React.FC<{
   permissions: string[];
   children: React.ReactNode;
@@ -53,9 +53,9 @@ export const CanAccessAny: React.FC<{
   return <>{fallback}</>;
 };
 
-/**
- * Show children if user can perform specific resource action
- */
+/
+  Show children if user can perform specific resource action
+ /
 export const CanDo: React.FC<{
   action: PermissionAction;
   resource: PermissionResource;
@@ -71,9 +71,9 @@ export const CanDo: React.FC<{
   return <>{fallback}</>;
 };
 
-/**
- * Show children only if user is admin
- */
+/
+  Show children only if user is admin
+ /
 export const AdminOnly: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -87,9 +87,9 @@ export const AdminOnly: React.FC<{
   return <>{fallback}</>;
 };
 
-/**
- * Show children only if feature is enabled for user
- */
+/
+  Show children only if feature is enabled for user
+ /
 export const IfFeatureEnabled: React.FC<{
   feature: string;
   children: React.ReactNode;
@@ -104,9 +104,9 @@ export const IfFeatureEnabled: React.FC<{
   return <>{fallback}</>;
 };
 
-/**
- * Button that disables based on permissions
- */
+/
+  Button that disables based on permissions
+ /
 export const PermissionButton: React.FC<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     permission?: string;

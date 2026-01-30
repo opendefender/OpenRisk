@@ -37,20 +37,20 @@ export const Risks = () => {
 
   const [editRisk, setEditRisk] = useState<Risk | null>(null);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / localPageSize)), [total, localPageSize]);
+  const totalPages = useMemo(() => Math.max(, Math.ceil(total / localPageSize)), [total, localPageSize]);
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold">Risk Register</h2>
-        <div className="flex items-center gap-4">
+    <div className="max-w-xl mx-auto p-">
+      <div className="flex items-center justify-between mb-">
+        <h className="text-lg font-bold">Risk Register</h>
+        <div className="flex items-center gap-">
           <ViewToggle view={view} onViewChange={setView} />
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-zinc-400">Per page</label>
-            <select value={localPageSize} onChange={(e) => { setLocalPageSize(Number(e.target.value)); setLocalPage(1); }} className="bg-surface p-2 rounded text-sm">
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
+          <div className="flex items-center gap-">
+            <label className="text-sm text-zinc-">Per page</label>
+            <select value={localPageSize} onChange={(e) => { setLocalPageSize(Number(e.target.value)); setLocalPage(); }} className="bg-surface p- rounded text-sm">
+              <option value={}></option>
+              <option value={}></option>
+              <option value={}></option>
             </select>
           </div>
         </div>
@@ -58,11 +58,11 @@ export const Risks = () => {
 
       {view === 'table' && (
         <div className="bg-surface border border-border rounded-md overflow-hidden">
-          <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-zinc-400 border-b border-border">
-            <div className="col-span-4">
+          <div className="grid grid-cols- gap- px- py- text-xs text-zinc- border-b border-border">
+            <div className="col-span-">
               <button
                 type="button"
-                className="flex items-center gap-2 focus:outline-none"
+                className="flex items-center gap- focus:outline-none"
                 onClick={() => {
                   if (sortBy === 'title') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('title');
@@ -70,13 +70,13 @@ export const Risks = () => {
                 aria-sort={sortBy === 'title' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               >
                 <span>Title</span>
-                {sortBy === 'title' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'title' && (sortDir === 'asc' ? <ChevronUp size={} /> : <ChevronDown size={} />)}
               </button>
             </div>
-            <div className="col-span-1">
+            <div className="col-span-">
               <button
                 type="button"
-                className="flex items-center gap-2 focus:outline-none"
+                className="flex items-center gap- focus:outline-none"
                 onClick={() => {
                   if (sortBy === 'score') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('score');
@@ -84,13 +84,13 @@ export const Risks = () => {
                 aria-sort={sortBy === 'score' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               >
                 <span>Score</span>
-                {sortBy === 'score' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'score' && (sortDir === 'asc' ? <ChevronUp size={} /> : <ChevronDown size={} />)}
               </button>
             </div>
-            <div className="col-span-1">
+            <div className="col-span-">
               <button
                 type="button"
-                className="flex items-center gap-2 focus:outline-none"
+                className="flex items-center gap- focus:outline-none"
                 onClick={() => {
                   if (sortBy === 'impact') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('impact');
@@ -98,13 +98,13 @@ export const Risks = () => {
                 aria-sort={sortBy === 'impact' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               >
                 <span>Impact</span>
-                {sortBy === 'impact' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'impact' && (sortDir === 'asc' ? <ChevronUp size={} /> : <ChevronDown size={} />)}
               </button>
             </div>
-            <div className="col-span-1">
+            <div className="col-span-">
               <button
                 type="button"
-                className="flex items-center gap-2 focus:outline-none"
+                className="flex items-center gap- focus:outline-none"
                 onClick={() => {
                   if (sortBy === 'probability') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('probability');
@@ -112,13 +112,13 @@ export const Risks = () => {
                 aria-sort={sortBy === 'probability' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               >
                 <span>Probability</span>
-                {sortBy === 'probability' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'probability' && (sortDir === 'asc' ? <ChevronUp size={} /> : <ChevronDown size={} />)}
               </button>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-">
               <button
                 type="button"
-                className="flex items-center gap-2 focus:outline-none"
+                className="flex items-center gap- focus:outline-none"
                 onClick={() => {
                   if (sortBy === 'status') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('status');
@@ -126,13 +126,13 @@ export const Risks = () => {
                 aria-sort={sortBy === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               >
                 <span>Status</span>
-                {sortBy === 'status' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'status' && (sortDir === 'asc' ? <ChevronUp size={} /> : <ChevronDown size={} />)}
               </button>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-">
               <button
                 type="button"
-                className="flex items-center gap-2 focus:outline-none"
+                className="flex items-center gap- focus:outline-none"
                 onClick={() => {
                   if (sortBy === 'created_at') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('created_at');
@@ -140,35 +140,35 @@ export const Risks = () => {
                 aria-sort={sortBy === 'created_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               >
                 <span>Created</span>
-                {sortBy === 'created_at' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'created_at' && (sortDir === 'asc' ? <ChevronUp size={} /> : <ChevronDown size={} />)}
               </button>
             </div>
-            <div className="col-span-1">Actions</div>
+            <div className="col-span-">Actions</div>
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-">
               <div className="text-center">
-                <div className="inline-block animate-spin mb-4">
-                  <div className="h-8 w-8 border-4 border-primary border-t-primary/40 rounded-full"></div>
+                <div className="inline-block animate-spin mb-">
+                  <div className="h- w- border- border-primary border-t-primary/ rounded-full"></div>
                 </div>
-                <p className="text-zinc-400">Loading risks...</p>
+                <p className="text-zinc-">Loading risks...</p>
               </div>
             </div>
-          ) : risks.length === 0 ? (
-            <div className="p-6 text-center">No risks found.</div>
+          ) : risks.length ===  ? (
+            <div className="p- text-center">No risks found.</div>
           ) : (
             risks.map((r: Risk) => (
-              <div key={r.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-white/2">
-                <div className="col-span-6">
+              <div key={r.id} className="grid grid-cols- gap- px- py- items-center hover:bg-white/">
+                <div className="col-span-">
                   <div className="font-medium text-sm">{r.title}</div>
-                  <div className="text-xs text-zinc-500">{r.description?.slice(0, 120)}</div>
+                  <div className="text-xs text-zinc-">{r.description?.slice(, )}</div>
                 </div>
-                <div className="col-span-1 font-mono font-bold">{r.score}</div>
-                <div className="col-span-2 text-sm">{r.status}</div>
-                <div className="col-span-2 text-sm">{r.tags?.slice(0,3).join(', ')}</div>
-                <div className="col-span-1">
-                  <div className="flex gap-2">
+                <div className="col-span- font-mono font-bold">{r.score}</div>
+                <div className="col-span- text-sm">{r.status}</div>
+                <div className="col-span- text-sm">{r.tags?.slice(,).join(', ')}</div>
+                <div className="col-span-">
+                  <div className="flex gap-">
                     <Button onClick={() => setSelectedRisk(r)} variant="ghost">View</Button>
                     <Button onClick={() => setEditRisk(r)} variant="ghost">Edit</Button>
                   </div>
@@ -180,79 +180,79 @@ export const Risks = () => {
       )}
 
       {view === 'card' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap-">
           {isLoading ? (
-            <div className="col-span-full flex items-center justify-center py-12">
+            <div className="col-span-full flex items-center justify-center py-">
               <div className="text-center">
-                <div className="inline-block animate-spin mb-4">
-                  <div className="h-8 w-8 border-4 border-primary border-t-primary/40 rounded-full"></div>
+                <div className="inline-block animate-spin mb-">
+                  <div className="h- w- border- border-primary border-t-primary/ rounded-full"></div>
                 </div>
-                <p className="text-zinc-400">Loading risks...</p>
+                <p className="text-zinc-">Loading risks...</p>
               </div>
             </div>
-          ) : risks.length === 0 ? (
-            <div className="col-span-full p-6 text-center">No risks found.</div>
+          ) : risks.length ===  ? (
+            <div className="col-span-full p- text-center">No risks found.</div>
           ) : (
             risks.map((r: Risk) => (
               <motion.div
                 key={r.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -4 }}
-                className="bg-surface border border-border rounded-lg p-6 hover:border-primary/50 transition-all cursor-pointer group"
+                initial={{ opacity: , y:  }}
+                animate={{ opacity: , y:  }}
+                whileHover={{ y: - }}
+                className="bg-surface border border-border rounded-lg p- hover:border-primary/ transition-all cursor-pointer group"
                 onClick={() => setSelectedRisk(r)}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-white group-hover:text-primary transition-colors">{r.title}</h3>
-                    <p className="text-xs text-zinc-500 mt-1">{r.description?.slice(0, 100)}</p>
+                <div className="flex items-start justify-between mb-">
+                  <div className="flex-">
+                    <h className="font-semibold text-white group-hover:text-primary transition-colors">{r.title}</h>
+                    <p className="text-xs text-zinc- mt-">{r.description?.slice(, )}</p>
                   </div>
-                  <div className="ml-4 text-right">
-                    <div className="text-2xl font-bold text-primary">{r.score}</div>
-                    <div className="text-xs text-zinc-400">Score</div>
+                  <div className="ml- text-right">
+                    <div className="text-xl font-bold text-primary">{r.score}</div>
+                    <div className="text-xs text-zinc-">Score</div>
                   </div>
                 </div>
 
-                <div className="space-y-3 mb-4 border-t border-border pt-4">
+                <div className="space-y- mb- border-t border-border pt-">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <AlertCircle size={14} /> Impact
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <AlertCircle size={} /> Impact
                     </span>
                     <span className="text-sm font-medium">{r.impact}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <TrendingUp size={14} /> Probability
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <TrendingUp size={} /> Probability
                     </span>
                     <span className="text-sm font-medium">{r.probability}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <Shield size={14} /> Status
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <Shield size={} /> Status
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      r.status === 'MITIGATED' ? 'bg-green-500/20 text-green-300' :
-                      r.status === 'OPEN' ? 'bg-red-500/20 text-red-300' :
-                      'bg-yellow-500/20 text-yellow-300'
-                    }`}>
+                    <span className={text-xs px- py- rounded-full font-medium ${
+                      r.status === 'MITIGATED' ? 'bg-green-/ text-green-' :
+                      r.status === 'OPEN' ? 'bg-red-/ text-red-' :
+                      'bg-yellow-/ text-yellow-'
+                    }}>
                       {r.status}
                     </span>
                   </div>
                 </div>
 
-                {r.tags && r.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {r.tags.slice(0, 3).map((tag, i) => (
-                      <span key={i} className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                {r.tags && r.tags.length >  && (
+                  <div className="flex flex-wrap gap- mb-">
+                    {r.tags.slice(, ).map((tag, i) => (
+                      <span key={i} className="text-xs bg-primary/ text-primary px- py- rounded">
                         {tag}
                       </span>
                     ))}
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4 border-t border-border">
-                  <Button onClick={() => setSelectedRisk(r)} variant="ghost" className="flex-1 text-xs">View</Button>
-                  <Button onClick={() => setEditRisk(r)} variant="ghost" className="flex-1 text-xs">Edit</Button>
+                <div className="flex gap- pt- border-t border-border">
+                  <Button onClick={() => setSelectedRisk(r)} variant="ghost" className="flex- text-xs">View</Button>
+                  <Button onClick={() => setEditRisk(r)} variant="ghost" className="flex- text-xs">Edit</Button>
                 </div>
               </motion.div>
             ))
@@ -262,12 +262,12 @@ export const Risks = () => {
 
       <EditRiskModal isOpen={!!editRisk} onClose={() => setEditRisk(null)} risk={editRisk} />
 
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-sm text-zinc-400">Total: {total}</div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setLocalPage((p) => Math.max(1, p - 1))} className="p-2"><ChevronLeft /></Button>
-          <div className="px-3">{localPage} / {totalPages}</div>
-          <Button onClick={() => setLocalPage((p) => Math.min(totalPages, p + 1))} className="p-2"><ChevronRight /></Button>
+      <div className="mt- flex items-center justify-between">
+        <div className="text-sm text-zinc-">Total: {total}</div>
+        <div className="flex items-center gap-">
+          <Button onClick={() => setLocalPage((p) => Math.max(, p - ))} className="p-"><ChevronLeft /></Button>
+          <div className="px-">{localPage} / {totalPages}</div>
+          <Button onClick={() => setLocalPage((p) => Math.min(totalPages, p + ))} className="p-"><ChevronRight /></Button>
         </div>
       </div>
     </div>

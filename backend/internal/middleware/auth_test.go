@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/gofiber/fiber/v"
+	"github.com/golang-jwt/jwt/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ import (
 
 const testSecret = "test-secret-key-for-auth-middleware"
 
-func TestAuthMiddleware(t *testing.T) {
+func TestAuthMiddleware(t testing.T) {
 	tests := []struct {
 		name           string
 		path           string
@@ -26,43 +26,43 @@ func TestAuthMiddleware(t *testing.T) {
 	}{
 		{
 			name:           "Public endpoint skips auth",
-			path:           "/api/v1/health",
+			path:           "/api/v/health",
 			authHeader:     "",
 			shouldSkip:     true,
 			expectedStatus: fiber.StatusOK,
 			description:    "Health endpoint should not require authentication",
 		},
 		{
-			name:           "Missing auth header returns 401",
-			path:           "/api/v1/risks",
+			name:           "Missing auth header returns ",
+			path:           "/api/v/risks",
 			authHeader:     "",
 			shouldSkip:     false,
 			expectedStatus: fiber.StatusUnauthorized,
-			description:    "Protected endpoint without auth header should return 401",
+			description:    "Protected endpoint without auth header should return ",
 		},
 		{
-			name:           "Invalid auth header format returns 401",
-			path:           "/api/v1/risks",
+			name:           "Invalid auth header format returns ",
+			path:           "/api/v/risks",
 			authHeader:     "InvalidHeader",
 			shouldSkip:     false,
 			expectedStatus: fiber.StatusUnauthorized,
-			description:    "Invalid auth header format should return 401",
+			description:    "Invalid auth header format should return ",
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			app := fiber.New()
 
 			// Add auth middleware
 			app.Use(AuthMiddleware(testSecret))
 
 			// Test endpoint
-			app.Get("/api/v1/health", func(c *fiber.Ctx) error {
+			app.Get("/api/v/health", func(c fiber.Ctx) error {
 				return c.SendStatus(fiber.StatusOK)
 			})
 
-			app.Get("/api/v1/risks", func(c *fiber.Ctx) error {
+			app.Get("/api/v/risks", func(c fiber.Ctx) error {
 				return c.SendStatus(fiber.StatusOK)
 			})
 
@@ -74,34 +74,34 @@ func TestAuthMiddleware(t *testing.T) {
 	}
 }
 
-func TestPublicEndpoint(t *testing.T) {
+func TestPublicEndpoint(t testing.T) {
 	publicPaths := []string{
-		"/api/v1/health",
-		"/api/v1/auth/login",
-		"/api/v1/auth/register",
-		"/api/v1/auth/refresh",
+		"/api/v/health",
+		"/api/v/auth/login",
+		"/api/v/auth/register",
+		"/api/v/auth/refresh",
 	}
 
 	for _, path := range publicPaths {
-		t.Run(fmt.Sprintf("Public endpoint: %s", path), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Public endpoint: %s", path), func(t testing.T) {
 			assert.True(t, isPublicEndpoint(path))
 		})
 	}
 
 	privateEndpoints := []string{
-		"/api/v1/risks",
-		"/api/v1/mitigations",
-		"/api/v1/users",
+		"/api/v/risks",
+		"/api/v/mitigations",
+		"/api/v/users",
 	}
 
 	for _, path := range privateEndpoints {
-		t.Run(fmt.Sprintf("Private endpoint: %s", path), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Private endpoint: %s", path), func(t testing.T) {
 			assert.False(t, isPublicEndpoint(path))
 		})
 	}
 }
 
-func TestGenerateToken(t *testing.T) {
+func TestGenerateToken(t testing.T) {
 	claims := &domain.UserClaims{
 		ID:          uuid.New(),
 		Email:       "test@example.com",
@@ -109,31 +109,31 @@ func TestGenerateToken(t *testing.T) {
 		RoleID:      uuid.New(),
 		RoleName:    "analyst",
 		Permissions: []string{"risk:read", "risk:create"},
-		ExpiresAt:   time.Now().Add(24 * time.Hour).Unix(),
+		ExpiresAt:   time.Now().Add(  time.Hour).Unix(),
 		IssuedAt:    time.Now().Unix(),
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS, claims)
 	tokenString, err := token.SignedString([]byte(testSecret))
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, tokenString)
 
 	// Verify token can be parsed
-	parsedToken, err := jwt.ParseWithClaims(tokenString, &domain.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+	parsedToken, err := jwt.ParseWithClaims(tokenString, &domain.UserClaims{}, func(token jwt.Token) (interface{}, error) {
 		return []byte(testSecret), nil
 	})
 
 	require.NoError(t, err)
 	assert.True(t, parsedToken.Valid)
 
-	parsedClaims, ok := parsedToken.Claims.(*domain.UserClaims)
+	parsedClaims, ok := parsedToken.Claims.(domain.UserClaims)
 	require.True(t, ok)
 	assert.Equal(t, claims.Email, parsedClaims.Email)
 	assert.Equal(t, claims.RoleName, parsedClaims.RoleName)
 }
 
-func TestHasPermission(t *testing.T) {
+func TestHasPermission(t testing.T) {
 	tests := []struct {
 		name        string
 		permissions []string
@@ -148,13 +148,13 @@ func TestHasPermission(t *testing.T) {
 		},
 		{
 			name:        "Admin wildcard matches any permission",
-			permissions: []string{"*"},
+			permissions: []string{""},
 			required:    "risk:delete",
 			expected:    true,
 		},
 		{
 			name:        "Resource wildcard matches specific action",
-			permissions: []string{"risk:*"},
+			permissions: []string{"risk:"},
 			required:    "risk:create",
 			expected:    true,
 		},
@@ -173,41 +173,41 @@ func TestHasPermission(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := hasPermission(tc.permissions, tc.required)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
-func TestRoleGuard(t *testing.T) {
+func TestRoleGuard(t testing.T) {
 	// Test role guard creation
 	guardHandler := RoleGuard("admin", "analyst")
 	assert.NotNil(t, guardHandler)
 }
 
-func TestPermissionGuard(t *testing.T) {
+func TestPermissionGuard(t testing.T) {
 	// Test permission guard creation
 	guardHandler := PermissionGuard("risk:read")
 	assert.NotNil(t, guardHandler)
 }
 
-func TestExpiredTokenValidation(t *testing.T) {
+func TestExpiredTokenValidation(t testing.T) {
 	// Create expired token
 	expiredClaims := &domain.UserClaims{
 		ID:        uuid.New(),
 		Email:     "test@example.com",
-		ExpiresAt: time.Now().Add(-1 * time.Hour).Unix(), // Expired 1 hour ago
-		IssuedAt:  time.Now().Add(-25 * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(-  time.Hour).Unix(), // Expired  hour ago
+		IssuedAt:  time.Now().Add(-  time.Hour).Unix(),
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, expiredClaims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS, expiredClaims)
 	tokenString, err := token.SignedString([]byte(testSecret))
 	require.NoError(t, err)
 
 	// Try to validate expired token - jwt library validates expiration during parsing
 	claims := &domain.UserClaims{}
-	parsedToken, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	parsedToken, err := jwt.ParseWithClaims(tokenString, claims, func(token jwt.Token) (interface{}, error) {
 		return []byte(testSecret), nil
 	})
 

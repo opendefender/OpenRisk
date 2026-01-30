@@ -9,18 +9,18 @@ import (
 // MetricsCollector collects application metrics for monitoring and observability
 type MetricsCollector struct {
 	mu                sync.RWMutex
-	RequestCount      int64
-	RequestErrors     int64
-	AverageLatency    float64
-	CacheHits         int64
-	CacheMisses       int64
-	PermissionDenials int64
+	RequestCount      int
+	RequestErrors     int
+	AverageLatency    float
+	CacheHits         int
+	CacheMisses       int
+	PermissionDenials int
 	LastUpdate        time.Time
 	custom            map[string]interface{}
 }
 
 // NewMetricsCollector creates a new metrics collector
-func NewMetricsCollector() *MetricsCollector {
+func NewMetricsCollector() MetricsCollector {
 	return &MetricsCollector{
 		custom:     make(map[string]interface{}),
 		LastUpdate: time.Now(),
@@ -28,24 +28,24 @@ func NewMetricsCollector() *MetricsCollector {
 }
 
 // RecordRequest records an HTTP request
-func (mc *MetricsCollector) RecordRequest(duration time.Duration, statusCode int) {
+func (mc MetricsCollector) RecordRequest(duration time.Duration, statusCode int) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 
 	mc.RequestCount++
-	if statusCode >= 400 {
+	if statusCode >=  {
 		mc.RequestErrors++
 	}
 
 	// Update average latency
 	avgMs := mc.AverageLatency
-	newMs := float64(duration.Milliseconds())
-	mc.AverageLatency = (avgMs*(float64(mc.RequestCount-1)) + newMs) / float64(mc.RequestCount)
+	newMs := float(duration.Milliseconds())
+	mc.AverageLatency = (avgMs(float(mc.RequestCount-)) + newMs) / float(mc.RequestCount)
 	mc.LastUpdate = time.Now()
 }
 
 // RecordCacheHit records a cache hit
-func (mc *MetricsCollector) RecordCacheHit() {
+func (mc MetricsCollector) RecordCacheHit() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	mc.CacheHits++
@@ -53,7 +53,7 @@ func (mc *MetricsCollector) RecordCacheHit() {
 }
 
 // RecordCacheMiss records a cache miss
-func (mc *MetricsCollector) RecordCacheMiss() {
+func (mc MetricsCollector) RecordCacheMiss() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	mc.CacheMisses++
@@ -61,7 +61,7 @@ func (mc *MetricsCollector) RecordCacheMiss() {
 }
 
 // RecordPermissionDenial records a denied permission
-func (mc *MetricsCollector) RecordPermissionDenial() {
+func (mc MetricsCollector) RecordPermissionDenial() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	mc.PermissionDenials++
@@ -69,7 +69,7 @@ func (mc *MetricsCollector) RecordPermissionDenial() {
 }
 
 // GetStats returns current statistics
-func (mc *MetricsCollector) GetStats() map[string]interface{} {
+func (mc MetricsCollector) GetStats() map[string]interface{} {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
 
@@ -86,46 +86,46 @@ func (mc *MetricsCollector) GetStats() map[string]interface{} {
 }
 
 // getCacheHitRate calculates cache hit rate
-func (mc *MetricsCollector) getCacheHitRate() float64 {
+func (mc MetricsCollector) getCacheHitRate() float {
 	total := mc.CacheHits + mc.CacheMisses
-	if total == 0 {
-		return 0
+	if total ==  {
+		return 
 	}
-	return float64(mc.CacheHits) / float64(total)
+	return float(mc.CacheHits) / float(total)
 }
 
 // AlertingThresholds defines thresholds for alerting
 type AlertingThresholds struct {
-	HighLatencyMs        float64
-	HighErrorRate        float64
-	PermissionDenialRate float64
-	LowCacheHitRate      float64
+	HighLatencyMs        float
+	HighErrorRate        float
+	PermissionDenialRate float
+	LowCacheHitRate      float
 }
 
 // DefaultThresholds returns default alerting thresholds
 func DefaultThresholds() AlertingThresholds {
 	return AlertingThresholds{
-		HighLatencyMs:        500,
-		HighErrorRate:        0.05,
-		PermissionDenialRate: 0.1,
-		LowCacheHitRate:      0.7,
+		HighLatencyMs:        ,
+		HighErrorRate:        .,
+		PermissionDenialRate: .,
+		LowCacheHitRate:      .,
 	}
 }
 
 // HealthCheck performs a health check using metrics
-func (mc *MetricsCollector) HealthCheck(ctx context.Context) map[string]interface{} {
+func (mc MetricsCollector) HealthCheck(ctx context.Context) map[string]interface{} {
 	stats := mc.GetStats()
 
 	status := "HEALTHY"
 	thresholds := DefaultThresholds()
 
-	if avgLatency, ok := stats["average_latency_ms"].(float64); ok && avgLatency > thresholds.HighLatencyMs {
+	if avgLatency, ok := stats["average_latency_ms"].(float); ok && avgLatency > thresholds.HighLatencyMs {
 		status = "WARNING"
 	}
 
-	errorRate := 0.0
-	if mc.RequestCount > 0 {
-		errorRate = float64(mc.RequestErrors) / float64(mc.RequestCount)
+	errorRate := .
+	if mc.RequestCount >  {
+		errorRate = float(mc.RequestErrors) / float(mc.RequestCount)
 	}
 
 	if errorRate > thresholds.HighErrorRate {

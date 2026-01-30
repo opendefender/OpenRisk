@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAPITokenIsExpired(t *testing.T) {
+func TestAPITokenIsExpired(t testing.T) {
 	tests := []struct {
 		name      string
-		expiresAt *time.Time
+		expiresAt time.Time
 		expected  bool
 	}{
 		{
@@ -21,29 +21,29 @@ func TestAPITokenIsExpired(t *testing.T) {
 		},
 		{
 			name:      "expired in the past",
-			expiresAt: ptrTime(time.Now().Add(-1 * time.Hour)),
+			expiresAt: ptrTime(time.Now().Add(-  time.Hour)),
 			expected:  true,
 		},
 		{
 			name:      "expires in the future",
-			expiresAt: ptrTime(time.Now().Add(1 * time.Hour)),
+			expiresAt: ptrTime(time.Now().Add(  time.Hour)),
 			expected:  false,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			token := &APIToken{ExpiresAt: tt.expiresAt}
 			assert.Equal(t, tt.expected, token.IsExpired())
 		})
 	}
 }
 
-func TestAPITokenIsRevoked(t *testing.T) {
+func TestAPITokenIsRevoked(t testing.T) {
 	tests := []struct {
 		name      string
 		status    TokenStatus
-		revokedAt *time.Time
+		revokedAt time.Time
 		expected  bool
 	}{
 		{
@@ -67,24 +67,24 @@ func TestAPITokenIsRevoked(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			token := &APIToken{Status: tt.status, RevokedAt: tt.revokedAt}
 			assert.Equal(t, tt.expected, token.IsRevoked())
 		})
 	}
 }
 
-func TestAPITokenIsValid(t *testing.T) {
+func TestAPITokenIsValid(t testing.T) {
 	tests := []struct {
 		name     string
-		token    *APIToken
+		token    APIToken
 		expected bool
 	}{
 		{
 			name: "active and not expired",
 			token: &APIToken{
 				Status:    TokenStatusActive,
-				ExpiresAt: ptrTime(time.Now().Add(1 * time.Hour)),
+				ExpiresAt: ptrTime(time.Now().Add(  time.Hour)),
 			},
 			expected: true,
 		},
@@ -92,7 +92,7 @@ func TestAPITokenIsValid(t *testing.T) {
 			name: "expired",
 			token: &APIToken{
 				Status:    TokenStatusActive,
-				ExpiresAt: ptrTime(time.Now().Add(-1 * time.Hour)),
+				ExpiresAt: ptrTime(time.Now().Add(-  time.Hour)),
 			},
 			expected: false,
 		},
@@ -100,7 +100,7 @@ func TestAPITokenIsValid(t *testing.T) {
 			name: "revoked",
 			token: &APIToken{
 				Status:    TokenStatusRevoked,
-				ExpiresAt: ptrTime(time.Now().Add(1 * time.Hour)),
+				ExpiresAt: ptrTime(time.Now().Add(  time.Hour)),
 				RevokedAt: ptrTime(time.Now()),
 			},
 			expected: false,
@@ -109,20 +109,20 @@ func TestAPITokenIsValid(t *testing.T) {
 			name: "disabled",
 			token: &APIToken{
 				Status:    TokenStatusDisabled,
-				ExpiresAt: ptrTime(time.Now().Add(1 * time.Hour)),
+				ExpiresAt: ptrTime(time.Now().Add(  time.Hour)),
 			},
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.expected, tt.token.IsValid())
 		})
 	}
 }
 
-func TestAPITokenUpdateLastUsed(t *testing.T) {
+func TestAPITokenUpdateLastUsed(t testing.T) {
 	token := &APIToken{
 		LastUsed: nil,
 	}
@@ -130,10 +130,10 @@ func TestAPITokenUpdateLastUsed(t *testing.T) {
 	token.UpdateLastUsed()
 
 	assert.NotNil(t, token.LastUsed)
-	assert.WithinDuration(t, time.Now(), *token.LastUsed, 100*time.Millisecond)
+	assert.WithinDuration(t, time.Now(), token.LastUsed, time.Millisecond)
 }
 
-func TestAPITokenRevoke(t *testing.T) {
+func TestAPITokenRevoke(t testing.T) {
 	token := &APIToken{
 		Status:    TokenStatusActive,
 		RevokedAt: nil,
@@ -146,7 +146,7 @@ func TestAPITokenRevoke(t *testing.T) {
 	assert.Equal(t, "Test revocation", token.RevokeReason)
 }
 
-func TestAPITokenDisable(t *testing.T) {
+func TestAPITokenDisable(t testing.T) {
 	token := &APIToken{
 		Status: TokenStatusActive,
 	}
@@ -156,7 +156,7 @@ func TestAPITokenDisable(t *testing.T) {
 	assert.Equal(t, TokenStatusDisabled, token.Status)
 }
 
-func TestAPITokenEnable(t *testing.T) {
+func TestAPITokenEnable(t testing.T) {
 	token := &APIToken{
 		Status: TokenStatusDisabled,
 	}
@@ -166,10 +166,10 @@ func TestAPITokenEnable(t *testing.T) {
 	assert.Equal(t, TokenStatusActive, token.Status)
 }
 
-func TestAPITokenHasPermission(t *testing.T) {
+func TestAPITokenHasPermission(t testing.T) {
 	tests := []struct {
 		name       string
-		token      *APIToken
+		token      APIToken
 		permission string
 		expected   bool
 	}{
@@ -200,7 +200,7 @@ func TestAPITokenHasPermission(t *testing.T) {
 		{
 			name: "wildcard permission",
 			token: &APIToken{
-				Permissions: []string{"*"},
+				Permissions: []string{""},
 			},
 			permission: "anything",
 			expected:   true,
@@ -216,16 +216,16 @@ func TestAPITokenHasPermission(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.expected, tt.token.HasPermission(tt.permission))
 		})
 	}
 }
 
-func TestAPITokenHasScope(t *testing.T) {
+func TestAPITokenHasScope(t testing.T) {
 	tests := []struct {
 		name     string
-		token    *APIToken
+		token    APIToken
 		scope    string
 		expected bool
 	}{
@@ -256,7 +256,7 @@ func TestAPITokenHasScope(t *testing.T) {
 		{
 			name: "wildcard scope",
 			token: &APIToken{
-				Scopes: []string{"*"},
+				Scopes: []string{""},
 			},
 			scope:    "anything",
 			expected: true,
@@ -272,16 +272,16 @@ func TestAPITokenHasScope(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.expected, tt.token.HasScope(tt.scope))
 		})
 	}
 }
 
-func TestAPITokenIsIPAllowed(t *testing.T) {
+func TestAPITokenIsIPAllowed(t testing.T) {
 	tests := []struct {
 		name     string
-		token    *APIToken
+		token    APIToken
 		clientIP string
 		expected bool
 	}{
@@ -290,29 +290,29 @@ func TestAPITokenIsIPAllowed(t *testing.T) {
 			token: &APIToken{
 				IPWhitelist: []string{},
 			},
-			clientIP: "192.168.1.100",
+			clientIP: "...",
 			expected: true,
 		},
 		{
 			name: "IP in whitelist",
 			token: &APIToken{
-				IPWhitelist: []string{"192.168.1.1", "10.0.0.1", "127.0.0.1"},
+				IPWhitelist: []string{"...", "...", "..."},
 			},
-			clientIP: "10.0.0.1",
+			clientIP: "...",
 			expected: true,
 		},
 		{
 			name: "IP not in whitelist",
 			token: &APIToken{
-				IPWhitelist: []string{"192.168.1.1", "10.0.0.1"},
+				IPWhitelist: []string{"...", "..."},
 			},
-			clientIP: "172.16.0.1",
+			clientIP: "...",
 			expected: false,
 		},
 		{
 			name: "wildcard IP",
 			token: &APIToken{
-				IPWhitelist: []string{"*"},
+				IPWhitelist: []string{""},
 			},
 			clientIP: "any.ip.address",
 			expected: true,
@@ -328,13 +328,13 @@ func TestAPITokenIsIPAllowed(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.expected, tt.token.IsIPAllowed(tt.clientIP))
 		})
 	}
 }
 
-func TestTokenCreateRequest_Valid(t *testing.T) {
+func TestTokenCreateRequest_Valid(t testing.T) {
 	req := &TokenCreateRequest{
 		Name: "Test Token",
 		Type: TokenTypeBearer,
@@ -345,7 +345,7 @@ func TestTokenCreateRequest_Valid(t *testing.T) {
 	assert.Equal(t, TokenTypeBearer, req.Type)
 }
 
-func TestTokenUpdateRequest_PartialUpdate(t *testing.T) {
+func TestTokenUpdateRequest_PartialUpdate(t testing.T) {
 	req := &TokenUpdateRequest{
 		Name: "Updated Name",
 	}
@@ -355,7 +355,7 @@ func TestTokenUpdateRequest_PartialUpdate(t *testing.T) {
 	assert.Nil(t, req.Permissions)
 }
 
-func TestTokenRevokeRequest(t *testing.T) {
+func TestTokenRevokeRequest(t testing.T) {
 	req := &TokenRevokeRequest{
 		Reason: "Security issue",
 	}
@@ -363,7 +363,7 @@ func TestTokenRevokeRequest(t *testing.T) {
 	assert.Equal(t, "Security issue", req.Reason)
 }
 
-func TestTokenResponse_Conversion(t *testing.T) {
+func TestTokenResponse_Conversion(t testing.T) {
 	now := time.Now()
 	token := &APIToken{
 		ID:          uuid.New(),
@@ -394,8 +394,8 @@ func TestTokenResponse_Conversion(t *testing.T) {
 	assert.Equal(t, token.Status, response.Status)
 }
 
-func TestTokenWithValue_SecureTokenDisplay(t *testing.T) {
-	tokenValue := "orsk_verysecrettokenvalue123456"
+func TestTokenWithValue_SecureTokenDisplay(t testing.T) {
+	tokenValue := "orsk_verysecrettokenvalue"
 	response := &TokenWithValue{
 		TokenResponse: &TokenResponse{
 			TokenPrefix: "orsk_ve",
@@ -408,7 +408,7 @@ func TestTokenWithValue_SecureTokenDisplay(t *testing.T) {
 	assert.NotEqual(t, tokenValue, response.TokenPrefix)
 }
 
-func TestRotateTokenResponse(t *testing.T) {
+func TestRotateTokenResponse(t testing.T) {
 	oldResponse := &TokenResponse{
 		ID:     uuid.New(),
 		Name:   "Old Token",
@@ -421,7 +421,7 @@ func TestRotateTokenResponse(t *testing.T) {
 			Name:   "Old Token",
 			Status: TokenStatusActive,
 		},
-		Token: "orsk_newtoken123",
+		Token: "orsk_newtoken",
 	}
 
 	rotateResp := &RotateTokenResponse{
@@ -437,6 +437,6 @@ func TestRotateTokenResponse(t *testing.T) {
 }
 
 // Helper function
-func ptrTime(t time.Time) *time.Time {
+func ptrTime(t time.Time) time.Time {
 	return &t
 }

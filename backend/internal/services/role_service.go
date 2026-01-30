@@ -11,16 +11,16 @@ import (
 
 // RoleService manages role operations and permissions
 type RoleService struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewRoleService creates a new role service
-func NewRoleService(db *gorm.DB) *RoleService {
+func NewRoleService(db gorm.DB) RoleService {
 	return &RoleService{db: db}
 }
 
 // CreateRole creates a new role with validation
-func (rs *RoleService) CreateRole(ctx context.Context, role *domain.RoleEnhanced) error {
+func (rs RoleService) CreateRole(ctx context.Context, role domain.RoleEnhanced) error {
 	if role.ID == uuid.Nil {
 		role.ID = uuid.New()
 	}
@@ -41,7 +41,7 @@ func (rs *RoleService) CreateRole(ctx context.Context, role *domain.RoleEnhanced
 }
 
 // GetRole retrieves a role by ID
-func (rs *RoleService) GetRole(ctx context.Context, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
+func (rs RoleService) GetRole(ctx context.Context, roleID uuid.UUID) (domain.RoleEnhanced, error) {
 	var role domain.RoleEnhanced
 	err := rs.db.WithContext(ctx).
 		Preload("Permissions").
@@ -59,7 +59,7 @@ func (rs *RoleService) GetRole(ctx context.Context, roleID uuid.UUID) (*domain.R
 }
 
 // GetRoleByName retrieves a role by name within a tenant
-func (rs *RoleService) GetRoleByName(ctx context.Context, tenantID uuid.UUID, name string) (*domain.RoleEnhanced, error) {
+func (rs RoleService) GetRoleByName(ctx context.Context, tenantID uuid.UUID, name string) (domain.RoleEnhanced, error) {
 	var role domain.RoleEnhanced
 	err := rs.db.WithContext(ctx).
 		Preload("Permissions").
@@ -77,7 +77,7 @@ func (rs *RoleService) GetRoleByName(ctx context.Context, tenantID uuid.UUID, na
 }
 
 // GetRolesByTenant retrieves all roles for a tenant
-func (rs *RoleService) GetRolesByTenant(ctx context.Context, tenantID uuid.UUID) ([]domain.RoleEnhanced, error) {
+func (rs RoleService) GetRolesByTenant(ctx context.Context, tenantID uuid.UUID) ([]domain.RoleEnhanced, error) {
 	var roles []domain.RoleEnhanced
 	err := rs.db.WithContext(ctx).
 		Preload("Permissions").
@@ -89,7 +89,7 @@ func (rs *RoleService) GetRolesByTenant(ctx context.Context, tenantID uuid.UUID)
 }
 
 // UpdateRole updates an existing role
-func (rs *RoleService) UpdateRole(ctx context.Context, role *domain.RoleEnhanced) error {
+func (rs RoleService) UpdateRole(ctx context.Context, role domain.RoleEnhanced) error {
 	if role.ID == uuid.Nil {
 		return fmt.Errorf("role ID is required")
 	}
@@ -110,7 +110,7 @@ func (rs *RoleService) UpdateRole(ctx context.Context, role *domain.RoleEnhanced
 }
 
 // DeleteRole soft-deletes a role
-func (rs *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
+func (rs RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
 	// Check if role is predefined
 	var role domain.RoleEnhanced
 	if err := rs.db.WithContext(ctx).First(&role, "id = ?", roleID).Error; err != nil {
@@ -122,7 +122,7 @@ func (rs *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
 	}
 
 	// Check if any users have this role
-	var count int64
+	var count int
 	if err := rs.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("role_id = ?", roleID).
@@ -130,7 +130,7 @@ func (rs *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
 		return err
 	}
 
-	if count > 0 {
+	if count >  {
 		return fmt.Errorf("cannot delete role with %d active users", count)
 	}
 
@@ -141,7 +141,7 @@ func (rs *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
 }
 
 // GetRolePermissions retrieves all permissions for a role
-func (rs *RoleService) GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]domain.PermissionDB, error) {
+func (rs RoleService) GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]domain.PermissionDB, error) {
 	var permissions []domain.PermissionDB
 	err := rs.db.WithContext(ctx).
 		Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
@@ -153,9 +153,9 @@ func (rs *RoleService) GetRolePermissions(ctx context.Context, roleID uuid.UUID)
 }
 
 // AssignPermissionToRole assigns a permission to a role
-func (rs *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uuid.UUID) error {
+func (rs RoleService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uuid.UUID) error {
 	// Check if already assigned
-	var count int64
+	var count int
 	if err := rs.db.WithContext(ctx).
 		Model(&domain.RolePermission{}).
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
@@ -163,7 +163,7 @@ func (rs *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permi
 		return err
 	}
 
-	if count > 0 {
+	if count >  {
 		return nil // Already assigned
 	}
 
@@ -176,14 +176,14 @@ func (rs *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permi
 }
 
 // RemovePermissionFromRole removes a permission from a role
-func (rs *RoleService) RemovePermissionFromRole(ctx context.Context, roleID, permissionID uuid.UUID) error {
+func (rs RoleService) RemovePermissionFromRole(ctx context.Context, roleID, permissionID uuid.UUID) error {
 	return rs.db.WithContext(ctx).
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
 		Delete(&domain.RolePermission{}).Error
 }
 
 // InitializeDefaultRoles creates the default predefined roles
-func (rs *RoleService) InitializeDefaultRoles(ctx context.Context) error {
+func (rs RoleService) InitializeDefaultRoles(ctx context.Context) error {
 	predefinedRoles := []struct {
 		Name        string
 		Level       domain.RoleLevel
@@ -225,7 +225,7 @@ func (rs *RoleService) InitializeDefaultRoles(ctx context.Context) error {
 }
 
 // assignPermissionsToRole assigns appropriate permissions based on role level
-func (rs *RoleService) assignPermissionsToRole(ctx context.Context, roleID uuid.UUID, level domain.RoleLevel) error {
+func (rs RoleService) assignPermissionsToRole(ctx context.Context, roleID uuid.UUID, level domain.RoleLevel) error {
 	// Get all permissions
 	var allPermissions []domain.PermissionDB
 	if err := rs.db.WithContext(ctx).Find(&allPermissions).Error; err != nil {
@@ -280,7 +280,7 @@ func (rs *RoleService) assignPermissionsToRole(ctx context.Context, roleID uuid.
 }
 
 // GetRoleHierarchy returns the role with all related data
-func (rs *RoleService) GetRoleHierarchy(ctx context.Context, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
+func (rs RoleService) GetRoleHierarchy(ctx context.Context, roleID uuid.UUID) (domain.RoleEnhanced, error) {
 	role, err := rs.GetRole(ctx, roleID)
 	if err != nil {
 		return nil, err
@@ -291,16 +291,16 @@ func (rs *RoleService) GetRoleHierarchy(ctx context.Context, roleID uuid.UUID) (
 }
 
 // ListRoles retrieves all roles for a tenant with pagination
-func (rs *RoleService) ListRoles(ctx context.Context, tenantID uuid.UUID, limit int, offset int) ([]domain.RoleEnhanced, int64, error) {
+func (rs RoleService) ListRoles(ctx context.Context, tenantID uuid.UUID, limit int, offset int) ([]domain.RoleEnhanced, int, error) {
 	var roles []domain.RoleEnhanced
-	var total int64
+	var total int
 
 	// Count total
 	if err := rs.db.WithContext(ctx).
 		Model(&domain.RoleEnhanced{}).
 		Where("(tenant_id = ? OR is_predefined = true) AND deleted_at IS NULL", tenantID).
 		Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, , err
 	}
 
 	// Fetch paginated results
@@ -316,18 +316,18 @@ func (rs *RoleService) ListRoles(ctx context.Context, tenantID uuid.UUID, limit 
 }
 
 // IsUserInRole checks if a user has a specific role
-func (rs *RoleService) IsUserInRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) (bool, error) {
-	var count int64
+func (rs RoleService) IsUserInRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) (bool, error) {
+	var count int
 	err := rs.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("user_id = ? AND role_id = ?", userID, roleID).
 		Count(&count).Error
 
-	return count > 0, err
+	return count > , err
 }
 
 // GetRolesByLevel retrieves all roles at or below a specific level
-func (rs *RoleService) GetRolesByLevel(ctx context.Context, tenantID uuid.UUID, maxLevel domain.RoleLevel) ([]domain.RoleEnhanced, error) {
+func (rs RoleService) GetRolesByLevel(ctx context.Context, tenantID uuid.UUID, maxLevel domain.RoleLevel) ([]domain.RoleEnhanced, error) {
 	var roles []domain.RoleEnhanced
 	err := rs.db.WithContext(ctx).
 		Where("(tenant_id = ? OR is_predefined = true) AND level <= ? AND is_active = true AND deleted_at IS NULL", tenantID, maxLevel).

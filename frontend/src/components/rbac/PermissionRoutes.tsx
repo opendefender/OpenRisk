@@ -3,9 +3,9 @@ import { useAuthStore } from '../store/authStore';
 import { usePermissions } from '../hooks/usePermissions';
 import type { PermissionAction, PermissionResource } from '../utils/rbacHelpers';
 
-/**
- * Route guard component for protecting routes based on authentication
- */
+/
+  Route guard component for protecting routes based on authentication
+ /
 export const ProtectedRoute: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -23,9 +23,9 @@ export const ProtectedRoute: React.FC<{
   }
 
   if (requiredLevel !== undefined) {
-    const userLevel = user.role === 'Administrator' ? 9 : 
-                      user.role === 'Manager' ? 6 : 
-                      user.role === 'Analyst' ? 3 : 0;
+    const userLevel = user.role === 'Administrator' ?  : 
+                      user.role === 'Manager' ?  : 
+                      user.role === 'Analyst' ?  : ;
     
     if (userLevel < requiredLevel) {
       return <>{fallback || <div>Insufficient permissions</div>}</>;
@@ -35,9 +35,9 @@ export const ProtectedRoute: React.FC<{
   return <>{children}</>;
 };
 
-/**
- * Permission-based route guard
- */
+/
+  Permission-based route guard
+ /
 export const PermissionRoute: React.FC<{
   children: React.ReactNode;
   permission?: string;
@@ -68,7 +68,7 @@ export const PermissionRoute: React.FC<{
     hasAccess = perms.canDo(action, resource);
   } else if (permission) {
     hasAccess = perms.can(permission);
-  } else if (permissions.length > 0) {
+  } else if (permissions.length > ) {
     hasAccess = requireAll
       ? perms.canAll(permissions)
       : perms.canAny(permissions);
@@ -81,9 +81,9 @@ export const PermissionRoute: React.FC<{
   return <>{children}</>;
 };
 
-/**
- * Admin-only route guard
- */
+/
+  Admin-only route guard
+ /
 export const AdminRoute: React.FC<{
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -102,9 +102,9 @@ export const AdminRoute: React.FC<{
   return <>{children}</>;
 };
 
-/**
- * Feature flag route guard
- */
+/
+  Feature flag route guard
+ /
 export const FeatureRoute: React.FC<{
   children: React.ReactNode;
   feature: string;

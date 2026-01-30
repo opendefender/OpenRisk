@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { toast } from 'sonner';
@@ -42,8 +42,8 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
       return;
     }
 
-    if (formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (formData.password.length < ) {
+      toast.error('Password must be at least  characters');
       return;
     }
 
@@ -81,38 +81,38 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/ Backdrop /}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity:  }}
+            animate={{ opacity:  }}
+            exit={{ opacity:  }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            className="fixed inset- bg-black/ backdrop-blur-sm z-"
           />
 
-          {/* Modal */}
+          {/ Modal /}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50"
+            initial={{ opacity: , scale: ., y:  }}
+            animate={{ opacity: , scale: , y:  }}
+            exit={{ opacity: , scale: ., y:  }}
+            className="fixed left-/ top-/ -translate-x-/ -translate-y-/ w-full max-w-md z-"
           >
             <div className="bg-surface border border-border rounded-xl shadow-xl overflow-hidden">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-primary/20 to-primary/10 border-b border-border px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">Create New User</h2>
+              {/ Header /}
+              <div className="bg-gradient-to-r from-primary/ to-primary/ border-b border-border px- py- flex items-center justify-between">
+                <h className="text-xl font-bold text-white">Create New User</h>
                 <button
                   onClick={onClose}
-                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  className="p- hover:bg-white/ rounded-lg transition-colors"
                 >
-                  <X size={20} className="text-zinc-400" />
+                  <X size={} className="text-zinc-" />
                 </button>
               </div>
 
-              {/* Content */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+              {/ Content /}
+              <form onSubmit={handleSubmit} className="p- space-y- max-h-[calc(vh-px)] overflow-y-auto">
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Full Name *</label>
+                  <label className="text-sm font-medium text-white block mb-">Full Name </label>
                   <Input
                     placeholder="John Doe"
                     value={formData.full_name}
@@ -122,7 +122,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Email *</label>
+                  <label className="text-sm font-medium text-white block mb-">Email </label>
                   <Input
                     type="email"
                     placeholder="john@example.com"
@@ -133,7 +133,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Username *</label>
+                  <label className="text-sm font-medium text-white block mb-">Username </label>
                   <Input
                     placeholder="johndoe"
                     value={formData.username}
@@ -143,7 +143,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Password *</label>
+                  <label className="text-sm font-medium text-white block mb-">Password </label>
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -151,11 +151,11 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                     onChange={(e) => handleChange('password', e.target.value)}
                     disabled={isLoading}
                   />
-                  <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
+                  <p className="text-xs text-zinc- mt-">Minimum  characters</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Confirm Password *</label>
+                  <label className="text-sm font-medium text-white block mb-">Confirm Password </label>
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -165,14 +165,14 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols- gap-">
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Role *</label>
+                    <label className="text-sm font-medium text-white block mb-">Role </label>
                     <select
                       value={formData.role}
                       onChange={(e) => handleChange('role', e.target.value)}
                       disabled={isLoading}
-                      className="w-full bg-zinc-900 border border-border rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                      className="w-full bg-zinc- border border-border rounded-lg px- py- text-sm text-white focus:ring- focus:ring-primary/ outline-none"
                     >
                       <option value="viewer">Viewer</option>
                       <option value="analyst">Analyst</option>
@@ -181,7 +181,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Group</label>
+                    <label className="text-sm font-medium text-white block mb-">Group</label>
                     <Input
                       placeholder="Security Team"
                       value={formData.group}
@@ -191,15 +191,15 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                   </div>
                 </div>
 
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                  <p className="text-xs text-blue-300">
-                    💡 The user will be sent an email to verify their account and set a custom password.
+                <div className="bg-blue-/ border border-blue-/ rounded-lg p-">
+                  <p className="text-xs text-blue-">
+                     The user will be sent an email to verify their account and set a custom password.
                   </p>
                 </div>
               </form>
 
-              {/* Footer */}
-              <div className="bg-white/5 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
+              {/ Footer /}
+              <div className="bg-white/ border-t border-border px- py- flex items-center justify-end gap-">
                 <Button
                   variant="ghost"
                   onClick={onClose}
@@ -213,7 +213,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 size={16} className="mr-2 animate-spin" />
+                      <Loader size={} className="mr- animate-spin" />
                       Creating...
                     </>
                   ) : (

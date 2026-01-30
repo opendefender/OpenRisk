@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // For now, use simple role-based checks
     // In production, would check actual permission array from role
     const rolePermissions: Record<string, string[]> = {
-      admin: ['*'],
+      admin: [''],
       analyst: ['risk:read', 'risk:create', 'risk:update', 'mitigation:read', 'mitigation:create', 'mitigation:update', 'asset:read'],
       viewer: ['risk:read', 'mitigation:read', 'asset:read']
     };
@@ -89,13 +89,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const permissions = rolePermissions[user.role.toLowerCase()] || [];
     
     // Check for exact match or admin wildcard
-    if (permissions.includes('*') || permissions.includes(permission)) {
+    if (permissions.includes('') || permissions.includes(permission)) {
       return true;
     }
     
-    // Check for resource-level wildcard (e.g., "risk:*")
+    // Check for resource-level wildcard (e.g., "risk:")
     const [resource] = permission.split(':');
-    return permissions.includes(`${resource}:*`);
+    return permissions.includes(${resource}:);
   },
 
   hasRole: (roleName: string) => {

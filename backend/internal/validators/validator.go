@@ -1,10 +1,10 @@
 package validators
 
 import (
-	"github.com/go-playground/validator/v10"
+	"github.com/go-playground/validator/v"
 )
 
-var v *validator.Validate
+var v validator.Validate
 
 func init() {
 	v = validator.New()

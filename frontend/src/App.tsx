@@ -38,119 +38,119 @@ import PermissionAnalyticsPage from './pages/PermissionAnalytics';
 import { Button } from './components/ui/Button';
 import { Drawer } from './components/ui/Drawer';
 
-/**
- * COMPOSANT 1: PROTECTION DE ROUTE
- * V√©rifie si le token existe, sinon redirige vers Login.
- */
+/
+  COMPOSANT : PROTECTION DE ROUTE
+  V√rifie si le token existe, sinon redirige vers Login.
+ /
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore((state) => state.token);
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
-/**
- * COMPOSANT 2: LAYOUT GLOBAL
- * Contient la Sidebar fixe et la zone de contenu dynamique.
- */
+/
+  COMPOSANT : LAYOUT GLOBAL
+  Contient la Sidebar fixe et la zone de contenu dynamique.
+ /
 const DashboardLayout = () => (
-  <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-primary/30">
+  <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-primary/">
     <Sidebar />
-    <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-      <main className="flex-1 overflow-hidden relative flex flex-col">
+    <div className="flex- flex flex-col h-screen overflow-hidden relative">
+      <main className="flex- overflow-hidden relative flex flex-col">
         <Outlet />
       </main>
     </div>
   </div>
 );
 
-/**
- * COMPOSANT 3: VUE DASHBOARD (La page d'accueil)
- * Contient le Header sp√©cifique, la Grille, et les Modals.
- */
+/
+  COMPOSANT : VUE DASHBOARD (La page d'accueil)
+  Contient le Header sp√cifique, la Grille, et les Modals.
+ /
 const DashboardView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const selectedRisk = useRiskStore((s) => s.selectedRisk);
   const setSelectedRisk = useRiskStore((s) => s.setSelectedRisk);
   const [editRisk, setEditRisk] = useState<Risk | null>(null);
   
-  // Pour la d√©mo : On r√©cup√®re les risques pour la liste du bas
+  // Pour la d√mo : On r√cup√re les risques pour la liste du bas
   const { risks } = useRiskStore();
 
   return (
     <>
-      {/* --- HEADER FLOTTANT (Sp√©cifique Dashboard) --- */}
-      <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-6 z-10 sticky top-0">
+      {/ --- HEADER FLOTTANT (Sp√cifique Dashboard) --- /}
+      <header className="h- shrink- border-b border-border bg-background/ backdrop-blur-md flex items-center justify-between px- z- sticky top-">
         
-        {/* Search Bar (Linear style) */}
-        <div className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-white transition-colors group">
-          <Search size={14} className="group-focus-within:text-primary transition-colors" />
+        {/ Search Bar (Linear style) /}
+        <div className="flex items-center gap- text-zinc- bg-surface border border-white/ px- py-. rounded-md w- focus-within:border-primary/ focus-within:text-white transition-colors group">
+          <Search size={} className="group-focus-within:text-primary transition-colors" />
           <input 
               type="text" 
               placeholder="Search risks, assets..." 
-              className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-600"
+              className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-"
           />
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-zinc-500 bg-zinc-800 rounded border border-zinc-700">‚åòK</kbd>
+          <kbd className="hidden sm:inline-block px-. py-. text-[px] font-bold text-zinc- bg-zinc- rounded border border-zinc-">‚åòK</kbd>
         </div>
 
-        {/* Actions Droite */}
-        <div className="flex items-center gap-4">
+        {/ Actions Droite /}
+        <div className="flex items-center gap-">
            <NotificationCenter />
            
-           <Button onClick={() => setIsModalOpen(true)} className="shadow-lg shadow-blue-500/20">
-              <Plus size={16} className="mr-2" /> New Risk
+           <Button onClick={() => setIsModalOpen(true)} className="shadow-lg shadow-blue-/">
+              <Plus size={} className="mr-" /> New Risk
            </Button>
         </div>
       </header>
 
-      {/* --- CONTENU SCROLLABLE --- */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+      {/ --- CONTENU SCROLLABLE --- /}
+      <div className="flex- overflow-y-auto overflow-x-hidden p- scrollbar-thin scrollbar-thumb-zinc- scrollbar-track-transparent">
          <motion.div
-           initial={{ opacity: 0, y: 10 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ duration: 0.4 }}
-           className="pb-20"
+           initial={{ opacity: , y:  }}
+           animate={{ opacity: , y:  }}
+           transition={{ duration: . }}
+           className="pb-"
          >
-            {/* 1. La Grille de Widgets */}
+            {/ . La Grille de Widgets /}
             <DashboardGrid />
 
-            {/* 2. Liste Rapide (Pour tester l'ouverture du Drawer) */}
-            <div className="mt-12 max-w-7xl mx-auto">
-              <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">
+            {/ . Liste Rapide (Pour tester l'ouverture du Drawer) /}
+            <div className="mt- max-w-xl mx-auto">
+              <h className="text-sm font-bold text-zinc- uppercase tracking-widest mb-">
                 Active Risks Overview
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              </h>
+              <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap-">
                 {risks.map((risk) => (
                   <div 
                     key={risk.id} 
-                    className="bg-surface border border-border p-4 rounded-xl hover:border-primary cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg group"
+                    className="bg-surface border border-border p- rounded-xl hover:border-primary cursor-pointer transition-all hover:scale-[.] hover:shadow-lg group"
                   >
-                    <div className="flex justify-between mb-3">
-                        <div className="flex gap-2">
-                           {risk.tags?.[0] && (
-                             <span className="text-[10px] font-bold bg-zinc-800 px-2 py-0.5 rounded text-zinc-400 border border-white/5">
-                               {risk.tags[0]}
+                    <div className="flex justify-between mb-">
+                        <div className="flex gap-">
+                           {risk.tags?.[] && (
+                             <span className="text-[px] font-bold bg-zinc- px- py-. rounded text-zinc- border border-white/">
+                               {risk.tags[]}
                              </span>
                            )}
                            {risk.source !== 'MANUAL' && (
-                              <span className="text-[10px] font-bold bg-blue-500/10 px-2 py-0.5 rounded text-blue-400 border border-blue-500/20">
+                              <span className="text-[px] font-bold bg-blue-/ px- py-. rounded text-blue- border border-blue-/">
                                 {risk.source}
                               </span>
                            )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-mono font-bold ${
-                            risk.score >= 15 ? 'text-red-500' : 'text-emerald-500'
-                          }`}>
+                        <div className="flex items-center gap-">
+                          <span className={font-mono font-bold ${
+                            risk.score >=  ? 'text-red-' : 'text-emerald-'
+                          }}>
                             {risk.score}
                           </span>
                           <Button onClick={() => setEditRisk(risk)} variant="ghost">Edit</Button>
                         </div>
                     </div>
-                    <h4 onClick={() => setSelectedRisk(risk)} className="font-medium text-zinc-200 truncate group-hover:text-white transition-colors cursor-pointer">
+                    <h onClick={() => setSelectedRisk(risk)} className="font-medium text-zinc- truncate group-hover:text-white transition-colors cursor-pointer">
                       {risk.title}
-                    </h4>
-                    <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
-                       <span>{risk.mitigations?.length || 0} mitigations</span>
+                    </h>
+                    <div className="mt- flex items-center justify-between text-xs text-zinc-">
+                       <span>{risk.mitigations?.length || } mitigations</span>
                        <span>{new Date(risk.created_at || Date.now()).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -160,7 +160,7 @@ const DashboardView = () => {
          </motion.div>
       </div>
 
-      {/* --- MODALS & DRAWERS --- */}
+      {/ --- MODALS & DRAWERS --- /}
         <CreateRiskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
         <EditRiskModal isOpen={!!editRisk} onClose={() => setEditRisk(null)} risk={editRisk} />
@@ -168,7 +168,7 @@ const DashboardView = () => {
         <Drawer 
           isOpen={!!selectedRisk} 
           onClose={() => setSelectedRisk(null)}
-          title={selectedRisk?.title || "D√©tails du Risque"}
+          title={selectedRisk?.title || "D√tails du Risque"}
         >
           {selectedRisk && <RiskDetails risk={selectedRisk} onClose={() => setSelectedRisk(null)} />}
         </Drawer>
@@ -176,18 +176,18 @@ const DashboardView = () => {
   );
 };
 
-/**
- * COMPOSANT PRINCIPAL : APP ROUTER
- */
+/
+  COMPOSANT PRINCIPAL : APP ROUTER
+ /
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Routes Publiques */}
+        {/ Routes Publiques /}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Routes Prot√©g√©es (Layout Global) */}
+        {/ Routes Prot√g√es (Layout Global) /}
         <Route
           element={
             <ProtectedRoute>
@@ -213,11 +213,11 @@ function App() {
           <Route path="recommendations" element={<Recommendations />} />
         </Route>
         
-        {/* Redirection par d√©faut */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/ Redirection par d√faut /}
+        <Route path="" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Toast Notifications Global */}
+      {/ Toast Notifications Global /}
       <Toaster position="top-left" theme="dark" richColors closeButton />
     </BrowserRouter>
   );

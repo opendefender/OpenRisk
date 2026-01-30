@@ -4,13 +4,13 @@ import type { Risk } from '../../../hooks/useRiskStore';
 const SourceIcon = ({ source }: { source: string }) => {
   switch (source) {
     case 'THEHIVE':
-      return <ShieldAlert size={12} className="text-yellow-500" />;
+      return <ShieldAlert size={} className="text-yellow-" />;
     case 'OPENRMF':
-      return <Database size={12} className="text-blue-500" />;
+      return <Database size={} className="text-blue-" />;
     case 'OPENCTI':
-      return <Box size={12} className="text-purple-500" />;
+      return <Box size={} className="text-purple-" />;
     default:
-      return <User size={12} className="text-zinc-500" />; // Manual
+      return <User size={} className="text-zinc-" />; // Manual
   }
 };
 
@@ -21,30 +21,30 @@ interface RiskCardProps {
 
 export const RiskCard = ({ risk, onClick }: RiskCardProps) => {
   const riskLevelColor = {
-    CRITICAL: 'bg-red-900/20 border-red-700/50',
-    HIGH: 'bg-orange-900/20 border-orange-700/50',
-    MEDIUM: 'bg-yellow-900/20 border-yellow-700/50',
-    LOW: 'bg-blue-900/20 border-blue-700/50',
-  }[risk.level || 'MEDIUM'] || 'bg-blue-900/20 border-blue-700/50';
+    CRITICAL: 'bg-red-/ border-red-/',
+    HIGH: 'bg-orange-/ border-orange-/',
+    MEDIUM: 'bg-yellow-/ border-yellow-/',
+    LOW: 'bg-blue-/ border-blue-/',
+  }[risk.level || 'MEDIUM'] || 'bg-blue-/ border-blue-/';
 
   return (
     <div
       onClick={onClick}
-      className={`border rounded-lg p-4 cursor-pointer transition-colors hover:bg-zinc-800/50 ${riskLevelColor}`}
+      className={border rounded-lg p- cursor-pointer transition-colors hover:bg-zinc-/ ${riskLevelColor}}
     >
-      <div className="flex items-start justify-between mb-3">
-        <h3 className="font-semibold text-white flex-1">{risk.title}</h3>
-        <div className="flex items-center gap-2 ml-2">
-          <span className="text-lg font-bold text-white">{Math.round(risk.score || 0)}</span>
-          <span className="text-xs text-zinc-400">/ 100</span>
+      <div className="flex items-start justify-between mb-">
+        <h className="font-semibold text-white flex-">{risk.title}</h>
+        <div className="flex items-center gap- ml-">
+          <span className="text-lg font-bold text-white">{Math.round(risk.score || )}</span>
+          <span className="text-xs text-zinc-">/ </span>
         </div>
       </div>
 
-      <p className="text-sm text-zinc-400 mb-3 line-clamp-2">{risk.description}</p>
+      <p className="text-sm text-zinc- mb- line-clamp-">{risk.description}</p>
 
-      <div className="flex items-center gap-1 text-[10px] font-bold border border-white/10 px-2 py-1 rounded bg-zinc-900">
+      <div className="flex items-center gap- text-[px] font-bold border border-white/ px- py- rounded bg-zinc-">
         <SourceIcon source={risk.source} />
-        <span className="text-zinc-400">{risk.source}</span>
+        <span className="text-zinc-">{risk.source}</span>
       </div>
     </div>
   );

@@ -21,8 +21,8 @@ export interface Risk {
   tags: string[];
   assets?: Asset[]; // Important pour l'association Risk-Asset
   
-  source: string; // Important pour l'√©tape d'int√©gration (THEHIVE, etc.)
-  mitigations?: Mitigation[]; // Important pour le drawer de d√©tails
+  source: string; // Important pour l'√tape d'int√gration (THEHIVE, etc.)
+  mitigations?: Mitigation[]; // Important pour le drawer de d√tails
   created_at?: string;
   level?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 }
@@ -60,9 +60,9 @@ interface RiskStore {
 export const useRiskStore = create<RiskStore>((set, get) => ({
   risks: [],
   isLoading: false,
-  total: 0,
-  page: 1,
-  pageSize: 20,
+  total: ,
+  page: ,
+  pageSize: ,
   selectedRisk: null,
   setSelectedRisk: (r: Risk | null) => set({ selectedRisk: r }),
 
@@ -79,17 +79,17 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
 
       // Support new paginated response: { items: [...], total: number }
       if (response.data && response.data.items) {
-        set({ risks: response.data.items, total: response.data.total || 0 });
+        set({ risks: response.data.items, total: response.data.total ||  });
       } else if (Array.isArray(response.data)) {
         set({ risks: response.data, total: response.data.length });
       } else {
         // Fallback
-        set({ risks: [], total: 0 });
+        set({ risks: [], total:  });
       }
     } catch (error) {
       console.error('Failed to fetch risks', error);
       // In production, set an error state or show a toast
-      set({ risks: [], total: 0 });
+      set({ risks: [], total:  });
     } finally {
       set({ isLoading: false });
     }
@@ -97,14 +97,14 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   createRisk: async (payload) => {
     set({ isLoading: true });
     // optimistic create: add a temporary item to the list
-    const tempId = `tmp-${Date.now()}`;
+    const tempId = tmp-${Date.now()};
     const optimistic: Risk = {
       id: tempId,
-      title: payload.title || 'Nouvel √©l√©ment',
+      title: payload.title || 'Nouvel √l√ment',
       description: payload.description || '',
-      score: payload.score ?? 0,
-      impact: payload.impact ?? 0,
-      probability: payload.probability ?? 0,
+      score: payload.score ?? ,
+      impact: payload.impact ?? ,
+      probability: payload.probability ?? ,
       status: payload.status || 'DRAFT',
       tags: payload.tags || [],
       assets: undefined,
@@ -112,7 +112,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       mitigations: [],
     };
 
-    set((state) => ({ risks: [optimistic, ...state.risks], total: state.total + 1 }));
+    set((state) => ({ risks: [optimistic, ...state.risks], total: state.total +  }));
     try {
       const response = await api.post('/risks', payload);
       const created = response.data;
@@ -120,7 +120,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       set((state) => ({ risks: state.risks.map((r) => (r.id === tempId ? created : r)) }));
     } catch (err) {
       // rollback optimistic add
-      set((state) => ({ risks: state.risks.filter((r) => r.id !== tempId), total: Math.max(0, state.total - 1) }));
+      set((state) => ({ risks: state.risks.filter((r) => r.id !== tempId), total: Math.max(, state.total - ) }));
       console.error('Failed to create risk', err);
       throw err;
     } finally {
@@ -133,7 +133,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     // apply optimistic patch
     set((state) => ({ risks: state.risks.map((r) => (r.id === id ? { ...r, ...payload } : r)) }));
     try {
-      const response = await api.patch(`/risks/${id}`, payload);
+      const response = await api.patch(/risks/${id}, payload);
       const updated = response.data;
       set((state) => ({ risks: state.risks.map((r) => (r.id === id ? updated : r)) }));
     } catch (err) {
@@ -150,9 +150,9 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     const prevList = get().risks;
     const prevTotal = get().total;
     // optimistic remove
-    set((state) => ({ risks: state.risks.filter((r) => r.id !== id), total: Math.max(0, state.total - 1) }));
+    set((state) => ({ risks: state.risks.filter((r) => r.id !== id), total: Math.max(, state.total - ) }));
     try {
-      await api.delete(`/risks/${id}`);
+      await api.delete(/risks/${id});
     } catch (err) {
       // rollback
       set({ risks: prevList, total: prevTotal });

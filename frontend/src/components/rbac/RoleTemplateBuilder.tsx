@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, Copy, Plus, Shield, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, Plus, Shield, Trash } from 'lucide-react';
 import { getAllTemplates, compareTemplates, getRecommendedTemplate, cloneTemplate } from '../../utils/roleTemplateUtils';
 import { motion } from 'framer-motion';
 import type { RoleTemplate } from '../../utils/roleTemplateUtils';
@@ -67,45 +67,45 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
 
   const handleDuplicateTemplate = (template: RoleTemplate) => {
     const cloned = cloneTemplate(template, {
-      name: `${template.name} (Copy)`,
+      name: ${template.name} (Copy),
     });
     onCreateCustom?.(cloned);
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6">
-      {/* Template Selection */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Shield className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-semibold">Role Templates</h2>
+    <div className="w-full max-w-xl mx-auto space-y-">
+      {/ Template Selection /}
+      <div className="bg-white rounded-lg shadow-sm border border-gray- p-">
+        <div className="flex items-center gap- mb-">
+          <Shield className="w- h- text-blue-" />
+          <h className="text-lg font-semibold">Role Templates</h>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap-">
           {templates.map((template) => (
             <motion.button
               key={template.name}
               onClick={() => handleSelectTemplate(template)}
-              className={`p-4 rounded-lg border-2 transition-all text-left ${
+              className={p- rounded-lg border- transition-all text-left ${
                 selectedTemplate?.name === template.name
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+                  ? 'border-blue- bg-blue-'
+                  : 'border-gray- hover:border-gray-'
+              }}
+              whileHover={{ scale: . }}
+              whileTap={{ scale: . }}
             >
-              <div className="flex items-start justify-between mb-2">
+              <div className="flex items-start justify-between mb-">
                 <div>
-                  <h3 className="font-semibold text-sm">{template.name}</h3>
-                  <p className="text-xs text-gray-600">Level {template.level}</p>
+                  <h className="font-semibold text-sm">{template.name}</h>
+                  <p className="text-xs text-gray-">Level {template.level}</p>
                 </div>
                 {selectedTemplate?.name === template.name && (
-                  <ChevronRight className="w-4 h-4 text-blue-600" />
+                  <ChevronRight className="w- h- text-blue-" />
                 )}
               </div>
-              <p className="text-xs text-gray-700 mb-2">{template.description}</p>
+              <p className="text-xs text-gray- mb-">{template.description}</p>
               <div className="flex items-center justify-between">
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                <span className="text-xs bg-gray- px- py- rounded">
                   {template.permissions.length} perms
                 </span>
                 <button
@@ -113,10 +113,10 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
                     e.stopPropagation();
                     handleDuplicateTemplate(template);
                   }}
-                  className="p-1 hover:bg-gray-200 rounded"
+                  className="p- hover:bg-gray- rounded"
                   title="Duplicate template"
                 >
-                  <Copy className="w-4 h-4 text-gray-600" />
+                  <Copy className="w- h- text-gray-" />
                 </button>
               </div>
             </motion.button>
@@ -124,23 +124,23 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
         </div>
       </div>
 
-      {/* Template Details */}
+      {/ Template Details /}
       {selectedTemplate && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4"
+          initial={{ opacity: , y:  }}
+          animate={{ opacity: , y:  }}
+          className="bg-white rounded-lg shadow-sm border border-gray- p- space-y-"
         >
-          <h3 className="font-semibold text-lg">{selectedTemplate.name} Details</h3>
+          <h className="font-semibold text-lg">{selectedTemplate.name} Details</h>
 
-          {/* Features */}
+          {/ Features /}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Features Enabled</h4>
-            <div className="flex flex-wrap gap-2">
+            <h className="text-sm font-medium text-gray- mb-">Features Enabled</h>
+            <div className="flex flex-wrap gap-">
               {selectedTemplate.features.map((feature) => (
                 <span
                   key={feature}
-                  className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full"
+                  className="text-xs bg-green- text-green- px- py- rounded-full"
                 >
                   {feature}
                 </span>
@@ -148,32 +148,32 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
             </div>
           </div>
 
-          {/* Permissions Grid */}
+          {/ Permissions Grid /}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-3">Permissions</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <h className="text-sm font-medium text-gray- mb-">Permissions</h>
+            <div className="grid grid-cols- md:grid-cols- gap-">
               {selectedTemplate.permissions.map((permission) => (
-                <div key={permission} className="flex items-center gap-2">
+                <div key={permission} className="flex items-center gap-">
                   <input
                     type="checkbox"
                     checked={!excludedPermissions.includes(permission)}
                     onChange={() => handleToggleExcludedPermission(permission)}
-                    className="w-4 h-4"
+                    className="w- h-"
                   />
-                  <span className="text-sm text-gray-700">{permission}</span>
+                  <span className="text-sm text-gray-">{permission}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Add Custom Permissions */}
+          {/ Add Custom Permissions /}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Add Custom Permissions</h4>
-            <div className="flex gap-2">
+            <h className="text-sm font-medium text-gray- mb-">Add Custom Permissions</h>
+            <div className="flex gap-">
               <input
                 type="text"
                 placeholder="e.g., api-keys:create"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="flex- px- py- border border-gray- rounded-lg text-sm"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value) {
                     const perm = e.currentTarget.value.trim();
@@ -184,20 +184,20 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
                   }
                 }}
               />
-              <button className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                <Plus className="w-4 h-4" />
+              <button className="px- py- bg-blue- text-white rounded-lg hover:bg-blue-">
+                <Plus className="w- h-" />
               </button>
             </div>
-            {customPermissions.length > 0 && (
-              <div className="mt-3 space-y-2">
+            {customPermissions.length >  && (
+              <div className="mt- space-y-">
                 {customPermissions.map((perm) => (
-                  <div key={perm} className="flex items-center justify-between bg-blue-50 p-2 rounded">
+                  <div key={perm} className="flex items-center justify-between bg-blue- p- rounded">
                     <span className="text-sm">{perm}</span>
                     <button
                       onClick={() => handleToggleCustomPermission(perm)}
-                      className="p-1 hover:bg-blue-200 rounded"
+                      className="p- hover:bg-blue- rounded"
                     >
-                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <Trash className="w- h- text-red-" />
                     </button>
                   </div>
                 ))}
@@ -205,16 +205,16 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
             )}
           </div>
 
-          {/* Final Permissions Summary */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-gray-700 mb-2">
+          {/ Final Permissions Summary /}
+          <div className="bg-gray- p- rounded-lg">
+            <p className="text-sm font-medium text-gray- mb-">
               Final Permissions ({finalPermissions.length})
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-">
               {finalPermissions.map((perm) => (
                 <span
                   key={perm}
-                  className="text-xs bg-white border border-gray-300 px-2 py-1 rounded"
+                  className="text-xs bg-white border border-gray- px- py- rounded"
                 >
                   {perm}
                 </span>
@@ -222,11 +222,11 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-4">
+          {/ Action Buttons /}
+          <div className="flex gap- pt-">
             <button
               onClick={handleCreateCustom}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex- px- py- bg-blue- text-white rounded-lg hover:bg-blue- transition-colors"
             >
               Create Custom Role
             </button>
@@ -234,63 +234,63 @@ export const RoleTemplateBuilder: React.FC<RoleTemplateBuilderProps> = ({
         </motion.div>
       )}
 
-      {/* Template Comparison */}
+      {/ Template Comparison /}
       {showComparison && selectedTemplate && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+          initial={{ opacity: , y:  }}
+          animate={{ opacity: , y:  }}
+          className="bg-white rounded-lg shadow-sm border border-gray- p-"
         >
-          <h3 className="font-semibold text-lg mb-4">Compare Templates</h3>
+          <h className="font-semibold text-lg mb-">Compare Templates</h>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols- md:grid-cols- gap- mb-">
             {templates
               .filter((t) => t.name !== selectedTemplate.name)
               .map((template) => (
                 <button
                   key={template.name}
                   onClick={() => setComparisonTemplate(template)}
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${
+                  className={p- rounded-lg border- transition-all text-left ${
                     comparisonTemplate?.name === template.name
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                      ? 'border-purple- bg-purple-'
+                      : 'border-gray- hover:border-gray-'
+                  }}
                 >
                   <div className="text-sm font-medium">{template.name}</div>
-                  <div className="text-xs text-gray-600">Level {template.level}</div>
+                  <div className="text-xs text-gray-">Level {template.level}</div>
                 </button>
               ))}
           </div>
 
           {comparison && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-green-900 mb-2">Common ({comparison.commonPermissions.length})</h4>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
+            <div className="grid grid-cols- md:grid-cols- gap-">
+              <div className="bg-green- p- rounded-lg">
+                <h className="text-sm font-medium text-green- mb-">Common ({comparison.commonPermissions.length})</h>
+                <div className="space-y- max-h- overflow-y-auto">
                   {comparison.commonPermissions.map((perm) => (
-                    <div key={perm} className="text-xs text-green-800">{perm}</div>
+                    <div key={perm} className="text-xs text-green-">{perm}</div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">
-                  Only in {selectedTemplate.name} ({comparison.onlyInTemplate1.length})
-                </h4>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {comparison.onlyInTemplate1.map((perm) => (
-                    <div key={perm} className="text-xs text-blue-800">{perm}</div>
+              <div className="bg-blue- p- rounded-lg">
+                <h className="text-sm font-medium text-blue- mb-">
+                  Only in {selectedTemplate.name} ({comparison.onlyInTemplate.length})
+                </h>
+                <div className="space-y- max-h- overflow-y-auto">
+                  {comparison.onlyInTemplate.map((perm) => (
+                    <div key={perm} className="text-xs text-blue-">{perm}</div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-orange-900 mb-2">
-                  Only in {comparisonTemplate?.name} ({comparison.onlyInTemplate2.length})
-                </h4>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {comparison.onlyInTemplate2.map((perm) => (
-                    <div key={perm} className="text-xs text-orange-800">{perm}</div>
+              <div className="bg-orange- p- rounded-lg">
+                <h className="text-sm font-medium text-orange- mb-">
+                  Only in {comparisonTemplate?.name} ({comparison.onlyInTemplate.length})
+                </h>
+                <div className="space-y- max-h- overflow-y-auto">
+                  {comparison.onlyInTemplate.map((perm) => (
+                    <div key={perm} className="text-xs text-orange-">{perm}</div>
                   ))}
                 </div>
               </div>

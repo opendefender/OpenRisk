@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRoleHasPermission(t *testing.T) {
+func TestRoleHasPermission(t testing.T) {
 	tests := []struct {
 		name       string
-		role       *Role
+		role       Role
 		permission string
 		expected   bool
 	}{
@@ -42,7 +42,7 @@ func TestRoleHasPermission(t *testing.T) {
 			expected:   false,
 		},
 		{
-			name: "Wildcard permission risk:* matches risk:read",
+			name: "Wildcard permission risk: matches risk:read",
 			role: &Role{
 				Name:        "analyst",
 				Permissions: []string{PermissionRiskAll},
@@ -51,7 +51,7 @@ func TestRoleHasPermission(t *testing.T) {
 			expected:   true,
 		},
 		{
-			name: "Wildcard permission risk:* matches risk:delete",
+			name: "Wildcard permission risk: matches risk:delete",
 			role: &Role{
 				Name:        "analyst",
 				Permissions: []string{PermissionRiskAll},
@@ -77,17 +77,17 @@ func TestRoleHasPermission(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := RoleHasPermission(tc.role, tc.permission)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
-func TestUserHasPermission(t *testing.T) {
+func TestUserHasPermission(t testing.T) {
 	tests := []struct {
 		name       string
-		user       *User
+		user       User
 		permission string
 		expected   bool
 	}{
@@ -138,17 +138,17 @@ func TestUserHasPermission(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := tc.user.HasPermission(tc.permission)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
-func TestCanAccessResource(t *testing.T) {
+func TestCanAccessResource(t testing.T) {
 	tests := []struct {
 		name     string
-		user     *User
+		user     User
 		resource string
 		action   string
 		expected bool
@@ -195,14 +195,14 @@ func TestCanAccessResource(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := tc.user.CanAccessResource(tc.resource, tc.action)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
-func TestStandardRoles(t *testing.T) {
+func TestStandardRoles(t testing.T) {
 	// Test admin role
 	assert.Equal(t, "admin", AdminRole.Name)
 	assert.Contains(t, AdminRole.Permissions, PermissionAll)
@@ -219,14 +219,14 @@ func TestStandardRoles(t *testing.T) {
 	assert.NotContains(t, ViewerRole.Permissions, PermissionRiskCreate)
 }
 
-func BenchmarkRoleHasPermission(b *testing.B) {
+func BenchmarkRoleHasPermission(b testing.B) {
 	role := &Role{
 		Name:        "analyst",
 		Permissions: []string{PermissionRiskRead, PermissionRiskCreate, PermissionMitigationRead},
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := ; i < b.N; i++ {
 		RoleHasPermission(role, PermissionRiskRead)
 	}
 }

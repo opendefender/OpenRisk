@@ -29,26 +29,26 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
+    <div className="min-h-screen bg-background flex items-center justify-center p- relative overflow-hidden">
+        {/ Background Effects /}
+        <div className="absolute top-[-%] left-[-%] w-[px] h-[px] bg-blue-/ rounded-full blur-[px]" />
+        <div className="absolute bottom-[-%] right-[-%] w-[px] h-[px] bg-purple-/ rounded-full blur-[px]" />
 
         <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative z-10"
+            initial={{ opacity: , y:  }}
+            animate={{ opacity: , y:  }}
+            className="w-full max-w-md bg-surface/ backdrop-blur-xl border border-white/ p- rounded-xl shadow-xl relative z-"
         >
-            <div className="flex justify-center mb-8">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
+            <div className="flex justify-center mb-">
+                <div className="w- h- rounded-xl bg-gradient-to-br from-blue- to-purple- flex items-center justify-center shadow-glow">
                     <Zap className="text-white" fill="currentColor" />
                 </div>
             </div>
 
-            <h1 className="text-2xl font-bold text-center text-white mb-2">Welcome back</h1>
-            <p className="text-zinc-400 text-center mb-8 text-sm">Enter your credentials to access the secure vault.</p>
+            <h className="text-xl font-bold text-center text-white mb-">Welcome back</h>
+            <p className="text-zinc- text-center mb- text-sm">Enter your credentials to access the secure vault.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-">
                 <Input 
                     label="Email" 
                     type="email" 
@@ -65,20 +65,20 @@ export const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                 />
 
-                <Button className="w-full mt-4 group" isLoading={isLoading}>
-                    Sign In <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                <Button className="w-full mt- group" isLoading={isLoading}>
+                    Sign In <ArrowRight size={} className="ml- group-hover:translate-x- transition-transform" />
                 </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-zinc-400">Don't have an account? </span>
-              <Link to="/register" className="text-primary hover:text-blue-400 font-medium transition-colors">
+            <div className="mt- text-center text-sm">
+              <span className="text-zinc-">Don't have an account? </span>
+              <Link to="/register" className="text-primary hover:text-blue- font-medium transition-colors">
                 Create one
               </Link>
             </div>
 
-            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-500">
-                <Lock size={12} />
+            <div className="mt- flex items-center justify-center gap- text-xs text-zinc-">
+                <Lock size={} />
                 <span>End-to-end encrypted connection</span>
             </div>
         </motion.div>

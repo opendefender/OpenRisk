@@ -2,7 +2,7 @@ package services
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
+	"crypto/sha"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -14,27 +14,27 @@ import (
 )
 
 const (
-	TokenLength        = 32                  // Length of random token bytes
-	TokenDisplayLength = 8                   // Length of token prefix to display
+	TokenLength        =                   // Length of random token bytes
+	TokenDisplayLength =                    // Length of token prefix to display
 	TokenPrefix        = "orsk_"             // Prefix for OpenRisk tokens
-	DefaultTokenExpiry = 90 * 24 * time.Hour // 90 days default
+	DefaultTokenExpiry =     time.Hour //  days default
 )
 
 // TokenService handles API token management
 type TokenService struct {
-	tokens map[string]*domain.APIToken // tokenHash -> token
+	tokens map[string]domain.APIToken // tokenHash -> token
 	mu     sync.RWMutex
 }
 
 // NewTokenService creates a new token service
-func NewTokenService() *TokenService {
+func NewTokenService() TokenService {
 	return &TokenService{
-		tokens: make(map[string]*domain.APIToken),
+		tokens: make(map[string]domain.APIToken),
 	}
 }
 
 // GenerateToken creates a new random token string
-func (ts *TokenService) GenerateToken() (string, error) {
+func (ts TokenService) GenerateToken() (string, error) {
 	randomBytes := make([]byte, TokenLength)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
@@ -45,14 +45,14 @@ func (ts *TokenService) GenerateToken() (string, error) {
 	return token, nil
 }
 
-// HashToken creates a SHA256 hash of a token
-func (ts *TokenService) HashToken(token string) string {
-	hash := sha256.Sum256([]byte(token))
+// HashToken creates a SHA hash of a token
+func (ts TokenService) HashToken(token string) string {
+	hash := sha.Sum([]byte(token))
 	return hex.EncodeToString(hash[:])
 }
 
 // GetTokenPrefix extracts the display prefix from a token
-func (ts *TokenService) GetTokenPrefix(token string) string {
+func (ts TokenService) GetTokenPrefix(token string) string {
 	if len(token) > TokenDisplayLength {
 		return token[:TokenDisplayLength]
 	}
@@ -60,7 +60,7 @@ func (ts *TokenService) GetTokenPrefix(token string) string {
 }
 
 // CreateToken creates a new API token for a user
-func (ts *TokenService) CreateToken(userID uuid.UUID, req *domain.TokenCreateRequest, createdByID uuid.UUID) (*domain.TokenWithValue, error) {
+func (ts TokenService) CreateToken(userID uuid.UUID, req domain.TokenCreateRequest, createdByID uuid.UUID) (domain.TokenWithValue, error) {
 	// Generate the token
 	tokenValue, err := ts.GenerateToken()
 	if err != nil {
@@ -111,7 +111,7 @@ func (ts *TokenService) CreateToken(userID uuid.UUID, req *domain.TokenCreateReq
 }
 
 // VerifyToken verifies a token string and returns the token entity if valid
-func (ts *TokenService) VerifyToken(tokenValue string) (*domain.APIToken, error) {
+func (ts TokenService) VerifyToken(tokenValue string) (domain.APIToken, error) {
 	if !strings.HasPrefix(tokenValue, TokenPrefix) {
 		return nil, fmt.Errorf("invalid token format")
 	}
@@ -144,7 +144,7 @@ func (ts *TokenService) VerifyToken(tokenValue string) (*domain.APIToken, error)
 }
 
 // GetToken retrieves a token by ID
-func (ts *TokenService) GetToken(tokenID uuid.UUID) (*domain.APIToken, error) {
+func (ts TokenService) GetToken(tokenID uuid.UUID) (domain.APIToken, error) {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
@@ -158,11 +158,11 @@ func (ts *TokenService) GetToken(tokenID uuid.UUID) (*domain.APIToken, error) {
 }
 
 // ListTokens retrieves all tokens for a user
-func (ts *TokenService) ListTokens(userID uuid.UUID) ([]*domain.APIToken, error) {
+func (ts TokenService) ListTokens(userID uuid.UUID) ([]domain.APIToken, error) {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
-	var userTokens []*domain.APIToken
+	var userTokens []domain.APIToken
 	for _, token := range ts.tokens {
 		if token.UserID == userID {
 			userTokens = append(userTokens, token)
@@ -173,7 +173,7 @@ func (ts *TokenService) ListTokens(userID uuid.UUID) ([]*domain.APIToken, error)
 }
 
 // UpdateToken updates a token's properties
-func (ts *TokenService) UpdateToken(tokenID uuid.UUID, req *domain.TokenUpdateRequest) (*domain.APIToken, error) {
+func (ts TokenService) UpdateToken(tokenID uuid.UUID, req domain.TokenUpdateRequest) (domain.APIToken, error) {
 	token, err := ts.GetToken(tokenID)
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func (ts *TokenService) UpdateToken(tokenID uuid.UUID, req *domain.TokenUpdateRe
 }
 
 // RevokeToken revokes a token
-func (ts *TokenService) RevokeToken(tokenID uuid.UUID, reason string) (*domain.APIToken, error) {
+func (ts TokenService) RevokeToken(tokenID uuid.UUID, reason string) (domain.APIToken, error) {
 	token, err := ts.GetToken(tokenID)
 	if err != nil {
 		return nil, err
@@ -224,7 +224,7 @@ func (ts *TokenService) RevokeToken(tokenID uuid.UUID, reason string) (*domain.A
 }
 
 // RotateToken revokes the old token and creates a new one
-func (ts *TokenService) RotateToken(tokenID uuid.UUID, userID uuid.UUID, reason string) (*domain.RotateTokenResponse, error) {
+func (ts TokenService) RotateToken(tokenID uuid.UUID, userID uuid.UUID, reason string) (domain.RotateTokenResponse, error) {
 	// Get old token
 	oldToken, err := ts.GetToken(tokenID)
 	if err != nil {
@@ -273,7 +273,7 @@ func (ts *TokenService) RotateToken(tokenID uuid.UUID, userID uuid.UUID, reason 
 }
 
 // DeleteToken permanently deletes a token (hard delete)
-func (ts *TokenService) DeleteToken(tokenID uuid.UUID) error {
+func (ts TokenService) DeleteToken(tokenID uuid.UUID) error {
 	token, err := ts.GetToken(tokenID)
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func (ts *TokenService) DeleteToken(tokenID uuid.UUID) error {
 }
 
 // DisableToken disables a token without revoking it
-func (ts *TokenService) DisableToken(tokenID uuid.UUID) (*domain.APIToken, error) {
+func (ts TokenService) DisableToken(tokenID uuid.UUID) (domain.APIToken, error) {
 	token, err := ts.GetToken(tokenID)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (ts *TokenService) DisableToken(tokenID uuid.UUID) (*domain.APIToken, error
 }
 
 // EnableToken re-enables a disabled token
-func (ts *TokenService) EnableToken(tokenID uuid.UUID) (*domain.APIToken, error) {
+func (ts TokenService) EnableToken(tokenID uuid.UUID) (domain.APIToken, error) {
 	token, err := ts.GetToken(tokenID)
 	if err != nil {
 		return nil, err
@@ -319,7 +319,7 @@ func (ts *TokenService) EnableToken(tokenID uuid.UUID) (*domain.APIToken, error)
 }
 
 // CheckTokenExpiry marks expired tokens as such
-func (ts *TokenService) CheckTokenExpiry(tokenID uuid.UUID) (*domain.APIToken, error) {
+func (ts TokenService) CheckTokenExpiry(tokenID uuid.UUID) (domain.APIToken, error) {
 	token, err := ts.GetToken(tokenID)
 	if err != nil {
 		return nil, err
@@ -336,7 +336,7 @@ func (ts *TokenService) CheckTokenExpiry(tokenID uuid.UUID) (*domain.APIToken, e
 }
 
 // CleanupExpiredTokens removes expired tokens (maintenance task)
-func (ts *TokenService) CleanupExpiredTokens() error {
+func (ts TokenService) CleanupExpiredTokens() error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
@@ -350,7 +350,7 @@ func (ts *TokenService) CleanupExpiredTokens() error {
 }
 
 // Helper function to convert token to response
-func (ts *TokenService) tokenToResponse(token *domain.APIToken) *domain.TokenResponse {
+func (ts TokenService) tokenToResponse(token domain.APIToken) domain.TokenResponse {
 	return &domain.TokenResponse{
 		ID:          token.ID,
 		Name:        token.Name,

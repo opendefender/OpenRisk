@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/ @vitest-environment jsdom /
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -35,7 +35,7 @@ describe('CreateRiskModal', () => {
     fireEvent.change(description, { target: { value: 'This is a test description with enough length.' } });
 
     // Submit
-    const submit = screen.getByRole('button', { name: /CrÃ©er le Risque/i });
+    const submit = screen.getByRole('button', { name: /CrÃer le Risque/i });
     fireEvent.click(submit);
 
     await waitFor(() => expect(createRiskMock).toHaveBeenCalled());

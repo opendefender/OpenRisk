@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v"
 )
 
 // Cache provides Redis-backed caching functionality with TTL support
 type Cache struct {
-	client *redis.Client
+	client redis.Client
 	ttl    time.Duration
 }
 
@@ -43,7 +43,7 @@ const (
 )
 
 // New creates a new Redis cache instance
-func New(config CacheConfig) (*Cache, error) {
+func New(config CacheConfig) (Cache, error) {
 	if config.Host == "" {
 		return nil, ErrConnectionFailed
 	}
@@ -54,7 +54,7 @@ func New(config CacheConfig) (*Cache, error) {
 		DB:       config.DB,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -65,12 +65,12 @@ func New(config CacheConfig) (*Cache, error) {
 }
 
 // Set stores a value in cache with default TTL
-func (c *Cache) Set(ctx context.Context, key string, value interface{}) error {
+func (c Cache) Set(ctx context.Context, key string, value interface{}) error {
 	return c.SetWithTTL(ctx, key, value, c.ttl)
 }
 
 // SetWithTTL stores a value in cache with custom TTL
-func (c *Cache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+func (c Cache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
@@ -79,7 +79,7 @@ func (c *Cache) SetWithTTL(ctx context.Context, key string, value interface{}, t
 }
 
 // Get retrieves a value from cache
-func (c *Cache) Get(ctx context.Context, key string, dest interface{}) error {
+func (c Cache) Get(ctx context.Context, key string, dest interface{}) error {
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -91,7 +91,7 @@ func (c *Cache) Get(ctx context.Context, key string, dest interface{}) error {
 }
 
 // GetString retrieves a string value from cache
-func (c *Cache) GetString(ctx context.Context, key string) (string, error) {
+func (c Cache) GetString(ctx context.Context, key string) (string, error) {
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -103,16 +103,16 @@ func (c *Cache) GetString(ctx context.Context, key string) (string, error) {
 }
 
 // Delete removes keys from cache
-func (c *Cache) Delete(ctx context.Context, keys ...string) error {
-	if len(keys) == 0 {
+func (c Cache) Delete(ctx context.Context, keys ...string) error {
+	if len(keys) ==  {
 		return nil
 	}
 	return c.client.Del(ctx, keys...).Err()
 }
 
 // DeletePattern deletes all keys matching a pattern
-func (c *Cache) DeletePattern(ctx context.Context, pattern string) error {
-	iter := c.client.Scan(ctx, 0, pattern, 0).Iterator()
+func (c Cache) DeletePattern(ctx context.Context, pattern string) error {
+	iter := c.client.Scan(ctx, , pattern, ).Iterator()
 	for iter.Next(ctx) {
 		key := iter.Val()
 		if err := c.client.Del(ctx, key).Err(); err != nil {
@@ -123,23 +123,23 @@ func (c *Cache) DeletePattern(ctx context.Context, pattern string) error {
 }
 
 // Close closes the Redis connection
-func (c *Cache) Close() error {
+func (c Cache) Close() error {
 	return c.client.Close()
 }
 
 // HealthCheck verifies Redis connectivity
-func (c *Cache) HealthCheck(ctx context.Context) error {
+func (c Cache) HealthCheck(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
 }
 
 // InitializeCache initializes Redis cache from environment variables
-func InitializeCache() (*Cache, error) {
+func InitializeCache() (Cache, error) {
 	host := os.Getenv("REDIS_HOST")
 	if host == "" {
 		host = "localhost"
 	}
 
-	port := 6379
+	port := 
 	if p := os.Getenv("REDIS_PORT"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil {
 			port = parsed
@@ -148,17 +148,17 @@ func InitializeCache() (*Cache, error) {
 
 	password := os.Getenv("REDIS_PASSWORD")
 
-	db := 0
+	db := 
 	if d := os.Getenv("REDIS_DB"); d != "" {
 		if parsed, err := strconv.Atoi(d); err == nil {
 			db = parsed
 		}
 	}
 
-	ttl := 5 * time.Minute
+	ttl :=   time.Minute
 	if t := os.Getenv("REDIS_TTL_SECONDS"); t != "" {
 		if seconds, err := strconv.Atoi(t); err == nil {
-			ttl = time.Duration(seconds) * time.Second
+			ttl = time.Duration(seconds)  time.Second
 		}
 	}
 
@@ -174,8 +174,8 @@ func InitializeCache() (*Cache, error) {
 }
 
 // NewRedisCache creates a new Redis cache instance
-func NewRedisCache(host, port, password string) (*Cache, error) {
-	portInt := 6379
+func NewRedisCache(host, port, password string) (Cache, error) {
+	portInt := 
 	if p, err := strconv.Atoi(port); err == nil {
 		portInt = p
 	}
@@ -183,32 +183,32 @@ func NewRedisCache(host, port, password string) (*Cache, error) {
 		Host:     host,
 		Port:     portInt,
 		Password: password,
-		DB:       0,
-		TTL:      5 * time.Minute,
+		DB:       ,
+		TTL:        time.Minute,
 	}
 	return New(cfg)
 }
 
 // NewMemoryCache creates a new in-memory cache instance
-func NewMemoryCache() *MemoryCache {
+func NewMemoryCache() MemoryCache {
 	return &MemoryCache{
 		data: make(map[string]interface{}),
-		ttl:  5 * time.Minute,
+		ttl:    time.Minute,
 	}
 }
 
 // MemoryCache methods for interface compatibility
-func (mc *MemoryCache) Set(ctx context.Context, key string, value interface{}) error {
+func (mc MemoryCache) Set(ctx context.Context, key string, value interface{}) error {
 	mc.data[key] = value
 	return nil
 }
 
-func (mc *MemoryCache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+func (mc MemoryCache) SetWithTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
 	mc.data[key] = value
 	return nil
 }
 
-func (mc *MemoryCache) Get(ctx context.Context, key string, dest interface{}) error {
+func (mc MemoryCache) Get(ctx context.Context, key string, dest interface{}) error {
 	val, ok := mc.data[key]
 	if !ok {
 		return ErrCacheMiss
@@ -219,7 +219,7 @@ func (mc *MemoryCache) Get(ctx context.Context, key string, dest interface{}) er
 	return fmt.Errorf("type assertion failed")
 }
 
-func (mc *MemoryCache) GetString(ctx context.Context, key string) (string, error) {
+func (mc MemoryCache) GetString(ctx context.Context, key string) (string, error) {
 	val, ok := mc.data[key]
 	if !ok {
 		return "", ErrCacheMiss
@@ -230,14 +230,14 @@ func (mc *MemoryCache) GetString(ctx context.Context, key string) (string, error
 	return "", fmt.Errorf("type assertion failed")
 }
 
-func (mc *MemoryCache) Delete(ctx context.Context, keys ...string) error {
+func (mc MemoryCache) Delete(ctx context.Context, keys ...string) error {
 	for _, key := range keys {
 		delete(mc.data, key)
 	}
 	return nil
 }
 
-func (mc *MemoryCache) DeletePattern(ctx context.Context, pattern string) error {
+func (mc MemoryCache) DeletePattern(ctx context.Context, pattern string) error {
 	// Simple pattern matching for memory cache
 	for key := range mc.data {
 		if matchPattern(key, pattern) {
@@ -247,26 +247,26 @@ func (mc *MemoryCache) DeletePattern(ctx context.Context, pattern string) error 
 	return nil
 }
 
-func (mc *MemoryCache) Close() error {
+func (mc MemoryCache) Close() error {
 	mc.data = make(map[string]interface{})
 	return nil
 }
 
-func (mc *MemoryCache) HealthCheck(ctx context.Context) error {
+func (mc MemoryCache) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
 // matchPattern performs simple wildcard pattern matching
 func matchPattern(key, pattern string) bool {
-	if pattern == "*" {
+	if pattern == "" {
 		return true
 	}
 	if pattern == key {
 		return true
 	}
-	// Handle prefix* pattern
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
-		prefix := pattern[:len(pattern)-1]
+	// Handle prefix pattern
+	if len(pattern) >  && pattern[len(pattern)-] == '' {
+		prefix := pattern[:len(pattern)-]
 		return len(key) >= len(prefix) && key[:len(prefix)] == prefix
 	}
 	return false

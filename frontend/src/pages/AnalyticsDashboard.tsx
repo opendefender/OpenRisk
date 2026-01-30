@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts';
-import { TrendingUp, TrendingDown, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart, Activity } from 'lucide-react';
 
 interface TimeSeriesData {
   timestamp: string;
@@ -55,7 +55,7 @@ const AnalyticsDashboard: React.FC = () => {
       setLoading(true);
       try {
         // Fetch time series data
-        const response = await fetch(`/api/analytics/timeseries?metric=${selectedMetric}&period=${selectedPeriod}`);
+        const response = await fetch(/api/analytics/timeseries?metric=${selectedMetric}&period=${selectedPeriod});
         if (response.ok) {
           const data = await response.json();
           setTimeSeriesData(data.points || []);
@@ -75,13 +75,13 @@ const AnalyticsDashboard: React.FC = () => {
 
   // Calculate performance metrics
   const calculateMetrics = () => {
-    if (timeSeriesData.length === 0) return null;
+    if (timeSeriesData.length === ) return null;
 
     const values = timeSeriesData.map((d) => d.value);
-    const average = values.reduce((a, b) => a + b, 0) / values.length;
+    const average = values.reduce((a, b) => a + b, ) / values.length;
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const stdDev = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - average, 2), 0) / values.length);
+    const stdDev = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - average, ), ) / values.length);
 
     return { average, min, max, stdDev };
   };
@@ -90,48 +90,48 @@ const AnalyticsDashboard: React.FC = () => {
 
   // Render metric card
   const renderMetricCard = (card: MetricCard) => (
-    <div key={card.title} className="bg-white rounded-lg shadow p-6">
+    <div key={card.title} className="bg-white rounded-lg shadow p-">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-gray-600 text-sm font-medium">{card.title}</p>
-          <p className="text-3xl font-bold mt-2">
+          <p className="text-gray- text-sm font-medium">{card.title}</p>
+          <p className="text-xl font-bold mt-">
             {card.value}
-            {card.unit && <span className="text-lg ml-1">{card.unit}</span>}
+            {card.unit && <span className="text-lg ml-">{card.unit}</span>}
           </p>
           <p
-            className={`text-sm mt-2 flex items-center gap-1 ${
-              card.isPositive ? 'text-red-600' : 'text-green-600'
-            }`}
+            className={text-sm mt- flex items-center gap- ${
+              card.isPositive ? 'text-red-' : 'text-green-'
+            }}
           >
-            {card.isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            {card.isPositive ? <TrendingUp size={} /> : <TrendingDown size={} />}
             {Math.abs(card.change)}%
           </p>
         </div>
-        <div className="text-blue-600">{card.icon}</div>
+        <div className="text-blue-">{card.icon}</div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-2">Real-time performance metrics and trend analysis</p>
+    <div className="min-h-screen bg-gray- p-">
+      <div className="max-w-xl mx-auto">
+        {/ Header /}
+        <div className="mb-">
+          <h className="text-xl font-bold text-gray-">Analytics Dashboard</h>
+          <p className="text-gray- mt-">Real-time performance metrics and trend analysis</p>
         </div>
 
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="flex gap-4 flex-wrap items-center">
+        {/ Controls /}
+        <div className="bg-white rounded-lg shadow p- mb-">
+          <div className="flex gap- flex-wrap items-center">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray- mb-">
                 Metric
               </label>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value)}
-                className="rounded border-gray-300 border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border-gray- border px- py- focus:outline-none focus:ring- focus:ring-blue-"
               >
                 <option value="latency_ms">Latency (ms)</option>
                 <option value="throughput_rps">Throughput (RPS)</option>
@@ -142,13 +142,13 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray- mb-">
                 Period
               </label>
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                className="rounded border-gray-300 border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border-gray- border px- py- focus:outline-none focus:ring- focus:ring-blue-"
               >
                 <option value="hourly">Hourly</option>
                 <option value="daily">Daily</option>
@@ -158,9 +158,9 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {loading && (
-              <div className="flex items-center gap-2 text-blue-600">
+              <div className="flex items-center gap- text-blue-">
                 <div className="animate-spin">
-                  <Activity size={20} />
+                  <Activity size={} />
                 </div>
                 <span>Loading...</span>
               </div>
@@ -168,69 +168,69 @@ const AnalyticsDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Metric Cards */}
-        {metricCards.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/ Metric Cards /}
+        {metricCards.length >  && (
+          <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap- mb-">
             {metricCards.map(renderMetricCard)}
           </div>
         )}
 
-        {/* Statistics Cards */}
+        {/ Statistics Cards /}
         {metrics && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <p className="text-gray-600 text-sm font-medium">Average</p>
-              <p className="text-3xl font-bold mt-2">{metrics.average.toFixed(2)}</p>
+          <div className="grid grid-cols- md:grid-cols- gap- mb-">
+            <div className="bg-white rounded-lg shadow p-">
+              <p className="text-gray- text-sm font-medium">Average</p>
+              <p className="text-xl font-bold mt-">{metrics.average.toFixed()}</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <p className="text-gray-600 text-sm font-medium">Minimum</p>
-              <p className="text-3xl font-bold mt-2">{metrics.min.toFixed(2)}</p>
+            <div className="bg-white rounded-lg shadow p-">
+              <p className="text-gray- text-sm font-medium">Minimum</p>
+              <p className="text-xl font-bold mt-">{metrics.min.toFixed()}</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <p className="text-gray-600 text-sm font-medium">Maximum</p>
-              <p className="text-3xl font-bold mt-2">{metrics.max.toFixed(2)}</p>
+            <div className="bg-white rounded-lg shadow p-">
+              <p className="text-gray- text-sm font-medium">Maximum</p>
+              <p className="text-xl font-bold mt-">{metrics.max.toFixed()}</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <p className="text-gray-600 text-sm font-medium">Std Dev</p>
-              <p className="text-3xl font-bold mt-2">{metrics.stdDev.toFixed(2)}</p>
+            <div className="bg-white rounded-lg shadow p-">
+              <p className="text-gray- text-sm font-medium">Std Dev</p>
+              <p className="text-xl font-bold mt-">{metrics.stdDev.toFixed()}</p>
             </div>
           </div>
         )}
 
-        {/* Trend Analysis */}
+        {/ Trend Analysis /}
         {trendData && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Trend Analysis</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="border-l-4 border-blue-500 pl-4">
-                <p className="text-gray-600 text-sm">Direction</p>
-                <p className="text-xl font-bold text-gray-900">{trendData.direction}</p>
+          <div className="bg-white rounded-lg shadow p- mb-">
+            <h className="text-xl font-bold text-gray- mb-">Trend Analysis</h>
+            <div className="grid grid-cols- md:grid-cols- gap-">
+              <div className="border-l- border-blue- pl-">
+                <p className="text-gray- text-sm">Direction</p>
+                <p className="text-xl font-bold text-gray-">{trendData.direction}</p>
               </div>
-              <div className="border-l-4 border-purple-500 pl-4">
-                <p className="text-gray-600 text-sm">Magnitude</p>
-                <p className="text-xl font-bold text-gray-900">{trendData.magnitude.toFixed(2)}</p>
+              <div className="border-l- border-purple- pl-">
+                <p className="text-gray- text-sm">Magnitude</p>
+                <p className="text-xl font-bold text-gray-">{trendData.magnitude.toFixed()}</p>
               </div>
-              <div className="border-l-4 border-green-500 pl-4">
-                <p className="text-gray-600 text-sm">Confidence</p>
-                <p className="text-xl font-bold text-gray-900">{(trendData.confidence * 100).toFixed(1)}%</p>
+              <div className="border-l- border-green- pl-">
+                <p className="text-gray- text-sm">Confidence</p>
+                <p className="text-xl font-bold text-gray-">{(trendData.confidence  ).toFixed()}%</p>
               </div>
-              <div className="border-l-4 border-orange-500 pl-4">
-                <p className="text-gray-600 text-sm">Forecast</p>
-                <p className="text-xl font-bold text-gray-900">{trendData.forecast.toFixed(2)}</p>
+              <div className="border-l- border-orange- pl-">
+                <p className="text-gray- text-sm">Forecast</p>
+                <p className="text-xl font-bold text-gray-">{trendData.forecast.toFixed()}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Time Series Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Time Series Data</h2>
-            {timeSeriesData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+        {/ Charts /}
+        <div className="grid grid-cols- lg:grid-cols- gap- mb-">
+          {/ Time Series Chart /}
+          <div className="bg-white rounded-lg shadow p-">
+            <h className="text-xl font-bold text-gray- mb-">Time Series Data</h>
+            {timeSeriesData.length >  ? (
+              <ResponsiveContainer width="%" height={}>
                 <LineChart data={timeSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray=" " />
                   <XAxis dataKey="timestamp" />
                   <YAxis />
                   <Tooltip />
@@ -238,24 +238,24 @@ const AnalyticsDashboard: React.FC = () => {
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#3b82f6"
+                    stroke="bf"
                     dot={false}
                     isAnimationActive={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-gray-500 text-center py-8">No data available</p>
+              <p className="text-gray- text-center py-">No data available</p>
             )}
           </div>
 
-          {/* Aggregated Data Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Aggregated Data</h2>
-            {aggregatedData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+          {/ Aggregated Data Chart /}
+          <div className="bg-white rounded-lg shadow p-">
+            <h className="text-xl font-bold text-gray- mb-">Aggregated Data</h>
+            {aggregatedData.length >  ? (
+              <ResponsiveContainer width="%" height={}>
                 <AreaChart data={aggregatedData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray=" " />
                   <XAxis dataKey="timestamp" />
                   <YAxis />
                   <Tooltip />
@@ -263,32 +263,32 @@ const AnalyticsDashboard: React.FC = () => {
                   <Area
                     type="monotone"
                     dataKey="average"
-                    fill="#93c5fd"
-                    stroke="#3b82f6"
+                    fill="cfd"
+                    stroke="bf"
                     isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-gray-500 text-center py-8">No data available</p>
+              <p className="text-gray- text-center py-">No data available</p>
             )}
           </div>
         </div>
 
-        {/* Distribution Chart */}
-        {aggregatedData.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Min/Max Distribution</h2>
-            <ResponsiveContainer width="100%" height={300}>
+        {/ Distribution Chart /}
+        {aggregatedData.length >  && (
+          <div className="bg-white rounded-lg shadow p-">
+            <h className="text-xl font-bold text-gray- mb-">Min/Max Distribution</h>
+            <ResponsiveContainer width="%" height={}>
               <ComposedChart data={aggregatedData}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray=" " />
                 <XAxis dataKey="timestamp" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="min" fill="#ef4444" opacity={0.7} />
-                <Bar dataKey="max" fill="#10b981" opacity={0.7} />
-                <Line type="monotone" dataKey="average" stroke="#f59e0b" />
+                <Bar dataKey="min" fill="ef" opacity={.} />
+                <Bar dataKey="max" fill="b" opacity={.} />
+                <Line type="monotone" dataKey="average" stroke="feb" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

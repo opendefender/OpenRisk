@@ -1,6 +1,6 @@
 package config
 
-// import "github.com/spf13/viper"
+// import "github.com/spf/viper"
 import (
 	"os"
 	"strconv"
@@ -12,7 +12,7 @@ type ServerConfig struct {
 	JWTSecret string
 }
 
-// Structure pour la configuration de la base de donn√©es (r√©sout "undefined: DatabaseConfig")
+// Structure pour la configuration de la base de donn√es (r√sout "undefined: DatabaseConfig")
 type DatabaseConfig struct {
 	Host string
 	Port int
@@ -29,24 +29,24 @@ type Config struct {
 }
 
 type IntegrationsConfig struct {
-	TheHive  ExternalService `mapstructure:"thehive"`
-	OpenCTI  ExternalService `mapstructure:"opencti"`
-	OpenRMF  ExternalService `mapstructure:"openrmf"`
+	TheHive  ExternalService mapstructure:"thehive"
+	OpenCTI  ExternalService mapstructure:"opencti"
+	OpenRMF  ExternalService mapstructure:"openrmf"
 }
 
 type ExternalService struct {
-	Enabled bool   `mapstructure:"enabled"`
-	URL     string `mapstructure:"url"`
-	APIKey  string `mapstructure:"api_key"`
+	Enabled bool   mapstructure:"enabled"
+	URL     string mapstructure:"url"
+	APIKey  string mapstructure:"api_key"
 }
 
 // LoadConfig charge les configurations depuis les variables d'environnement
-func LoadConfig() *Config {
-	// Impl√©mentation simplifi√©e
+func LoadConfig() Config {
+	// Impl√mentation simplifi√e
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	
-	// Dans un environnement de dev, le port DB est souvent le 5432 par d√©faut
-	dbPort := 5432 
+	// Dans un environnement de dev, le port DB est souvent le  par d√faut
+	dbPort :=  
 
 	return &Config{
 		Server: ServerConfig{

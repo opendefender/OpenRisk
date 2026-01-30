@@ -29,42 +29,42 @@ type Alert struct {
 // AlertManager manages system alerts
 type AlertManager struct {
 	mu       sync.RWMutex
-	alerts   map[string]*Alert
-	history  []*Alert
+	alerts   map[string]Alert
+	history  []Alert
 	handlers []AlertHandler
 }
 
 // AlertHandler defines alert handling interface
 type AlertHandler interface {
-	Handle(ctx context.Context, alert *Alert) error
+	Handle(ctx context.Context, alert Alert) error
 }
 
 // NewAlertManager creates a new alert manager
-func NewAlertManager() *AlertManager {
+func NewAlertManager() AlertManager {
 	return &AlertManager{
-		alerts:   make(map[string]*Alert),
-		history:  make([]*Alert, 0, 1000),
-		handlers: make([]AlertHandler, 0),
+		alerts:   make(map[string]Alert),
+		history:  make([]Alert, , ),
+		handlers: make([]AlertHandler, ),
 	}
 }
 
 // RegisterHandler registers an alert handler
-func (am *AlertManager) RegisterHandler(handler AlertHandler) {
+func (am AlertManager) RegisterHandler(handler AlertHandler) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 	am.handlers = append(am.handlers, handler)
 }
 
 // CreateAlert creates and dispatches an alert
-func (am *AlertManager) CreateAlert(ctx context.Context, alert *Alert) error {
+func (am AlertManager) CreateAlert(ctx context.Context, alert Alert) error {
 	am.mu.Lock()
 	alert.Timestamp = time.Now()
 	am.alerts[alert.ID] = alert
 	am.history = append(am.history, alert)
 
 	// Keep history bounded
-	if len(am.history) > 1000 {
-		am.history = am.history[1:]
+	if len(am.history) >  {
+		am.history = am.history[:]
 	}
 	am.mu.Unlock()
 
@@ -77,7 +77,7 @@ func (am *AlertManager) CreateAlert(ctx context.Context, alert *Alert) error {
 }
 
 // ResolveAlert marks an alert as resolved
-func (am *AlertManager) ResolveAlert(alertID string) {
+func (am AlertManager) ResolveAlert(alertID string) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 
@@ -87,11 +87,11 @@ func (am *AlertManager) ResolveAlert(alertID string) {
 }
 
 // GetActiveAlerts returns all active alerts
-func (am *AlertManager) GetActiveAlerts() []*Alert {
+func (am AlertManager) GetActiveAlerts() []Alert {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
-	active := make([]*Alert, 0)
+	active := make([]Alert, )
 	for _, alert := range am.alerts {
 		if !alert.Resolved {
 			active = append(active, alert)
@@ -101,7 +101,7 @@ func (am *AlertManager) GetActiveAlerts() []*Alert {
 }
 
 // GetAlertHistory returns recent alert history
-func (am *AlertManager) GetAlertHistory(limit int) []*Alert {
+func (am AlertManager) GetAlertHistory(limit int) []Alert {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
 
@@ -109,7 +109,7 @@ func (am *AlertManager) GetAlertHistory(limit int) []*Alert {
 		limit = len(am.history)
 	}
 
-	result := make([]*Alert, limit)
+	result := make([]Alert, limit)
 	copy(result, am.history[len(am.history)-limit:])
 	return result
 }
@@ -118,35 +118,35 @@ func (am *AlertManager) GetAlertHistory(limit int) []*Alert {
 type AnomalyDetector struct {
 	mu          sync.RWMutex
 	windowSize  int
-	sensitivity float64
-	metrics     map[string][]float64
-	baselines   map[string]float64
+	sensitivity float
+	metrics     map[string][]float
+	baselines   map[string]float
 }
 
 // NewAnomalyDetector creates a new anomaly detector
-func NewAnomalyDetector(windowSize int, sensitivity float64) *AnomalyDetector {
+func NewAnomalyDetector(windowSize int, sensitivity float) AnomalyDetector {
 	return &AnomalyDetector{
 		windowSize:  windowSize,
 		sensitivity: sensitivity,
-		metrics:     make(map[string][]float64),
-		baselines:   make(map[string]float64),
+		metrics:     make(map[string][]float),
+		baselines:   make(map[string]float),
 	}
 }
 
 // RecordMetric records a metric value
-func (ad *AnomalyDetector) RecordMetric(name string, value float64) {
+func (ad AnomalyDetector) RecordMetric(name string, value float) {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 
 	if _, exists := ad.metrics[name]; !exists {
-		ad.metrics[name] = make([]float64, 0, ad.windowSize)
+		ad.metrics[name] = make([]float, , ad.windowSize)
 	}
 
 	ad.metrics[name] = append(ad.metrics[name], value)
 
 	// Keep window size
 	if len(ad.metrics[name]) > ad.windowSize {
-		ad.metrics[name] = ad.metrics[name][1:]
+		ad.metrics[name] = ad.metrics[name][:]
 	}
 
 	// Update baseline
@@ -156,21 +156,21 @@ func (ad *AnomalyDetector) RecordMetric(name string, value float64) {
 }
 
 // updateBaseline calculates new baseline
-func (ad *AnomalyDetector) updateBaseline(name string) {
+func (ad AnomalyDetector) updateBaseline(name string) {
 	values := ad.metrics[name]
-	if len(values) == 0 {
+	if len(values) ==  {
 		return
 	}
 
-	sum := 0.0
+	sum := .
 	for _, v := range values {
 		sum += v
 	}
-	ad.baselines[name] = sum / float64(len(values))
+	ad.baselines[name] = sum / float(len(values))
 }
 
 // IsAnomaly checks if a value is anomalous
-func (ad *AnomalyDetector) IsAnomaly(name string, value float64) bool {
+func (ad AnomalyDetector) IsAnomaly(name string, value float) bool {
 	ad.mu.RLock()
 	defer ad.mu.RUnlock()
 
@@ -179,8 +179,8 @@ func (ad *AnomalyDetector) IsAnomaly(name string, value float64) bool {
 		return false
 	}
 
-	deviation := (value - baseline) / (baseline + 0.001)
-	threshold := (2.0 - ad.sensitivity*1.5)
+	deviation := (value - baseline) / (baseline + .)
+	threshold := (. - ad.sensitivity.)
 
 	return deviation > threshold || deviation < -threshold
 }
@@ -194,7 +194,7 @@ type HealthStatusMonitor struct {
 }
 
 // NewHealthStatusMonitor creates a new health monitor
-func NewHealthStatusMonitor() *HealthStatusMonitor {
+func NewHealthStatusMonitor() HealthStatusMonitor {
 	return &HealthStatusMonitor{
 		status:          "HEALTHY",
 		lastCheck:       time.Now(),
@@ -203,7 +203,7 @@ func NewHealthStatusMonitor() *HealthStatusMonitor {
 }
 
 // UpdateComponentHealth updates a component's health
-func (hsm *HealthStatusMonitor) UpdateComponentHealth(component, status string) {
+func (hsm HealthStatusMonitor) UpdateComponentHealth(component, status string) {
 	hsm.mu.Lock()
 	defer hsm.mu.Unlock()
 
@@ -224,7 +224,7 @@ func (hsm *HealthStatusMonitor) UpdateComponentHealth(component, status string) 
 }
 
 // GetStatus returns current health status
-func (hsm *HealthStatusMonitor) GetStatus() map[string]interface{} {
+func (hsm HealthStatusMonitor) GetStatus() map[string]interface{} {
 	hsm.mu.RLock()
 	defer hsm.mu.RUnlock()
 

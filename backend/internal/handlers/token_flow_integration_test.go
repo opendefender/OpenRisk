@@ -15,14 +15,14 @@ import (
 )
 
 // TestTokenServiceFlow tests the complete token service operations
-func TestTokenServiceFlow(t *testing.T) {
+func TestTokenServiceFlow(t testing.T) {
 	InitTestDB(t)
 	defer CleanupTestDB(t, database.DB)
 
 	tokenService := services.NewTokenService()
 	userID := uuid.New()
 
-	t.Run("create-verify-token-flow", func(t *testing.T) {
+	t.Run("create-verify-token-flow", func(t testing.T) {
 		// Create a token
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name:        "test-token",
@@ -44,25 +44,25 @@ func TestTokenServiceFlow(t *testing.T) {
 		assert.Equal(t, "active", verified.Status, "new token should be active")
 	})
 
-	t.Run("list-tokens", func(t *testing.T) {
+	t.Run("list-tokens", func(t testing.T) {
 		// Create two tokens
 		_, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
-			Name: "token1",
+			Name: "token",
 		}, userID)
 		require.NoError(t, err)
 
 		_, err = tokenService.CreateToken(userID, &domain.TokenCreateRequest{
-			Name: "token2",
+			Name: "token",
 		}, userID)
 		require.NoError(t, err)
 
 		// List tokens
 		tokens, err := tokenService.ListTokens(userID)
 		require.NoError(t, err, "should list tokens without error")
-		assert.GreaterOrEqual(t, len(tokens), 2, "should have at least 2 tokens")
+		assert.GreaterOrEqual(t, len(tokens), , "should have at least  tokens")
 	})
 
-	t.Run("get-token", func(t *testing.T) {
+	t.Run("get-token", func(t testing.T) {
 		// Create a token
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name: "get-test-token",
@@ -76,7 +76,7 @@ func TestTokenServiceFlow(t *testing.T) {
 		assert.Equal(t, "get-test-token", token.Name, "token name should match")
 	})
 
-	t.Run("update-token", func(t *testing.T) {
+	t.Run("update-token", func(t testing.T) {
 		// Create a token
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name:        "update-test",
@@ -95,7 +95,7 @@ func TestTokenServiceFlow(t *testing.T) {
 		assert.Equal(t, "Updated description", updated.Description, "token description should be updated")
 	})
 
-	t.Run("rotate-token", func(t *testing.T) {
+	t.Run("rotate-token", func(t testing.T) {
 		// Create a token
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name: "rotate-test",
@@ -123,7 +123,7 @@ func TestTokenServiceFlow(t *testing.T) {
 		require.NotNil(t, verified, "verified new token should not be nil")
 	})
 
-	t.Run("revoke-token", func(t *testing.T) {
+	t.Run("revoke-token", func(t testing.T) {
 		// Create a token
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name: "revoke-test",
@@ -144,7 +144,7 @@ func TestTokenServiceFlow(t *testing.T) {
 		assert.Nil(t, verified, "verified revoked token should be nil")
 	})
 
-	t.Run("delete-token", func(t *testing.T) {
+	t.Run("delete-token", func(t testing.T) {
 		// Create a token
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name: "delete-test",
@@ -163,30 +163,30 @@ func TestTokenServiceFlow(t *testing.T) {
 		assert.Nil(t, token, "deleted token should be nil")
 	})
 
-	t.Run("invalid-token-verification", func(t *testing.T) {
+	t.Run("invalid-token-verification", func(t testing.T) {
 		// Try to verify an invalid token
 		verified, err := tokenService.VerifyToken("invalid-token-value")
 		require.Error(t, err, "should fail to verify invalid token")
 		assert.Nil(t, verified, "verified invalid token should be nil")
 	})
 
-	t.Run("token-ownership-enforcement", func(t *testing.T) {
-		// Create a token for user 1
-		user1ID := uuid.New()
+	t.Run("token-ownership-enforcement", func(t testing.T) {
+		// Create a token for user 
+		userID := uuid.New()
 
-		token1, err := tokenService.CreateToken(user1ID, &domain.TokenCreateRequest{
-			Name: "user1-token",
-		}, user1ID)
+		token, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
+			Name: "user-token",
+		}, userID)
 		require.NoError(t, err)
 
-		// Verify token belongs to user 1
-		token, err := tokenService.GetToken(token1.ID)
+		// Verify token belongs to user 
+		token, err := tokenService.GetToken(token.ID)
 		require.NoError(t, err, "should be able to get any token by ID")
 		require.NotNil(t, token, "token should exist")
-		assert.Equal(t, user1ID, token.UserID, "token should belong to user 1")
+		assert.Equal(t, userID, token.UserID, "token should belong to user ")
 	})
 
-	t.Run("token-with-permissions", func(t *testing.T) {
+	t.Run("token-with-permissions", func(t testing.T) {
 		// Create a token with specific permissions
 		tokenWithValue, err := tokenService.CreateToken(userID, &domain.TokenCreateRequest{
 			Name:        "restricted-token",
@@ -199,7 +199,7 @@ func TestTokenServiceFlow(t *testing.T) {
 		verified, err := tokenService.VerifyToken(tokenWithValue.Token)
 		require.NoError(t, err)
 		assert.NotNil(t, verified)
-		assert.Len(t, verified.Permissions, 2, "token should have 2 permissions")
-		assert.Len(t, verified.Scopes, 2, "token should have 2 scopes")
+		assert.Len(t, verified.Permissions, , "token should have  permissions")
+		assert.Len(t, verified.Scopes, , "token should have  scopes")
 	})
 }

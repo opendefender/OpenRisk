@@ -1,35 +1,35 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
 type DashboardStats struct {
-	TotalRisks      int64            `json:"total_risks"`
-	GlobalRiskScore int              `json:"global_risk_score"` // Moyenne pond√©r√©e ou max
-	HighRisks       int64            `json:"high_risks"`
-	MitigatedRisks  int64            `json:"mitigated_risks"`
-	RisksBySeverity map[string]int64 `json:"risks_by_severity"`
+	TotalRisks      int            json:"total_risks"
+	GlobalRiskScore int              json:"global_risk_score" // Moyenne pond√r√e ou max
+	HighRisks       int            json:"high_risks"
+	MitigatedRisks  int            json:"mitigated_risks"
+	RisksBySeverity map[string]int json:"risks_by_severity"
 }
 
-// GetDashboardStats calcule tout en une seule requ√™te optimis√©e
-func GetDashboardStats(c *fiber.Ctx) error {
+// GetDashboardStats calcule tout en une seule requ√™te optimis√e
+func GetDashboardStats(c fiber.Ctx) error {
 	var stats DashboardStats
 	var risks []domain.Risk
 
-	// 1. R√©cup√®re tout (pour l'instant ok, plus tard on paginera)
+	// . R√cup√re tout (pour l'instant ok, plus tard on paginera)
 	database.DB.Find(&risks).Count(&stats.TotalRisks)
 
-	// 2. Calculs
-	var totalScore float64
-	stats.RisksBySeverity = make(map[string]int64)
+	// . Calculs
+	var totalScore float
+	stats.RisksBySeverity = make(map[string]int)
 
 	for _, r := range risks {
 		totalScore += r.Score
 
-		if r.Score >= 15.0 {
+		if r.Score >= . {
 			stats.HighRisks++
 		}
 		if r.Status == domain.StatusMitigated {
@@ -38,29 +38,29 @@ func GetDashboardStats(c *fiber.Ctx) error {
 
 		// Grouping simple pour les charts
 		severity := "LOW"
-		if r.Score >= 20.0 {
+		if r.Score >= . {
 			severity = "CRITICAL"
-		} else if r.Score >= 15.0 {
+		} else if r.Score >= . {
 			severity = "HIGH"
-		} else if r.Score >= 10.0 {
+		} else if r.Score >= . {
 			severity = "MEDIUM"
 		}
 		stats.RisksBySeverity[severity]++
 	}
 
-	// Score global invers√© (100 = S√ªr, 0 = Danger)
-	// Formule simple : 100 - (Moyenne des scores de risques * facteur)
-	if stats.TotalRisks > 0 {
-		avgRisk := totalScore / float64(stats.TotalRisks)
-		// Si avgRisk est 25 (max), le score de s√©cu est 0. Si avgRisk est 0, score est 100.
-		// Formule : 100 - (avgRisk * 4)
-		securityScore := 100 - int(avgRisk*4)
-		if securityScore < 0 {
-			securityScore = 0
+	// Score global invers√ ( = S√ªr,  = Danger)
+	// Formule simple :  - (Moyenne des scores de risques  facteur)
+	if stats.TotalRisks >  {
+		avgRisk := totalScore / float(stats.TotalRisks)
+		// Si avgRisk est  (max), le score de s√cu est . Si avgRisk est , score est .
+		// Formule :  - (avgRisk  )
+		securityScore :=  - int(avgRisk)
+		if securityScore <  {
+			securityScore = 
 		}
 		stats.GlobalRiskScore = securityScore
 	} else {
-		stats.GlobalRiskScore = 100 // Pas de risque = 100% s√ªr
+		stats.GlobalRiskScore =  // Pas de risque = % s√ªr
 	}
 
 	return c.JSON(stats)

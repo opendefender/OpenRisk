@@ -6,7 +6,7 @@ import (
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
-func TestAuditLogAction_String(t *testing.T) {
+func TestAuditLogAction_String(t testing.T) {
 	tests := []struct {
 		action domain.AuditLogAction
 		want   string
@@ -30,7 +30,7 @@ func TestAuditLogAction_String(t *testing.T) {
 	}
 }
 
-func TestAuditLogResource_String(t *testing.T) {
+func TestAuditLogResource_String(t testing.T) {
 	tests := []struct {
 		resource domain.AuditLogResource
 		want     string
@@ -47,7 +47,7 @@ func TestAuditLogResource_String(t *testing.T) {
 	}
 }
 
-func TestAuditLogResult_String(t *testing.T) {
+func TestAuditLogResult_String(t testing.T) {
 	tests := []struct {
 		result domain.AuditLogResult
 		want   string
@@ -63,7 +63,7 @@ func TestAuditLogResult_String(t *testing.T) {
 	}
 }
 
-func TestAuditLog_TableName(t *testing.T) {
+func TestAuditLog_TableName(t testing.T) {
 	log := &domain.AuditLog{}
 	expected := "audit_logs"
 	if got := log.TableName(); got != expected {

@@ -25,19 +25,19 @@ interface NotificationStore {
 
 export const useNotificationStore = create<NotificationStore>((set) => ({
   notifications: [],
-  unreadCount: 0,
+  unreadCount: ,
 
   addNotification: (notification) =>
     set((state) => {
       const newNotification: Notification = {
         ...notification,
-        id: `${Date.now()}-${Math.random()}`,
+        id: ${Date.now()}-${Math.random()},
         timestamp: new Date(),
         read: false,
       };
       return {
         notifications: [newNotification, ...state.notifications],
-        unreadCount: state.unreadCount + 1,
+        unreadCount: state.unreadCount + ,
       };
     }),
 
@@ -49,14 +49,14 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       const wasUnread = state.notifications.find((n) => n.id === id)?.read === false;
       return {
         notifications: updated,
-        unreadCount: Math.max(0, state.unreadCount - (wasUnread ? 1 : 0)),
+        unreadCount: Math.max(, state.unreadCount - (wasUnread ?  : )),
       };
     }),
 
   markAllAsRead: () =>
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, read: true })),
-      unreadCount: 0,
+      unreadCount: ,
     })),
 
   removeNotification: (id) =>
@@ -64,13 +64,13 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       const wasUnread = state.notifications.find((n) => n.id === id)?.read === false;
       return {
         notifications: state.notifications.filter((n) => n.id !== id),
-        unreadCount: Math.max(0, state.unreadCount - (wasUnread ? 1 : 0)),
+        unreadCount: Math.max(, state.unreadCount - (wasUnread ?  : )),
       };
     }),
 
   clearAll: () =>
     set(() => ({
       notifications: [],
-      unreadCount: 0,
+      unreadCount: ,
     })),
 }));

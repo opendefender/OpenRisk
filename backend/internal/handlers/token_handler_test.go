@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 	"github.com/opendefender/openrisk/internal/services"
 )
 
-func setupTokenHandlerTest(t *testing.T) (*TokenHandler, *fiber.App, uuid.UUID) {
+func setupTokenHandlerTest(t testing.T) (TokenHandler, fiber.App, uuid.UUID) {
 	tokenService := services.NewTokenService()
 	handler := NewTokenHandler(tokenService)
 
@@ -24,7 +24,7 @@ func setupTokenHandlerTest(t *testing.T) (*TokenHandler, *fiber.App, uuid.UUID) 
 	userID := uuid.New()
 
 	// Middleware to inject userID for tests
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		c.Locals("userID", userID)
 		return c.Next()
 	})
@@ -41,7 +41,7 @@ func setupTokenHandlerTest(t *testing.T) (*TokenHandler, *fiber.App, uuid.UUID) 
 	return handler, app, userID
 }
 
-func TestTokenHandler_CreateToken_Success(t *testing.T) {
+func TestTokenHandler_CreateToken_Success(t testing.T) {
 	_, app, _ := setupTokenHandlerTest(t)
 
 	body := domain.TokenCreateRequest{
@@ -69,7 +69,7 @@ func TestTokenHandler_CreateToken_Success(t *testing.T) {
 	assert.NotEmpty(t, token["token_prefix"])
 }
 
-func TestTokenHandler_CreateToken_NoName(t *testing.T) {
+func TestTokenHandler_CreateToken_NoName(t testing.T) {
 	_, app, _ := setupTokenHandlerTest(t)
 
 	body := domain.TokenCreateRequest{
@@ -85,19 +85,19 @@ func TestTokenHandler_CreateToken_NoName(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-func TestTokenHandler_ListTokens(t *testing.T) {
+func TestTokenHandler_ListTokens(t testing.T) {
 	handler, _, userID := setupTokenHandlerTest(t)
 
 	// Create some tokens for this user
-	for i := 0; i < 2; i++ {
+	for i := ; i < ; i++ {
 		handler.tokenService.CreateToken(userID, &domain.TokenCreateRequest{
-			Name: "Token " + string(rune(48+i)),
+			Name: "Token " + string(rune(+i)),
 		}, userID)
 	}
 
 	// Create app with this userID
 	app := fiber.New()
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		c.Locals("userID", userID)
 		return c.Next()
 	})
@@ -112,11 +112,11 @@ func TestTokenHandler_ListTokens(t *testing.T) {
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	require.NoError(t, err)
 
-	assert.Equal(t, float64(2), result["count"])
-	assert.Len(t, result["tokens"], 2)
+	assert.Equal(t, float(), result["count"])
+	assert.Len(t, result["tokens"], )
 }
 
-func TestTokenHandler_GetToken_Success(t *testing.T) {
+func TestTokenHandler_GetToken_Success(t testing.T) {
 	handler, app, userID := setupTokenHandlerTest(t)
 
 	// Create a token
@@ -140,7 +140,7 @@ func TestTokenHandler_GetToken_Success(t *testing.T) {
 	assert.Equal(t, "Get Test Token", tokenData["name"])
 }
 
-func TestTokenHandler_GetToken_NotFound(t *testing.T) {
+func TestTokenHandler_GetToken_NotFound(t testing.T) {
 	_, app, _ := setupTokenHandlerTest(t)
 
 	fakeID := uuid.New()
@@ -150,7 +150,7 @@ func TestTokenHandler_GetToken_NotFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
-func TestTokenHandler_RevokeToken_Success(t *testing.T) {
+func TestTokenHandler_RevokeToken_Success(t testing.T) {
 	handler, app, userID := setupTokenHandlerTest(t)
 
 	// Create a token
@@ -180,7 +180,7 @@ func TestTokenHandler_RevokeToken_Success(t *testing.T) {
 	assert.Equal(t, "Testing revoke", tokenData["revoke_reason"])
 }
 
-func TestTokenHandler_DeleteToken_Success(t *testing.T) {
+func TestTokenHandler_DeleteToken_Success(t testing.T) {
 	handler, app, userID := setupTokenHandlerTest(t)
 
 	// Create a token
@@ -199,7 +199,7 @@ func TestTokenHandler_DeleteToken_Success(t *testing.T) {
 	assert.Nil(t, deleted)
 }
 
-func TestTokenHandler_RotateToken_Success(t *testing.T) {
+func TestTokenHandler_RotateToken_Success(t testing.T) {
 	handler, app, userID := setupTokenHandlerTest(t)
 
 	// Create a token
@@ -224,7 +224,7 @@ func TestTokenHandler_RotateToken_Success(t *testing.T) {
 	assert.Equal(t, "revoked", oldToken["status"])
 }
 
-func TestTokenHandler_UpdateToken_Success(t *testing.T) {
+func TestTokenHandler_UpdateToken_Success(t testing.T) {
 	handler, app, userID := setupTokenHandlerTest(t)
 
 	// Create a token
@@ -254,27 +254,27 @@ func TestTokenHandler_UpdateToken_Success(t *testing.T) {
 	assert.Equal(t, newDesc, token["description"])
 }
 
-func TestTokenHandler_OwnershipEnforcement(t *testing.T) {
-	handler, _, userID1 := setupTokenHandlerTest(t)
+func TestTokenHandler_OwnershipEnforcement(t testing.T) {
+	handler, _, userID := setupTokenHandlerTest(t)
 
-	// Create token for userID1
-	tokenWithValue, err := handler.tokenService.CreateToken(userID1, &domain.TokenCreateRequest{
-		Name: "User1 Token",
-	}, userID1)
+	// Create token for userID
+	tokenWithValue, err := handler.tokenService.CreateToken(userID, &domain.TokenCreateRequest{
+		Name: "User Token",
+	}, userID)
 	require.NoError(t, err)
 
 	// Simulate different user trying to access
-	userID2 := uuid.New()
-	app2 := fiber.New()
-	app2.Use(func(c *fiber.Ctx) error {
-		c.Locals("userID", userID2)
+	userID := uuid.New()
+	app := fiber.New()
+	app.Use(func(c fiber.Ctx) error {
+		c.Locals("userID", userID)
 		return c.Next()
 	})
-	handler2 := NewTokenHandler(handler.tokenService)
-	app2.Get("/tokens/:id", handler2.GetToken)
+	handler := NewTokenHandler(handler.tokenService)
+	app.Get("/tokens/:id", handler.GetToken)
 
 	req := httptest.NewRequest(http.MethodGet, "/tokens/"+tokenWithValue.ID.String(), nil)
-	resp, err := app2.Test(req)
+	resp, err := app.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }

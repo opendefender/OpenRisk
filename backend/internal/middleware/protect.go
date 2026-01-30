@@ -3,7 +3,7 @@ package middleware
 import (
 	"os"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 )
 
 // Protected middleware verifies JWT token validity
@@ -18,7 +18,7 @@ func Protected() fiber.Handler {
 
 // RequireRole middleware checks if user has required role(s)
 func RequireRole(roleNames ...string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		role, ok := c.Locals("role").(string)
 		if !ok || role == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

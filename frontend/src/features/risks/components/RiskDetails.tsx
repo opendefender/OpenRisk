@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Circle, Plus, User, Server, Database, Zap } from 'lucide-react';
+import { CheckCircle, Circle, Plus, User, Server, Database, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../../lib/api';
 import { Button } from '../../../components/ui/Button';
@@ -9,19 +9,19 @@ import { useRiskStore, type Risk } from '../../../hooks/useRiskStore';
 import { EditRiskModal } from './EditRiskModal';
 import { MitigationEditModal } from '../../mitigations/MitigationEditModal';
 
-// --- Interfaces et Types (√† mettre id√©alement dans les stores respectifs) ---
+// --- Interfaces et Types (√† mettre id√alement dans les stores respectifs) ---
 
 interface RiskDetailsProps {
     risk: Risk;
     onClose?: () => void;
 }
 
-// Helper pour l'ic√¥ne Asset
+// Helper pour l'ic√ne Asset
 const getAssetIcon = (type: string) => {
     switch (type.toLowerCase()) {
-        case 'server': return <Server size={14} className="text-zinc-400" />;
-        case 'database': return <Database size={14} className="text-zinc-400" />;
-        default: return <Zap size={14} className="text-zinc-400" />;
+        case 'server': return <Server size={} className="text-zinc-" />;
+        case 'database': return <Database size={} className="text-zinc-" />;
+        default: return <Zap size={} className="text-zinc-" />;
     }
 };
 
@@ -43,17 +43,17 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
 
     setIsAdding(true);
     try {
-      // Endpoint /risks/:id/mitigations d√©fini
-      await api.post(`/risks/${risk.id}/mitigations`, {
+      // Endpoint /risks/:id/mitigations d√fini
+      await api.post(/risks/${risk.id}/mitigations, {
         title: newMitigationTitle,
         assignee: 'Current User',
-        // Le backend g√®re la cr√©ation et l'association
+        // Le backend g√re la cr√ation et l'association
       });
-      toast.success("Plan d'action ajout√©");
+      toast.success("Plan d'action ajout√");
       setNewMitigationTitle('');
-      await fetchRisks(); // Refresh pour voir la nouvelle mitigation et le score r√©siduel potentiel
+      await fetchRisks(); // Refresh pour voir la nouvelle mitigation et le score r√siduel potentiel
     } catch (err) {
-      toast.error("Erreur serveur lors de l'ajout de l'att√©nuation");
+      toast.error("Erreur serveur lors de l'ajout de l'att√nuation");
     } finally {
       setIsAdding(false);
     }
@@ -62,8 +62,8 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
   // Toggle statut (Done/Undo)
   const handleToggleMitigation = async (mitigationId: string) => {
     try {
-        // Endpoint /mitigations/:mitigationId/toggle d√©fini au Commit #8
-        await api.patch(`/mitigations/${mitigationId}/toggle`);
+        // Endpoint /mitigations/:mitigationId/toggle d√fini au Commit 
+        await api.patch(/mitigations/${mitigationId}/toggle);
         toast.success("Statut mis √† jour");
         fetchRisks();
     } catch (e) {
@@ -71,38 +71,38 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
     }
   };
 
-  // Badge du score (Pour un feedback visuel imm√©diat)
+  // Badge du score (Pour un feedback visuel imm√diat)
   const getScoreStyle = (score: number) => {
-    if (score >= 15) return 'bg-red-600/10 text-red-400 border-red-600/20';
-    if (score >= 8) return 'bg-orange-600/10 text-orange-400 border-orange-600/20';
-    return 'bg-blue-600/10 text-blue-400 border-blue-600/20';
+    if (score >= ) return 'bg-red-/ text-red- border-red-/';
+    if (score >= ) return 'bg-orange-/ text-orange- border-orange-/';
+    return 'bg-blue-/ text-blue- border-blue-/';
   };
 
   return (
-    <div className="space-y-6">
-            {/* 1. En-t√™te et Badges */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getScoreStyle(risk.score)}`}>
+    <div className="space-y-">
+            {/ . En-t√™te et Badges /}
+      <div className="flex flex-wrap gap- items-center">
+        <span className={px- py- rounded-full text-xs font-bold border ${getScoreStyle(risk.score)}}>
             SCORE: {risk.score}
         </span>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold border bg-zinc-800/50 text-zinc-400 border-zinc-700/50`}>
+        <span className={px- py- rounded-full text-xs font-bold border bg-zinc-/ text-zinc- border-zinc-/}>
             STATUS: {risk.status}
         </span>
         {risk.tags?.map(tag => (
-            <span key={tag} className="px-3 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
+            <span key={tag} className="px- py- rounded-full text-xs font-medium bg-zinc- text-zinc- border border-zinc-">
                 {tag}
             </span>
         ))}
       </div>
 
-            {/* Actions: Edit / Delete */}
-            <div className="flex items-center gap-2">
+            {/ Actions: Edit / Delete /}
+            <div className="flex items-center gap-">
                 <Button onClick={() => setOpenEdit(true)} variant="ghost">Modifier</Button>
                 <Button onClick={async () => {
-                    if (!confirm('Supprimer ce risque ? Cette action est irr√©versible.')) return;
+                    if (!confirm('Supprimer ce risque ? Cette action est irr√versible.')) return;
                     try {
                         await deleteRisk(risk.id);
-                        toast.success('Risque supprim√©');
+                        toast.success('Risque supprim√');
                         if (onClose) onClose();
                     } catch (e) {
                         toast.error('Erreur lors de la suppression');
@@ -110,20 +110,20 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
                 }} variant="danger">Supprimer</Button>
             </div>
 
-            <p className="text-zinc-300 leading-relaxed text-sm">
+            <p className="text-zinc- leading-relaxed text-sm">
         {risk.description}
       </p>
 
-            {/* Edit Modal */}
+            {/ Edit Modal /}
             <EditRiskModal isOpen={openEdit} onClose={() => setOpenEdit(false)} risk={risk} onSuccess={() => { setOpenEdit(false); if (onClose) onClose(); }} />
 
-      {/* 2. Assets Impact√©s */}
-      {risk.assets && risk.assets.length > 0 && (
-          <div className="mb-6 pt-4 border-t border-white/5">
-              <h4 className="text-xs text-zinc-500 uppercase font-bold mb-2">Assets Impact√©s</h4>
-              <div className="flex flex-wrap gap-2">
+      {/ . Assets Impact√s /}
+      {risk.assets && risk.assets.length >  && (
+          <div className="mb- pt- border-t border-white/">
+              <h className="text-xs text-zinc- uppercase font-bold mb-">Assets Impact√s</h>
+              <div className="flex flex-wrap gap-">
                   {risk.assets.map(asset => (
-                      <div key={asset.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface/50 border border-white/5 text-xs text-zinc-300">
+                      <div key={asset.id} className="flex items-center gap- px- py-. rounded-lg bg-surface/ border border-white/ text-xs text-zinc-">
                           {getAssetIcon(asset.type)}
                           {asset.name}
                       </div>
@@ -132,49 +132,49 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
           </div>
       )}
 
-      {/* 3. Tabs Navigation (Linear Style) */}
-      <div className="flex border-b border-white/10 mt-8 mb-4">
+      {/ . Tabs Navigation (Linear Style) /}
+      <div className="flex border-b border-white/ mt- mb-">
         <button 
             onClick={() => setActiveTab('overview')}
-            className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'overview' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={pb- px- text-sm font-medium transition-colors relative ${activeTab === 'overview' ? 'text-white' : 'text-zinc- hover:text-zinc-'}}
         >
             Vue d'ensemble
-            {activeTab === 'overview' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+            {activeTab === 'overview' && <motion.div layoutId="activeTab" className="absolute bottom- left- right- h-. bg-primary" />}
         </button>
         <button 
             onClick={() => setActiveTab('mitigations')}
-            className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'mitigations' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={pb- px- text-sm font-medium transition-colors relative ${activeTab === 'mitigations' ? 'text-white' : 'text-zinc- hover:text-zinc-'}}
         >
-            Plan d'Att√©nuation
-            <span className="ml-2 bg-zinc-800 text-zinc-400 text-[10px] px-1.5 py-0.5 rounded-full">{risk.mitigations?.length || 0}</span>
-            {activeTab === 'mitigations' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+            Plan d'Att√nuation
+            <span className="ml- bg-zinc- text-zinc- text-[px] px-. py-. rounded-full">{risk.mitigations?.length || }</span>
+            {activeTab === 'mitigations' && <motion.div layoutId="activeTab" className="absolute bottom- left- right- h-. bg-primary" />}
         </button>
       </div>
 
-      {/* 4. Tab Content */}
-      <div className="min-h-[300px]">
+      {/ . Tab Content /}
+      <div className="min-h-[px]">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' ? (
               <motion.div
                   key="overview"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
-                  transition={{ duration: 0.15 }}
-                  className="grid grid-cols-2 gap-4"
+                  initial={{ opacity: , x: - }}
+                  animate={{ opacity: , x:  }}
+                  exit={{ opacity: , x:  }}
+                  transition={{ duration: . }}
+                  className="grid grid-cols- gap-"
               >
-                  <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5">
-                      <h4 className="text-xs text-zinc-500 uppercase font-bold mb-2">Impact (C-I-D)</h4>
-                      <div className="text-2xl font-mono text-white">{risk.impact}/5</div>
+                  <div className="p- rounded-xl bg-zinc-/ border border-white/">
+                      <h className="text-xs text-zinc- uppercase font-bold mb-">Impact (C-I-D)</h>
+                      <div className="text-xl font-mono text-white">{risk.impact}/</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5">
-                      <h4 className="text-xs text-zinc-500 uppercase font-bold mb-2">Probabilit√©</h4>
-                      <div className="text-2xl font-mono text-white">{risk.probability}/5</div>
+                  <div className="p- rounded-xl bg-zinc-/ border border-white/">
+                      <h className="text-xs text-zinc- uppercase font-bold mb-">Probabilit√</h>
+                      <div className="text-xl font-mono text-white">{risk.probability}/</div>
                   </div>
-                  <div className="col-span-2 p-4 rounded-xl bg-zinc-900/50 border border-white/5">
-                      <h4 className="text-xs text-zinc-500 uppercase font-bold mb-2">Propri√©taire</h4>
-                      <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold">JD</div>
+                  <div className="col-span- p- rounded-xl bg-zinc-/ border border-white/">
+                      <h className="text-xs text-zinc- uppercase font-bold mb-">Propri√taire</h>
+                      <div className="flex items-center gap-">
+                          <div className="w- h- rounded-full bg-indigo- flex items-center justify-center text-[px] font-bold">JD</div>
                           <span className="text-sm">John Doe (Security Team)</span>
                       </div>
                   </div>
@@ -182,56 +182,56 @@ export const RiskDetails = ({ risk, onClose }: RiskDetailsProps) => {
           ) : (
               <motion.div
                   key="mitigations"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="space-y-4"
+                  initial={{ opacity: , x:  }}
+                  animate={{ opacity: , x:  }}
+                  exit={{ opacity: , x: - }}
+                  transition={{ duration: . }}
+                  className="space-y-"
               >
-                  {/* Liste des Mitigations */}
-                  <div className="space-y-2">
+                  {/ Liste des Mitigations /}
+                  <div className="space-y-">
                       {risk.mitigations?.map((mitigation) => (
-                          <div key={mitigation.id} className="group flex items-center gap-3 p-3 rounded-lg bg-zinc-900/30 border border-white/5 hover:border-white/10 transition-all">
+                          <div key={mitigation.id} className="group flex items-center gap- p- rounded-lg bg-zinc-/ border border-white/ hover:border-white/ transition-all">
                               <button 
                                   onClick={() => handleToggleMitigation(mitigation.id)}
-                                  className={`shrink-0 transition-colors ${mitigation.status === 'DONE' ? 'text-emerald-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                  className={shrink- transition-colors ${mitigation.status === 'DONE' ? 'text-emerald-' : 'text-zinc- hover:text-zinc-'}}
                               >
-                                  {mitigation.status === 'DONE' ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                                  {mitigation.status === 'DONE' ? <CheckCircle size={} /> : <Circle size={} />}
                               </button>
-                              <div className="flex-1">
-                                  <p className={`text-sm ${mitigation.status === 'DONE' ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
+                              <div className="flex-">
+                                  <p className={text-sm ${mitigation.status === 'DONE' ? 'text-zinc- line-through' : 'text-zinc-'}}>
                                       {mitigation.title}
                                   </p>
                               </div>
-                              <div className="flex items-center gap-2 text-zinc-600 text-xs">
-                                  <User size={12} /> {mitigation.assignee || 'Non assign√©'}
+                              <div className="flex items-center gap- text-zinc- text-xs">
+                                  <User size={} /> {mitigation.assignee || 'Non assign√'}
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-">
                                   <Button variant="ghost" onClick={() => setOpenMitEdit(mitigation.id)}>√âditer</Button>
                               </div>
                           </div>
                       ))}
                       
-                      {(!risk.mitigations || risk.mitigations.length === 0) && (
-                          <div className="text-center py-8 text-zinc-500 text-sm">
-                              Aucune action d√©finie. Ajoutez-en une pour r√©duire ce risque.
+                      {(!risk.mitigations || risk.mitigations.length === ) && (
+                          <div className="text-center py- text-zinc- text-sm">
+                              Aucune action d√finie. Ajoutez-en une pour r√duire ce risque.
                           </div>
                       )}
                   </div>
 
-                  {/* Formulaire d'ajout rapide */}
-                  <form onSubmit={handleAddMitigation} className="mt-4 flex gap-2">
+                  {/ Formulaire d'ajout rapide /}
+                  <form onSubmit={handleAddMitigation} className="mt- flex gap-">
                       <Input 
                           placeholder="Nouvelle action (ex: Mettre √† jour Apache)..." 
                           value={newMitigationTitle}
                           onChange={(e) => setNewMitigationTitle(e.target.value)}
-                          className="flex-1"
+                          className="flex-"
                       />
                       <Button type="submit" variant="secondary" isLoading={isAdding} disabled={!newMitigationTitle}>
-                          <Plus size={16} />
+                          <Plus size={} />
                       </Button>
                   </form>
-                            {/* Edit mitigation modal (lazy: import) */}
+                            {/ Edit mitigation modal (lazy: import) /}
                             {openMitEdit && (
                                 <MitigationEditModal
                                     isOpen={!!openMitEdit}

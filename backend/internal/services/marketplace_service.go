@@ -16,31 +16,31 @@ import (
 
 // MarketplaceService handles marketplace operations
 type MarketplaceService struct {
-	db            *gorm.DB
+	db            gorm.DB
 	mu            sync.RWMutex
-	connectors    map[string]*domain.Connector
-	installations map[string]*domain.MarketplaceApp
+	connectors    map[string]domain.Connector
+	installations map[string]domain.MarketplaceApp
 	syncWorkers   map[string]context.CancelFunc
 	syncMu        sync.RWMutex
-	logger        *log.Logger
+	logger        log.Logger
 }
 
 // NewMarketplaceService creates a new MarketplaceService
-func NewMarketplaceService(db *gorm.DB, logger *log.Logger) *MarketplaceService {
+func NewMarketplaceService(db gorm.DB, logger log.Logger) MarketplaceService {
 	if logger == nil {
-		logger = log.New(nil, "", 0)
+		logger = log.New(nil, "", )
 	}
 	return &MarketplaceService{
 		db:            db,
-		connectors:    make(map[string]*domain.Connector),
-		installations: make(map[string]*domain.MarketplaceApp),
+		connectors:    make(map[string]domain.Connector),
+		installations: make(map[string]domain.MarketplaceApp),
 		syncWorkers:   make(map[string]context.CancelFunc),
 		logger:        logger,
 	}
 }
 
 // RegisterConnector registers a new connector in the marketplace
-func (m *MarketplaceService) RegisterConnector(ctx context.Context, connector *domain.Connector) error {
+func (m MarketplaceService) RegisterConnector(ctx context.Context, connector domain.Connector) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -67,7 +67,7 @@ func (m *MarketplaceService) RegisterConnector(ctx context.Context, connector *d
 }
 
 // GetConnector retrieves a connector by ID
-func (m *MarketplaceService) GetConnector(ctx context.Context, connectorID string) (*domain.Connector, error) {
+func (m MarketplaceService) GetConnector(ctx context.Context, connectorID string) (domain.Connector, error) {
 	m.mu.RLock()
 	if connector, exists := m.connectors[connectorID]; exists {
 		m.mu.RUnlock()
@@ -87,7 +87,7 @@ func (m *MarketplaceService) GetConnector(ctx context.Context, connectorID strin
 }
 
 // ListConnectors lists all available connectors with filtering
-func (m *MarketplaceService) ListConnectors(ctx context.Context, status *domain.ConnectorStatus, category string, limit int, offset int) ([]domain.Connector, int64, error) {
+func (m MarketplaceService) ListConnectors(ctx context.Context, status domain.ConnectorStatus, category string, limit int, offset int) ([]domain.Connector, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -101,28 +101,28 @@ func (m *MarketplaceService) ListConnectors(ctx context.Context, status *domain.
 		query = query.Where("category = ?", category)
 	}
 
-	var total int64
+	var total int
 	if err := query.Model(&domain.Connector{}).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count connectors: %w", err)
+		return nil, , fmt.Errorf("failed to count connectors: %w", err)
 	}
 
 	if err := query.Order("rating DESC, install_count DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&connectors).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to list connectors: %w", err)
+		return nil, , fmt.Errorf("failed to list connectors: %w", err)
 	}
 
 	return connectors, total, nil
 }
 
 // SearchConnectors searches connectors by name, description, or author
-func (m *MarketplaceService) SearchConnectors(ctx context.Context, query string, limit int, offset int) ([]domain.Connector, int64, error) {
+func (m MarketplaceService) SearchConnectors(ctx context.Context, query string, limit int, offset int) ([]domain.Connector, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var connectors []domain.Connector
-	var total int64
+	var total int
 
 	dbQuery := m.db.WithContext(ctx).Where(
 		"LOWER(name) LIKE ? OR LOWER(description) LIKE ? OR LOWER(author) LIKE ?",
@@ -130,18 +130,18 @@ func (m *MarketplaceService) SearchConnectors(ctx context.Context, query string,
 	)
 
 	if err := dbQuery.Model(&domain.Connector{}).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count search results: %w", err)
+		return nil, , fmt.Errorf("failed to count search results: %w", err)
 	}
 
 	if err := dbQuery.Order("rating DESC").Limit(limit).Offset(offset).Find(&connectors).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to search connectors: %w", err)
+		return nil, , fmt.Errorf("failed to search connectors: %w", err)
 	}
 
 	return connectors, total, nil
 }
 
 // InstallApp installs a connector as a marketplace app
-func (m *MarketplaceService) InstallApp(ctx context.Context, connectorID, tenantID, userID, appName string, config map[string]interface{}) (*domain.MarketplaceApp, error) {
+func (m MarketplaceService) InstallApp(ctx context.Context, connectorID, tenantID, userID, appName string, config map[string]interface{}) (domain.MarketplaceApp, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -163,7 +163,7 @@ func (m *MarketplaceService) InstallApp(ctx context.Context, connectorID, tenant
 	}
 
 	// Generate webhook secret
-	webhookSecret, err := generateRandomSecret(32)
+	webhookSecret, err := generateRandomSecret()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate webhook secret: %w", err)
 	}
@@ -180,7 +180,7 @@ func (m *MarketplaceService) InstallApp(ctx context.Context, connectorID, tenant
 		Configuration:    config,
 		Enabled:          true,
 		AutoSync:         false,
-		SyncInterval:     300, // 5 minutes
+		SyncInterval:     , //  minutes
 		WebhookSecret:    webhookSecret,
 		InstallationDate: time.Now(),
 		CreatedAt:        time.Now(),
@@ -199,7 +199,7 @@ func (m *MarketplaceService) InstallApp(ctx context.Context, connectorID, tenant
 	if err := m.db.WithContext(ctx).
 		Model(&domain.Connector{}).
 		Where("id = ?", connectorID).
-		Update("install_count", gorm.Expr("install_count + 1")).Error; err != nil {
+		Update("install_count", gorm.Expr("install_count + ")).Error; err != nil {
 		m.logger.Printf("Warning: failed to increment install count: %v", err)
 	}
 
@@ -212,7 +212,7 @@ func (m *MarketplaceService) InstallApp(ctx context.Context, connectorID, tenant
 }
 
 // GetApp retrieves a marketplace app by ID
-func (m *MarketplaceService) GetApp(ctx context.Context, appID string) (*domain.MarketplaceApp, error) {
+func (m MarketplaceService) GetApp(ctx context.Context, appID string) (domain.MarketplaceApp, error) {
 	m.mu.RLock()
 	if app, exists := m.installations[appID]; exists {
 		m.mu.RUnlock()
@@ -232,28 +232,28 @@ func (m *MarketplaceService) GetApp(ctx context.Context, appID string) (*domain.
 }
 
 // ListApps lists all installed apps for a tenant
-func (m *MarketplaceService) ListApps(ctx context.Context, tenantID string, limit int, offset int) ([]domain.MarketplaceApp, int64, error) {
+func (m MarketplaceService) ListApps(ctx context.Context, tenantID string, limit int, offset int) ([]domain.MarketplaceApp, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var apps []domain.MarketplaceApp
-	var total int64
+	var total int
 
 	query := m.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 
 	if err := query.Model(&domain.MarketplaceApp{}).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count apps: %w", err)
+		return nil, , fmt.Errorf("failed to count apps: %w", err)
 	}
 
 	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&apps).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to list apps: %w", err)
+		return nil, , fmt.Errorf("failed to list apps: %w", err)
 	}
 
 	return apps, total, nil
 }
 
 // UpdateApp updates a marketplace app configuration
-func (m *MarketplaceService) UpdateApp(ctx context.Context, appID, userID string, config map[string]interface{}) (*domain.MarketplaceApp, error) {
+func (m MarketplaceService) UpdateApp(ctx context.Context, appID, userID string, config map[string]interface{}) (domain.MarketplaceApp, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -275,7 +275,7 @@ func (m *MarketplaceService) UpdateApp(ctx context.Context, appID, userID string
 }
 
 // EnableApp enables a marketplace app
-func (m *MarketplaceService) EnableApp(ctx context.Context, appID, userID string) error {
+func (m MarketplaceService) EnableApp(ctx context.Context, appID, userID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -291,7 +291,7 @@ func (m *MarketplaceService) EnableApp(ctx context.Context, appID, userID string
 }
 
 // DisableApp disables a marketplace app
-func (m *MarketplaceService) DisableApp(ctx context.Context, appID, userID string) error {
+func (m MarketplaceService) DisableApp(ctx context.Context, appID, userID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -307,7 +307,7 @@ func (m *MarketplaceService) DisableApp(ctx context.Context, appID, userID strin
 }
 
 // UninstallApp uninstalls a marketplace app
-func (m *MarketplaceService) UninstallApp(ctx context.Context, appID, userID string) error {
+func (m MarketplaceService) UninstallApp(ctx context.Context, appID, userID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -334,7 +334,7 @@ func (m *MarketplaceService) UninstallApp(ctx context.Context, appID, userID str
 	if err := m.db.WithContext(ctx).
 		Model(&domain.Connector{}).
 		Where("id = ?", app.ConnectorID).
-		Update("install_count", gorm.Expr("install_count - 1")).Error; err != nil {
+		Update("install_count", gorm.Expr("install_count - ")).Error; err != nil {
 		m.logger.Printf("Warning: failed to decrement install count: %v", err)
 	}
 
@@ -346,7 +346,7 @@ func (m *MarketplaceService) UninstallApp(ctx context.Context, appID, userID str
 }
 
 // UpdateAppSync updates sync configuration and starts/stops sync worker
-func (m *MarketplaceService) UpdateAppSync(ctx context.Context, appID, userID string, autoSync bool, syncInterval int) error {
+func (m MarketplaceService) UpdateAppSync(ctx context.Context, appID, userID string, autoSync bool, syncInterval int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -376,7 +376,7 @@ func (m *MarketplaceService) UpdateAppSync(ctx context.Context, appID, userID st
 }
 
 // TriggerSync manually triggers a sync for an app
-func (m *MarketplaceService) TriggerSync(ctx context.Context, appID, userID string) error {
+func (m MarketplaceService) TriggerSync(ctx context.Context, appID, userID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -407,12 +407,12 @@ func (m *MarketplaceService) TriggerSync(ctx context.Context, appID, userID stri
 }
 
 // GetAppLogs retrieves logs for an app
-func (m *MarketplaceService) GetAppLogs(ctx context.Context, appID string, action string, limit int, offset int) ([]domain.MarketplaceLog, int64, error) {
+func (m MarketplaceService) GetAppLogs(ctx context.Context, appID string, action string, limit int, offset int) ([]domain.MarketplaceLog, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var logs []domain.MarketplaceLog
-	var total int64
+	var total int
 
 	query := m.db.WithContext(ctx).Where("app_id = ?", appID)
 	if action != "" {
@@ -420,23 +420,23 @@ func (m *MarketplaceService) GetAppLogs(ctx context.Context, appID string, actio
 	}
 
 	if err := query.Model(&domain.MarketplaceLog{}).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count logs: %w", err)
+		return nil, , fmt.Errorf("failed to count logs: %w", err)
 	}
 
 	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to retrieve logs: %w", err)
+		return nil, , fmt.Errorf("failed to retrieve logs: %w", err)
 	}
 
 	return logs, total, nil
 }
 
 // AddConnectorReview adds a review to a connector
-func (m *MarketplaceService) AddConnectorReview(ctx context.Context, connectorID, userID, author string, rating int, comment string) error {
+func (m MarketplaceService) AddConnectorReview(ctx context.Context, connectorID, userID, author string, rating int, comment string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if rating < 1 || rating > 5 {
-		return fmt.Errorf("rating must be between 1 and 5")
+	if rating <  || rating >  {
+		return fmt.Errorf("rating must be between  and ")
 	}
 
 	connector, err := m.GetConnector(ctx, connectorID)
@@ -455,11 +455,11 @@ func (m *MarketplaceService) AddConnectorReview(ctx context.Context, connectorID
 	connector.Reviews = append(connector.Reviews, review)
 
 	// Recalculate average rating
-	totalRating := 0.0
+	totalRating := .
 	for _, r := range connector.Reviews {
-		totalRating += float64(r.Rating)
+		totalRating += float(r.Rating)
 	}
-	connector.Rating = totalRating / float64(len(connector.Reviews))
+	connector.Rating = totalRating / float(len(connector.Reviews))
 
 	if err := m.db.WithContext(ctx).Save(connector).Error; err != nil {
 		return fmt.Errorf("failed to add review: %w", err)
@@ -471,7 +471,7 @@ func (m *MarketplaceService) AddConnectorReview(ctx context.Context, connectorID
 
 // Helper functions
 
-func (m *MarketplaceService) startSyncWorker(app *domain.MarketplaceApp) {
+func (m MarketplaceService) startSyncWorker(app domain.MarketplaceApp) {
 	m.syncMu.Lock()
 	defer m.syncMu.Unlock()
 
@@ -484,7 +484,7 @@ func (m *MarketplaceService) startSyncWorker(app *domain.MarketplaceApp) {
 	m.syncWorkers[app.ID] = cancel
 
 	go func() {
-		ticker := time.NewTicker(time.Duration(app.SyncInterval) * time.Second)
+		ticker := time.NewTicker(time.Duration(app.SyncInterval)  time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -499,7 +499,7 @@ func (m *MarketplaceService) startSyncWorker(app *domain.MarketplaceApp) {
 	}()
 }
 
-func (m *MarketplaceService) stopSyncWorker(appID string) {
+func (m MarketplaceService) stopSyncWorker(appID string) {
 	m.syncMu.Lock()
 	defer m.syncMu.Unlock()
 
@@ -509,7 +509,7 @@ func (m *MarketplaceService) stopSyncWorker(appID string) {
 	}
 }
 
-func (m *MarketplaceService) logAction(ctx context.Context, appID, userID, action string, details map[string]interface{}, status string) {
+func (m MarketplaceService) logAction(ctx context.Context, appID, userID, action string, details map[string]interface{}, status string) {
 	go func() {
 		log := &domain.MarketplaceLog{
 			ID:        uuid.New().String(),

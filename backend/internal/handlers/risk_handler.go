@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -13,107 +13,107 @@ import (
 	"github.com/opendefender/openrisk/internal/validation"
 )
 
-// CreateRiskInput : DTO pour s√©parer la logique API de la logique DB
+// CreateRiskInput : DTO pour s√parer la logique API de la logique DB
 // Permet de recevoir une liste d'IDs d'assets (strings) au lieu d'objets complets
 type CreateRiskInput struct {
-	Title       string   `json:"title" validate:"required"`
-	Description string   `json:"description"`
-	Impact      int      `json:"impact" validate:"required,min=1,max=5"`
-	Probability int      `json:"probability" validate:"required,min=1,max=5"`
-	Tags        []string `json:"tags"`
-	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concern√©s
-	Frameworks  []string `json:"frameworks"`
+	Title       string   json:"title" validate:"required"
+	Description string   json:"description"
+	Impact      int      json:"impact" validate:"required,min=,max="
+	Probability int      json:"probability" validate:"required,min=,max="
+	Tags        []string json:"tags"
+	AssetIDs    []string json:"asset_ids" // Liste des UUIDs des assets concern√s
+	Frameworks  []string json:"frameworks"
 	// New validation tags will be added here
-	// Example: Tags        []string `json:"tags" validate:"omitempty,dive,required"`
-	// Example: AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
+	// Example: Tags        []string json:"tags" validate:"omitempty,dive,required"
+	// Example: AssetIDs    []string json:"asset_ids" validate:"omitempty,dive,uuid"
 }
 
 // UpdateRiskInput : DTO pour la mise √† jour partielle
 type UpdateRiskInput struct {
-	Title       string   `json:"title" validate:"omitempty"`
-	Description string   `json:"description" validate:"omitempty"`
-	Impact      int      `json:"impact" validate:"omitempty,min=1,max=5"`
-	Probability int      `json:"probability" validate:"omitempty,min=1,max=5"`
-	Status      string   `json:"status" validate:"omitempty"`
-	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
-	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
-	Frameworks  []string `json:"frameworks" validate:"omitempty,dive,required"`
+	Title       string   json:"title" validate:"omitempty"
+	Description string   json:"description" validate:"omitempty"
+	Impact      int      json:"impact" validate:"omitempty,min=,max="
+	Probability int      json:"probability" validate:"omitempty,min=,max="
+	Status      string   json:"status" validate:"omitempty"
+	Tags        []string json:"tags" validate:"omitempty,dive,required"
+	AssetIDs    []string json:"asset_ids" validate:"omitempty,dive,uuid"
+	Frameworks  []string json:"frameworks" validate:"omitempty,dive,required"
 	// New validation tags will be added here
-	// Example: Tags        []string `json:"tags" validate:"omitempty,dive,required"`
-	// Example: AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
+	// Example: Tags        []string json:"tags" validate:"omitempty,dive,required"
+	// Example: AssetIDs    []string json:"asset_ids" validate:"omitempty,dive,uuid"
 }
 
 // CreateRisk godoc
-// @Summary Cr√©er un nouveau risque
+// @Summary Cr√er un nouveau risque
 // @Description Ajoute un risque, calcule son score et lie les assets.
-func CreateRisk(c *fiber.Ctx) error {
+func CreateRisk(c fiber.Ctx) error {
 	input := new(CreateRiskInput)
 
-	// 1. Validation de l'input JSON
+	// . Validation de l'input JSON
 	if err := c.BodyParser(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{
+		return c.Status().JSON(fiber.Map{
 			"error":   "Invalid input format",
 			"details": err.Error(),
 		})
 	}
 
-	// 1b. Structured validation using validator tags
+	// b. Structured validation using validator tags
 	if err := validation.GetValidator().Struct(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+		return c.Status().JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
 	}
 
-	// 2. Basic validation
+	// . Basic validation
 	if input.Title == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Title is required"})
+		return c.Status().JSON(fiber.Map{"error": "Title is required"})
 	}
 
-	if input.Impact < 1 || input.Impact > 5 {
-		return c.Status(400).JSON(fiber.Map{"error": "Impact must be between 1 and 5"})
+	if input.Impact <  || input.Impact >  {
+		return c.Status().JSON(fiber.Map{"error": "Impact must be between  and "})
 	}
-	if input.Probability < 1 || input.Probability > 5 {
-		return c.Status(400).JSON(fiber.Map{"error": "Probability must be between 1 and 5"})
+	if input.Probability <  || input.Probability >  {
+		return c.Status().JSON(fiber.Map{"error": "Probability must be between  and "})
 	}
 
-	// 3. Mapping DTO -> Domain Entity
+	// . Mapping DTO -> Domain Entity
 	risk := domain.Risk{
 		Title:       input.Title,
 		Description: input.Description,
 		Impact:      input.Impact,
 		Probability: input.Probability,
-		Status:      domain.StatusDraft, // Statut par d√©faut
+		Status:      domain.StatusDraft, // Statut par d√faut
 	}
 
 	// Only set Tags if provided to avoid inserting NULL into databases that
 	// do not have the tags column (tests using sqlite in-memory).
-	if len(input.Tags) > 0 {
+	if len(input.Tags) >  {
 		risk.Tags = input.Tags
 	}
 
 	// Framework classifications (optional)
-	if len(input.Frameworks) > 0 {
+	if len(input.Frameworks) >  {
 		risk.Frameworks = input.Frameworks
 	}
 
-	// 3. Gestion des relations Assets (Many-to-Many)
-	if len(input.AssetIDs) > 0 {
-		var assets []*domain.Asset
+	// . Gestion des relations Assets (Many-to-Many)
+	if len(input.AssetIDs) >  {
+		var assets []domain.Asset
 		// GORM est intelligent : "id IN ?" fonctionne avec un slice de strings
 		result := database.DB.Where("id IN ?", input.AssetIDs).Find(&assets)
 		if result.Error != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to verify assets"})
+			return c.Status().JSON(fiber.Map{"error": "Failed to verify assets"})
 		}
 
-		// On associe les objets Assets trouv√©s au Risque
+		// On associe les objets Assets trouv√s au Risque
 		risk.Assets = assets
 	}
 
-	// 4. Compute final score using asset criticality and save
+	// . Compute final score using asset criticality and save
 	final := services.ComputeRiskScore(risk.Impact, risk.Probability, risk.Assets)
 	risk.Score = final
 
 	// Build a list of optional columns to omit when empty to support sqlite test schema
 	omit := []string{}
-	if len(input.Tags) == 0 {
+	if len(input.Tags) ==  {
 		omit = append(omit, "tags")
 	}
 	if risk.Owner == "" {
@@ -122,7 +122,7 @@ func CreateRisk(c *fiber.Ctx) error {
 	if risk.ExternalID == "" {
 		omit = append(omit, "external_id")
 	}
-	if len(risk.Frameworks) == 0 {
+	if len(risk.Frameworks) ==  {
 		omit = append(omit, "frameworks")
 	}
 	// custom_fields is datatypes.JSON in production; omit when nil/empty
@@ -132,29 +132,29 @@ func CreateRisk(c *fiber.Ctx) error {
 		omit = append(omit, "source")
 	}
 
-	if len(omit) > 0 {
+	if len(omit) >  {
 		if err := database.DB.Omit(omit...).Create(&risk).Error; err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Could not create risk"})
+			return c.Status().JSON(fiber.Map{"error": "Could not create risk"})
 		}
 	} else {
 		if err := database.DB.Create(&risk).Error; err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Could not create risk"})
+			return c.Status().JSON(fiber.Map{"error": "Could not create risk"})
 		}
 	}
 
-	// 5. Reload with relations for the response
+	// . Reload with relations for the response
 	var out domain.Risk
 	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", risk.ID).Error; err != nil {
-		return c.Status(201).JSON(risk) // fallback
+		return c.Status().JSON(risk) // fallback
 	}
 
-	return c.Status(201).JSON(out)
+	return c.Status().JSON(out)
 }
 
 // GetRisks godoc
 // @Summary Lister tous les risques
-// @Description R√©cup√®re les risques tri√©s par score d√©croissant (les plus critiques en premier).
-func GetRisks(c *fiber.Ctx) error {
+// @Description R√cup√re les risques tri√s par score d√croissant (les plus critiques en premier).
+func GetRisks(c fiber.Ctx) error {
 	var risks []domain.Risk
 
 	// Supported query params: q, status, min_score, max_score, tag
@@ -212,15 +212,15 @@ func GetRisks(c *fiber.Ctx) error {
 	// Pagination
 	pageStr := c.Query("page")
 	limitStr := c.Query("limit")
-	page := 1
-	limit := 20
+	page := 
+	limit := 
 	if pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		if p, err := strconv.Atoi(pageStr); err == nil && p >  {
 			page = p
 		}
 	}
 	if limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 200 {
+		if l, err := strconv.Atoi(limitStr); err == nil && l >  && l <=  {
 			limit = l
 		}
 	}
@@ -235,13 +235,13 @@ func GetRisks(c *fiber.Ctx) error {
 	}
 
 	if minScoreStr != "" {
-		if v, err := strconv.ParseFloat(minScoreStr, 64); err == nil {
+		if v, err := strconv.ParseFloat(minScoreStr, ); err == nil {
 			db = db.Where("score >= ?", v)
 		}
 	}
 
 	if maxScoreStr != "" {
-		if v, err := strconv.ParseFloat(maxScoreStr, 64); err == nil {
+		if v, err := strconv.ParseFloat(maxScoreStr, ); err == nil {
 			db = db.Where("score <= ?", v)
 		}
 	}
@@ -251,27 +251,27 @@ func GetRisks(c *fiber.Ctx) error {
 		db = db.Where("? = ANY(tags)", tag)
 	}
 
-	var total int64
+	var total int
 	if err := db.Count(&total).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not count risks"})
+		return c.Status().JSON(fiber.Map{"error": "Could not count risks"})
 	}
 
-	offset := (page - 1) * limit
+	offset := (page - )  limit
 	result := db.Limit(limit).Offset(offset).Find(&risks)
 	if result.Error != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch risks"})
+		return c.Status().JSON(fiber.Map{"error": "Could not fetch risks"})
 	}
 
 	return c.JSON(fiber.Map{"items": risks, "total": total})
 }
 
 // GetRisk godoc
-// @Summary R√©cup√©rer un risque unique
-// @Description D√©tails complets d'un risque par ID.
-func GetRisk(c *fiber.Ctx) error {
+// @Summary R√cup√rer un risque unique
+// @Description D√tails complets d'un risque par ID.
+func GetRisk(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+		return c.Status().JSON(fiber.Map{"error": "Invalid UUID"})
 	}
 
 	var risk domain.Risk
@@ -282,7 +282,7 @@ func GetRisk(c *fiber.Ctx) error {
 		First(&risk, "id = ?", id)
 
 	if result.Error != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+		return c.Status().JSON(fiber.Map{"error": "Risk not found"})
 	}
 
 	return c.JSON(risk)
@@ -291,27 +291,27 @@ func GetRisk(c *fiber.Ctx) error {
 // UpdateRisk godoc
 // @Summary Mettre √† jour un risque
 // @Description Mise √† jour des champs (Titre, Score, Statut). Recalcule le score automatiquement.
-func UpdateRisk(c *fiber.Ctx) error {
+func UpdateRisk(c fiber.Ctx) error {
 	id := c.Params("id")
 	var risk domain.Risk
 
-	// 1. V√©rifier l'existence
+	// . V√rifier l'existence
 	if err := database.DB.First(&risk, "id = ?", id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+		return c.Status().JSON(fiber.Map{"error": "Risk not found"})
 	}
 
-	// 2. Parser les nouvelles donn√©es
+	// . Parser les nouvelles donn√es
 	input := new(UpdateRiskInput)
 	if err := c.BodyParser(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return c.Status().JSON(fiber.Map{"error": "Invalid input"})
 	}
 
 	// Structured validation for update payload
 	if err := validation.GetValidator().Struct(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+		return c.Status().JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
 	}
 
-	// 3. Mise √† jour des champs (uniquement si fournis)
+	// . Mise √† jour des champs (uniquement si fournis)
 	if input.Title != "" {
 		risk.Title = input.Title
 	}
@@ -321,36 +321,36 @@ func UpdateRisk(c *fiber.Ctx) error {
 	if input.Status != "" {
 		risk.Status = domain.RiskStatus(input.Status)
 	}
-	if len(input.Tags) > 0 {
+	if len(input.Tags) >  {
 		risk.Tags = input.Tags
 	}
 
-	if len(input.Frameworks) > 0 {
+	if len(input.Frameworks) >  {
 		risk.Frameworks = input.Frameworks
 	}
 
 	// If AssetIDs provided, reload and attach assets before computing score
-	if len(input.AssetIDs) > 0 {
-		var assets []*domain.Asset
+	if len(input.AssetIDs) >  {
+		var assets []domain.Asset
 		if err := database.DB.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
 			risk.Assets = assets
 		}
 	}
 
 	// Si Impact ou Proba change, le hook BeforeSave recalculera le Score
-	if input.Impact != 0 {
+	if input.Impact !=  {
 		risk.Impact = input.Impact
 	}
-	if input.Probability != 0 {
+	if input.Probability !=  {
 		risk.Probability = input.Probability
 	}
 
-	// 4. Recompute score with assets criticality and save
+	// . Recompute score with assets criticality and save
 	final := services.ComputeRiskScore(risk.Impact, risk.Probability, risk.Assets)
 	risk.Score = final
 
 	omit := []string{}
-	if len(input.Tags) == 0 {
+	if len(input.Tags) ==  {
 		omit = append(omit, "tags")
 	}
 	if risk.Owner == "" {
@@ -359,18 +359,18 @@ func UpdateRisk(c *fiber.Ctx) error {
 	if risk.ExternalID == "" {
 		omit = append(omit, "external_id")
 	}
-	if len(risk.Frameworks) == 0 {
+	if len(risk.Frameworks) ==  {
 		omit = append(omit, "frameworks")
 	}
 	omit = append(omit, "custom_fields")
 
-	if len(omit) > 0 {
+	if len(omit) >  {
 		if err := database.DB.Omit(omit...).Save(&risk).Error; err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Could not update risk"})
+			return c.Status().JSON(fiber.Map{"error": "Could not update risk"})
 		}
 	} else {
 		if err := database.DB.Save(&risk).Error; err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Could not update risk"})
+			return c.Status().JSON(fiber.Map{"error": "Could not update risk"})
 		}
 	}
 
@@ -386,24 +386,24 @@ func UpdateRisk(c *fiber.Ctx) error {
 // DeleteRisk godoc
 // @Summary Supprimer un risque
 // @Description Soft delete d'un risque.
-func DeleteRisk(c *fiber.Ctx) error {
+func DeleteRisk(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	// Validation UUID
 	if _, err := uuid.Parse(id); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+		return c.Status().JSON(fiber.Map{"error": "Invalid UUID"})
 	}
 
-	// Delete avec GORM (Soft Delete par d√©faut gr√¢ce au champ DeletedAt dans le mod√®le)
+	// Delete avec GORM (Soft Delete par d√faut gr√¢ce au champ DeletedAt dans le mod√le)
 	result := database.DB.Delete(&domain.Risk{}, "id = ?", id)
 
 	if result.Error != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not delete risk"})
+		return c.Status().JSON(fiber.Map{"error": "Could not delete risk"})
 	}
 
-	if result.RowsAffected == 0 {
-		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+	if result.RowsAffected ==  {
+		return c.Status().JSON(fiber.Map{"error": "Risk not found"})
 	}
 
-	return c.SendStatus(204) // No Content
+	return c.SendStatus() // No Content
 }

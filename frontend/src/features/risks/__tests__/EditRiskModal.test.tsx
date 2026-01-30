@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/ @vitest-environment jsdom /
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -22,7 +22,7 @@ describe('EditRiskModal', () => {
 
   it('renders existing risk and updates', async () => {
     const onClose = vi.fn();
-    const risk = { id: '1', title: 'Old', description: 'Old desc', impact: 2, probability: 2, tags: [] };
+    const risk = { id: '', title: 'Old', description: 'Old desc', impact: , probability: , tags: [] };
     render(<EditRiskModal isOpen={true} onClose={onClose} risk={risk} />);
 
     const title = screen.getByLabelText(/Titre/i);
@@ -31,7 +31,7 @@ describe('EditRiskModal', () => {
     const submit = screen.getByRole('button', { name: /Enregistrer/i });
     fireEvent.click(submit);
 
-    await waitFor(() => expect(updateRiskMock).toHaveBeenCalledWith('1', expect.any(Object)));
+    await waitFor(() => expect(updateRiskMock).toHaveBeenCalledWith('', expect.any(Object)));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });

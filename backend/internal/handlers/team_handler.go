@@ -3,7 +3,7 @@ package handlers
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -11,42 +11,42 @@ import (
 )
 
 type CreateTeamInput struct {
-	Name        string `json:"name" validate:"required"`
-	Description string `json:"description"`
+	Name        string json:"name" validate:"required"
+	Description string json:"description"
 }
 
 type UpdateTeamInput struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name        string json:"name"
+	Description string json:"description"
 }
 
 type TeamResponseDTO struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	MemberCount int    `json:"member_count"`
-	CreatedAt   string `json:"created_at"`
+	ID          string json:"id"
+	Name        string json:"name"
+	Description string json:"description"
+	MemberCount int    json:"member_count"
+	CreatedAt   string json:"created_at"
 }
 
 type TeamDetailDTO struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	MemberCount int             `json:"member_count"`
-	Members     []TeamMemberDTO `json:"members"`
-	CreatedAt   string          `json:"created_at"`
+	ID          string          json:"id"
+	Name        string          json:"name"
+	Description string          json:"description"
+	MemberCount int             json:"member_count"
+	Members     []TeamMemberDTO json:"members"
+	CreatedAt   string          json:"created_at"
 }
 
 type TeamMemberDTO struct {
-	ID       string `json:"id"`
-	Email    string `json:"email"`
-	FullName string `json:"full_name"`
-	Role     string `json:"role"`
-	JoinedAt string `json:"joined_at"`
+	ID       string json:"id"
+	Email    string json:"email"
+	FullName string json:"full_name"
+	Role     string json:"role"
+	JoinedAt string json:"joined_at"
 }
 
 // CreateTeam creates a new team (admin only)
-func CreateTeam(c *fiber.Ctx) error {
+func CreateTeam(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -80,15 +80,15 @@ func CreateTeam(c *fiber.Ctx) error {
 		ID:          team.ID.String(),
 		Name:        team.Name,
 		Description: team.Description,
-		MemberCount: 0,
-		CreatedAt:   team.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		MemberCount: ,
+		CreatedAt:   team.CreatedAt.Format("--T::Z"),
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(response)
 }
 
 // GetTeams retrieves all teams (admin only)
-func GetTeams(c *fiber.Ctx) error {
+func GetTeams(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -112,7 +112,7 @@ func GetTeams(c *fiber.Ctx) error {
 	var response []TeamResponseDTO
 	for _, team := range teams {
 		// Get member count
-		var memberCount int64
+		var memberCount int
 		database.DB.Model(&domain.TeamMember{}).Where("team_id = ?", team.ID).Count(&memberCount)
 
 		response = append(response, TeamResponseDTO{
@@ -120,7 +120,7 @@ func GetTeams(c *fiber.Ctx) error {
 			Name:        team.Name,
 			Description: team.Description,
 			MemberCount: int(memberCount),
-			CreatedAt:   team.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:   team.CreatedAt.Format("--T::Z"),
 		})
 	}
 
@@ -128,7 +128,7 @@ func GetTeams(c *fiber.Ctx) error {
 }
 
 // GetTeam retrieves a specific team with members (admin only)
-func GetTeam(c *fiber.Ctx) error {
+func GetTeam(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -163,7 +163,7 @@ func GetTeam(c *fiber.Ctx) error {
 			Email:    user.Email,
 			FullName: user.FullName,
 			Role:     member.Role,
-			JoinedAt: member.JoinedAt.Format("2006-01-02T15:04:05Z"),
+			JoinedAt: member.JoinedAt.Format("--T::Z"),
 		})
 	}
 
@@ -173,14 +173,14 @@ func GetTeam(c *fiber.Ctx) error {
 		Description: team.Description,
 		MemberCount: len(members),
 		Members:     memberDTOs,
-		CreatedAt:   team.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:   team.CreatedAt.Format("--T::Z"),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
 // UpdateTeam updates a team (admin only)
-func UpdateTeam(c *fiber.Ctx) error {
+func UpdateTeam(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -219,7 +219,7 @@ func UpdateTeam(c *fiber.Ctx) error {
 	}
 
 	// Get member count
-	var memberCount int64
+	var memberCount int
 	database.DB.Model(&domain.TeamMember{}).Where("team_id = ?", team.ID).Count(&memberCount)
 
 	response := TeamResponseDTO{
@@ -227,14 +227,14 @@ func UpdateTeam(c *fiber.Ctx) error {
 		Name:        team.Name,
 		Description: team.Description,
 		MemberCount: int(memberCount),
-		CreatedAt:   team.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:   team.CreatedAt.Format("--T::Z"),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
 // DeleteTeam deletes a team (admin only)
-func DeleteTeam(c *fiber.Ctx) error {
+func DeleteTeam(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -270,7 +270,7 @@ func DeleteTeam(c *fiber.Ctx) error {
 }
 
 // AddTeamMember adds a user to a team (admin only)
-func AddTeamMember(c *fiber.Ctx) error {
+func AddTeamMember(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -323,7 +323,7 @@ func AddTeamMember(c *fiber.Ctx) error {
 }
 
 // RemoveTeamMember removes a user from a team (admin only)
-func RemoveTeamMember(c *fiber.Ctx) error {
+func RemoveTeamMember(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})

@@ -20,33 +20,33 @@ export const Drawer = ({ isOpen, onClose, children, title }: DrawerProps) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Overlay sombre */}
+          {/ Overlay sombre /}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity:  }}
+            animate={{ opacity:  }}
+            exit={{ opacity:  }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset- z- bg-black/ backdrop-blur-sm"
           />
           
-          {/* Panneau Lat√©ral */}
+          {/ Panneau Lat√ral /}
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-surface border-l border-border shadow-2xl flex flex-col"
+            initial={{ x: '%' }}
+            animate={{ x:  }}
+            exit={{ x: '%' }}
+            transition={{ type: "spring", damping: , stiffness:  }}
+            className="fixed inset-y- right- z- w-full max-w-xl bg-surface border-l border-border shadow-xl flex flex-col"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
-              <h2 className="text-xl font-semibold text-white">{title}</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <X size={20} />
+            {/ Header /}
+            <div className="flex items-center justify-between p- border-b border-border bg-background/">
+              <h className="text-xl font-semibold text-white">{title}</h>
+              <button onClick={onClose} className="p- hover:bg-white/ rounded-full transition-colors">
+                <X size={} />
               </button>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+            {/ Scrollable Content /}
+            <div className="flex- overflow-y-auto p- scrollbar-thin">
               {children}
             </div>
           </motion.div>

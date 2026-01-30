@@ -7,7 +7,7 @@ interface PageHeaderProps {
   onNewRisk: () => void;
 }
 
-// Le header flottant, désormais générique et réutilisable
+// Le header flottant, d�sormais g�n�rique et r�utilisable
 export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -28,20 +28,20 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
   const debounceRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [highlighted, setHighlighted] = useState<number>(-1);
+  const [highlighted, setHighlighted] = useState<number>(-);
   const [suggestionsOpen, setSuggestionsOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    // Debounce typing for 300ms
+    // Debounce typing for ms
     if (debounceRef.current) {
       window.clearTimeout(debounceRef.current);
     }
     debounceRef.current = window.setTimeout(() => {
       // When typing, fetch few suggestions only
-      fetchRisks(query ? { q: query, limit: 5 } : { page, limit: pageSize });
+      fetchRisks(query ? { q: query, limit:  } : { page, limit: pageSize });
       setSuggestionsOpen(Boolean(query));
-      setHighlighted(-1);
-    }, 300);
+      setHighlighted(-);
+    }, );
 
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -54,7 +54,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
       if (!containerRef.current) return;
       if (!containerRef.current.contains(e.target as Node)) {
         setSuggestionsOpen(false);
-        setHighlighted(-1);
+        setHighlighted(-);
       }
     };
     window.addEventListener('click', onClick);
@@ -63,12 +63,12 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
 
   // Reset highlight when risks list changes
   useEffect(() => {
-    setHighlighted(-1);
+    setHighlighted(-);
   }, [risks]);
 
   const applyFilters = async () => {
     setShowFilters(false);
-    const params: any = { page: 1, limit: pageSize };
+    const params: any = { page: , limit: pageSize };
     if (statusFilter) params.status = statusFilter;
     if (tagFilter) params.tag = tagFilter;
     if (minScore !== '') params.min_score = minScore;
@@ -78,18 +78,18 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
 
   const clearFilters = async () => {
     setStatusFilter(''); setTagFilter(''); setMinScore(''); setMaxScore('');
-    await fetchRisks({ page: 1, limit: pageSize });
+    await fetchRisks({ page: , limit: pageSize });
   };
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalPages = Math.max(, Math.ceil(total / pageSize));
 
   return (
-    <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-6 z-10 sticky top-0">
+    <header className="h- shrink- border-b border-border bg-background/ backdrop-blur-md flex items-center justify-between px- z- sticky top-">
       
-      {/* Search Bar (Linear style) */}
+      {/ Search Bar (Linear style) /}
       <div className="relative">
-        <div ref={containerRef} className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-white transition-colors group">
-          <Search size={14} className="group-focus-within:text-primary transition-colors" />
+        <div ref={containerRef} className="flex items-center gap- text-zinc- bg-surface border border-white/ px- py-. rounded-md w- focus-within:border-primary/ focus-within:text-white transition-colors group">
+          <Search size={} className="group-focus-within:text-primary transition-colors" />
           <input 
               type="text" 
               value={query}
@@ -99,13 +99,13 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
                 if (!suggestionsOpen) return;
                 if (e.key === 'ArrowDown') {
                   e.preventDefault();
-                  setHighlighted((h) => Math.min(h + 1, Math.max(0, risks.length - 1)));
+                  setHighlighted((h) => Math.min(h + , Math.max(, risks.length - )));
                 } else if (e.key === 'ArrowUp') {
                   e.preventDefault();
-                  setHighlighted((h) => Math.max(h - 1, 0));
+                  setHighlighted((h) => Math.max(h - , ));
                 } else if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (highlighted >= 0 && highlighted < risks.length) {
+                  if (highlighted >=  && highlighted < risks.length) {
                     const r = risks[highlighted];
                     setQuery(r.title);
                     setSuggestionsOpen(false);
@@ -115,49 +115,49 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
                 } else if (e.key === 'Escape') {
                   e.preventDefault();
                   setSuggestionsOpen(false);
-                  setHighlighted(-1);
+                  setHighlighted(-);
                 }
               }}
               placeholder="Search risks, assets..." 
-              className="bg-transparent border-none outline-none text-sm w-56 placeholder:text-zinc-600"
+              className="bg-transparent border-none outline-none text-sm w- placeholder:text-zinc-"
           />
-          <button onClick={() => setShowFilters((s) => !s)} className="p-1 rounded hover:bg-white/5">
-            <Filter size={16} />
+          <button onClick={() => setShowFilters((s) => !s)} className="p- rounded hover:bg-white/">
+            <Filter size={} />
           </button>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-zinc-500 bg-zinc-800 rounded border border-zinc-700">⌘K</kbd>
+          <kbd className="hidden sm:inline-block px-. py-. text-[px] font-bold text-zinc- bg-zinc- rounded border border-zinc-">⌘K</kbd>
         </div>
 
-        {/* Suggestions / Typeahead Panel */}
-        {suggestionsOpen && query && !isLoading && risks.length > 0 && (
-          <div className="absolute mt-1 w-64 bg-surface border border-white/5 rounded-md shadow-lg z-20">
-            {risks.slice(0, 5).map((r, idx) => (
+        {/ Suggestions / Typeahead Panel /}
+        {suggestionsOpen && query && !isLoading && risks.length >  && (
+          <div className="absolute mt- w- bg-surface border border-white/ rounded-md shadow-lg z-">
+            {risks.slice(, ).map((r, idx) => (
               <div
                 key={r.id}
                 role="option"
                 aria-selected={highlighted === idx}
                 onMouseEnter={() => setHighlighted(idx)}
-                onMouseLeave={() => setHighlighted(-1)}
+                onMouseLeave={() => setHighlighted(-)}
                 onClick={() => {
                   setQuery(r.title);
                   setSuggestionsOpen(false);
                   // open risk details via global store
                   setSelectedRisk(r);
                 }}
-                className={`px-3 py-2 cursor-pointer ${highlighted === idx ? 'bg-primary/10' : 'hover:bg-white/5'}`}
+                className={px- py- cursor-pointer ${highlighted === idx ? 'bg-primary/' : 'hover:bg-white/'}}
               >
                 <div className="text-sm font-medium">{r.title}</div>
-                <div className="text-xs text-zinc-400">Score: {r.score} · {r.tags?.slice(0,2).join(', ')}</div>
+                <div className="text-xs text-zinc-">Score: {r.score} · {r.tags?.slice(,).join(', ')}</div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Filters popover */}
+        {/ Filters popover /}
         {showFilters && (
-          <div className="absolute left-0 mt-14 w-80 bg-surface border border-white/5 rounded-md shadow-lg p-4 z-20">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-zinc-400">Status</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background/50 p-2 rounded">
+          <div className="absolute left- mt- w- bg-surface border border-white/ rounded-md shadow-lg p- z-">
+            <div className="flex flex-col gap-">
+              <label className="text-xs text-zinc-">Status</label>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background/ p- rounded">
                 <option value="">Any</option>
                 <option value="DRAFT">DRAFT</option>
                 <option value="PLANNED">PLANNED</option>
@@ -165,51 +165,51 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
                 <option value="DONE">DONE</option>
               </select>
 
-              <label className="text-xs text-zinc-400">Tag</label>
-              <input value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} placeholder="e.g. database" className="bg-background/50 p-2 rounded" />
+              <label className="text-xs text-zinc-">Tag</label>
+              <input value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} placeholder="e.g. database" className="bg-background/ p- rounded" />
 
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-xs text-zinc-400">Min Score</label>
-                  <input type="number" value={minScore as any} onChange={(e) => setMinScore(e.target.value === '' ? '' : Number(e.target.value))} className="bg-background/50 p-2 rounded w-full" />
+              <div className="flex gap-">
+                <div className="flex-">
+                  <label className="text-xs text-zinc-">Min Score</label>
+                  <input type="number" value={minScore as any} onChange={(e) => setMinScore(e.target.value === '' ? '' : Number(e.target.value))} className="bg-background/ p- rounded w-full" />
                 </div>
-                <div className="flex-1">
-                  <label className="text-xs text-zinc-400">Max Score</label>
-                  <input type="number" value={maxScore as any} onChange={(e) => setMaxScore(e.target.value === '' ? '' : Number(e.target.value))} className="bg-background/50 p-2 rounded w-full" />
+                <div className="flex-">
+                  <label className="text-xs text-zinc-">Max Score</label>
+                  <input type="number" value={maxScore as any} onChange={(e) => setMaxScore(e.target.value === '' ? '' : Number(e.target.value))} className="bg-background/ p- rounded w-full" />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button onClick={clearFilters} className="text-sm text-zinc-400">Clear</button>
-                <button onClick={applyFilters} className="text-sm bg-primary px-3 py-1 rounded text-white">Apply</button>
+              <div className="flex justify-end gap- pt-">
+                <button onClick={clearFilters} className="text-sm text-zinc-">Clear</button>
+                <button onClick={applyFilters} className="text-sm bg-primary px- py- rounded text-white">Apply</button>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Actions Droite */}
-      <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <button className="relative text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-background"></span>
+      {/ Actions Droite /}
+      <div className="flex items-center gap-">
+          <div className="flex items-center gap-">
+            <button className="relative text-zinc- hover:text-white transition-colors p- hover:bg-white/ rounded-full">
+              <Bell size={} />
+              <span className="absolute top-. right-. w- h- bg-red- rounded-full animate-pulse border border-background"></span>
             </button>
 
-            {/* Pagination controls */}
-            <div className="flex items-center gap-1 bg-surface p-1 rounded">
-              <button onClick={() => setPage(Math.max(1, page - 1))} className="p-1 hover:bg-white/5 rounded">
-                <ChevronLeft size={16} />
+            {/ Pagination controls /}
+            <div className="flex items-center gap- bg-surface p- rounded">
+              <button onClick={() => setPage(Math.max(, page - ))} className="p- hover:bg-white/ rounded">
+                <ChevronLeft size={} />
               </button>
-              <div className="px-2 text-sm">{page} / {totalPages}</div>
-              <button onClick={() => setPage(Math.min(totalPages, page + 1))} className="p-1 hover:bg-white/5 rounded">
-                <ChevronRight size={16} />
+              <div className="px- text-sm">{page} / {totalPages}</div>
+              <button onClick={() => setPage(Math.min(totalPages, page + ))} className="p- hover:bg-white/ rounded">
+                <ChevronRight size={} />
               </button>
             </div>
           </div>
           
-          <Button onClick={onNewRisk} className="shadow-lg shadow-blue-500/20">
-            <Plus size={16} className="mr-2" /> New Risk
+          <Button onClick={onNewRisk} className="shadow-lg shadow-blue-/">
+            <Plus size={} className="mr-" /> New Risk
           </Button>
       </div>
     </header>

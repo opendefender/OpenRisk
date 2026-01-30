@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/ @vitest-environment jsdom /
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -79,9 +79,9 @@ describe('Login Page', () => {
     );
 
     const passwordInput = screen.getByPlaceholderText('••••••••') as HTMLInputElement;
-    await user.type(passwordInput, 'password123');
+    await user.type(passwordInput, 'password');
 
-    expect(passwordInput.value).toBe('password123');
+    expect(passwordInput.value).toBe('password');
   });
 
   it('should call login handler on form submission', async () => {
@@ -97,11 +97,11 @@ describe('Login Page', () => {
     const submitButton = screen.getByRole('button', { name: /Sign In/i });
 
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInput, 'password123');
+    await user.type(passwordInput, 'password');
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith('test@example.com', 'password123');
+      expect(mockLogin).toHaveBeenCalledWith('test@example.com', 'password');
     });
   });
 
@@ -120,7 +120,7 @@ describe('Login Page', () => {
     const submitButton = screen.getByRole('button', { name: /Sign In/i });
 
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInput, 'password123');
+    await user.type(passwordInput, 'password');
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -143,7 +143,7 @@ describe('Login Page', () => {
     const submitButton = screen.getByRole('button', { name: /Sign In/i });
 
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInput, 'password123');
+    await user.type(passwordInput, 'password');
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -166,7 +166,7 @@ describe('Login Page', () => {
     const submitButton = screen.getByRole('button', { name: /Sign In/i });
 
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInput, 'password123');
+    await user.type(passwordInput, 'password');
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -176,7 +176,7 @@ describe('Login Page', () => {
 
   it('should disable submit button while loading', async () => {
     const user = userEvent.setup();
-    mockLogin.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    mockLogin.mockImplementation(() => new Promise(resolve => setTimeout(resolve, )));
 
     render(
       <BrowserRouter>
@@ -189,7 +189,7 @@ describe('Login Page', () => {
     const submitButton = screen.getByRole('button', { name: /Sign In/i });
 
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInput, 'password123');
+    await user.type(passwordInput, 'password');
     await user.click(submitButton);
 
     // Button should have isLoading state set

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -13,18 +13,18 @@ import (
 
 // TokenHandler handles API token management endpoints
 type TokenHandler struct {
-	tokenService *services.TokenService
+	tokenService services.TokenService
 }
 
 // NewTokenHandler creates a new token handler
-func NewTokenHandler(tokenService *services.TokenService) *TokenHandler {
+func NewTokenHandler(tokenService services.TokenService) TokenHandler {
 	return &TokenHandler{
 		tokenService: tokenService,
 	}
 }
 
 // CreateToken creates a new API token (POST /api/tokens)
-func (h *TokenHandler) CreateToken(c *fiber.Ctx) error {
+func (h TokenHandler) CreateToken(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -62,7 +62,7 @@ func (h *TokenHandler) CreateToken(c *fiber.Ctx) error {
 }
 
 // ListTokens lists all API tokens for the user (GET /api/tokens)
-func (h *TokenHandler) ListTokens(c *fiber.Ctx) error {
+func (h TokenHandler) ListTokens(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -97,7 +97,7 @@ func (h *TokenHandler) ListTokens(c *fiber.Ctx) error {
 }
 
 // GetToken retrieves a single token (GET /api/tokens/:id)
-func (h *TokenHandler) GetToken(c *fiber.Ctx) error {
+func (h TokenHandler) GetToken(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -137,7 +137,7 @@ func (h *TokenHandler) GetToken(c *fiber.Ctx) error {
 }
 
 // UpdateToken updates a token (PUT /api/tokens/:id)
-func (h *TokenHandler) UpdateToken(c *fiber.Ctx) error {
+func (h TokenHandler) UpdateToken(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -183,7 +183,7 @@ func (h *TokenHandler) UpdateToken(c *fiber.Ctx) error {
 }
 
 // RevokeToken revokes a token (POST /api/tokens/:id/revoke)
-func (h *TokenHandler) RevokeToken(c *fiber.Ctx) error {
+func (h TokenHandler) RevokeToken(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -225,7 +225,7 @@ func (h *TokenHandler) RevokeToken(c *fiber.Ctx) error {
 }
 
 // RotateToken rotates a token (POST /api/tokens/:id/rotate)
-func (h *TokenHandler) RotateToken(c *fiber.Ctx) error {
+func (h TokenHandler) RotateToken(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -258,7 +258,7 @@ func (h *TokenHandler) RotateToken(c *fiber.Ctx) error {
 }
 
 // DeleteToken deletes a token (DELETE /api/tokens/:id)
-func (h *TokenHandler) DeleteToken(c *fiber.Ctx) error {
+func (h TokenHandler) DeleteToken(c fiber.Ctx) error {
 	userID, err := GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
@@ -287,7 +287,7 @@ func (h *TokenHandler) DeleteToken(c *fiber.Ctx) error {
 }
 
 // GetUserIDFromContext extracts user ID from fiber context
-func GetUserIDFromContext(c *fiber.Ctx) (uuid.UUID, error) {
+func GetUserIDFromContext(c fiber.Ctx) (uuid.UUID, error) {
 	userIDVal := c.Locals("userID")
 	if userIDVal == nil {
 		return uuid.UUID{}, errors.New("user id not found in context")

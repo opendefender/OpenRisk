@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/gofiber/fiber/v"
+	"github.com/golang-jwt/jwt/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
@@ -21,11 +21,11 @@ import (
 const testJWTSecret = "test-jwt-secret-key"
 
 // TestLoginSuccess tests successful login with valid credentials
-func TestLoginSuccess(t *testing.T) {
+func TestLoginSuccess(t testing.T) {
 	app := fiber.New()
 
 	// Setup auth service with test secret
-	authService := services.NewAuthService(testJWTSecret, 24*time.Hour)
+	authService := services.NewAuthService(testJWTSecret, time.Hour)
 
 	// Create auth handler
 	authHandler := &AuthHandler{
@@ -38,7 +38,7 @@ func TestLoginSuccess(t *testing.T) {
 	// Prepare login request
 	loginReq := LoginInput{
 		Email:    "test@example.com",
-		Password: "secure123",
+		Password: "secure",
 	}
 
 	reqBody, err := json.Marshal(loginReq)
@@ -54,15 +54,15 @@ func TestLoginSuccess(t *testing.T) {
 }
 
 // TestLoginMissingEmail tests login without email
-func TestLoginMissingEmail(t *testing.T) {
+func TestLoginMissingEmail(t testing.T) {
 	app := fiber.New()
-	authService := services.NewAuthService(testJWTSecret, 24*time.Hour)
+	authService := services.NewAuthService(testJWTSecret, time.Hour)
 	authHandler := &AuthHandler{authService: authService}
 	app.Post("/auth/login", authHandler.Login)
 
 	loginReq := LoginInput{
 		Email:    "",
-		Password: "secure123",
+		Password: "secure",
 	}
 
 	reqBody, _ := json.Marshal(loginReq)
@@ -73,22 +73,22 @@ func TestLoginMissingEmail(t *testing.T) {
 }
 
 // TestLoginInvalidPassword tests login with wrong password
-func TestLoginInvalidPassword(t *testing.T) {
-	t.Run("Password too short", func(t *testing.T) {
+func TestLoginInvalidPassword(t testing.T) {
+	t.Run("Password too short", func(t testing.T) {
 		loginReq := LoginInput{
 			Email:    "test@example.com",
 			Password: "short",
 		}
 
 		reqBody, _ := json.Marshal(loginReq)
-		assert.True(t, len(loginReq.Password) < 8)
+		assert.True(t, len(loginReq.Password) < )
 		assert.NotEmpty(t, reqBody)
 	})
 }
 
 // TestTokenGeneration tests JWT token generation with claims
-func TestTokenGeneration(t *testing.T) {
-	authService := services.NewAuthService(testJWTSecret, 24*time.Hour)
+func TestTokenGeneration(t testing.T) {
+	authService := services.NewAuthService(testJWTSecret, time.Hour)
 
 	user := &domain.User{
 		ID:       uuid.New(),
@@ -107,7 +107,7 @@ func TestTokenGeneration(t *testing.T) {
 
 	// Verify token is valid JWT
 	claims := &domain.UserClaims{}
-	parsedToken, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
+	parsedToken, err := jwt.ParseWithClaims(token, claims, func(t jwt.Token) (interface{}, error) {
 		return []byte(testJWTSecret), nil
 	})
 
@@ -120,50 +120,50 @@ func TestTokenGeneration(t *testing.T) {
 }
 
 // TestTokenValidation tests JWT token validation
-func TestTokenValidation(t *testing.T) {
+func TestTokenValidation(t testing.T) {
 	tests := []struct {
 		name        string
-		tokenModify func(*domain.UserClaims)
+		tokenModify func(domain.UserClaims)
 		shouldPass  bool
 	}{
 		{
 			name: "Valid token",
-			tokenModify: func(c *domain.UserClaims) {
+			tokenModify: func(c domain.UserClaims) {
 				// No modifications, use valid token
 			},
 			shouldPass: true,
 		},
 		{
 			name: "Expired token",
-			tokenModify: func(c *domain.UserClaims) {
-				c.ExpiresAt = time.Now().Add(-1 * time.Hour).Unix()
+			tokenModify: func(c domain.UserClaims) {
+				c.ExpiresAt = time.Now().Add(-  time.Hour).Unix()
 			},
 			shouldPass: false,
 		},
 		{
 			name: "Token with future issue date (not yet valid)",
-			tokenModify: func(c *domain.UserClaims) {
-				c.IssuedAt = time.Now().Add(1 * time.Hour).Unix()
+			tokenModify: func(c domain.UserClaims) {
+				c.IssuedAt = time.Now().Add(  time.Hour).Unix()
 			},
 			shouldPass: false,
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			authService := services.NewAuthService(testJWTSecret, 24*time.Hour)
+		t.Run(tc.name, func(t testing.T) {
+			authService := services.NewAuthService(testJWTSecret, time.Hour)
 
 			claims := &domain.UserClaims{
 				ID:        uuid.New(),
 				Email:     "test@example.com",
 				RoleName:  "analyst",
-				ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+				ExpiresAt: time.Now().Add(  time.Hour).Unix(),
 				IssuedAt:  time.Now().Unix(),
 			}
 
 			tc.tokenModify(claims)
 
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			token := jwt.NewWithClaims(jwt.SigningMethodHS, claims)
 			tokenString, err := token.SignedString([]byte(testJWTSecret))
 			require.NoError(t, err)
 
@@ -184,8 +184,8 @@ func TestTokenValidation(t *testing.T) {
 }
 
 // TestPasswordHashing tests bcrypt password hashing
-func TestPasswordHashing(t *testing.T) {
-	password := "secure_password_123"
+func TestPasswordHashing(t testing.T) {
+	password := "secure_password_"
 
 	// Hash password
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -202,7 +202,7 @@ func TestPasswordHashing(t *testing.T) {
 }
 
 // TestUserDTO tests user data transfer object
-func TestUserDTO(t *testing.T) {
+func TestUserDTO(t testing.T) {
 	user := domain.User{
 		ID:       uuid.New(),
 		Email:    "test@example.com",
@@ -227,26 +227,26 @@ func TestUserDTO(t *testing.T) {
 }
 
 // TestAuthResponse tests auth response structure
-func TestAuthResponse(t *testing.T) {
+func TestAuthResponse(t testing.T) {
 	response := AuthResponse{
 		Token:     "test.jwt.token",
-		User:      &UserDTO{ID: "123", Email: "test@example.com", Role: "analyst"},
-		ExpiresIn: 86400,
+		User:      &UserDTO{ID: "", Email: "test@example.com", Role: "analyst"},
+		ExpiresIn: ,
 	}
 
 	assert.NotEmpty(t, response.Token)
 	assert.Equal(t, "test@example.com", response.User.Email)
-	assert.Equal(t, int64(86400), response.ExpiresIn)
+	assert.Equal(t, int(), response.ExpiresIn)
 }
 
 // TestMultipleLoginAttempts tests rate-limiting scenario
-func TestMultipleLoginAttempts(t *testing.T) {
-	attempts := 5
+func TestMultipleLoginAttempts(t testing.T) {
+	attempts := 
 
-	for i := 0; i < attempts; i++ {
+	for i := ; i < attempts; i++ {
 		loginReq := LoginInput{
 			Email:    "test@example.com",
-			Password: "password123",
+			Password: "password",
 		}
 
 		reqBody, err := json.Marshal(loginReq)
@@ -258,8 +258,8 @@ func TestMultipleLoginAttempts(t *testing.T) {
 }
 
 // TestConcurrentLogins tests concurrent login requests
-func TestConcurrentLogins(t *testing.T) {
-	authService := services.NewAuthService(testJWTSecret, 24*time.Hour)
+func TestConcurrentLogins(t testing.T) {
+	authService := services.NewAuthService(testJWTSecret, time.Hour)
 
 	user := &domain.User{
 		ID:    uuid.New(),
@@ -270,10 +270,10 @@ func TestConcurrentLogins(t *testing.T) {
 		},
 	}
 
-	done := make(chan bool, 3)
+	done := make(chan bool, )
 
-	// Simulate 3 concurrent login attempts
-	for i := 0; i < 3; i++ {
+	// Simulate  concurrent login attempts
+	for i := ; i < ; i++ {
 		go func() {
 			token, err := authService.GenerateToken(user)
 			assert.NoError(t, err)
@@ -283,13 +283,13 @@ func TestConcurrentLogins(t *testing.T) {
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 3; i++ {
+	for i := ; i < ; i++ {
 		<-done
 	}
 }
 
 // TestLoginInputValidation validates input sanitization
-func TestLoginInputValidation(t *testing.T) {
+func TestLoginInputValidation(t testing.T) {
 	tests := []struct {
 		name  string
 		input LoginInput
@@ -297,12 +297,12 @@ func TestLoginInputValidation(t *testing.T) {
 	}{
 		{
 			name:  "Valid input",
-			input: LoginInput{Email: "test@example.com", Password: "secure123"},
+			input: LoginInput{Email: "test@example.com", Password: "secure"},
 			valid: true,
 		},
 		{
 			name:  "Missing email",
-			input: LoginInput{Email: "", Password: "secure123"},
+			input: LoginInput{Email: "", Password: "secure"},
 			valid: false,
 		},
 		{
@@ -317,17 +317,17 @@ func TestLoginInputValidation(t *testing.T) {
 		},
 		{
 			name:  "Invalid email format",
-			input: LoginInput{Email: "notanemail", Password: "secure123"},
+			input: LoginInput{Email: "notanemail", Password: "secure"},
 			valid: true, // Basic handler only checks if email is non-empty, not format
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			// Validation logic would check:
 			// - Email not empty and valid format
-			// - Password length >= 8
-			isValid := tc.input.Email != "" && len(tc.input.Password) >= 8
+			// - Password length >= 
+			isValid := tc.input.Email != "" && len(tc.input.Password) >= 
 			assert.Equal(t, tc.valid, isValid)
 		})
 	}

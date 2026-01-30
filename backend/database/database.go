@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var DB *gorm.DB
+var DB gorm.DB
 
 func Connect() {
 	// Build DSN from environment variables with sensible defaults
@@ -22,7 +22,7 @@ func Connect() {
 
 	port := os.Getenv("DB_PORT")
 	if port == "" {
-		port = "5434"
+		port = ""
 	}
 
 	user := os.Getenv("DB_USER")
@@ -65,7 +65,7 @@ func Connect() {
 		log.Fatal("Failed to get database instance")
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns()
+	sqlDB.SetMaxOpenConns()
 	sqlDB.SetConnMaxLifetime(time.Hour)
 }

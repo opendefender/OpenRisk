@@ -1,10 +1,10 @@
-# 🎨 OpenRisk Dashboard Design - Quick Visual Guide
+  OpenRisk Dashboard Design - Quick Visual Guide
 
-## Dashboard Layout Overview
+ Dashboard Layout Overview
 
-```
+
 ┌─────────────────────────────────────────────────────────────────┐
-│  📊 OpenRisk Dashboard - Risk Management & Analytics            │
+│   OpenRisk Dashboard - Risk Management & Analytics            │
 │  ─────────────────────────────────────────────────────────────  │
 │                                                                 │
 │  [ Inventory ] [ Reset Layout ] [ Export Report ]              │
@@ -14,124 +14,124 @@
 │  Risk Distribution            │  Risk Score Trends              │
 │  (Donut Chart)               │  (Line Chart)                   │
 │                               │                                 │
-│  • Critical: 3                │  ▲ Positive Trend              │
-│  • High: 8                    │  │     ╱╲                     │
-│  • Medium: 15                 │  │    ╱  ╲   ╱╲              │
-│  • Low: 24                    │  │   ╱    ╲ ╱  ╲             │
+│  • Critical:                 │  ▲ Positive Trend              │
+│  • High:                     │  │     ╱╲                     │
+│  • Medium:                  │  │    ╱  ╲   ╱╲              │
+│  • Low:                     │  │   ╱    ╲ ╱  ╲             │
 │                               │  └────────────────             │
-│  Total: 50 Risks              │  Score: 45 (↓ improving)       │
-└──────────────────────────────┴──────────────────────────────────┘
+│  Total:  Risks              │  Score:  (↓ improving)       │
+└──────────────────────────────�──────────────────────────────────┘
 
 ┌──────────────────────────────┬──────────────────────────────────┐
 │  Top Vulnerabilities          │  Avg Mitigation Time            │
 │  (Ranked List)               │  (Gauge + Progress)             │
 │                               │                                 │
-│  1. 🔴 SQL Injection          │          96h                   │
-│     CVSS: 9.8 | 3 assets      │       ◐─────◑                 │
+│  . � SQL Injection          │          h                   │
+│     CVSS: . |  assets      │       ◐─────◑                 │
 │                               │       ↑       ↑                │
-│  2. 🟠 XSS                    │  Completed  Pending            │
-│     CVSS: 7.5 | 5 assets      │     28        12               │
+│  . 🟠 XSS                    │  Completed  Pending            │
+│     CVSS: . |  assets      │                            │
 │                               │                                 │
-│  3. 🟠 Broken Auth            │  Completion: ████████░░ 70%   │
-│     CVSS: 7.2 | 2 assets      │                                 │
-└──────────────────────────────┴──────────────────────────────────┘
+│  . 🟠 Broken Auth            │  Completion: ████████░░ %   │
+│     CVSS: . |  assets      │                                 │
+└──────────────────────────────�──────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
 │  Key Indicators                                                   │
 │  ─────────────────────────────────────────────────────────────  │
-│  ⚠️  Critical Risks    │  🛡️  Total Risks    │  ✅ Mitigated   │ 📦 Assets
-│       3               │       50             │     28 / 50      │    145
+│    Critical Risks    │    Total Risks    │   Mitigated   │ � Assets
+│                      │                    │      /       │    
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
 │  Top Unmitigated Risks                                            │
 │  ─────────────────────────────────────────────────────────────  │
-│  1. 🔴 Critical Vulnerability in API Gateway          ⚠️ SCORE: 18 →
+│  . � Critical Vulnerability in API Gateway           SCORE:  →
 │     "Authentication bypass in REST endpoints"                    │
 │                                                                   │
-│  2. 🟠 Outdated SSL/TLS Configuration                ⚠️ SCORE: 14 →
+│  . 🟠 Outdated SSL/TLS Configuration                 SCORE:  →
 │     "Server supports deprecated protocols"                       │
 │                                                                   │
-│  3. 🟠 Unpatched Service Application                 ⚠️ SCORE: 13 →
+│  . 🟠 Unpatched Service Application                  SCORE:  →
 │     "Missing security patches for known CVEs"                    │
 │                                                                   │
-│  4. 🟡 Weak Access Control Implementation             ⚠️ SCORE: 9  →
+│  . 🟡 Weak Access Control Implementation              SCORE:   →
 │     "Insufficient privilege separation"                          │
 │                                                                   │
-│  5. 🟡 Data Encryption Gap                            ⚠️ SCORE: 8  →
+│  . 🟡 Data Encryption Gap                             SCORE:   →
 │     "Unencrypted data transmission detected"                     │
 └──────────────────────────────────────────────────────────────────┘
-```
+
 
 ---
 
-## 🎨 Color Scheme & Visual Elements
+  Color Scheme & Visual Elements
 
-### Color Palette
-```
+ Color Palette
+
 Primary Colors:
-  • Deep Black:        #09090b   (Background)
-  • Dark Navy:         #18181b   (Cards)
-  • Bright Blue:       #3b82f6   (Primary Accent)
+  • Deep Black:        b   (Background)
+  • Dark Navy:         b   (Cards)
+  • Bright Blue:       bf   (Primary Accent)
   
 Risk Severity Colors:
-  • Critical (Red):    #ef4444   (🔴)
-  • High (Orange):     #f97316   (🟠)
-  • Medium (Yellow):   #eab308   (🟡)
-  • Low (Blue):        #3b82f6   (🔵)
-```
+  • Critical (Red):    ef   (�)
+  • High (Orange):     f   (🟠)
+  • Medium (Yellow):   eab   (🟡)
+  • Low (Blue):        bf   (🔵)
 
-### Visual Effects
-```
+
+ Visual Effects
+
 Glassmorphism:
-  ├── Backdrop Blur: 20px (blur-xl)
-  ├── Background: linear-gradient(from-white/5 to-white/0)
-  ├── Border: 1px solid rgba(255, 255, 255, 0.1)
-  └── Shadow: 0 8px 32px rgba(0, 0, 0, 0.3)
+  ├── Backdrop Blur: px (blur-xl)
+  ├── Background: linear-gradient(from-white/ to-white/)
+  ├── Border: px solid rgba(, , , .)
+  └── Shadow:  px px rgba(, , , .)
 
 Neon Glowing:
-  ├── Box Glow: 0 0 20px rgba(59, 130, 246, 0.5)
-  ├── Animation: Pulsing glow every 3s
-  ├── Critical Badge Glow: Red with 0.4 opacity
-  └── High Badge Glow: Orange with 0.4 opacity
+  ├── Box Glow:   px rgba(, , , .)
+  ├── Animation: Pulsing glow every s
+  ├── Critical Badge Glow: Red with . opacity
+  └── High Badge Glow: Orange with . opacity
 
 Animations:
-  ├── Fade In: 0.5s ease-out
-  ├── Glow Pulse: 3s infinite
-  ├── Neon Flicker: 2s infinite
-  └── Hover Scale: 102% on interaction
-```
+  ├── Fade In: .s ease-out
+  ├── Glow Pulse: s infinite
+  ├── Neon Flicker: s infinite
+  └── Hover Scale: % on interaction
+
 
 ---
 
-## 📊 Widget Specifications
+  Widget Specifications
 
-### 1️⃣ Risk Distribution Widget
-```
+ ⃣ Risk Distribution Widget
+
 Type: Donut Chart (PieChart from Recharts)
-Size: 6 columns × 4 rows (50% width, full height)
+Size:  columns ×  rows (% width, full height)
 Data: Risk counts by severity level
-Legend: 4-item color-coded legend
+Legend: -item color-coded legend
 Interactive: Hover tooltips
 Fallback: Demo data available
-```
 
-### 2️⃣ Risk Score Trends Widget
-```
+
+ ⃣ Risk Score Trends Widget
+
 Type: Line Chart (LineChart from Recharts)
-Size: 6 columns × 4 rows (50% width, full height)
-Data: 30-day trend data with dates
-Axis: Y-axis 0-100, X-axis dates
+Size:  columns ×  rows (% width, full height)
+Data: -day trend data with dates
+Axis: Y-axis -, X-axis dates
 Animation: Smooth line with glowing dots
 Cursor: Interactive hover with grid line
 Fallback: Demo data available
-```
 
-### 3️⃣ Top Vulnerabilities Widget
-```
+
+ ⃣ Top Vulnerabilities Widget
+
 Type: Ranked List with Badges
-Size: 6 columns × 4 rows (50% width, full height)
-Items: Up to 5 vulnerabilities
+Size:  columns ×  rows (% width, full height)
+Items: Up to  vulnerabilities
 Per Item:
   - Icon (by severity)
   - Title and description
@@ -140,36 +140,36 @@ Per Item:
   - Affected assets count
 Scroll: Enabled for overflow
 Fallback: Demo data with realistic examples
-```
 
-### 4️⃣ Average Mitigation Time Widget
-```
+
+ ⃣ Average Mitigation Time Widget
+
 Type: Semi-Donut Gauge + Stats
-Size: 6 columns × 4 rows (50% width, full height)
-Center Display: Hours and minutes (e.g., "96h 15m")
+Size:  columns ×  rows (% width, full height)
+Center Display: Hours and minutes (e.g., "h m")
 Side Stats:
   - Completed count (Emerald background)
   - Pending count (Red background)
 Bottom: Completion rate progress bar
 Fallback: Demo data available
-```
 
-### 5️⃣ Key Indicators Widget
-```
-Type: 4-Column Stat Cards
-Size: 12 columns × 3 rows (Full width)
+
+ ⃣ Key Indicators Widget
+
+Type: -Column Stat Cards
+Size:  columns ×  rows (Full width)
 Cards:
-  1. Critical Risks      (Red icon + count)
-  2. Total Active Risks  (Yellow icon + count)
-  3. Mitigated Risks     (Green icon + fraction)
-  4. Total Assets        (Blue icon + count)
-Layout: Responsive (2×2 on mobile, 4×1 on desktop)
-```
+  . Critical Risks      (Red icon + count)
+  . Total Active Risks  (Yellow icon + count)
+  . Mitigated Risks     (Green icon + fraction)
+  . Total Assets        (Blue icon + count)
+Layout: Responsive (× on mobile, × on desktop)
 
-### 6️⃣ Top Unmitigated Risks Widget
-```
+
+ ⃣ Top Unmitigated Risks Widget
+
 Type: Interactive List
-Size: 12 columns × 4 rows (Full width)
+Size:  columns ×  rows (Full width)
 Per Item:
   - Rank number (blue badge)
   - Trending icon
@@ -179,42 +179,42 @@ Per Item:
 Interactions: Hover highlight, click to view details
 Scroll: Enabled for many items
 Sorting: By score (descending)
-```
+
 
 ---
 
-## 🎯 Key Features
+  Key Features
 
-### ✨ Glassmorphic Design
+  Glassmorphic Design
 - All widgets use semi-transparent backgrounds with backdrop blur
 - Creates elegant "frosted glass" appearance
 - Improves visual hierarchy and depth
 
-### 🌟 Neon Aesthetics
+  Neon Aesthetics
 - Glowing borders and badges
 - Animated pulsing effects
 - Color-matched glows for different risk levels
 - Creates modern, eye-catching appearance
 
-### 🎬 Smooth Animations
+ 🎬 Smooth Animations
 - Page fade-in on load
 - Hover effects with subtle scale
 - Glowing animations on badges
 - Smooth grid transitions
 
-### 📱 Responsive Layout
-- 12-column grid system
+ 📱 Responsive Layout
+- -column grid system
 - Auto-resizing widgets
 - Mobile-optimized layout
 - Flexible widget sizing
 
-### 🔄 Draggable & Customizable
+ 🔄 Draggable & Customizable
 - Users can reorder widgets
 - Resize widget dimensions
 - Layout saved to localStorage
 - Reset to default layout option
 
-### ♿ Accessibility
+ ♿ Accessibility
 - Semantic HTML structure
 - Proper color contrast
 - Icon + text labels
@@ -223,9 +223,9 @@ Sorting: By score (descending)
 
 ---
 
-## 🎓 Component Hierarchy
+  Component Hierarchy
 
-```
+
 DashboardGrid (Main Container)
 ├── Header Section
 │   ├── Welcome Message
@@ -244,37 +244,37 @@ DashboardGrid (Main Container)
     ├── Header (with icon, title, drag handle)
     ├── Content (chart/list/stats)
     └── Footer (if needed)
-```
+
 
 ---
 
-## 🚀 Performance Notes
+  Performance Notes
 
-- **Charts**: Recharts for lightweight, performant data visualization
-- **Icons**: Lucide React for consistent, scalable icons
-- **Animations**: GPU-accelerated CSS transforms
-- **Rendering**: React hooks for efficient state management
-- **Data Fetching**: Fallback demo data to prevent UI blocking
-- **Scrolling**: Custom scrollbar styling for smooth experience
-
----
-
-## 🔮 Future Enhancements
-
-1. **Widget Settings**: Customize metrics and thresholds
-2. **Export Options**: PDF, CSV, Excel export
-3. **Real-time Updates**: WebSocket integration for live data
-4. **Custom Themes**: Dark/Light mode toggle
-5. **Advanced Filtering**: Date range, severity filters
-6. **Comparative Analytics**: Week-over-week trends
-7. **Alerts**: Push notifications for critical findings
+- Charts: Recharts for lightweight, performant data visualization
+- Icons: Lucide React for consistent, scalable icons
+- Animations: GPU-accelerated CSS transforms
+- Rendering: React hooks for efficient state management
+- Data Fetching: Fallback demo data to prevent UI blocking
+- Scrolling: Custom scrollbar styling for smooth experience
 
 ---
 
-## 📸 Screenshot Guidelines
+ � Future Enhancements
+
+. Widget Settings: Customize metrics and thresholds
+. Export Options: PDF, CSV, Excel export
+. Real-time Updates: WebSocket integration for live data
+. Custom Themes: Dark/Light mode toggle
+. Advanced Filtering: Date range, severity filters
+. Comparative Analytics: Week-over-week trends
+. Alerts: Push notifications for critical findings
+
+---
+
+ � Screenshot Guidelines
 
 When capturing dashboard screenshots:
-- Use high resolution (4K if possible)
+- Use high resolution (K if possible)
 - Good lighting for screen visibility
 - Capture full dashboard layout
 - Show glowing effects and neon accents
@@ -283,6 +283,6 @@ When capturing dashboard screenshots:
 
 ---
 
-**Design Status**: ✅ Complete & Production Ready  
-**Version**: 1.0  
-**Last Updated**: January 2, 2026
+Design Status:  Complete & Production Ready  
+Version: .  
+Last Updated: January , 

@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -11,86 +11,86 @@ import (
 
 // Role represents a set of permissions for RBAC
 type Role struct {
-	ID          uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Name        string         `gorm:"uniqueIndex;not null" json:"name"` // admin, analyst, viewer
-	Description string         `json:"description"`
-	Permissions pq.StringArray `gorm:"type:text[]" json:"permissions"` // e.g., ["risk:read", "risk:create"]
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          uuid.UUID      gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"
+	Name        string         gorm:"uniqueIndex;not null" json:"name" // admin, analyst, viewer
+	Description string         json:"description"
+	Permissions pq.StringArray gorm:"type:text[]" json:"permissions" // e.g., ["risk:read", "risk:create"]
+	CreatedAt   time.Time      json:"created_at"
+	UpdatedAt   time.Time      json:"updated_at"
 }
 
 // User represents an authenticated system user with a role
 type User struct {
-	ID         uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Email      string     `gorm:"uniqueIndex;not null" json:"email"`
-	Username   string     `gorm:"uniqueIndex;not null" json:"username"`
-	Password   string     `json:"-"` // Never return in JSON
-	FullName   string     `json:"full_name"`
-	Bio        string     `json:"bio"`
-	Phone      string     `json:"phone"`
-	Department string     `json:"department"`
-	Timezone   string     `gorm:"default:'UTC'" json:"timezone"`
-	RoleID     uuid.UUID  `gorm:"index" json:"role_id"`
-	Role       *Role      `json:"role,omitempty"`
-	IsActive   bool       `gorm:"default:true;index" json:"is_active"`
-	AvatarURL  string     `json:"avatar_url"`
-	LastLogin  *time.Time `json:"last_login,omitempty"`
+	ID         uuid.UUID  gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"
+	Email      string     gorm:"uniqueIndex;not null" json:"email"
+	Username   string     gorm:"uniqueIndex;not null" json:"username"
+	Password   string     json:"-" // Never return in JSON
+	FullName   string     json:"full_name"
+	Bio        string     json:"bio"
+	Phone      string     json:"phone"
+	Department string     json:"department"
+	Timezone   string     gorm:"default:'UTC'" json:"timezone"
+	RoleID     uuid.UUID  gorm:"index" json:"role_id"
+	Role       Role      json:"role,omitempty"
+	IsActive   bool       gorm:"default:true;index" json:"is_active"
+	AvatarURL  string     json:"avatar_url"
+	LastLogin  time.Time json:"last_login,omitempty"
 
-	// RBAC Extensions (Phase 5 Priority #5)
-	TenantID    *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id,omitempty"` // NULL for system-wide users
-	CreatedByID *uuid.UUID `gorm:"type:uuid;index" json:"created_by_id,omitempty"`
+	// RBAC Extensions (Phase  Priority )
+	TenantID    uuid.UUID gorm:"type:uuid;index" json:"tenant_id,omitempty" // NULL for system-wide users
+	CreatedByID uuid.UUID gorm:"type:uuid;index" json:"created_by_id,omitempty"
 
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	CreatedAt time.Time      json:"created_at"
+	UpdatedAt time.Time      json:"updated_at"
+	DeletedAt gorm.DeletedAt gorm:"index" json:"-"
 }
 
 // UserClaims represents JWT claims with user and role information
 type UserClaims struct {
-	ID          uuid.UUID `json:"id"`
-	Email       string    `json:"email"`
-	Username    string    `json:"username"`
-	RoleID      uuid.UUID `json:"role_id"`
-	RoleName    string    `json:"role_name"`
-	Permissions []string  `json:"permissions"`
-	ExpiresAt   int64     `json:"exp"`
-	IssuedAt    int64     `json:"iat"`
+	ID          uuid.UUID json:"id"
+	Email       string    json:"email"
+	Username    string    json:"username"
+	RoleID      uuid.UUID json:"role_id"
+	RoleName    string    json:"role_name"
+	Permissions []string  json:"permissions"
+	ExpiresAt   int     json:"exp"
+	IssuedAt    int     json:"iat"
 }
 
 // Implement jwt.Claims interface
-func (c *UserClaims) GetExpirationTime() (*jwt.NumericDate, error) {
-	if c.ExpiresAt == 0 {
+func (c UserClaims) GetExpirationTime() (jwt.NumericDate, error) {
+	if c.ExpiresAt ==  {
 		return nil, nil
 	}
-	return jwt.NewNumericDate(time.Unix(c.ExpiresAt, 0)), nil
+	return jwt.NewNumericDate(time.Unix(c.ExpiresAt, )), nil
 }
 
-func (c *UserClaims) GetIssuedAt() (*jwt.NumericDate, error) {
-	if c.IssuedAt == 0 {
+func (c UserClaims) GetIssuedAt() (jwt.NumericDate, error) {
+	if c.IssuedAt ==  {
 		return nil, nil
 	}
-	return jwt.NewNumericDate(time.Unix(c.IssuedAt, 0)), nil
+	return jwt.NewNumericDate(time.Unix(c.IssuedAt, )), nil
 }
 
-func (c *UserClaims) GetNotBefore() (*jwt.NumericDate, error) {
+func (c UserClaims) GetNotBefore() (jwt.NumericDate, error) {
 	return nil, nil
 }
 
-func (c *UserClaims) GetIssuer() (string, error) {
+func (c UserClaims) GetIssuer() (string, error) {
 	return "openrisk", nil
 }
 
-func (c *UserClaims) GetSubject() (string, error) {
+func (c UserClaims) GetSubject() (string, error) {
 	return c.ID.String(), nil
 }
 
-func (c *UserClaims) GetAudience() (jwt.ClaimStrings, error) {
+func (c UserClaims) GetAudience() (jwt.ClaimStrings, error) {
 	return jwt.ClaimStrings{"openrisk-api"}, nil
 }
 
 // HasPermission checks if user claims has a specific permission
-func (c *UserClaims) HasPermission(permission string) bool {
-	if c == nil || len(c.Permissions) == 0 {
+func (c UserClaims) HasPermission(permission string) bool {
+	if c == nil || len(c.Permissions) ==  {
 		return false
 	}
 
@@ -99,9 +99,9 @@ func (c *UserClaims) HasPermission(permission string) bool {
 		if perm == permission || perm == PermissionAll {
 			return true
 		}
-		// Resource-level wildcard (e.g., "risk:*" matches "risk:read")
-		if len(perm) > 2 && perm[len(perm)-2:] == ":*" {
-			resourceWildcard := perm[:len(perm)-1]
+		// Resource-level wildcard (e.g., "risk:" matches "risk:read")
+		if len(perm) >  && perm[len(perm)-:] == ":" {
+			resourceWildcard := perm[:len(perm)-]
 			if len(permission) > len(resourceWildcard) && permission[:len(resourceWildcard)] == resourceWildcard {
 				return true
 			}
@@ -116,26 +116,26 @@ const (
 	PermissionRiskCreate = "risk:create"
 	PermissionRiskUpdate = "risk:update"
 	PermissionRiskDelete = "risk:delete"
-	PermissionRiskAll    = "risk:*"
+	PermissionRiskAll    = "risk:"
 
 	// Mitigation permissions
 	PermissionMitigationRead   = "mitigation:read"
 	PermissionMitigationCreate = "mitigation:create"
 	PermissionMitigationUpdate = "mitigation:update"
 	PermissionMitigationDelete = "mitigation:delete"
-	PermissionMitigationAll    = "mitigation:*"
+	PermissionMitigationAll    = "mitigation:"
 
 	// Asset permissions
 	PermissionAssetRead = "asset:read"
-	PermissionAssetAll  = "asset:*"
+	PermissionAssetAll  = "asset:"
 
 	// User/Admin permissions
 	PermissionUserManage = "user:manage"
-	PermissionAll        = "*"
+	PermissionAll        = ""
 )
 
 // HasPermission checks if user has a specific permission
-func (u *User) HasPermission(permission string) bool {
+func (u User) HasPermission(permission string) bool {
 	if u == nil || u.Role == nil {
 		return false
 	}
@@ -143,7 +143,7 @@ func (u *User) HasPermission(permission string) bool {
 }
 
 // RoleHasPermission checks if role has a specific permission
-func RoleHasPermission(role *Role, permission string) bool {
+func RoleHasPermission(role Role, permission string) bool {
 	if role == nil {
 		return false
 	}
@@ -153,9 +153,9 @@ func RoleHasPermission(role *Role, permission string) bool {
 		if perm == permission || perm == PermissionAll {
 			return true
 		}
-		// Resource-level wildcard (e.g., "risk:*" matches "risk:read")
-		if len(perm) > 2 && perm[len(perm)-2:] == ":*" {
-			resourceWildcard := perm[:len(perm)-1]
+		// Resource-level wildcard (e.g., "risk:" matches "risk:read")
+		if len(perm) >  && perm[len(perm)-:] == ":" {
+			resourceWildcard := perm[:len(perm)-]
 			if len(permission) > len(resourceWildcard) && permission[:len(resourceWildcard)] == resourceWildcard {
 				return true
 			}
@@ -165,7 +165,7 @@ func RoleHasPermission(role *Role, permission string) bool {
 }
 
 // CanAccessResource checks if user can access a specific resource with action
-func (u *User) CanAccessResource(resource string, action string) bool {
+func (u User) CanAccessResource(resource string, action string) bool {
 	return u.HasPermission(resource + ":" + action)
 }
 

@@ -51,11 +51,11 @@ const originalError = console.error;
 beforeAll(() => {
   console.error = (...args: any[]) => {
     if (
-      typeof args[0] === 'string' &&
-      (args[0].includes('Not implemented: HTMLFormElement.prototype.submit') ||
-        args[0].includes('Warning: ReactDOM.render') ||
-        args[0].includes('useLayoutEffect') ||
-        args[0].includes('act(...)'))
+      typeof args[] === 'string' &&
+      (args[].includes('Not implemented: HTMLFormElement.prototype.submit') ||
+        args[].includes('Warning: ReactDOM.render') ||
+        args[].includes('useLayoutEffect') ||
+        args[].includes('act(...)'))
     ) {
       return;
     }

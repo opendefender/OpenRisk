@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v"
+	"github.com/gofiber/fiber/v/middleware/cors"
+	"github.com/gofiber/fiber/v/middleware/helmet"
+	"github.com/gofiber/fiber/v/middleware/logger"
+	"github.com/gofiber/fiber/v/middleware/recover"
 
 	"github.com/opendefender/openrisk/config"
 	"github.com/opendefender/openrisk/database"
@@ -29,7 +29,7 @@ import (
 
 func main() {
 	// =========================================================================
-	// 1. CONFIGURATION & INFRASTRUCTURE
+	// . CONFIGURATION & INFRASTRUCTURE
 	// =========================================================================
 
 	// Chargement de la configuration (.env)
@@ -41,14 +41,14 @@ func main() {
 	// Initialisation de la Timezone (Important pour les logs/dates)
 	time.Local = time.UTC
 
-	// Connexion Base de Donn√©es
+	// Connexion Base de Donn√es
 	database.Connect()
 
-	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
+	// Run SQL migrations (if DATABASE_URL is set). This uses the migrations folder.
 	migrations.RunMigrations()
 
 	// =========================================================================
-	// 1.5 CACHE INITIALIZATION
+	// . CACHE INITIALIZATION
 	// =========================================================================
 
 	// Initialize Redis cache for performance optimization
@@ -58,11 +58,11 @@ func main() {
 	}
 	redisPort := os.Getenv("REDIS_PORT")
 	if redisPort == "" {
-		redisPort = "6379"
+		redisPort = ""
 	}
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 	if redisPassword == "" {
-		redisPassword = "redis123" // Development default
+		redisPassword = "redis" // Development default
 	}
 
 	var cacheInstance interface{}
@@ -88,7 +88,7 @@ func main() {
 	}()
 
 	// Initialize caching handler utilities - use Redis if available
-	var cacheableHandlers *handlers.CacheableHandlers
+	var cacheableHandlers handlers.CacheableHandlers
 	if redisCache != nil && cacheErr == nil {
 		cacheableHandlers = handlers.NewCacheableHandlers(redisCache)
 		log.Println("Cache: Handler utilities initialized with Redis")
@@ -101,7 +101,7 @@ func main() {
 	}
 
 	// =========================================================================
-	// 2. MIGRATIONS & SEEDING (DevOps Friendly)
+	// . MIGRATIONS & SEEDING (DevOps Friendly)
 	// =========================================================================
 
 	log.Println("Database: Running Auto-Migrations...")
@@ -125,12 +125,12 @@ func main() {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
 
-	// Cr√©ation du compte Admin par d√©faut si la DB est vide
-	// Cela garantit que l'app est utilisable imm√©diatement apr√®s d√©ploiement.
+	// Cr√ation du compte Admin par d√faut si la DB est vide
+	// Cela garantit que l'app est utilisable imm√diatement apr√s d√ploiement.
 	handlers.SeedAdminUser()
 
 	// =========================================================================
-	// 3. SECURITY SERVICES INITIALIZATION
+	// . SECURITY SERVICES INITIALIZATION
 	// =========================================================================
 
 	// Initialize Permission Service for advanced access control
@@ -141,33 +141,33 @@ func main() {
 	tokenService := services.NewTokenService()
 
 	// =========================================================================
-	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
+	// . HEXAGONAL ARCHITECTURE WIRING (Integrations)
 	// =========================================================================
 
 	// Initialisation des Adapters (TheHive, OpenRMF, OpenCTI)
-	// Ils respectent les interfaces d√©finies dans core/ports
+	// Ils respectent les interfaces d√finies dans core/ports
 	theHiveAdapter := thehive.NewTheHiveAdapter(cfg.Integrations.TheHive)
 
 	// Initialisation du Moteur de Synchro (Background Worker)
-	// Il tourne ind√©pendamment de l'API HTTP
+	// Il tourne ind√pendamment de l'API HTTP
 	syncEngine := workers.NewSyncEngine(theHiveAdapter)
 	syncEngine.Start(context.Background())
 
 	log.Println("OpenDefender SyncEngine started in background")
 
 	// =========================================================================
-	// 4. WEB SERVER SETUP (Fiber)
+	// . WEB SERVER SETUP (Fiber)
 	// =========================================================================
 
 	app := fiber.New(fiber.Config{
 		AppName:               "OpenRisk API (OpenDefender Suite)",
 		DisableStartupMessage: true, // Plus propre dans les logs de prod
-		ReadTimeout:           10 * time.Second,
-		WriteTimeout:          10 * time.Second,
+		ReadTimeout:             time.Second,
+		WriteTimeout:            time.Second,
 		// Custom Error Handler pour toujours renvoyer du JSON
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
+			if e, ok := err.(fiber.Error); ok {
 				code = e.Code
 			}
 			return c.Status(code).JSON(fiber.Map{
@@ -182,10 +182,10 @@ func main() {
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${method} ${path} (${latency})\n",
 	}))
-	app.Use(helmet.New()) // S√©curit√© headers (XSS, Content-Type, etc.)
+	app.Use(helmet.New()) // S√curit√ headers (XSS, Content-Type, etc.)
 
 	// Configuration CORS Stricte pour la Prod, Permissive pour Dev
-	allowOrigins := "http://localhost:5173,http://localhost:3000"
+	allowOrigins := "http://localhost:,http://localhost:"
 	if os.Getenv("APP_ENV") == "production" {
 		allowOrigins = "https://app.opendefender.io" // √Ä changer selon ton domaine
 	}
@@ -196,22 +196,22 @@ func main() {
 	}))
 
 	// =========================================================================
-	// 5. API ROUTES
+	// . API ROUTES
 	// =========================================================================
 
-	api := app.Group("/api/v1")
+	api := app.Group("/api/v")
 
 	// Initialize auth handler
 	authHandler := handlers.NewAuthHandler()
 
-	// Initialize OAuth2 and SAML2 configurations
-	handlers.InitializeOAuth2()
+	// Initialize OAuth and SAML configurations
+	handlers.InitializeOAuth()
 
 	// --- Routes Publiques ---
-	api.Get("/health", func(c *fiber.Ctx) error {
+	api.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "UP",
-			"version": "1.0.0",
+			"version": "..",
 			"db":      "CONNECTED",
 		})
 	})
@@ -219,20 +219,20 @@ func main() {
 	api.Post("/auth/register", authHandler.Register)
 	api.Post("/auth/refresh", authHandler.RefreshToken)
 
-	// --- OAuth2 Routes ---
-	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
-	api.Get("/auth/oauth2/callback/:provider", handlers.OAuth2Callback)
+	// --- OAuth Routes ---
+	api.Get("/auth/oauth/login/:provider", handlers.OAuthLogin)
+	api.Get("/auth/oauth/callback/:provider", handlers.OAuthCallback)
 
-	// --- SAML2 Routes ---
-	api.Get("/auth/saml2/login", handlers.SAML2InitiateLogin)
-	api.Post("/auth/saml2/acs", handlers.SAML2ACS)
-	api.Get("/auth/saml2/metadata", handlers.SAMLMetadata)
+	// --- SAML Routes ---
+	api.Get("/auth/saml/login", handlers.SAMLInitiateLogin)
+	api.Post("/auth/saml/acs", handlers.SAMLACS)
+	api.Get("/auth/saml/metadata", handlers.SAMLMetadata)
 
-	// --- Routes Prot√©g√©es (N√©cessitent JWT) ---
+	// --- Routes Prot√g√es (N√cessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
 	protected := api.Use(middleware.Protected())
 
-	// Dashboard & Analytics (Read-Only accessible √† tous les connect√©s)
+	// Dashboard & Analytics (Read-Only accessible √† tous les connect√s)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
 	protected.Get("/risks",
 		middleware.RequirePermissions(permissionService, domain.Permission{
@@ -248,7 +248,7 @@ func main() {
 		cacheableHandlers.CacheRiskGetByIDGET(handlers.GetRisk))
 
 	// Gestion des Risques (√âcriture = Analyst & Admin uniquement)
-	// Respect du principe "Simplicit√© & S√©curit√©" + Fine-grained Permission Checks
+	// Respect du principe "Simplicit√ & S√curit√" + Fine-grained Permission Checks
 	riskCreate := middleware.RequirePermissions(permissionService, domain.Permission{
 		Resource: domain.PermissionResourceRisk,
 		Action:   domain.PermissionCreate,
@@ -401,7 +401,7 @@ func main() {
 	protected.Post("/marketplace/connectors/:id/reviews", marketplaceHandler.AddConnectorReview)
 
 	// =========================================================================
-	// 5.5 RBAC MANAGEMENT ENDPOINTS
+	// . RBAC MANAGEMENT ENDPOINTS
 	// =========================================================================
 
 	// Initialize RBAC services
@@ -446,17 +446,17 @@ func main() {
 	rbacTenants.Get("/:tenant_id/stats", rbacTenantHandler.GetTenantStats)            // Get stats
 
 	// =========================================================================
-	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
+	// . GRACEFUL SHUTDOWN (Kubernetes Ready)
 	// =========================================================================
 
-	// Channel pour √©couter les signaux OS (Ctrl+C, Docker Stop, K8s Terminate)
-	quit := make(chan os.Signal, 1)
+	// Channel pour √couter les signaux OS (Ctrl+C, Docker Stop, Ks Terminate)
+	quit := make(chan os.Signal, )
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		port := os.Getenv("PORT")
 		if port == "" {
-			port = "8080"
+			port = ""
 		}
 		log.Printf("‚ö° OpenRisk API listening on port %s", port)
 		if err := app.Listen(":" + port); err != nil {
@@ -464,10 +464,10 @@ func main() {
 		}
 	}()
 
-	<-quit // Bloque jusqu'√† r√©ception du signal
+	<-quit // Bloque jusqu'√† r√ception du signal
 	log.Println("Shutting down server...")
 
-	// Timeout de 5 secondes pour finir les requ√™tes en cours
+	// Timeout de  secondes pour finir les requ√™tes en cours
 	if err := app.Shutdown(); err != nil {
 		log.Fatal("Forced shutdown:", err)
 	}

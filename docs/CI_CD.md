@@ -1,175 +1,175 @@
-# CI/CD Pipeline Documentation
+ CI/CD Pipeline Documentation
 
-## Overview
+ Overview
 
 OpenRisk includes a comprehensive CI/CD pipeline using GitHub Actions to ensure code quality, test coverage, and automated deployment.
 
-## Pipeline Stages
+ Pipeline Stages
 
-### 1. **Linting** (Parallel)
-- **Backend**: `golangci-lint` - Static analysis for Go code
-- **Frontend**: `ESLint` - JavaScript/TypeScript linting
-- **Frontend**: TypeScript type checking (`tsc`)
+ . Linting (Parallel)
+- Backend: golangci-lint - Static analysis for Go code
+- Frontend: ESLint - JavaScript/TypeScript linting
+- Frontend: TypeScript type checking (tsc)
 
-### 2. **Unit Tests** (Parallel)
-- **Backend**: `go test -v ./...` with coverage reporting
-- **Frontend**: Jest tests with coverage reporting
+ . Unit Tests (Parallel)
+- Backend: go test -v ./... with coverage reporting
+- Frontend: Jest tests with coverage reporting
 
-### 3. **Integration Tests**
-- Requires test database (PostgreSQL 15)
+ . Integration Tests
+- Requires test database (PostgreSQL )
 - Runs full handler integration tests
 - Tests database interactions
 
-### 4. **Build**
+ . Build
 - Backend binary compilation
-- Frontend build (`npm run build`)
+- Frontend build (npm run build)
 
-### 5. **Docker Image Build & Push**
+ . Docker Image Build & Push
 - Multi-stage build (backend + frontend)
 - Pushes to GitHub Container Registry (GHCR)
 - Only on main/stag branch
 
-## Running Locally
+ Running Locally
 
-### Prerequisites
-```bash
-# Backend
-- Go 1.21+
+ Prerequisites
+bash
+ Backend
+- Go .+
 - golangci-lint
-- PostgreSQL 15+
+- PostgreSQL +
 
-# Frontend
-- Node.js 18+
+ Frontend
+- Node.js +
 - npm
 
-# Docker
+ Docker
 - Docker & Docker Compose
-```
 
-### Unit Tests
-```bash
-# Backend
+
+ Unit Tests
+bash
+ Backend
 cd backend && go test -v ./...
 
-# Frontend
+ Frontend
 cd frontend && npm test
 
-# Both with Makefile
+ Both with Makefile
 make test
-```
 
-### Integration Tests
-```bash
-# Requires docker-compose
+
+ Integration Tests
+bash
+ Requires docker-compose
 ./scripts/run-integration-tests.sh
 
-# Or with make
+ Or with make
 make test-integration
-```
 
-### Linting
-```bash
-# All
+
+ Linting
+bash
+ All
 make lint
 
-# Backend only
+ Backend only
 cd backend && golangci-lint run ./...
 
-# Frontend only
+ Frontend only
 cd frontend && npm run lint
-```
 
-### Docker Build
-```bash
-# Build image
+
+ Docker Build
+bash
+ Build image
 make docker-build
 
-# Or with Docker directly
+ Or with Docker directly
 docker build -t openrisk:latest .
 
-# Run container
-docker run -p 8080:8080 openrisk:latest
-```
+ Run container
+docker run -p : openrisk:latest
 
-## GitHub Actions Workflow
 
-Located in `.github/workflows/ci.yml`
+ GitHub Actions Workflow
 
-### Triggers
-- `push` to: `main`, `stag`, `develop`
-- `pull_request` to: `main`, `stag`, `develop`
+Located in .github/workflows/ci.yml
 
-### Environment Variables
-- `REGISTRY`: `ghcr.io`
-- `IMAGE_NAME`: `${{ github.repository }}`
+ Triggers
+- push to: main, stag, develop
+- pull_request to: main, stag, develop
 
-### Secrets Required
-- `GITHUB_TOKEN` - Automatically provided by GitHub
+ Environment Variables
+- REGISTRY: ghcr.io
+- IMAGE_NAME: ${{ github.repository }}
 
-### Build Matrix
-Runs on `ubuntu-latest`
+ Secrets Required
+- GITHUB_TOKEN - Automatically provided by GitHub
 
-### Status Checks
+ Build Matrix
+Runs on ubuntu-latest
+
+ Status Checks
 - Must pass all checks before merge
 - Coverage reports uploaded to Codecov
 - Docker image pushed to GHCR on main/stag
 
-## Coverage Goals
+ Coverage Goals
 
-- **Backend**: Target 60%+ coverage
-- **Frontend**: Target 50%+ coverage
+- Backend: Target %+ coverage
+- Frontend: Target %+ coverage
 - Coverage reports available on Codecov
 
-## Docker Image Details
+ Docker Image Details
 
-### Build Process
-1. **Stage 1**: Go builder - Compiles backend binary
-2. **Stage 2**: Node builder - Builds frontend (React + Vite)
-3. **Stage 3**: Alpine runtime - Final production image
+ Build Process
+. Stage : Go builder - Compiles backend binary
+. Stage : Node builder - Builds frontend (React + Vite)
+. Stage : Alpine runtime - Final production image
 
-### Image Tags
-- `main` branch → `latest`
-- `stag` branch → `stag`
-- `develop` branch → `develop`
+ Image Tags
+- main branch → latest
+- stag branch → stag
+- develop branch → develop
 - Git tags → Semantic version
 
-### Registry
+ Registry
 - GitHub Container Registry (GHCR)
-- URL: `ghcr.io/alex-dembele/openrisk`
+- URL: ghcr.io/alex-dembele/openrisk
 
-### Image Size
-- ~150MB (optimized Alpine base)
+ Image Size
+- ~MB (optimized Alpine base)
 - Non-root user (openrisk:openrisk)
 - Health check enabled
 
-## Troubleshooting
+ Troubleshooting
 
-### Tests failing locally but passing in CI
-- Ensure Go 1.21+ installed
-- Run `go mod tidy` in backend
+ Tests failing locally but passing in CI
+- Ensure Go .+ installed
+- Run go mod tidy in backend
 - Check database connection (for integration tests)
 
-### Docker build fails
-- Ensure backend/go.mod is valid: `go mod verify`
+ Docker build fails
+- Ensure backend/go.mod is valid: go mod verify
 - Check frontend/package.json for errors
-- Verify Dockerfile syntax: `docker build --no-cache .`
+- Verify Dockerfile syntax: docker build --no-cache .
 
-### Integration tests timeout
+ Integration tests timeout
 - Ensure Docker is running
-- Check available disk space (needs ~5GB)
-- Verify test_db service health: `docker-compose logs test_db`
+- Check available disk space (needs ~GB)
+- Verify test_db service health: docker-compose logs test_db
 
-## Next Steps
+ Next Steps
 
-1. Configure Codecov integration for coverage tracking
-2. Add performance benchmarks to CI
-3. Implement security scanning (trivy, snyk)
-4. Add SAST (SonarQube, CodeQL)
-5. Implement artifact retention policies
+. Configure Codecov integration for coverage tracking
+. Add performance benchmarks to CI
+. Implement security scanning (trivy, snyk)
+. Add SAST (SonarQube, CodeQL)
+. Implement artifact retention policies
 
-## Related Files
-- `.github/workflows/ci.yml` - CI pipeline configuration
-- `Dockerfile` - Multi-stage container build
-- `docker-compose.yaml` - Local development environment
-- `Makefile` - Development task automation
-- `scripts/run-integration-tests.sh` - Local integration test runner
+ Related Files
+- .github/workflows/ci.yml - CI pipeline configuration
+- Dockerfile - Multi-stage container build
+- docker-compose.yaml - Local development environment
+- Makefile - Development task automation
+- scripts/run-integration-tests.sh - Local integration test runner

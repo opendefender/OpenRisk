@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, Plus, Trash2, Users, Edit2 } from 'lucide-react';
+import { Shield, Plus, Trash, Users, Edit } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -25,24 +25,24 @@ export const TeamTab = () => {
     const [isAdmin, setIsAdmin] = useState(true); // Should come from auth store
     const [teams, setTeams] = useState<Team[]>([
         {
-            id: '1',
+            id: '',
             name: 'Security Team',
-            members: 5,
+            members: ,
             description: 'Main security operations team',
-            createdAt: '2024-01-15'
+            createdAt: '--'
         },
         {
-            id: '2',
+            id: '',
             name: 'Compliance Team',
-            members: 3,
+            members: ,
             description: 'Compliance and audit team',
-            createdAt: '2024-02-20'
+            createdAt: '--'
         }
     ]);
     
     const [members, setMembers] = useState<TeamMember[]>([
         {
-            id: '1',
+            id: '',
             name: 'System Admin',
             email: 'admin@opendefender.io',
             role: 'ADMIN',
@@ -50,7 +50,7 @@ export const TeamTab = () => {
             avatar: 'A'
         },
         {
-            id: '2',
+            id: '',
             name: 'Security Lead',
             email: 'security@opendefender.io',
             role: 'ANALYST',
@@ -73,9 +73,9 @@ export const TeamTab = () => {
             const newTeam: Team = {
                 id: Date.now().toString(),
                 name: newTeamName,
-                members: 0,
+                members: ,
                 description: newTeamDesc,
-                createdAt: new Date().toISOString().split('T')[0]
+                createdAt: new Date().toISOString().split('T')[]
             };
             setTeams([...teams, newTeam]);
             setNewTeamName('');
@@ -106,65 +106,65 @@ export const TeamTab = () => {
     };
 
     return (
-        <div className="space-y-8">
-            {/* Teams Section */}
+        <div className="space-y-">
+            {/ Teams Section /}
             {isAdmin && (
-                <div className="space-y-4">
+                <div className="space-y-">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h3 className="text-2xl font-bold text-white mb-1">Teams</h3>
-                            <p className="text-zinc-400 text-sm">Create and manage teams for better organization.</p>
+                            <h className="text-xl font-bold text-white mb-">Teams</h>
+                            <p className="text-zinc- text-sm">Create and manage teams for better organization.</p>
                         </div>
                         <Button onClick={() => setShowCreateTeam(!showCreateTeam)}>
-                            <Plus size={16} className="mr-2" /> Create Team
+                            <Plus size={} className="mr-" /> Create Team
                         </Button>
                     </div>
 
                     {showCreateTeam && (
                         <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="bg-surface border border-border rounded-lg p-6 space-y-4"
+                            initial={{ opacity: , height:  }}
+                            animate={{ opacity: , height: 'auto' }}
+                            className="bg-surface border border-border rounded-lg p- space-y-"
                         >
                             <input
                                 type="text"
                                 placeholder="Team name (e.g., Security Team)"
-                                className="w-full bg-zinc-900 border border-border rounded-lg px-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-primary/50 outline-none"
+                                className="w-full bg-zinc- border border-border rounded-lg px- py- text-sm text-white placeholder:text-zinc- focus:ring- focus:ring-primary/ outline-none"
                                 value={newTeamName}
                                 onChange={(e) => setNewTeamName(e.target.value)}
                             />
                             <textarea
                                 placeholder="Team description..."
-                                className="w-full bg-zinc-900 border border-border rounded-lg px-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-primary/50 outline-none resize-none"
-                                rows={3}
+                                className="w-full bg-zinc- border border-border rounded-lg px- py- text-sm text-white placeholder:text-zinc- focus:ring- focus:ring-primary/ outline-none resize-none"
+                                rows={}
                                 value={newTeamDesc}
                                 onChange={(e) => setNewTeamDesc(e.target.value)}
                             />
-                            <div className="flex gap-2">
+                            <div className="flex gap-">
                                 <Button onClick={handleCreateTeam}>Create</Button>
                                 <Button variant="ghost" onClick={() => setShowCreateTeam(false)}>Cancel</Button>
                             </div>
                         </motion.div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols- md:grid-cols- gap-">
                         {teams.map((team) => (
                             <motion.div
                                 key={team.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-surface border border-border rounded-lg p-6 hover:border-primary/50 transition-all group"
+                                initial={{ opacity: , y:  }}
+                                animate={{ opacity: , y:  }}
+                                className="bg-surface border border-border rounded-lg p- hover:border-primary/ transition-all group"
                             >
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-primary/10">
-                                            <Users size={20} className="text-primary" />
+                                <div className="flex items-start justify-between mb-">
+                                    <div className="flex items-center gap-">
+                                        <div className="p- rounded-lg bg-primary/">
+                                            <Users size={} className="text-primary" />
                                         </div>
                                         <div>
-                                            <h4 className="font-semibold text-white group-hover:text-primary transition-colors">
+                                            <h className="font-semibold text-white group-hover:text-primary transition-colors">
                                                 {team.name}
-                                            </h4>
-                                            <p className="text-xs text-zinc-500">Created {team.createdAt}</p>
+                                            </h>
+                                            <p className="text-xs text-zinc-">Created {team.createdAt}</p>
                                         </div>
                                     </div>
                                     <Button
@@ -172,12 +172,12 @@ export const TeamTab = () => {
                                         size="sm"
                                         onClick={() => handleDeleteTeam(team.id)}
                                     >
-                                        <Trash2 size={16} className="text-red-400" />
+                                        <Trash size={} className="text-red-" />
                                     </Button>
                                 </div>
-                                <p className="text-sm text-zinc-400 mb-4">{team.description}</p>
-                                <div className="flex items-center justify-between pt-4 border-t border-border">
-                                    <span className="text-xs text-zinc-500">{team.members} members</span>
+                                <p className="text-sm text-zinc- mb-">{team.description}</p>
+                                <div className="flex items-center justify-between pt- border-t border-border">
+                                    <span className="text-xs text-zinc-">{team.members} members</span>
                                     <Button variant="ghost" className="text-xs">Manage</Button>
                                 </div>
                             </motion.div>
@@ -186,60 +186,60 @@ export const TeamTab = () => {
                 </div>
             )}
 
-            {/* Team Members Section */}
-            <div className="space-y-4">
+            {/ Team Members Section /}
+            <div className="space-y-">
                 <div>
-                    <h3 className="text-2xl font-bold text-white mb-1">Team Members</h3>
-                    <p className="text-zinc-400 text-sm">Manage access and roles for your team.</p>
+                    <h className="text-xl font-bold text-white mb-">Team Members</h>
+                    <p className="text-zinc- text-sm">Manage access and roles for your team.</p>
                 </div>
                 
                 <div className="bg-surface border border-border rounded-xl overflow-hidden">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-white/5 text-zinc-400 font-medium uppercase text-xs">
+                        <thead className="bg-white/ text-zinc- font-medium uppercase text-xs">
                             <tr>
-                                <th className="px-6 py-4">User</th>
-                                <th className="px-6 py-4">Role</th>
-                                <th className="px-6 py-4">Status</th>
-                                {isAdmin && <th className="px-6 py-4 text-right">Actions</th>}
+                                <th className="px- py-">User</th>
+                                <th className="px- py-">Role</th>
+                                <th className="px- py-">Status</th>
+                                {isAdmin && <th className="px- py- text-right">Actions</th>}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-white/">
                             {members.map((member) => (
-                                <tr key={member.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-sm">
+                                <tr key={member.id} className="hover:bg-white/ transition-colors">
+                                    <td className="px- py-">
+                                        <div className="flex items-center gap-">
+                                            <div className="w- h- rounded-full bg-blue- flex items-center justify-center font-bold text-white text-sm">
                                                 {member.avatar}
                                             </div>
                                             <div>
                                                 <div className="font-medium text-white">{member.name}</div>
-                                                <div className="text-zinc-500 text-xs">{member.email}</div>
+                                                <div className="text-zinc- text-xs">{member.email}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px- py-">
                                         {isAdmin ? (
-                                            <select className="bg-zinc-900 border border-border rounded px-2 py-1 text-xs text-white focus:ring-2 focus:ring-primary/50 outline-none">
+                                            <select className="bg-zinc- border border-border rounded px- py- text-xs text-white focus:ring- focus:ring-primary/ outline-none">
                                                 <option>ADMIN</option>
                                                 <option>ANALYST</option>
                                                 <option>VIEWER</option>
                                             </select>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-medium">
-                                                <Shield size={10} /> {member.role}
+                                            <span className="inline-flex items-center gap-. px- py- rounded bg-purple-/ text-purple- border border-purple-/ text-xs font-medium">
+                                                <Shield size={} /> {member.role}
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className={member.status === 'active' ? 'text-emerald-500 font-medium' : 'text-zinc-500'}>
+                                    <td className="px- py-">
+                                        <span className={member.status === 'active' ? 'text-emerald- font-medium' : 'text-zinc-'}>
                                             {member.status === 'active' ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     {isAdmin && (
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex gap-2 justify-end">
+                                        <td className="px- py- text-right">
+                                            <div className="flex gap- justify-end">
                                                 <Button variant="ghost" size="sm" className="text-xs">
-                                                    <Edit2 size={14} />
+                                                    <Edit size={} />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
@@ -247,7 +247,7 @@ export const TeamTab = () => {
                                                     className="text-xs"
                                                     onClick={() => handleRemoveMember(member.id)}
                                                 >
-                                                    <Trash2 size={14} className="text-red-400" />
+                                                    <Trash size={} className="text-red-" />
                                                 </Button>
                                             </div>
                                         </td>

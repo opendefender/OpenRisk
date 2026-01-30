@@ -9,19 +9,19 @@ import (
 
 // PermissionService handles permission management and checks
 type PermissionService struct {
-	matrices map[string]*domain.PermissionMatrix
+	matrices map[string]domain.PermissionMatrix
 	mu       sync.RWMutex
 }
 
 // NewPermissionService creates a new permission service
-func NewPermissionService() *PermissionService {
+func NewPermissionService() PermissionService {
 	return &PermissionService{
-		matrices: make(map[string]*domain.PermissionMatrix),
+		matrices: make(map[string]domain.PermissionMatrix),
 	}
 }
 
 // SetRolePermissions sets the permissions for a role
-func (ps *PermissionService) SetRolePermissions(roleID string, permissions []domain.Permission) error {
+func (ps PermissionService) SetRolePermissions(roleID string, permissions []domain.Permission) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -29,7 +29,7 @@ func (ps *PermissionService) SetRolePermissions(roleID string, permissions []dom
 		ID:          fmt.Sprintf("role_%s", roleID),
 		EntityType:  "role",
 		EntityID:    roleID,
-		Permissions: make([]domain.Permission, 0, len(permissions)),
+		Permissions: make([]domain.Permission, , len(permissions)),
 	}
 
 	for _, p := range permissions {
@@ -43,7 +43,7 @@ func (ps *PermissionService) SetRolePermissions(roleID string, permissions []dom
 }
 
 // SetUserPermissions sets custom permissions for a user (overrides role permissions)
-func (ps *PermissionService) SetUserPermissions(userID string, permissions []domain.Permission) error {
+func (ps PermissionService) SetUserPermissions(userID string, permissions []domain.Permission) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -51,7 +51,7 @@ func (ps *PermissionService) SetUserPermissions(userID string, permissions []dom
 		ID:          fmt.Sprintf("user_%s", userID),
 		EntityType:  "user",
 		EntityID:    userID,
-		Permissions: make([]domain.Permission, 0, len(permissions)),
+		Permissions: make([]domain.Permission, , len(permissions)),
 	}
 
 	for _, p := range permissions {
@@ -65,7 +65,7 @@ func (ps *PermissionService) SetUserPermissions(userID string, permissions []dom
 }
 
 // GetUserPermissions gets all permissions for a user (role + custom)
-func (ps *PermissionService) GetUserPermissions(userID string, roleID string) []domain.Permission {
+func (ps PermissionService) GetUserPermissions(userID string, roleID string) []domain.Permission {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
@@ -88,7 +88,7 @@ func (ps *PermissionService) GetUserPermissions(userID string, roleID string) []
 	}
 
 	// Convert map to slice
-	result := make([]domain.Permission, 0, len(permissions))
+	result := make([]domain.Permission, , len(permissions))
 	for _, p := range permissions {
 		result = append(result, p)
 	}
@@ -97,7 +97,7 @@ func (ps *PermissionService) GetUserPermissions(userID string, roleID string) []
 }
 
 // CheckPermission checks if a user has a specific permission
-func (ps *PermissionService) CheckPermission(userID string, roleID string, required domain.Permission) bool {
+func (ps PermissionService) CheckPermission(userID string, roleID string, required domain.Permission) bool {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
@@ -121,7 +121,7 @@ func (ps *PermissionService) CheckPermission(userID string, roleID string, requi
 }
 
 // CheckPermissionMultiple checks if a user has any of multiple permissions
-func (ps *PermissionService) CheckPermissionMultiple(userID string, roleID string, required []domain.Permission) bool {
+func (ps PermissionService) CheckPermissionMultiple(userID string, roleID string, required []domain.Permission) bool {
 	for _, perm := range required {
 		if ps.CheckPermission(userID, roleID, perm) {
 			return true
@@ -131,7 +131,7 @@ func (ps *PermissionService) CheckPermissionMultiple(userID string, roleID strin
 }
 
 // CheckPermissionAll checks if a user has all of multiple permissions
-func (ps *PermissionService) CheckPermissionAll(userID string, roleID string, required []domain.Permission) bool {
+func (ps PermissionService) CheckPermissionAll(userID string, roleID string, required []domain.Permission) bool {
 	for _, perm := range required {
 		if !ps.CheckPermission(userID, roleID, perm) {
 			return false
@@ -141,7 +141,7 @@ func (ps *PermissionService) CheckPermissionAll(userID string, roleID string, re
 }
 
 // AddPermissionToRole adds a permission to a role
-func (ps *PermissionService) AddPermissionToRole(roleID string, permission domain.Permission) error {
+func (ps PermissionService) AddPermissionToRole(roleID string, permission domain.Permission) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -161,7 +161,7 @@ func (ps *PermissionService) AddPermissionToRole(roleID string, permission domai
 }
 
 // RemovePermissionFromRole removes a permission from a role
-func (ps *PermissionService) RemovePermissionFromRole(roleID string, permission domain.Permission) error {
+func (ps PermissionService) RemovePermissionFromRole(roleID string, permission domain.Permission) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -175,7 +175,7 @@ func (ps *PermissionService) RemovePermissionFromRole(roleID string, permission 
 }
 
 // GetRolePermissions gets all permissions for a role
-func (ps *PermissionService) GetRolePermissions(roleID string) []domain.Permission {
+func (ps PermissionService) GetRolePermissions(roleID string) []domain.Permission {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
@@ -188,7 +188,7 @@ func (ps *PermissionService) GetRolePermissions(roleID string) []domain.Permissi
 }
 
 // InitializeDefaultRoles sets up the default role permissions
-func (ps *PermissionService) InitializeDefaultRoles() error {
+func (ps PermissionService) InitializeDefaultRoles() error {
 	if err := ps.SetRolePermissions("admin", domain.AdminPermissions); err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@ package audit
 
 import (
 	"context"
-	"crypto/sha256"
+	"crypto/sha"
 	"fmt"
 	"sync"
 	"time"
@@ -28,8 +28,8 @@ type ComplianceFramework string
 const (
 	GDPR     ComplianceFramework = "GDPR"
 	HIPAA    ComplianceFramework = "HIPAA"
-	SOC2     ComplianceFramework = "SOC2"
-	ISO27001 ComplianceFramework = "ISO27001"
+	SOC     ComplianceFramework = "SOC"
+	ISO ComplianceFramework = "ISO"
 )
 
 // AuditLog represents a single audit log entry
@@ -52,20 +52,20 @@ type AuditLog struct {
 // AuditLogger logs and tracks audit events
 type AuditLogger struct {
 	mu      sync.RWMutex
-	logs    []*AuditLog
+	logs    []AuditLog
 	maxLogs int
 }
 
 // NewAuditLogger creates a new audit logger
-func NewAuditLogger(maxLogs int) *AuditLogger {
+func NewAuditLogger(maxLogs int) AuditLogger {
 	return &AuditLogger{
-		logs:    make([]*AuditLog, 0, maxLogs),
+		logs:    make([]AuditLog, , maxLogs),
 		maxLogs: maxLogs,
 	}
 }
 
 // LogEvent logs an audit event
-func (al *AuditLogger) LogEvent(ctx context.Context, log *AuditLog) {
+func (al AuditLogger) LogEvent(ctx context.Context, log AuditLog) {
 	al.mu.Lock()
 	defer al.mu.Unlock()
 
@@ -76,23 +76,23 @@ func (al *AuditLogger) LogEvent(ctx context.Context, log *AuditLog) {
 
 	// Maintain max logs
 	if len(al.logs) > al.maxLogs {
-		al.logs = al.logs[1:]
+		al.logs = al.logs[:]
 	}
 }
 
 // calculateHash calculates a hash of the change
-func (al *AuditLogger) calculateHash(log *AuditLog) string {
+func (al AuditLogger) calculateHash(log AuditLog) string {
 	data := fmt.Sprintf("%s:%s:%s:%s:%v:%v", log.UserID, log.Action, log.ResourceType, log.ResourceID, log.OldValues, log.NewValues)
-	hash := sha256.Sum256([]byte(data))
+	hash := sha.Sum([]byte(data))
 	return fmt.Sprintf("%x", hash)
 }
 
 // GetAuditLog retrieves audit logs
-func (al *AuditLogger) GetAuditLog(ctx context.Context, filters map[string]interface{}) []*AuditLog {
+func (al AuditLogger) GetAuditLog(ctx context.Context, filters map[string]interface{}) []AuditLog {
 	al.mu.RLock()
 	defer al.mu.RUnlock()
 
-	result := make([]*AuditLog, 0)
+	result := make([]AuditLog, )
 
 	for _, log := range al.logs {
 		if al.matchesFilters(log, filters) {
@@ -104,7 +104,7 @@ func (al *AuditLogger) GetAuditLog(ctx context.Context, filters map[string]inter
 }
 
 // matchesFilters checks if a log matches the provided filters
-func (al *AuditLogger) matchesFilters(log *AuditLog, filters map[string]interface{}) bool {
+func (al AuditLogger) matchesFilters(log AuditLog, filters map[string]interface{}) bool {
 	if userID, ok := filters["user_id"].(string); ok && userID != "" && log.UserID != userID {
 		return false
 	}
@@ -129,20 +129,20 @@ type ComplianceReport struct {
 	Framework          ComplianceFramework
 	GeneratedAt        time.Time
 	ExpiresAt          time.Time
-	ComplianceScore    float64 // 0-100
+	ComplianceScore    float // -
 	IssuesFound        []string
 	RecommendedActions []string
-	AuditLogsReviewed  int64
+	AuditLogsReviewed  int
 }
 
 // ComplianceChecker checks compliance with various frameworks
 type ComplianceChecker struct {
-	auditLogger *AuditLogger
+	auditLogger AuditLogger
 	framework   ComplianceFramework
 }
 
 // NewComplianceChecker creates a new compliance checker
-func NewComplianceChecker(auditLogger *AuditLogger, framework ComplianceFramework) *ComplianceChecker {
+func NewComplianceChecker(auditLogger AuditLogger, framework ComplianceFramework) ComplianceChecker {
 	return &ComplianceChecker{
 		auditLogger: auditLogger,
 		framework:   framework,
@@ -150,20 +150,20 @@ func NewComplianceChecker(auditLogger *AuditLogger, framework ComplianceFramewor
 }
 
 // CheckCompliance checks compliance status
-func (cc *ComplianceChecker) CheckCompliance(ctx context.Context) *ComplianceReport {
+func (cc ComplianceChecker) CheckCompliance(ctx context.Context) ComplianceReport {
 	report := &ComplianceReport{
 		Framework:          cc.framework,
 		GeneratedAt:        time.Now(),
-		ExpiresAt:          time.Now().AddDate(0, 0, 90), // 90 day report validity
-		IssuesFound:        make([]string, 0),
-		RecommendedActions: make([]string, 0),
+		ExpiresAt:          time.Now().AddDate(, , ), //  day report validity
+		IssuesFound:        make([]string, ),
+		RecommendedActions: make([]string, ),
 	}
 
 	logs := cc.auditLogger.GetAuditLog(ctx, make(map[string]interface{}))
-	report.AuditLogsReviewed = int64(len(logs))
+	report.AuditLogsReviewed = int(len(logs))
 
 	// Check audit trail completeness
-	if len(logs) == 0 {
+	if len(logs) ==  {
 		report.IssuesFound = append(report.IssuesFound, "No audit logs found")
 		report.RecommendedActions = append(report.RecommendedActions, "Enable audit logging")
 	}
@@ -174,120 +174,120 @@ func (cc *ComplianceChecker) CheckCompliance(ctx context.Context) *ComplianceRep
 		report.ComplianceScore = cc.checkGDPRCompliance(logs)
 	case HIPAA:
 		report.ComplianceScore = cc.checkHIPAACompliance(logs)
-	case SOC2:
-		report.ComplianceScore = cc.checkSOC2Compliance(logs)
-	case ISO27001:
-		report.ComplianceScore = cc.checkISO27001Compliance(logs)
+	case SOC:
+		report.ComplianceScore = cc.checkSOCCompliance(logs)
+	case ISO:
+		report.ComplianceScore = cc.checkISOCompliance(logs)
 	}
 
 	return report
 }
 
 // checkGDPRCompliance checks GDPR compliance
-func (cc *ComplianceChecker) checkGDPRCompliance(logs []*AuditLog) float64 {
-	score := 100.0
+func (cc ComplianceChecker) checkGDPRCompliance(logs []AuditLog) float {
+	score := .
 
 	// Check for data deletion logs
-	deletionCount := 0
+	deletionCount := 
 	for _, log := range logs {
 		if log.Action == ACTION_DELETE {
 			deletionCount++
 		}
 	}
 
-	if deletionCount == 0 {
-		score -= 10
+	if deletionCount ==  {
+		score -= 
 	}
 
 	// Check for access control
-	readCount := 0
+	readCount := 
 	for _, log := range logs {
 		if log.Action == ACTION_READ {
 			readCount++
 		}
 	}
 
-	if readCount < len(logs)*3 { // Expect at least 3x read operations
-		score -= 5
+	if readCount < len(logs) { // Expect at least x read operations
+		score -= 
 	}
 
 	return score
 }
 
 // checkHIPAACompliance checks HIPAA compliance
-func (cc *ComplianceChecker) checkHIPAACompliance(logs []*AuditLog) float64 {
-	score := 100.0
+func (cc ComplianceChecker) checkHIPAACompliance(logs []AuditLog) float {
+	score := .
 
 	// Check for comprehensive logging
-	if len(logs) < 100 {
-		score -= 20
+	if len(logs) <  {
+		score -= 
 	}
 
 	// Check for user authentication
-	loginCount := 0
+	loginCount := 
 	for _, log := range logs {
 		if log.Action == ACTION_LOGIN {
 			loginCount++
 		}
 	}
 
-	if loginCount == 0 {
-		score -= 15
+	if loginCount ==  {
+		score -= 
 	}
 
 	return score
 }
 
-// checkSOC2Compliance checks SOC2 compliance
-func (cc *ComplianceChecker) checkSOC2Compliance(logs []*AuditLog) float64 {
-	score := 100.0
+// checkSOCCompliance checks SOC compliance
+func (cc ComplianceChecker) checkSOCCompliance(logs []AuditLog) float {
+	score := .
 
 	// Check for update logging
-	updateCount := 0
+	updateCount := 
 	for _, log := range logs {
 		if log.Action == ACTION_UPDATE {
 			updateCount++
 		}
 	}
 
-	if updateCount < len(logs)/5 {
-		score -= 10
+	if updateCount < len(logs)/ {
+		score -= 
 	}
 
 	// Check for error tracking
-	errorCount := 0
+	errorCount := 
 	for _, log := range logs {
 		if log.Status == "FAILURE" {
 			errorCount++
 		}
 	}
 
-	if errorCount > len(logs)/10 {
-		score -= 5
+	if errorCount > len(logs)/ {
+		score -= 
 	}
 
 	return score
 }
 
-// checkISO27001Compliance checks ISO27001 compliance
-func (cc *ComplianceChecker) checkISO27001Compliance(logs []*AuditLog) float64 {
-	score := 100.0
+// checkISOCompliance checks ISO compliance
+func (cc ComplianceChecker) checkISOCompliance(logs []AuditLog) float {
+	score := .
 
 	// Check for comprehensive activity logging
-	if len(logs) < 50 {
-		score -= 20
+	if len(logs) <  {
+		score -= 
 	}
 
 	// Check for export logs (data protection)
-	exportCount := 0
+	exportCount := 
 	for _, log := range logs {
 		if log.Action == ACTION_EXPORT {
 			exportCount++
 		}
 	}
 
-	if exportCount == 0 {
-		score -= 10
+	if exportCount ==  {
+		score -= 
 	}
 
 	return score
@@ -304,18 +304,18 @@ type DataRetentionPolicy struct {
 // DataRetentionManager manages data retention
 type DataRetentionManager struct {
 	mu       sync.RWMutex
-	policies map[string]*DataRetentionPolicy
+	policies map[string]DataRetentionPolicy
 }
 
 // NewDataRetentionManager creates a new data retention manager
-func NewDataRetentionManager() *DataRetentionManager {
+func NewDataRetentionManager() DataRetentionManager {
 	return &DataRetentionManager{
-		policies: make(map[string]*DataRetentionPolicy),
+		policies: make(map[string]DataRetentionPolicy),
 	}
 }
 
 // SetPolicy sets a retention policy
-func (drm *DataRetentionManager) SetPolicy(resourceType string, policy *DataRetentionPolicy) {
+func (drm DataRetentionManager) SetPolicy(resourceType string, policy DataRetentionPolicy) {
 	drm.mu.Lock()
 	defer drm.mu.Unlock()
 
@@ -324,7 +324,7 @@ func (drm *DataRetentionManager) SetPolicy(resourceType string, policy *DataRete
 }
 
 // GetPolicy gets a retention policy
-func (drm *DataRetentionManager) GetPolicy(resourceType string) *DataRetentionPolicy {
+func (drm DataRetentionManager) GetPolicy(resourceType string) DataRetentionPolicy {
 	drm.mu.RLock()
 	defer drm.mu.RUnlock()
 
@@ -333,9 +333,9 @@ func (drm *DataRetentionManager) GetPolicy(resourceType string) *DataRetentionPo
 		// Return default policy
 		return &DataRetentionPolicy{
 			ResourceType:  resourceType,
-			RetentionDays: 365,
-			ArchiveAfter:  180,
-			DeleteAfter:   365,
+			RetentionDays: ,
+			ArchiveAfter:  ,
+			DeleteAfter:   ,
 		}
 	}
 
@@ -343,15 +343,15 @@ func (drm *DataRetentionManager) GetPolicy(resourceType string) *DataRetentionPo
 }
 
 // ShouldArchive checks if data should be archived
-func (drm *DataRetentionManager) ShouldArchive(resourceType string, createdAt time.Time) bool {
+func (drm DataRetentionManager) ShouldArchive(resourceType string, createdAt time.Time) bool {
 	policy := drm.GetPolicy(resourceType)
-	archiveDate := createdAt.AddDate(0, 0, policy.ArchiveAfter)
+	archiveDate := createdAt.AddDate(, , policy.ArchiveAfter)
 	return time.Now().After(archiveDate)
 }
 
 // ShouldDelete checks if data should be deleted
-func (drm *DataRetentionManager) ShouldDelete(resourceType string, createdAt time.Time) bool {
+func (drm DataRetentionManager) ShouldDelete(resourceType string, createdAt time.Time) bool {
 	policy := drm.GetPolicy(resourceType)
-	deleteDate := createdAt.AddDate(0, 0, policy.DeleteAfter)
+	deleteDate := createdAt.AddDate(, , policy.DeleteAfter)
 	return time.Now().After(deleteDate)
 }

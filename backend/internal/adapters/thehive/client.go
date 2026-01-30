@@ -15,37 +15,37 @@ import (
 // TheHiveAdapter implements the IncidentProvider interface for TheHive integration
 type TheHiveAdapter struct {
 	Config config.ExternalService
-	Client *http.Client
+	Client http.Client
 }
 
 // TheHiveCase represents the structure of a case from TheHive API
 type TheHiveCase struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Severity    int      `json:"severity"` // 1=Low, 2=Medium, 3=High, 4=Critical
-	Status      string   `json:"status"`
-	CreatedAt   int64    `json:"createdAt"`
-	UpdatedAt   int64    `json:"updatedAt"`
-	Tags        []string `json:"tags"`
+	ID          string   json:"id"
+	Title       string   json:"title"
+	Description string   json:"description"
+	Severity    int      json:"severity" // =Low, =Medium, =High, =Critical
+	Status      string   json:"status"
+	CreatedAt   int    json:"createdAt"
+	UpdatedAt   int    json:"updatedAt"
+	Tags        []string json:"tags"
 }
 
 // TheHiveResponse wraps paginated API responses
 type TheHiveResponse struct {
-	Data    []TheHiveCase `json:"data"`
-	Success bool          `json:"success"`
+	Data    []TheHiveCase json:"data"
+	Success bool          json:"success"
 }
 
 // NewTheHiveAdapter creates a new TheHive adapter with production-grade HTTP configuration
-func NewTheHiveAdapter(cfg config.ExternalService) *TheHiveAdapter {
+func NewTheHiveAdapter(cfg config.ExternalService) TheHiveAdapter {
 	return &TheHiveAdapter{
 		Config: cfg,
 		Client: &http.Client{
-			Timeout: 30 * time.Second, // Increased from 10s for reliable API calls
+			Timeout:   time.Second, // Increased from s for reliable API calls
 			Transport: &http.Transport{
-				MaxIdleConns:        10,
-				MaxIdleConnsPerHost: 2,
-				IdleConnTimeout:     90 * time.Second,
+				MaxIdleConns:        ,
+				MaxIdleConnsPerHost: ,
+				IdleConnTimeout:       time.Second,
 			},
 		},
 	}
@@ -53,7 +53,7 @@ func NewTheHiveAdapter(cfg config.ExternalService) *TheHiveAdapter {
 
 // FetchRecentIncidents retrieves recent cases from TheHive API
 // Implements the IncidentProvider interface
-func (a *TheHiveAdapter) FetchRecentIncidents() ([]domain.Incident, error) {
+func (a TheHiveAdapter) FetchRecentIncidents() ([]domain.Incident, error) {
 	if !a.Config.Enabled {
 		return []domain.Incident{}, nil
 	}
@@ -75,10 +75,10 @@ func (a *TheHiveAdapter) FetchRecentIncidents() ([]domain.Incident, error) {
 }
 
 // fetchFromAPI makes authenticated requests to TheHive REST API
-func (a *TheHiveAdapter) fetchFromAPI() ([]domain.Incident, error) {
+func (a TheHiveAdapter) fetchFromAPI() ([]domain.Incident, error) {
 	// Build request to fetch recent cases
 	// TheHive API: GET /api/case with filters for recent/open cases
-	url := fmt.Sprintf("%s/api/case?limit=50&sort=-createdAt", a.Config.URL)
+	url := fmt.Sprintf("%s/api/case?limit=&sort=-createdAt", a.Config.URL)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -97,7 +97,7 @@ func (a *TheHiveAdapter) fetchFromAPI() ([]domain.Incident, error) {
 	defer resp.Body.Close()
 
 	// Check for HTTP errors
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode <  || resp.StatusCode >=  {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
@@ -109,7 +109,7 @@ func (a *TheHiveAdapter) fetchFromAPI() ([]domain.Incident, error) {
 	}
 
 	// Transform TheHive cases to domain incidents
-	incidents := make([]domain.Incident, 0, len(apiResp.Data))
+	incidents := make([]domain.Incident, , len(apiResp.Data))
 	for _, theHiveCase := range apiResp.Data {
 		inc := a.transformCase(theHiveCase)
 		// Only include non-closed cases
@@ -122,17 +122,17 @@ func (a *TheHiveAdapter) fetchFromAPI() ([]domain.Incident, error) {
 }
 
 // transformCase converts a TheHive case to a domain Incident
-func (a *TheHiveAdapter) transformCase(caseData TheHiveCase) domain.Incident {
-	// Map TheHive severity (1-4) to domain severity strings
+func (a TheHiveAdapter) transformCase(caseData TheHiveCase) domain.Incident {
+	// Map TheHive severity (-) to domain severity strings
 	severity := "LOW"
 	switch caseData.Severity {
-	case 1:
+	case :
 		severity = "LOW"
-	case 2:
+	case :
 		severity = "MEDIUM"
-	case 3:
+	case :
 		severity = "HIGH"
-	case 4:
+	case :
 		severity = "CRITICAL"
 	}
 
@@ -149,27 +149,27 @@ func (a *TheHiveAdapter) transformCase(caseData TheHiveCase) domain.Incident {
 }
 
 // mockIncidents returns hardcoded incidents for development/fallback
-func (a *TheHiveAdapter) mockIncidents() []domain.Incident {
+func (a TheHiveAdapter) mockIncidents() []domain.Incident {
 	return []domain.Incident{
 		{
 			ID:          uuid.New(),
 			Title:       "Ransomware Detection (Mock)",
-			Description: "Case #1234: Encrypted files detected on HR Server during automated daily scan",
+			Description: "Case : Encrypted files detected on HR Server during automated daily scan",
 			Severity:    "HIGH",
 			Status:      "Open",
 			Source:      "THEHIVE",
-			ExternalID:  "case_1234_mock",
-			CreatedAt:   time.Now().Add(-2 * time.Hour),
+			ExternalID:  "case__mock",
+			CreatedAt:   time.Now().Add(-  time.Hour),
 		},
 		{
 			ID:          uuid.New(),
 			Title:       "Suspicious Login Attempt (Mock)",
-			Description: "Case #5678: Multiple failed login attempts from unusual IP detected",
+			Description: "Case : Multiple failed login attempts from unusual IP detected",
 			Severity:    "CRITICAL",
 			Status:      "In Progress",
 			Source:      "THEHIVE",
-			ExternalID:  "case_5678_mock",
-			CreatedAt:   time.Now().Add(-1 * time.Hour),
+			ExternalID:  "case__mock",
+			CreatedAt:   time.Now().Add(-  time.Hour),
 		},
 	}
 }

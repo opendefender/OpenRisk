@@ -15,7 +15,7 @@ import (
 )
 
 // TestRBACUserEndpoints tests user management endpoints
-func TestRBACUserEndpoints(t *testing.T) {
+func TestRBACUserEndpoints(t testing.T) {
 	// Setup
 	roleRepo := NewMockRoleRepository()
 	permRepo := NewMockPermissionRepository()
@@ -36,18 +36,18 @@ func TestRBACUserEndpoints(t *testing.T) {
 	role := &domain.Role{
 		ID:        "admin-role",
 		Name:      "Admin",
-		RoleLevel: 9,
+		RoleLevel: ,
 	}
 	roleRepo.SetRole(role)
 
-	t.Run("POST /api/v1/rbac/users - Add user to tenant", func(t *testing.T) {
+	t.Run("POST /api/v/rbac/users - Add user to tenant", func(t testing.T) {
 		// Create request
 		payload := map[string]string{
-			"user_id": "user-123",
+			"user_id": "user-",
 			"role_id": "admin-role",
 		}
 		body, _ := json.Marshal(payload)
-		req := httptest.NewRequest("POST", "/api/v1/rbac/users", bytes.NewReader(body))
+		req := httptest.NewRequest("POST", "/api/v/rbac/users", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		// Mock response writer
@@ -55,29 +55,29 @@ func TestRBACUserEndpoints(t *testing.T) {
 
 		// Execute - simulate handler behavior
 		ctx := context.Background()
-		err := tenantService.AddUser(ctx, "test-tenant", "user-123")
+		err := tenantService.AddUser(ctx, "test-tenant", "user-")
 
 		// Assert
 		assert.NoError(t, err)
 		retrieved, _ := tenantService.GetByID(ctx, "test-tenant")
-		assert.Contains(t, retrieved.Users, "user-123")
+		assert.Contains(t, retrieved.Users, "user-")
 	})
 
-	t.Run("GET /api/v1/rbac/users - List users", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/users - List users", func(t testing.T) {
 		// Add users to tenant
 		ctx := context.Background()
-		tenantService.AddUser(ctx, "test-tenant", "user-1")
-		tenantService.AddUser(ctx, "test-tenant", "user-2")
+		tenantService.AddUser(ctx, "test-tenant", "user-")
+		tenantService.AddUser(ctx, "test-tenant", "user-")
 
 		// Retrieve users
 		users, err := tenantService.GetUsers(ctx, "test-tenant")
 
 		// Assert
 		assert.NoError(t, err)
-		assert.GreaterOrEqual(t, len(users), 2)
+		assert.GreaterOrEqual(t, len(users), )
 	})
 
-	t.Run("DELETE /api/v1/rbac/users/:user_id - Remove user", func(t *testing.T) {
+	t.Run("DELETE /api/v/rbac/users/:user_id - Remove user", func(t testing.T) {
 		// Setup
 		ctx := context.Background()
 		tenantService.AddUser(ctx, "test-tenant", "user-to-delete")
@@ -93,18 +93,18 @@ func TestRBACUserEndpoints(t *testing.T) {
 }
 
 // TestRBACRoleEndpoints tests role management endpoints
-func TestRBACRoleEndpoints(t *testing.T) {
+func TestRBACRoleEndpoints(t testing.T) {
 	// Setup
 	roleRepo := NewMockRoleRepository()
 	roleService := service.NewRoleService(roleRepo)
 	ctx := context.Background()
 
-	t.Run("POST /api/v1/rbac/roles - Create role", func(t *testing.T) {
+	t.Run("POST /api/v/rbac/roles - Create role", func(t testing.T) {
 		// Create role
 		role := &domain.Role{
 			Name:        "Manager",
 			Description: "Manager role",
-			RoleLevel:   5,
+			RoleLevel:   ,
 		}
 
 		created, err := roleService.Create(ctx, role)
@@ -116,11 +116,11 @@ func TestRBACRoleEndpoints(t *testing.T) {
 		assert.Equal(t, "Manager", created.Name)
 	})
 
-	t.Run("GET /api/v1/rbac/roles - List roles", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/roles - List roles", func(t testing.T) {
 		// Create test roles
-		roles := []*domain.Role{
-			{ID: "role-1", Name: "Admin", RoleLevel: 9},
-			{ID: "role-2", Name: "Manager", RoleLevel: 5},
+		roles := []domain.Role{
+			{ID: "role-", Name: "Admin", RoleLevel: },
+			{ID: "role-", Name: "Manager", RoleLevel: },
 		}
 
 		for _, role := range roles {
@@ -128,19 +128,19 @@ func TestRBACRoleEndpoints(t *testing.T) {
 		}
 
 		// List roles
-		retrieved, err := roleService.List(ctx, 0, 10)
+		retrieved, err := roleService.List(ctx, , )
 
 		// Assert
 		assert.NoError(t, err)
-		assert.GreaterOrEqual(t, len(retrieved), 2)
+		assert.GreaterOrEqual(t, len(retrieved), )
 	})
 
-	t.Run("GET /api/v1/rbac/roles/:role_id - Get role", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/roles/:role_id - Get role", func(t testing.T) {
 		// Create role
 		role := &domain.Role{
 			ID:        "role-detail",
 			Name:      "Test",
-			RoleLevel: 5,
+			RoleLevel: ,
 		}
 		roleRepo.SetRole(role)
 
@@ -153,13 +153,13 @@ func TestRBACRoleEndpoints(t *testing.T) {
 		assert.Equal(t, "Test", retrieved.Name)
 	})
 
-	t.Run("PATCH /api/v1/rbac/roles/:role_id - Update role", func(t *testing.T) {
+	t.Run("PATCH /api/v/rbac/roles/:role_id - Update role", func(t testing.T) {
 		// Create role
 		role := &domain.Role{
 			ID:          "role-update",
 			Name:        "Old Name",
 			Description: "Old",
-			RoleLevel:   3,
+			RoleLevel:   ,
 		}
 		roleRepo.SetRole(role)
 
@@ -174,12 +174,12 @@ func TestRBACRoleEndpoints(t *testing.T) {
 		assert.Equal(t, "New Name", updated.Name)
 	})
 
-	t.Run("DELETE /api/v1/rbac/roles/:role_id - Delete role", func(t *testing.T) {
+	t.Run("DELETE /api/v/rbac/roles/:role_id - Delete role", func(t testing.T) {
 		// Create role
 		role := &domain.Role{
 			ID:        "role-delete",
 			Name:      "Temp",
-			RoleLevel: 2,
+			RoleLevel: ,
 		}
 		roleRepo.SetRole(role)
 
@@ -194,13 +194,13 @@ func TestRBACRoleEndpoints(t *testing.T) {
 }
 
 // TestRBACTenantEndpoints tests tenant management endpoints
-func TestRBACTenantEndpoints(t *testing.T) {
+func TestRBACTenantEndpoints(t testing.T) {
 	// Setup
 	tenantRepo := NewMockTenantRepository()
 	tenantService := service.NewTenantService(tenantRepo)
 	ctx := context.Background()
 
-	t.Run("POST /api/v1/rbac/tenants - Create tenant", func(t *testing.T) {
+	t.Run("POST /api/v/rbac/tenants - Create tenant", func(t testing.T) {
 		// Create tenant
 		tenant := &domain.Tenant{
 			Name:        "New Tenant",
@@ -216,11 +216,11 @@ func TestRBACTenantEndpoints(t *testing.T) {
 		assert.Equal(t, "New Tenant", created.Name)
 	})
 
-	t.Run("GET /api/v1/rbac/tenants - List tenants", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/tenants - List tenants", func(t testing.T) {
 		// Create test tenants
-		tenants := []*domain.Tenant{
-			{ID: "t1", Name: "Company A"},
-			{ID: "t2", Name: "Company B"},
+		tenants := []domain.Tenant{
+			{ID: "t", Name: "Company A"},
+			{ID: "t", Name: "Company B"},
 		}
 
 		for _, tenant := range tenants {
@@ -228,14 +228,14 @@ func TestRBACTenantEndpoints(t *testing.T) {
 		}
 
 		// List tenants
-		retrieved, err := tenantService.List(ctx, 0, 10)
+		retrieved, err := tenantService.List(ctx, , )
 
 		// Assert
 		assert.NoError(t, err)
-		assert.GreaterOrEqual(t, len(retrieved), 2)
+		assert.GreaterOrEqual(t, len(retrieved), )
 	})
 
-	t.Run("GET /api/v1/rbac/tenants/:tenant_id - Get tenant", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/tenants/:tenant_id - Get tenant", func(t testing.T) {
 		// Create tenant
 		tenant := &domain.Tenant{
 			ID:   "tenant-detail",
@@ -252,7 +252,7 @@ func TestRBACTenantEndpoints(t *testing.T) {
 		assert.Equal(t, "Detail Tenant", retrieved.Name)
 	})
 
-	t.Run("PATCH /api/v1/rbac/tenants/:tenant_id - Update tenant", func(t *testing.T) {
+	t.Run("PATCH /api/v/rbac/tenants/:tenant_id - Update tenant", func(t testing.T) {
 		// Create tenant
 		tenant := &domain.Tenant{
 			ID:          "tenant-update",
@@ -272,7 +272,7 @@ func TestRBACTenantEndpoints(t *testing.T) {
 		assert.Equal(t, "New Name", updated.Name)
 	})
 
-	t.Run("DELETE /api/v1/rbac/tenants/:tenant_id - Delete tenant", func(t *testing.T) {
+	t.Run("DELETE /api/v/rbac/tenants/:tenant_id - Delete tenant", func(t testing.T) {
 		// Create tenant
 		tenant := &domain.Tenant{
 			ID:   "tenant-delete",
@@ -289,12 +289,12 @@ func TestRBACTenantEndpoints(t *testing.T) {
 		assert.Nil(t, retrieved)
 	})
 
-	t.Run("GET /api/v1/rbac/tenants/:tenant_id/stats - Get tenant statistics", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/tenants/:tenant_id/stats - Get tenant statistics", func(t testing.T) {
 		// Create tenant with users
 		tenant := &domain.Tenant{
 			ID:    "tenant-stats",
 			Name:  "Stats Tenant",
-			Users: []string{"user-1", "user-2"},
+			Users: []string{"user-", "user-"},
 		}
 		tenantRepo.SetTenant(tenant)
 
@@ -304,18 +304,18 @@ func TestRBACTenantEndpoints(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, stats)
-		assert.Equal(t, 2, stats.UserCount)
+		assert.Equal(t, , stats.UserCount)
 	})
 }
 
 // TestRBACPermissionEndpoints tests permission endpoints
-func TestRBACPermissionEndpoints(t *testing.T) {
+func TestRBACPermissionEndpoints(t testing.T) {
 	// Setup
 	permRepo := NewMockPermissionRepository()
 	permService := service.NewPermissionService(permRepo)
 	ctx := context.Background()
 
-	t.Run("POST /api/v1/rbac/permissions - Create permission", func(t *testing.T) {
+	t.Run("POST /api/v/rbac/permissions - Create permission", func(t testing.T) {
 		// Create permission
 		perm := &domain.Permission{
 			Resource:    "users",
@@ -331,11 +331,11 @@ func TestRBACPermissionEndpoints(t *testing.T) {
 		assert.NotEmpty(t, created.ID)
 	})
 
-	t.Run("GET /api/v1/rbac/permissions - List permissions", func(t *testing.T) {
+	t.Run("GET /api/v/rbac/permissions - List permissions", func(t testing.T) {
 		// Create test permissions
-		perms := []*domain.Permission{
-			{ID: "p1", Resource: "users", Action: "read"},
-			{ID: "p2", Resource: "roles", Action: "manage"},
+		perms := []domain.Permission{
+			{ID: "p", Resource: "users", Action: "read"},
+			{ID: "p", Resource: "roles", Action: "manage"},
 		}
 
 		for _, p := range perms {
@@ -343,16 +343,16 @@ func TestRBACPermissionEndpoints(t *testing.T) {
 		}
 
 		// List permissions
-		retrieved, err := permService.List(ctx, 0, 10)
+		retrieved, err := permService.List(ctx, , )
 
 		// Assert
 		assert.NoError(t, err)
-		assert.GreaterOrEqual(t, len(retrieved), 2)
+		assert.GreaterOrEqual(t, len(retrieved), )
 	})
 }
 
 // TestRBACIntegrationFlows tests complete RBAC workflows
-func TestRBACIntegrationFlows(t *testing.T) {
+func TestRBACIntegrationFlows(t testing.T) {
 	// Setup
 	roleRepo := NewMockRoleRepository()
 	permRepo := NewMockPermissionRepository()
@@ -364,8 +364,8 @@ func TestRBACIntegrationFlows(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("Complete flow: Create tenant -> Create role -> Grant permissions -> Add user", func(t *testing.T) {
-		// 1. Create tenant
+	t.Run("Complete flow: Create tenant -> Create role -> Grant permissions -> Add user", func(t testing.T) {
+		// . Create tenant
 		tenant := &domain.Tenant{
 			Name:        "Integration Test Corp",
 			Description: "Test company",
@@ -374,18 +374,18 @@ func TestRBACIntegrationFlows(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, createdTenant)
 
-		// 2. Create role
+		// . Create role
 		role := &domain.Role{
 			Name:        "Editor",
 			Description: "Can edit resources",
-			RoleLevel:   5,
+			RoleLevel:   ,
 		}
 		createdRole, err := roleService.Create(ctx, role)
 		require.NoError(t, err)
 		require.NotNil(t, createdRole)
 
-		// 3. Create permissions
-		perms := []*domain.Permission{
+		// . Create permissions
+		perms := []domain.Permission{
 			{Resource: "risks", Action: "read"},
 			{Resource: "risks", Action: "write"},
 		}
@@ -393,14 +393,14 @@ func TestRBACIntegrationFlows(t *testing.T) {
 			permService.Create(ctx, p)
 		}
 
-		// 4. Grant permissions to role
+		// . Grant permissions to role
 		err = roleService.GrantPermission(ctx, createdRole.ID, "risks:read")
 		require.NoError(t, err)
 
 		err = roleService.GrantPermission(ctx, createdRole.ID, "risks:write")
 		require.NoError(t, err)
 
-		// 5. Add user to tenant
+		// . Add user to tenant
 		err = tenantService.AddUser(ctx, createdTenant.ID, "test-user")
 		require.NoError(t, err)
 
@@ -413,42 +413,42 @@ func TestRBACIntegrationFlows(t *testing.T) {
 		assert.Contains(t, retrievedRole.Permissions, "risks:write")
 	})
 
-	t.Run("Multi-tenant isolation", func(t *testing.T) {
+	t.Run("Multi-tenant isolation", func(t testing.T) {
 		// Create two tenants
-		tenant1 := &domain.Tenant{
+		tenant := &domain.Tenant{
 			Name: "Tenant One",
 		}
-		tenant2 := &domain.Tenant{
+		tenant := &domain.Tenant{
 			Name: "Tenant Two",
 		}
 
-		t1, _ := tenantService.Create(ctx, tenant1)
-		t2, _ := tenantService.Create(ctx, tenant2)
+		t, _ := tenantService.Create(ctx, tenant)
+		t, _ := tenantService.Create(ctx, tenant)
 
 		// Add different users to each tenant
-		tenantService.AddUser(ctx, t1.ID, "user-tenant1")
-		tenantService.AddUser(ctx, t2.ID, "user-tenant2")
+		tenantService.AddUser(ctx, t.ID, "user-tenant")
+		tenantService.AddUser(ctx, t.ID, "user-tenant")
 
 		// Verify isolation
-		users1, _ := tenantService.GetUsers(ctx, t1.ID)
-		users2, _ := tenantService.GetUsers(ctx, t2.ID)
+		users, _ := tenantService.GetUsers(ctx, t.ID)
+		users, _ := tenantService.GetUsers(ctx, t.ID)
 
-		assert.Contains(t, users1, "user-tenant1")
-		assert.NotContains(t, users1, "user-tenant2")
+		assert.Contains(t, users, "user-tenant")
+		assert.NotContains(t, users, "user-tenant")
 
-		assert.Contains(t, users2, "user-tenant2")
-		assert.NotContains(t, users2, "user-tenant1")
+		assert.Contains(t, users, "user-tenant")
+		assert.NotContains(t, users, "user-tenant")
 	})
 
-	t.Run("Permission hierarchy enforcement", func(t *testing.T) {
+	t.Run("Permission hierarchy enforcement", func(t testing.T) {
 		// Create roles at different levels
 		viewer := &domain.Role{
 			Name:      "Viewer",
-			RoleLevel: 1,
+			RoleLevel: ,
 		}
 		admin := &domain.Role{
 			Name:      "Admin",
-			RoleLevel: 9,
+			RoleLevel: ,
 		}
 
 		v, _ := roleService.Create(ctx, viewer)
@@ -465,29 +465,29 @@ func TestRBACIntegrationFlows(t *testing.T) {
 }
 
 // BenchmarkRBACEndpoints benchmarks API endpoints
-func BenchmarkRBACEndpoints(b *testing.B) {
+func BenchmarkRBACEndpoints(b testing.B) {
 	roleRepo := NewMockRoleRepository()
 	roleService := service.NewRoleService(roleRepo)
 	ctx := context.Background()
 
-	b.Run("CreateRole", func(b *testing.B) {
+	b.Run("CreateRole", func(b testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := ; i < b.N; i++ {
 			roleService.Create(ctx, &domain.Role{
 				Name:      "Test",
-				RoleLevel: 5,
+				RoleLevel: ,
 			})
 		}
 	})
 
-	b.Run("GetRole", func(b *testing.B) {
+	b.Run("GetRole", func(b testing.B) {
 		role, _ := roleService.Create(ctx, &domain.Role{
 			Name:      "Bench",
-			RoleLevel: 5,
+			RoleLevel: ,
 		})
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := ; i < b.N; i++ {
 			roleService.GetByID(ctx, role.ID)
 		}
 	})

@@ -5,7 +5,7 @@ import (
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
-func CreateRisk(risk *domain.Risk) error {
+func CreateRisk(risk domain.Risk) error {
 	return database.DB.Create(risk).Error
 }
 

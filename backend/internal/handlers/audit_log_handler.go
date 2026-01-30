@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -13,62 +13,62 @@ import (
 
 // AuditLogHandler handles audit log endpoints
 type AuditLogHandler struct {
-	auditService *services.AuditService
+	auditService services.AuditService
 }
 
 // NewAuditLogHandler creates a new audit log handler
-func NewAuditLogHandler() *AuditLogHandler {
+func NewAuditLogHandler() AuditLogHandler {
 	return &AuditLogHandler{
 		auditService: services.NewAuditService(),
 	}
 }
 
 type AuditLogDTO struct {
-	ID           string  `json:"id"`
-	UserID       *string `json:"user_id,omitempty"`
-	Action       string  `json:"action"`
-	Resource     string  `json:"resource,omitempty"`
-	ResourceID   *string `json:"resource_id,omitempty"`
-	Result       string  `json:"result"`
-	ErrorMessage string  `json:"error_message,omitempty"`
-	IPAddress    *string `json:"ip_address,omitempty"`
-	UserAgent    string  `json:"user_agent,omitempty"`
-	Timestamp    string  `json:"timestamp"`
+	ID           string  json:"id"
+	UserID       string json:"user_id,omitempty"
+	Action       string  json:"action"
+	Resource     string  json:"resource,omitempty"
+	ResourceID   string json:"resource_id,omitempty"
+	Result       string  json:"result"
+	ErrorMessage string  json:"error_message,omitempty"
+	IPAddress    string json:"ip_address,omitempty"
+	UserAgent    string  json:"user_agent,omitempty"
+	Timestamp    string  json:"timestamp"
 }
 
 // GetAuditLogs retrieves all audit logs (admin only)
-// Query parameters: page (default 1), limit (default 20), action, result, user_id
-func (h *AuditLogHandler) GetAuditLogs(c *fiber.Ctx) error {
+// Query parameters: page (default ), limit (default ), action, result, user_id
+func (h AuditLogHandler) GetAuditLogs(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	// Check if user is admin
-	if !claims.HasPermission("*") && claims.RoleName != "admin" {
+	if !claims.HasPermission("") && claims.RoleName != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view audit logs"})
 	}
 
 	// Parse pagination
-	page := 1
+	page := 
 	if p := c.Query("page"); p != "" {
-		if parsedPage, err := strconv.Atoi(p); err == nil && parsedPage > 0 {
+		if parsedPage, err := strconv.Atoi(p); err == nil && parsedPage >  {
 			page = parsedPage
 		}
 	}
 
-	limit := 20
+	limit := 
 	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit >  && parsedLimit <=  {
 			limit = parsedLimit
 		}
 	}
 
-	offset := (page - 1) * limit
+	offset := (page - )  limit
 
-	// Get audit logs by date range (last 30 days by default)
+	// Get audit logs by date range (last  days by default)
 	endTime := time.Now()
-	startTime := endTime.AddDate(0, 0, -30)
+	startTime := endTime.AddDate(, , -)
 
 	logs, err := h.auditService.GetAuditLogsByDateRange(startTime, endTime, limit, offset)
 	if err != nil {
@@ -76,7 +76,7 @@ func (h *AuditLogHandler) GetAuditLogs(c *fiber.Ctx) error {
 	}
 
 	// Convert to DTO
-	response := make([]AuditLogDTO, 0, len(logs))
+	response := make([]AuditLogDTO, , len(logs))
 	for _, log := range logs {
 		dto := AuditLogDTO{
 			ID:           log.ID.String(),
@@ -85,7 +85,7 @@ func (h *AuditLogHandler) GetAuditLogs(c *fiber.Ctx) error {
 			Result:       log.Result.String(),
 			ErrorMessage: log.ErrorMessage,
 			UserAgent:    log.UserAgent,
-			Timestamp:    log.Timestamp.Format("2006-01-02T15:04:05Z"),
+			Timestamp:    log.Timestamp.Format("--T::Z"),
 		}
 
 		if log.UserID != nil {
@@ -115,35 +115,35 @@ func (h *AuditLogHandler) GetAuditLogs(c *fiber.Ctx) error {
 }
 
 // GetUserAuditLogs retrieves audit logs for a specific user (admin only)
-func (h *AuditLogHandler) GetUserAuditLogs(c *fiber.Ctx) error {
+func (h AuditLogHandler) GetUserAuditLogs(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	// Check if user is admin
-	if !claims.HasPermission("*") && claims.RoleName != "admin" {
+	if !claims.HasPermission("") && claims.RoleName != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view audit logs"})
 	}
 
 	userID := c.Params("user_id")
 
 	// Parse pagination
-	page := 1
+	page := 
 	if p := c.Query("page"); p != "" {
-		if parsedPage, err := strconv.Atoi(p); err == nil && parsedPage > 0 {
+		if parsedPage, err := strconv.Atoi(p); err == nil && parsedPage >  {
 			page = parsedPage
 		}
 	}
 
-	limit := 20
+	limit := 
 	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit >  && parsedLimit <=  {
 			limit = parsedLimit
 		}
 	}
 
-	offset := (page - 1) * limit
+	offset := (page - )  limit
 
 	logs, err := h.auditService.GetAuditLogsByUser(parseUUID(userID), limit, offset)
 	if err != nil {
@@ -151,7 +151,7 @@ func (h *AuditLogHandler) GetUserAuditLogs(c *fiber.Ctx) error {
 	}
 
 	// Convert to DTO
-	response := make([]AuditLogDTO, 0, len(logs))
+	response := make([]AuditLogDTO, , len(logs))
 	for _, log := range logs {
 		dto := AuditLogDTO{
 			ID:           log.ID.String(),
@@ -160,7 +160,7 @@ func (h *AuditLogHandler) GetUserAuditLogs(c *fiber.Ctx) error {
 			Result:       log.Result.String(),
 			ErrorMessage: log.ErrorMessage,
 			UserAgent:    log.UserAgent,
-			Timestamp:    log.Timestamp.Format("2006-01-02T15:04:05Z"),
+			Timestamp:    log.Timestamp.Format("--T::Z"),
 		}
 
 		if log.UserID != nil {
@@ -190,35 +190,35 @@ func (h *AuditLogHandler) GetUserAuditLogs(c *fiber.Ctx) error {
 }
 
 // GetAuditLogsByAction retrieves audit logs for a specific action (admin only)
-func (h *AuditLogHandler) GetAuditLogsByAction(c *fiber.Ctx) error {
+func (h AuditLogHandler) GetAuditLogsByAction(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	// Check if user is admin
-	if !claims.HasPermission("*") && claims.RoleName != "admin" {
+	if !claims.HasPermission("") && claims.RoleName != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view audit logs"})
 	}
 
 	action := c.Params("action")
 
 	// Parse pagination
-	page := 1
+	page := 
 	if p := c.Query("page"); p != "" {
-		if parsedPage, err := strconv.Atoi(p); err == nil && parsedPage > 0 {
+		if parsedPage, err := strconv.Atoi(p); err == nil && parsedPage >  {
 			page = parsedPage
 		}
 	}
 
-	limit := 20
+	limit := 
 	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit >  && parsedLimit <=  {
 			limit = parsedLimit
 		}
 	}
 
-	offset := (page - 1) * limit
+	offset := (page - )  limit
 
 	logs, err := h.auditService.GetAuditLogsByAction(domain.AuditLogAction(action), limit, offset)
 	if err != nil {
@@ -226,7 +226,7 @@ func (h *AuditLogHandler) GetAuditLogsByAction(c *fiber.Ctx) error {
 	}
 
 	// Convert to DTO
-	response := make([]AuditLogDTO, 0, len(logs))
+	response := make([]AuditLogDTO, , len(logs))
 	for _, log := range logs {
 		dto := AuditLogDTO{
 			ID:           log.ID.String(),
@@ -235,7 +235,7 @@ func (h *AuditLogHandler) GetAuditLogsByAction(c *fiber.Ctx) error {
 			Result:       log.Result.String(),
 			ErrorMessage: log.ErrorMessage,
 			UserAgent:    log.UserAgent,
-			Timestamp:    log.Timestamp.Format("2006-01-02T15:04:05Z"),
+			Timestamp:    log.Timestamp.Format("--T::Z"),
 		}
 
 		if log.UserID != nil {

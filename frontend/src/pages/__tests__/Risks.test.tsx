@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/ @vitest-environment jsdom /
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Risks from '../Risks';
@@ -11,20 +11,20 @@ const mockSetSelected = vi.fn();
 const store = {
   risks: [
     {
-      id: '1',
-      title: 'Risk 1',
-      description: 'Description 1',
-      score: 10,
-      impact: 3,
-      probability: 4,
+      id: '',
+      title: 'Risk ',
+      description: 'Description ',
+      score: ,
+      impact: ,
+      probability: ,
       status: 'OPEN',
-      tags: ['tag1'],
+      tags: ['tag'],
       source: 'test',
     },
   ],
-  total: 12,
-  page: 1,
-  pageSize: 5,
+  total: ,
+  page: ,
+  pageSize: ,
   isLoading: false,
   fetchRisks: mockFetch,
   setPage: vi.fn(),
@@ -44,9 +44,9 @@ describe('Risks page - pagination', () => {
   it('calls fetchRisks on mount with initial page and limit', async () => {
     render(<Risks />);
 
-    // initial useEffect should call fetchRisks with page 1 and limit 5
+    // initial useEffect should call fetchRisks with page  and limit 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith({ page: 1, limit: 5, sort_by: 'score', sort_dir: 'desc' });
+      expect(mockFetch).toHaveBeenCalledWith({ page: , limit: , sort_by: 'score', sort_dir: 'desc' });
     });
   });
 
@@ -58,15 +58,15 @@ describe('Risks page - pagination', () => {
     mockFetch.mockClear();
 
     // Find the page info element and its sibling next button
-    const pageInfos = screen.getAllByText(/1 \/ 3/);
-    const pageInfo = pageInfos[0];
+    const pageInfos = screen.getAllByText(/ \/ /);
+    const pageInfo = pageInfos[];
     const nextButton = pageInfo.nextElementSibling as HTMLElement;
     expect(nextButton).toBeTruthy();
 
     fireEvent.click(nextButton);
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith({ page: 2, limit: 5, sort_by: 'score', sort_dir: 'desc' });
+      expect(mockFetch).toHaveBeenCalledWith({ page: , limit: , sort_by: 'score', sort_dir: 'desc' });
     });
   });
 
@@ -77,12 +77,12 @@ describe('Risks page - pagination', () => {
     await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     mockFetch.mockClear();
 
-    const pageInfos = screen.getAllByText(/1 \/ 3/);
-    const pageInfo = pageInfos[0];
+    const pageInfos = screen.getAllByText(/ \/ /);
+    const pageInfo = pageInfos[];
     const prevButton = pageInfo.previousElementSibling as HTMLElement;
     expect(prevButton).toBeTruthy();
 
-    // clicking previous on page 1 should stay on page 1 and not re-trigger fetch
+    // clicking previous on page  should stay on page  and not re-trigger fetch
     fireEvent.click(prevButton);
 
     // since the page value does not change, fetchRisks should not be called again

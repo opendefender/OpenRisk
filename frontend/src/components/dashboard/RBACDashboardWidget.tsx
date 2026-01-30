@@ -17,10 +17,10 @@ interface TeamStats {
 }
 
 const levelColors: Record<number, { bg: string; text: string; icon: string }> = {
-  0: { bg: 'bg-zinc-500/10', text: 'text-zinc-400', icon: '👁️' },
-  3: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: '🔍' },
-  6: { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: '👨‍💼' },
-  9: { bg: 'bg-red-500/10', text: 'text-red-400', icon: '👑' },
+  : { bg: 'bg-zinc-/', text: 'text-zinc-', icon: '' },
+  : { bg: 'bg-blue-/', text: 'text-blue-', icon: '' },
+  : { bg: 'bg-purple-/', text: 'text-purple-', icon: '‍' },
+  : { bg: 'bg-red-/', text: 'text-red-', icon: '' },
 };
 
 export const RBACDashboardWidget = () => {
@@ -37,7 +37,7 @@ export const RBACDashboardWidget = () => {
     try {
       // Fetch current user's role info
       if (currentUser?.role) {
-        const roleRes = await api.get(`/rbac/roles/name/${currentUser.role}`);
+        const roleRes = await api.get(/rbac/roles/name/${currentUser.role});
         setRoleInfo(roleRes.data);
       }
 
@@ -59,62 +59,62 @@ export const RBACDashboardWidget = () => {
     return null;
   }
 
-  const levelName = ['Viewer', 'Analyst', 'Manager', 'Admin'][Math.min(Math.floor(roleInfo.level / 3), 3)];
-  const colors = levelColors[roleInfo.level as keyof typeof levelColors] || levelColors[0];
+  const levelName = ['Viewer', 'Analyst', 'Manager', 'Admin'][Math.min(Math.floor(roleInfo.level / ), )];
+  const colors = levelColors[roleInfo.level as keyof typeof levelColors] || levelColors[];
 
   return (
-    <div className="space-y-4">
-      {/* Current Role Card */}
-      <div className={`rounded-lg border border-border p-4 ${colors.bg} backdrop-blur-sm`}>
+    <div className="space-y-">
+      {/ Current Role Card /}
+      <div className={rounded-lg border border-border p- ${colors.bg} backdrop-blur-sm}>
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-sm font-medium text-zinc-400 mb-1">Your Role</div>
-            <h3 className={`text-lg font-semibold ${colors.text}`}>{roleInfo.name}</h3>
-            <p className="text-xs text-zinc-500 mt-1">
+            <div className="text-sm font-medium text-zinc- mb-">Your Role</div>
+            <h className={text-lg font-semibold ${colors.text}}>{roleInfo.name}</h>
+            <p className="text-xs text-zinc- mt-">
               Level {roleInfo.level} • {roleInfo.permissions_count} permissions
             </p>
           </div>
-          <div className="text-2xl">{colors.icon}</div>
+          <div className="text-xl">{colors.icon}</div>
         </div>
-        <div className="mt-3 w-full h-1.5 bg-zinc-900/50 rounded-full overflow-hidden">
+        <div className="mt- w-full h-. bg-zinc-/ rounded-full overflow-hidden">
           <div
-            className={`h-full transition-all ${colors.bg}`}
-            style={{ width: `${(roleInfo.level / 9) * 100}%` }}
+            className={h-full transition-all ${colors.bg}}
+            style={{ width: ${(roleInfo.level / )  }% }}
           />
         </div>
       </div>
 
-      {/* Team Statistics */}
+      {/ Team Statistics /}
       {teamStats && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-border bg-surface/30 p-3 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <Users size={16} className="text-blue-400" />
-              <span className="text-xs font-medium text-zinc-400">Team Members</span>
+        <div className="grid grid-cols- gap-">
+          <div className="rounded-lg border border-border bg-surface/ p- backdrop-blur-sm">
+            <div className="flex items-center gap- mb-">
+              <Users size={} className="text-blue-" />
+              <span className="text-xs font-medium text-zinc-">Team Members</span>
             </div>
-            <div className="text-2xl font-bold text-white">{teamStats.active_users}</div>
-            <p className="text-xs text-zinc-500 mt-1">{teamStats.total_users} total</p>
+            <div className="text-xl font-bold text-white">{teamStats.active_users}</div>
+            <p className="text-xs text-zinc- mt-">{teamStats.total_users} total</p>
           </div>
 
-          <div className="rounded-lg border border-border bg-surface/30 p-3 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap size={16} className="text-purple-400" />
-              <span className="text-xs font-medium text-zinc-400">Teams</span>
+          <div className="rounded-lg border border-border bg-surface/ p- backdrop-blur-sm">
+            <div className="flex items-center gap- mb-">
+              <Zap size={} className="text-purple-" />
+              <span className="text-xs font-medium text-zinc-">Teams</span>
             </div>
-            <div className="text-2xl font-bold text-white">{teamStats.teams_count}</div>
-            <p className="text-xs text-zinc-500 mt-1">
-              {teamStats.pending_invites > 0 ? `${teamStats.pending_invites} pending` : 'All accepted'}
+            <div className="text-xl font-bold text-white">{teamStats.teams_count}</div>
+            <p className="text-xs text-zinc- mt-">
+              {teamStats.pending_invites >  ? ${teamStats.pending_invites} pending : 'All accepted'}
             </p>
           </div>
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="rounded-lg border border-dashed border-border bg-surface/20 p-3 text-center">
-        <Shield size={16} className="inline-block mb-2 text-primary" />
-        <p className="text-xs text-zinc-400">
+      {/ Quick Actions /}
+      <div className="rounded-lg border border-dashed border-border bg-surface/ p- text-center">
+        <Shield size={} className="inline-block mb- text-primary" />
+        <p className="text-xs text-zinc-">
           Your access level determines what actions you can perform. 
-          <a href="/settings?tab=rbac" className="text-primary hover:underline ml-1">
+          <a href="/settings?tab=rbac" className="text-primary hover:underline ml-">
             View permissions →
           </a>
         </p>

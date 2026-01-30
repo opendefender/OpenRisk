@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateRisk_Integration(t *testing.T) {
+func TestCreateRisk_Integration(t testing.T) {
 	// Setup
 	InitTestDB(t)
 	defer CleanupTestDB(t, database.DB)
@@ -29,8 +29,8 @@ func TestCreateRisk_Integration(t *testing.T) {
 	payload := map[string]interface{}{
 		"title":       "Critical Data Breach",
 		"description": "Unauthorized access to customer database",
-		"impact":      5,
-		"probability": 4,
+		"impact":      ,
+		"probability": ,
 		"tags":        []string{"security", "data"},
 	}
 	body, _ := json.Marshal(payload)
@@ -42,13 +42,13 @@ func TestCreateRisk_Integration(t *testing.T) {
 
 	// Assertions
 	require.NoError(t, err)
-	assert.Equal(t, 201, resp.StatusCode)
+	assert.Equal(t, , resp.StatusCode)
 
 	var result domain.Risk
 	json.NewDecoder(resp.Body).Decode(&result)
 	assert.Equal(t, "Critical Data Breach", result.Title)
-	assert.Equal(t, 5, result.Impact)
-	assert.Equal(t, 4, result.Probability)
+	assert.Equal(t, , result.Impact)
+	assert.Equal(t, , result.Probability)
 
 	// Verify in database
 	var storedRisk domain.Risk
@@ -57,26 +57,26 @@ func TestCreateRisk_Integration(t *testing.T) {
 	assert.Equal(t, "Critical Data Breach", storedRisk.Title)
 }
 
-func TestGetRisks_Integration(t *testing.T) {
+func TestGetRisks_Integration(t testing.T) {
 	// Setup
 	InitTestDB(t)
 	defer CleanupTestDB(t, database.DB)
 
 	// Create test risks
-	risk1 := domain.Risk{
+	risk := domain.Risk{
 		ID:          uuid.New(),
-		Title:       "Risk 1",
-		Impact:      5,
-		Probability: 3,
+		Title:       "Risk ",
+		Impact:      ,
+		Probability: ,
 	}
-	risk2 := domain.Risk{
+	risk := domain.Risk{
 		ID:          uuid.New(),
-		Title:       "Risk 2",
-		Impact:      4,
-		Probability: 2,
+		Title:       "Risk ",
+		Impact:      ,
+		Probability: ,
 	}
-	database.DB.Create(&risk1)
-	database.DB.Create(&risk2)
+	database.DB.Create(&risk)
+	database.DB.Create(&risk)
 
 	app := fiber.New()
 	app.Get("/risks", GetRisks)
@@ -87,16 +87,16 @@ func TestGetRisks_Integration(t *testing.T) {
 
 	// Assertions
 	require.NoError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, , resp.StatusCode)
 
 	var risks []domain.Risk
 	json.NewDecoder(resp.Body).Decode(&risks)
-	assert.GreaterOrEqual(t, len(risks), 2)
+	assert.GreaterOrEqual(t, len(risks), )
 }
 
 // TestGetRisk_Integration - Commented out: GetRiskByID handler not found
-/*
-func TestGetRisk_Integration(t *testing.T) {
+/
+func TestGetRisk_Integration(t testing.T) {
 	// Setup
 	InitTestDB(t)
 	defer CleanupTestDB(t, database.DB)
@@ -104,8 +104,8 @@ func TestGetRisk_Integration(t *testing.T) {
 	risk := domain.Risk{
 		ID:          uuid.New(),
 		Title:       "Test Risk",
-		Impact:      5,
-		Probability: 3,
+		Impact:      ,
+		Probability: ,
 	}
 	database.DB.Create(&risk)
 
@@ -118,16 +118,16 @@ func TestGetRisk_Integration(t *testing.T) {
 
 	// Assertions
 	require.NoError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, , resp.StatusCode)
 
 	var result domain.Risk
 	json.NewDecoder(resp.Body).Decode(&result)
 	assert.Equal(t, risk.ID, result.ID)
 	assert.Equal(t, "Test Risk", result.Title)
 }
-*/
+/
 
-func TestUpdateRisk_Integration(t *testing.T) {
+func TestUpdateRisk_Integration(t testing.T) {
 	// Setup
 	InitTestDB(t)
 	defer CleanupTestDB(t, database.DB)
@@ -135,8 +135,8 @@ func TestUpdateRisk_Integration(t *testing.T) {
 	risk := domain.Risk{
 		ID:          uuid.New(),
 		Title:       "Original Title",
-		Impact:      5,
-		Probability: 3,
+		Impact:      ,
+		Probability: ,
 	}
 	database.DB.Create(&risk)
 
@@ -147,7 +147,7 @@ func TestUpdateRisk_Integration(t *testing.T) {
 	payload := map[string]interface{}{
 		"title":       "Updated Title",
 		"description": "New description",
-		"impact":      3,
+		"impact":      ,
 	}
 	body, _ := json.Marshal(payload)
 
@@ -158,16 +158,16 @@ func TestUpdateRisk_Integration(t *testing.T) {
 
 	// Assertions
 	require.NoError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, , resp.StatusCode)
 
 	var result domain.Risk
 	json.NewDecoder(resp.Body).Decode(&result)
 	assert.Equal(t, "Updated Title", result.Title)
 	assert.Equal(t, "New description", result.Description)
-	assert.Equal(t, 3, result.Impact)
+	assert.Equal(t, , result.Impact)
 }
 
-func TestDeleteRisk_Integration(t *testing.T) {
+func TestDeleteRisk_Integration(t testing.T) {
 	// Setup
 	InitTestDB(t)
 	defer CleanupTestDB(t, database.DB)
@@ -175,8 +175,8 @@ func TestDeleteRisk_Integration(t *testing.T) {
 	risk := domain.Risk{
 		ID:          uuid.New(),
 		Title:       "Risk to Delete",
-		Impact:      5,
-		Probability: 3,
+		Impact:      ,
+		Probability: ,
 	}
 	database.DB.Create(&risk)
 
@@ -189,7 +189,7 @@ func TestDeleteRisk_Integration(t *testing.T) {
 
 	// Assertions
 	require.NoError(t, err)
-	assert.Equal(t, 204, resp.StatusCode)
+	assert.Equal(t, , resp.StatusCode)
 
 	// Verify soft delete
 	var deletedRisk domain.Risk

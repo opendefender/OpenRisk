@@ -37,22 +37,22 @@ export const GeneralTab = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-">
       <div>
-        <h3 className="text-2xl font-bold text-white mb-1">My Profile</h3>
-        <p className="text-zinc-400 text-sm">Manage your personal information and track your progress.</p>
+        <h className="text-xl font-bold text-white mb-">My Profile</h>
+        <p className="text-zinc- text-sm">Manage your personal information and track your progress.</p>
       </div>
 
-      {/* Gamification Section */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-        <h4 className="text-lg font-bold text-white mb-6">ðŸŽ® Your Profile</h4>
+      {/ Gamification Section /}
+      <div className="bg-white/ backdrop-blur-xl border border-white/ rounded-xl p-">
+        <h className="text-lg font-bold text-white mb-">ðŸŽ Your Profile</h>
         <UserLevelCard />
       </div>
 
-      {/* Profile Information Section */}
-      <div className="space-y-6">
+      {/ Profile Information Section /}
+      <div className="space-y-">
         <div className="flex items-center justify-between">
-          <h4 className="text-lg font-bold text-white">Account Information</h4>
+          <h className="text-lg font-bold text-white">Account Information</h>
           <Button 
             variant={isEditing ? "secondary" : "ghost"}
             onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -60,32 +60,32 @@ export const GeneralTab = () => {
           >
             {isEditing ? (
               <>
-                <Save size={16} className="mr-2" />
+                <Save size={} className="mr-" />
                 Save Changes
               </>
             ) : 'Edit Profile'}
           </Button>
         </div>
 
-        <div className="flex items-center gap-6 pb-8 border-b border-white/5">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-glow relative group">
-            {formData.full_name?.charAt(0) || 'U'}
-            <button className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera size={20} className="text-white" />
+        <div className="flex items-center gap- pb- border-b border-white/">
+          <div className="w- h- rounded-full bg-gradient-to-br from-blue- to-purple- flex items-center justify-center text-xl font-bold text-white shadow-glow relative group">
+            {formData.full_name?.charAt() || 'U'}
+            <button className="absolute inset- rounded-full bg-black/ opacity- group-hover:opacity- transition-opacity flex items-center justify-center">
+              <Camera size={} className="text-white" />
             </button>
           </div>
           <div>
-            <p className="text-sm text-white font-medium mb-2">{user?.role || 'User'}</p>
+            <p className="text-sm text-white font-medium mb-">{user?.role || 'User'}</p>
             <Button variant="secondary" className="text-sm">
-              <Camera size={16} className="mr-2" />
+              <Camera size={} className="mr-" />
               Change Avatar
             </Button>
-            <p className="text-xs text-zinc-500 mt-2">JPG, GIF or PNG. 1MB max.</p>
+            <p className="text-xs text-zinc- mt-">JPG, GIF or PNG. MB max.</p>
           </div>
         </div>
 
-        <form className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form className="space-y-">
+          <div className="grid grid-cols- md:grid-cols- gap-">
             <Input 
               label="Full Name" 
               value={formData.full_name}
@@ -102,11 +102,11 @@ export const GeneralTab = () => {
 
           {isEditing && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols- md:grid-cols- gap-">
                 <Input 
                   label="Phone Number" 
                   type="tel"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+ () -"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
                 />
@@ -118,21 +118,21 @@ export const GeneralTab = () => {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-">
                 <label className="text-sm font-medium text-white">Bio</label>
                 <textarea 
-                  className="w-full bg-zinc-900 border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                  className="w-full bg-zinc- border border-border rounded-lg px- py- text-sm text-white placeholder:text-zinc- focus:ring- focus:ring-primary/ outline-none resize-none"
                   placeholder="Tell us about yourself..."
                   value={formData.bio}
                   onChange={(e) => handleChange('bio', e.target.value)}
-                  rows={4}
+                  rows={}
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-white block mb-2">Timezone</label>
+                <label className="text-sm font-medium text-white block mb-">Timezone</label>
                 <select 
-                  className="w-full bg-zinc-900 border border-border rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                  className="w-full bg-zinc- border border-border rounded-lg px- py- text-sm text-white focus:ring- focus:ring-primary/ outline-none"
                   value={formData.timezone}
                   onChange={(e) => handleChange('timezone', e.target.value)}
                 >
@@ -151,7 +151,7 @@ export const GeneralTab = () => {
           )}
 
           {isEditing && (
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap- pt-">
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -163,31 +163,31 @@ export const GeneralTab = () => {
         </form>
       </div>
 
-      {/* Preferences Section */}
-      <div className="space-y-6 border-t border-white/10 pt-8">
-        <h4 className="text-lg font-bold text-white">Preferences</h4>
+      {/ Preferences Section /}
+      <div className="space-y- border-t border-white/ pt-">
+        <h className="text-lg font-bold text-white">Preferences</h>
         
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+        <div className="space-y-">
+          <div className="flex items-center justify-between p- bg-white/ rounded-lg border border-white/">
             <div>
               <p className="text-sm font-medium text-white">Email Notifications</p>
-              <p className="text-xs text-zinc-400">Receive risk alerts and updates</p>
+              <p className="text-xs text-zinc-">Receive risk alerts and updates</p>
             </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
+            <input type="checkbox" defaultChecked className="w- h- rounded cursor-pointer" />
           </div>
           
-          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p- bg-white/ rounded-lg border border-white/">
             <div>
               <p className="text-sm font-medium text-white">Desktop Notifications</p>
-              <p className="text-xs text-zinc-400">Get notified in real-time</p>
+              <p className="text-xs text-zinc-">Get notified in real-time</p>
             </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
+            <input type="checkbox" defaultChecked className="w- h- rounded cursor-pointer" />
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p- bg-white/ rounded-lg border border-white/">
             <div>
               <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
-              <p className="text-xs text-zinc-400">Enhance your account security</p>
+              <p className="text-xs text-zinc-">Enhance your account security</p>
             </div>
             <Button variant="ghost" className="text-sm">Enable</Button>
           </div>

@@ -10,37 +10,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenerateToken(t *testing.T) {
+func TestGenerateToken(t testing.T) {
 	ts := NewTokenService()
 
 	token, err := ts.GenerateToken()
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
-	assert.True(t, len(token) > 0)
+	assert.True(t, len(token) > )
 	assert.Equal(t, TokenPrefix, token[:len(TokenPrefix)])
 }
 
-func TestHashToken(t *testing.T) {
+func TestHashToken(t testing.T) {
 	ts := NewTokenService()
 
 	token := "test_token_value"
-	hash1 := ts.HashToken(token)
-	hash2 := ts.HashToken(token)
+	hash := ts.HashToken(token)
+	hash := ts.HashToken(token)
 
-	assert.Equal(t, hash1, hash2, "same token should produce same hash")
-	assert.NotEmpty(t, hash1)
+	assert.Equal(t, hash, hash, "same token should produce same hash")
+	assert.NotEmpty(t, hash)
 }
 
-func TestGetTokenPrefix(t *testing.T) {
+func TestGetTokenPrefix(t testing.T) {
 	ts := NewTokenService()
 
 	token := TokenPrefix + "abcdefghijklmnop"
 	prefix := ts.GetTokenPrefix(token)
 
-	assert.Equal(t, TokenPrefix+"ab", prefix[:len(TokenPrefix)+2])
+	assert.Equal(t, TokenPrefix+"ab", prefix[:len(TokenPrefix)+])
 }
 
-func TestCreateToken_Success(t *testing.T) {
+func TestCreateToken_Success(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -62,12 +62,12 @@ func TestCreateToken_Success(t *testing.T) {
 	assert.Equal(t, TokenPrefix, tokenWithValue.TokenPrefix[:len(TokenPrefix)])
 }
 
-func TestCreateToken_WithExpiry(t *testing.T) {
+func TestCreateToken_WithExpiry(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
 
-	expiryTime := time.Now().Add(24 * time.Hour)
+	expiryTime := time.Now().Add(  time.Hour)
 	req := &domain.TokenCreateRequest{
 		Name:      "Test Token",
 		Type:      domain.TokenTypeBearer,
@@ -79,7 +79,7 @@ func TestCreateToken_WithExpiry(t *testing.T) {
 	assert.NotNil(t, tokenWithValue.ExpiresAt)
 }
 
-func TestVerifyToken_Valid(t *testing.T) {
+func TestVerifyToken_Valid(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -100,7 +100,7 @@ func TestVerifyToken_Valid(t *testing.T) {
 	assert.Equal(t, domain.TokenStatusActive, token.Status)
 }
 
-func TestVerifyToken_InvalidFormat(t *testing.T) {
+func TestVerifyToken_InvalidFormat(t testing.T) {
 	ts := NewTokenService()
 
 	_, err := ts.VerifyToken("invalid_token")
@@ -108,7 +108,7 @@ func TestVerifyToken_InvalidFormat(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid token format")
 }
 
-func TestVerifyToken_NotFound(t *testing.T) {
+func TestVerifyToken_NotFound(t testing.T) {
 	ts := NewTokenService()
 
 	_, err := ts.VerifyToken(TokenPrefix + "nonexistenttoken")
@@ -116,7 +116,7 @@ func TestVerifyToken_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "token not found")
 }
 
-func TestVerifyToken_UpdatesLastUsed(t *testing.T) {
+func TestVerifyToken_UpdatesLastUsed(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -129,14 +129,14 @@ func TestVerifyToken_UpdatesLastUsed(t *testing.T) {
 	tokenWithValue, err := ts.CreateToken(userID, req, createdByID)
 	require.NoError(t, err)
 
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(  time.Millisecond)
 
 	token, err := ts.VerifyToken(tokenWithValue.Token)
 	require.NoError(t, err)
 	assert.NotNil(t, token.LastUsed)
 }
 
-func TestGetToken(t *testing.T) {
+func TestGetToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -155,7 +155,7 @@ func TestGetToken(t *testing.T) {
 	assert.Equal(t, "Test Token", token.Name)
 }
 
-func TestListTokens(t *testing.T) {
+func TestListTokens(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	otherUserID := uuid.New()
@@ -179,15 +179,15 @@ func TestListTokens(t *testing.T) {
 	// List tokens for first user
 	tokens, err := ts.ListTokens(userID)
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(tokens))
+	assert.Equal(t, , len(tokens))
 
 	// List tokens for second user
 	tokens, err = ts.ListTokens(otherUserID)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(tokens))
+	assert.Equal(t, , len(tokens))
 }
 
-func TestUpdateToken(t *testing.T) {
+func TestUpdateToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -212,7 +212,7 @@ func TestUpdateToken(t *testing.T) {
 	assert.Equal(t, "New description", updated.Description)
 }
 
-func TestRevokeToken(t *testing.T) {
+func TestRevokeToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -238,7 +238,7 @@ func TestRevokeToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "revoked")
 }
 
-func TestRotateToken(t *testing.T) {
+func TestRotateToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -260,7 +260,7 @@ func TestRotateToken(t *testing.T) {
 	assert.Equal(t, domain.TokenStatusActive, rotateResp.NewToken.Status)
 }
 
-func TestDeleteToken(t *testing.T) {
+func TestDeleteToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -282,7 +282,7 @@ func TestDeleteToken(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestDisableToken(t *testing.T) {
+func TestDisableToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -306,7 +306,7 @@ func TestDisableToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "disabled")
 }
 
-func TestEnableToken(t *testing.T) {
+func TestEnableToken(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
@@ -330,13 +330,13 @@ func TestEnableToken(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestCheckTokenExpiry(t *testing.T) {
+func TestCheckTokenExpiry(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
 
 	// Create token that expires in the past
-	pastTime := time.Now().Add(-1 * time.Hour)
+	pastTime := time.Now().Add(-  time.Hour)
 	req := &domain.TokenCreateRequest{
 		Name:      "Expired Token",
 		Type:      domain.TokenTypeBearer,
@@ -352,13 +352,13 @@ func TestCheckTokenExpiry(t *testing.T) {
 	assert.Equal(t, domain.TokenStatusExpired, checked.Status)
 }
 
-func TestCleanupExpiredTokens(t *testing.T) {
+func TestCleanupExpiredTokens(t testing.T) {
 	ts := NewTokenService()
 	userID := uuid.New()
 	createdByID := uuid.New()
 
 	// Create an expired token
-	pastTime := time.Now().Add(-1 * time.Hour)
+	pastTime := time.Now().Add(-  time.Hour)
 	expiredReq := &domain.TokenCreateRequest{
 		Name:      "Expired Token",
 		Type:      domain.TokenTypeBearer,
@@ -386,9 +386,9 @@ func TestCleanupExpiredTokens(t *testing.T) {
 	require.NoError(t, err) // Valid token should still exist
 }
 
-func TestAPITokenIsExpired(t *testing.T) {
-	pastTime := time.Now().Add(-1 * time.Hour)
-	futureTime := time.Now().Add(1 * time.Hour)
+func TestAPITokenIsExpired(t testing.T) {
+	pastTime := time.Now().Add(-  time.Hour)
+	futureTime := time.Now().Add(  time.Hour)
 
 	expiredToken := &domain.APIToken{
 		ExpiresAt: &pastTime,
@@ -407,12 +407,12 @@ func TestAPITokenIsExpired(t *testing.T) {
 	assert.False(t, noExpiryToken.IsExpired())
 }
 
-func TestAPITokenIsValid(t *testing.T) {
-	futureTime := time.Now().Add(1 * time.Hour)
+func TestAPITokenIsValid(t testing.T) {
+	futureTime := time.Now().Add(  time.Hour)
 
 	tests := []struct {
 		name  string
-		token *domain.APIToken
+		token domain.APIToken
 		valid bool
 	}{
 		{
@@ -442,16 +442,16 @@ func TestAPITokenIsValid(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.valid, tt.token.IsValid())
 		})
 	}
 }
 
-func TestAPITokenHasPermission(t *testing.T) {
+func TestAPITokenHasPermission(t testing.T) {
 	tests := []struct {
 		name       string
-		token      *domain.APIToken
+		token      domain.APIToken
 		permission string
 		has        bool
 	}{
@@ -475,23 +475,23 @@ func TestAPITokenHasPermission(t *testing.T) {
 		},
 		{
 			name:       "wildcard permission",
-			token:      &domain.APIToken{Permissions: []string{"*"}},
+			token:      &domain.APIToken{Permissions: []string{""}},
 			permission: "anything",
 			has:        true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.has, tt.token.HasPermission(tt.permission))
 		})
 	}
 }
 
-func TestAPITokenHasScope(t *testing.T) {
+func TestAPITokenHasScope(t testing.T) {
 	tests := []struct {
 		name  string
-		token *domain.APIToken
+		token domain.APIToken
 		scope string
 		has   bool
 	}{
@@ -515,54 +515,54 @@ func TestAPITokenHasScope(t *testing.T) {
 		},
 		{
 			name:  "wildcard scope",
-			token: &domain.APIToken{Scopes: []string{"*"}},
+			token: &domain.APIToken{Scopes: []string{""}},
 			scope: "anything",
 			has:   true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.has, tt.token.HasScope(tt.scope))
 		})
 	}
 }
 
-func TestAPITokenIsIPAllowed(t *testing.T) {
+func TestAPITokenIsIPAllowed(t testing.T) {
 	tests := []struct {
 		name     string
-		token    *domain.APIToken
+		token    domain.APIToken
 		clientIP string
 		allowed  bool
 	}{
 		{
 			name:     "no IP restrictions",
 			token:    &domain.APIToken{IPWhitelist: []string{}},
-			clientIP: "192.168.1.1",
+			clientIP: "...",
 			allowed:  true,
 		},
 		{
 			name:     "IP in whitelist",
-			token:    &domain.APIToken{IPWhitelist: []string{"192.168.1.1", "10.0.0.1"}},
-			clientIP: "192.168.1.1",
+			token:    &domain.APIToken{IPWhitelist: []string{"...", "..."}},
+			clientIP: "...",
 			allowed:  true,
 		},
 		{
 			name:     "IP not in whitelist",
-			token:    &domain.APIToken{IPWhitelist: []string{"192.168.1.1"}},
-			clientIP: "10.0.0.1",
+			token:    &domain.APIToken{IPWhitelist: []string{"..."}},
+			clientIP: "...",
 			allowed:  false,
 		},
 		{
 			name:     "wildcard IP",
-			token:    &domain.APIToken{IPWhitelist: []string{"*"}},
+			token:    &domain.APIToken{IPWhitelist: []string{""}},
 			clientIP: "any.ip",
 			allowed:  true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			assert.Equal(t, tt.allowed, tt.token.IsIPAllowed(tt.clientIP))
 		})
 	}

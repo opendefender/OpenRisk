@@ -1,387 +1,387 @@
-# Monitoring Stack Setup Guide
+ Monitoring Stack Setup Guide
 
-## Overview
+ Overview
 
 The monitoring stack provides real-time performance visibility for OpenRisk performance optimization. It consists of:
 
-- **Prometheus** - Metrics collection and storage
-- **Redis Exporter** - Redis performance metrics
-- **PostgreSQL Exporter** - Database metrics  
-- **Grafana** - Visualization dashboards
-- **AlertManager** - Alert routing and notifications
+- Prometheus - Metrics collection and storage
+- Redis Exporter - Redis performance metrics
+- PostgreSQL Exporter - Database metrics  
+- Grafana - Visualization dashboards
+- AlertManager - Alert routing and notifications
 
-## Quick Start
+ Quick Start
 
-### 1. Start the Stack
+ . Start the Stack
 
-```bash
+bash
 cd deployment
 docker-compose -f docker-compose-monitoring.yaml up -d
-```
 
-### 2. Access Dashboards
 
-```
-Grafana:      http://localhost:3001  (admin/admin)
-Prometheus:   http://localhost:9090
-AlertManager: http://localhost:9093
-```
+ . Access Dashboards
 
-### 3. Import Dashboard
+
+Grafana:      http://localhost:  (admin/admin)
+Prometheus:   http://localhost:
+AlertManager: http://localhost:
+
+
+ . Import Dashboard
 
 - Login to Grafana
 - Navigate to Dashboards → Import
-- Upload: `deployment/monitoring/grafana/dashboards/openrisk-performance.json`
+- Upload: deployment/monitoring/grafana/dashboards/openrisk-performance.json
 - Select Prometheus as datasource
 
-## Stack Components
+ Stack Components
 
-### Prometheus (port 9090)
-**Role**: Central metrics collection and storage
+ Prometheus (port )
+Role: Central metrics collection and storage
 
-**Configuration**: `deployment/monitoring/prometheus.yml`
-- Scrapes metrics every 15 seconds
-- Retains data for 30 days
+Configuration: deployment/monitoring/prometheus.yml
+- Scrapes metrics every  seconds
+- Retains data for  days
 - Integrates with AlertManager
 
-**Scrape Targets**:
-- Redis Exporter (9121) - Cache metrics
-- PostgreSQL Exporter (9187) - Database metrics
-- Prometheus (9090) - Self-monitoring
+Scrape Targets:
+- Redis Exporter () - Cache metrics
+- PostgreSQL Exporter () - Database metrics
+- Prometheus () - Self-monitoring
 
-### Redis Exporter (port 9121)
-**Role**: Exports Redis instance metrics to Prometheus
+ Redis Exporter (port )
+Role: Exports Redis instance metrics to Prometheus
 
-**Key Metrics**:
-```
+Key Metrics:
+
 redis_connected_clients      - Number of connected clients
 redis_memory_used_bytes      - Memory usage in bytes
 redis_keys_total            - Total number of keys
 redis_keyspace_hits_total   - Cache hits
 redis_keyspace_misses_total - Cache misses
 redis_commands_processed_total - Commands executed
-```
 
-**Configuration**: 
-```yaml
+
+Configuration: 
+yaml
 environment:
-  REDIS_ADDR: redis://:redis123@redis:6379
-```
+  REDIS_ADDR: redis://:redis@redis:
 
-### PostgreSQL Exporter (port 9187)
-**Role**: Exports PostgreSQL metrics to Prometheus
 
-**Key Metrics**:
-```
+ PostgreSQL Exporter (port )
+Role: Exports PostgreSQL metrics to Prometheus
+
+Key Metrics:
+
 pg_stat_activity_count                 - Active connections
 pg_stat_statements_calls                - Query call count
 pg_stat_statements_mean_time           - Average query time (ms)
 pg_stat_statements_max_time            - Max query time (ms)
 pg_connections_max                     - Connection pool limit
-```
 
-**Configuration**:
-```yaml
+
+Configuration:
+yaml
 environment:
-  DATA_SOURCE_NAME: postgresql://openrisk:password@postgres:5432/openrisk
-```
+  DATA_SOURCE_NAME: postgresql://openrisk:password@postgres:/openrisk
 
-### Grafana (port 3001)
-**Role**: Visual dashboard for metrics and alerts
 
-**Default Credentials**: admin/admin
+ Grafana (port )
+Role: Visual dashboard for metrics and alerts
 
-**Provisioned Elements**:
+Default Credentials: admin/admin
+
+Provisioned Elements:
 - Datasource: Prometheus (auto-configured)
 - Dashboard: OpenRisk Performance (auto-loaded)
 
-**Key Panels**:
-1. **Redis Operations Rate** - Operations per second
-2. **Cache Hit Ratio** - Hit vs miss percentage
-3. **Redis Memory Usage** - Memory consumption trend
-4. **PostgreSQL Connections** - Active connection count
-5. **Database Query Performance** - Query latency
-6. **Query Throughput** - Queries per second
+Key Panels:
+. Redis Operations Rate - Operations per second
+. Cache Hit Ratio - Hit vs miss percentage
+. Redis Memory Usage - Memory consumption trend
+. PostgreSQL Connections - Active connection count
+. Database Query Performance - Query latency
+. Query Throughput - Queries per second
 
-### AlertManager (port 9093)
-**Role**: Routes and manages alerts
+ AlertManager (port )
+Role: Routes and manages alerts
 
-**Configuration**: `deployment/monitoring/alertmanager.yml`
+Configuration: deployment/monitoring/alertmanager.yml
 
-**Features**:
+Features:
 - Inhibition rules (suppress warnings when critical active)
 - Slack integration for notifications
 - Alert grouping and deduplication
 - Different channels for critical vs warning alerts
 
-## Alert Rules
+ Alert Rules
 
-### Alert Definitions (`deployment/monitoring/alerts.yml`)
+ Alert Definitions (deployment/monitoring/alerts.yml)
 
-#### 1. LowCacheHitRate (WARNING)
-```
-Condition: Cache hit rate < 75% for 5 minutes
-Action: Notifies #performance-alerts on Slack
-```
-**Why**: Indicates caching not effective, query efficiency poor
+ . LowCacheHitRate (WARNING)
 
-#### 2. HighRedisMemory (CRITICAL)
-```
-Condition: Redis memory > 85% for 5 minutes
-Action: Notifies #critical-alerts on Slack
-```
-**Why**: Redis approaching eviction limits, may lose cached data
+Condition: Cache hit rate < % for  minutes
+Action: Notifies performance-alerts on Slack
 
-#### 3. HighDatabaseConnections (WARNING)
-```
-Condition: Active connections > 40 for 5 minutes
-Action: Notifies #performance-alerts on Slack
-```
-**Why**: Approaching pool limit (50), connection pool exhaustion risk
+Why: Indicates caching not effective, query efficiency poor
 
-#### 4. SlowDatabaseQueries (WARNING)
-```
-Condition: Average query time > 1 second for 5 minutes
-Action: Notifies #performance-alerts on Slack
-```
-**Why**: Indicates query performance issues, need for optimization
+ . HighRedisMemory (CRITICAL)
 
-## Configuration
+Condition: Redis memory > % for  minutes
+Action: Notifies critical-alerts on Slack
 
-### Environment Variables
+Why: Redis approaching eviction limits, may lose cached data
 
-Create a `.env` file in the `deployment/` directory:
+ . HighDatabaseConnections (WARNING)
 
-```env
-# Database
+Condition: Active connections >  for  minutes
+Action: Notifies performance-alerts on Slack
+
+Why: Approaching pool limit (), connection pool exhaustion risk
+
+ . SlowDatabaseQueries (WARNING)
+
+Condition: Average query time >  second for  minutes
+Action: Notifies performance-alerts on Slack
+
+Why: Indicates query performance issues, need for optimization
+
+ Configuration
+
+ Environment Variables
+
+Create a .env file in the deployment/ directory:
+
+env
+ Database
 DB_USER=openrisk
 DB_PASSWORD=secure_password
 DB_NAME=openrisk
 
-# Redis
+ Redis
 REDIS_PASSWORD=redis_secure_password
 
-# Grafana
+ Grafana
 GRAFANA_USER=admin
 GRAFANA_PASSWORD=secure_grafana_password
 
-# Slack (for AlertManager)
+ Slack (for AlertManager)
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-```
 
-### Customizing Alert Thresholds
 
-Edit `deployment/monitoring/alerts.yml`:
+ Customizing Alert Thresholds
 
-```yaml
-# Example: Change cache hit rate threshold to 80%
+Edit deployment/monitoring/alerts.yml:
+
+yaml
+ Example: Change cache hit rate threshold to %
 - alert: LowCacheHitRate
-  expr: (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)) < 0.80
-  for: 5m
-```
+  expr: (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)) < .
+  for: m
 
-### Customizing TTLs
 
-Edit `deployment/monitoring/prometheus.yml`:
+ Customizing TTLs
 
-```yaml
+Edit deployment/monitoring/prometheus.yml:
+
+yaml
 global:
-  scrape_interval: 15s  # Change collection interval
-  retention_time: 30d   # Change retention period
-```
+  scrape_interval: s   Change collection interval
+  retention_time: d    Change retention period
 
-## Usage Scenarios
 
-### Scenario 1: Verify Cache Effectiveness
+ Usage Scenarios
 
-1. **Start monitoring**:
-   ```bash
+ Scenario : Verify Cache Effectiveness
+
+. Start monitoring:
+   bash
    docker-compose -f docker-compose-monitoring.yaml up -d
-   ```
+   
 
-2. **Run load test**:
-   ```bash
-   k6 run ./load_tests/cache_test.js
-   ```
+. Run load test:
+   bash
+   k run ./load_tests/cache_test.js
+   
 
-3. **Check dashboard** at http://localhost:3001
+. Check dashboard at http://localhost:
    - Look for "Cache Hit Ratio" pie chart
-   - Target: 75%+ after warm-up period
+   - Target: %+ after warm-up period
 
-### Scenario 2: Monitor Database Performance
+ Scenario : Monitor Database Performance
 
-1. **Watch "Database Query Performance" chart**
+. Watch "Database Query Performance" chart
    - Should show decreasing trend with caching
-   - P95 latency should be < 100ms
+   - P latency should be < ms
 
-2. **Watch "Query Throughput" chart**
+. Watch "Query Throughput" chart
    - Should increase with connection pooling
-   - Target: > 1000 req/s
+   - Target: >  req/s
 
-### Scenario 3: Response to Alerts
+ Scenario : Response to Alerts
 
-**If HighRedisMemory Alert Fires**:
-```bash
-# 1. Check Redis memory
+If HighRedisMemory Alert Fires:
+bash
+ . Check Redis memory
 redis-cli INFO memory
 
-# 2. Check cache size
+ . Check cache size
 redis-cli INFO keyspace
 
-# 3. Solutions:
-# - Reduce cache TTL in cache_integration.go
-# - Reduce query parameter variations (cache keys)
-# - Implement cache eviction policy
-```
+ . Solutions:
+ - Reduce cache TTL in cache_integration.go
+ - Reduce query parameter variations (cache keys)
+ - Implement cache eviction policy
 
-**If HighDatabaseConnections Alert Fires**:
-```bash
-# 1. Check active connections
-curl http://localhost:9187/metrics | grep pg_stat_activity_count
 
-# 2. Solutions:
-# - Improve cache hit rate
-# - Reduce query complexity
-# - Increase connection pool size (in pool_config.go)
-```
+If HighDatabaseConnections Alert Fires:
+bash
+ . Check active connections
+curl http://localhost:/metrics | grep pg_stat_activity_count
 
-## Troubleshooting
+ . Solutions:
+ - Improve cache hit rate
+ - Reduce query complexity
+ - Increase connection pool size (in pool_config.go)
 
-### Prometheus not scraping metrics
 
-**Symptom**: No data in Prometheus UI
+ Troubleshooting
 
-**Solution**:
-```bash
-# Check Prometheus logs
+ Prometheus not scraping metrics
+
+Symptom: No data in Prometheus UI
+
+Solution:
+bash
+ Check Prometheus logs
 docker-compose -f docker-compose-monitoring.yaml logs prometheus
 
-# Verify exporter is running
-curl http://localhost:9121/metrics  # Redis
-curl http://localhost:9187/metrics  # PostgreSQL
+ Verify exporter is running
+curl http://localhost:/metrics   Redis
+curl http://localhost:/metrics   PostgreSQL
 
-# Restart stack
+ Restart stack
 docker-compose -f docker-compose-monitoring.yaml restart prometheus
-```
 
-### Grafana dashboard empty
 
-**Symptom**: Dashboard shows "No data"
+ Grafana dashboard empty
 
-**Solution**:
-```bash
-# 1. Verify Prometheus datasource
-# Grafana UI → Configuration → Datasources → Prometheus
-# Test connection
+Symptom: Dashboard shows "No data"
 
-# 2. Check query syntax in dashboard
-# Edit panel → Check PromQL query
+Solution:
+bash
+ . Verify Prometheus datasource
+ Grafana UI → Configuration → Datasources → Prometheus
+ Test connection
 
-# 3. Ensure metrics exist in Prometheus
-# Prometheus UI → Graph → Query
-# Try: redis_memory_used_bytes
-```
+ . Check query syntax in dashboard
+ Edit panel → Check PromQL query
 
-### Alerts not firing
+ . Ensure metrics exist in Prometheus
+ Prometheus UI → Graph → Query
+ Try: redis_memory_used_bytes
 
-**Symptom**: Alert condition met but no notification
 
-**Solution**:
-```bash
-# 1. Check AlertManager logs
+ Alerts not firing
+
+Symptom: Alert condition met but no notification
+
+Solution:
+bash
+ . Check AlertManager logs
 docker-compose -f docker-compose-monitoring.yaml logs alertmanager
 
-# 2. Verify alert rules syntax
-# Prometheus UI → Alerts → Check rule status
+ . Verify alert rules syntax
+ Prometheus UI → Alerts → Check rule status
 
-# 3. Check Slack webhook URL
-# Edit deployment/monitoring/alertmanager.yml
-# Verify SLACK_WEBHOOK_URL environment variable
-```
+ . Check Slack webhook URL
+ Edit deployment/monitoring/alertmanager.yml
+ Verify SLACK_WEBHOOK_URL environment variable
 
-### High memory usage
 
-**Symptom**: Prometheus using > 2GB memory
+ High memory usage
 
-**Solution**:
-```yaml
-# In docker-compose-monitoring.yaml, add memory limit:
+Symptom: Prometheus using > GB memory
+
+Solution:
+yaml
+ In docker-compose-monitoring.yaml, add memory limit:
 prometheus:
   deploy:
     resources:
       limits:
-        memory: 2G
-```
+        memory: G
+
 
 Or reduce retention:
-```yaml
+yaml
 command:
-  - '--storage.tsdb.retention.time=7d'  # Changed from 30d
-```
+  - '--storage.tsdb.retention.time=d'   Changed from d
 
-## Backup and Restore
 
-### Backup Prometheus Data
+ Backup and Restore
 
-```bash
-# Stop container, copy volume
+ Backup Prometheus Data
+
+bash
+ Stop container, copy volume
 docker-compose -f docker-compose-monitoring.yaml down
 docker run --rm -v prometheus_data:/data -v $(pwd):/backup \
   alpine tar czf /backup/prometheus-backup.tar.gz -C /data .
 
-# Restore
+ Restore
 docker run --rm -v prometheus_data:/data -v $(pwd):/backup \
   alpine tar xzf /backup/prometheus-backup.tar.gz -C /data
 docker-compose -f docker-compose-monitoring.yaml up -d
-```
 
-### Backup Grafana Dashboards
 
-```bash
-# Export dashboard via UI
-# Grafana → Dashboard → Share → Export
+ Backup Grafana Dashboards
 
-# Or use API
-curl http://localhost:3001/api/dashboards/uid/openrisk-performance \
+bash
+ Export dashboard via UI
+ Grafana → Dashboard → Share → Export
+
+ Or use API
+curl http://localhost:/api/dashboards/uid/openrisk-performance \
   -H "Authorization: Bearer ${GRAFANA_API_KEY}" > dashboard-backup.json
-```
 
-## Performance Considerations
 
-### Metrics Retention
-- **30 days** (default) = ~50GB storage
-- **7 days** = ~12GB storage
-- **1 day** = ~2GB storage
+ Performance Considerations
 
-### Scrape Overhead
-- **15 second interval** (default) = ~5% overhead
-- **30 second interval** = ~2.5% overhead
-- **60 second interval** = ~1% overhead
+ Metrics Retention
+-  days (default) = ~GB storage
+-  days = ~GB storage
+-  day = ~GB storage
 
-### Recommendation for Production
+ Scrape Overhead
+-  second interval (default) = ~% overhead
+-  second interval = ~.% overhead
+-  second interval = ~% overhead
 
-```yaml
-# deployment/monitoring/prometheus.yml
+ Recommendation for Production
+
+yaml
+ deployment/monitoring/prometheus.yml
 global:
-  scrape_interval: 30s        # Balance detail with overhead
-  retention_time: 14d         # Balance storage with history
+  scrape_interval: s         Balance detail with overhead
+  retention_time: d          Balance storage with history
 
-# deployment/docker-compose-monitoring.yaml
+ deployment/docker-compose-monitoring.yaml
 prometheus:
   deploy:
     resources:
       limits:
-        memory: 2G
-        cpus: '1.0'
-```
+        memory: G
+        cpus: '.'
 
-## Integration with Application
 
-### Exposing Custom Metrics (Optional)
+ Integration with Application
+
+ Exposing Custom Metrics (Optional)
 
 Add metrics export in your Go backend:
 
-```go
+go
 import "github.com/prometheus/client_golang/prometheus"
 
 // Register custom metric
@@ -394,57 +394,57 @@ var requestDuration = prometheus.NewHistogramVec(
 )
 
 // Export endpoint
-app.Get("/metrics", func(c *fiber.Ctx) error {
+app.Get("/metrics", func(c fiber.Ctx) error {
     // Prometheus scrapes this endpoint
     return c.Send(prometheus.Handler().ServeHTTP(...))
 })
-```
 
-Then add to `prometheus.yml`:
-```yaml
+
+Then add to prometheus.yml:
+yaml
 scrape_configs:
   - job_name: 'openrisk-backend'
     static_configs:
-      - targets: ['localhost:2112']
-```
+      - targets: ['localhost:']
 
-## Advanced Topics
 
-### Custom Alert Rules
+ Advanced Topics
 
-Edit `deployment/monitoring/alerts.yml` to add:
+ Custom Alert Rules
 
-```yaml
+Edit deployment/monitoring/alerts.yml to add:
+
+yaml
 - alert: CustomAlert
-  expr: custom_metric > 100
-  for: 5m
+  expr: custom_metric > 
+  for: m
   labels:
     severity: warning
   annotations:
     summary: "Custom condition triggered"
     description: "Custom metric is {{ $value }}"
-```
 
-### Advanced Dashboards
 
-1. Create dashboard in Grafana UI
-2. Add panels with PromQL queries:
-   ```
-   # Cache hit rate percentage
-   (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)) * 100
+ Advanced Dashboards
+
+. Create dashboard in Grafana UI
+. Add panels with PromQL queries:
    
-   # Query latency by percentile
-   histogram_quantile(0.95, request_duration_seconds_bucket)
+    Cache hit rate percentage
+   (redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total))  
    
-   # Memory growth rate
-   rate(redis_memory_used_bytes[5m])
-   ```
-3. Export and save to `deployment/monitoring/grafana/dashboards/`
+    Query latency by percentile
+   histogram_quantile(., request_duration_seconds_bucket)
+   
+    Memory growth rate
+   rate(redis_memory_used_bytes[m])
+   
+. Export and save to deployment/monitoring/grafana/dashboards/
 
-## References
+ References
 
 - [Prometheus Documentation](https://prometheus.io/docs/)
 - [Grafana Documentation](https://grafana.com/docs/)
 - [AlertManager Documentation](https://prometheus.io/docs/alerting/latest/overview/)
-- [Redis Exporter](https://github.com/oliver006/redis_exporter)
+- [Redis Exporter](https://github.com/oliver/redis_exporter)
 - [PostgreSQL Exporter](https://github.com/prometheus-community/postgres_exporter)

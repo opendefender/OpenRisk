@@ -1,7 +1,7 @@
-/**
- * Permission Audit Logging Utilities
- * Tracks and logs permission-related activities for compliance and debugging
- */
+/
+  Permission Audit Logging Utilities
+  Tracks and logs permission-related activities for compliance and debugging
+ /
 
 export interface PermissionAuditEvent {
   id: string;
@@ -22,24 +22,24 @@ export interface AuditLog {
   endTime?: Date;
 }
 
-/**
- * In-memory audit log store
- * In production, should be sent to a backend audit logging service
- */
+/
+  In-memory audit log store
+  In production, should be sent to a backend audit logging service
+ /
 class PermissionAuditLogger {
   private logs: PermissionAuditEvent[] = [];
-  private maxLogs = 1000; // Prevent unlimited memory growth
+  private maxLogs = ; // Prevent unlimited memory growth
   private enabled = process.env.NODE_ENV === 'development';
 
-  /**
-   * Log a permission check
-   */
+  /
+    Log a permission check
+   /
   log(event: Omit<PermissionAuditEvent, 'id' | 'timestamp'>): void {
     if (!this.enabled) return;
 
     const auditEvent: PermissionAuditEvent = {
       ...event,
-      id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: audit-${Date.now()}-${Math.random().toString().substr(, )},
       timestamp: new Date(),
     };
 
@@ -61,9 +61,9 @@ class PermissionAuditLogger {
     }
   }
 
-  /**
-   * Log a permission check
-   */
+  /
+    Log a permission check
+   /
   logCheck(
     userId: string,
     permission: string,
@@ -82,9 +82,9 @@ class PermissionAuditLogger {
     });
   }
 
-  /**
-   * Log a permission grant
-   */
+  /
+    Log a permission grant
+   /
   logGrant(
     userId: string,
     targetUserId: string,
@@ -104,9 +104,9 @@ class PermissionAuditLogger {
     });
   }
 
-  /**
-   * Log a permission revoke
-   */
+  /
+    Log a permission revoke
+   /
   logRevoke(
     userId: string,
     targetUserId: string,
@@ -126,9 +126,9 @@ class PermissionAuditLogger {
     });
   }
 
-  /**
-   * Log a failed permission grant attempt
-   */
+  /
+    Log a failed permission grant attempt
+   /
   logGrantFailed(
     userId: string,
     targetUserId: string,
@@ -148,16 +148,16 @@ class PermissionAuditLogger {
     });
   }
 
-  /**
-   * Get all audit events
-   */
+  /
+    Get all audit events
+   /
   getEvents(): PermissionAuditEvent[] {
     return [...this.logs];
   }
 
-  /**
-   * Filter events by criteria
-   */
+  /
+    Filter events by criteria
+   /
   filterEvents(criteria: {
     userId?: string;
     permission?: string;
@@ -180,16 +180,16 @@ class PermissionAuditLogger {
     });
   }
 
-  /**
-   * Clear all audit events
-   */
+  /
+    Clear all audit events
+   /
   clear(): void {
     this.logs = [];
   }
 
-  /**
-   * Get summary statistics
-   */
+  /
+    Get summary statistics
+   /
   getStats(): {
     totalEvents: number;
     deniedCount: number;
@@ -210,9 +210,9 @@ class PermissionAuditLogger {
     };
   }
 
-  /**
-   * Export logs as JSON
-   */
+  /
+    Export logs as JSON
+   /
   export(): string {
     return JSON.stringify(
       {
@@ -221,22 +221,22 @@ class PermissionAuditLogger {
         stats: this.getStats(),
       },
       null,
-      2
+      
     );
   }
 
-  /**
-   * Enable or disable audit logging
-   */
+  /
+    Enable or disable audit logging
+   /
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
   }
 
-  /**
-   * Set maximum number of logs to keep
-   */
+  /
+    Set maximum number of logs to keep
+   /
   setMaxLogs(max: number): void {
-    this.maxLogs = Math.max(1, max);
+    this.maxLogs = Math.max(, max);
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(-this.maxLogs);
     }
@@ -246,9 +246,9 @@ class PermissionAuditLogger {
 // Export singleton instance
 export const auditLogger = new PermissionAuditLogger();
 
-/**
- * Hook for using audit logger in components
- */
+/
+  Hook for using audit logger in components
+ /
 export const useAuditLog = () => {
   return {
     log: auditLogger.logCheck.bind(auditLogger),

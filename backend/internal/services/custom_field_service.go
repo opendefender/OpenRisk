@@ -14,18 +14,18 @@ import (
 
 // CustomFieldService handles custom field operations
 type CustomFieldService struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewCustomFieldService creates a new custom field service
-func NewCustomFieldService() *CustomFieldService {
+func NewCustomFieldService() CustomFieldService {
 	return &CustomFieldService{
 		db: database.DB,
 	}
 }
 
 // CreateCustomField creates a new custom field
-func (s *CustomFieldService) CreateCustomField(userID uuid.UUID, req *domain.CreateCustomFieldRequest) (*domain.CustomField, error) {
+func (s CustomFieldService) CreateCustomField(userID uuid.UUID, req domain.CreateCustomFieldRequest) (domain.CustomField, error) {
 	// Validate field type
 	switch req.FieldType {
 	case domain.CustomFieldTypeText, domain.CustomFieldTypeNumber, domain.CustomFieldTypeChoice,
@@ -84,7 +84,7 @@ func (s *CustomFieldService) CreateCustomField(userID uuid.UUID, req *domain.Cre
 }
 
 // GetCustomField retrieves a custom field by ID
-func (s *CustomFieldService) GetCustomField(fieldID uuid.UUID) (*domain.CustomField, error) {
+func (s CustomFieldService) GetCustomField(fieldID uuid.UUID) (domain.CustomField, error) {
 	field := &domain.CustomField{}
 	if err := s.db.First(field, "id = ?", fieldID).Error; err != nil {
 		return nil, err
@@ -93,8 +93,8 @@ func (s *CustomFieldService) GetCustomField(fieldID uuid.UUID) (*domain.CustomFi
 }
 
 // GetCustomFieldsByScope retrieves all custom fields for a specific scope
-func (s *CustomFieldService) GetCustomFieldsByScope(scope domain.CustomFieldScope) ([]*domain.CustomField, error) {
-	var fields []*domain.CustomField
+func (s CustomFieldService) GetCustomFieldsByScope(scope domain.CustomFieldScope) ([]domain.CustomField, error) {
+	var fields []domain.CustomField
 	if err := s.db.Where("scope = ? AND visible = ?", scope, true).
 		Order("position ASC").
 		Find(&fields).Error; err != nil {
@@ -104,13 +104,13 @@ func (s *CustomFieldService) GetCustomFieldsByScope(scope domain.CustomFieldScop
 }
 
 // ListCustomFields lists all custom fields with optional filtering
-func (s *CustomFieldService) ListCustomFields(scope *domain.CustomFieldScope) ([]*domain.CustomField, error) {
+func (s CustomFieldService) ListCustomFields(scope domain.CustomFieldScope) ([]domain.CustomField, error) {
 	query := s.db
 	if scope != nil {
-		query = query.Where("scope = ?", *scope)
+		query = query.Where("scope = ?", scope)
 	}
 
-	var fields []*domain.CustomField
+	var fields []domain.CustomField
 	if err := query.Order("position ASC, created_at DESC").Find(&fields).Error; err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (s *CustomFieldService) ListCustomFields(scope *domain.CustomFieldScope) ([
 }
 
 // UpdateCustomField updates an existing custom field
-func (s *CustomFieldService) UpdateCustomField(fieldID uuid.UUID, req *domain.UpdateCustomFieldRequest) (*domain.CustomField, error) {
+func (s CustomFieldService) UpdateCustomField(fieldID uuid.UUID, req domain.UpdateCustomFieldRequest) (domain.CustomField, error) {
 	field := &domain.CustomField{}
 	if err := s.db.First(field, "id = ?", fieldID).Error; err != nil {
 		return nil, err
@@ -144,14 +144,14 @@ func (s *CustomFieldService) UpdateCustomField(fieldID uuid.UUID, req *domain.Up
 		}
 		field.Validation = data
 	}
-	if req.Position > 0 {
+	if req.Position >  {
 		field.Position = req.Position
 	}
 	if req.Visible != nil {
-		field.Visible = *req.Visible
+		field.Visible = req.Visible
 	}
 	if req.ReadOnly != nil {
-		field.ReadOnly = *req.ReadOnly
+		field.ReadOnly = req.ReadOnly
 	}
 
 	if err := s.db.Save(field).Error; err != nil {
@@ -162,12 +162,12 @@ func (s *CustomFieldService) UpdateCustomField(fieldID uuid.UUID, req *domain.Up
 }
 
 // DeleteCustomField deletes a custom field (soft delete)
-func (s *CustomFieldService) DeleteCustomField(fieldID uuid.UUID) error {
+func (s CustomFieldService) DeleteCustomField(fieldID uuid.UUID) error {
 	return s.db.Delete(&domain.CustomField{}, "id = ?", fieldID).Error
 }
 
 // CreateTemplate creates a custom field template
-func (s *CustomFieldService) CreateTemplate(userID uuid.UUID, name string, scope domain.CustomFieldScope, fields []*domain.CustomField) (*domain.CustomFieldTemplate, error) {
+func (s CustomFieldService) CreateTemplate(userID uuid.UUID, name string, scope domain.CustomFieldScope, fields []domain.CustomField) (domain.CustomFieldTemplate, error) {
 	// Marshal fields
 	fieldsJSON, err := json.Marshal(fields)
 	if err != nil {
@@ -191,20 +191,20 @@ func (s *CustomFieldService) CreateTemplate(userID uuid.UUID, name string, scope
 }
 
 // ApplyTemplate applies a custom field template to create new fields
-func (s *CustomFieldService) ApplyTemplate(templateID uuid.UUID, userID uuid.UUID) ([]*domain.CustomField, error) {
+func (s CustomFieldService) ApplyTemplate(templateID uuid.UUID, userID uuid.UUID) ([]domain.CustomField, error) {
 	template := &domain.CustomFieldTemplate{}
 	if err := s.db.First(template, "id = ?", templateID).Error; err != nil {
 		return nil, fmt.Errorf("failed to find template: %w", err)
 	}
 
 	// Unmarshal fields from template
-	var templateFields []*domain.CustomField
+	var templateFields []domain.CustomField
 	if err := json.Unmarshal(template.Fields, &templateFields); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal template fields: %w", err)
 	}
 
 	// Create new fields from template
-	var createdFields []*domain.CustomField
+	var createdFields []domain.CustomField
 	for _, field := range templateFields {
 		field.ID = uuid.New()
 		field.CreatedBy = userID
@@ -220,10 +220,10 @@ func (s *CustomFieldService) ApplyTemplate(templateID uuid.UUID, userID uuid.UUI
 }
 
 // ValidateFieldValue validates a value against field rules
-func (s *CustomFieldService) ValidateFieldValue(field *domain.CustomField, value interface{}) error {
+func (s CustomFieldService) ValidateFieldValue(field domain.CustomField, value interface{}) error {
 	// Parse validation rules
 	var validation domain.CustomFieldValidation
-	if len(field.Validation) > 0 {
+	if len(field.Validation) >  {
 		if err := json.Unmarshal(field.Validation, &validation); err != nil {
 			return fmt.Errorf("failed to parse validation rules: %w", err)
 		}
@@ -241,22 +241,22 @@ func (s *CustomFieldService) ValidateFieldValue(field *domain.CustomField, value
 			return fmt.Errorf("field '%s' is required", field.Name)
 		}
 
-		if validation.MinLength != nil && len(strVal) < *validation.MinLength {
-			return fmt.Errorf("field '%s' must be at least %d characters", field.Name, *validation.MinLength)
+		if validation.MinLength != nil && len(strVal) < validation.MinLength {
+			return fmt.Errorf("field '%s' must be at least %d characters", field.Name, validation.MinLength)
 		}
 
-		if validation.MaxLength != nil && len(strVal) > *validation.MaxLength {
-			return fmt.Errorf("field '%s' must be at most %d characters", field.Name, *validation.MaxLength)
+		if validation.MaxLength != nil && len(strVal) > validation.MaxLength {
+			return fmt.Errorf("field '%s' must be at most %d characters", field.Name, validation.MaxLength)
 		}
 
 	case domain.CustomFieldTypeNumber:
 		// Accept int, float, string representations
-		var numVal float64
+		var numVal float
 		switch v := value.(type) {
-		case float64:
+		case float:
 			numVal = v
 		case int:
-			numVal = float64(v)
+			numVal = float(v)
 		case string:
 			// Try to parse
 			_, err := fmt.Sscanf(v, "%f", &numVal)
@@ -267,12 +267,12 @@ func (s *CustomFieldService) ValidateFieldValue(field *domain.CustomField, value
 			return fmt.Errorf("expected number value for field '%s'", field.Name)
 		}
 
-		if validation.Min != nil && numVal < *validation.Min {
-			return fmt.Errorf("field '%s' must be at least %v", field.Name, *validation.Min)
+		if validation.Min != nil && numVal < validation.Min {
+			return fmt.Errorf("field '%s' must be at least %v", field.Name, validation.Min)
 		}
 
-		if validation.Max != nil && numVal > *validation.Max {
-			return fmt.Errorf("field '%s' must be at most %v", field.Name, *validation.Max)
+		if validation.Max != nil && numVal > validation.Max {
+			return fmt.Errorf("field '%s' must be at most %v", field.Name, validation.Max)
 		}
 
 	case domain.CustomFieldTypeChoice:
@@ -281,7 +281,7 @@ func (s *CustomFieldService) ValidateFieldValue(field *domain.CustomField, value
 			return fmt.Errorf("expected string value for field '%s'", field.Name)
 		}
 
-		if len(validation.AllowedValues) > 0 {
+		if len(validation.AllowedValues) >  {
 			allowed := false
 			for _, av := range validation.AllowedValues {
 				if av == strVal {

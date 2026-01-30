@@ -26,20 +26,20 @@ export const Register = () => {
 
     if (!username.trim()) {
       newErrors.username = 'Username is required';
-    } else if (username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
+    } else if (username.length < ) {
+      newErrors.username = 'Username must be at least  characters';
     }
 
     if (!email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/[\s@]+@[\s@]+\.[\s@]+$/.test(email)) {
       newErrors.email = 'Please enter a valid email';
     }
 
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+    } else if (password.length < ) {
+      newErrors.password = 'Password must be at least  characters';
     }
 
     if (password !== confirmPassword) {
@@ -47,7 +47,7 @@ export const Register = () => {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === ;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,14 +68,14 @@ export const Register = () => {
       });
 
       toast.success('Account created successfully! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 1500);
+      setTimeout(() => navigate('/login'), );
     } catch (err: any) {
       const status = err?.response?.status;
       const message = err?.response?.data?.error || 'Registration failed';
       
-      if (status === 409) {
+      if (status === ) {
         setErrors({ email: 'Email or username already in use' });
-      } else if (status === 400) {
+      } else if (status === ) {
         setErrors({ form: message });
       } else {
         toast.error(message);
@@ -86,33 +86,33 @@ export const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
+    <div className="min-h-screen bg-background flex items-center justify-center p- relative overflow-hidden">
+      {/ Background Effects /}
+      <div className="absolute top-[-%] left-[-%] w-[px] h-[px] bg-blue-/ rounded-full blur-[px]" />
+      <div className="absolute bottom-[-%] right-[-%] w-[px] h-[px] bg-purple-/ rounded-full blur-[px]" />
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative z-10"
+        initial={{ opacity: , y:  }}
+        animate={{ opacity: , y:  }}
+        className="w-full max-w-md bg-surface/ backdrop-blur-xl border border-white/ p- rounded-xl shadow-xl relative z-"
       >
-        <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
+        <div className="flex justify-center mb-">
+          <div className="w- h- rounded-xl bg-gradient-to-br from-blue- to-purple- flex items-center justify-center shadow-glow">
             <Zap className="text-white" fill="currentColor" />
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center text-white mb-2">Create Account</h1>
-        <p className="text-zinc-400 text-center mb-8 text-sm">Join OpenRisk to manage risks and mitigations</p>
+        <h className="text-xl font-bold text-center text-white mb-">Create Account</h>
+        <p className="text-zinc- text-center mb- text-sm">Join OpenRisk to manage risks and mitigations</p>
 
         {errors.form && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
-            <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-400">{errors.form}</p>
+          <div className="mb- p- bg-red-/ border border-red-/ rounded-lg flex items-start gap-">
+            <AlertCircle size={} className="text-red- flex-shrink- mt-." />
+            <p className="text-sm text-red-">{errors.form}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-">
           <div>
             <Input 
               label="Full Name" 
@@ -167,7 +167,7 @@ export const Register = () => {
               }}
               error={errors.password}
             />
-            <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
+            <p className="text-xs text-zinc- mt-">Minimum  characters</p>
           </div>
 
           <div>
@@ -184,20 +184,20 @@ export const Register = () => {
             />
           </div>
 
-          <Button className="w-full mt-6 group" isLoading={isLoading}>
-            Create Account <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+          <Button className="w-full mt- group" isLoading={isLoading}>
+            Create Account <ArrowRight size={} className="ml- group-hover:translate-x- transition-transform" />
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
-          <span className="text-zinc-400">Already have an account? </span>
-          <Link to="/login" className="text-primary hover:text-blue-400 font-medium transition-colors">
+        <div className="mt- text-center text-sm">
+          <span className="text-zinc-">Already have an account? </span>
+          <Link to="/login" className="text-primary hover:text-blue- font-medium transition-colors">
             Sign In
           </Link>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-500">
-          <Lock size={12} />
+        <div className="mt- flex items-center justify-center gap- text-xs text-zinc-">
+          <Lock size={} />
           <span>End-to-end encrypted connection</span>
         </div>
       </motion.div>

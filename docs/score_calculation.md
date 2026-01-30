@@ -1,63 +1,63 @@
-# Score Calculation
+ Score Calculation
 
-Ce document décrit la formule utilisée par OpenRisk pour calculer le score d'un risque, les facteurs de criticité des assets, les cas limites et des exemples de calcul.
+Ce document d�crit la formule utilis�e par OpenRisk pour calculer le score d'un risque, les facteurs de criticit� des assets, les cas limites et des exemples de calcul.
 
-## Formule
+ Formule
 
 - Base: impact × probability
-- Facteur final: moyenne des facteurs de criticité des assets associés (avg_factor)
+- Facteur final: moyenne des facteurs de criticit� des assets associ�s (avg_factor)
 - Score final: base × avg_factor
-- Arrondi: le score est arrondi à 2 décimales
+- Arrondi: le score est arrondi à  d�cimales
 
 En pseudo‑formule:
 
-base = impact * probability
+base = impact  probability
 
-avg_factor = (Σ factor(asset_i)) / Nassets  (par défaut 1.0 si pas d'assets)
+avg_factor = (Σ factor(asset_i)) / Nassets  (par d�faut . si pas d'assets)
 
-final = round(base * avg_factor, 2)
+final = round(base  avg_factor, )
 
-## Facteurs de criticité (mapping)
+ Facteurs de criticit� (mapping)
 
-Les facteurs appliqués aux assets sont les suivants (voir `backend/internal/services/score_service.go`):
+Les facteurs appliqu�s aux assets sont les suivants (voir backend/internal/services/score_service.go):
 
-- `Low`      → 0.8
-- `Medium`   → 1.0
-- `High`     → 1.25
-- `Critical` → 1.5
+- Low      → .
+- Medium   → .
+- High     → .
+- Critical → .
 
-Si un asset possède une criticité inconnue, le facteur par défaut `1.0` est utilisé.
+Si un asset poss�de une criticit� inconnue, le facteur par d�faut . est utilis�.
 
-## Cas limites
+ Cas limites
 
-- Aucun asset associé: avg_factor = 1.0 → final = base
-- Asset(s) avec criticité non reconnue: ces assets comptent pour `1.0` dans la moyenne
-- Impact/probability hors plage attendue (1-5): la validation API empêche normalement ces valeurs; si présente, la fonction calcule néanmoins avec les valeurs reçues
+- Aucun asset associ�: avg_factor = . → final = base
+- Asset(s) avec criticit� non reconnue: ces assets comptent pour . dans la moyenne
+- Impact/probability hors plage attendue (-): la validation API empêche normalement ces valeurs; si pr�sente, la fonction calcule n�anmoins avec les valeurs reçues
 
-## Exemple 1 — Pas d'assets
+ Exemple  — Pas d'assets
 
-- impact = 3, probability = 4
-- base = 12
-- avg_factor = 1.0
-- final = 12.00
+- impact = , probability = 
+- base = 
+- avg_factor = .
+- final = .
 
-## Exemple 2 — Plusieurs assets
+ Exemple  — Plusieurs assets
 
-- impact = 2, probability = 5 → base = 10
-- assets: [Low (0.8), High (1.25)] → avg_factor = (0.8 + 1.25) / 2 = 1.025
-- final = 10 × 1.025 = 10.25
+- impact = , probability =  → base = 
+- assets: [Low (.), High (.)] → avg_factor = (. + .) /  = .
+- final =  × . = .
 
-## Emplacement du code
+ Emplacement du code
 
-- Implémentation: `backend/internal/services/score_service.go` (fonction `ComputeRiskScore`)
-- Tests unitaires: `backend/internal/services/score_service_test.go`
-- Appels depuis handlers: `backend/internal/handlers/risk_handler.go` (`CreateRisk` et `UpdateRisk`)
+- Impl�mentation: backend/internal/services/score_service.go (fonction ComputeRiskScore)
+- Tests unitaires: backend/internal/services/score_service_test.go
+- Appels depuis handlers: backend/internal/handlers/risk_handler.go (CreateRisk et UpdateRisk)
 
-## Recommandations
+ Recommandations
 
 - Documenter toute modification des facteurs dans ce fichier et ajouter un test unitaire correspondant.
-- Si vous souhaitez une autre formule (p. ex. poids non linéaires ou minimum/maximum), proposer un ticket/PR et ajouter une migration de tests.
+- Si vous souhaitez une autre formule (p. ex. poids non lin�aires ou minimum/maximum), proposer un ticket/PR et ajouter une migration de tests.
 
 ---
 
-Fichier généré automatiquement par l'outil de documentation interne.
+Fichier g�n�r� automatiquement par l'outil de documentation interne.

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/services"
@@ -13,11 +13,11 @@ import (
 
 // TokenAuth provides token-based authentication middleware
 type TokenAuth struct {
-	tokenService *services.TokenService
+	tokenService services.TokenService
 }
 
 // NewTokenAuth creates a new token authentication middleware
-func NewTokenAuth(tokenService *services.TokenService) *TokenAuth {
+func NewTokenAuth(tokenService services.TokenService) TokenAuth {
 	return &TokenAuth{
 		tokenService: tokenService,
 	}
@@ -25,22 +25,22 @@ func NewTokenAuth(tokenService *services.TokenService) *TokenAuth {
 
 // ExtractTokenFromRequest extracts the token from the request
 // Supports Bearer token in Authorization header: "Bearer <token>"
-func (ta *TokenAuth) ExtractTokenFromRequest(c *fiber.Ctx) (string, error) {
+func (ta TokenAuth) ExtractTokenFromRequest(c fiber.Ctx) (string, error) {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
 		return "", errors.New("authorization header is missing")
 	}
 
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 {
+	parts := strings.SplitN(authHeader, " ", )
+	if len(parts) !=  {
 		return "", errors.New("authorization header format is invalid")
 	}
 
-	if parts[0] != "Bearer" {
+	if parts[] != "Bearer" {
 		return "", errors.New("authorization scheme must be Bearer")
 	}
 
-	token := parts[1]
+	token := parts[]
 	if token == "" {
 		return "", errors.New("authorization token is empty")
 	}
@@ -50,7 +50,7 @@ func (ta *TokenAuth) ExtractTokenFromRequest(c *fiber.Ctx) (string, error) {
 
 // Verify is a middleware that verifies API tokens
 // Usage: app.Use(tokenAuth.Verify)
-func (ta *TokenAuth) Verify(c *fiber.Ctx) error {
+func (ta TokenAuth) Verify(c fiber.Ctx) error {
 	tokenValue, err := ta.ExtractTokenFromRequest(c)
 	if err != nil {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
@@ -74,7 +74,7 @@ func (ta *TokenAuth) Verify(c *fiber.Ctx) error {
 	}
 
 	// Check IP whitelist if configured
-	if len(token.IPWhitelist) > 0 && !token.IsIPAllowed(c.IP()) {
+	if len(token.IPWhitelist) >  && !token.IsIPAllowed(c.IP()) {
 		return c.Status(http.StatusForbidden).JSON(fiber.Map{
 			"error": "client IP is not whitelisted for this token",
 		})
@@ -93,8 +93,8 @@ func (ta *TokenAuth) Verify(c *fiber.Ctx) error {
 
 // RequireTokenPermission checks if the token has a specific permission
 // Usage: app.Get("/resource", tokenAuth.RequireTokenPermission("resource:action:scope"))
-func (ta *TokenAuth) RequireTokenPermission(requiredPermission string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func (ta TokenAuth) RequireTokenPermission(requiredPermission string) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		tokenID, ok := c.Locals("tokenID").(uuid.UUID)
 		if !ok {
 			return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
@@ -121,8 +121,8 @@ func (ta *TokenAuth) RequireTokenPermission(requiredPermission string) fiber.Han
 
 // RequireTokenScope checks if the token has a specific scope
 // Usage: app.Get("/risks", tokenAuth.RequireTokenScope("risk"))
-func (ta *TokenAuth) RequireTokenScope(requiredScope string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func (ta TokenAuth) RequireTokenScope(requiredScope string) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		tokenID, ok := c.Locals("tokenID").(uuid.UUID)
 		if !ok {
 			return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
@@ -149,8 +149,8 @@ func (ta *TokenAuth) RequireTokenScope(requiredScope string) fiber.Handler {
 
 // Combined middleware: Verify + RequireTokenPermission
 // Usage: app.Get("/resource", tokenAuth.VerifyAndRequirePermission("resource:action:scope"))
-func (ta *TokenAuth) VerifyAndRequirePermission(requiredPermission string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func (ta TokenAuth) VerifyAndRequirePermission(requiredPermission string) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// First verify token
 		if err := ta.Verify(c); err != nil {
 			return err
@@ -163,8 +163,8 @@ func (ta *TokenAuth) VerifyAndRequirePermission(requiredPermission string) fiber
 
 // Combined middleware: Verify + RequireTokenScope
 // Usage: app.Get("/risks", tokenAuth.VerifyAndRequireScope("risk"))
-func (ta *TokenAuth) VerifyAndRequireScope(requiredScope string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func (ta TokenAuth) VerifyAndRequireScope(requiredScope string) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// First verify token
 		if err := ta.Verify(c); err != nil {
 			return err

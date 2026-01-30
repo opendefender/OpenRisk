@@ -1,101 +1,101 @@
-# 🚀 Quick Start - Déploiement gratuit en 30 minutes
+  Quick Start - D�ploiement gratuit en  minutes
 
-## Résumé rapide
+ R�sum� rapide
 
-Pour obtenir un lien de démo en 30 minutes avec **zéro frais**, voici les 4 étapes :
+Pour obtenir un lien de d�mo en  minutes avec z�ro frais, voici les  �tapes :
 
-### 1️⃣ Base de données PostgreSQL (Supabase) - 5 min
+ ⃣ Base de donn�es PostgreSQL (Supabase) -  min
 
-```bash
-1. Allez sur https://supabase.com
-2. Sign up with GitHub
-3. New Project → openrisk-demo
-4. Récupérez: CONNECTION STRING (Settings → Database)
-   Format: postgresql://postgres:PASSWORD@host.supabase.co:5432/postgres
-```
+bash
+. Allez sur https://supabase.com
+. Sign up with GitHub
+. New Project → openrisk-demo
+. R�cup�rez: CONNECTION STRING (Settings → Database)
+   Format: postgresql://postgres:PASSWORD@host.supabase.co:/postgres
 
-### 2️⃣ Cache Redis (Redis Cloud) - 5 min
 
-```bash
-1. Allez sur https://app.redislabs.com
-2. Sign up → Free tier
-3. New Database → 30 MB
-4. Récupérez: redis-endpoint:port et PASSWORD
-   Format: redis://default:PASSWORD@host.redislabs.com:19999
-```
+ ⃣ Cache Redis (Redis Cloud) -  min
 
-### 3️⃣ Backend API (Render.com) - 10 min
+bash
+. Allez sur https://app.redislabs.com
+. Sign up → Free tier
+. New Database →  MB
+. R�cup�rez: redis-endpoint:port et PASSWORD
+   Format: redis://default:PASSWORD@host.redislabs.com:
 
-```bash
-1. Allez sur https://render.com
-2. Sign up with GitHub → Connect repo OpenRisk
-3. New Web Service:
+
+ ⃣ Backend API (Render.com) -  min
+
+bash
+. Allez sur https://render.com
+. Sign up with GitHub → Connect repo OpenRisk
+. New Web Service:
    - Name: openrisk-api
    - Environment: Docker
    - Build Command: docker build -f Dockerfile.render -t openrisk .
    
-4. Environment Variables:
+. Environment Variables:
    DATABASE_URL=postgresql://postgres:PASSWORD@...
    REDIS_URL=redis://default:PASSWORD@...
-   JWT_SECRET=generez-une-clé-de-32-chars
-   CORS_ORIGINS=https://openrisk-xxxx.vercel.app (ajouter après Vercel)
+   JWT_SECRET=generez-une-cl�-de--chars
+   CORS_ORIGINS=https://openrisk-xxxx.vercel.app (ajouter apr�s Vercel)
    API_BASE_URL=https://openrisk-api.onrender.com
    
-5. Deploy → Attendre 3-5 minutes
-   URL résultante: https://openrisk-api.onrender.com
-```
+. Deploy → Attendre - minutes
+   URL r�sultante: https://openrisk-api.onrender.com
 
-### 4️⃣ Frontend (Vercel) - 10 min
 
-```bash
-1. Allez sur https://vercel.com
-2. Sign up with GitHub → Import Project
-3. Configuration:
+ ⃣ Frontend (Vercel) -  min
+
+bash
+. Allez sur https://vercel.com
+. Sign up with GitHub → Import Project
+. Configuration:
    - Select OpenRisk repository
    - Root Directory: frontend
    - Framework: Vite
    - Build Command: npm run build
    
-4. Environment Variable:
+. Environment Variable:
    VITE_API_URL=https://openrisk-api.onrender.com
    
-5. Deploy → Attendre 2-3 minutes
-   URL résultante: https://openrisk-xxxx.vercel.app
-```
+. Deploy → Attendre - minutes
+   URL r�sultante: https://openrisk-xxxx.vercel.app
+
 
 ---
 
-## ✅ Vérification finale
+  V�rification finale
 
-1. **Testez l'API**:
-   ```bash
+. Testez l'API:
+   bash
    curl https://openrisk-api.onrender.com/api/health
-   ```
+   
 
-2. **Testez le frontend**:
-   ```
+. Testez le frontend:
+   
    https://openrisk-xxxx.vercel.app
    Email: admin@openrisk.local
-   Password: admin123
-   ```
+   Password: admin
+   
 
-3. **Docs API Swagger**:
-   ```
+. Docs API Swagger:
+   
    https://openrisk-api.onrender.com/swagger
-   ```
+   
 
 ---
 
-## 🔑 Clés d'accès par défaut
+  Cl�s d'acc�s par d�faut
 
-**Email**: `admin@openrisk.local`  
-**Password**: `admin123`
+Email: admin@openrisk.local  
+Password: admin
 
 ---
 
-## 📊 Stack de déploiement
+  Stack de d�ploiement
 
-```
+
 ┌─────────────────────────────────────┐
 │   Vercel                            │
 │   https://openrisk-xxxx.vercel.app  │
@@ -109,97 +109,97 @@ Pour obtenir un lien de démo en 30 minutes avec **zéro frais**, voici les 4 é
 │   (Backend Go/Fiber)                │
 └──────────────┬──────────────────────┘
                │
-      ┌────────┴────────┐
+      ┌────────�────────┐
       ▼                  ▼
 ┌──────────────┐  ┌──────────────────┐
 │   Supabase   │  │   Redis Cloud    │
-│  PostgreSQL  │  │   Cache (30 MB)  │
-│  (500 MB)    │  └──────────────────┘
+│  PostgreSQL  │  │   Cache ( MB)  │
+│  ( MB)    │  └──────────────────┘
 └──────────────┘
-```
+
 
 ---
 
-## ⚠️ Limites gratuites à connaître
+  Limites gratuites à conna�tre
 
 | Service | Limite | Contournement |
 |---------|--------|---------------|
-| Render.com | Sleep après 15 min inactivité | Utilisez uptimerobot.com (gratuit) pour ping |
-| Vercel | 100 GB/mois bande passante | Optimisez images, utilisez CDN |
-| Supabase | 500 MB DB + 2 GB transfert | Archivez les anciens risques |
-| Redis Cloud | 30 MB RAM | Nettoyez le cache régulièrement |
+| Render.com | Sleep apr�s  min inactivit� | Utilisez uptimerobot.com (gratuit) pour ping |
+| Vercel |  GB/mois bande passante | Optimisez images, utilisez CDN |
+| Supabase |  MB DB +  GB transfert | Archivez les anciens risques |
+| Redis Cloud |  MB RAM | Nettoyez le cache r�guli�rement |
 
 ---
 
-## 🔧 Commandes utiles
+  Commandes utiles
 
-### Générer un JWT_SECRET robuste
-```bash
-openssl rand -base64 32
-```
+ G�n�rer un JWT_SECRET robuste
+bash
+openssl rand -base 
 
-### Tester la connexion DB Supabase
-```bash
-psql "postgresql://postgres:PASSWORD@host.supabase.co:5432/postgres" -c "SELECT 1"
-```
 
-### Tester Redis
-```bash
-redis-cli -h host.redislabs.com -p 19999 -a PASSWORD ping
-```
+ Tester la connexion DB Supabase
+bash
+psql "postgresql://postgres:PASSWORD@host.supabase.co:/postgres" -c "SELECT "
+
+
+ Tester Redis
+bash
+redis-cli -h host.redislabs.com -p  -a PASSWORD ping
+
 
 ---
 
-## 🚨 Dépannage rapide
+  D�pannage rapide
 
-### ❌ "CORS error - frontend cannot reach API"
-```
-→ Dans Render, vérifier CORS_ORIGINS contient votre Vercel URL
+  "CORS error - frontend cannot reach API"
+
+→ Dans Render, v�rifier CORS_ORIGINS contient votre Vercel URL
 → Exemple: CORS_ORIGINS=https://openrisk-xxxx.vercel.app
-```
 
-### ❌ "Database connection error"
-```
-→ Vérifier DATABASE_URL dans Render env
+
+  "Database connection error"
+
+→ V�rifier DATABASE_URL dans Render env
 → Tester: psql "postgresql://..."
-```
 
-### ❌ "Render service goes to sleep"
-```
+
+  "Render service goes to sleep"
+
 → Ajouter monitoring gratuit: https://uptimerobot.com
-→ Ping toutes les 14 minutes: https://openrisk-api.onrender.com/api/health
-```
+→ Ping toutes les  minutes: https://openrisk-api.onrender.com/api/health
 
-### ❌ "Cannot login - admin user not created"
-```
-→ Vérifier que les migrations DB ont roulé
+
+  "Cannot login - admin user not created"
+
+→ V�rifier que les migrations DB ont roul�
 → Dans Render logs, chercher "Database: Running Auto-Migrations"
-```
+
 
 ---
 
-## 📚 Documentation complète
+ 📚 Documentation compl�te
 
-Pour les détails complets, consultez: **DEPLOYMENT_FREE_SERVICES.md**
-
----
-
-## 💰 Coût total
-
-🎉 **$0.00/mois**
-
-Tous les services utilisés ont des plans gratuits généreux !
+Pour les d�tails complets, consultez: DEPLOYMENT_FREE_SERVICES.md
 
 ---
 
-## 🎯 Prochaines étapes après le déploiement
+ � Coût total
 
-1. ✅ Créez des comptes utilisateur
-2. ✅ Ajoutez des risques de test
-3. ✅ Testez la création de mitigations
-4. ✅ Validez les dashboards
-5. ✅ Partagez le lien de démo : `https://openrisk-xxxx.vercel.app`
+ $./mois
+
+Tous les services utilis�s ont des plans gratuits g�n�reux !
 
 ---
 
-**Bon déploiement ! 🚀**
+  Prochaines �tapes apr�s le d�ploiement
+
+.  Cr�ez des comptes utilisateur
+.  Ajoutez des risques de test
+.  Testez la cr�ation de mitigations
+.  Validez les dashboards
+.  Partagez le lien de d�mo : https://openrisk-xxxx.vercel.app
+
+---
+
+Bon d�ploiement ! 

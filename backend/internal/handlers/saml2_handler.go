@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	"encoding/base64"
+	"encoding/base"
 	"encoding/xml"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
@@ -17,96 +17,96 @@ import (
 	"github.com/opendefender/openrisk/internal/services"
 )
 
-// SAMLAssertion represents a SAML2 assertion
+// SAMLAssertion represents a SAML assertion
 type SAMLAssertion struct {
-	XMLName            xml.Name               `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
-	ID                 string                 `xml:"ID,attr"`
-	Version            string                 `xml:"Version,attr"`
-	IssueInstant       string                 `xml:"IssueInstant,attr"`
-	Subject            SAMLSubject            `xml:"urn:oasis:names:tc:SAML:2.0:assertion Subject"`
-	Issuer             SAMLIssuer             `xml:"urn:oasis:names:tc:SAML:2.0:assertion Issuer"`
-	Conditions         SAMLConditions         `xml:"urn:oasis:names:tc:SAML:2.0:assertion Conditions"`
-	AttributeStatement SAMLAttributeStatement `xml:"urn:oasis:names:tc:SAML:2.0:assertion AttributeStatement"`
-	AuthnStatement     SAMLAuthnStatement     `xml:"urn:oasis:names:tc:SAML:2.0:assertion AuthnStatement"`
+	XMLName            xml.Name               xml:"urn:oasis:names:tc:SAML:.:assertion Assertion"
+	ID                 string                 xml:"ID,attr"
+	Version            string                 xml:"Version,attr"
+	IssueInstant       string                 xml:"IssueInstant,attr"
+	Subject            SAMLSubject            xml:"urn:oasis:names:tc:SAML:.:assertion Subject"
+	Issuer             SAMLIssuer             xml:"urn:oasis:names:tc:SAML:.:assertion Issuer"
+	Conditions         SAMLConditions         xml:"urn:oasis:names:tc:SAML:.:assertion Conditions"
+	AttributeStatement SAMLAttributeStatement xml:"urn:oasis:names:tc:SAML:.:assertion AttributeStatement"
+	AuthnStatement     SAMLAuthnStatement     xml:"urn:oasis:names:tc:SAML:.:assertion AuthnStatement"
 }
 
 type SAMLSubject struct {
-	NameID              string                  `xml:"urn:oasis:names:tc:SAML:2.0:assertion NameID"`
-	SubjectConfirmation SAMLSubjectConfirmation `xml:"urn:oasis:names:tc:SAML:2.0:assertion SubjectConfirmation"`
+	NameID              string                  xml:"urn:oasis:names:tc:SAML:.:assertion NameID"
+	SubjectConfirmation SAMLSubjectConfirmation xml:"urn:oasis:names:tc:SAML:.:assertion SubjectConfirmation"
 }
 
 type SAMLSubjectConfirmation struct {
-	Method                  string                      `xml:"Method,attr"`
-	SubjectConfirmationData SAMLSubjectConfirmationData `xml:"urn:oasis:names:tc:SAML:2.0:assertion SubjectConfirmationData"`
+	Method                  string                      xml:"Method,attr"
+	SubjectConfirmationData SAMLSubjectConfirmationData xml:"urn:oasis:names:tc:SAML:.:assertion SubjectConfirmationData"
 }
 
 type SAMLSubjectConfirmationData struct {
-	NotOnOrAfter string `xml:"NotOnOrAfter,attr"`
-	Recipient    string `xml:"Recipient,attr"`
+	NotOnOrAfter string xml:"NotOnOrAfter,attr"
+	Recipient    string xml:"Recipient,attr"
 }
 
 type SAMLIssuer struct {
-	Format string `xml:"Format,attr"`
-	Text   string `xml:",chardata"`
+	Format string xml:"Format,attr"
+	Text   string xml:",chardata"
 }
 
 type SAMLConditions struct {
-	NotBefore    string `xml:"NotBefore,attr"`
-	NotOnOrAfter string `xml:"NotOnOrAfter,attr"`
+	NotBefore    string xml:"NotBefore,attr"
+	NotOnOrAfter string xml:"NotOnOrAfter,attr"
 }
 
 type SAMLAttributeStatement struct {
-	Attributes []SAMLAttribute `xml:"urn:oasis:names:tc:SAML:2.0:assertion Attribute"`
+	Attributes []SAMLAttribute xml:"urn:oasis:names:tc:SAML:.:assertion Attribute"
 }
 
 type SAMLAttribute struct {
-	Name   string               `xml:"Name,attr"`
-	Values []SAMLAttributeValue `xml:"urn:oasis:names:tc:SAML:2.0:assertion AttributeValue"`
+	Name   string               xml:"Name,attr"
+	Values []SAMLAttributeValue xml:"urn:oasis:names:tc:SAML:.:assertion AttributeValue"
 }
 
 type SAMLAttributeValue struct {
-	Text string `xml:",chardata"`
+	Text string xml:",chardata"
 }
 
 type SAMLAuthnStatement struct {
-	AuthnInstant string           `xml:"AuthnInstant,attr"`
-	SessionIndex string           `xml:"SessionIndex,attr"`
-	AuthnContext SAMLAuthnContext `xml:"urn:oasis:names:tc:SAML:2.0:assertion AuthnContext"`
+	AuthnInstant string           xml:"AuthnInstant,attr"
+	SessionIndex string           xml:"SessionIndex,attr"
+	AuthnContext SAMLAuthnContext xml:"urn:oasis:names:tc:SAML:.:assertion AuthnContext"
 }
 
 type SAMLAuthnContext struct {
-	AuthnContextClassRef string `xml:"urn:oasis:names:tc:SAML:2.0:assertion AuthnContextClassRef"`
+	AuthnContextClassRef string xml:"urn:oasis:names:tc:SAML:.:assertion AuthnContextClassRef"
 }
 
 // SAMLResponse represents a SAML Response
 type SAMLResponse struct {
-	XMLName      xml.Name      `xml:"urn:oasis:names:tc:SAML:2.0:protocol Response"`
-	ID           string        `xml:"ID,attr"`
-	Version      string        `xml:"Version,attr"`
-	IssueInstant string        `xml:"IssueInstant,attr"`
-	Destination  string        `xml:"Destination,attr"`
-	InResponseTo string        `xml:"InResponseTo,attr"`
-	Status       SAMLStatus    `xml:"urn:oasis:names:tc:SAML:2.0:protocol Status"`
-	Assertion    SAMLAssertion `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
+	XMLName      xml.Name      xml:"urn:oasis:names:tc:SAML:.:protocol Response"
+	ID           string        xml:"ID,attr"
+	Version      string        xml:"Version,attr"
+	IssueInstant string        xml:"IssueInstant,attr"
+	Destination  string        xml:"Destination,attr"
+	InResponseTo string        xml:"InResponseTo,attr"
+	Status       SAMLStatus    xml:"urn:oasis:names:tc:SAML:.:protocol Status"
+	Assertion    SAMLAssertion xml:"urn:oasis:names:tc:SAML:.:assertion Assertion"
 }
 
 type SAMLStatus struct {
-	StatusCode SAMLStatusCode `xml:"urn:oasis:names:tc:SAML:2.0:protocol StatusCode"`
+	StatusCode SAMLStatusCode xml:"urn:oasis:names:tc:SAML:.:protocol StatusCode"
 }
 
 type SAMLStatusCode struct {
-	Value string `xml:"Value,attr"`
+	Value string xml:"Value,attr"
 }
 
-// SAML2InitiateLogin initiates SAML2 login flow
-func SAML2InitiateLogin(c *fiber.Ctx) error {
-	idpURL := os.Getenv("SAML2_IDP_URL")
-	entityID := os.Getenv("SAML2_SP_ENTITY_ID")
-	acsURL := os.Getenv("SAML2_ACS_URL")
+// SAMLInitiateLogin initiates SAML login flow
+func SAMLInitiateLogin(c fiber.Ctx) error {
+	idpURL := os.Getenv("SAML_IDP_URL")
+	entityID := os.Getenv("SAML_SP_ENTITY_ID")
+	acsURL := os.Getenv("SAML_ACS_URL")
 
 	if idpURL == "" || entityID == "" || acsURL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "SAML2 not properly configured",
+			"error": "SAML not properly configured",
 		})
 	}
 
@@ -115,27 +115,27 @@ func SAML2InitiateLogin(c *fiber.Ctx) error {
 	now := time.Now().UTC()
 
 	// Build simple AuthnRequest (in production, use a proper SAML library)
-	authRequest := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	authRequest := fmt.Sprintf(<?xml version="." encoding="UTF-"?>
 <samlp:AuthnRequest 
-  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+  xmlns:samlp="urn:oasis:names:tc:SAML:.:protocol"
+  xmlns:saml="urn:oasis:names:tc:SAML:.:assertion"
   ID="%s"
-  Version="2.0"
+  Version="."
   IssueInstant="%s"
   Destination="%s/app/login"
   AssertionConsumerServiceURL="%s"
-  ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">
+  ProtocolBinding="urn:oasis:names:tc:SAML:.:bindings:HTTP-POST">
   <saml:Issuer>%s</saml:Issuer>
   <samlp:NameIDPolicy 
-    Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    Format="urn:oasis:names:tc:SAML:.:nameid-format:emailAddress"
     AllowCreate="true"/>
   <samlp:RequestedAuthnContext Comparison="exact">
-    <saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:Password</saml:AuthnContextClassRef>
+    <saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:.:ac:classes:Password</saml:AuthnContextClassRef>
   </samlp:RequestedAuthnContext>
-</samlp:AuthnRequest>`, requestID, now.Format("2006-01-02T15:04:05Z"), idpURL, acsURL, entityID)
+</samlp:AuthnRequest>, requestID, now.Format("--T::Z"), idpURL, acsURL, entityID)
 
 	// Encode request
-	encodedRequest := base64.StdEncoding.EncodeToString([]byte(authRequest))
+	encodedRequest := base.StdEncoding.EncodeToString([]byte(authRequest))
 
 	// Build redirect URL
 	redirectURL := fmt.Sprintf("%s/app/login?SAMLRequest=%s", idpURL, encodedRequest)
@@ -146,8 +146,8 @@ func SAML2InitiateLogin(c *fiber.Ctx) error {
 	})
 }
 
-// SAML2ACS handles SAML2 Assertion Consumer Service (callback)
-func SAML2ACS(c *fiber.Ctx) error {
+// SAMLACS handles SAML Assertion Consumer Service (callback)
+func SAMLACS(c fiber.Ctx) error {
 	// Get SAML Response from POST
 	samlResponse := c.FormValue("SAMLResponse")
 	if samlResponse == "" {
@@ -156,8 +156,8 @@ func SAML2ACS(c *fiber.Ctx) error {
 		})
 	}
 
-	// Decode base64
-	decoded, err := base64.StdEncoding.DecodeString(samlResponse)
+	// Decode base
+	decoded, err := base.StdEncoding.DecodeString(samlResponse)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to decode SAML Response: %v", err),
@@ -173,7 +173,7 @@ func SAML2ACS(c *fiber.Ctx) error {
 	}
 
 	// Validate response
-	if response.Status.StatusCode.Value != "urn:oasis:names:tc:SAML:2.0:status:Success" {
+	if response.Status.StatusCode.Value != "urn:oasis:names:tc:SAML:.:status:Success" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": fmt.Sprintf("SAML authentication failed: %s", response.Status.StatusCode.Value),
 		})
@@ -182,25 +182,25 @@ func SAML2ACS(c *fiber.Ctx) error {
 	// Extract user information from assertion
 	assertion := response.Assertion
 	email := assertion.Subject.NameID
-	userInfo := &OAuth2UserInfo{
+	userInfo := &OAuthUserInfo{
 		Email:    email,
-		Provider: "saml2",
+		Provider: "saml",
 	}
 
 	// Extract attributes
 	for _, attr := range assertion.AttributeStatement.Attributes {
 		switch attr.Name {
 		case "email":
-			if len(attr.Values) > 0 {
-				userInfo.Email = attr.Values[0].Text
+			if len(attr.Values) >  {
+				userInfo.Email = attr.Values[].Text
 			}
 		case "emailAddress":
-			if len(attr.Values) > 0 {
-				userInfo.Email = attr.Values[0].Text
+			if len(attr.Values) >  {
+				userInfo.Email = attr.Values[].Text
 			}
 		case "displayName", "name":
-			if len(attr.Values) > 0 {
-				userInfo.Name = attr.Values[0].Text
+			if len(attr.Values) >  {
+				userInfo.Name = attr.Values[].Text
 			}
 		case "groups", "memberOf":
 			for _, val := range attr.Values {
@@ -211,11 +211,11 @@ func SAML2ACS(c *fiber.Ctx) error {
 
 	// Use email as name if name not found
 	if userInfo.Name == "" {
-		userInfo.Name = strings.Split(userInfo.Email, "@")[0]
+		userInfo.Name = strings.Split(userInfo.Email, "@")[]
 	}
 
 	// Provision user
-	user, err := provisionSAML2User(userInfo)
+	user, err := provisionSAMLUser(userInfo)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to provision user: %v", err),
@@ -223,12 +223,12 @@ func SAML2ACS(c *fiber.Ctx) error {
 	}
 
 	// Apply group-based role mapping if configured
-	if len(userInfo.Groups) > 0 {
+	if len(userInfo.Groups) >  {
 		applyGroupRoleMapping(user, userInfo.Groups)
 	}
 
 	// Generate JWT token
-	authService := services.NewAuthService(os.Getenv("JWT_SECRET"), 24*time.Hour)
+	authService := services.NewAuthService(os.Getenv("JWT_SECRET"), time.Hour)
 	jwtToken, err := authService.GenerateToken(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -244,12 +244,12 @@ func SAML2ACS(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"token":    jwtToken,
 		"user":     user,
-		"provider": "saml2",
+		"provider": "saml",
 	})
 }
 
-// provisionSAML2User finds or creates a user from SAML2 assertion
-func provisionSAML2User(userInfo *OAuth2UserInfo) (*domain.User, error) {
+// provisionSAMLUser finds or creates a user from SAML assertion
+func provisionSAMLUser(userInfo OAuthUserInfo) (domain.User, error) {
 	user := &domain.User{}
 
 	// Find existing user by email
@@ -311,7 +311,7 @@ func provisionSAML2User(userInfo *OAuth2UserInfo) (*domain.User, error) {
 }
 
 // applyGroupRoleMapping maps SAML groups to OpenRisk roles
-func applyGroupRoleMapping(user *domain.User, groups []string) error {
+func applyGroupRoleMapping(user domain.User, groups []string) error {
 	// Get role mapping from environment (simple JSON or key:value pairs)
 	// Format: "admin-group:admin,analyst-group:analyst,viewer-group:viewer"
 	mappingStr := os.Getenv("SSO_GROUP_ROLE_MAPPING")
@@ -323,8 +323,8 @@ func applyGroupRoleMapping(user *domain.User, groups []string) error {
 	mapping := make(map[string]string)
 	for _, pair := range strings.Split(mappingStr, ",") {
 		parts := strings.Split(strings.TrimSpace(pair), ":")
-		if len(parts) == 2 {
-			mapping[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		if len(parts) ==  {
+			mapping[strings.TrimSpace(parts[])] = strings.TrimSpace(parts[])
 		}
 	}
 
@@ -345,32 +345,32 @@ func applyGroupRoleMapping(user *domain.User, groups []string) error {
 	return nil
 }
 
-// SAMLMetadata generates SAML2 Service Provider metadata
-func SAMLMetadata(c *fiber.Ctx) error {
-	entityID := os.Getenv("SAML2_SP_ENTITY_ID")
-	acsURL := os.Getenv("SAML2_ACS_URL")
+// SAMLMetadata generates SAML Service Provider metadata
+func SAMLMetadata(c fiber.Ctx) error {
+	entityID := os.Getenv("SAML_SP_ENTITY_ID")
+	acsURL := os.Getenv("SAML_ACS_URL")
 
 	if entityID == "" || acsURL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "SAML2 not properly configured",
+			"error": "SAML not properly configured",
 		})
 	}
 
-	metadata := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" 
+	metadata := fmt.Sprintf(<?xml version="." encoding="UTF-"?>
+<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:.:metadata" 
   entityID="%s">
   <SPSSODescriptor 
     AuthnRequestsSigned="false"
     WantAssertionsSigned="false"
-    protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</NameIDFormat>
+    protocolSupportEnumeration="urn:oasis:names:tc:SAML:.:protocol">
+    <NameIDFormat>urn:oasis:names:tc:SAML:.:nameid-format:emailAddress</NameIDFormat>
     <AssertionConsumerService 
-      Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+      Binding="urn:oasis:names:tc:SAML:.:bindings:HTTP-POST"
       Location="%s"
-      index="0"
+      index=""
       isDefault="true"/>
   </SPSSODescriptor>
-</EntityDescriptor>`, entityID, acsURL)
+</EntityDescriptor>, entityID, acsURL)
 
 	c.Set("Content-Type", "application/xml")
 	return c.SendString(metadata)

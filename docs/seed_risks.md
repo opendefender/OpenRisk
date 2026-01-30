@@ -1,17 +1,17 @@
-# Seeding Risks (development)
+ Seeding Risks (development)
 
-This document explains how to seed the `risks` table locally using the fixtures in `dev/fixtures/risks.json`.
+This document explains how to seed the risks table locally using the fixtures in dev/fixtures/risks.json.
 
 Prerequisites
 - running Postgres instance
-- `psql` CLI available and network access to the DB
+- psql CLI available and network access to the DB
 
 Example (psql):
 
-1. Load fixtures using `jq` + SQL insert (simple, idempotent for dev only):
+. Load fixtures using jq + SQL insert (simple, idempotent for dev only):
 
-```bash
-DB_CONN="postgresql://user:password@localhost:5432/openrisk_dev"
+bash
+DB_CONN="postgresql://user:password@localhost:/openrisk_dev"
 cat dev/fixtures/risks.json | jq -c '.[]' | while read row; do
   id=$(echo "$row" | jq -r '.id')
   title=$(echo "$row" | jq -r '.title' | sed "s/'/''/g")
@@ -29,8 +29,8 @@ cat dev/fixtures/risks.json | jq -c '.[]' | while read row; do
     ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;"
 
 done
-```
+
 
 Notes
 - This is a convenience script for local development only. For production, use proper migration/seed tooling (e.g. goose, migrate, or a Go seed command which validates inputs).
-- Example uses `jq` to unwrap JSON. Adjust quoting for your shell.
+- Example uses jq to unwrap JSON. Adjust quoting for your shell.

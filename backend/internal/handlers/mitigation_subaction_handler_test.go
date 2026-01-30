@@ -11,7 +11,7 @@ import (
 )
 
 // TestMitigationSubAction_DomainModel verifies the domain model structure and defaults
-func TestMitigationSubAction_DomainModel(t *testing.T) {
+func TestMitigationSubAction_DomainModel(t testing.T) {
 	mitID := uuid.New()
 	subActionID := uuid.New()
 
@@ -35,7 +35,7 @@ func TestMitigationSubAction_DomainModel(t *testing.T) {
 }
 
 // TestMitigationSubAction_CompletedToggle verifies toggle logic
-func TestMitigationSubAction_CompletedToggle(t *testing.T) {
+func TestMitigationSubAction_CompletedToggle(t testing.T) {
 	subAction := domain.MitigationSubAction{
 		ID:        uuid.New(),
 		Title:     "Test Task",
@@ -55,7 +55,7 @@ func TestMitigationSubAction_CompletedToggle(t *testing.T) {
 }
 
 // TestMitigationSubAction_SoftDelete verifies soft-delete field
-func TestMitigationSubAction_SoftDelete(t *testing.T) {
+func TestMitigationSubAction_SoftDelete(t testing.T) {
 	subAction := domain.MitigationSubAction{
 		ID:    uuid.New(),
 		Title: "Task with soft delete",
@@ -72,23 +72,23 @@ func TestMitigationSubAction_SoftDelete(t *testing.T) {
 }
 
 // TestMitigationSubAction_Ownership verifies mitigation ownership
-func TestMitigationSubAction_Ownership(t *testing.T) {
-	mit1ID := uuid.New()
-	mit2ID := uuid.New()
+func TestMitigationSubAction_Ownership(t testing.T) {
+	mitID := uuid.New()
+	mitID := uuid.New()
 
 	subAction := domain.MitigationSubAction{
 		ID:           uuid.New(),
-		MitigationID: mit1ID,
+		MitigationID: mitID,
 		Title:        "Test Task",
 	}
 
 	// Verify ownership
-	assert.Equal(t, mit1ID, subAction.MitigationID)
-	assert.NotEqual(t, mit2ID, subAction.MitigationID)
+	assert.Equal(t, mitID, subAction.MitigationID)
+	assert.NotEqual(t, mitID, subAction.MitigationID)
 }
 
 // TestMitigationSubAction_BelongsToMitigation verifies parent relationship
-func TestMitigationSubAction_BelongsToMitigation(t *testing.T) {
+func TestMitigationSubAction_BelongsToMitigation(t testing.T) {
 	mitID := uuid.New()
 	subAction := domain.MitigationSubAction{
 		ID:           uuid.New(),

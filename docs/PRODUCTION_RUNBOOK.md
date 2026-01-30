@@ -1,17 +1,17 @@
-# Production Deployment Runbook
+ Production Deployment Runbook
 
-## Quick Reference
+ Quick Reference
 
 | Component | Service | Port | Health Check |
 |-----------|---------|------|--------------|
-| Frontend | Nginx/React | 80/443 | https://openrisk.yourdomain.com |
-| Backend API | Go Fiber | 8080 | https://openrisk.yourdomain.com/api/v1/health |
-| Database | PostgreSQL | 5432 | Internal only |
-| Cache | Redis | 6379 | Internal only |
+| Frontend | Nginx/React | / | https://openrisk.yourdomain.com |
+| Backend API | Go Fiber |  | https://openrisk.yourdomain.com/api/v/health |
+| Database | PostgreSQL |  | Internal only |
+| Cache | Redis |  | Internal only |
 
-## Pre-Deployment Checklist
+ Pre-Deployment Checklist
 
-### Code & Testing
+ Code & Testing
 - [ ] All tests passing (unit + integration)
 - [ ] Code review completed
 - [ ] Security scan passed
@@ -19,7 +19,7 @@
 - [ ] Changelog updated
 - [ ] Version bumped
 
-### Infrastructure
+ Infrastructure
 - [ ] Production environment provisioned
 - [ ] Database backups configured
 - [ ] SSL/TLS certificates provisioned
@@ -29,55 +29,55 @@
 - [ ] Load balancer configured (if needed)
 - [ ] CDN configured (if needed)
 
-### Documentation
+ Documentation
 - [ ] Deployment runbook reviewed
 - [ ] Incident response procedures documented
 - [ ] Rollback procedures documented
 - [ ] Team trained on procedures
 - [ ] On-call rotation established
 
-## Deployment Steps
+ Deployment Steps
 
-### 1. Pre-Deployment Verification
+ . Pre-Deployment Verification
 
-```bash
-#!/bin/bash
-# deployment-verify.sh
+bash
+!/bin/bash
+ deployment-verify.sh
 
 set -e
 
 echo "🔍 Pre-deployment verification..."
 
-# Verify Docker images exist
-docker images | grep openrisk || { echo "❌ Docker images not found"; exit 1; }
+ Verify Docker images exist
+docker images | grep openrisk || { echo " Docker images not found"; exit ; }
 
-# Verify environment config
-[ -f .env.production ] || { echo "❌ .env.production not found"; exit 1; }
+ Verify environment config
+[ -f .env.production ] || { echo " .env.production not found"; exit ; }
 
-# Verify database backups
-[ -d ./backups ] || { echo "❌ Backup directory not found"; exit 1; }
+ Verify database backups
+[ -d ./backups ] || { echo " Backup directory not found"; exit ; }
 
-# Verify certificates
-[ -f ./certs/fullchain.pem ] || { echo "❌ SSL certificate not found"; exit 1; }
+ Verify certificates
+[ -f ./certs/fullchain.pem ] || { echo " SSL certificate not found"; exit ; }
 
-echo "✅ All pre-deployment checks passed"
-```
+echo " All pre-deployment checks passed"
 
-### 2. Blue-Green Deployment
 
-```bash
-#!/bin/bash
-# blue-green-deploy.sh
-# Allows zero-downtime deployments
+ . Blue-Green Deployment
+
+bash
+!/bin/bash
+ blue-green-deploy.sh
+ Allows zero-downtime deployments
 
 PRODUCTION_DIR="/opt/openrisk-prod"
 BLUE_DIR="$PRODUCTION_DIR/blue"
 GREEN_DIR="$PRODUCTION_DIR/green"
 CURRENT_LINK="$PRODUCTION_DIR/current"
 
-echo "🚀 Starting blue-green deployment..."
+echo " Starting blue-green deployment..."
 
-# Determine which is active (blue or green)
+ Determine which is active (blue or green)
 if [ -L "$CURRENT_LINK" ]; then
     ACTIVE=$(readlink "$CURRENT_LINK")
     [ "$ACTIVE" = "$BLUE_DIR" ] && NEW_DIR="$GREEN_DIR" || NEW_DIR="$BLUE_DIR"
@@ -88,112 +88,112 @@ fi
 echo "Active: $ACTIVE"
 echo "Deploying to: $NEW_DIR"
 
-# Prepare new environment
+ Prepare new environment
 mkdir -p "$NEW_DIR"
 cp -r . "$NEW_DIR"
 
-# Build and start new containers
+ Build and start new containers
 cd "$NEW_DIR"
 docker-compose -f docker-compose.prod.yml up -d
 
-# Wait for services to be healthy
+ Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."
-for i in {1..60}; do
-    if curl -sf https://openrisk.yourdomain.com/api/v1/health > /dev/null; then
-        echo "✅ Services are healthy"
+for i in {..}; do
+    if curl -sf https://openrisk.yourdomain.com/api/v/health > /dev/null; then
+        echo " Services are healthy"
         break
     fi
-    if [ $i -eq 60 ]; then
-        echo "❌ Services failed to start"
+    if [ $i -eq  ]; then
+        echo " Services failed to start"
         docker-compose -f docker-compose.prod.yml down
-        exit 1
+        exit 
     fi
-    sleep 1
+    sleep 
 done
 
-# Run smoke tests
+ Run smoke tests
 echo "🧪 Running smoke tests..."
 ./tests/smoke-tests.sh || {
-    echo "❌ Smoke tests failed"
+    echo " Smoke tests failed"
     docker-compose -f docker-compose.prod.yml down
-    exit 1
+    exit 
 }
 
-# Switch traffic to new environment
+ Switch traffic to new environment
 echo "🔄 Switching traffic..."
 ln -sfn "$NEW_DIR" "$CURRENT_LINK"
 
-# Stop old containers
+ Stop old containers
 if [ "$ACTIVE" != "$NEW_DIR" ]; then
     cd "$ACTIVE"
     docker-compose -f docker-compose.prod.yml down
 fi
 
-echo "✅ Deployment completed successfully"
-```
+echo " Deployment completed successfully"
 
-### 3. Database Migration
 
-```bash
-#!/bin/bash
-# migrate-production.sh
+ . Database Migration
+
+bash
+!/bin/bash
+ migrate-production.sh
 
 set -e
 
 BACKUP_DIR="./backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 
-echo "📊 Running production database migration..."
+echo " Running production database migration..."
 
-# Backup before migration
+ Backup before migration
 echo "Backing up database..."
 docker-compose -f docker-compose.prod.yml exec db pg_dump \
   -U ${DB_USER} ${DB_NAME} > "$BACKUP_DIR/pre_migration_${DATE}.sql"
 
-echo "✅ Backup created: $BACKUP_DIR/pre_migration_${DATE}.sql"
+echo " Backup created: $BACKUP_DIR/pre_migration_${DATE}.sql"
 
-# Run migrations
+ Run migrations
 echo "Running migrations..."
 docker-compose -f docker-compose.prod.yml exec backend \
   openrisk migrate up
 
-echo "✅ Migrations completed"
+echo " Migrations completed"
 
-# Verify migration
+ Verify migration
 echo "Verifying migration..."
 docker-compose -f docker-compose.prod.yml exec db psql -U ${DB_USER} -d ${DB_NAME} \
-  -c "SELECT COUNT(*) FROM schema_migrations;"
+  -c "SELECT COUNT() FROM schema_migrations;"
 
-echo "✅ Migration verification passed"
-```
+echo " Migration verification passed"
 
-## Monitoring & Observability
 
-### Health Check Endpoint
+ Monitoring & Observability
 
-```bash
-# Check backend health
-curl -v https://openrisk.yourdomain.com/api/v1/health
+ Health Check Endpoint
 
-# Expected response:
-# HTTP/2 200
-# {
-#   "status": "ok",
-#   "timestamp": "2025-12-08T10:00:00Z",
-#   "version": "1.0.0",
-#   "checks": {
-#     "database": "ok",
-#     "redis": "ok"
-#   }
-# }
-```
+bash
+ Check backend health
+curl -v https://openrisk.yourdomain.com/api/v/health
 
-### Key Metrics to Monitor
+ Expected response:
+ HTTP/ 
+ {
+   "status": "ok",
+   "timestamp": "--T::Z",
+   "version": "..",
+   "checks": {
+     "database": "ok",
+     "redis": "ok"
+   }
+ }
 
-```
+
+ Key Metrics to Monitor
+
+
 Backend Metrics:
-- Request latency (p50, p95, p99)
-- Error rate (5xx, 4xx)
+- Request latency (p, p, p)
+- Error rate (xx, xx)
 - Active connections
 - Memory usage
 - CPU usage
@@ -213,153 +213,153 @@ Infrastructure Metrics:
 - Container restarts
 - SSL certificate expiration
 - Database disk usage
-```
 
-### Prometheus Monitoring Example
 
-```yaml
+ Prometheus Monitoring Example
+
+yaml
 global:
-  scrape_interval: 15s
+  scrape_interval: s
 
 scrape_configs:
   - job_name: 'openrisk-backend'
     static_configs:
-      - targets: ['localhost:8080']
-    metrics_path: '/api/v1/metrics'
+      - targets: ['localhost:']
+    metrics_path: '/api/v/metrics'
 
   - job_name: 'postgres'
     static_configs:
-      - targets: ['localhost:5432']
+      - targets: ['localhost:']
 
   - job_name: 'redis'
     static_configs:
-      - targets: ['localhost:6379']
-```
+      - targets: ['localhost:']
 
-## Incident Response
 
-### Service Down
+ Incident Response
 
-```bash
-#!/bin/bash
-# incident-recovery.sh
+ Service Down
 
-echo "🚨 Incident response initiated..."
+bash
+!/bin/bash
+ incident-recovery.sh
 
-# 1. Check service status
+echo " Incident response initiated..."
+
+ . Check service status
 docker-compose -f docker-compose.prod.yml ps
 
-# 2. Check logs for errors
-docker-compose -f docker-compose.prod.yml logs backend | tail -100
+ . Check logs for errors
+docker-compose -f docker-compose.prod.yml logs backend | tail -
 
-# 3. Restart affected service
+ . Restart affected service
 docker-compose -f docker-compose.prod.yml restart backend
 
-# 4. Verify health
-sleep 5
-curl -v https://openrisk.yourdomain.com/api/v1/health
+ . Verify health
+sleep 
+curl -v https://openrisk.yourdomain.com/api/v/health
 
-# 5. If still failing, trigger rollback
-# See rollback section below
-```
+ . If still failing, trigger rollback
+ See rollback section below
 
-### Rollback Procedure
 
-```bash
-#!/bin/bash
-# rollback.sh
+ Rollback Procedure
+
+bash
+!/bin/bash
+ rollback.sh
 
 set -e
 
 CURRENT=$(readlink /opt/openrisk-prod/current)
 
-echo "⏮️  Initiating rollback from $CURRENT..."
+echo "�  Initiating rollback from $CURRENT..."
 
-# Restore from backup
+ Restore from backup
 BACKUP_FILE="./backups/pre_migration_${PREVIOUS_DATE}.sql"
-[ -f "$BACKUP_FILE" ] || { echo "❌ Backup not found"; exit 1; }
+[ -f "$BACKUP_FILE" ] || { echo " Backup not found"; exit ; }
 
 echo "Restoring database from backup..."
 docker-compose -f docker-compose.prod.yml exec db psql -U ${DB_USER} < "$BACKUP_FILE"
 
-# Stop current containers
+ Stop current containers
 cd "$CURRENT"
 docker-compose -f docker-compose.prod.yml down
 
-# Switch to previous version
+ Switch to previous version
 ln -sfn "$PREVIOUS_DIR" /opt/openrisk-prod/current
 
-# Start previous version
+ Start previous version
 cd /opt/openrisk-prod/current
 docker-compose -f docker-compose.prod.yml up -d
 
-# Verify
-sleep 5
-curl -v https://openrisk.yourdomain.com/api/v1/health
+ Verify
+sleep 
+curl -v https://openrisk.yourdomain.com/api/v/health
 
-echo "✅ Rollback completed"
-```
+echo " Rollback completed"
 
-## Regular Maintenance
 
-### Weekly Tasks
+ Regular Maintenance
 
-```bash
-# Check certificate expiration (> 30 days OK)
-openssl x509 -in /opt/openrisk-prod/certs/fullchain.pem -noout -dates
+ Weekly Tasks
 
-# Review logs for errors
+bash
+ Check certificate expiration (>  days OK)
+openssl x -in /opt/openrisk-prod/certs/fullchain.pem -noout -dates
+
+ Review logs for errors
 docker-compose -f docker-compose.prod.yml logs backend | grep ERROR | wc -l
 
-# Check disk usage
+ Check disk usage
 df -h /opt/openrisk-prod
 
-# Verify backups
-ls -lah ./backups/ | tail -10
-```
+ Verify backups
+ls -lah ./backups/ | tail -
 
-### Monthly Tasks
 
-```bash
-# Database optimization
+ Monthly Tasks
+
+bash
+ Database optimization
 docker-compose -f docker-compose.prod.yml exec db \
   psql -U ${DB_USER} -d ${DB_NAME} -c "VACUUM ANALYZE;"
 
-# Review and rotate logs
+ Review and rotate logs
 logrotate -v /etc/logrotate.d/openrisk
 
-# Security patches
+ Security patches
 sudo apt-get update && sudo apt-get upgrade -y
-docker pull postgres:15-alpine
-docker pull redis:7-alpine
-```
+docker pull postgres:-alpine
+docker pull redis:-alpine
 
-### Quarterly Tasks
 
-```bash
-# Full system audit
+ Quarterly Tasks
+
+bash
+ Full system audit
 ./scripts/security-audit.sh
 
-# Load testing
+ Load testing
 ./scripts/load-test.sh
 
-# Disaster recovery drill
+ Disaster recovery drill
 ./scripts/dr-test.sh
 
-# Capacity planning review
+ Capacity planning review
 ./scripts/capacity-planning.sh
-```
 
-## Performance Tuning
 
-### Database Optimization
+ Performance Tuning
 
-```sql
+ Database Optimization
+
+sql
 -- Check slow queries
 SELECT query, calls, total_time, mean_time 
 FROM pg_stat_statements 
 ORDER BY mean_time DESC 
-LIMIT 10;
+LIMIT ;
 
 -- Add indexes as needed
 CREATE INDEX idx_risks_status ON risks(status) WHERE deleted_at IS NULL;
@@ -367,126 +367,126 @@ CREATE INDEX idx_mitigations_risk_id ON mitigations(risk_id);
 
 -- Update statistics
 ANALYZE;
-```
 
-### Redis Optimization
 
-```bash
-# Monitor memory usage
+ Redis Optimization
+
+bash
+ Monitor memory usage
 docker-compose -f docker-compose.prod.yml exec redis redis-cli INFO memory
 
-# Configure eviction policy
+ Configure eviction policy
 docker-compose -f docker-compose.prod.yml exec redis \
   redis-cli CONFIG SET maxmemory-policy allkeys-lru
 
-# Persist data
+ Persist data
 docker-compose -f docker-compose.prod.yml exec redis \
   redis-cli BGSAVE
-```
 
-### Container Resource Limits
 
-```yaml
-# docker-compose.prod.yml
+ Container Resource Limits
+
+yaml
+ docker-compose.prod.yml
 services:
   backend:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2G
+          cpus: ''
+          memory: G
         reservations:
-          cpus: '1'
-          memory: 1G
-```
+          cpus: ''
+          memory: G
 
-## Disaster Recovery
 
-### Recovery Time Objectives (RTO)
+ Disaster Recovery
+
+ Recovery Time Objectives (RTO)
 
 | Scenario | RTO | Recovery Method |
 |----------|-----|-----------------|
-| Single service restart | 5 min | Auto-restart |
-| Entire service failure | 15 min | Blue-green failover |
-| Database corruption | 1 hour | Restore from backup |
-| Data center failure | 4 hours | DR site failover |
+| Single service restart |  min | Auto-restart |
+| Entire service failure |  min | Blue-green failover |
+| Database corruption |  hour | Restore from backup |
+| Data center failure |  hours | DR site failover |
 
-### Backup & Restore
+ Backup & Restore
 
-```bash
-# Daily automated backup
-0 2 * * * /opt/openrisk-prod/backup.sh
+bash
+ Daily automated backup
+     /opt/openrisk-prod/backup.sh
 
-# Monthly full system backup
-0 3 1 * * /opt/openrisk-prod/backup-full.sh
+ Monthly full system backup
+     /opt/openrisk-prod/backup-full.sh
 
-# Restore from backup
+ Restore from backup
 psql -U ${DB_USER} -d ${DB_NAME} < backups/db_backup.sql
 
-# Verify restore
-psql -U ${DB_USER} -d ${DB_NAME} -c "SELECT COUNT(*) FROM schema_migrations;"
-```
+ Verify restore
+psql -U ${DB_USER} -d ${DB_NAME} -c "SELECT COUNT() FROM schema_migrations;"
 
-## Compliance & Audit
 
-### Log Retention
+ Compliance & Audit
 
-```bash
-# Keep logs for 90 days
+ Log Retention
+
+bash
+ Keep logs for  days
 logrotate -v /etc/logrotate.d/openrisk
 
-# Archive old logs
-tar -czf logs/archive/openrisk_logs_2025-01.tar.gz logs/2025-01-*.log
+ Archive old logs
+tar -czf logs/archive/openrisk_logs_-.tar.gz logs/--.log
 
-# Compress to save space
-gzip logs/*.log
-```
+ Compress to save space
+gzip logs/.log
 
-### Data Protection
 
-- [ ] Encrypted database backups (AES-256)
-- [ ] Encrypted data in transit (TLS 1.2+)
+ Data Protection
+
+- [ ] Encrypted database backups (AES-)
+- [ ] Encrypted data in transit (TLS .+)
 - [ ] Encrypted data at rest (dm-crypt or similar)
 - [ ] Access logs and audit trails
 - [ ] Regular security audits
 - [ ] Penetration testing (annual)
 - [ ] GDPR compliance verified
 
-## Cost Optimization
+ Cost Optimization
 
-### Resource Monitoring
+ Resource Monitoring
 
-```bash
-# Analyze Docker resource usage
+bash
+ Analyze Docker resource usage
 docker stats
 
-# Identify unused resources
+ Identify unused resources
 docker ps -a --filter "status=exited"
 docker volume ls --filter "dangling=true"
 
-# Clean up
+ Clean up
 docker system prune --volumes
-```
 
-### Scaling Strategy
 
-```yaml
-# Horizontal scaling (load balancing)
+ Scaling Strategy
+
+yaml
+ Horizontal scaling (load balancing)
 - Add multiple backend instances
 - Use load balancer (HAProxy, Nginx)
 - Configure health checks
 
-# Vertical scaling (more resources)
+ Vertical scaling (more resources)
 - Increase container memory limits
 - Increase CPU cores
 - Upgrade database hardware
-```
 
-## Contact & Escalation
 
-**On-Call Schedule**: [Link to rotation]
-**Incident Channel**: #incidents on Slack
-**Escalation**: Escalate to CTO after 15 min if not resolved
+ Contact & Escalation
+
+On-Call Schedule: [Link to rotation]
+Incident Channel: incidents on Slack
+Escalation: Escalate to CTO after  min if not resolved
 
 | Issue Type | Contact | Severity |
 |-----------|---------|----------|
@@ -497,5 +497,5 @@ docker system prune --volumes
 
 ---
 
-**Last Updated**: 2025-12-08  
-**Next Review**: 2026-01-08
+Last Updated: --  
+Next Review: --

@@ -5,8 +5,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/gofiber/fiber/v"
+	"github.com/golang-jwt/jwt/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
@@ -14,14 +14,14 @@ import (
 
 // PermissionMiddlewareConfig contains configuration for permission middleware
 type PermissionMiddlewareConfig struct {
-	UserService       *services.UserService
-	PermissionService *services.PermissionService
+	UserService       services.UserService
+	PermissionService services.PermissionService
 	JWTSecret         string
 }
 
 // PermissionMiddleware validates user permissions for the requested resource
 func PermissionMiddleware(config PermissionMiddlewareConfig) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// Extract token from Authorization header
 		token := extractToken(c)
 		if token == "" {
@@ -94,8 +94,8 @@ func PermissionMiddleware(config PermissionMiddlewareConfig) fiber.Handler {
 }
 
 // TenantMiddleware validates tenant context and applies tenant isolation
-func TenantMiddleware(userService *services.UserService) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func TenantMiddleware(userService services.UserService) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// Get user context from previous middleware
 		userID := c.Locals("userID").(uuid.UUID)
 		tenantID := c.Locals("tenantID").(uuid.UUID)
@@ -127,8 +127,8 @@ func TenantMiddleware(userService *services.UserService) fiber.Handler {
 }
 
 // OwnershipMiddleware verifies resource ownership or inherited access via role
-func OwnershipMiddleware(userService *services.UserService) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func OwnershipMiddleware(userService services.UserService) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		userID := c.Locals("userID").(uuid.UUID)
 		roleLevel := c.Locals("roleLevel").(domain.RoleLevel)
 
@@ -155,7 +155,7 @@ func OwnershipMiddleware(userService *services.UserService) fiber.Handler {
 
 // AuditMiddleware logs all permission-related activities
 func AuditMiddleware(auditService interface{}) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// Log the audit event (would be implemented with actual audit service)
 		userID, ok := c.Locals("userID").(uuid.UUID)
 		if !ok {
@@ -177,25 +177,25 @@ func AuditMiddleware(auditService interface{}) fiber.Handler {
 // Helper functions
 
 // extractToken extracts JWT token from Authorization header
-func extractToken(c *fiber.Ctx) string {
+func extractToken(c fiber.Ctx) string {
 	auth := c.Get("Authorization")
 	if auth == "" {
 		return ""
 	}
 
-	parts := strings.SplitN(auth, " ", 2)
-	if len(parts) != 2 || parts[0] != "Bearer" {
+	parts := strings.SplitN(auth, " ", )
+	if len(parts) !=  || parts[] != "Bearer" {
 		return ""
 	}
 
-	return parts[1]
+	return parts[]
 }
 
 // parseToken parses and validates JWT token
 func parseToken(tokenString string, jwtSecret string) (jwt.MapClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token jwt.Token) (interface{}, error) {
 		// Validate signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if _, ok := token.Method.(jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(jwtSecret), nil
@@ -221,27 +221,27 @@ func parseToken(tokenString string, jwtSecret string) (jwt.MapClaims, error) {
 func extractUserContext(claims jwt.MapClaims) (uuid.UUID, uuid.UUID, domain.RoleLevel, error) {
 	userIDStr, ok := claims["user_id"].(string)
 	if !ok {
-		return uuid.Nil, uuid.Nil, 0, fmt.Errorf("missing user_id in token")
+		return uuid.Nil, uuid.Nil, , fmt.Errorf("missing user_id in token")
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return uuid.Nil, uuid.Nil, 0, fmt.Errorf("invalid user_id format")
+		return uuid.Nil, uuid.Nil, , fmt.Errorf("invalid user_id format")
 	}
 
 	tenantIDStr, ok := claims["tenant_id"].(string)
 	if !ok {
-		return uuid.Nil, uuid.Nil, 0, fmt.Errorf("missing tenant_id in token")
+		return uuid.Nil, uuid.Nil, , fmt.Errorf("missing tenant_id in token")
 	}
 
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
-		return uuid.Nil, uuid.Nil, 0, fmt.Errorf("invalid tenant_id format")
+		return uuid.Nil, uuid.Nil, , fmt.Errorf("invalid tenant_id format")
 	}
 
-	roleLevel, ok := claims["role_level"].(float64)
+	roleLevel, ok := claims["role_level"].(float)
 	if !ok {
-		return uuid.Nil, uuid.Nil, 0, fmt.Errorf("missing role_level in token")
+		return uuid.Nil, uuid.Nil, , fmt.Errorf("missing role_level in token")
 	}
 
 	return userID, tenantID, domain.RoleLevel(int(roleLevel)), nil
@@ -260,12 +260,12 @@ func extractResourceFromPath(path string) string {
 	path = strings.TrimPrefix(path, "/")
 	parts := strings.Split(path, "/")
 
-	if len(parts) > 1 {
-		// Remove "api/v1" prefix if present
-		if parts[0] == "api" && len(parts) > 2 {
-			return parts[2]
+	if len(parts) >  {
+		// Remove "api/v" prefix if present
+		if parts[] == "api" && len(parts) >  {
+			return parts[]
 		}
-		return parts[0]
+		return parts[]
 	}
 
 	return "unknown"
@@ -288,7 +288,7 @@ func extractActionFromMethod(method string) string {
 }
 
 // extractTenantIDFromRequest tries to extract tenant ID from URL parameters or query
-func extractTenantIDFromRequest(c *fiber.Ctx) uuid.UUID {
+func extractTenantIDFromRequest(c fiber.Ctx) uuid.UUID {
 	// Try URL parameter
 	if tenantStr := c.Params("tenant_id"); tenantStr != "" {
 		if id, err := uuid.Parse(tenantStr); err == nil {

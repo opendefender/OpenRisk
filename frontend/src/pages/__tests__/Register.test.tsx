@@ -43,7 +43,7 @@ describe('Register Page', () => {
     expect(screen.getByPlaceholderText('John Doe')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('johndoe')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('name@company.com')).toBeInTheDocument();
-    expect(screen.getAllByPlaceholderText('••••••••')).toHaveLength(2);
+    expect(screen.getAllByPlaceholderText('••••••••')).toHaveLength();
     expect(screen.getByRole('button', { name: /Create Account/i })).toBeInTheDocument();
   });
 
@@ -90,19 +90,19 @@ describe('Register Page', () => {
     await user.type(fullNameInput, 'John Doe');
     await user.type(usernameInput, 'johndoe');
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInputs[0], 'password123');
-    await user.type(passwordInputs[1], 'password123');
+    await user.type(passwordInputs[], 'password');
+    await user.type(passwordInputs[], 'password');
 
     expect(fullNameInput.value).toBe('John Doe');
     expect(usernameInput.value).toBe('johndoe');
     expect(emailInput.value).toBe('test@example.com');
-    expect(passwordInputs[0].value).toBe('password123');
-    expect(passwordInputs[1].value).toBe('password123');
+    expect(passwordInputs[].value).toBe('password');
+    expect(passwordInputs[].value).toBe('password');
   });
 
   it('should submit valid form', async () => {
     const user = userEvent.setup();
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { user: { id: '1', email: 'test@example.com' } } });
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { user: { id: '', email: 'test@example.com' } } });
 
     render(
       <BrowserRouter>
@@ -119,8 +119,8 @@ describe('Register Page', () => {
     await user.type(fullNameInput, 'John Doe');
     await user.type(usernameInput, 'johndoe');
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInputs[0], 'password123');
-    await user.type(passwordInputs[1], 'password123');
+    await user.type(passwordInputs[], 'password');
+    await user.type(passwordInputs[], 'password');
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -128,7 +128,7 @@ describe('Register Page', () => {
         email: 'test@example.com',
         username: 'johndoe',
         full_name: 'John Doe',
-        password: 'password123',
+        password: 'password',
       }));
     });
   });
@@ -137,7 +137,7 @@ describe('Register Page', () => {
     const user = userEvent.setup();
     vi.mocked(api.post).mockRejectedValueOnce({
       response: {
-        status: 409,
+        status: ,
         data: { error: 'Email already in use' },
       },
     });
@@ -157,8 +157,8 @@ describe('Register Page', () => {
     await user.type(fullNameInput, 'John Doe');
     await user.type(usernameInput, 'johndoe');
     await user.type(emailInput, 'test@example.com');
-    await user.type(passwordInputs[0], 'password123');
-    await user.type(passwordInputs[1], 'password123');
+    await user.type(passwordInputs[], 'password');
+    await user.type(passwordInputs[], 'password');
     await user.click(submitButton);
 
     await waitFor(() => {

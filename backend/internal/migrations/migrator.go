@@ -4,13 +4,13 @@ import (
     "log"
     "os"
 
-    "github.com/golang-migrate/migrate/v4"
-    _ "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
+    "github.com/golang-migrate/migrate/v"
+    _ "github.com/golang-migrate/migrate/v/database/postgres"
+    _ "github.com/golang-migrate/migrate/v/source/file"
 )
 
 // RunMigrations runs SQL migrations located in the repository /migrations directory.
-// It expects environment variable `DATABASE_URL` to be set (format: postgres://user:pass@host:port/dbname?sslmode=disable)
+// It expects environment variable DATABASE_URL to be set (format: postgres://user:pass@host:port/dbname?sslmode=disable)
 func RunMigrations() {
     dbURL := os.Getenv("DATABASE_URL")
     if dbURL == "" {

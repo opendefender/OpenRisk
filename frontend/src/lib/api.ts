@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: 'http://localhost:/api/v',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -9,18 +9,18 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = Bearer ${token};
   }
   return config;
 });
 
-// Gestion automatique de l'expiration (401)
+// Gestion automatique de l'expiration ()
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === ) {
       localStorage.removeItem('auth_token');
-      window.location.href = '/login'; // Redirection forc√©e
+      window.location.href = '/login'; // Redirection forc√e
     }
     return Promise.reject(error);
   }

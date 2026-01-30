@@ -8,29 +8,29 @@ interface ViewToggleProps {
 
 export const ViewToggle = ({ view, onViewChange }: ViewToggleProps) => {
   return (
-    <div className="flex gap-2 bg-surface/50 rounded-lg p-1 border border-border">
+    <div className="flex gap- bg-surface/ rounded-lg p- border border-border">
       <button
         onClick={() => onViewChange('table')}
         className={cn(
-          'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+          'flex items-center gap- px- py-. rounded-md text-sm font-medium transition-all',
           view === 'table'
-            ? 'bg-primary/20 text-primary border border-primary/30'
-            : 'text-zinc-400 hover:text-zinc-200'
+            ? 'bg-primary/ text-primary border border-primary/'
+            : 'text-zinc- hover:text-zinc-'
         )}
       >
-        <List size={16} />
+        <List size={} />
         <span className="hidden sm:inline">Table</span>
       </button>
       <button
         onClick={() => onViewChange('card')}
         className={cn(
-          'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+          'flex items-center gap- px- py-. rounded-md text-sm font-medium transition-all',
           view === 'card'
-            ? 'bg-primary/20 text-primary border border-primary/30'
-            : 'text-zinc-400 hover:text-zinc-200'
+            ? 'bg-primary/ text-primary border border-primary/'
+            : 'text-zinc- hover:text-zinc-'
         )}
       >
-        <LayoutGrid size={16} />
+        <LayoutGrid size={} />
         <span className="hidden sm:inline">Cards</span>
       </button>
     </div>

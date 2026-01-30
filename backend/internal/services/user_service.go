@@ -11,16 +11,16 @@ import (
 
 // UserService manages user operations and multi-tenant relationships
 type UserService struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewUserService creates a new user service
-func NewUserService(db *gorm.DB) *UserService {
+func NewUserService(db gorm.DB) UserService {
 	return &UserService{db: db}
 }
 
 // GetUserTenants retrieves all tenants for a user
-func (us *UserService) GetUserTenants(ctx context.Context, userID uuid.UUID) ([]domain.UserTenant, error) {
+func (us UserService) GetUserTenants(ctx context.Context, userID uuid.UUID) ([]domain.UserTenant, error) {
 	var userTenants []domain.UserTenant
 	err := us.db.WithContext(ctx).
 		Where("user_id = ?", userID).
@@ -32,7 +32,7 @@ func (us *UserService) GetUserTenants(ctx context.Context, userID uuid.UUID) ([]
 }
 
 // GetUserTenantsByRole retrieves user-tenant relationships filtered by role level
-func (us *UserService) GetUserTenantsByRole(ctx context.Context, userID uuid.UUID, minLevel domain.RoleLevel) ([]domain.UserTenant, error) {
+func (us UserService) GetUserTenantsByRole(ctx context.Context, userID uuid.UUID, minLevel domain.RoleLevel) ([]domain.UserTenant, error) {
 	var userTenants []domain.UserTenant
 	err := us.db.WithContext(ctx).
 		Joins("JOIN roles ON user_tenants.role_id = roles.id").
@@ -45,7 +45,7 @@ func (us *UserService) GetUserTenantsByRole(ctx context.Context, userID uuid.UUI
 }
 
 // GetUserInTenant retrieves a specific user-tenant relationship
-func (us *UserService) GetUserInTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (*domain.UserTenant, error) {
+func (us UserService) GetUserInTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (domain.UserTenant, error) {
 	var userTenant domain.UserTenant
 	err := us.db.WithContext(ctx).
 		Preload("Role").
@@ -63,7 +63,7 @@ func (us *UserService) GetUserInTenant(ctx context.Context, userID uuid.UUID, te
 }
 
 // GetUserRole retrieves the user's role within a specific tenant
-func (us *UserService) GetUserRole(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (*domain.RoleEnhanced, error) {
+func (us UserService) GetUserRole(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (domain.RoleEnhanced, error) {
 	var role domain.RoleEnhanced
 	err := us.db.WithContext(ctx).
 		Joins("JOIN user_tenants ON roles.id = user_tenants.role_id").
@@ -81,27 +81,27 @@ func (us *UserService) GetUserRole(ctx context.Context, userID uuid.UUID, tenant
 }
 
 // GetUserLevel retrieves the user's role level within a specific tenant
-func (us *UserService) GetUserLevel(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (domain.RoleLevel, error) {
+func (us UserService) GetUserLevel(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (domain.RoleLevel, error) {
 	role, err := us.GetUserRole(ctx, userID, tenantID)
 	if err != nil {
-		return 0, err
+		return , err
 	}
 	return role.Level, nil
 }
 
 // ValidateUserInTenant checks if a user belongs to a specific tenant
-func (us *UserService) ValidateUserInTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) bool {
-	var count int64
+func (us UserService) ValidateUserInTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) bool {
+	var count int
 	us.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
 		Count(&count)
 
-	return count > 0
+	return count > 
 }
 
 // ValidateUserPermission checks if a user has a specific permission in a tenant
-func (us *UserService) ValidateUserPermission(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, resource string, action string) (bool, error) {
+func (us UserService) ValidateUserPermission(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, resource string, action string) (bool, error) {
 	// Get user's role
 	role, err := us.GetUserRole(ctx, userID, tenantID)
 	if err != nil {
@@ -114,27 +114,27 @@ func (us *UserService) ValidateUserPermission(ctx context.Context, userID uuid.U
 	}
 
 	// Check if user has the permission
-	var count int64
+	var count int
 	err = us.db.WithContext(ctx).
 		Model(&domain.PermissionDB{}).
 		Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
 		Where("role_permissions.role_id = ? AND permissions.resource = ? AND permissions.action = ?", role.ID, resource, action).
 		Count(&count).Error
 
-	return count > 0, err
+	return count > , err
 }
 
 // GetTenantUsers retrieves all users in a tenant with pagination
-func (us *UserService) GetTenantUsers(ctx context.Context, tenantID uuid.UUID, limit int, offset int) ([]domain.UserTenant, int64, error) {
+func (us UserService) GetTenantUsers(ctx context.Context, tenantID uuid.UUID, limit int, offset int) ([]domain.UserTenant, int, error) {
 	var userTenants []domain.UserTenant
-	var total int64
+	var total int
 
 	// Count total
 	if err := us.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("tenant_id = ?", tenantID).
 		Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, , err
 	}
 
 	// Fetch paginated results
@@ -150,7 +150,7 @@ func (us *UserService) GetTenantUsers(ctx context.Context, tenantID uuid.UUID, l
 }
 
 // ChangeUserRole changes a user's role in a tenant
-func (us *UserService) ChangeUserRole(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, newRoleID uuid.UUID) error {
+func (us UserService) ChangeUserRole(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, newRoleID uuid.UUID) error {
 	// Validate new role exists
 	var role domain.RoleEnhanced
 	if err := us.db.WithContext(ctx).
@@ -167,7 +167,7 @@ func (us *UserService) ChangeUserRole(ctx context.Context, userID uuid.UUID, ten
 }
 
 // AddUserToTenant adds a user to a tenant with a specific role
-func (us *UserService) AddUserToTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, roleID uuid.UUID) error {
+func (us UserService) AddUserToTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, roleID uuid.UUID) error {
 	// Check if user is already in tenant
 	existing, _ := us.GetUserInTenant(ctx, userID, tenantID)
 	if existing != nil {
@@ -192,14 +192,14 @@ func (us *UserService) AddUserToTenant(ctx context.Context, userID uuid.UUID, te
 }
 
 // RemoveUserFromTenant removes a user from a tenant
-func (us *UserService) RemoveUserFromTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) error {
+func (us UserService) RemoveUserFromTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) error {
 	return us.db.WithContext(ctx).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
 		Delete(&domain.UserTenant{}).Error
 }
 
 // GetUserPermissions retrieves all permissions for a user in a tenant
-func (us *UserService) GetUserPermissions(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) ([]string, error) {
+func (us UserService) GetUserPermissions(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) ([]string, error) {
 	// Get user's role
 	role, err := us.GetUserRole(ctx, userID, tenantID)
 	if err != nil {
@@ -208,7 +208,7 @@ func (us *UserService) GetUserPermissions(ctx context.Context, userID uuid.UUID,
 
 	// Admin has all permissions
 	if role.Level == domain.RoleLevelAdmin {
-		return []string{"*:*"}, nil
+		return []string{":"}, nil
 	}
 
 	// Get role permissions
@@ -238,7 +238,7 @@ func (us *UserService) GetUserPermissions(ctx context.Context, userID uuid.UUID,
 }
 
 // CheckUserAccess checks if user can access a specific resource
-func (us *UserService) CheckUserAccess(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, resource string, action string) (bool, error) {
+func (us UserService) CheckUserAccess(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, resource string, action string) (bool, error) {
 	// First validate user is in tenant
 	if !us.ValidateUserInTenant(ctx, userID, tenantID) {
 		return false, nil
@@ -249,8 +249,8 @@ func (us *UserService) CheckUserAccess(ctx context.Context, userID uuid.UUID, te
 }
 
 // GetUserTenantCount retrieves the number of tenants a user belongs to
-func (us *UserService) GetUserTenantCount(ctx context.Context, userID uuid.UUID) (int64, error) {
-	var count int64
+func (us UserService) GetUserTenantCount(ctx context.Context, userID uuid.UUID) (int, error) {
+	var count int
 	err := us.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("user_id = ?", userID).
@@ -260,7 +260,7 @@ func (us *UserService) GetUserTenantCount(ctx context.Context, userID uuid.UUID)
 }
 
 // GetHighestUserRole retrieves the highest-level role a user has across all tenants
-func (us *UserService) GetHighestUserRole(ctx context.Context, userID uuid.UUID) (domain.RoleLevel, error) {
+func (us UserService) GetHighestUserRole(ctx context.Context, userID uuid.UUID) (domain.RoleLevel, error) {
 	var level int
 
 	err := us.db.WithContext(ctx).
@@ -268,30 +268,30 @@ func (us *UserService) GetHighestUserRole(ctx context.Context, userID uuid.UUID)
 		Joins("JOIN user_tenants ON roles.id = user_tenants.role_id").
 		Where("user_tenants.user_id = ?", userID).
 		Order("roles.level DESC").
-		Limit(1).
+		Limit().
 		Pluck("roles.level", &level).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return 0, fmt.Errorf("user has no roles")
+			return , fmt.Errorf("user has no roles")
 		}
-		return 0, err
+		return , err
 	}
 
 	return domain.RoleLevel(level), nil
 }
 
 // ListUsersByRole retrieves all users with a specific role in a tenant
-func (us *UserService) ListUsersByRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID, limit int, offset int) ([]domain.UserTenant, int64, error) {
+func (us UserService) ListUsersByRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID, limit int, offset int) ([]domain.UserTenant, int, error) {
 	var userTenants []domain.UserTenant
-	var total int64
+	var total int
 
 	// Count total
 	if err := us.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("tenant_id = ? AND role_id = ?", tenantID, roleID).
 		Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, , err
 	}
 
 	// Fetch paginated results

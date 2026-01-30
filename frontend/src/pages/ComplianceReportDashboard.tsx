@@ -44,19 +44,19 @@ const ComplianceReportDashboard: React.FC = () => {
   const [report, setReport] = useState<ComplianceReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = useState('d');
 
   // Fetch compliance report
   useEffect(() => {
     const fetchReport = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/compliance/report?range=${timeRange}`);
+        const response = await fetch(/api/compliance/report?range=${timeRange});
         if (response.ok) {
           const data = await response.json();
           setReport(data);
-          if (data.frameworks.length > 0 && !selectedFramework) {
-            setSelectedFramework(data.frameworks[0].name);
+          if (data.frameworks.length >  && !selectedFramework) {
+            setSelectedFramework(data.frameworks[].name);
           }
         }
       } catch (error) {
@@ -71,16 +71,16 @@ const ComplianceReportDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
-        <p className="text-gray-600">Loading compliance report...</p>
+      <div className="min-h-screen bg-gray- p- flex items-center justify-center">
+        <p className="text-gray-">Loading compliance report...</p>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <p className="text-gray-600">Failed to load compliance report</p>
+      <div className="min-h-screen bg-gray- p-">
+        <p className="text-gray-">Failed to load compliance report</p>
       </div>
     );
   }
@@ -91,26 +91,26 @@ const ComplianceReportDashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'compliant':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green- text-green- border-green-';
       case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-yellow- text-yellow- border-yellow-';
       case 'non-compliant':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-red- text-red- border-red-';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray- text-gray- border-gray-';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'compliant':
-        return <CheckCircle size={20} className="text-green-600" />;
+        return <CheckCircle size={} className="text-green-" />;
       case 'warning':
-        return <AlertCircle size={20} className="text-yellow-600" />;
+        return <AlertCircle size={} className="text-yellow-" />;
       case 'non-compliant':
-        return <AlertCircle size={20} className="text-red-600" />;
+        return <AlertCircle size={} className="text-red-" />;
       default:
-        return <Shield size={20} className="text-gray-600" />;
+        return <Shield size={} className="text-gray-" />;
     }
   };
 
@@ -124,102 +124,102 @@ const ComplianceReportDashboard: React.FC = () => {
     {
       name: 'Compliant',
       value: report.frameworks.filter((f) => f.status === 'compliant').length,
-      color: '#10b981',
+      color: 'b',
     },
     {
       name: 'Warning',
       value: report.frameworks.filter((f) => f.status === 'warning').length,
-      color: '#f59e0b',
+      color: 'feb',
     },
     {
       name: 'Non-Compliant',
       value: report.frameworks.filter((f) => f.status === 'non-compliant').length,
-      color: '#ef4444',
+      color: 'ef',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Compliance Report</h1>
-          <p className="text-gray-600 mt-2">Multi-framework compliance dashboard</p>
+    <div className="min-h-screen bg-gray- p-">
+      <div className="max-w-xl mx-auto">
+        {/ Header /}
+        <div className="mb-">
+          <h className="text-xl font-bold text-gray-">Compliance Report</h>
+          <p className="text-gray- mt-">Multi-framework compliance dashboard</p>
         </div>
 
-        {/* Overall Score Card */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-white">
+        {/ Overall Score Card /}
+        <div className="bg-gradient-to-r from-blue- to-purple- rounded-lg shadow p- mb- text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-medium">Overall Compliance Score</p>
-              <p className="text-6xl font-bold mt-2">{report.overallScore}</p>
-              <p className="text-blue-100 text-sm mt-2">out of 100</p>
+              <p className="text-blue- text-sm font-medium">Overall Compliance Score</p>
+              <p className="text-xl font-bold mt-">{report.overallScore}</p>
+              <p className="text-blue- text-sm mt-">out of </p>
             </div>
-            <div className="text-blue-100 opacity-50">
-              <Shield size={80} />
+            <div className="text-blue- opacity-">
+              <Shield size={} />
             </div>
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="flex gap-4 flex-wrap items-center">
+        {/ Controls /}
+        <div className="bg-white rounded-lg shadow p- mb-">
+          <div className="flex gap- flex-wrap items-center">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray- mb-">
                 Time Range
               </label>
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="rounded border-gray-300 border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border-gray- border px- py- focus:outline-none focus:ring- focus:ring-blue-"
               >
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-                <option value="90d">Last 90 Days</option>
-                <option value="1y">Last Year</option>
+                <option value="d">Last  Days</option>
+                <option value="d">Last  Days</option>
+                <option value="d">Last  Days</option>
+                <option value="y">Last Year</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Framework Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/ Framework Cards /}
+        <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap- mb-">
           {report.frameworks.map((framework) => (
             <button
               key={framework.name}
               onClick={() => setSelectedFramework(framework.name)}
-              className={`rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
+              className={rounded-lg shadow p- text-left transition-all hover:shadow-lg ${
                 selectedFramework === framework.name
-                  ? 'ring-2 ring-blue-500 bg-blue-50'
-                  : 'bg-white hover:bg-gray-50'
-              }`}
+                  ? 'ring- ring-blue- bg-blue-'
+                  : 'bg-white hover:bg-gray-'
+              }}
             >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">{framework.name}</h3>
+              <div className="flex items-start justify-between mb-">
+                <h className="text-lg font-bold text-gray-">{framework.name}</h>
                 {getStatusIcon(framework.status)}
               </div>
-              <div className="mb-4">
-                <div className="flex items-baseline gap-1">
-                  <p className="text-3xl font-bold text-gray-900">{framework.score}</p>
-                  <p className="text-gray-600">/100</p>
+              <div className="mb-">
+                <div className="flex items-baseline gap-">
+                  <p className="text-xl font-bold text-gray-">{framework.score}</p>
+                  <p className="text-gray-">/</p>
                 </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray- rounded-full h-">
                 <div
-                  className={`h-2 rounded-full transition-all ${
-                    framework.score >= 80
-                      ? 'bg-green-500'
-                      : framework.score >= 60
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
-                  }`}
-                  style={{ width: `${framework.score}%` }}
+                  className={h- rounded-full transition-all ${
+                    framework.score >= 
+                      ? 'bg-green-'
+                      : framework.score >= 
+                        ? 'bg-yellow-'
+                        : 'bg-red-'
+                  }}
+                  style={{ width: ${framework.score}% }}
                 />
               </div>
               <p
-                className={`text-xs mt-2 px-2 py-1 rounded inline-block font-semibold border ${getStatusColor(
+                className={text-xs mt- px- py- rounded inline-block font-semibold border ${getStatusColor(
                   framework.status
-                )}`}
+                )}}
               >
                 {framework.status.replace('-', ' ').toUpperCase()}
               </p>
@@ -227,39 +227,39 @@ const ComplianceReportDashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Framework Scores */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Framework Scores</h2>
-            <ResponsiveContainer width="100%" height={300}>
+        {/ Charts /}
+        <div className="grid grid-cols- lg:grid-cols- gap- mb-">
+          {/ Framework Scores /}
+          <div className="bg-white rounded-lg shadow p-">
+            <h className="text-xl font-bold text-gray- mb-">Framework Scores</h>
+            <ResponsiveContainer width="%" height={}>
               <BarChart data={frameworkScores}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray=" " />
                 <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
+                <YAxis domain={[, ]} />
                 <Tooltip />
-                <Bar dataKey="score" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="score" fill="bf" radius={[, , , ]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Compliance Status Distribution */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Compliance Status</h2>
-            <ResponsiveContainer width="100%" height={300}>
+          {/ Compliance Status Distribution /}
+          <div className="bg-white rounded-lg shadow p-">
+            <h className="text-xl font-bold text-gray- mb-">Compliance Status</h>
+            <ResponsiveContainer width="%" height={}>
               <PieChart>
                 <Pie
                   data={complianceStatusData}
-                  cx="50%"
-                  cy="50%"
+                  cx="%"
+                  cy="%"
                   labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
+                  label={({ name, value }) => ${name}: ${value}}
+                  outerRadius={}
+                  fill="d"
                   dataKey="value"
                 >
                   {complianceStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={cell-${index}} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -268,22 +268,22 @@ const ComplianceReportDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Compliance Trend */}
-        {report.trend.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Compliance Trend</h2>
-            <ResponsiveContainer width="100%" height={300}>
+        {/ Compliance Trend /}
+        {report.trend.length >  && (
+          <div className="bg-white rounded-lg shadow p- mb-">
+            <h className="text-xl font-bold text-gray- mb-">Compliance Trend</h>
+            <ResponsiveContainer width="%" height={}>
               <LineChart data={report.trend}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray=" " />
                 <XAxis dataKey="date" />
-                <YAxis domain={[0, 100]} />
+                <YAxis domain={[, ]} />
                 <Tooltip />
                 <Legend />
                 <Line
                   type="monotone"
                   dataKey="score"
-                  stroke="#3b82f6"
-                  dot={{ fill: '#3b82f6' }}
+                  stroke="bf"
+                  dot={{ fill: 'bf' }}
                   isAnimationActive={false}
                 />
               </LineChart>
@@ -291,90 +291,90 @@ const ComplianceReportDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Selected Framework Details */}
+        {/ Selected Framework Details /}
         {currentFramework && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Issues */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <AlertCircle size={24} className="text-red-600" />
+          <div className="grid grid-cols- lg:grid-cols- gap- mb-">
+            {/ Issues /}
+            <div className="bg-white rounded-lg shadow p-">
+              <h className="text-xl font-bold text-gray- mb- flex items-center gap-">
+                <AlertCircle size={} className="text-red-" />
                 Issues Found
-              </h2>
-              {currentFramework.issues.length > 0 ? (
-                <ul className="space-y-2">
+              </h>
+              {currentFramework.issues.length >  ? (
+                <ul className="space-y-">
                   {currentFramework.issues.map((issue, idx) => (
                     <li
                       key={idx}
-                      className="flex gap-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+                      className="flex gap- p- bg-red- border border-red- rounded text-red- text-sm"
                     >
-                      <span className="flex-shrink-0">⚠</span>
+                      <span className="flex-shrink-"></span>
                       <span>{issue}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-center py-4">No issues found</p>
+                <p className="text-gray- text-center py-">No issues found</p>
               )}
             </div>
 
-            {/* Recommendations */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CheckCircle size={24} className="text-green-600" />
+            {/ Recommendations /}
+            <div className="bg-white rounded-lg shadow p-">
+              <h className="text-xl font-bold text-gray- mb- flex items-center gap-">
+                <CheckCircle size={} className="text-green-" />
                 Recommendations
-              </h2>
-              {currentFramework.recommendations.length > 0 ? (
-                <ul className="space-y-2">
+              </h>
+              {currentFramework.recommendations.length >  ? (
+                <ul className="space-y-">
                   {currentFramework.recommendations.map((rec, idx) => (
                     <li
                       key={idx}
-                      className="flex gap-3 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm"
+                      className="flex gap- p- bg-green- border border-green- rounded text-green- text-sm"
                     >
-                      <span className="flex-shrink-0">✓</span>
+                      <span className="flex-shrink-"></span>
                       <span>{rec}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-center py-4">No recommendations</p>
+                <p className="text-gray- text-center py-">No recommendations</p>
               )}
             </div>
           </div>
         )}
 
-        {/* Recent Audit Events */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock size={24} />
+        {/ Recent Audit Events /}
+        <div className="bg-white rounded-lg shadow p-">
+          <h className="text-xl font-bold text-gray- mb- flex items-center gap-">
+            <Clock size={} />
             Recent Audit Events
-          </h2>
+          </h>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">User</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Action</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Resource</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Timestamp</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
+                <tr className="border-b border-gray-">
+                  <th className="text-left px- py- font-semibold text-gray-">User</th>
+                  <th className="text-left px- py- font-semibold text-gray-">Action</th>
+                  <th className="text-left px- py- font-semibold text-gray-">Resource</th>
+                  <th className="text-left px- py- font-semibold text-gray-">Timestamp</th>
+                  <th className="text-left px- py- font-semibold text-gray-">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {report.auditEvents.slice(0, 10).map((event) => (
-                  <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{event.user}</td>
-                    <td className="px-4 py-3 text-gray-600">{event.action}</td>
-                    <td className="px-4 py-3 text-gray-600">{event.resource}</td>
-                    <td className="px-4 py-3 text-gray-600 text-sm">
+                {report.auditEvents.slice(, ).map((event) => (
+                  <tr key={event.id} className="border-b border-gray- hover:bg-gray-">
+                    <td className="px- py- text-gray-">{event.user}</td>
+                    <td className="px- py- text-gray-">{event.action}</td>
+                    <td className="px- py- text-gray-">{event.resource}</td>
+                    <td className="px- py- text-gray- text-sm">
                       {new Date(event.timestamp).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px- py-">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={px- py- rounded-full text-xs font-semibold ${
                           event.status === 'success'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
+                            ? 'bg-green- text-green-'
+                            : 'bg-red- text-red-'
+                        }}
                       >
                         {event.status}
                       </span>

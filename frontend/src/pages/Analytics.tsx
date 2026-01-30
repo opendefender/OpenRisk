@@ -58,7 +58,7 @@ export default function Analytics() {
   const fetchDashboard = async () => {
     try {
       setRefreshing(true);
-      const response = await fetch('/api/v1/analytics/dashboard');
+      const response = await fetch('/api/v/analytics/dashboard');
       if (!response.ok) throw new Error("We couldn't load your dashboard. Please refresh the page.");
       const data = await response.json();
       setDashboard(data);
@@ -73,21 +73,21 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchDashboard();
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchDashboard, 5 * 60 * 1000);
+    // Refresh every  minutes
+    const interval = setInterval(fetchDashboard,     );
     return () => clearInterval(interval);
   }, []);
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
-      const response = await fetch(`/api/v1/analytics/export?format=${format}`);
+      const response = await fetch(/api/v/analytics/export?format=${format});
       if (!response.ok) throw new Error("We couldn't export the data. Please try again.");
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analytics-${format}.${format === 'json' ? 'json' : 'csv'}`;
+      a.download = analytics-${format}.${format === 'json' ? 'json' : 'csv'};
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -102,9 +102,9 @@ export default function Analytics() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block animate-spin">
-            <div className="h-8 w-8 border-4 border-blue-400 border-t-blue-600 rounded-full"></div>
+            <div className="h- w- border- border-blue- border-t-blue- rounded-full"></div>
           </div>
-          <p className="mt-4 text-gray-400">Loading analytics...</p>
+          <p className="mt- text-gray-">Loading analytics...</p>
         </div>
       </div>
     );
@@ -112,9 +112,9 @@ export default function Analytics() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
-          <p className="text-red-400">Error: {error}</p>
+      <div className="p-">
+        <div className="bg-red-/ border border-red- rounded-lg p-">
+          <p className="text-red-">Error: {error}</p>
         </div>
       </div>
     );
@@ -122,8 +122,8 @@ export default function Analytics() {
 
   if (!dashboard) {
     return (
-      <div className="p-6">
-        <div className="text-gray-400">No data available</div>
+      <div className="p-">
+        <div className="text-gray-">No data available</div>
       </div>
     );
   }
@@ -133,13 +133,13 @@ export default function Analytics() {
 
   // Prepare chart data
   const riskLevelData = [
-    { name: 'High', value: riskMetrics.high_risks, color: '#ef4444' },
-    { name: 'Medium', value: riskMetrics.medium_risks, color: '#f97316' },
-    { name: 'Low', value: riskMetrics.low_risks, color: '#eab308' },
+    { name: 'High', value: riskMetrics.high_risks, color: 'ef' },
+    { name: 'Medium', value: riskMetrics.medium_risks, color: 'f' },
+    { name: 'Low', value: riskMetrics.low_risks, color: 'eab' },
   ];
 
   const statusData = Object.entries(riskMetrics.risks_by_status).map(([status, count]) => ({
-    name: status.charAt(0).toUpperCase() + status.slice(1),
+    name: status.charAt().toUpperCase() + status.slice(),
     value: count,
   }));
 
@@ -149,45 +149,45 @@ export default function Analytics() {
   }));
 
   return (
-    <div className="space-y-6 pb-6">
-      {/* Header */}
+    <div className="space-y- pb-">
+      {/ Header /}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Analytics Dashboard</h1>
-          <p className="text-gray-400 mt-2">
+          <h className="text-xl font-bold text-white">Analytics Dashboard</h>
+          <p className="text-gray- mt-">
             Last updated: {new Date(dashboard.timestamp).toLocaleString()}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-">
           <button
             onClick={fetchDashboard}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap- px- py- bg-blue- hover:bg-blue- text-white rounded-lg transition disabled:opacity-"
           >
-            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={} className={refreshing ? 'animate-spin' : ''} />
             Refresh
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-">
             <button
               onClick={() => handleExport('json')}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+              className="flex items-center gap- px- py- bg-green- hover:bg-green- text-white rounded-lg transition"
             >
-              <Download size={18} />
+              <Download size={} />
               JSON
             </button>
             <button
               onClick={() => handleExport('csv')}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+              className="flex items-center gap- px- py- bg-green- hover:bg-green- text-white rounded-lg transition"
             >
-              <Download size={18} />
+              <Download size={} />
               CSV
             </button>
           </div>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/ Key Metrics /}
+      <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap-">
         <MetricCard
           title="Total Risks"
           value={riskMetrics.total_risks}
@@ -199,45 +199,45 @@ export default function Analytics() {
           title="Active Risks"
           value={riskMetrics.active_risks}
           percentage={
-            riskMetrics.total_risks > 0
-              ? ((riskMetrics.active_risks / riskMetrics.total_risks) * 100).toFixed(1)
-              : '0'
+            riskMetrics.total_risks > 
+              ? ((riskMetrics.active_risks / riskMetrics.total_risks)  ).toFixed()
+              : ''
           }
           icon={TrendingUp}
         />
         <MetricCard
           title="Avg Risk Score"
-          value={riskMetrics.average_score.toFixed(2)}
-          maxValue="10"
+          value={riskMetrics.average_score.toFixed()}
+          maxValue=""
           icon={TrendingDown}
         />
         <MetricCard
           title="Mitigation Rate"
-          value={mitMetrics.completion_rate.toFixed(1)}
+          value={mitMetrics.completion_rate.toFixed()}
           suffix="%"
           icon={TrendingUp}
         />
       </div>
 
-      {/* Risk Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Risk Levels Pie Chart */}
-        <div className="bg-zinc-900 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Risk Distribution by Level</h2>
-          <ResponsiveContainer width="100%" height={300}>
+      {/ Risk Distribution /}
+      <div className="grid grid-cols- lg:grid-cols- gap-">
+        {/ Risk Levels Pie Chart /}
+        <div className="bg-zinc- rounded-lg p-">
+          <h className="text-xl font-bold text-white mb-">Risk Distribution by Level</h>
+          <ResponsiveContainer width="%" height={}>
             <PieChart>
               <Pie
                 data={riskLevelData}
-                cx="50%"
-                cy="50%"
+                cx="%"
+                cy="%"
                 labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
+                label={({ name, value }) => ${name}: ${value}}
+                outerRadius={}
+                fill="d"
                 dataKey="value"
               >
                 {riskLevelData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={cell-${index}} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
@@ -245,61 +245,61 @@ export default function Analytics() {
           </ResponsiveContainer>
         </div>
 
-        {/* Risk Status Distribution */}
-        <div className="bg-zinc-900 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Risk Status Distribution</h2>
-          <ResponsiveContainer width="100%" height={300}>
+        {/ Risk Status Distribution /}
+        <div className="bg-zinc- rounded-lg p-">
+          <h className="text-xl font-bold text-white mb-">Risk Status Distribution</h>
+          <ResponsiveContainer width="%" height={}>
             <BarChart data={statusData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="name" stroke="#999" />
-              <YAxis stroke="#999" />
-              <Tooltip contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #444' }} />
-              <Bar dataKey="value" fill="#3b82f6" />
+              <CartesianGrid strokeDasharray=" " stroke="" />
+              <XAxis dataKey="name" stroke="" />
+              <YAxis stroke="" />
+              <Tooltip contentStyle={{ backgroundColor: 'fff', border: 'px solid ' }} />
+              <Bar dataKey="value" fill="bf" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Trends */}
-      <div className="bg-zinc-900 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Risk Trends (30 days)</h2>
-        <ResponsiveContainer width="100%" height={300}>
+      {/ Trends /}
+      <div className="bg-zinc- rounded-lg p-">
+        <h className="text-xl font-bold text-white mb-">Risk Trends ( days)</h>
+        <ResponsiveContainer width="%" height={}>
           <LineChart data={dashboard.trends}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+            <CartesianGrid strokeDasharray=" " stroke="" />
             <XAxis
               dataKey="date"
-              stroke="#999"
+              stroke=""
               tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             />
-            <YAxis stroke="#999" />
+            <YAxis stroke="" />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #444' }}
+              contentStyle={{ backgroundColor: 'fff', border: 'px solid ' }}
               labelFormatter={(date) => new Date(date).toLocaleDateString()}
             />
             <Legend />
-            <Line type="monotone" dataKey="count" stroke="#3b82f6" name="Total Risks" />
-            <Line type="monotone" dataKey="avg_score" stroke="#f97316" name="Avg Score" />
-            <Line type="monotone" dataKey="new_risks" stroke="#10b981" name="New Risks" />
+            <Line type="monotone" dataKey="count" stroke="bf" name="Total Risks" />
+            <Line type="monotone" dataKey="avg_score" stroke="f" name="Avg Score" />
+            <Line type="monotone" dataKey="new_risks" stroke="b" name="New Risks" />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Framework Analysis */}
-      <div className="bg-zinc-900 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Risks by Framework</h2>
-        <ResponsiveContainer width="100%" height={300}>
+      {/ Framework Analysis /}
+      <div className="bg-zinc- rounded-lg p-">
+        <h className="text-xl font-bold text-white mb-">Risks by Framework</h>
+        <ResponsiveContainer width="%" height={}>
           <BarChart data={frameworkData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-            <XAxis dataKey="name" stroke="#999" />
-            <YAxis stroke="#999" />
-            <Tooltip contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #444' }} />
-            <Bar dataKey="risks" fill="#8b5cf6" />
+            <CartesianGrid strokeDasharray=" " stroke="" />
+            <XAxis dataKey="name" stroke="" />
+            <YAxis stroke="" />
+            <Tooltip contentStyle={{ backgroundColor: 'fff', border: 'px solid ' }} />
+            <Bar dataKey="risks" fill="bcf" />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Mitigation Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/ Mitigation Metrics /}
+      <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap-">
         <MetricCard
           title="Total Mitigations"
           value={mitMetrics.total_mitigations}
@@ -309,16 +309,16 @@ export default function Analytics() {
           title="Completed"
           value={mitMetrics.completed_mitigations}
           percentage={
-            mitMetrics.total_mitigations > 0
-              ? ((mitMetrics.completed_mitigations / mitMetrics.total_mitigations) * 100).toFixed(1)
-              : '0'
+            mitMetrics.total_mitigations > 
+              ? ((mitMetrics.completed_mitigations / mitMetrics.total_mitigations)  ).toFixed()
+              : ''
           }
           icon={TrendingUp}
         />
         <MetricCard
           title="Overdue"
           value={mitMetrics.overdue_mitigations}
-          alert={mitMetrics.overdue_mitigations > 0}
+          alert={mitMetrics.overdue_mitigations > }
           icon={TrendingDown}
         />
       </div>
@@ -350,26 +350,26 @@ function MetricCard({
   icon: Icon,
 }: MetricCardProps) {
   return (
-    <div className={`bg-zinc-900 rounded-lg p-6 border ${alert ? 'border-red-700' : 'border-zinc-700'}`}>
+    <div className={bg-zinc- rounded-lg p- border ${alert ? 'border-red-' : 'border-zinc-'}}>
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-gray-400 text-sm font-medium">{title}</p>
-          <p className={`text-3xl font-bold mt-2 ${alert ? 'text-red-400' : 'text-white'}`}>
+          <p className="text-gray- text-sm font-medium">{title}</p>
+          <p className={text-xl font-bold mt- ${alert ? 'text-red-' : 'text-white'}}>
             {value}{suffix}
-            {maxValue && <span className="text-sm text-gray-400">/{maxValue}</span>}
+            {maxValue && <span className="text-sm text-gray-">/{maxValue}</span>}
           </p>
           {change !== undefined && (
-            <p className="text-sm text-green-400 mt-2">
+            <p className="text-sm text-green- mt-">
               +{change} {changeLabel}
             </p>
           )}
           {percentage && (
-            <p className="text-sm text-blue-400 mt-2">
+            <p className="text-sm text-blue- mt-">
               {percentage}%
             </p>
           )}
         </div>
-        {Icon && <Icon size={24} className="text-gray-600" />}
+        {Icon && <Icon size={} className="text-gray-" />}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
-/**
- * Centralized RBAC Configuration
- * Defines all permissions, resources, and role templates
- */
+/
+  Centralized RBAC Configuration
+  Defines all permissions, resources, and role templates
+ /
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'execute' | 'manage';
 export type PermissionResource =
@@ -15,9 +15,9 @@ export type PermissionResource =
   | 'integrations'
   | 'api-keys';
 
-/**
- * Resource-Action combinations that form valid permissions
- */
+/
+  Resource-Action combinations that form valid permissions
+ /
 export const RBAC_RESOURCES = {
   ROLES: 'roles',
   USERS: 'users',
@@ -39,9 +39,9 @@ export const RBAC_ACTIONS = {
   MANAGE: 'manage',
 } as const;
 
-/**
- * Feature flags configuration
- */
+/
+  Feature flags configuration
+ /
 export const FEATURES = {
   ROLE_MANAGEMENT: 'role-management',
   TENANT_MANAGEMENT: 'tenant-management',
@@ -55,14 +55,14 @@ export const FEATURES = {
   PERMISSION_ANALYTICS: 'permission-analytics',
 } as const;
 
-/**
- * Standard role permission templates
- * Maps role names to their default permission sets
- */
+/
+  Standard role permission templates
+  Maps role names to their default permission sets
+ /
 export const ROLE_TEMPLATES = {
   VIEWER: {
     name: 'Viewer',
-    level: 0,
+    level: ,
     description: 'Read-only access to dashboards and reports',
     permissions: [
       'dashboards:read',
@@ -72,7 +72,7 @@ export const ROLE_TEMPLATES = {
   },
   ANALYST: {
     name: 'Analyst',
-    level: 3,
+    level: ,
     description: 'Can create and manage dashboards and reports',
     permissions: [
       'dashboards:create',
@@ -86,7 +86,7 @@ export const ROLE_TEMPLATES = {
   },
   MANAGER: {
     name: 'Manager',
-    level: 6,
+    level: ,
     description: 'Can manage users, dashboards, and team settings',
     permissions: [
       'users:create',
@@ -104,7 +104,7 @@ export const ROLE_TEMPLATES = {
   },
   ADMIN: {
     name: 'Administrator',
-    level: 9,
+    level: ,
     description: 'Full system access including role and tenant management',
     permissions: [
       'roles:manage',
@@ -132,10 +132,10 @@ export const ROLE_TEMPLATES = {
   },
 } as const;
 
-/**
- * Permission requirement levels for common operations
- * Useful for determining minimum role needed
- */
+/
+  Permission requirement levels for common operations
+  Useful for determining minimum role needed
+ /
 export const PERMISSION_REQUIREMENTS = {
   VIEW_DASHBOARDS: ['dashboards:read'],
   CREATE_DASHBOARD: ['dashboards:create'],
@@ -155,9 +155,9 @@ export const PERMISSION_REQUIREMENTS = {
   MANAGE_API_KEYS: ['api-keys:manage'],
 } as const;
 
-/**
- * Admin-only permissions that should never be granted to non-admin roles
- */
+/
+  Admin-only permissions that should never be granted to non-admin roles
+ /
 export const PROTECTED_PERMISSIONS = [
   'roles:manage',
   'permissions:manage',
@@ -167,20 +167,20 @@ export const PROTECTED_PERMISSIONS = [
   'api-keys:manage',
 ] as const;
 
-/**
- * Helper to build permission string
- */
+/
+  Helper to build permission string
+ /
 export const buildPermission = (resource: PermissionResource, action: PermissionAction): string => {
-  return `${resource}:${action}`;
+  return ${resource}:${action};
 };
 
-/**
- * Helper to get all permissions for a role template
- */
+/
+  Helper to get all permissions for a role template
+ /
 export const getRolePermissions = (roleLevel: number | string) => {
   const roleKey = typeof roleLevel === 'string' 
     ? roleLevel.toUpperCase() 
-    : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[0];
+    : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[];
   
   if (!roleKey || !(roleKey in ROLE_TEMPLATES)) {
     return [];
@@ -189,13 +189,13 @@ export const getRolePermissions = (roleLevel: number | string) => {
   return ROLE_TEMPLATES[roleKey as keyof typeof ROLE_TEMPLATES].permissions;
 };
 
-/**
- * Helper to get features for a role
- */
+/
+  Helper to get features for a role
+ /
 export const getRoleFeatures = (roleLevel: number | string) => {
   const roleKey = typeof roleLevel === 'string' 
     ? roleLevel.toUpperCase() 
-    : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[0];
+    : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[];
   
   if (!roleKey || !(roleKey in ROLE_TEMPLATES)) {
     return [];

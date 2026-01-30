@@ -3,7 +3,7 @@ package handlers
 import (
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
@@ -11,15 +11,15 @@ import (
 
 // RBACTenantHandler manages tenant RBAC operations
 type RBACTenantHandler struct {
-	tenantService *services.TenantService
-	userService   *services.UserService
+	tenantService services.TenantService
+	userService   services.UserService
 }
 
 // NewRBACTenantHandler creates a new RBAC tenant handler
 func NewRBACTenantHandler(
-	tenantService *services.TenantService,
-	userService *services.UserService,
-) *RBACTenantHandler {
+	tenantService services.TenantService,
+	userService services.UserService,
+) RBACTenantHandler {
 	return &RBACTenantHandler{
 		tenantService: tenantService,
 		userService:   userService,
@@ -28,28 +28,28 @@ func NewRBACTenantHandler(
 
 // ListTenantsResponse contains paginated tenant list
 type ListTenantsResponse struct {
-	Tenants    []domain.Tenant `json:"tenants"`
-	Total      int64           `json:"total"`
-	Limit      int             `json:"limit"`
-	Offset     int             `json:"offset"`
-	HasMore    bool            `json:"has_more"`
-	TotalPages int             `json:"total_pages"`
+	Tenants    []domain.Tenant json:"tenants"
+	Total      int           json:"total"
+	Limit      int             json:"limit"
+	Offset     int             json:"offset"
+	HasMore    bool            json:"has_more"
+	TotalPages int             json:"total_pages"
 }
 
 // ListTenants retrieves all tenants for a user
-func (h *RBACTenantHandler) ListTenants(c *fiber.Ctx) error {
+func (h RBACTenantHandler) ListTenants(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
 
-	limit := 20
-	offset := 0
+	limit := 
+	offset := 
 
 	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed >  {
 			limit = parsed
 		}
 	}
 	if o := c.Query("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >=  {
 			offset = parsed
 		}
 	}
@@ -65,57 +65,57 @@ func (h *RBACTenantHandler) ListTenants(c *fiber.Ctx) error {
 	}
 
 	// Extract tenant IDs and fetch full tenant details
-	tenants := make([]domain.Tenant, 0)
-	total := int64(len(userTenants))
+	tenants := make([]domain.Tenant, )
+	total := int(len(userTenants))
 
 	// Apply pagination
-	if int64(offset) >= total {
+	if int(offset) >= total {
 		return c.JSON(ListTenantsResponse{
 			Tenants:    tenants,
 			Total:      total,
 			Limit:      limit,
 			Offset:     offset,
 			HasMore:    false,
-			TotalPages: 0,
+			TotalPages: ,
 		})
 	}
 
 	endIdx := offset + limit
-	if int64(endIdx) > total {
+	if int(endIdx) > total {
 		endIdx = int(total)
 	}
 
 	for i := offset; i < endIdx; i++ {
 		tenant, err := h.tenantService.GetTenant(ctx, userTenants[i].TenantID)
 		if err == nil {
-			tenants = append(tenants, *tenant)
+			tenants = append(tenants, tenant)
 		}
 	}
 
-	totalPages := (int(total) + limit - 1) / limit
+	totalPages := (int(total) + limit - ) / limit
 
 	return c.JSON(ListTenantsResponse{
 		Tenants:    tenants,
 		Total:      total,
 		Limit:      limit,
 		Offset:     offset,
-		HasMore:    int64(offset+limit) < total,
+		HasMore:    int(offset+limit) < total,
 		TotalPages: totalPages,
 	})
 }
 
 // GetTenantResponse contains tenant details with statistics
 type GetTenantResponse struct {
-	Tenant    domain.Tenant `json:"tenant"`
-	UserCount int64         `json:"user_count"`
-	RoleCount int64         `json:"role_count"`
-	RiskCount int64         `json:"risk_count"`
-	CreatedAt string        `json:"created_at"`
-	UpdatedAt string        `json:"updated_at"`
+	Tenant    domain.Tenant json:"tenant"
+	UserCount int         json:"user_count"
+	RoleCount int         json:"role_count"
+	RiskCount int         json:"risk_count"
+	CreatedAt string        json:"created_at"
+	UpdatedAt string        json:"updated_at"
 }
 
 // GetTenant retrieves a specific tenant
-func (h *RBACTenantHandler) GetTenant(c *fiber.Ctx) error {
+func (h RBACTenantHandler) GetTenant(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
 	ctx := c.Context()
@@ -144,21 +144,21 @@ func (h *RBACTenantHandler) GetTenant(c *fiber.Ctx) error {
 		})
 	}
 
-	userCount := int64(0)
-	roleCount := int64(0)
-	riskCount := int64(0)
-	if uc, ok := stats["user_count"].(int64); ok {
+	userCount := int()
+	roleCount := int()
+	riskCount := int()
+	if uc, ok := stats["user_count"].(int); ok {
 		userCount = uc
 	}
-	if rc, ok := stats["role_count"].(int64); ok {
+	if rc, ok := stats["role_count"].(int); ok {
 		roleCount = rc
 	}
-	if rk, ok := stats["risk_count"].(int64); ok {
+	if rk, ok := stats["risk_count"].(int); ok {
 		riskCount = rk
 	}
 
 	return c.JSON(GetTenantResponse{
-		Tenant:    *tenant,
+		Tenant:    tenant,
 		UserCount: userCount,
 		RoleCount: roleCount,
 		RiskCount: riskCount,
@@ -167,13 +167,13 @@ func (h *RBACTenantHandler) GetTenant(c *fiber.Ctx) error {
 
 // CreateTenantRequest defines request body for creating a tenant
 type CreateTenantRequest struct {
-	Name     string                 `json:"name"`
-	Slug     string                 `json:"slug"`
-	Metadata map[string]interface{} `json:"metadata"`
+	Name     string                 json:"name"
+	Slug     string                 json:"slug"
+	Metadata map[string]interface{} json:"metadata"
 }
 
 // CreateTenant creates a new tenant (admin only)
-func (h *RBACTenantHandler) CreateTenant(c *fiber.Ctx) error {
+func (h RBACTenantHandler) CreateTenant(c fiber.Ctx) error {
 	userID := c.Locals("userID").(uuid.UUID)
 
 	var req CreateTenantRequest
@@ -214,14 +214,14 @@ func (h *RBACTenantHandler) CreateTenant(c *fiber.Ctx) error {
 
 // UpdateTenantRequest defines request body for updating a tenant
 type UpdateTenantRequest struct {
-	Name     string                 `json:"name"`
-	Slug     string                 `json:"slug"`
-	IsActive bool                   `json:"is_active"`
-	Metadata map[string]interface{} `json:"metadata"`
+	Name     string                 json:"name"
+	Slug     string                 json:"slug"
+	IsActive bool                   json:"is_active"
+	Metadata map[string]interface{} json:"metadata"
 }
 
 // UpdateTenant updates an existing tenant
-func (h *RBACTenantHandler) UpdateTenant(c *fiber.Ctx) error {
+func (h RBACTenantHandler) UpdateTenant(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	userID := c.Locals("userID").(uuid.UUID)
 
@@ -246,7 +246,7 @@ func (h *RBACTenantHandler) UpdateTenant(c *fiber.Ctx) error {
 	if tenant.OwnerID != userID {
 		// Check if user is admin in tenant
 		level, err := h.userService.GetUserLevel(ctx, userID, tenantID)
-		if err != nil || level < 9 { // 9 = Admin
+		if err != nil || level <  { //  = Admin
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "only tenant owner or admin can update tenant",
 			})
@@ -273,7 +273,7 @@ func (h *RBACTenantHandler) UpdateTenant(c *fiber.Ctx) error {
 }
 
 // DeleteTenant deletes a tenant (owner only)
-func (h *RBACTenantHandler) DeleteTenant(c *fiber.Ctx) error {
+func (h RBACTenantHandler) DeleteTenant(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	userID := c.Locals("userID").(uuid.UUID)
 
@@ -308,29 +308,29 @@ func (h *RBACTenantHandler) DeleteTenant(c *fiber.Ctx) error {
 
 // GetTenantUsersResponse contains tenant user list
 type GetTenantUsersResponse struct {
-	Users      []domain.UserTenant `json:"users"`
-	Total      int64               `json:"total"`
-	Limit      int                 `json:"limit"`
-	Offset     int                 `json:"offset"`
-	HasMore    bool                `json:"has_more"`
-	TotalPages int                 `json:"total_pages"`
+	Users      []domain.UserTenant json:"users"
+	Total      int               json:"total"
+	Limit      int                 json:"limit"
+	Offset     int                 json:"offset"
+	HasMore    bool                json:"has_more"
+	TotalPages int                 json:"total_pages"
 }
 
 // GetTenantUsers retrieves all users in a tenant
-func (h *RBACTenantHandler) GetTenantUsers(c *fiber.Ctx) error {
+func (h RBACTenantHandler) GetTenantUsers(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	userID := c.Locals("userID").(uuid.UUID)
 
-	limit := 20
-	offset := 0
+	limit := 
+	offset := 
 
 	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed >  {
 			limit = parsed
 		}
 	}
 	if o := c.Query("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >=  {
 			offset = parsed
 		}
 	}
@@ -339,7 +339,7 @@ func (h *RBACTenantHandler) GetTenantUsers(c *fiber.Ctx) error {
 
 	// Check if requestor is admin in tenant
 	level, err := h.userService.GetUserLevel(ctx, userID, tenantID)
-	if err != nil || level < 9 { // 9 = Admin
+	if err != nil || level <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can view tenant users",
 		})
@@ -353,30 +353,30 @@ func (h *RBACTenantHandler) GetTenantUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	totalPages := (int(total) + limit - 1) / limit
+	totalPages := (int(total) + limit - ) / limit
 
 	return c.JSON(GetTenantUsersResponse{
 		Users:      users,
 		Total:      total,
 		Limit:      limit,
 		Offset:     offset,
-		HasMore:    int64(offset+limit) < total,
+		HasMore:    int(offset+limit) < total,
 		TotalPages: totalPages,
 	})
 }
 
 // GetTenantStatsResponse contains tenant statistics
 type GetTenantStatsResponse struct {
-	TenantID        uuid.UUID `json:"tenant_id"`
-	Name            string    `json:"name"`
-	UserCount       int64     `json:"user_count"`
-	RoleCount       int64     `json:"role_count"`
-	RiskCount       int64     `json:"risk_count"`
-	MitigationCount int64     `json:"mitigation_count"`
+	TenantID        uuid.UUID json:"tenant_id"
+	Name            string    json:"name"
+	UserCount       int     json:"user_count"
+	RoleCount       int     json:"role_count"
+	RiskCount       int     json:"risk_count"
+	MitigationCount int     json:"mitigation_count"
 }
 
 // GetTenantStats retrieves statistics for a tenant
-func (h *RBACTenantHandler) GetTenantStats(c *fiber.Ctx) error {
+func (h RBACTenantHandler) GetTenantStats(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
 	ctx := c.Context()
@@ -397,20 +397,20 @@ func (h *RBACTenantHandler) GetTenantStats(c *fiber.Ctx) error {
 		})
 	}
 
-	userCount := int64(0)
-	roleCount := int64(0)
-	riskCount := int64(0)
-	mitigationCount := int64(0)
-	if uc, ok := stats["user_count"].(int64); ok {
+	userCount := int()
+	roleCount := int()
+	riskCount := int()
+	mitigationCount := int()
+	if uc, ok := stats["user_count"].(int); ok {
 		userCount = uc
 	}
-	if rc, ok := stats["role_count"].(int64); ok {
+	if rc, ok := stats["role_count"].(int); ok {
 		roleCount = rc
 	}
-	if rk, ok := stats["risk_count"].(int64); ok {
+	if rk, ok := stats["risk_count"].(int); ok {
 		riskCount = rk
 	}
-	if mc, ok := stats["mitigation_count"].(int64); ok {
+	if mc, ok := stats["mitigation_count"].(int); ok {
 		mitigationCount = mc
 	}
 

@@ -32,81 +32,81 @@ export const Incidents = () => {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
+        return 'bg-red-/ text-red- border-red-/';
       case 'high':
-        return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+        return 'bg-orange-/ text-orange- border-orange-/';
       case 'medium':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        return 'bg-yellow-/ text-yellow- border-yellow-/';
       case 'low':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        return 'bg-blue-/ text-blue- border-blue-/';
       default:
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+        return 'bg-zinc-/ text-zinc- border-zinc-/';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open':
-        return 'bg-red-500/10 text-red-400';
+        return 'bg-red-/ text-red-';
       case 'investigating':
-        return 'bg-yellow-500/10 text-yellow-400';
+        return 'bg-yellow-/ text-yellow-';
       case 'resolved':
-        return 'bg-green-500/10 text-green-400';
+        return 'bg-green-/ text-green-';
       default:
-        return 'bg-zinc-500/10 text-zinc-400';
+        return 'bg-zinc-/ text-zinc-';
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-start md:items-center gap-4">
+    <div className="max-w-xl mx-auto p-">
+      {/ Header /}
+      <div className="mb- flex justify-between items-start md:items-center gap-">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Incidents</h2>
-          <p className="text-zinc-400">Track and manage security incidents across your infrastructure</p>
+          <h className="text-xl font-bold mb-">Incidents</h>
+          <p className="text-zinc-">Track and manage security incidents across your infrastructure</p>
         </div>
         <ViewToggle view={view} onViewChange={setView} />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Total Incidents</div>
-          <div className="text-3xl font-bold">{total}</div>
+      {/ Stats /}
+      <div className="grid grid-cols- md:grid-cols- gap- mb-">
+        <div className="bg-surface border border-border rounded-lg p-">
+          <div className="text-zinc- text-sm mb-">Total Incidents</div>
+          <div className="text-xl font-bold">{total}</div>
         </div>
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Critical</div>
-          <div className="text-3xl font-bold text-red-400">{incidents.filter((i) => i.severity === 'critical').length}</div>
+        <div className="bg-surface border border-border rounded-lg p-">
+          <div className="text-zinc- text-sm mb-">Critical</div>
+          <div className="text-xl font-bold text-red-">{incidents.filter((i) => i.severity === 'critical').length}</div>
         </div>
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Open</div>
-          <div className="text-3xl font-bold text-orange-400">{incidents.filter((i) => i.status === 'open').length}</div>
+        <div className="bg-surface border border-border rounded-lg p-">
+          <div className="text-zinc- text-sm mb-">Open</div>
+          <div className="text-xl font-bold text-orange-">{incidents.filter((i) => i.status === 'open').length}</div>
         </div>
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Resolved</div>
-          <div className="text-3xl font-bold text-green-400">{incidents.filter((i) => i.status === 'resolved').length}</div>
+        <div className="bg-surface border border-border rounded-lg p-">
+          <div className="text-zinc- text-sm mb-">Resolved</div>
+          <div className="text-xl font-bold text-green-">{incidents.filter((i) => i.status === 'resolved').length}</div>
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex items-center gap-2 bg-surface border border-white/5 px-3 py-2 rounded-lg flex-1">
-          <Search size={16} className="text-zinc-500" />
+      {/ Filters & Search /}
+      <div className="flex flex-col gap- mb-">
+        <div className="flex items-center gap- bg-surface border border-white/ px- py- rounded-lg flex-">
+          <Search size={} className="text-zinc-" />
           <input
             type="text"
             placeholder="Search incidents..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-600"
+            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-"
           />
         </div>
-        <div className="flex gap-4">
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-zinc-500" />
+        <div className="flex gap-">
+          <div className="flex items-center gap-">
+            <Filter size={} className="text-zinc-" />
             <select
               value={filterSeverity}
               onChange={(e) => setFilterSeverity(e.target.value)}
-              className="bg-surface border border-border px-3 py-2 rounded-lg text-sm"
+              className="bg-surface border border-border px- py- rounded-lg text-sm"
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
@@ -118,7 +118,7 @@ export const Incidents = () => {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-surface border border-border px-3 py-2 rounded-lg text-sm"
+            className="bg-surface border border-border px- py- rounded-lg text-sm"
           >
             <option value="all">All Status</option>
             <option value="open">Open</option>
@@ -128,57 +128,57 @@ export const Incidents = () => {
         </div>
       </div>
 
-      {/* Incidents List / Grid */}
+      {/ Incidents List / Grid /}
       {view === 'table' && (
-        <div className="space-y-3">
+        <div className="space-y-">
           {isLoading && (
-            <div className="text-center py-12">
-              <p className="text-zinc-400">Loading incidents...</p>
+            <div className="text-center py-">
+              <p className="text-zinc-">Loading incidents...</p>
             </div>
           )}
           {error && (
-            <div className="text-center py-12">
-              <p className="text-red-400">Error: {error}</p>
+            <div className="text-center py-">
+              <p className="text-red-">Error: {error}</p>
             </div>
           )}
-          {!isLoading && filteredIncidents.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertTriangle size={48} className="mx-auto text-zinc-600 mb-4" />
-              <p className="text-zinc-400">No incidents found</p>
+          {!isLoading && filteredIncidents.length ===  ? (
+            <div className="text-center py-">
+              <AlertTriangle size={} className="mx-auto text-zinc- mb-" />
+              <p className="text-zinc-">No incidents found</p>
             </div>
           ) : (
             filteredIncidents.map((incident, index) => (
               <motion.div
                 key={incident.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="bg-surface border border-border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer hover:bg-surface/80"
+                initial={{ opacity: , y:  }}
+                animate={{ opacity: , y:  }}
+                transition={{ duration: ., delay: index  . }}
+                className="bg-surface border border-border rounded-lg p- hover:border-primary/ transition-colors cursor-pointer hover:bg-surface/"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-white">{incident.title}</h3>
-                      <span className={`text-xs font-bold px-2 py-1 rounded border ${getSeverityColor(incident.severity)}`}>
+                  <div className="flex-">
+                    <div className="flex items-center gap- mb-">
+                      <h className="font-semibold text-white">{incident.title}</h>
+                      <span className={text-xs font-bold px- py- rounded border ${getSeverityColor(incident.severity)}}>
                         {incident.severity.toUpperCase()}
                       </span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${getStatusColor(incident.status)}`}>
+                      <span className={text-xs font-bold px- py- rounded ${getStatusColor(incident.status)}}>
                         {incident.status.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-sm text-zinc-400 mb-3">{incident.description}</p>
-                    <div className="flex items-center gap-6 text-xs text-zinc-500">
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} />
+                    <p className="text-sm text-zinc- mb-">{incident.description}</p>
+                    <div className="flex items-center gap- text-xs text-zinc-">
+                      <div className="flex items-center gap-">
+                        <Clock size={} />
                         {new Date(incident.date).toLocaleDateString()}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <User size={14} />
+                      <div className="flex items-center gap-">
+                        <User size={} />
                         {incident.assignee}
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" className="ml-4">View Details</Button>
+                  <Button variant="ghost" className="ml-">View Details</Button>
                 </div>
               </motion.div>
             ))
@@ -187,73 +187,73 @@ export const Incidents = () => {
       )}
 
       {view === 'card' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols- md:grid-cols- lg:grid-cols- gap-">
           {isLoading && (
-            <div className="col-span-full text-center py-12">
-              <p className="text-zinc-400">Loading incidents...</p>
+            <div className="col-span-full text-center py-">
+              <p className="text-zinc-">Loading incidents...</p>
             </div>
           )}
           {error && (
-            <div className="col-span-full text-center py-12">
-              <p className="text-red-400">Error: {error}</p>
+            <div className="col-span-full text-center py-">
+              <p className="text-red-">Error: {error}</p>
             </div>
           )}
-          {!isLoading && filteredIncidents.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <AlertTriangle size={48} className="mx-auto text-zinc-600 mb-4" />
-              <p className="text-zinc-400">No incidents found</p>
+          {!isLoading && filteredIncidents.length ===  ? (
+            <div className="col-span-full text-center py-">
+              <AlertTriangle size={} className="mx-auto text-zinc- mb-" />
+              <p className="text-zinc-">No incidents found</p>
             </div>
           ) : (
             filteredIncidents.map((incident) => (
               <motion.div
                 key={incident.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -4 }}
-                className="bg-surface border border-border rounded-lg p-6 hover:border-primary/50 transition-all cursor-pointer group"
+                initial={{ opacity: , y:  }}
+                animate={{ opacity: , y:  }}
+                whileHover={{ y: - }}
+                className="bg-surface border border-border rounded-lg p- hover:border-primary/ transition-all cursor-pointer group"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-white group-hover:text-primary transition-colors mb-2">
+                <div className="flex items-start justify-between mb-">
+                  <div className="flex-">
+                    <h className="font-semibold text-white group-hover:text-primary transition-colors mb-">
                       {incident.title}
-                    </h3>
-                    <p className="text-xs text-zinc-500">{incident.description?.slice(0, 100)}</p>
+                    </h>
+                    <p className="text-xs text-zinc-">{incident.description?.slice(, )}</p>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded ml-2 flex-shrink-0 ${getSeverityColor(incident.severity)}`}>
-                    {incident.severity.charAt(0).toUpperCase()}
+                  <span className={text-xs font-bold px- py- rounded ml- flex-shrink- ${getSeverityColor(incident.severity)}}>
+                    {incident.severity.charAt().toUpperCase()}
                   </span>
                 </div>
 
-                <div className="space-y-3 mb-4 border-t border-border pt-4">
+                <div className="space-y- mb- border-t border-border pt-">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <AlertTriangle size={14} /> Severity
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <AlertTriangle size={} /> Severity
                     </span>
                     <span className="text-sm font-medium capitalize">{incident.severity}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <Users size={14} /> Status
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <Users size={} /> Status
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(incident.status)}`}>
+                    <span className={text-xs px- py- rounded-full font-medium ${getStatusColor(incident.status)}}>
                       {incident.status.toUpperCase()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <User size={14} /> Assignee
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <User size={} /> Assignee
                     </span>
                     <span className="text-sm">{incident.assignee}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <Clock size={14} /> Date
+                    <span className="text-xs text-zinc- flex items-center gap-">
+                      <Clock size={} /> Date
                     </span>
                     <span className="text-sm">{new Date(incident.date).toLocaleDateString()}</span>
                   </div>
                 </div>
 
-                <Button className="w-full mt-4" variant="ghost">View Details</Button>
+                <Button className="w-full mt-" variant="ghost">View Details</Button>
               </motion.div>
             ))
           )}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -17,9 +17,9 @@ type AuthService struct {
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(jwtSecret string, tokenTTL time.Duration) *AuthService {
-	if tokenTTL == 0 {
-		tokenTTL = 24 * time.Hour // Default to 24 hours
+func NewAuthService(jwtSecret string, tokenTTL time.Duration) AuthService {
+	if tokenTTL ==  {
+		tokenTTL =   time.Hour // Default to  hours
 	}
 	return &AuthService{
 		jwtSecret: jwtSecret,
@@ -28,7 +28,7 @@ func NewAuthService(jwtSecret string, tokenTTL time.Duration) *AuthService {
 }
 
 // GenerateToken creates a JWT token for authenticated user
-func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
+func (s AuthService) GenerateToken(user domain.User) (string, error) {
 	if user == nil {
 		return "", fmt.Errorf("user cannot be nil")
 	}
@@ -56,7 +56,7 @@ func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
 	}
 
 	// Create token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS, claims)
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
@@ -66,10 +66,10 @@ func (s *AuthService) GenerateToken(user *domain.User) (string, error) {
 }
 
 // ValidateToken parses and validates a JWT token
-func (s *AuthService) ValidateToken(tokenString string) (*domain.UserClaims, error) {
+func (s AuthService) ValidateToken(tokenString string) (domain.UserClaims, error) {
 	claims := &domain.UserClaims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(s.jwtSecret), nil
@@ -92,7 +92,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*domain.UserClaims, err
 }
 
 // RefreshToken generates a new token for an existing user
-func (s *AuthService) RefreshToken(userID uuid.UUID) (string, error) {
+func (s AuthService) RefreshToken(userID uuid.UUID) (string, error) {
 	user := &domain.User{}
 	if err := database.DB.Preload("Role").First(user, "id = ?", userID).Error; err != nil {
 		return "", fmt.Errorf("user not found: %w", err)
@@ -106,7 +106,7 @@ func (s *AuthService) RefreshToken(userID uuid.UUID) (string, error) {
 }
 
 // GetUserByEmail retrieves user by email (for login)
-func (s *AuthService) GetUserByEmail(email string) (*domain.User, error) {
+func (s AuthService) GetUserByEmail(email string) (domain.User, error) {
 	user := &domain.User{}
 	if err := database.DB.Preload("Role").First(user, "email = ? AND deleted_at IS NULL", email).Error; err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -115,7 +115,7 @@ func (s *AuthService) GetUserByEmail(email string) (*domain.User, error) {
 }
 
 // CreateUser creates a new user with hashed password
-func (s *AuthService) CreateUser(email, username, fullName, passwordHash string, roleID uuid.UUID) (*domain.User, error) {
+func (s AuthService) CreateUser(email, username, fullName, passwordHash string, roleID uuid.UUID) (domain.User, error) {
 	user := &domain.User{
 		Email:    email,
 		Username: username,
@@ -138,13 +138,13 @@ func (s *AuthService) CreateUser(email, username, fullName, passwordHash string,
 }
 
 // UpdateLastLogin updates user's last login timestamp
-func (s *AuthService) UpdateLastLogin(userID uuid.UUID) error {
+func (s AuthService) UpdateLastLogin(userID uuid.UUID) error {
 	now := time.Now()
 	return database.DB.Model(&domain.User{}).Where("id = ?", userID).Update("last_login", now).Error
 }
 
 // HasPermission checks if user has specific permission
-func (s *AuthService) HasPermission(user *domain.User, permission string) bool {
+func (s AuthService) HasPermission(user domain.User, permission string) bool {
 	if user == nil || user.Role == nil {
 		return false
 	}

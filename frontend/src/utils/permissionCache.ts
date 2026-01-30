@@ -1,7 +1,7 @@
-/**
- * Permission Caching and Memoization Utilities
- * Improves performance by caching permission check results
- */
+/
+  Permission Caching and Memoization Utilities
+  Improves performance by caching permission check results
+ /
 
 export interface CacheEntry<T> {
   value: T;
@@ -9,17 +9,17 @@ export interface CacheEntry<T> {
   ttl?: number; // Time to live in milliseconds
 }
 
-/**
- * Simple cache for permission check results
- */
+/
+  Simple cache for permission check results
+ /
 export class PermissionCache {
   private cache = new Map<string, CacheEntry<boolean>>();
-  private defaultTTL = 5 * 60 * 1000; // 5 minutes default
-  private maxSize = 500; // Max cache entries
+  private defaultTTL =     ; //  minutes default
+  private maxSize = ; // Max cache entries
 
-  /**
-   * Get cached permission check result
-   */
+  /
+    Get cached permission check result
+   /
   get(key: string): boolean | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
@@ -36,9 +36,9 @@ export class PermissionCache {
     return entry.value;
   }
 
-  /**
-   * Set cached permission check result
-   */
+  /
+    Set cached permission check result
+   /
   set(key: string, value: boolean, ttl?: number): void {
     // Prevent unbounded cache growth
     if (this.cache.size >= this.maxSize) {
@@ -56,16 +56,16 @@ export class PermissionCache {
     });
   }
 
-  /**
-   * Clear entire cache
-   */
+  /
+    Clear entire cache
+   /
   clear(): void {
     this.cache.clear();
   }
 
-  /**
-   * Clear expired entries
-   */
+  /
+    Clear expired entries
+   /
   clearExpired(): void {
     const now = Date.now();
     for (const [key, entry] of this.cache.entries()) {
@@ -75,23 +75,23 @@ export class PermissionCache {
     }
   }
 
-  /**
-   * Set default TTL for all future entries
-   */
+  /
+    Set default TTL for all future entries
+   /
   setDefaultTTL(ttl: number): void {
     this.defaultTTL = ttl;
   }
 
-  /**
-   * Get cache size
-   */
+  /
+    Get cache size
+   /
   size(): number {
     return this.cache.size;
   }
 
-  /**
-   * Get cache stats
-   */
+  /
+    Get cache stats
+   /
   getStats(): {
     size: number;
     maxSize: number;
@@ -105,10 +105,10 @@ export class PermissionCache {
   }
 }
 
-/**
- * Create a memoized permission check function
- * Caches results to avoid repeated checking
- */
+/
+  Create a memoized permission check function
+  Caches results to avoid repeated checking
+ /
 export const memoizePermissionCheck = (
   fn: (permission: string) => boolean,
   cache?: PermissionCache
@@ -127,10 +127,10 @@ export const memoizePermissionCheck = (
   };
 };
 
-/**
- * Batch permission check results for efficiency
- * Returns a map of permission -> allowed
- */
+/
+  Batch permission check results for efficiency
+  Returns a map of permission -> allowed
+ /
 export const batchCheckPermissions = (
   permissions: string[],
   checkFn: (permission: string) => boolean,
@@ -153,17 +153,17 @@ export const batchCheckPermissions = (
   return result;
 };
 
-/**
- * Debounce cache invalidation
- * Useful when user permissions update to avoid thrashing cache clears
- */
+/
+  Debounce cache invalidation
+  Useful when user permissions update to avoid thrashing cache clears
+ /
 export class DebouncedPermissionCache extends PermissionCache {
   private debounceTimer: NodeJS.Timeout | null = null;
-  private debounceDelay = 1000; // 1 second
+  private debounceDelay = ; //  second
 
-  /**
-   * Clear cache with debounce
-   */
+  /
+    Clear cache with debounce
+   /
   debouncedClear(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -175,16 +175,16 @@ export class DebouncedPermissionCache extends PermissionCache {
     }, this.debounceDelay);
   }
 
-  /**
-   * Set debounce delay
-   */
+  /
+    Set debounce delay
+   /
   setDebounceDelay(delay: number): void {
     this.debounceDelay = delay;
   }
 
-  /**
-   * Cancel pending clear
-   */
+  /
+    Cancel pending clear
+   /
   cancelPendingClear(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -193,15 +193,15 @@ export class DebouncedPermissionCache extends PermissionCache {
   }
 }
 
-/**
- * Global permission cache instance
- */
+/
+  Global permission cache instance
+ /
 export const permissionCache = new DebouncedPermissionCache();
 
-/**
- * React hook for getting cached permission check function
- * Provides memoized permission checking with cache management
- */
+/
+  React hook for getting cached permission check function
+  Provides memoized permission checking with cache management
+ /
 export const useCachedPermissionCheck = (
   checkFn: (permission: string) => boolean
 ) => {

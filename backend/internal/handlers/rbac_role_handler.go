@@ -3,7 +3,7 @@ package handlers
 import (
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
@@ -11,17 +11,17 @@ import (
 
 // RBACRoleHandler manages role RBAC operations
 type RBACRoleHandler struct {
-	roleService       *services.RoleService
-	permissionService *services.PermissionService
-	userService       *services.UserService
+	roleService       services.RoleService
+	permissionService services.PermissionService
+	userService       services.UserService
 }
 
 // NewRBACRoleHandler creates a new RBAC role handler
 func NewRBACRoleHandler(
-	roleService *services.RoleService,
-	permissionService *services.PermissionService,
-	userService *services.UserService,
-) *RBACRoleHandler {
+	roleService services.RoleService,
+	permissionService services.PermissionService,
+	userService services.UserService,
+) RBACRoleHandler {
 	return &RBACRoleHandler{
 		roleService:       roleService,
 		permissionService: permissionService,
@@ -31,28 +31,28 @@ func NewRBACRoleHandler(
 
 // ListRolesResponse contains paginated role list
 type ListRolesResponse struct {
-	Roles      []domain.RoleEnhanced `json:"roles"`
-	Total      int64                 `json:"total"`
-	Limit      int                   `json:"limit"`
-	Offset     int                   `json:"offset"`
-	HasMore    bool                  `json:"has_more"`
-	TotalPages int                   `json:"total_pages"`
+	Roles      []domain.RoleEnhanced json:"roles"
+	Total      int                 json:"total"
+	Limit      int                   json:"limit"
+	Offset     int                   json:"offset"
+	HasMore    bool                  json:"has_more"
+	TotalPages int                   json:"total_pages"
 }
 
 // ListRoles retrieves all roles in a tenant
-func (h *RBACRoleHandler) ListRoles(c *fiber.Ctx) error {
+func (h RBACRoleHandler) ListRoles(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
-	limit := 20
-	offset := 0
+	limit := 
+	offset := 
 
 	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed >  {
 			limit = parsed
 		}
 	}
 	if o := c.Query("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >=  {
 			offset = parsed
 		}
 	}
@@ -65,7 +65,7 @@ func (h *RBACRoleHandler) ListRoles(c *fiber.Ctx) error {
 		})
 	}
 
-	totalPages := (int(total) + limit - 1) / limit
+	totalPages := (int(total) + limit - ) / limit
 
 	return c.JSON(ListRolesResponse{
 		Roles:      roles,
@@ -79,13 +79,13 @@ func (h *RBACRoleHandler) ListRoles(c *fiber.Ctx) error {
 
 // GetRoleResponse contains role details with permissions
 type GetRoleResponse struct {
-	Role        domain.RoleEnhanced   `json:"role"`
-	Permissions []domain.PermissionDB `json:"permissions"`
-	UserCount   int64                 `json:"user_count"`
+	Role        domain.RoleEnhanced   json:"role"
+	Permissions []domain.PermissionDB json:"permissions"
+	UserCount   int                 json:"user_count"
 }
 
 // GetRole retrieves a specific role with its permissions
-func (h *RBACRoleHandler) GetRole(c *fiber.Ctx) error {
+func (h RBACRoleHandler) GetRole(c fiber.Ctx) error {
 	roleIDStr := c.Params("role_id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
@@ -113,24 +113,24 @@ func (h *RBACRoleHandler) GetRole(c *fiber.Ctx) error {
 	}
 
 	// Note: User count would require a database query
-	// For now, returning 0 as placeholder
+	// For now, returning  as placeholder
 
 	return c.JSON(GetRoleResponse{
-		Role:        *role,
+		Role:        role,
 		Permissions: permissions,
-		UserCount:   0,
+		UserCount:   ,
 	})
 }
 
 // CreateRoleRequest defines request body for creating a role
 type CreateRoleRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Level       int    `json:"level"`
+	Name        string json:"name"
+	Description string json:"description"
+	Level       int    json:"level"
 }
 
 // CreateRole creates a new custom role in the tenant
-func (h *RBACRoleHandler) CreateRole(c *fiber.Ctx) error {
+func (h RBACRoleHandler) CreateRole(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -151,7 +151,7 @@ func (h *RBACRoleHandler) CreateRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can create roles",
 		})
@@ -186,13 +186,13 @@ func (h *RBACRoleHandler) CreateRole(c *fiber.Ctx) error {
 
 // UpdateRoleRequest defines request body for updating a role
 type UpdateRoleRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsActive    bool   `json:"is_active"`
+	Name        string json:"name"
+	Description string json:"description"
+	IsActive    bool   json:"is_active"
 }
 
 // UpdateRole updates an existing role
-func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
+func (h RBACRoleHandler) UpdateRole(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -221,7 +221,7 @@ func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can update roles",
 		})
@@ -251,7 +251,7 @@ func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
 }
 
 // DeleteRole deletes a custom role
-func (h *RBACRoleHandler) DeleteRole(c *fiber.Ctx) error {
+func (h RBACRoleHandler) DeleteRole(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -273,7 +273,7 @@ func (h *RBACRoleHandler) DeleteRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can delete roles",
 		})
@@ -293,12 +293,12 @@ func (h *RBACRoleHandler) DeleteRole(c *fiber.Ctx) error {
 
 // GetRolePermissionsResponse contains role permissions
 type GetRolePermissionsResponse struct {
-	RoleID      uuid.UUID             `json:"role_id"`
-	Permissions []domain.PermissionDB `json:"permissions"`
+	RoleID      uuid.UUID             json:"role_id"
+	Permissions []domain.PermissionDB json:"permissions"
 }
 
 // GetRolePermissions retrieves all permissions for a role
-func (h *RBACRoleHandler) GetRolePermissions(c *fiber.Ctx) error {
+func (h RBACRoleHandler) GetRolePermissions(c fiber.Ctx) error {
 	roleIDStr := c.Params("role_id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
@@ -324,11 +324,11 @@ func (h *RBACRoleHandler) GetRolePermissions(c *fiber.Ctx) error {
 
 // AssignPermissionRequest defines request body for assigning permission
 type AssignPermissionRequest struct {
-	PermissionID string `json:"permission_id"`
+	PermissionID string json:"permission_id"
 }
 
 // AssignPermissionToRole assigns a permission to a role
-func (h *RBACRoleHandler) AssignPermissionToRole(c *fiber.Ctx) error {
+func (h RBACRoleHandler) AssignPermissionToRole(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -364,7 +364,7 @@ func (h *RBACRoleHandler) AssignPermissionToRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can assign permissions",
 		})
@@ -384,11 +384,11 @@ func (h *RBACRoleHandler) AssignPermissionToRole(c *fiber.Ctx) error {
 
 // RemovePermissionRequest defines request body for removing permission
 type RemovePermissionRequest struct {
-	PermissionID string `json:"permission_id"`
+	PermissionID string json:"permission_id"
 }
 
 // RemovePermissionFromRole removes a permission from a role
-func (h *RBACRoleHandler) RemovePermissionFromRole(c *fiber.Ctx) error {
+func (h RBACRoleHandler) RemovePermissionFromRole(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -424,7 +424,7 @@ func (h *RBACRoleHandler) RemovePermissionFromRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can remove permissions",
 		})

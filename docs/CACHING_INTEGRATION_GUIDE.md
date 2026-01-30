@@ -1,25 +1,25 @@
-# Phase 5: Caching Integration Guide
+ Phase : Caching Integration Guide
 
-## Overview
+ Overview
 This document outlines how to integrate the cache layer into your API handlers to improve performance. The caching infrastructure has been implemented in three layers:
 
-1. **Cache Middleware** (`internal/cache/middleware.go`) - Generic middleware for any handler
-2. **Cache Integration Helpers** (`internal/handlers/cache_integration.go`) - Handler-specific utilities
-3. **Monitoring Stack** - Docker Compose with Prometheus + Grafana
+. Cache Middleware (internal/cache/middleware.go) - Generic middleware for any handler
+. Cache Integration Helpers (internal/handlers/cache_integration.go) - Handler-specific utilities
+. Monitoring Stack - Docker Compose with Prometheus + Grafana
 
-## Quick Start: 3-Step Integration
+ Quick Start: -Step Integration
 
-### Step 1: Import Cache Package
-```go
+ Step : Import Cache Package
+go
 import (
     "github.com/opendefender/openrisk/internal/cache"
 )
-```
 
-### Step 2: Initialize CacheableHandlers in main.go
-In your `cmd/server/main.go`, after initializing services:
 
-```go
+ Step : Initialize CacheableHandlers in main.go
+In your cmd/server/main.go, after initializing services:
+
+go
 // After database initialization and service setup
 cacheInstance := cache.NewRedisCache(
     cfg.Redis.Host,
@@ -27,56 +27,56 @@ cacheInstance := cache.NewRedisCache(
     cfg.Redis.Password,
 )
 cacheableHandlers := handlers.NewCacheableHandlers(cacheInstance)
-```
 
-### Step 3: Wrap Your Route Handlers
 
-#### Before (without caching):
-```go
+ Step : Wrap Your Route Handlers
+
+ Before (without caching):
+go
 protected.Get("/risks", handlers.GetRisks)
-```
 
-#### After (with caching):
-```go
+
+ After (with caching):
+go
 protected.Get("/risks", cacheableHandlers.CacheRiskListGET(handlers.GetRisks))
-```
 
-## Endpoint-Specific Integration
 
-### Risk Endpoints
+ Endpoint-Specific Integration
 
-#### List Risks (High-Impact - Frequently accessed)
-```go
+ Risk Endpoints
+
+ List Risks (High-Impact - Frequently accessed)
+go
 // Caches by: page, severity, status, search query
 protected.Get("/risks", 
     cacheableHandlers.CacheRiskListGET(handlers.GetRisks))
 
-// TTL: 5 minutes (configurable via CacheConfig.RiskCacheTTL)
-// Cache Keys: risk:list:page=1:severity=high:status=open
-```
+// TTL:  minutes (configurable via CacheConfig.RiskCacheTTL)
+// Cache Keys: risk:list:page=:severity=high:status=open
 
-#### Get Risk by ID
-```go
+
+ Get Risk by ID
+go
 // Caches individual risk details
 protected.Get("/risks/:id",
     cacheableHandlers.CacheRiskGetByIDGET(handlers.GetRisk))
 
-// TTL: 5 minutes
+// TTL:  minutes
 // Cache Keys: risk:id:{riskID}
-```
 
-#### Search Risks (High-Impact - Complex query)
-```go
-// Caches search results with MD5 hash of query
+
+ Search Risks (High-Impact - Complex query)
+go
+// Caches search results with MD hash of query
 api.Get("/risks/search",
     cacheableHandlers.CacheRiskSearchGET(handlers.SearchRisks))
 
-// TTL: 5 minutes
-// Cache Keys: risk:search:{md5hash of query string}
-```
+// TTL:  minutes
+// Cache Keys: risk:search:{mdhash of query string}
 
-#### Create/Update/Delete Risks (Invalidation)
-```go
+
+ Create/Update/Delete Risks (Invalidation)
+go
 // These mutations invalidate related caches automatically
 protected.Post("/risks", 
     riskCreate, 
@@ -92,107 +92,107 @@ protected.Delete("/risks/:id",
     riskDelete,
     cacheableHandlers.CacheInvalidationMiddleware(),
     handlers.DeleteRisk)
-```
 
-**Automatic Cache Invalidation:**
-- Creating a risk → Invalidates: `risk:list:*`, `dashboard:stats:*`
-- Updating a risk → Invalidates: `risk:id:{id}`, `risk:list:*`, `dashboard:*`
-- Deleting a risk → Invalidates: `risk:id:{id}`, `risk:list:*`, `dashboard:*`, `report:*`
 
-### Dashboard Endpoints
+Automatic Cache Invalidation:
+- Creating a risk → Invalidates: risk:list:, dashboard:stats:
+- Updating a risk → Invalidates: risk:id:{id}, risk:list:, dashboard:
+- Deleting a risk → Invalidates: risk:id:{id}, risk:list:, dashboard:, report:
 
-#### Dashboard Statistics (High-Impact)
-```go
-// Caches statistics by period (24h, 7d, 30d, etc.)
+ Dashboard Endpoints
+
+ Dashboard Statistics (High-Impact)
+go
+// Caches statistics by period (h, d, d, etc.)
 protected.Get("/stats",
     cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
 
-// TTL: 10 minutes
-// Cache Keys: dashboard:stats:period=24h, dashboard:stats:period=7d
-```
+// TTL:  minutes
+// Cache Keys: dashboard:stats:period=h, dashboard:stats:period=d
 
-#### Risk Matrix (Static Data)
-```go
+
+ Risk Matrix (Static Data)
+go
 // Caches risk matrix visualization data
 api.Get("/stats/risk-matrix",
     cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
 
-// TTL: 10 minutes
+// TTL:  minutes
 // Cache Keys: dashboard:matrix
-```
 
-#### Timeline Data
-```go
+
+ Timeline Data
+go
 // Caches risk trend timeline
 api.Get("/stats/trends",
     middleware.Protected(),
     cacheableHandlers.CacheDashboardTimelineGET(handlers.GetGlobalRiskTrend))
 
-// TTL: 10 minutes
-// Cache Keys: dashboard:timeline:days=30
-```
+// TTL:  minutes
+// Cache Keys: dashboard:timeline:days=
 
-### Marketplace/Connector Endpoints
 
-#### List Connectors
-```go
+ Marketplace/Connector Endpoints
+
+ List Connectors
+go
 // Caches with category and status filters
 api.Get("/marketplace/connectors",
     cacheableHandlers.CacheConnectorListGET(handlers.ListConnectors))
 
-// TTL: 15 minutes
+// TTL:  minutes
 // Cache Keys: marketplace:connectors:list:category=all:status=all
-```
 
-#### Get Connector by ID
-```go
+
+ Get Connector by ID
+go
 // Caches individual connector details
 api.Get("/marketplace/connectors/:id",
     cacheableHandlers.CacheConnectorGetByIDGET(handlers.GetConnectorByID))
 
-// TTL: 15 minutes
+// TTL:  minutes
 // Cache Keys: marketplace:connector:{connectorID}
-```
 
-#### Get Marketplace App
-```go
+
+ Get Marketplace App
+go
 // Caches app metadata (rarely changes)
 api.Get("/marketplace/apps/:id",
     cacheableHandlers.CacheMarketplaceAppGetByIDGET(handlers.GetMarketplaceApp))
 
-// TTL: 20 minutes (longest TTL for stable data)
+// TTL:  minutes (longest TTL for stable data)
 // Cache Keys: marketplace:app:{appID}
-```
 
-## Cache Configuration
 
-### Default TTLs (in `cache_integration.go`)
-```go
+ Cache Configuration
+
+ Default TTLs (in cache_integration.go)
+go
 CacheConfig{
-    RiskCacheTTL:           5 * time.Minute,        // Risk data changes frequently
-    DashboardCacheTTL:      10 * time.Minute,       // Stats are aggregate/slower to compute
-    ConnectorCacheTTL:      15 * time.Minute,       // Connectors relatively stable
-    MarketplaceAppTTL:      20 * time.Minute,       // App metadata very stable
+    RiskCacheTTL:             time.Minute,        // Risk data changes frequently
+    DashboardCacheTTL:        time.Minute,       // Stats are aggregate/slower to compute
+    ConnectorCacheTTL:        time.Minute,       // Connectors relatively stable
+    MarketplaceAppTTL:        time.Minute,       // App metadata very stable
 }
-```
 
-### Customize TTLs
-```go
+
+ Customize TTLs
+go
 // In main.go
 cacheConfig := handlers.CacheConfig{
-    RiskCacheTTL:           3 * time.Minute,        // More aggressive for real-time data
-    DashboardCacheTTL:      5 * time.Minute,        
-    ConnectorCacheTTL:      30 * time.Minute,       
-    MarketplaceAppTTL:      60 * time.Minute,       
+    RiskCacheTTL:             time.Minute,        // More aggressive for real-time data
+    DashboardCacheTTL:        time.Minute,        
+    ConnectorCacheTTL:        time.Minute,       
+    MarketplaceAppTTL:        time.Minute,       
 }
 cacheableHandlers.Config = cacheConfig
-```
 
-## Manual Cache Invalidation
+
+ Manual Cache Invalidation
 
 When you need to invalidate caches programmatically:
 
-```go
+go
 // Invalidate all risk-related caches
 cacheableHandlers.InvalidateRiskCaches(ctx)
 
@@ -204,12 +204,12 @@ cacheableHandlers.InvalidateDashboardCaches(ctx)
 
 // Invalidate all marketplace caches
 cacheableHandlers.InvalidateMarketplaceCaches(ctx)
-```
 
-## Example: Full Handler Integration
 
-### Before (No Caching)
-```go
+ Example: Full Handler Integration
+
+ Before (No Caching)
+go
 // File: cmd/server/main.go
 protected.Get("/risks", 
     middleware.RequirePermissions(permissionService, domain.Permission{
@@ -217,10 +217,10 @@ protected.Get("/risks",
         Action:   domain.PermissionRead,
     }),
     handlers.GetRisks)
-```
 
-### After (With Caching)
-```go
+
+ After (With Caching)
+go
 // File: cmd/server/main.go
 import (
     "github.com/opendefender/openrisk/internal/cache"
@@ -246,124 +246,124 @@ func main() {
         }),
         cacheableHandlers.CacheRiskListGET(handlers.GetRisks))
 }
-```
 
-## Monitoring Your Cache
 
-### Start the Monitoring Stack
-```bash
+ Monitoring Your Cache
+
+ Start the Monitoring Stack
+bash
 cd deployment
 docker-compose -f docker-compose-monitoring.yaml up -d
-```
 
-### Access Dashboards
-- **Grafana**: http://localhost:3001 (admin/admin)
-- **Prometheus**: http://localhost:9090
 
-### Key Metrics to Monitor
+ Access Dashboards
+- Grafana: http://localhost: (admin/admin)
+- Prometheus: http://localhost:
 
-1. **Cache Hit Rate** (Target: > 75%)
+ Key Metrics to Monitor
+
+. Cache Hit Rate (Target: > %)
    - Dashboard: "Cache Hit Ratio" pie chart
-   - Alert: Fires if < 75% for 5 minutes
+   - Alert: Fires if < % for  minutes
 
-2. **Response Time** (Target: P95 < 100ms)
+. Response Time (Target: P < ms)
    - Dashboard: "Database Query Performance" line chart
    - Shows reduction in query time with caching
 
-3. **Redis Memory** (Target: < 85%)
+. Redis Memory (Target: < %)
    - Dashboard: "Redis Memory Usage" line chart
-   - Alert: Fires if > 85% for 5 minutes
+   - Alert: Fires if > % for  minutes
 
-4. **Database Connections** (Target: < 40)
+. Database Connections (Target: < )
    - Dashboard: "PostgreSQL Active Connections" stat
-   - Alert: Fires if > 40 for 5 minutes
+   - Alert: Fires if >  for  minutes
 
-## Testing Your Integration
+ Testing Your Integration
 
-### 1. Start Services
-```bash
-# Terminal 1: Backend with cache
+ . Start Services
+bash
+ Terminal : Backend with cache
 go run ./cmd/server/main.go
 
-# Terminal 2: Start monitoring
+ Terminal : Start monitoring
 cd deployment
 docker-compose -f docker-compose-monitoring.yaml up -d
 
-# Terminal 3: Run k6 load tests
-k6 run ./load_tests/cache_test.js
-```
+ Terminal : Run k load tests
+k run ./load_tests/cache_test.js
 
-### 2. Verify Cache Hits
-```bash
-# Watch real-time cache metrics
-watch 'curl -s http://localhost:9090/api/v1/query?query=redis_hits_total | jq'
-```
 
-### 3. Expected Results
-- **Without caching**: ~50ms per request, 0 cache hits
-- **With caching**: ~5ms per request (warmed cache), 75%+ hit rate
-- **Improvement**: 90% reduction in response time
+ . Verify Cache Hits
+bash
+ Watch real-time cache metrics
+watch 'curl -s http://localhost:/api/v/query?query=redis_hits_total | jq'
 
-## Troubleshooting
 
-### Cache Misses Too High (< 50%)
-**Cause**: Cache TTL too short or filters changing too much
-**Solution**: 
+ . Expected Results
+- Without caching: ~ms per request,  cache hits
+- With caching: ~ms per request (warmed cache), %+ hit rate
+- Improvement: % reduction in response time
+
+ Troubleshooting
+
+ Cache Misses Too High (< %)
+Cause: Cache TTL too short or filters changing too much
+Solution: 
 - Increase TTL for that endpoint
 - Check if query parameters are changing (causes different cache keys)
 
-### High Memory Usage (> 90%)
-**Cause**: Too much data cached or TTL too long
-**Solution**:
-- Reduce TTL (5min → 3min)
+ High Memory Usage (> %)
+Cause: Too much data cached or TTL too long
+Solution:
+- Reduce TTL (min → min)
 - Add cache size limits in Redis config
 - Check for query parameter explosion (pagination differences)
 
-### Cache Not Invalidating on Mutations
-**Cause**: Forgot to wrap the POST/PUT/DELETE handler
-**Solution**:
-- Add `cacheableHandlers.CacheInvalidationMiddleware()` to mutation endpoints
-- Verify `InvalidateRiskCaches()` is being called
+ Cache Not Invalidating on Mutations
+Cause: Forgot to wrap the POST/PUT/DELETE handler
+Solution:
+- Add cacheableHandlers.CacheInvalidationMiddleware() to mutation endpoints
+- Verify InvalidateRiskCaches() is being called
 
-### Redis Connection Failed
-**Cause**: Redis container not running or wrong credentials
-**Solution**:
-```bash
-# Restart monitoring stack
+ Redis Connection Failed
+Cause: Redis container not running or wrong credentials
+Solution:
+bash
+ Restart monitoring stack
 cd deployment
 docker-compose -f docker-compose-monitoring.yaml restart redis
 
-# Check credentials in .env
+ Check credentials in .env
 echo $REDIS_PASSWORD
-```
 
-## Performance Targets
 
-### Phase 5 Objectives
-- [ ] Cache hit rate: **> 75%**
-- [ ] Response time P95: **< 100ms** (vs 200ms baseline)
-- [ ] Throughput: **> 1000 req/s** (vs 500 req/s baseline)
-- [ ] Redis memory: **< 500MB** for typical workload
-- [ ] Database connections: **< 30** (vs 50 baseline)
+ Performance Targets
 
-### Load Test Command
-```bash
-# 10 virtual users, 5 minute test
-k6 run \
-  --vus 10 \
-  --duration 5m \
+ Phase  Objectives
+- [ ] Cache hit rate: > %
+- [ ] Response time P: < ms (vs ms baseline)
+- [ ] Throughput: >  req/s (vs  req/s baseline)
+- [ ] Redis memory: < MB for typical workload
+- [ ] Database connections: <  (vs  baseline)
+
+ Load Test Command
+bash
+  virtual users,  minute test
+k run \
+  --vus  \
+  --duration m \
   ./load_tests/cache_test.js
-```
 
-## Next Steps
 
-1. **Integrate handlers** - Apply caching to risk/dashboard/marketplace endpoints
-2. **Test performance** - Run k6 load tests and verify metrics in Grafana
-3. **Optimize TTLs** - Adjust caching durations based on hit rate metrics
-4. **Document results** - Update performance benchmarks in README
-5. **Deploy to staging** - Test with realistic workload before production
+ Next Steps
 
-## References
+. Integrate handlers - Apply caching to risk/dashboard/marketplace endpoints
+. Test performance - Run k load tests and verify metrics in Grafana
+. Optimize TTLs - Adjust caching durations based on hit rate metrics
+. Document results - Update performance benchmarks in README
+. Deploy to staging - Test with realistic workload before production
+
+ References
 
 - [Cache Middleware Code](../backend/internal/cache/middleware.go)
 - [Cache Integration Code](../backend/internal/handlers/cache_integration.go)

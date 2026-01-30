@@ -19,35 +19,35 @@ ConnectionMaxIdleTime time.Duration
 // DefaultConnectionPoolConfig provides balanced settings for general workloads
 func DefaultConnectionPoolConfig() ConnectionPoolConfig {
 return ConnectionPoolConfig{
-MaxOpenConnections:    50,
-MaxIdleConnections:    10,
-ConnectionMaxLifetime: 15 * time.Minute,
-ConnectionMaxIdleTime: 5 * time.Minute,
+MaxOpenConnections:    ,
+MaxIdleConnections:    ,
+ConnectionMaxLifetime:   time.Minute,
+ConnectionMaxIdleTime:   time.Minute,
 }
 }
 
 // HighThroughputConnectionPoolConfig for high-traffic scenarios (enterprise)
 func HighThroughputConnectionPoolConfig() ConnectionPoolConfig {
 return ConnectionPoolConfig{
-MaxOpenConnections:    200,
-MaxIdleConnections:    50,
-ConnectionMaxLifetime: 15 * time.Minute,
-ConnectionMaxIdleTime: 5 * time.Minute,
+MaxOpenConnections:    ,
+MaxIdleConnections:    ,
+ConnectionMaxLifetime:   time.Minute,
+ConnectionMaxIdleTime:   time.Minute,
 }
 }
 
 // LowLatencyConnectionPoolConfig for latency-sensitive operations
 func LowLatencyConnectionPoolConfig() ConnectionPoolConfig {
 return ConnectionPoolConfig{
-MaxOpenConnections:    100,
-MaxIdleConnections:    25,
-ConnectionMaxLifetime: 10 * time.Minute,
-ConnectionMaxIdleTime: 2 * time.Minute,
+MaxOpenConnections:    ,
+MaxIdleConnections:    ,
+ConnectionMaxLifetime:   time.Minute,
+ConnectionMaxIdleTime:   time.Minute,
 }
 }
 
 // ApplyConnectionPoolConfig applies pool configuration to GORM database
-func ApplyConnectionPoolConfig(db *gorm.DB, config ConnectionPoolConfig) error {
+func ApplyConnectionPoolConfig(db gorm.DB, config ConnectionPoolConfig) error {
 sqlDB, err := db.DB()
 if err != nil {
 return fmt.Errorf("failed to get database instance: %w", err)
@@ -67,24 +67,24 @@ OpenConnections    int
 InUseConnections   int
 IdleConnections    int
 MaxOpenConnections int
-WaitCount          int64
+WaitCount          int
 WaitDuration       time.Duration
-MaxIdleClosed      int64
-MaxLifetimeClosed  int64
+MaxIdleClosed      int
+MaxLifetimeClosed  int
 }
 
 // PoolHealthCheck verifies database connection pool health
 type PoolHealthCheck struct {
-db *gorm.DB
+db gorm.DB
 }
 
 // NewPoolHealthCheck creates health check utility
-func NewPoolHealthCheck(db *gorm.DB) *PoolHealthCheck {
+func NewPoolHealthCheck(db gorm.DB) PoolHealthCheck {
 return &PoolHealthCheck{db: db}
 }
 
 // GetPoolStats retrieves current pool statistics
-func (phc *PoolHealthCheck) GetPoolStats() (PoolStats, error) {
+func (phc PoolHealthCheck) GetPoolStats() (PoolStats, error) {
 sqlDB, err := phc.db.DB()
 if err != nil {
 return PoolStats{}, err
@@ -104,8 +104,8 @@ MaxLifetimeClosed:  dbStats.MaxLifetimeClosed,
 }
 
 // CheckHealth performs a connectivity test
-func (phc *PoolHealthCheck) CheckHealth(ctx context.Context) error {
-if err := phc.db.WithContext(ctx).Raw("SELECT 1").Error; err != nil {
+func (phc PoolHealthCheck) CheckHealth(ctx context.Context) error {
+if err := phc.db.WithContext(ctx).Raw("SELECT ").Error; err != nil {
 return fmt.Errorf("database health check failed: %w", err)
 }
 return nil
@@ -121,7 +121,7 @@ Timestamp time.Time
 }
 
 // PerformHealthCheck performs comprehensive health check
-func (phc *PoolHealthCheck) PerformHealthCheck(ctx context.Context) HealthCheckResult {
+func (phc PoolHealthCheck) PerformHealthCheck(ctx context.Context) HealthCheckResult {
 result := HealthCheckResult{
 Timestamp: time.Now(),
 }
@@ -144,11 +144,11 @@ result.Healthy = true
 result.Message = "Database healthy"
 
 // Check for concerning conditions
-if stats.InUseConnections >= stats.MaxOpenConnections*9/10 {
+if stats.InUseConnections >= stats.MaxOpenConnections/ {
 result.Message += " (warning: connection pool near capacity)"
 }
 
-if stats.WaitCount > 1000 {
+if stats.WaitCount >  {
 result.Message += " (warning: high connection wait count)"
 }
 
@@ -156,13 +156,13 @@ return result
 }
 
 // WarmupPool pre-allocates connections
-func (phc *PoolHealthCheck) WarmupPool(ctx context.Context, desiredConnections int) error {
+func (phc PoolHealthCheck) WarmupPool(ctx context.Context, desiredConnections int) error {
 sqlDB, err := phc.db.DB()
 if err != nil {
 return err
 }
 
-for i := 0; i < desiredConnections; i++ {
+for i := ; i < desiredConnections; i++ {
 conn, err := sqlDB.Conn(ctx)
 if err != nil {
 return fmt.Errorf("failed to warmup connection %d: %w", i, err)
@@ -175,15 +175,15 @@ return nil
 
 // PoolMonitor continuously monitors pool health
 type PoolMonitor struct {
-phc           *PoolHealthCheck
-ticker        *time.Ticker
+phc           PoolHealthCheck
+ticker        time.Ticker
 stop          chan struct{}
 onUnhealthy   func(result HealthCheckResult)
 checkInterval time.Duration
 }
 
 // NewPoolMonitor creates pool monitor
-func NewPoolMonitor(phc *PoolHealthCheck, interval time.Duration) *PoolMonitor {
+func NewPoolMonitor(phc PoolHealthCheck, interval time.Duration) PoolMonitor {
 return &PoolMonitor{
 phc:           phc,
 stop:          make(chan struct{}),
@@ -192,7 +192,7 @@ checkInterval: interval,
 }
 
 // Start begins monitoring
-func (pm *PoolMonitor) Start(ctx context.Context) {
+func (pm PoolMonitor) Start(ctx context.Context) {
 pm.ticker = time.NewTicker(pm.checkInterval)
 go func() {
 for {
@@ -211,11 +211,11 @@ return
 }
 
 // Stop stops monitoring
-func (pm *PoolMonitor) Stop() {
+func (pm PoolMonitor) Stop() {
 close(pm.stop)
 }
 
 // OnUnhealthy registers callback for unhealthy conditions
-func (pm *PoolMonitor) OnUnhealthy(callback func(result HealthCheckResult)) {
+func (pm PoolMonitor) OnUnhealthy(callback func(result HealthCheckResult)) {
 pm.onUnhealthy = callback
 }

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 )
 
 // RateLimitStore tracks requests per IP/user
@@ -17,7 +17,7 @@ type RateLimitStore struct {
 }
 
 // NewRateLimitStore creates a new rate limit store
-func NewRateLimitStore() *RateLimitStore {
+func NewRateLimitStore() RateLimitStore {
 	return &RateLimitStore{
 		requests:    make(map[string][]time.Time),
 		lastCleanup: time.Now(),
@@ -25,7 +25,7 @@ func NewRateLimitStore() *RateLimitStore {
 }
 
 // cleanup removes old requests outside the window
-func (rls *RateLimitStore) cleanup(key string, windowSize time.Duration) {
+func (rls RateLimitStore) cleanup(key string, windowSize time.Duration) {
 	now := time.Now()
 	if oldRequests, exists := rls.requests[key]; exists {
 		var validRequests []time.Time
@@ -34,7 +34,7 @@ func (rls *RateLimitStore) cleanup(key string, windowSize time.Duration) {
 				validRequests = append(validRequests, reqTime)
 			}
 		}
-		if len(validRequests) == 0 {
+		if len(validRequests) ==  {
 			delete(rls.requests, key)
 		} else {
 			rls.requests[key] = validRequests
@@ -43,8 +43,8 @@ func (rls *RateLimitStore) cleanup(key string, windowSize time.Duration) {
 }
 
 // cleanupAll removes all old entries periodically
-func (rls *RateLimitStore) cleanupAll(windowSize time.Duration) {
-	if time.Since(rls.lastCleanup) < 5*time.Minute {
+func (rls RateLimitStore) cleanupAll(windowSize time.Duration) {
+	if time.Since(rls.lastCleanup) < time.Minute {
 		return
 	}
 
@@ -58,7 +58,7 @@ func (rls *RateLimitStore) cleanupAll(windowSize time.Duration) {
 				validRequests = append(validRequests, reqTime)
 			}
 		}
-		if len(validRequests) == 0 {
+		if len(validRequests) ==  {
 			delete(rls.requests, key)
 		} else {
 			rls.requests[key] = validRequests
@@ -67,7 +67,7 @@ func (rls *RateLimitStore) cleanupAll(windowSize time.Duration) {
 }
 
 // IsAllowed checks if request is allowed based on rate limit
-func (rls *RateLimitStore) IsAllowed(key string, maxRequests int, windowSize time.Duration) bool {
+func (rls RateLimitStore) IsAllowed(key string, maxRequests int, windowSize time.Duration) bool {
 	rls.mu.Lock()
 	defer rls.mu.Unlock()
 
@@ -96,10 +96,10 @@ func (rls *RateLimitStore) IsAllowed(key string, maxRequests int, windowSize tim
 // RateLimitConfig configuration for rate limiting
 type RateLimitConfig struct {
 	MaxRequests    int           // Max requests per window
-	WindowSize     time.Duration // Time window (e.g., 1 minute)
+	WindowSize     time.Duration // Time window (e.g.,  minute)
 	SkipSuccessful bool          // Don't count successful requests
 	LimitByUser    bool          // Limit by user ID instead of IP
-	Store          *RateLimitStore
+	Store          RateLimitStore
 }
 
 // RateLimit creates a rate limit middleware
@@ -108,15 +108,15 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 		config.Store = NewRateLimitStore()
 	}
 
-	if config.MaxRequests <= 0 {
-		config.MaxRequests = 100
+	if config.MaxRequests <=  {
+		config.MaxRequests = 
 	}
 
-	if config.WindowSize <= 0 {
-		config.WindowSize = 1 * time.Minute
+	if config.WindowSize <=  {
+		config.WindowSize =   time.Minute
 	}
 
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// Determine the key (IP or user ID)
 		key := c.IP()
 
@@ -138,11 +138,11 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 }
 
 // AuthRateLimit creates a strict rate limiter for auth endpoints
-// Default: 5 requests per 15 minutes per IP
+// Default:  requests per  minutes per IP
 func AuthRateLimit() fiber.Handler {
 	return RateLimit(RateLimitConfig{
-		MaxRequests:    5,
-		WindowSize:     15 * time.Minute,
+		MaxRequests:    ,
+		WindowSize:       time.Minute,
 		SkipSuccessful: false,
 		LimitByUser:    false,
 		Store:          NewRateLimitStore(),
@@ -150,11 +150,11 @@ func AuthRateLimit() fiber.Handler {
 }
 
 // APIRateLimit creates a rate limiter for general API endpoints
-// Default: 1000 requests per 1 hour per user
+// Default:  requests per  hour per user
 func APIRateLimit() fiber.Handler {
 	return RateLimit(RateLimitConfig{
-		MaxRequests:    1000,
-		WindowSize:     1 * time.Hour,
+		MaxRequests:    ,
+		WindowSize:       time.Hour,
 		SkipSuccessful: false,
 		LimitByUser:    true,
 		Store:          NewRateLimitStore(),
@@ -162,11 +162,11 @@ func APIRateLimit() fiber.Handler {
 }
 
 // PublicRateLimit creates a rate limiter for public endpoints
-// Default: 100 requests per 1 minute per IP
+// Default:  requests per  minute per IP
 func PublicRateLimit() fiber.Handler {
 	return RateLimit(RateLimitConfig{
-		MaxRequests:    100,
-		WindowSize:     1 * time.Minute,
+		MaxRequests:    ,
+		WindowSize:       time.Minute,
 		SkipSuccessful: false,
 		LimitByUser:    false,
 		Store:          NewRateLimitStore(),

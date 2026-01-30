@@ -10,7 +10,7 @@ import {
   IfFeatureEnabled,
   PermissionButton,
 } from '../../components/rbac/PermissionGates';
-import * as usePermissionsModule from '../../hooks/usePermissions';
+import  as usePermissionsModule from '../../hooks/usePermissions';
 
 // Mock the usePermissions hook
 jest.mock('../../hooks/usePermissions');

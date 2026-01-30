@@ -10,11 +10,11 @@ import (
 
 // AnalyticsService handles risk and mitigation analytics
 type AnalyticsService struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewAnalyticsService creates a new analytics service
-func NewAnalyticsService(db *gorm.DB) *AnalyticsService {
+func NewAnalyticsService(db gorm.DB) AnalyticsService {
 	return &AnalyticsService{
 		db: db,
 	}
@@ -22,24 +22,24 @@ func NewAnalyticsService(db *gorm.DB) *AnalyticsService {
 
 // RiskMetrics represents aggregated risk metrics
 type RiskMetrics struct {
-	TotalRisks       int64            `json:"total_risks"`
-	ActiveRisks      int64            `json:"active_risks"`
-	MitigatedRisks   int64            `json:"mitigated_risks"`
-	AverageScore     float64          `json:"average_score"`
-	HighRisks        int64            `json:"high_risks"`
-	MediumRisks      int64            `json:"medium_risks"`
-	LowRisks         int64            `json:"low_risks"`
-	RisksByFramework map[string]int64 `json:"risks_by_framework"`
-	RisksByStatus    map[string]int64 `json:"risks_by_status"`
-	CreatedThisMonth int64            `json:"created_this_month"`
-	UpdatedThisMonth int64            `json:"updated_this_month"`
+	TotalRisks       int            json:"total_risks"
+	ActiveRisks      int            json:"active_risks"
+	MitigatedRisks   int            json:"mitigated_risks"
+	AverageScore     float          json:"average_score"
+	HighRisks        int            json:"high_risks"
+	MediumRisks      int            json:"medium_risks"
+	LowRisks         int            json:"low_risks"
+	RisksByFramework map[string]int json:"risks_by_framework"
+	RisksByStatus    map[string]int json:"risks_by_status"
+	CreatedThisMonth int            json:"created_this_month"
+	UpdatedThisMonth int            json:"updated_this_month"
 }
 
 // GetRiskMetrics returns aggregated risk metrics
-func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, error) {
+func (s AnalyticsService) GetRiskMetrics(ctx context.Context) (RiskMetrics, error) {
 	metrics := &RiskMetrics{
-		RisksByFramework: make(map[string]int64),
-		RisksByStatus:    make(map[string]int64),
+		RisksByFramework: make(map[string]int),
+		RisksByStatus:    make(map[string]int),
 	}
 
 	// Total risks
@@ -57,7 +57,7 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 
 	// Average score
 	type scoreResult struct {
-		Avg float64
+		Avg float
 	}
 	var scoreRes scoreResult
 	s.db.WithContext(ctx).Model(&domain.Risk{}).
@@ -79,11 +79,11 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 	// Risks by framework
 	type frameworkResult struct {
 		Framework string
-		Count     int64
+		Count     int
 	}
 	var frameworks []frameworkResult
 	s.db.WithContext(ctx).Model(&domain.Risk{}).
-		Select("framework, COUNT(*) as count").
+		Select("framework, COUNT() as count").
 		Group("framework").
 		Scan(&frameworks)
 	for _, fw := range frameworks {
@@ -93,11 +93,11 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 	// Risks by status
 	type statusResult struct {
 		Status string
-		Count  int64
+		Count  int
 	}
 	var statuses []statusResult
 	s.db.WithContext(ctx).Model(&domain.Risk{}).
-		Select("status, COUNT(*) as count").
+		Select("status, COUNT() as count").
 		Group("status").
 		Scan(&statuses)
 	for _, st := range statuses {
@@ -106,7 +106,7 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 
 	// Created this month
 	now := time.Now()
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	monthStart := time.Date(now.Year(), now.Month(), , , , , , now.Location())
 	s.db.WithContext(ctx).Model(&domain.Risk{}).
 		Where("created_at >= ?", monthStart).
 		Count(&metrics.CreatedThisMonth)
@@ -121,23 +121,23 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 
 // RiskTrendPoint represents a point in a trend
 type RiskTrendPoint struct {
-	Date      time.Time `json:"date"`
-	Count     int64     `json:"count"`
-	AvgScore  float64   `json:"avg_score"`
-	NewRisks  int64     `json:"new_risks"`
-	Mitigated int64     `json:"mitigated"`
+	Date      time.Time json:"date"
+	Count     int     json:"count"
+	AvgScore  float   json:"avg_score"
+	NewRisks  int     json:"new_risks"
+	Mitigated int     json:"mitigated"
 }
 
-// GetRiskTrends returns risk trends over time (last 30 days)
-func (s *AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskTrendPoint, error) {
+// GetRiskTrends returns risk trends over time (last  days)
+func (s AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskTrendPoint, error) {
 	var trends []RiskTrendPoint
 
 	// Generate daily data for last N days
 	now := time.Now()
-	for i := days - 1; i >= 0; i-- {
-		date := now.AddDate(0, 0, -i)
-		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		endOfDay := startOfDay.Add(24 * time.Hour)
+	for i := days - ; i >= ; i-- {
+		date := now.AddDate(, , -i)
+		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), , , , , date.Location())
+		endOfDay := startOfDay.Add(  time.Hour)
 
 		point := RiskTrendPoint{
 			Date: startOfDay,
@@ -150,7 +150,7 @@ func (s *AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskT
 
 		// Average score
 		type scoreResult struct {
-			Avg float64
+			Avg float
 		}
 		var scoreRes scoreResult
 		s.db.WithContext(ctx).Model(&domain.Risk{}).
@@ -178,20 +178,20 @@ func (s *AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskT
 
 // MitigationMetrics represents mitigation analytics
 type MitigationMetrics struct {
-	TotalMitigations     int64            `json:"total_mitigations"`
-	CompletedMitigations int64            `json:"completed_mitigations"`
-	PendingMitigations   int64            `json:"pending_mitigations"`
-	OverdueMitigations   int64            `json:"overdue_mitigations"`
-	CompletionRate       float64          `json:"completion_rate"`
-	AvgCompletionDays    float64          `json:"avg_completion_days"`
-	RisksWithMitigation  int64            `json:"risks_with_mitigation"`
-	MitigationsByRisk    map[string]int64 `json:"mitigations_by_risk"`
+	TotalMitigations     int            json:"total_mitigations"
+	CompletedMitigations int            json:"completed_mitigations"
+	PendingMitigations   int            json:"pending_mitigations"
+	OverdueMitigations   int            json:"overdue_mitigations"
+	CompletionRate       float          json:"completion_rate"
+	AvgCompletionDays    float          json:"avg_completion_days"
+	RisksWithMitigation  int            json:"risks_with_mitigation"
+	MitigationsByRisk    map[string]int json:"mitigations_by_risk"
 }
 
 // GetMitigationMetrics returns mitigation analytics
-func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context) (*MitigationMetrics, error) {
+func (s AnalyticsService) GetMitigationMetrics(ctx context.Context) (MitigationMetrics, error) {
 	metrics := &MitigationMetrics{
-		MitigationsByRisk: make(map[string]int64),
+		MitigationsByRisk: make(map[string]int),
 	}
 
 	// Total mitigations
@@ -215,13 +215,13 @@ func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context) (*Mitigatio
 		Count(&metrics.OverdueMitigations)
 
 	// Completion rate
-	if metrics.TotalMitigations > 0 {
-		metrics.CompletionRate = float64(metrics.CompletedMitigations) / float64(metrics.TotalMitigations) * 100
+	if metrics.TotalMitigations >  {
+		metrics.CompletionRate = float(metrics.CompletedMitigations) / float(metrics.TotalMitigations)  
 	}
 
 	// Average completion days
 	type completionResult struct {
-		AvgDays float64
+		AvgDays float
 	}
 	var compRes completionResult
 	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
@@ -233,30 +233,30 @@ func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context) (*Mitigatio
 	// Risks with mitigation
 	type riskMitigationResult struct {
 		RiskID string
-		Count  int64
+		Count  int
 	}
 	var riskMitigations []riskMitigationResult
 	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
-		Select("risk_id, COUNT(*) as count").
+		Select("risk_id, COUNT() as count").
 		Group("risk_id").
 		Scan(&riskMitigations)
-	metrics.RisksWithMitigation = int64(len(riskMitigations))
+	metrics.RisksWithMitigation = int(len(riskMitigations))
 
 	return metrics, nil
 }
 
 // FrameworkAnalytics represents framework compliance analytics
 type FrameworkAnalytics struct {
-	Framework            string  `json:"framework"`
-	TotalControls        int64   `json:"total_controls"`
-	ImplementedControls  int64   `json:"implemented_controls"`
-	CompliancePercentage float64 `json:"compliance_percentage"`
-	AssociatedRisks      int64   `json:"associated_risks"`
-	AverageRiskScore     float64 `json:"average_risk_score"`
+	Framework            string  json:"framework"
+	TotalControls        int   json:"total_controls"
+	ImplementedControls  int   json:"implemented_controls"
+	CompliancePercentage float json:"compliance_percentage"
+	AssociatedRisks      int   json:"associated_risks"
+	AverageRiskScore     float json:"average_risk_score"
 }
 
 // GetFrameworkAnalytics returns compliance analytics by framework
-func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]FrameworkAnalytics, error) {
+func (s AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]FrameworkAnalytics, error) {
 	var analytics []FrameworkAnalytics
 
 	type frameworkResult struct {
@@ -277,7 +277,7 @@ func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]Framewo
 
 		// Average risk score
 		type scoreResult struct {
-			Avg float64
+			Avg float
 		}
 		var scoreRes scoreResult
 		s.db.WithContext(ctx).Model(&domain.Risk{}).
@@ -294,15 +294,15 @@ func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]Framewo
 
 // DashboardSnapshot represents a complete dashboard snapshot
 type DashboardSnapshot struct {
-	Timestamp          time.Time            `json:"timestamp"`
-	RiskMetrics        *RiskMetrics         `json:"risk_metrics"`
-	MitigationMetrics  *MitigationMetrics   `json:"mitigation_metrics"`
-	FrameworkAnalytics []FrameworkAnalytics `json:"framework_analytics"`
-	Trends             []RiskTrendPoint     `json:"trends"`
+	Timestamp          time.Time            json:"timestamp"
+	RiskMetrics        RiskMetrics         json:"risk_metrics"
+	MitigationMetrics  MitigationMetrics   json:"mitigation_metrics"
+	FrameworkAnalytics []FrameworkAnalytics json:"framework_analytics"
+	Trends             []RiskTrendPoint     json:"trends"
 }
 
 // GetDashboardSnapshot returns a complete dashboard snapshot
-func (s *AnalyticsService) GetDashboardSnapshot(ctx context.Context) (*DashboardSnapshot, error) {
+func (s AnalyticsService) GetDashboardSnapshot(ctx context.Context) (DashboardSnapshot, error) {
 	snapshot := &DashboardSnapshot{
 		Timestamp: time.Now(),
 	}
@@ -326,7 +326,7 @@ func (s *AnalyticsService) GetDashboardSnapshot(ctx context.Context) (*Dashboard
 	}
 	snapshot.FrameworkAnalytics = frameworkAnalytics
 
-	trends, err := s.GetRiskTrends(ctx, 30)
+	trends, err := s.GetRiskTrends(ctx, )
 	if err != nil {
 		return nil, err
 	}

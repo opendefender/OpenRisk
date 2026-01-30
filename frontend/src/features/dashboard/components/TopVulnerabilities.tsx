@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
-import { Loader2, AlertCircle, AlertTriangle, AlertOctagon } from 'lucide-react';
+import { Loader, AlertCircle, AlertTriangle, AlertOctagon } from 'lucide-react';
 
 interface Vulnerability {
   id: string;
@@ -13,13 +13,13 @@ interface Vulnerability {
 const getSeverityColor = (severity: string) => {
   switch (severity.toLowerCase()) {
     case 'critical':
-      return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30', badge: 'bg-red-500/20' };
+      return { bg: 'bg-red-/', text: 'text-red-', border: 'border-red-/', badge: 'bg-red-/' };
     case 'high':
-      return { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30', badge: 'bg-orange-500/20' };
+      return { bg: 'bg-orange-/', text: 'text-orange-', border: 'border-orange-/', badge: 'bg-orange-/' };
     case 'medium':
-      return { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30', badge: 'bg-yellow-500/20' };
+      return { bg: 'bg-yellow-/', text: 'text-yellow-', border: 'border-yellow-/', badge: 'bg-yellow-/' };
     default:
-      return { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30', badge: 'bg-blue-500/20' };
+      return { bg: 'bg-blue-/', text: 'text-blue-', border: 'border-blue-/', badge: 'bg-blue-/' };
   }
 };
 
@@ -44,7 +44,7 @@ export const TopVulnerabilities = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.get('/stats/top-vulnerabilities?limit=5');
+        const res = await api.get('/stats/top-vulnerabilities?limit=');
         setVulnerabilities(res.data || []);
         setError(null);
       } catch (err) {
@@ -61,8 +61,8 @@ export const TopVulnerabilities = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-full text-zinc-500">
-        <Loader2 className="animate-spin mr-2" size={20} />
+      <div className="flex justify-center items-center h-full text-zinc-">
+        <Loader className="animate-spin mr-" size={} />
         Loading Vulnerabilities...
       </div>
     );
@@ -70,16 +70,16 @@ export const TopVulnerabilities = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-zinc-500">
-        <AlertTriangle size={32} className="mb-2 text-orange-500/50" />
+      <div className="flex flex-col items-center justify-center h-full text-zinc-">
+        <AlertTriangle size={} className="mb- text-orange-/" />
         <p className="text-sm">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full flex flex-col space-y-3 overflow-y-auto pr-2">
-      {vulnerabilities.length > 0 ? (
+    <div className="h-full w-full flex flex-col space-y- overflow-y-auto pr-">
+      {vulnerabilities.length >  ? (
         vulnerabilities.map((vuln, index) => {
           const colors = getSeverityColor(vuln.severity);
           const Icon = getSeverityIcon(vuln.severity);
@@ -87,38 +87,38 @@ export const TopVulnerabilities = () => {
           return (
             <div
               key={vuln.id}
-              className={`group p-3 rounded-lg border ${colors.border} ${colors.bg} hover:bg-white/5 transition-all duration-200 cursor-pointer transform hover:scale-102`}
+              className={group p- rounded-lg border ${colors.border} ${colors.bg} hover:bg-white/ transition-all duration- cursor-pointer transform hover:scale-}
             >
-              <div className="flex items-start gap-3">
-                <Icon className={`${colors.text} flex-shrink-0 mt-0.5`} size={18} />
+              <div className="flex items-start gap-">
+                <Icon className={${colors.text} flex-shrink- mt-.} size={} />
                 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="flex- min-w-">
+                  <div className="flex items-center gap- mb-">
                     <p className="text-sm font-semibold text-white group-hover:text-primary transition-colors truncate">
-                      {index + 1}. {vuln.title}
+                      {index + }. {vuln.title}
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${colors.badge} ${colors.text} border ${colors.border}`}>
+                  <div className="flex items-center gap- flex-wrap">
+                    <span className={text-xs font-bold px- py- rounded ${colors.badge} ${colors.text} border ${colors.border}}>
                       {vuln.severity}
                     </span>
                     
                     {vuln.cvssScore && (
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-zinc-">
                         CVSS: <span className="text-white font-bold">{vuln.cvssScore}</span>
                       </span>
                     )}
                     
                     {vuln.affectedAssets && (
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-zinc-">
                         <span className="text-white font-bold">{vuln.affectedAssets}</span> assets
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="text-xs text-zinc-500 group-hover:text-primary transition-colors flex-shrink-0">
+                <div className="text-xs text-zinc- group-hover:text-primary transition-colors flex-shrink-">
                   →
                 </div>
               </div>
@@ -126,8 +126,8 @@ export const TopVulnerabilities = () => {
           );
         })
       ) : (
-        <div className="flex flex-col items-center justify-center py-8 text-center text-zinc-500">
-          <AlertCircle size={32} className="mb-2 opacity-50" />
+        <div className="flex flex-col items-center justify-center py- text-center text-zinc-">
+          <AlertCircle size={} className="mb- opacity-" />
           <p className="text-sm">No vulnerabilities found</p>
         </div>
       )}

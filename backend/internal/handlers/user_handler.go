@@ -3,8 +3,8 @@ package handlers
 import (
 	"net"
 
-	"github.com/gofiber/fiber/v2"
-	// "github.com/golang-jwt/jwt/v5"
+	"github.com/gofiber/fiber/v"
+	// "github.com/golang-jwt/jwt/v"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -13,61 +13,61 @@ import (
 )
 
 type UpdateUserStatusInput struct {
-	IsActive bool `json:"is_active"`
+	IsActive bool json:"is_active"
 }
 
 type UpdateUserRoleInput struct {
-	Role string `json:"role" validate:"required"`
+	Role string json:"role" validate:"required"
 }
 
 type CreateUserInput struct {
-	Email      string `json:"email" validate:"required,email"`
-	Username   string `json:"username" validate:"required,min=3"`
-	FullName   string `json:"full_name" validate:"required"`
-	Password   string `json:"password" validate:"required,min=8"`
-	Role       string `json:"role" validate:"required"` // admin, analyst, viewer
-	Department string `json:"department,omitempty"`
+	Email      string json:"email" validate:"required,email"
+	Username   string json:"username" validate:"required,min="
+	FullName   string json:"full_name" validate:"required"
+	Password   string json:"password" validate:"required,min="
+	Role       string json:"role" validate:"required" // admin, analyst, viewer
+	Department string json:"department,omitempty"
 }
 
 type UpdateUserProfileInput struct {
-	FullName   string `json:"full_name"`
-	Bio        string `json:"bio"`
-	Phone      string `json:"phone"`
-	Department string `json:"department"`
-	Timezone   string `json:"timezone"`
+	FullName   string json:"full_name"
+	Bio        string json:"bio"
+	Phone      string json:"phone"
+	Department string json:"department"
+	Timezone   string json:"timezone"
 }
 
 type UserResponseDTO struct {
-	ID        string  `json:"id"`
-	Email     string  `json:"email"`
-	Username  string  `json:"username"`
-	FullName  string  `json:"full_name"`
-	Role      string  `json:"role"`
-	IsActive  bool    `json:"is_active"`
-	CreatedAt string  `json:"created_at"`
-	LastLogin *string `json:"last_login,omitempty"`
+	ID        string  json:"id"
+	Email     string  json:"email"
+	Username  string  json:"username"
+	FullName  string  json:"full_name"
+	Role      string  json:"role"
+	IsActive  bool    json:"is_active"
+	CreatedAt string  json:"created_at"
+	LastLogin string json:"last_login,omitempty"
 }
 
 // Create a global audit service instance for user handlers
 var auditService = services.NewAuditService()
 
-// GetMe : R√©cup√®re les infos de l'utilisateur connect√©
-func GetMe(c *fiber.Ctx) error {
-	userID := c.Locals("user_id") // R√©cup√©r√© depuis le middleware JWT
+// GetMe : R√cup√re les infos de l'utilisateur connect√
+func GetMe(c fiber.Ctx) error {
+	userID := c.Locals("user_id") // R√cup√r√ depuis le middleware JWT
 	var user domain.User
 
 	if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+		return c.Status().JSON(fiber.Map{"error": "User not found"})
 	}
 	return c.JSON(user)
 }
 
-// SeedAdminUser : Cr√©e un admin par d√©faut si la base est vide
-// √Ä appeler au d√©marrage dans main.go
+// SeedAdminUser : Cr√e un admin par d√faut si la base est vide
+// √Ä appeler au d√marrage dans main.go
 func SeedAdminUser() {
-	var count int64
+	var count int
 	database.DB.Model(&domain.User{}).Count(&count)
-	if count == 0 {
+	if count ==  {
 		// Find or create admin role
 		var adminRole domain.Role
 		if err := database.DB.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
@@ -80,7 +80,7 @@ func SeedAdminUser() {
 			database.DB.Create(&adminRole)
 		}
 
-		hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), 14)
+		hash, _ := bcrypt.GenerateFromPassword([]byte("admin"), )
 		admin := domain.User{
 			Email:    "admin@opendefender.io",
 			Username: "admin",
@@ -90,12 +90,12 @@ func SeedAdminUser() {
 			IsActive: true,
 		}
 		database.DB.Create(&admin)
-		println("Default Admin created: admin@opendefender.io / admin123")
+		println("Default Admin created: admin@opendefender.io / admin")
 	}
 }
 
 // GetUsers retrieves all users (admin only)
-func GetUsers(c *fiber.Ctx) error {
+func GetUsers(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -125,10 +125,10 @@ func GetUsers(c *fiber.Ctx) error {
 			FullName:  u.FullName,
 			Role:      u.Role.Name,
 			IsActive:  u.IsActive,
-			CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt: u.CreatedAt.Format("--T::Z"),
 		}
 		if u.LastLogin != nil {
-			lastLoginStr := u.LastLogin.Format("2006-01-02T15:04:05Z")
+			lastLoginStr := u.LastLogin.Format("--T::Z")
 			dto.LastLogin = &lastLoginStr
 		}
 		response = append(response, dto)
@@ -138,7 +138,7 @@ func GetUsers(c *fiber.Ctx) error {
 }
 
 // UpdateUserStatus enables or disables a user (admin only)
-func UpdateUserStatus(c *fiber.Ctx) error {
+func UpdateUserStatus(c fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
@@ -195,7 +195,7 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 }
 
 // UpdateUserRole changes a user's role (admin only)
-func UpdateUserRole(c *fiber.Ctx) error {
+func UpdateUserRole(c fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
@@ -244,7 +244,7 @@ func UpdateUserRole(c *fiber.Ctx) error {
 }
 
 // DeleteUser deletes a user (admin only)
-func DeleteUser(c *fiber.Ctx) error {
+func DeleteUser(c fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
@@ -287,7 +287,7 @@ func DeleteUser(c *fiber.Ctx) error {
 }
 
 // Helper function to parse IP address
-func parseIPAddressHelper(ipStr string) *net.IP {
+func parseIPAddressHelper(ipStr string) net.IP {
 	if ipStr == "" {
 		return nil
 	}
@@ -296,7 +296,7 @@ func parseIPAddressHelper(ipStr string) *net.IP {
 }
 
 // CreateUser creates a new user (admin only)
-func CreateUser(c *fiber.Ctx) error {
+func CreateUser(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -335,7 +335,7 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), )
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process password"})
 	}
@@ -372,14 +372,14 @@ func CreateUser(c *fiber.Ctx) error {
 		FullName:  newUser.FullName,
 		Role:      role.Name,
 		IsActive:  newUser.IsActive,
-		CreatedAt: newUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: newUser.CreatedAt.Format("--T::Z"),
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(response)
 }
 
 // UpdateUserProfile updates the current user's profile
-func UpdateUserProfile(c *fiber.Ctx) error {
+func UpdateUserProfile(c fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -423,7 +423,7 @@ func UpdateUserProfile(c *fiber.Ctx) error {
 		FullName:  user.FullName,
 		Role:      user.Role.Name,
 		IsActive:  user.IsActive,
-		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: user.CreatedAt.Format("--T::Z"),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)

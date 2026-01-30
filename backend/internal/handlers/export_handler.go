@@ -5,75 +5,75 @@ import (
 	"time"
 
 	"github.com/go-pdf/fpdf"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
-// ExportRisksPDF g√©n√®re un rapport PDF de tous les risques actifs.
-func ExportRisksPDF(c *fiber.Ctx) error {
+// ExportRisksPDF g√n√re un rapport PDF de tous les risques actifs.
+func ExportRisksPDF(c fiber.Ctx) error {
 	var risks []domain.Risk
 
-	// 1. R√©cup√©rer les donn√©es
+	// . R√cup√rer les donn√es
 	if err := database.DB.Preload("Assets").Find(&risks).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch risks for export"})
+		return c.Status().JSON(fiber.Map{"error": "Failed to fetch risks for export"})
 	}
 
-	// 2. Initialisation du PDF
-	pdf := fpdf.New("P", "mm", "A4", "")
+	// . Initialisation du PDF
+	pdf := fpdf.New("P", "mm", "A", "")
 	pdf.AddPage()
-	pdf.SetFont("Arial", "B", 16)
-	pdf.SetFillColor(240, 240, 240) // Gris clair
+	pdf.SetFont("Arial", "B", )
+	pdf.SetFillColor(, , ) // Gris clair
 
-	// 3. Titre et M√©tadonn√©es
-	pdf.CellFormat(190, 10, "OpenRisk - Rapport d'√âvaluation des Risques", "", 1, "C", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(190, 6, fmt.Sprintf("Date du rapport: %s", time.Now().Format("02 Jan 2006")), "", 1, "C", false, 0, "")
-	pdf.Ln(8)
+	// . Titre et M√tadonn√es
+	pdf.CellFormat(, , "OpenRisk - Rapport d'√âvaluation des Risques", "", , "C", false, , "")
+	pdf.SetFont("Arial", "", )
+	pdf.CellFormat(, , fmt.Sprintf("Date du rapport: %s", time.Now().Format(" Jan ")), "", , "C", false, , "")
+	pdf.Ln()
 
-	// 4. En-t√™te du tableau
-	header := []string{"Score", "Titre du Risque", "Impact", "Proba", "Assets Impact√©s"}
-	colWidths := []float64{15, 85, 20, 20, 50}
+	// . En-t√™te du tableau
+	header := []string{"Score", "Titre du Risque", "Impact", "Proba", "Assets Impact√s"}
+	colWidths := []float{, , , , }
 
-	pdf.SetFont("Arial", "B", 10)
+	pdf.SetFont("Arial", "B", )
 	for i, h := range header {
-		pdf.CellFormat(colWidths[i], 7, h, "1", 0, "C", true, 0, "")
+		pdf.CellFormat(colWidths[i], , h, "", , "C", true, , "")
 	}
-	pdf.Ln(-1)
+	pdf.Ln(-)
 
-	// 5. Contenu du tableau
-	pdf.SetFont("Arial", "", 9)
+	// . Contenu du tableau
+	pdf.SetFont("Arial", "", )
 	for _, risk := range risks {
 		// Assets list (simple string)
 		assetNames := ""
 		for i, asset := range risk.Assets {
 			assetNames += asset.Name
-			if i < len(risk.Assets)-1 {
+			if i < len(risk.Assets)- {
 				assetNames += ", "
 			}
 		}
 
-		// Pour la lisibilit√©, les cellules sont d√©finies par ligne
-		pdf.CellFormat(colWidths[0], 6, fmt.Sprintf("%.2f", risk.Score), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(colWidths[1], 6, risk.Title, "1", 0, "L", false, 0, "")
-		pdf.CellFormat(colWidths[2], 6, fmt.Sprintf("%d", risk.Impact), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(colWidths[3], 6, fmt.Sprintf("%d", risk.Probability), "1", 0, "C", false, 0, "")
+		// Pour la lisibilit√, les cellules sont d√finies par ligne
+		pdf.CellFormat(colWidths[], , fmt.Sprintf("%.f", risk.Score), "", , "C", false, , "")
+		pdf.CellFormat(colWidths[], , risk.Title, "", , "L", false, , "")
+		pdf.CellFormat(colWidths[], , fmt.Sprintf("%d", risk.Impact), "", , "C", false, , "")
+		pdf.CellFormat(colWidths[], , fmt.Sprintf("%d", risk.Probability), "", , "C", false, , "")
 
-		// G√©rer le cas o√π le texte des assets est trop long (multi-line)
+		// G√rer le cas o√π le texte des assets est trop long (multi-line)
 		x, y := pdf.GetXY()
-		pdf.MultiCell(colWidths[4], 6, assetNames, "1", "L", false)
-		pdf.SetXY(x+colWidths[4], y) // Repositionner le curseur apr√®s le MultiCell
+		pdf.MultiCell(colWidths[], , assetNames, "", "L", false)
+		pdf.SetXY(x+colWidths[], y) // Repositionner le curseur apr√s le MultiCell
 
 		// IMPORTANT: Revenir √† la ligne si la cellule Assets a pris plusieurs lignes
 		_, h := pdf.GetPageSize()
-		if pdf.GetY() > h-20 { // Simple v√©rification de page break
+		if pdf.GetY() > h- { // Simple v√rification de page break
 			pdf.AddPage()
 		}
 
-		pdf.Ln(6) // Nouvelle ligne
+		pdf.Ln() // Nouvelle ligne
 	}
 
-	// 6. Envoi du fichier
+	// . Envoi du fichier
 	c.Context().Response.Header.Set("Content-Type", "application/pdf")
 	c.Context().Response.Header.Set("Content-Disposition", "attachment; filename=openrisk_report.pdf")
 

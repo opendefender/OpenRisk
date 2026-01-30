@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Key, Trash2, Lock, Copy, Plus, Search, Calendar, ChevronDown } from 'lucide-react';
+import { Key, Trash, Lock, Copy, Plus, Search, Calendar, ChevronDown } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
@@ -89,7 +89,7 @@ export const TokenManagement = () => {
     }
 
     try {
-      await api.post(`/tokens/${tokenId}/revoke`);
+      await api.post(/tokens/${tokenId}/revoke);
       setTokens(tokens.map(t => t.id === tokenId ? { ...t, status: 'revoked' } : t));
       toast.success('Token revoked');
     } catch (err) {
@@ -103,7 +103,7 @@ export const TokenManagement = () => {
     }
 
     try {
-      await api.delete(`/tokens/${tokenId}`);
+      await api.delete(/tokens/${tokenId});
       setTokens(tokens.filter(t => t.id !== tokenId));
       toast.success('Token deleted');
     } catch (err) {
@@ -117,7 +117,7 @@ export const TokenManagement = () => {
     }
 
     try {
-      const response = await api.post(`/tokens/${tokenId}/rotate`);
+      const response = await api.post(/tokens/${tokenId}/rotate);
       setNewTokenValue(response.data.new_token_value);
       await fetchTokens();
       toast.success('Token rotated successfully. Copy the new token value now!');
@@ -149,8 +149,8 @@ export const TokenManagement = () => {
   const isExpiringSoon = (expiresAt?: string) => {
     if (!expiresAt) return false;
     const expiryDate = new Date(expiresAt);
-    const daysUntilExpiry = Math.floor((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+    const daysUntilExpiry = Math.floor((expiryDate.getTime() - Date.now()) / (      ));
+    return daysUntilExpiry <=  && daysUntilExpiry > ;
   };
 
   const isExpired = (expiresAt?: string) => {
@@ -159,128 +159,128 @@ export const TokenManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      {/* Header */}
-      <div className="border-b border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <Key className="w-8 h-8 text-amber-400" />
-            <h1 className="text-3xl font-bold text-white">API Tokens</h1>
+    <div className="min-h-screen bg-zinc-">
+      {/ Header /}
+      <div className="border-b border-zinc- bg-gradient-to-b from-zinc- to-zinc- p-">
+        <div className="max-w-xl mx-auto">
+          <div className="flex items-center gap- mb-">
+            <Key className="w- h- text-amber-" />
+            <h className="text-xl font-bold text-white">API Tokens</h>
           </div>
-          <p className="text-zinc-400">Manage your API tokens for programmatic access</p>
+          <p className="text-zinc-">Manage your API tokens for programmatic access</p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Stats Bar */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+      {/ Main Content /}
+      <div className="max-w-xl mx-auto p-">
+        {/ Stats Bar /}
+        <div className="grid grid-cols- gap- mb-">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            initial={{ opacity: , y:  }}
+            animate={{ opacity: , y:  }}
+            className="bg-zinc- border border-zinc- rounded-lg p-"
           >
-            <div className="text-zinc-400 text-sm font-medium">Total Tokens</div>
-            <div className="text-2xl font-bold text-white mt-1">{tokens.length}</div>
+            <div className="text-zinc- text-sm font-medium">Total Tokens</div>
+            <div className="text-xl font-bold text-white mt-">{tokens.length}</div>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            initial={{ opacity: , y:  }}
+            animate={{ opacity: , y:  }}
+            transition={{ delay: . }}
+            className="bg-zinc- border border-zinc- rounded-lg p-"
           >
-            <div className="text-zinc-400 text-sm font-medium">Active</div>
-            <div className="text-2xl font-bold text-green-400 mt-1">{activeTokens}</div>
+            <div className="text-zinc- text-sm font-medium">Active</div>
+            <div className="text-xl font-bold text-green- mt-">{activeTokens}</div>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            initial={{ opacity: , y:  }}
+            animate={{ opacity: , y:  }}
+            transition={{ delay: . }}
+            className="bg-zinc- border border-zinc- rounded-lg p-"
           >
-            <div className="text-zinc-400 text-sm font-medium">Revoked</div>
-            <div className="text-2xl font-bold text-red-400 mt-1">
+            <div className="text-zinc- text-sm font-medium">Revoked</div>
+            <div className="text-xl font-bold text-red- mt-">
               {tokens.filter(t => t.status === 'revoked').length}
             </div>
           </motion.div>
         </div>
 
-        {/* New Token Display */}
+        {/ New Token Display /}
         {newTokenValue && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mb-6 bg-green-900/20 border border-green-500/50 rounded-lg p-4"
+            initial={{ opacity: , scale: . }}
+            animate={{ opacity: , scale:  }}
+            className="mb- bg-green-/ border border-green-/ rounded-lg p-"
           >
             <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="font-semibold text-green-400 mb-2">New Token Created</h3>
-                <p className="text-sm text-zinc-400 mb-3">Save this token now. You won't be able to see it again!</p>
-                <div className="bg-zinc-900 rounded px-3 py-2 flex items-center justify-between">
+              <div className="flex-">
+                <h className="font-semibold text-green- mb-">New Token Created</h>
+                <p className="text-sm text-zinc- mb-">Save this token now. You won't be able to see it again!</p>
+                <div className="bg-zinc- rounded px- py- flex items-center justify-between">
                   <code className="text-sm text-white break-all">{newTokenValue}</code>
                   <button
                     onClick={() => copyToClipboard(newTokenValue)}
-                    className="ml-3 p-1 hover:bg-zinc-800 rounded"
+                    className="ml- p- hover:bg-zinc- rounded"
                   >
-                    <Copy className="w-4 h-4 text-green-400" />
+                    <Copy className="w- h- text-green-" />
                   </button>
                 </div>
               </div>
               <button
                 onClick={() => setNewTokenValue('')}
-                className="text-zinc-400 hover:text-white ml-4"
+                className="text-zinc- hover:text-white ml-"
               >
-                ✕
+                
               </button>
             </div>
           </motion.div>
         )}
 
-        {/* Controls */}
-        <div className="flex gap-4 mb-6">
+        {/ Controls /}
+        <div className="flex gap- mb-">
           <Button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="gap-2"
+            className="gap-"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w- h-" />
             New Token
           </Button>
         </div>
 
-        {/* Create Form */}
+        {/ Create Form /}
         {showCreateForm && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            initial={{ opacity: , y: - }}
+            animate={{ opacity: , y:  }}
+            className="mb- bg-zinc- border border-zinc- rounded-lg p-"
           >
-            <form onSubmit={handleCreateToken} className="space-y-4">
+            <form onSubmit={handleCreateToken} className="space-y-">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
-                  Token Name *
+                <label className="block text-sm font-medium text-zinc- mb-">
+                  Token Name 
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., CI/CD Pipeline, DataSync"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-zinc- border border-zinc- rounded px- py- text-white text-sm focus:outline-none focus:border-blue-"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-zinc- mb-">
                   Description
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="What is this token for?"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-none"
-                  rows={3}
+                  className="w-full bg-zinc- border border-zinc- rounded px- py- text-white text-sm focus:outline-none focus:border-blue- resize-none"
+                  rows={}
                 />
               </div>
-              <div className="flex gap-3">
-                <Button type="submit" disabled={isCreating} className="gap-2">
+              <div className="flex gap-">
+                <Button type="submit" disabled={isCreating} className="gap-">
                   {isCreating ? 'Creating...' : 'Create Token'}
                 </Button>
                 <Button
@@ -295,87 +295,87 @@ export const TokenManagement = () => {
           </motion.div>
         )}
 
-        {/* Search */}
-        <div className="mb-6 flex items-center gap-2">
-          <Search className="w-4 h-4 text-zinc-400" />
+        {/ Search /}
+        <div className="mb- flex items-center gap-">
+          <Search className="w- h- text-zinc-" />
           <input
             type="text"
             placeholder="Search tokens..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+            className="flex- bg-zinc- border border-zinc- rounded px- py- text-white text-sm focus:outline-none focus:border-blue-"
           />
         </div>
 
-        {/* Tokens List */}
+        {/ Tokens List /}
         {isLoading ? (
-          <div className="text-center py-12">
-            <p className="text-zinc-400">Loading tokens...</p>
+          <div className="text-center py-">
+            <p className="text-zinc-">Loading tokens...</p>
           </div>
-        ) : filteredTokens.length === 0 ? (
-          <div className="text-center py-12">
-            <Key className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-            <p className="text-zinc-400">No tokens found</p>
+        ) : filteredTokens.length ===  ? (
+          <div className="text-center py-">
+            <Key className="w- h- text-zinc- mx-auto mb-" />
+            <p className="text-zinc-">No tokens found</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-">
             {filteredTokens.map((token, index) => (
               <motion.div
                 key={token.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition"
+                initial={{ opacity: , y:  }}
+                animate={{ opacity: , y:  }}
+                transition={{ delay: index  . }}
+                className="bg-zinc- border border-zinc- rounded-lg p- hover:border-zinc- transition"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-semibold text-white">{token.name}</h3>
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
+                  <div className="flex-">
+                    <div className="flex items-center gap- mb-">
+                      <h className="font-semibold text-white">{token.name}</h>
+                      <span className={text-xs px- py- rounded font-medium ${
                         token.status === 'active'
-                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                      }`}>
-                        {token.status.charAt(0).toUpperCase() + token.status.slice(1)}
+                          ? 'bg-green-/ text-green- border border-green-/'
+                          : 'bg-red-/ text-red- border border-red-/'
+                      }}>
+                        {token.status.charAt().toUpperCase() + token.status.slice()}
                       </span>
                       {token.token_prefix && (
-                        <span className="text-xs text-zinc-500 font-mono">{token.token_prefix}...</span>
+                        <span className="text-xs text-zinc- font-mono">{token.token_prefix}...</span>
                       )}
                     </div>
                     {token.description && (
-                      <p className="text-sm text-zinc-400 mb-3">{token.description}</p>
+                      <p className="text-sm text-zinc- mb-">{token.description}</p>
                     )}
-                    <div className="flex gap-4 text-xs text-zinc-500">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                    <div className="flex gap- text-xs text-zinc-">
+                      <div className="flex items-center gap-">
+                        <Calendar className="w- h-" />
                         Created: {formatDate(token.created_at)}
                       </div>
                       {token.last_used_at && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                        <div className="flex items-center gap-">
+                          <Calendar className="w- h-" />
                           Last used: {formatDate(token.last_used_at)}
                         </div>
                       )}
                       {token.expires_at && (
-                        <div className={`flex items-center gap-1 ${
-                          isExpired(token.expires_at) ? 'text-red-500' :
-                          isExpiringSoon(token.expires_at) ? 'text-amber-500' : ''
-                        }`}>
-                          <Lock className="w-3 h-3" />
+                        <div className={flex items-center gap- ${
+                          isExpired(token.expires_at) ? 'text-red-' :
+                          isExpiringSoon(token.expires_at) ? 'text-amber-' : ''
+                        }}>
+                          <Lock className="w- h-" />
                           Expires: {formatDate(token.expires_at)}
                           {isExpiringSoon(token.expires_at) && ' (Soon)'}
                           {isExpired(token.expires_at) && ' (Expired)'}
                         </div>
                       )}
                     </div>
-                    {(token.permissions && token.permissions.length > 0) && (
-                      <div className="mt-3">
-                        <p className="text-xs text-zinc-400 mb-1">Permissions:</p>
-                        <div className="flex flex-wrap gap-1">
+                    {(token.permissions && token.permissions.length > ) && (
+                      <div className="mt-">
+                        <p className="text-xs text-zinc- mb-">Permissions:</p>
+                        <div className="flex flex-wrap gap-">
                           {token.permissions.map((perm) => (
                             <span
                               key={perm}
-                              className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded px-2 py-1"
+                              className="text-xs bg-blue-/ text-blue- border border-blue-/ rounded px- py-"
                             >
                               {perm}
                             </span>
@@ -384,31 +384,31 @@ export const TokenManagement = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap- ml-">
                     {token.status === 'active' && (
                       <>
                         <button
                           onClick={() => handleRotateToken(token.id)}
-                          className="p-2 text-blue-400 hover:bg-blue-500/10 rounded transition"
+                          className="p- text-blue- hover:bg-blue-/ rounded transition"
                           title="Rotate token"
                         >
-                          <ChevronDown className="w-4 h-4" />
+                          <ChevronDown className="w- h-" />
                         </button>
                         <button
                           onClick={() => handleRevokeToken(token.id)}
-                          className="p-2 text-amber-400 hover:bg-amber-500/10 rounded transition"
+                          className="p- text-amber- hover:bg-amber-/ rounded transition"
                           title="Revoke token"
                         >
-                          <Lock className="w-4 h-4" />
+                          <Lock className="w- h-" />
                         </button>
                       </>
                     )}
                     <button
                       onClick={() => handleDeleteToken(token.id)}
-                      className="p-2 text-red-400 hover:bg-red-500/10 rounded transition"
+                      className="p- text-red- hover:bg-red-/ rounded transition"
                       title="Delete token"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash className="w- h-" />
                     </button>
                   </div>
                 </div>

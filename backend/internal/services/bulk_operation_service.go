@@ -14,18 +14,18 @@ import (
 
 // BulkOperationService handles async bulk operations
 type BulkOperationService struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewBulkOperationService creates a new bulk operation service
-func NewBulkOperationService() *BulkOperationService {
+func NewBulkOperationService() BulkOperationService {
 	return &BulkOperationService{
 		db: database.DB,
 	}
 }
 
 // CreateBulkOperation creates a new bulk operation job
-func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain.CreateBulkOperationRequest) (*domain.BulkOperation, error) {
+func (s BulkOperationService) CreateBulkOperation(userID uuid.UUID, req domain.CreateBulkOperationRequest) (domain.BulkOperation, error) {
 	// Validate operation type
 	switch req.OperationType {
 	case domain.BulkOperationTypeUpdate, domain.BulkOperationTypeDelete,
@@ -36,7 +36,7 @@ func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain
 	}
 
 	// Count matching resources
-	count := int64(0)
+	count := int()
 	if err := s.countResourcesByFilter(&count, req.FilterQuery); err != nil {
 		return nil, fmt.Errorf("failed to count resources: %w", err)
 	}
@@ -65,7 +65,7 @@ func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain
 }
 
 // GetBulkOperation retrieves a bulk operation by ID
-func (s *BulkOperationService) GetBulkOperation(opID uuid.UUID) (*domain.BulkOperation, error) {
+func (s BulkOperationService) GetBulkOperation(opID uuid.UUID) (domain.BulkOperation, error) {
 	op := &domain.BulkOperation{}
 	if err := s.db.First(op, "id = ?", opID).Error; err != nil {
 		return nil, err
@@ -74,8 +74,8 @@ func (s *BulkOperationService) GetBulkOperation(opID uuid.UUID) (*domain.BulkOpe
 }
 
 // ListBulkOperations lists bulk operations for a user
-func (s *BulkOperationService) ListBulkOperations(userID uuid.UUID, limit int, offset int) ([]*domain.BulkOperation, error) {
-	var ops []*domain.BulkOperation
+func (s BulkOperationService) ListBulkOperations(userID uuid.UUID, limit int, offset int) ([]domain.BulkOperation, error) {
+	var ops []domain.BulkOperation
 	if err := s.db.Where("created_by = ?", userID).
 		Order("created_at DESC").
 		Limit(limit).
@@ -87,8 +87,8 @@ func (s *BulkOperationService) ListBulkOperations(userID uuid.UUID, limit int, o
 }
 
 // processBulkOperation processes a bulk operation job
-func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
-	log.Printf("📊 Starting bulk operation: %s (%s)", op.ID, op.OperationType)
+func (s BulkOperationService) processBulkOperation(op domain.BulkOperation) {
+	log.Printf(" Starting bulk operation: %s (%s)", op.ID, op.OperationType)
 
 	// Mark as processing
 	now := time.Now()
@@ -127,11 +127,11 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 		}(),
 	})
 
-	log.Printf("✅ Bulk operation completed: %s (status: %s)", op.ID, status)
+	log.Printf(" Bulk operation completed: %s (status: %s)", op.ID, status)
 }
 
 // processBulkUpdate handles bulk update operations
-func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error {
+func (s BulkOperationService) processBulkUpdate(op domain.BulkOperation) error {
 	risks, err := s.getRisksByFilter(op.FilterQuery)
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error
 }
 
 // processBulkDelete handles bulk delete operations
-func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error {
+func (s BulkOperationService) processBulkDelete(op domain.BulkOperation) error {
 	risks, err := s.getRisksByFilter(op.FilterQuery)
 	if err != nil {
 		return err
@@ -176,21 +176,21 @@ func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error
 }
 
 // processBulkExport handles bulk export operations
-func (s *BulkOperationService) processBulkExport(op *domain.BulkOperation) error {
+func (s BulkOperationService) processBulkExport(op domain.BulkOperation) error {
 	risks, err := s.getRisksByFilter(op.FilterQuery)
 	if err != nil {
 		return err
 	}
 
-	// For now, just generate a JSON export URL (production would use S3/blob storage)
-	op.ResultURL = fmt.Sprintf("/api/v1/bulk-operations/%s/export-result", op.ID)
+	// For now, just generate a JSON export URL (production would use S/blob storage)
+	op.ResultURL = fmt.Sprintf("/api/v/bulk-operations/%s/export-result", op.ID)
 	op.ProcessedCount = len(risks)
 
 	return nil
 }
 
 // processBulkAssign handles bulk mitigation assignment
-func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error {
+func (s BulkOperationService) processBulkAssign(op domain.BulkOperation) error {
 	risks, err := s.getRisksByFilter(op.FilterQuery)
 	if err != nil {
 		return err
@@ -222,18 +222,18 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 }
 
 // getRisksByFilter retrieves risks matching a filter
-func (s *BulkOperationService) getRisksByFilter(filter map[string]interface{}) ([]*domain.Risk, error) {
-	var risks []*domain.Risk
+func (s BulkOperationService) getRisksByFilter(filter map[string]interface{}) ([]domain.Risk, error) {
+	var risks []domain.Risk
 	query := s.db
 
 	// Apply filters (simple key-value matching for now)
 	if status, ok := filter["status"].(string); ok {
 		query = query.Where("status = ?", status)
 	}
-	if minScore, ok := filter["min_score"].(float64); ok {
+	if minScore, ok := filter["min_score"].(float); ok {
 		query = query.Where("score >= ?", minScore)
 	}
-	if maxScore, ok := filter["max_score"].(float64); ok {
+	if maxScore, ok := filter["max_score"].(float); ok {
 		query = query.Where("score <= ?", maxScore)
 	}
 	if tags, ok := filter["tags"].([]interface{}); ok {
@@ -248,13 +248,13 @@ func (s *BulkOperationService) getRisksByFilter(filter map[string]interface{}) (
 }
 
 // countResourcesByFilter counts resources matching a filter
-func (s *BulkOperationService) countResourcesByFilter(count *int64, filter map[string]interface{}) error {
+func (s BulkOperationService) countResourcesByFilter(count int, filter map[string]interface{}) error {
 	query := s.db
 
 	if status, ok := filter["status"].(string); ok {
 		query = query.Where("status = ?", status)
 	}
-	if minScore, ok := filter["min_score"].(float64); ok {
+	if minScore, ok := filter["min_score"].(float); ok {
 		query = query.Where("score >= ?", minScore)
 	}
 
@@ -262,14 +262,14 @@ func (s *BulkOperationService) countResourcesByFilter(count *int64, filter map[s
 }
 
 // updateRiskFromData updates a risk with provided data
-func (s *BulkOperationService) updateRiskFromData(risk *domain.Risk, data map[string]interface{}) error {
+func (s BulkOperationService) updateRiskFromData(risk domain.Risk, data map[string]interface{}) error {
 	if status, ok := data["status"].(string); ok {
 		risk.Status = domain.RiskStatus(status)
 	}
-	if impact, ok := data["impact"].(float64); ok {
+	if impact, ok := data["impact"].(float); ok {
 		risk.Impact = int(impact)
 	}
-	if probability, ok := data["probability"].(float64); ok {
+	if probability, ok := data["probability"].(float); ok {
 		risk.Probability = int(probability)
 	}
 	if owner, ok := data["owner"].(string); ok {
@@ -280,7 +280,7 @@ func (s *BulkOperationService) updateRiskFromData(risk *domain.Risk, data map[st
 }
 
 // logBulkOperationSuccess logs a successful resource processing
-func (s *BulkOperationService) logBulkOperationSuccess(opID, resourceID uuid.UUID, resourceType string) {
+func (s BulkOperationService) logBulkOperationSuccess(opID, resourceID uuid.UUID, resourceType string) {
 	s.db.Create(&domain.BulkOperationLog{
 		ID:              uuid.New(),
 		BulkOperationID: opID,
@@ -292,7 +292,7 @@ func (s *BulkOperationService) logBulkOperationSuccess(opID, resourceID uuid.UUI
 }
 
 // logBulkOperationError logs an error during resource processing
-func (s *BulkOperationService) logBulkOperationError(opID, resourceID uuid.UUID, resourceType, errMsg string) {
+func (s BulkOperationService) logBulkOperationError(opID, resourceID uuid.UUID, resourceType, errMsg string) {
 	s.db.Create(&domain.BulkOperationLog{
 		ID:              uuid.New(),
 		BulkOperationID: opID,

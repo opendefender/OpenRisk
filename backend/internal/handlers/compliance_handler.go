@@ -9,24 +9,24 @@ import (
 	"openrisk/backend/internal/audit"
 	"openrisk/backend/internal/middleware"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/opendefender/openrisk/internal/analytics"
 	"gorm.io/gorm"
 )
 
 // ComplianceHandler handles compliance API endpoints
 type ComplianceHandler struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewComplianceHandler creates a new compliance handler
-func NewComplianceHandler(db *gorm.DB) *ComplianceHandler {
+func NewComplianceHandler(db gorm.DB) ComplianceHandler {
 	return &ComplianceHandler{db: db}
 }
 
 // GetComplianceReport retrieves the compliance report
-// GET /api/compliance/report?range=30d
-func (h *ComplianceHandler) GetComplianceReport(c *fiber.Ctx) error {
+// GET /api/compliance/report?range=d
+func (h ComplianceHandler) GetComplianceReport(c fiber.Ctx) error {
 	// Check authentication
 	userID := c.Locals("userID")
 	if userID == nil {
@@ -35,25 +35,25 @@ func (h *ComplianceHandler) GetComplianceReport(c *fiber.Ctx) error {
 		})
 	}
 
-	timeRange := c.Query("range", "30d")
+	timeRange := c.Query("range", "d")
 
 	// Calculate date range
 	var startDate time.Time
 	switch timeRange {
-	case "7d":
-		startDate = time.Now().AddDate(0, 0, -7)
-	case "30d":
-		startDate = time.Now().AddDate(0, 0, -30)
-	case "90d":
-		startDate = time.Now().AddDate(0, 0, -90)
-	case "1y":
-		startDate = time.Now().AddDate(-1, 0, 0)
+	case "d":
+		startDate = time.Now().AddDate(, , -)
+	case "d":
+		startDate = time.Now().AddDate(, , -)
+	case "d":
+		startDate = time.Now().AddDate(, , -)
+	case "y":
+		startDate = time.Now().AddDate(-, , )
 	default:
-		startDate = time.Now().AddDate(0, 0, -30)
+		startDate = time.Now().AddDate(, , -)
 	}
 
 	// Initialize audit logger
-	logger := audit.NewAuditLogger(10000)
+	logger := audit.NewAuditLogger()
 
 	// Fetch audit logs from database
 	var auditLogs []struct {
@@ -90,16 +90,16 @@ func (h *ComplianceHandler) GetComplianceReport(c *fiber.Ctx) error {
 	complianceReport := checker.CheckCompliance(ctx)
 
 	// Format frameworks
-	frameworks := make([]fiber.Map, 0)
-	frameworkNames := []string{"GDPR", "HIPAA", "SOC2", "ISO27001"}
+	frameworks := make([]fiber.Map, )
+	frameworkNames := []string{"GDPR", "HIPAA", "SOC", "ISO"}
 
 	for _, name := range frameworkNames {
 		score := complianceReport.FrameworkScores[name]
 
 		status := "compliant"
-		if score < 60 {
+		if score <  {
 			status = "non-compliant"
-		} else if score < 80 {
+		} else if score <  {
 			status = "warning"
 		}
 
@@ -113,17 +113,17 @@ func (h *ComplianceHandler) GetComplianceReport(c *fiber.Ctx) error {
 	}
 
 	// Format audit events
-	auditEvents := make([]fiber.Map, 0)
+	auditEvents := make([]fiber.Map, )
 	for i, log := range auditLogs {
-		if i >= 50 {
-			break // Limit to 50 events
+		if i >=  {
+			break // Limit to  events
 		}
 		auditEvents = append(auditEvents, fiber.Map{
 			"id":        log.UserID + "-" + strconv.Itoa(i),
 			"user":      log.UserID,
 			"action":    log.Action,
 			"resource":  log.ResourceType,
-			"timestamp": log.Timestamp.Format(time.RFC3339),
+			"timestamp": log.Timestamp.Format(time.RFC),
 			"status":    log.Status,
 		})
 	}
@@ -140,8 +140,8 @@ func (h *ComplianceHandler) GetComplianceReport(c *fiber.Ctx) error {
 }
 
 // GetAuditLogs retrieves audit logs
-// GET /api/compliance/audit-logs?user=user123&action=DELETE
-func (h *ComplianceHandler) GetAuditLogs(c *fiber.Ctx) error {
+// GET /api/compliance/audit-logs?user=user&action=DELETE
+func (h ComplianceHandler) GetAuditLogs(c fiber.Ctx) error {
 	// Check authentication
 	userID := c.Locals("userID")
 	if userID == nil {
@@ -154,11 +154,11 @@ func (h *ComplianceHandler) GetAuditLogs(c *fiber.Ctx) error {
 	filterAction := c.Query("action", "")
 	filterResource := c.Query("resource", "")
 	filterStatus := c.Query("status", "")
-	limitStr := c.Query("limit", "100")
+	limitStr := c.Query("limit", "")
 
 	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit > 1000 {
-		limit = 100
+	if err != nil || limit >  {
+		limit = 
 	}
 
 	// Query database
@@ -194,7 +194,7 @@ func (h *ComplianceHandler) GetAuditLogs(c *fiber.Ctx) error {
 		Scan(&auditLogs)
 
 	// Format response
-	logs := make([]fiber.Map, 0)
+	logs := make([]fiber.Map, )
 	for _, log := range auditLogs {
 		logs = append(logs, fiber.Map{
 			"id":            log.ID,
@@ -204,7 +204,7 @@ func (h *ComplianceHandler) GetAuditLogs(c *fiber.Ctx) error {
 			"resource_id":   log.ResourceID,
 			"status":        log.Status,
 			"details":       log.Details,
-			"timestamp":     log.Timestamp.Format(time.RFC3339),
+			"timestamp":     log.Timestamp.Format(time.RFC),
 		})
 	}
 
@@ -216,7 +216,7 @@ func (h *ComplianceHandler) GetAuditLogs(c *fiber.Ctx) error {
 
 // ExportComplianceReport exports compliance report
 // GET /api/compliance/export?format=json
-func (h *ComplianceHandler) ExportComplianceReport(c *fiber.Ctx) error {
+func (h ComplianceHandler) ExportComplianceReport(c fiber.Ctx) error {
 	// Check authentication
 	userID := c.Locals("userID")
 	if userID == nil {
@@ -226,10 +226,10 @@ func (h *ComplianceHandler) ExportComplianceReport(c *fiber.Ctx) error {
 	}
 
 	format := c.Query("format", "json")
-	timeRange := c.Query("range", "30d")
+	timeRange := c.Query("range", "d")
 
 	// Get compliance report
-	logger := audit.NewAuditLogger(10000)
+	logger := audit.NewAuditLogger()
 	ctx := context.Background()
 
 	var auditLogs []struct {
@@ -245,7 +245,7 @@ func (h *ComplianceHandler) ExportComplianceReport(c *fiber.Ctx) error {
 		Table("audit_logs").
 		Select("user_id, action, resource_type, resource_id, status, timestamp").
 		Order("created_at DESC").
-		Limit(5000).
+		Limit().
 		Scan(&auditLogs)
 
 	for _, log := range auditLogs {
@@ -264,18 +264,18 @@ func (h *ComplianceHandler) ExportComplianceReport(c *fiber.Ctx) error {
 
 	switch format {
 	case "json":
-		filename := "compliance-report-" + time.Now().Format("2006-01-02") + ".json"
+		filename := "compliance-report-" + time.Now().Format("--") + ".json"
 		c.Set("Content-Disposition", "attachment; filename="+filename)
 		c.Set("Content-Type", "application/json")
 		return c.JSON(report)
 
 	case "csv":
-		filename := "compliance-report-" + time.Now().Format("2006-01-02") + ".csv"
+		filename := "compliance-report-" + time.Now().Format("--") + ".csv"
 		c.Set("Content-Disposition", "attachment; filename="+filename)
 		c.Set("Content-Type", "text/csv")
 
 		csv := "OpenRisk Compliance Report\n"
-		csv += "Generated," + time.Now().Format(time.RFC3339) + "\n"
+		csv += "Generated," + time.Now().Format(time.RFC) + "\n"
 		csv += "Overall Score," + strconv.Itoa(int(report.OverallScore)) + "\n\n"
 
 		csv += "Framework,Score\n"
@@ -293,34 +293,34 @@ func (h *ComplianceHandler) ExportComplianceReport(c *fiber.Ctx) error {
 }
 
 // getFrameworkIssues returns issues for a framework
-func (h *ComplianceHandler) getFrameworkIssues(framework string, score float64) []string {
-	issues := make([]string, 0)
+func (h ComplianceHandler) getFrameworkIssues(framework string, score float) []string {
+	issues := make([]string, )
 
-	if score < 50 {
+	if score <  {
 		issues = append(issues, "Critical compliance violations detected")
 	}
 
 	switch framework {
 	case "GDPR":
-		if score < 80 {
+		if score <  {
 			issues = append(issues, "Missing user consent documentation")
 			issues = append(issues, "Incomplete data deletion logs")
 		}
 
 	case "HIPAA":
-		if score < 80 {
+		if score <  {
 			issues = append(issues, "PHI access logging incomplete")
 			issues = append(issues, "Encryption standards not verified")
 		}
 
-	case "SOC2":
-		if score < 80 {
+	case "SOC":
+		if score <  {
 			issues = append(issues, "Access control policies need review")
 			issues = append(issues, "Security monitoring gaps identified")
 		}
 
-	case "ISO27001":
-		if score < 80 {
+	case "ISO":
+		if score <  {
 			issues = append(issues, "Information security policies need update")
 			issues = append(issues, "Risk assessment overdue")
 		}
@@ -330,10 +330,10 @@ func (h *ComplianceHandler) getFrameworkIssues(framework string, score float64) 
 }
 
 // getFrameworkRecommendations returns recommendations for a framework
-func (h *ComplianceHandler) getFrameworkRecommendations(framework string, score float64) []string {
-	recommendations := make([]string, 0)
+func (h ComplianceHandler) getFrameworkRecommendations(framework string, score float) []string {
+	recommendations := make([]string, )
 
-	if score >= 80 {
+	if score >=  {
 		recommendations = append(recommendations, "Maintain current compliance level")
 	}
 
@@ -348,12 +348,12 @@ func (h *ComplianceHandler) getFrameworkRecommendations(framework string, score 
 		recommendations = append(recommendations, "Enable end-to-end encryption")
 		recommendations = append(recommendations, "Conduct monthly security audits")
 
-	case "SOC2":
+	case "SOC":
 		recommendations = append(recommendations, "Review and update access control policies")
 		recommendations = append(recommendations, "Implement continuous security monitoring")
 		recommendations = append(recommendations, "Conduct quarterly compliance assessments")
 
-	case "ISO27001":
+	case "ISO":
 		recommendations = append(recommendations, "Update information security policies")
 		recommendations = append(recommendations, "Conduct annual risk assessments")
 		recommendations = append(recommendations, "Implement security awareness training")
@@ -363,36 +363,36 @@ func (h *ComplianceHandler) getFrameworkRecommendations(framework string, score 
 }
 
 // generateComplianceTrend generates compliance trend data
-func (h *ComplianceHandler) generateComplianceTrend(startDate time.Time) []fiber.Map {
-	trend := make([]fiber.Map, 0)
+func (h ComplianceHandler) generateComplianceTrend(startDate time.Time) []fiber.Map {
+	trend := make([]fiber.Map, )
 
 	// Generate daily trend data
 	currentDate := startDate
 	for currentDate.Before(time.Now()) {
 		// Calculate score for this date (simulated)
-		daysPasssed := time.Since(currentDate).Hours() / 24
-		score := 75.0 + (daysPasssed * 0.2) // Gradually improving
+		daysPasssed := time.Since(currentDate).Hours() / 
+		score := . + (daysPasssed  .) // Gradually improving
 
-		if score > 95 {
-			score = 95
+		if score >  {
+			score = 
 		}
 
 		trend = append(trend, fiber.Map{
-			"date":  currentDate.Format("2006-01-02"),
+			"date":  currentDate.Format("--"),
 			"score": score,
 		})
 
-		currentDate = currentDate.AddDate(0, 0, 1)
+		currentDate = currentDate.AddDate(, , )
 	}
 
 	return trend
 }
 
 // RegisterComplianceRoutes registers all compliance routes
-func RegisterComplianceRoutes(app *fiber.App, db *gorm.DB) {
+func RegisterComplianceRoutes(app fiber.App, db gorm.DB) {
 	handler := NewComplianceHandler(db)
 
-	// Create protected group - endpoints accessible without /api/v1 prefix for frontend compatibility
+	// Create protected group - endpoints accessible without /api/v prefix for frontend compatibility
 	protected := app.Group("/api/compliance")
 	protected.Use(middleware.Protected())
 
@@ -403,10 +403,10 @@ func RegisterComplianceRoutes(app *fiber.App, db *gorm.DB) {
 }
 
 // RegisterTimeSeriesRoutes registers time series analytics routes
-func RegisterTimeSeriesRoutes(app *fiber.App, db *gorm.DB) {
+func RegisterTimeSeriesRoutes(app fiber.App, db gorm.DB) {
 	handler := NewTimeSeriesHandler(db)
 
-	// Create protected group - endpoints accessible without /api/v1 prefix for frontend compatibility
+	// Create protected group - endpoints accessible without /api/v prefix for frontend compatibility
 	protected := app.Group("/api/analytics")
 	protected.Use(middleware.Protected())
 
@@ -418,16 +418,16 @@ func RegisterTimeSeriesRoutes(app *fiber.App, db *gorm.DB) {
 
 // TimeSeriesHandler handles time series analytics API endpoints
 type TimeSeriesHandler struct {
-	db *gorm.DB
+	db gorm.DB
 }
 
 // NewTimeSeriesHandler creates a new time series handler
-func NewTimeSeriesHandler(db *gorm.DB) *TimeSeriesHandler {
+func NewTimeSeriesHandler(db gorm.DB) TimeSeriesHandler {
 	return &TimeSeriesHandler{db: db}
 }
 
 // GetTimeSeriesData retrieves time series data for a metric
-func (h *TimeSeriesHandler) GetTimeSeriesData(c *fiber.Ctx) error {
+func (h TimeSeriesHandler) GetTimeSeriesData(c fiber.Ctx) error {
 	// Check authentication
 	userID := c.Locals("userID")
 	if userID == nil {
@@ -438,27 +438,27 @@ func (h *TimeSeriesHandler) GetTimeSeriesData(c *fiber.Ctx) error {
 
 	metric := c.Query("metric", "latency_ms")
 	period := c.Query("period", "daily")
-	daysStr := c.Query("days", "7")
+	daysStr := c.Query("days", "")
 
 	days, err := strconv.Atoi(daysStr)
 	if err != nil {
-		days = 7
+		days = 
 	}
 
 	// Create analyzer
-	analyzer := analytics.NewTimeSeriesAnalyzer(10000)
+	analyzer := analytics.NewTimeSeriesAnalyzer()
 
 	// Fetch data from database
 	var dataPoints []struct {
 		Timestamp time.Time
-		Value     float64
+		Value     float
 	}
 
 	query := h.db.
 		Table("analytics_timeseries").
 		Select("timestamp, value").
 		Where("metric_name = ?", metric).
-		Where("created_at >= ?", time.Now().AddDate(0, 0, -days)).
+		Where("created_at >= ?", time.Now().AddDate(, , -days)).
 		Order("timestamp ASC").
 		Scan(&dataPoints)
 
@@ -480,16 +480,16 @@ func (h *TimeSeriesHandler) GetTimeSeriesData(c *fiber.Ctx) error {
 	series := analyzer.GetSeries(metric)
 
 	// Convert to API format
-	points := make([]fiber.Map, 0)
+	points := make([]fiber.Map, )
 	for _, dp := range series {
 		points = append(points, fiber.Map{
-			"timestamp": dp.Timestamp.Format(time.RFC3339),
+			"timestamp": dp.Timestamp.Format(time.RFC),
 			"value":     dp.Value,
 		})
 	}
 
 	// Analyze trend
-	trend := analyzer.AnalyzeTrend(metric, 24*time.Hour)
+	trend := analyzer.AnalyzeTrend(metric, time.Hour)
 	trendData := fiber.Map{}
 	if trend != nil {
 		trendData = fiber.Map{
@@ -514,7 +514,7 @@ func (h *TimeSeriesHandler) GetTimeSeriesData(c *fiber.Ctx) error {
 	}
 
 	aggregated := analyzer.AggregateData(metric, aggregationLevel)
-	aggregatedPoints := make([]fiber.Map, 0)
+	aggregatedPoints := make([]fiber.Map, )
 	if aggregated != nil {
 		for _, ap := range aggregated.DataPoints {
 			aggregatedPoints = append(aggregatedPoints, fiber.Map{
@@ -541,7 +541,7 @@ func (h *TimeSeriesHandler) GetTimeSeriesData(c *fiber.Ctx) error {
 }
 
 // ComparePeriods compares metrics across two time periods
-func (h *TimeSeriesHandler) ComparePeriods(c *fiber.Ctx) error {
+func (h TimeSeriesHandler) ComparePeriods(c fiber.Ctx) error {
 	// Check authentication
 	userID := c.Locals("userID")
 	if userID == nil {
@@ -551,15 +551,15 @@ func (h *TimeSeriesHandler) ComparePeriods(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		Metric  string `json:"metric"`
-		Period1 struct {
-			Start string `json:"start"`
-			End   string `json:"end"`
-		} `json:"period1"`
-		Period2 struct {
-			Start string `json:"start"`
-			End   string `json:"end"`
-		} `json:"period2"`
+		Metric  string json:"metric"
+		Period struct {
+			Start string json:"start"
+			End   string json:"end"
+		} json:"period"
+		Period struct {
+			Start string json:"start"
+			End   string json:"end"
+		} json:"period"
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -568,40 +568,40 @@ func (h *TimeSeriesHandler) ComparePeriods(c *fiber.Ctx) error {
 		})
 	}
 
-	analyzer := analytics.NewTimeSeriesAnalyzer(10000)
+	analyzer := analytics.NewTimeSeriesAnalyzer()
 
 	// Parse dates
-	p1Start, err := time.Parse(time.RFC3339, req.Period1.Start)
+	pStart, err := time.Parse(time.RFC, req.Period.Start)
 	if err != nil {
-		p1Start, _ = time.Parse("2006-01-02", req.Period1.Start)
+		pStart, _ = time.Parse("--", req.Period.Start)
 	}
 
-	p1End, err := time.Parse(time.RFC3339, req.Period1.End)
+	pEnd, err := time.Parse(time.RFC, req.Period.End)
 	if err != nil {
-		p1End, _ = time.Parse("2006-01-02", req.Period1.End)
+		pEnd, _ = time.Parse("--", req.Period.End)
 	}
 
-	p2Start, err := time.Parse(time.RFC3339, req.Period2.Start)
+	pStart, err := time.Parse(time.RFC, req.Period.Start)
 	if err != nil {
-		p2Start, _ = time.Parse("2006-01-02", req.Period2.Start)
+		pStart, _ = time.Parse("--", req.Period.Start)
 	}
 
-	p2End, err := time.Parse(time.RFC3339, req.Period2.End)
+	pEnd, err := time.Parse(time.RFC, req.Period.End)
 	if err != nil {
-		p2End, _ = time.Parse("2006-01-02", req.Period2.End)
+		pEnd, _ = time.Parse("--", req.Period.End)
 	}
 
 	// Fetch data
 	var dataPoints []struct {
 		Timestamp time.Time
-		Value     float64
+		Value     float
 	}
 
 	h.db.
 		Table("analytics_timeseries").
 		Select("timestamp, value").
 		Where("metric_name = ?", req.Metric).
-		Where("timestamp >= ? AND timestamp <= ?", p1Start, p2End).
+		Where("timestamp >= ? AND timestamp <= ?", pStart, pEnd).
 		Order("timestamp ASC").
 		Scan(&dataPoints)
 
@@ -613,23 +613,23 @@ func (h *TimeSeriesHandler) ComparePeriods(c *fiber.Ctx) error {
 	}
 
 	// Compare periods
-	comparison := analyzer.ComparePeriods(req.Metric, p1Start, p1End, p2Start, p2End)
+	comparison := analyzer.ComparePeriods(req.Metric, pStart, pEnd, pStart, pEnd)
 
 	return c.JSON(fiber.Map{
 		"metric":          req.Metric,
-		"period1_average": comparison.Period1Average,
-		"period2_average": comparison.Period2Average,
+		"period_average": comparison.PeriodAverage,
+		"period_average": comparison.PeriodAverage,
 		"absolute_change": comparison.AbsoluteChange,
 		"percent_change":  comparison.PercentChange,
-		"period1_min":     comparison.Period1Min,
-		"period1_max":     comparison.Period1Max,
-		"period2_min":     comparison.Period2Min,
-		"period2_max":     comparison.Period2Max,
+		"period_min":     comparison.PeriodMin,
+		"period_max":     comparison.PeriodMax,
+		"period_min":     comparison.PeriodMin,
+		"period_max":     comparison.PeriodMax,
 	})
 }
 
 // GenerateReport generates a performance report
-func (h *TimeSeriesHandler) GenerateReport(c *fiber.Ctx) error {
+func (h TimeSeriesHandler) GenerateReport(c fiber.Ctx) error {
 	// Check authentication
 	userID := c.Locals("userID")
 	if userID == nil {
@@ -639,26 +639,26 @@ func (h *TimeSeriesHandler) GenerateReport(c *fiber.Ctx) error {
 	}
 
 	metric := c.Query("metric", "latency_ms")
-	windowStr := c.Query("window", "24")
+	windowStr := c.Query("window", "")
 
 	window, err := strconv.Atoi(windowStr)
 	if err != nil {
-		window = 24
+		window = 
 	}
 
-	analyzer := analytics.NewTimeSeriesAnalyzer(10000)
+	analyzer := analytics.NewTimeSeriesAnalyzer()
 
 	// Fetch data
 	var dataPoints []struct {
 		Timestamp time.Time
-		Value     float64
+		Value     float
 	}
 
 	h.db.
 		Table("analytics_timeseries").
 		Select("timestamp, value").
 		Where("metric_name = ?", metric).
-		Where("created_at >= ?", time.Now().Add(-time.Duration(window)*time.Hour)).
+		Where("created_at >= ?", time.Now().Add(-time.Duration(window)time.Hour)).
 		Order("timestamp ASC").
 		Scan(&dataPoints)
 
@@ -670,7 +670,7 @@ func (h *TimeSeriesHandler) GenerateReport(c *fiber.Ctx) error {
 	}
 
 	// Generate report
-	report := analyzer.GeneratePerformanceReport(metric, time.Duration(window)*time.Hour)
+	report := analyzer.GeneratePerformanceReport(metric, time.Duration(window)time.Hour)
 
 	return c.JSON(fiber.Map{
 		"metric_name":   report.MetricName,
@@ -684,20 +684,20 @@ func (h *TimeSeriesHandler) GenerateReport(c *fiber.Ctx) error {
 }
 
 // generateMetricCards generates metric cards for dashboard
-func (h *TimeSeriesHandler) generateMetricCards(metric string, series []analytics.DataPoint) []fiber.Map {
-	if len(series) == 0 {
+func (h TimeSeriesHandler) generateMetricCards(metric string, series []analytics.DataPoint) []fiber.Map {
+	if len(series) ==  {
 		return []fiber.Map{}
 	}
 
-	values := make([]float64, len(series))
+	values := make([]float, len(series))
 	for i, dp := range series {
 		values[i] = dp.Value
 	}
 
 	// Calculate statistics
-	sum := 0.0
-	min := values[0]
-	max := values[0]
+	sum := .
+	min := values[]
+	max := values[]
 
 	for _, v := range values {
 		sum += v
@@ -709,12 +709,12 @@ func (h *TimeSeriesHandler) generateMetricCards(metric string, series []analytic
 		}
 	}
 
-	avg := sum / float64(len(values))
+	avg := sum / float(len(values))
 
 	// Calculate percent change
-	oldValue := values[0]
-	newValue := values[len(values)-1]
-	percentChange := ((newValue - oldValue) / oldValue) * 100
+	oldValue := values[]
+	newValue := values[len(values)-]
+	percentChange := ((newValue - oldValue) / oldValue)  
 
 	unit := ""
 	switch metric {
@@ -735,27 +735,27 @@ func (h *TimeSeriesHandler) generateMetricCards(metric string, series []analytic
 			"title":      "Current Value",
 			"value":      newValue,
 			"change":     percentChange,
-			"isPositive": percentChange >= 0,
+			"isPositive": percentChange >= ,
 			"unit":       unit,
 		},
 		{
 			"title":      "Average",
 			"value":      avg,
-			"change":     0,
+			"change":     ,
 			"isPositive": false,
 			"unit":       unit,
 		},
 		{
 			"title":      "Minimum",
 			"value":      min,
-			"change":     0,
+			"change":     ,
 			"isPositive": false,
 			"unit":       unit,
 		},
 		{
 			"title":      "Maximum",
 			"value":      max,
-			"change":     0,
+			"change":     ,
 			"isPositive": false,
 			"unit":       unit,
 		},

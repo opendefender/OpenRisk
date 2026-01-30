@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Plus, Trash2, Users, Settings, Search, ChevronRight, Lock } from 'lucide-react';
+import { Building, Plus, Trash, Users, Settings, Search, ChevronRight, Lock } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
@@ -58,7 +58,7 @@ export const TenantManagement = () => {
 
   const fetchTenantStats = async (tenantId: string) => {
     try {
-      const response = await api.get(`/rbac/tenants/${tenantId}/stats`);
+      const response = await api.get(/rbac/tenants/${tenantId}/stats);
       setTenantStats(response.data);
     } catch (err: any) {
       console.error('Failed to fetch tenant stats:', err);
@@ -103,12 +103,12 @@ export const TenantManagement = () => {
   };
 
   const handleDeleteTenant = async (tenantId: string, tenantName: string) => {
-    if (!confirm(`Are you sure you want to delete the "${tenantName}" tenant? This action cannot be undone.`)) {
+    if (!confirm(Are you sure you want to delete the "${tenantName}" tenant? This action cannot be undone.)) {
       return;
     }
 
     try {
-      await api.delete(`/rbac/tenants/${tenantId}`);
+      await api.delete(/rbac/tenants/${tenantId});
       toast.success('Tenant deleted successfully');
       setSelectedTenant(null);
       setTenantStats(null);
@@ -128,13 +128,13 @@ export const TenantManagement = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-500/10 text-green-400 border-green-500/20';
+        return 'bg-green-/ text-green- border-green-/';
       case 'suspended':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        return 'bg-yellow-/ text-yellow- border-yellow-/';
       case 'deleted':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
+        return 'bg-red-/ text-red- border-red-/';
       default:
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+        return 'bg-zinc-/ text-zinc- border-zinc-/';
     }
   };
 
@@ -142,9 +142,9 @@ export const TenantManagement = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Lock className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-          <p className="text-zinc-400">You need administrator privileges to access tenant management.</p>
+          <Lock className="w- h- text-red- mx-auto mb-" />
+          <h className="text-xl font-bold text-white mb-">Access Denied</h>
+          <p className="text-zinc-">You need administrator privileges to access tenant management.</p>
         </div>
       </div>
     );
@@ -153,76 +153,76 @@ export const TenantManagement = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h- w- border-t- border-b- border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border bg-surface/50 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Building2 className="w-8 h-8 text-primary" />
+      {/ Header /}
+      <div className="border-b border-border bg-surface/ backdrop-blur-md sticky top- z-">
+        <div className="max-w-xl mx-auto px- py-">
+          <div className="flex items-center justify-between mb-">
+            <div className="flex items-center gap-">
+              <Building className="w- h- text-primary" />
               <div>
-                <h1 className="text-2xl font-bold text-white">Tenant Management</h1>
-                <p className="text-sm text-zinc-400">Manage multi-tenant organizations</p>
+                <h className="text-xl font-bold text-white">Tenant Management</h>
+                <p className="text-sm text-zinc-">Manage multi-tenant organizations</p>
               </div>
             </div>
             <Button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 bg-primary hover:bg-primary/90"
+              className="flex items-center gap- bg-primary hover:bg-primary/"
             >
-              <Plus size={18} />
+              <Plus size={} />
               Create Tenant
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Tenants List */}
-          <div className="lg:col-span-1">
-            <div className="bg-surface border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Tenants ({tenants.length})</h2>
+      <div className="max-w-xl mx-auto px- py-">
+        <div className="grid grid-cols- lg:grid-cols- gap-">
+          {/ Tenants List /}
+          <div className="lg:col-span-">
+            <div className="bg-surface border border-border rounded-lg p-">
+              <h className="text-lg font-semibold text-white mb-">Tenants ({tenants.length})</h>
 
-              {/* Search */}
-              <div className="relative mb-6">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              {/ Search /}
+              <div className="relative mb-">
+                <Search size={} className="absolute left- top-/ -translate-y-/ text-zinc-" />
                 <input
                   type="text"
                   placeholder="Search tenants..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full pl- pr- py- bg-zinc- border border-border rounded-lg text-white placeholder-zinc- focus:outline-none focus:border-primary"
                 />
               </div>
 
-              {/* Tenants List */}
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                {filteredTenants.length === 0 ? (
-                  <p className="text-center text-zinc-500 py-8">No tenants found</p>
+              {/ Tenants List /}
+              <div className="space-y- max-h-[px] overflow-y-auto">
+                {filteredTenants.length ===  ? (
+                  <p className="text-center text-zinc- py-">No tenants found</p>
                 ) : (
                   filteredTenants.map((tenant) => (
                     <motion.button
                       key={tenant.id}
                       onClick={() => handleSelectTenant(tenant)}
-                      whileHover={{ x: 4 }}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                      whileHover={{ x:  }}
+                      className={w-full text-left px- py- rounded-lg transition-colors ${
                         selectedTenant?.id === tenant.id
-                          ? 'bg-primary/10 border border-primary text-primary'
-                          : 'bg-zinc-900/50 hover:bg-zinc-800 text-white'
-                      }`}
+                          ? 'bg-primary/ border border-primary text-primary'
+                          : 'bg-zinc-/ hover:bg-zinc- text-white'
+                      }}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                        <div className="flex-">
                           <div className="font-medium">{tenant.name}</div>
-                          <div className="text-xs text-zinc-400 font-mono">{tenant.slug}</div>
+                          <div className="text-xs text-zinc- font-mono">{tenant.slug}</div>
                         </div>
-                        <ChevronRight size={16} className="text-zinc-400" />
+                        <ChevronRight size={} className="text-zinc-" />
                       </div>
                     </motion.button>
                   ))
@@ -231,40 +231,40 @@ export const TenantManagement = () => {
             </div>
           </div>
 
-          {/* Tenant Details */}
-          <div className="lg:col-span-2">
+          {/ Tenant Details /}
+          <div className="lg:col-span-">
             {selectedTenant ? (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
+                initial={{ opacity: , y:  }}
+                animate={{ opacity: , y:  }}
+                className="space-y-"
               >
-                {/* Tenant Info Card */}
-                <div className="bg-surface border border-border rounded-lg p-6">
-                  <div className="flex items-start justify-between mb-6">
+                {/ Tenant Info Card /}
+                <div className="bg-surface border border-border rounded-lg p-">
+                  <div className="flex items-start justify-between mb-">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-2">{selectedTenant.name}</h2>
-                      <p className="text-zinc-400 font-mono">{selectedTenant.slug}</p>
+                      <h className="text-xl font-bold text-white mb-">{selectedTenant.name}</h>
+                      <p className="text-zinc- font-mono">{selectedTenant.slug}</p>
                     </div>
                     <button
                       onClick={() => handleDeleteTenant(selectedTenant.id, selectedTenant.name)}
-                      className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                      className="p- rounded-lg bg-red-/ text-red- hover:bg-red-/ transition-colors"
                     >
-                      <Trash2 size={18} />
+                      <Trash size={} />
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols- gap-">
                     <div>
-                      <div className="text-sm text-zinc-400 mb-1">Status</div>
-                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(
+                      <div className="text-sm text-zinc- mb-">Status</div>
+                      <div className={inline-block px- py- rounded-full text-sm font-medium border ${getStatusBadge(
                         selectedTenant.status
-                      )}`}>
-                        {selectedTenant.status.charAt(0).toUpperCase() + selectedTenant.status.slice(1)}
+                      )}}>
+                        {selectedTenant.status.charAt().toUpperCase() + selectedTenant.status.slice()}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-zinc-400 mb-1">Created</div>
+                      <div className="text-sm text-zinc- mb-">Created</div>
                       <div className="text-sm text-white">
                         {new Date(selectedTenant.created_at).toLocaleDateString()}
                       </div>
@@ -272,68 +272,68 @@ export const TenantManagement = () => {
                   </div>
                 </div>
 
-                {/* Tenant Statistics */}
+                {/ Tenant Statistics /}
                 {tenantStats ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-surface border border-border rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users size={18} className="text-blue-400" />
-                        <span className="text-sm font-medium text-zinc-400">Total Users</span>
+                  <div className="grid grid-cols- gap-">
+                    <div className="bg-surface border border-border rounded-lg p-">
+                      <div className="flex items-center gap- mb-">
+                        <Users size={} className="text-blue-" />
+                        <span className="text-sm font-medium text-zinc-">Total Users</span>
                       </div>
-                      <div className="text-3xl font-bold text-white">{tenantStats.total_users}</div>
-                      <p className="text-xs text-zinc-500 mt-1">{tenantStats.active_users} active</p>
+                      <div className="text-xl font-bold text-white">{tenantStats.total_users}</div>
+                      <p className="text-xs text-zinc- mt-">{tenantStats.active_users} active</p>
                     </div>
 
-                    <div className="bg-surface border border-border rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Settings size={18} className="text-purple-400" />
-                        <span className="text-sm font-medium text-zinc-400">Roles</span>
+                    <div className="bg-surface border border-border rounded-lg p-">
+                      <div className="flex items-center gap- mb-">
+                        <Settings size={} className="text-purple-" />
+                        <span className="text-sm font-medium text-zinc-">Roles</span>
                       </div>
-                      <div className="text-3xl font-bold text-white">{tenantStats.total_roles}</div>
-                      <p className="text-xs text-zinc-500 mt-1">system + custom</p>
+                      <div className="text-xl font-bold text-white">{tenantStats.total_roles}</div>
+                      <p className="text-xs text-zinc- mt-">system + custom</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-surface border border-dashed border-border rounded-lg p-4 text-center text-zinc-400">
+                  <div className="bg-surface border border-dashed border-border rounded-lg p- text-center text-zinc-">
                     Loading statistics...
                   </div>
                 )}
 
-                {/* Tenant Settings */}
-                <div className="bg-surface border border-border rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Settings</h3>
-                  <div className="space-y-4">
+                {/ Tenant Settings /}
+                <div className="bg-surface border border-border rounded-lg p-">
+                  <h className="text-lg font-semibold text-white mb-">Settings</h>
+                  <div className="space-y-">
                     <div>
-                      <label className="block text-sm font-medium text-zinc-300 mb-2">Tenant Name</label>
+                      <label className="block text-sm font-medium text-zinc- mb-">Tenant Name</label>
                       <input
                         type="text"
                         value={selectedTenant.name}
                         disabled
-                        className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white opacity-50 cursor-not-allowed"
+                        className="w-full px- py- bg-zinc- border border-border rounded-lg text-white opacity- cursor-not-allowed"
                       />
-                      <p className="text-xs text-zinc-500 mt-1">Read-only for now</p>
+                      <p className="text-xs text-zinc- mt-">Read-only for now</p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-zinc-300 mb-2">Slug</label>
+                      <label className="block text-sm font-medium text-zinc- mb-">Slug</label>
                       <input
                         type="text"
                         value={selectedTenant.slug}
                         disabled
-                        className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white opacity-50 cursor-not-allowed font-mono"
+                        className="w-full px- py- bg-zinc- border border-border rounded-lg text-white opacity- cursor-not-allowed font-mono"
                       />
                     </div>
 
-                    <div className="flex gap-3 pt-4">
+                    <div className="flex gap- pt-">
                       <Button
                         disabled
-                        className="flex-1 opacity-50 cursor-not-allowed"
+                        className="flex- opacity- cursor-not-allowed"
                       >
                         Save Changes
                       </Button>
                       <Button
                         onClick={() => handleDeleteTenant(selectedTenant.id, selectedTenant.name)}
-                        className="flex-1 bg-red-500 hover:bg-red-600"
+                        className="flex- bg-red- hover:bg-red-"
                       >
                         Delete Tenant
                       </Button>
@@ -341,17 +341,17 @@ export const TenantManagement = () => {
                   </div>
                 </div>
 
-                {/* Tenant Members */}
-                <div className="bg-surface border border-border rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Members ({tenantStats?.total_users || 0})</h3>
-                  <p className="text-sm text-zinc-400">Member management coming in next phase</p>
+                {/ Tenant Members /}
+                <div className="bg-surface border border-border rounded-lg p-">
+                  <h className="text-lg font-semibold text-white mb-">Members ({tenantStats?.total_users || })</h>
+                  <p className="text-sm text-zinc-">Member management coming in next phase</p>
                 </div>
               </motion.div>
             ) : (
-              <div className="flex items-center justify-center h-96 bg-surface border border-dashed border-border rounded-lg">
+              <div className="flex items-center justify-center h- bg-surface border border-dashed border-border rounded-lg">
                 <div className="text-center">
-                  <Building2 className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                  <p className="text-zinc-400">Select a tenant to view details</p>
+                  <Building className="w- h- text-zinc- mx-auto mb-" />
+                  <p className="text-zinc-">Select a tenant to view details</p>
                 </div>
               </div>
             )}
@@ -359,53 +359,53 @@ export const TenantManagement = () => {
         </div>
       </div>
 
-      {/* Create Tenant Modal */}
+      {/ Create Tenant Modal /}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset- bg-black/ flex items-center justify-center z-">
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface border border-border rounded-lg p-6 max-w-md w-full mx-4"
+            initial={{ scale: ., opacity:  }}
+            animate={{ scale: , opacity:  }}
+            className="bg-surface border border-border rounded-lg p- max-w-md w-full mx-"
           >
-            <h2 className="text-xl font-bold text-white mb-6">Create New Tenant</h2>
+            <h className="text-xl font-bold text-white mb-">Create New Tenant</h>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y- mb-">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">Tenant Name</label>
+                <label className="block text-sm font-medium text-zinc- mb-">Tenant Name</label>
                 <input
                   type="text"
                   value={newTenantName}
                   onChange={(e) => setNewTenantName(e.target.value)}
                   placeholder="e.g., Acme Corporation"
-                  className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full px- py- bg-zinc- border border-border rounded-lg text-white placeholder-zinc- focus:outline-none focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">Slug</label>
+                <label className="block text-sm font-medium text-zinc- mb-">Slug</label>
                 <input
                   type="text"
                   value={newTenantSlug}
                   onChange={(e) => setNewTenantSlug(e.target.value.toLowerCase())}
                   placeholder="e.g., acme-corp"
-                  className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-primary font-mono"
+                  className="w-full px- py- bg-zinc- border border-border rounded-lg text-white placeholder-zinc- focus:outline-none focus:border-primary font-mono"
                 />
-                <p className="text-xs text-zinc-500 mt-1">URL-friendly identifier (lowercase, hyphens only)</p>
+                <p className="text-xs text-zinc- mt-">URL-friendly identifier (lowercase, hyphens only)</p>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-">
               <Button
                 onClick={() => setShowCreateModal(false)}
                 variant="outline"
-                className="flex-1"
+                className="flex-"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreateTenant}
                 disabled={isCreating}
-                className="flex-1"
+                className="flex-"
               >
                 {isCreating ? 'Creating...' : 'Create Tenant'}
               </Button>

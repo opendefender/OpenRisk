@@ -3,19 +3,19 @@ package validation
 import (
     "sync"
 
-    "github.com/go-playground/validator/v10"
+    "github.com/go-playground/validator/v"
 )
 
 var (
     once sync.Once
-    v    *validator.Validate
+    v    validator.Validate
 )
 
 // GetValidator returns a singleton validator instance
-func GetValidator() *validator.Validate {
+func GetValidator() validator.Validate {
     once.Do(func() {
         v = validator.New()
-        // register uuid4 tag if needed (go-playground supports uuid validation)
+        // register uuid tag if needed (go-playground supports uuid validation)
     })
     return v
 }

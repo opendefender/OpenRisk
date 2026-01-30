@@ -1,7 +1,7 @@
-/**
- * Role Template Utilities
- * Functions for creating, modifying, and managing roles from templates
- */
+/
+  Role Template Utilities
+  Functions for creating, modifying, and managing roles from templates
+ /
 
 import { ROLE_TEMPLATES, type PermissionAction, type PermissionResource } from '../config/rbacConfig';
 
@@ -19,25 +19,25 @@ export interface CustomRole extends RoleTemplate {
   excludedPermissions: string[]; // Permissions removed from template
 }
 
-/**
- * Get template by name
- */
+/
+  Get template by name
+ /
 export const getTemplateByName = (name: string): RoleTemplate | null => {
   const key = name.toUpperCase();
   const template = ROLE_TEMPLATES[key as keyof typeof ROLE_TEMPLATES];
   return template ? (template as RoleTemplate) : null;
 };
 
-/**
- * Get all available templates
- */
+/
+  Get all available templates
+ /
 export const getAllTemplates = (): RoleTemplate[] => {
   return Object.values(ROLE_TEMPLATES) as RoleTemplate[];
 };
 
-/**
- * Get template by level
- */
+/
+  Get template by level
+ /
 export const getTemplateByLevel = (level: number): RoleTemplate | null => {
   const template = Object.values(ROLE_TEMPLATES).find(
     (t) => (t as RoleTemplate).level === level
@@ -45,9 +45,9 @@ export const getTemplateByLevel = (level: number): RoleTemplate | null => {
   return template ? (template as RoleTemplate) : null;
 };
 
-/**
- * Create custom role from template
- */
+/
+  Create custom role from template
+ /
 export const createCustomRoleFromTemplate = (
   templateName: string,
   customName: string,
@@ -69,7 +69,7 @@ export const createCustomRoleFromTemplate = (
   return {
     name: customName,
     level: customLevel ?? template.level,
-    description: `Custom role based on ${templateName}`,
+    description: Custom role based on ${templateName},
     permissions: uniquePermissions,
     features: template.features,
     parentTemplate: templateName,
@@ -78,47 +78,47 @@ export const createCustomRoleFromTemplate = (
   };
 };
 
-/**
- * Compare two role templates
- */
+/
+  Compare two role templates
+ /
 export const compareTemplates = (
-  template1: RoleTemplate,
-  template2: RoleTemplate
+  template: RoleTemplate,
+  template: RoleTemplate
 ): {
   commonPermissions: string[];
-  onlyInTemplate1: string[];
-  onlyInTemplate2: string[];
+  onlyInTemplate: string[];
+  onlyInTemplate: string[];
   allPermissions: string[];
 } => {
-  const perms1 = new Set(template1.permissions);
-  const perms2 = new Set(template2.permissions);
-  const allPerms = new Set([...template1.permissions, ...template2.permissions]);
+  const perms = new Set(template.permissions);
+  const perms = new Set(template.permissions);
+  const allPerms = new Set([...template.permissions, ...template.permissions]);
 
   return {
-    commonPermissions: template1.permissions.filter((p) => perms2.has(p)),
-    onlyInTemplate1: template1.permissions.filter((p) => !perms2.has(p)),
-    onlyInTemplate2: template2.permissions.filter((p) => !perms1.has(p)),
+    commonPermissions: template.permissions.filter((p) => perms.has(p)),
+    onlyInTemplate: template.permissions.filter((p) => !perms.has(p)),
+    onlyInTemplate: template.permissions.filter((p) => !perms.has(p)),
     allPermissions: Array.from(allPerms),
   };
 };
 
-/**
- * Get permission coverage (what % of permissions does role have)
- */
+/
+  Get permission coverage (what % of permissions does role have)
+ /
 export const getPermissionCoverage = (
   rolePermissions: string[],
   allAvailablePermissions: string[]
 ): number => {
-  if (allAvailablePermissions.length === 0) return 0;
+  if (allAvailablePermissions.length === ) return ;
   const coverage = rolePermissions.filter((p) =>
     allAvailablePermissions.includes(p)
   ).length;
-  return Math.round((coverage / allAvailablePermissions.length) * 100);
+  return Math.round((coverage / allAvailablePermissions.length)  );
 };
 
-/**
- * Check if role meets minimum permission requirements
- */
+/
+  Check if role meets minimum permission requirements
+ /
 export const roleHasMinimumPermissions = (
   rolePermissions: string[],
   minimumRequired: string[]
@@ -126,9 +126,9 @@ export const roleHasMinimumPermissions = (
   return minimumRequired.every((perm) => rolePermissions.includes(perm));
 };
 
-/**
- * Get recommended template based on use case
- */
+/
+  Get recommended template based on use case
+ /
 export const getRecommendedTemplate = (useCase: string): RoleTemplate | null => {
   const useCaseLower = useCase.toLowerCase();
 
@@ -167,59 +167,59 @@ export const getRecommendedTemplate = (useCase: string): RoleTemplate | null => 
   return null;
 };
 
-/**
- * Get role hierarchy level name
- */
+/
+  Get role hierarchy level name
+ /
 export const getRoleLevelName = (level: number): string => {
   const names: Record<number, string> = {
-    0: 'Viewer',
-    3: 'Analyst',
-    6: 'Manager',
-    9: 'Administrator',
+    : 'Viewer',
+    : 'Analyst',
+    : 'Manager',
+    : 'Administrator',
   };
-  return names[level] || `Custom Level ${level}`;
+  return names[level] || Custom Level ${level};
 };
 
-/**
- * Validate custom role
- */
+/
+  Validate custom role
+ /
 export const validateCustomRole = (role: Partial<CustomRole>): {
   valid: boolean;
   errors: string[];
 } => {
   const errors: string[] = [];
 
-  if (!role.name || role.name.trim().length === 0) {
+  if (!role.name || role.name.trim().length === ) {
     errors.push('Role name is required');
   }
 
-  if (role.name && role.name.length > 50) {
-    errors.push('Role name must be less than 50 characters');
+  if (role.name && role.name.length > ) {
+    errors.push('Role name must be less than  characters');
   }
 
   if (role.level === undefined) {
     errors.push('Role level is required');
-  } else if (role.level < 0 || role.level > 9) {
-    errors.push('Role level must be between 0 and 9');
+  } else if (role.level <  || role.level > ) {
+    errors.push('Role level must be between  and ');
   }
 
-  if (!role.permissions || role.permissions.length === 0) {
+  if (!role.permissions || role.permissions.length === ) {
     errors.push('At least one permission is required');
   }
 
-  if (role.description && role.description.length > 500) {
-    errors.push('Role description must be less than 500 characters');
+  if (role.description && role.description.length > ) {
+    errors.push('Role description must be less than  characters');
   }
 
   return {
-    valid: errors.length === 0,
+    valid: errors.length === ,
     errors,
   };
 };
 
-/**
- * Clone template with modifications
- */
+/
+  Clone template with modifications
+ /
 export const cloneTemplate = (
   template: RoleTemplate,
   overrides: Partial<RoleTemplate> = {}
@@ -233,9 +233,9 @@ export const cloneTemplate = (
   };
 };
 
-/**
- * Merge multiple templates
- */
+/
+  Merge multiple templates
+ /
 export const mergeTemplates = (
   templates: RoleTemplate[],
   options?: {
@@ -243,12 +243,12 @@ export const mergeTemplates = (
     combineFeatures?: boolean;
   }
 ): RoleTemplate => {
-  if (templates.length === 0) {
+  if (templates.length === ) {
     return getTemplateByName('VIEWER')!;
   }
 
-  if (templates.length === 1) {
-    return cloneTemplate(templates[0]);
+  if (templates.length === ) {
+    return cloneTemplate(templates[]);
   }
 
   const allPermissions = Array.from(
@@ -256,30 +256,30 @@ export const mergeTemplates = (
   );
   const allFeatures = options?.combineFeatures
     ? Array.from(new Set(templates.flatMap((t) => t.features)))
-    : templates[0].features;
+    : templates[].features;
   const maxLevel = options?.preferHigherLevel
     ? Math.max(...templates.map((t) => t.level))
-    : templates[0].level;
+    : templates[].level;
 
   return {
-    name: `Merged Role (${templates.length})`,
+    name: Merged Role (${templates.length}),
     level: maxLevel,
-    description: `Merged role from ${templates.length} templates`,
+    description: Merged role from ${templates.length} templates,
     permissions: allPermissions,
     features: allFeatures,
   };
 };
 
-/**
- * Export template as JSON
- */
+/
+  Export template as JSON
+ /
 export const exportTemplate = (template: RoleTemplate): string => {
-  return JSON.stringify(template, null, 2);
+  return JSON.stringify(template, null, );
 };
 
-/**
- * Import template from JSON
- */
+/
+  Import template from JSON
+ /
 export const importTemplate = (json: string): RoleTemplate | null => {
   try {
     const parsed = JSON.parse(json);

@@ -1,15 +1,15 @@
-/**
- * Advanced RBAC Permission Utilities
- * Provides permission checking and role-based UI rendering helpers
- */
+/
+  Advanced RBAC Permission Utilities
+  Provides permission checking and role-based UI rendering helpers
+ /
 
 export type PermissionAction = 'read' | 'create' | 'update' | 'delete' | 'manage' | 'all';
 export type PermissionResource = 'users' | 'roles' | 'tenants' | 'reports' | 'audit' | 'connector' | 'assets' | 'incidents' | 'risks';
 
-/**
- * Check if a permission string matches a pattern
- * Supports wildcards: resource:action or resource:* or *:action or *
- */
+/
+  Check if a permission string matches a pattern
+  Supports wildcards: resource:action or resource: or :action or 
+ /
 export const matchesPermissionPattern = (
   userPermission: string,
   requiredPermission: string
@@ -18,23 +18,23 @@ export const matchesPermissionPattern = (
   if (userPermission === requiredPermission) return true;
 
   // Full wildcard
-  if (userPermission === '*') return true;
+  if (userPermission === '') return true;
 
   const [userRes, userAct] = userPermission.split(':');
   const [reqRes, reqAct] = requiredPermission.split(':');
 
-  // Resource wildcard: resource:*
-  if (userAct === '*' && userRes === reqRes) return true;
+  // Resource wildcard: resource:
+  if (userAct === '' && userRes === reqRes) return true;
 
-  // Action wildcard: *:action
-  if (userRes === '*' && userAct === reqAct) return true;
+  // Action wildcard: :action
+  if (userRes === '' && userAct === reqAct) return true;
 
   return false;
 };
 
-/**
- * Check if user has a specific permission
- */
+/
+  Check if user has a specific permission
+ /
 export const hasPermission = (
   userPermissions: string[],
   requiredPermission: string
@@ -44,9 +44,9 @@ export const hasPermission = (
   );
 };
 
-/**
- * Check if user has ALL required permissions
- */
+/
+  Check if user has ALL required permissions
+ /
 export const hasAllPermissions = (
   userPermissions: string[],
   requiredPermissions: string[]
@@ -56,9 +56,9 @@ export const hasAllPermissions = (
   );
 };
 
-/**
- * Check if user has ANY of the required permissions
- */
+/
+  Check if user has ANY of the required permissions
+ /
 export const hasAnyPermission = (
   userPermissions: string[],
   requiredPermissions: string[]
@@ -68,9 +68,9 @@ export const hasAnyPermission = (
   );
 };
 
-/**
- * Get all actions available for a resource
- */
+/
+  Get all actions available for a resource
+ /
 export const getResourceActions = (resource: PermissionResource): PermissionAction[] => {
   const actions: Record<PermissionResource, PermissionAction[]> = {
     users: ['read', 'create', 'update', 'delete', 'manage'],
@@ -87,43 +87,43 @@ export const getResourceActions = (resource: PermissionResource): PermissionActi
   return actions[resource] || ['read'];
 };
 
-/**
- * Format permission for display
- */
+/
+  Format permission for display
+ /
 export const formatPermission = (permission: string): string => {
   const [resource, action] = permission.split(':');
 
-  if (resource === '*' && action === '*') return 'Full Access';
-  if (resource === '*') return `${action} Everything`;
-  if (action === '*') return `All ${resource} Actions`;
+  if (resource === '' && action === '') return 'Full Access';
+  if (resource === '') return ${action} Everything;
+  if (action === '') return All ${resource} Actions;
 
-  return `${capitalize(action)} ${capitalize(resource)}`;
+  return ${capitalize(action)} ${capitalize(resource)};
 };
 
-/**
- * Helper to capitalize strings
- */
+/
+  Helper to capitalize strings
+ /
 const capitalize = (str: string): string => {
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  return str.charAt().toUpperCase() + str.slice().toLowerCase();
 };
 
-/**
- * Get role hierarchy level
- */
+/
+  Get role hierarchy level
+ /
 export const getRoleLevel = (roleLevel: number): { name: string; description: string; color: string } => {
   const levels = {
-    0: { name: 'Viewer', description: 'Read-only access', color: 'zinc' },
-    3: { name: 'Analyst', description: 'Can create and analyze', color: 'blue' },
-    6: { name: 'Manager', description: 'Can manage resources', color: 'purple' },
-    9: { name: 'Admin', description: 'Full access', color: 'red' },
+    : { name: 'Viewer', description: 'Read-only access', color: 'zinc' },
+    : { name: 'Analyst', description: 'Can create and analyze', color: 'blue' },
+    : { name: 'Manager', description: 'Can manage resources', color: 'purple' },
+    : { name: 'Admin', description: 'Full access', color: 'red' },
   };
 
-  return levels[roleLevel as keyof typeof levels] || levels[0];
+  return levels[roleLevel as keyof typeof levels] || levels[];
 };
 
-/**
- * Permission-based feature flag
- */
+/
+  Permission-based feature flag
+ /
 export const isFeatureEnabled = (
   userPermissions: string[],
   feature: string
@@ -141,22 +141,22 @@ export const isFeatureEnabled = (
   return hasAnyPermission(userPermissions, requiredPerms);
 };
 
-/**
- * Get available actions for current user on a resource
- */
+/
+  Get available actions for current user on a resource
+ /
 export const getAvailableActions = (
   userPermissions: string[],
   resource: PermissionResource
 ): PermissionAction[] => {
   const allActions = getResourceActions(resource);
   return allActions.filter(action =>
-    hasPermission(userPermissions, `${resource}:${action}`)
+    hasPermission(userPermissions, ${resource}:${action})
   );
 };
 
-/**
- * Predefined permission sets for roles
- */
+/
+  Predefined permission sets for roles
+ /
 export const rolePermissionSets = {
   viewer: [
     'users:read',
@@ -187,13 +187,13 @@ export const rolePermissionSets = {
     'assets:update',
   ],
   admin: [
-    '*',
+    '',
   ],
 };
 
-/**
- * Check if permission is a protected admin-only permission
- */
+/
+  Check if permission is a protected admin-only permission
+ /
 export const isProtectedPermission = (permission: string): boolean => {
   const protectedPerms = [
     'roles:manage',
@@ -206,22 +206,22 @@ export const isProtectedPermission = (permission: string): boolean => {
   return protectedPerms.includes(permission) || protectedPerms.some(p => permission.includes(p));
 };
 
-/**
- * Build a permission string from resource and action
- */
+/
+  Build a permission string from resource and action
+ /
 export const buildPermissionString = (
   resource: PermissionResource,
   action: PermissionAction
 ): string => {
-  return `${resource}:${action}`;
+  return ${resource}:${action};
 };
 
-/**
- * Parse permission string into resource and action
- */
+/
+  Parse permission string into resource and action
+ /
 export const parsePermission = (permission: string): { resource: string; action: string } => {
   const [resource, action] = permission.split(':');
-  return { resource: resource || '*', action: action || '*' };
+  return { resource: resource || '', action: action || '' };
 };
 
 export default {

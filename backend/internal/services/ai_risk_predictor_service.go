@@ -11,8 +11,8 @@ import (
 // RiskPrediction represents an AI-generated risk prediction
 type RiskPrediction struct {
 	RiskID         string
-	PredictedScore float64
-	Confidence     float64
+	PredictedScore float
+	Confidence     float
 	Factors        []RiskFactor
 	Timestamp      time.Time
 	ExpiresAt      time.Time
@@ -22,15 +22,15 @@ type RiskPrediction struct {
 // RiskFactor represents a factor contributing to risk
 type RiskFactor struct {
 	Name        string
-	Impact      float64
-	Weight      float64
+	Impact      float
+	Weight      float
 	Description string
 }
 
 // AnomalyScore represents an anomaly detection result
 type AnomalyScore struct {
 	ResourceID   string
-	AnomalyScore float64
+	AnomalyScore float
 	Severity     string
 	Details      string
 	Timestamp    time.Time
@@ -40,49 +40,49 @@ type AnomalyScore struct {
 // AIRiskPredictorService performs ML-based risk prediction
 type AIRiskPredictorService struct {
 	mu             sync.RWMutex
-	historicalData map[string][]float64
-	predictions    map[string]*RiskPrediction
+	historicalData map[string][]float
+	predictions    map[string]RiskPrediction
 	maxHistorySize int
 	trainingWindow int
 }
 
 // NewAIRiskPredictorService creates a new risk predictor service
-func NewAIRiskPredictorService(maxHistorySize int, trainingWindow int) *AIRiskPredictorService {
+func NewAIRiskPredictorService(maxHistorySize int, trainingWindow int) AIRiskPredictorService {
 	return &AIRiskPredictorService{
-		historicalData: make(map[string][]float64),
-		predictions:    make(map[string]*RiskPrediction),
+		historicalData: make(map[string][]float),
+		predictions:    make(map[string]RiskPrediction),
 		maxHistorySize: maxHistorySize,
 		trainingWindow: trainingWindow,
 	}
 }
 
 // RecordRiskMetric records a risk metric
-func (ars *AIRiskPredictorService) RecordRiskMetric(riskID string, value float64) {
+func (ars AIRiskPredictorService) RecordRiskMetric(riskID string, value float) {
 	ars.mu.Lock()
 	defer ars.mu.Unlock()
 
 	if _, exists := ars.historicalData[riskID]; !exists {
-		ars.historicalData[riskID] = make([]float64, 0, ars.maxHistorySize)
+		ars.historicalData[riskID] = make([]float, , ars.maxHistorySize)
 	}
 
 	ars.historicalData[riskID] = append(ars.historicalData[riskID], value)
 
 	if len(ars.historicalData[riskID]) > ars.maxHistorySize {
-		ars.historicalData[riskID] = ars.historicalData[riskID][1:]
+		ars.historicalData[riskID] = ars.historicalData[riskID][:]
 	}
 }
 
 // PredictRisk generates a risk prediction
-func (ars *AIRiskPredictorService) PredictRisk(riskID string, currentScore float64, factors []RiskFactor) *RiskPrediction {
+func (ars AIRiskPredictorService) PredictRisk(riskID string, currentScore float, factors []RiskFactor) RiskPrediction {
 	ars.mu.Lock()
 	defer ars.mu.Unlock()
 
 	history := ars.historicalData[riskID]
 
 	predicted := currentScore
-	confidence := 0.3
+	confidence := .
 
-	if len(history) > 0 {
+	if len(history) >  {
 		trend := ars.calculateTrend(history)
 		predicted = ars.predictWithFactors(currentScore, trend, factors)
 		confidence = ars.calculateConfidence(history)
@@ -96,7 +96,7 @@ func (ars *AIRiskPredictorService) PredictRisk(riskID string, currentScore float
 		Confidence:     confidence,
 		Factors:        factors,
 		Timestamp:      time.Now(),
-		ExpiresAt:      time.Now().Add(24 * time.Hour),
+		ExpiresAt:      time.Now().Add(  time.Hour),
 		Recommendation: recommendation,
 	}
 
@@ -105,136 +105,136 @@ func (ars *AIRiskPredictorService) PredictRisk(riskID string, currentScore float
 }
 
 // calculateTrend calculates the trend of historical data
-func (ars *AIRiskPredictorService) calculateTrend(history []float64) float64 {
-	if len(history) < 2 {
-		return 0
+func (ars AIRiskPredictorService) calculateTrend(history []float) float {
+	if len(history) <  {
+		return 
 	}
 
-	n := float64(len(history))
-	sumX := 0.0
-	sumY := 0.0
-	sumXY := 0.0
-	sumX2 := 0.0
+	n := float(len(history))
+	sumX := .
+	sumY := .
+	sumXY := .
+	sumX := .
 
 	for i, val := range history {
-		x := float64(i)
+		x := float(i)
 		sumX += x
 		sumY += val
-		sumXY += x * val
-		sumX2 += x * x
+		sumXY += x  val
+		sumX += x  x
 	}
 
-	slope := (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+	slope := (nsumXY - sumXsumY) / (nsumX - sumXsumX)
 	return slope
 }
 
 // predictWithFactors predicts risk considering factors
-func (ars *AIRiskPredictorService) predictWithFactors(currentScore, trend float64, factors []RiskFactor) float64 {
+func (ars AIRiskPredictorService) predictWithFactors(currentScore, trend float, factors []RiskFactor) float {
 	predicted := currentScore
 
-	alpha := 0.3
-	predicted = alpha*currentScore + (1-alpha)*(currentScore+trend)
+	alpha := .
+	predicted = alphacurrentScore + (-alpha)(currentScore+trend)
 
-	factorImpact := 0.0
-	totalWeight := 0.0
+	factorImpact := .
+	totalWeight := .
 
 	for _, factor := range factors {
-		factorImpact += factor.Impact * factor.Weight
+		factorImpact += factor.Impact  factor.Weight
 		totalWeight += factor.Weight
 	}
 
-	if totalWeight > 0 {
+	if totalWeight >  {
 		normalizedImpact := factorImpact / totalWeight
-		predicted = predicted * (1 + normalizedImpact*0.2)
+		predicted = predicted  ( + normalizedImpact.)
 	}
 
-	if predicted < 0 {
-		predicted = 0
-	} else if predicted > 100 {
-		predicted = 100
+	if predicted <  {
+		predicted = 
+	} else if predicted >  {
+		predicted = 
 	}
 
 	return predicted
 }
 
 // calculateConfidence calculates prediction confidence
-func (ars *AIRiskPredictorService) calculateConfidence(history []float64) float64 {
-	if len(history) < 5 {
-		return 0.3
+func (ars AIRiskPredictorService) calculateConfidence(history []float) float {
+	if len(history) <  {
+		return .
 	}
 
-	mean := 0.0
+	mean := .
 	for _, val := range history {
 		mean += val
 	}
-	mean /= float64(len(history))
+	mean /= float(len(history))
 
-	variance := 0.0
+	variance := .
 	for _, val := range history {
 		diff := val - mean
-		variance += diff * diff
+		variance += diff  diff
 	}
-	variance /= float64(len(history))
+	variance /= float(len(history))
 
 	stdDev := math.Sqrt(variance)
-	cv := stdDev / (mean + 0.001)
+	cv := stdDev / (mean + .)
 
-	confidence := 1.0 / (1.0 + cv)
-	if confidence > 1.0 {
-		confidence = 1.0
+	confidence := . / (. + cv)
+	if confidence > . {
+		confidence = .
 	}
 
 	return confidence
 }
 
 // generateRecommendation generates actionable recommendations
-func (ars *AIRiskPredictorService) generateRecommendation(predicted float64, factors []RiskFactor) string {
-	if predicted > 75 {
-		return "🔴 CRITICAL: Immediate action required. Review and mitigate top risk factors immediately."
-	} else if predicted > 60 {
+func (ars AIRiskPredictorService) generateRecommendation(predicted float, factors []RiskFactor) string {
+	if predicted >  {
+		return " CRITICAL: Immediate action required. Review and mitigate top risk factors immediately."
+	} else if predicted >  {
 		topFactor := ""
-		if len(factors) > 0 {
-			topFactor = factors[0].Name
+		if len(factors) >  {
+			topFactor = factors[].Name
 		}
-		return fmt.Sprintf("🟠 HIGH: Schedule risk mitigation activities within 1 week. Focus on %s", topFactor)
-	} else if predicted > 40 {
-		return "🟡 MEDIUM: Monitor closely and plan preventive measures. Review quarterly."
-	} else if predicted > 20 {
-		return "🟢 LOW: Standard monitoring sufficient. Review annually."
+		return fmt.Sprintf(" HIGH: Schedule risk mitigation activities within  week. Focus on %s", topFactor)
+	} else if predicted >  {
+		return " MEDIUM: Monitor closely and plan preventive measures. Review quarterly."
+	} else if predicted >  {
+		return " LOW: Standard monitoring sufficient. Review annually."
 	}
-	return "✅ MINIMAL: Continue routine oversight."
+	return " MINIMAL: Continue routine oversight."
 }
 
 // DetectAnomalies detects anomalous behavior
-func (ars *AIRiskPredictorService) DetectAnomalies(resourceID string, currentValue float64) *AnomalyScore {
+func (ars AIRiskPredictorService) DetectAnomalies(resourceID string, currentValue float) AnomalyScore {
 	ars.mu.RLock()
 	history := ars.historicalData[resourceID]
 	ars.mu.RUnlock()
 
-	if len(history) < 10 {
+	if len(history) <  {
 		return &AnomalyScore{
 			ResourceID:   resourceID,
-			AnomalyScore: 0,
+			AnomalyScore: ,
 			Severity:     "LOW",
 			Timestamp:    time.Now(),
 		}
 	}
 
 	mean, stdDev := ars.calculateStats(history)
-	zScore := (currentValue - mean) / (stdDev + 0.001)
+	zScore := (currentValue - mean) / (stdDev + .)
 	absZScore := math.Abs(zScore)
 
 	severity := "LOW"
-	if absZScore > 3.0 {
+	if absZScore > . {
 		severity = "CRITICAL"
-	} else if absZScore > 2.5 {
+	} else if absZScore > . {
 		severity = "HIGH"
-	} else if absZScore > 2.0 {
+	} else if absZScore > . {
 		severity = "MEDIUM"
 	}
 
-	anomalyScore := math.Min(absZScore/5.0, 1.0)
-	details := fmt.Sprintf("Value %.2f is %.2f standard deviations from mean %.2f", currentValue, absZScore, mean)
+	anomalyScore := math.Min(absZScore/., .)
+	details := fmt.Sprintf("Value %.f is %.f standard deviations from mean %.f", currentValue, absZScore, mean)
 	pattern := ars.identifyPattern(history, currentValue)
 
 	return &AnomalyScore{
@@ -248,58 +248,58 @@ func (ars *AIRiskPredictorService) DetectAnomalies(resourceID string, currentVal
 }
 
 // calculateStats calculates mean and standard deviation
-func (ars *AIRiskPredictorService) calculateStats(history []float64) (float64, float64) {
-	if len(history) == 0 {
-		return 0, 0
+func (ars AIRiskPredictorService) calculateStats(history []float) (float, float) {
+	if len(history) ==  {
+		return , 
 	}
 
-	mean := 0.0
+	mean := .
 	for _, val := range history {
 		mean += val
 	}
-	mean /= float64(len(history))
+	mean /= float(len(history))
 
-	variance := 0.0
+	variance := .
 	for _, val := range history {
 		diff := val - mean
-		variance += diff * diff
+		variance += diff  diff
 	}
-	variance /= float64(len(history))
+	variance /= float(len(history))
 
 	stdDev := math.Sqrt(variance)
 	return mean, stdDev
 }
 
 // identifyPattern identifies data patterns
-func (ars *AIRiskPredictorService) identifyPattern(history []float64, current float64) string {
-	if len(history) < 5 {
+func (ars AIRiskPredictorService) identifyPattern(history []float, current float) string {
+	if len(history) <  {
 		return "INSUFFICIENT_DATA"
 	}
 
 	trend := ars.calculateTrend(history)
-	if trend > 0.5 {
+	if trend > . {
 		return "INCREASING_TREND"
-	} else if trend < -0.5 {
+	} else if trend < -. {
 		return "DECREASING_TREND"
 	}
 
 	mean, stdDev := ars.calculateStats(history)
-	if math.Abs(current-mean) > 2*stdDev {
+	if math.Abs(current-mean) > stdDev {
 		return "SPIKE_DETECTED"
 	}
 
-	if len(history) >= 20 {
-		oldMean := 0.0
-		for _, val := range history[:len(history)/2] {
+	if len(history) >=  {
+		oldMean := .
+		for _, val := range history[:len(history)/] {
 			oldMean += val
 		}
-		oldMean /= float64(len(history) / 2)
+		oldMean /= float(len(history) / )
 
-		newMean := 0.0
-		for _, val := range history[len(history)/2:] {
+		newMean := .
+		for _, val := range history[len(history)/:] {
 			newMean += val
 		}
-		newMean /= float64(len(history) - len(history)/2)
+		newMean /= float(len(history) - len(history)/)
 
 		if math.Abs(newMean-oldMean) > stdDev {
 			return "SEASONAL_PATTERN"
@@ -310,11 +310,11 @@ func (ars *AIRiskPredictorService) identifyPattern(history []float64, current fl
 }
 
 // GetTopRisks returns the top N risks by predicted score
-func (ars *AIRiskPredictorService) GetTopRisks(n int) []*RiskPrediction {
+func (ars AIRiskPredictorService) GetTopRisks(n int) []RiskPrediction {
 	ars.mu.RLock()
 	defer ars.mu.RUnlock()
 
-	predictions := make([]*RiskPrediction, 0, len(ars.predictions))
+	predictions := make([]RiskPrediction, , len(ars.predictions))
 	for _, pred := range ars.predictions {
 		predictions = append(predictions, pred)
 	}

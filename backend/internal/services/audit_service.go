@@ -14,12 +14,12 @@ import (
 type AuditService struct{}
 
 // NewAuditService creates a new audit service
-func NewAuditService() *AuditService {
+func NewAuditService() AuditService {
 	return &AuditService{}
 }
 
 // LogLogin logs a user login attempt
-func (s *AuditService) LogLogin(userID uuid.UUID, result domain.AuditLogResult, ipAddress string, userAgent string, errorMsg string) error {
+func (s AuditService) LogLogin(userID uuid.UUID, result domain.AuditLogResult, ipAddress string, userAgent string, errorMsg string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:       &userID,
 		Action:       domain.ActionLogin,
@@ -33,7 +33,7 @@ func (s *AuditService) LogLogin(userID uuid.UUID, result domain.AuditLogResult, 
 }
 
 // LogRegister logs a user registration attempt
-func (s *AuditService) LogRegister(userID *uuid.UUID, result domain.AuditLogResult, ipAddress string, userAgent string, errorMsg string) error {
+func (s AuditService) LogRegister(userID uuid.UUID, result domain.AuditLogResult, ipAddress string, userAgent string, errorMsg string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:       userID,
 		Action:       domain.ActionRegister,
@@ -47,7 +47,7 @@ func (s *AuditService) LogRegister(userID *uuid.UUID, result domain.AuditLogResu
 }
 
 // LogLogout logs a user logout
-func (s *AuditService) LogLogout(userID uuid.UUID, ipAddress string, userAgent string) error {
+func (s AuditService) LogLogout(userID uuid.UUID, ipAddress string, userAgent string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:    &userID,
 		Action:    domain.ActionLogout,
@@ -60,7 +60,7 @@ func (s *AuditService) LogLogout(userID uuid.UUID, ipAddress string, userAgent s
 }
 
 // LogTokenRefresh logs a token refresh attempt
-func (s *AuditService) LogTokenRefresh(userID uuid.UUID, result domain.AuditLogResult, ipAddress string, userAgent string, errorMsg string) error {
+func (s AuditService) LogTokenRefresh(userID uuid.UUID, result domain.AuditLogResult, ipAddress string, userAgent string, errorMsg string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:       &userID,
 		Action:       domain.ActionTokenRefresh,
@@ -74,7 +74,7 @@ func (s *AuditService) LogTokenRefresh(userID uuid.UUID, result domain.AuditLogR
 }
 
 // LogRoleChange logs a user role change
-func (s *AuditService) LogRoleChange(performedByID uuid.UUID, targetUserID uuid.UUID, oldRole string, newRole string, ipAddress string, userAgent string) error {
+func (s AuditService) LogRoleChange(performedByID uuid.UUID, targetUserID uuid.UUID, oldRole string, newRole string, ipAddress string, userAgent string) error {
 	errorMsg := fmt.Sprintf("Role changed from %s to %s", oldRole, newRole)
 	return s.LogAction(&domain.AuditLog{
 		UserID:       &performedByID,
@@ -90,7 +90,7 @@ func (s *AuditService) LogRoleChange(performedByID uuid.UUID, targetUserID uuid.
 }
 
 // LogUserDeactivate logs a user deactivation
-func (s *AuditService) LogUserDeactivate(performedByID uuid.UUID, targetUserID uuid.UUID, ipAddress string, userAgent string) error {
+func (s AuditService) LogUserDeactivate(performedByID uuid.UUID, targetUserID uuid.UUID, ipAddress string, userAgent string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:     &performedByID,
 		Action:     domain.ActionUserDeactivate,
@@ -104,7 +104,7 @@ func (s *AuditService) LogUserDeactivate(performedByID uuid.UUID, targetUserID u
 }
 
 // LogUserActivate logs a user activation
-func (s *AuditService) LogUserActivate(performedByID uuid.UUID, targetUserID uuid.UUID, ipAddress string, userAgent string) error {
+func (s AuditService) LogUserActivate(performedByID uuid.UUID, targetUserID uuid.UUID, ipAddress string, userAgent string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:     &performedByID,
 		Action:     domain.ActionUserActivate,
@@ -118,7 +118,7 @@ func (s *AuditService) LogUserActivate(performedByID uuid.UUID, targetUserID uui
 }
 
 // LogUserDelete logs a user deletion
-func (s *AuditService) LogUserDelete(performedByID uuid.UUID, targetUserID uuid.UUID, ipAddress string, userAgent string) error {
+func (s AuditService) LogUserDelete(performedByID uuid.UUID, targetUserID uuid.UUID, ipAddress string, userAgent string) error {
 	return s.LogAction(&domain.AuditLog{
 		UserID:     &performedByID,
 		Action:     domain.ActionUserDelete,
@@ -132,7 +132,7 @@ func (s *AuditService) LogUserDelete(performedByID uuid.UUID, targetUserID uuid.
 }
 
 // LogAction logs a generic audit action
-func (s *AuditService) LogAction(log *domain.AuditLog) error {
+func (s AuditService) LogAction(log domain.AuditLog) error {
 	if log == nil {
 		return fmt.Errorf("audit log cannot be nil")
 	}
@@ -156,7 +156,7 @@ func (s *AuditService) LogAction(log *domain.AuditLog) error {
 }
 
 // GetAuditLogsByUser retrieves all audit logs for a specific user
-func (s *AuditService) GetAuditLogsByUser(userID uuid.UUID, limit int, offset int) ([]domain.AuditLog, error) {
+func (s AuditService) GetAuditLogsByUser(userID uuid.UUID, limit int, offset int) ([]domain.AuditLog, error) {
 	var logs []domain.AuditLog
 	query := database.DB.Where("user_id = ?", userID).
 		Order("timestamp DESC").
@@ -171,7 +171,7 @@ func (s *AuditService) GetAuditLogsByUser(userID uuid.UUID, limit int, offset in
 }
 
 // GetAuditLogsByAction retrieves all audit logs for a specific action
-func (s *AuditService) GetAuditLogsByAction(action domain.AuditLogAction, limit int, offset int) ([]domain.AuditLog, error) {
+func (s AuditService) GetAuditLogsByAction(action domain.AuditLogAction, limit int, offset int) ([]domain.AuditLog, error) {
 	var logs []domain.AuditLog
 	query := database.DB.Where("action = ?", action.String()).
 		Order("timestamp DESC").
@@ -186,7 +186,7 @@ func (s *AuditService) GetAuditLogsByAction(action domain.AuditLogAction, limit 
 }
 
 // GetAuditLogsByIPAddress retrieves all audit logs from a specific IP address
-func (s *AuditService) GetAuditLogsByIPAddress(ipAddress string, limit int, offset int) ([]domain.AuditLog, error) {
+func (s AuditService) GetAuditLogsByIPAddress(ipAddress string, limit int, offset int) ([]domain.AuditLog, error) {
 	var logs []domain.AuditLog
 	query := database.DB.Where("ip_address = ?::inet", ipAddress).
 		Order("timestamp DESC").
@@ -201,7 +201,7 @@ func (s *AuditService) GetAuditLogsByIPAddress(ipAddress string, limit int, offs
 }
 
 // GetAuditLogsByDateRange retrieves all audit logs within a date range
-func (s *AuditService) GetAuditLogsByDateRange(startTime time.Time, endTime time.Time, limit int, offset int) ([]domain.AuditLog, error) {
+func (s AuditService) GetAuditLogsByDateRange(startTime time.Time, endTime time.Time, limit int, offset int) ([]domain.AuditLog, error) {
 	var logs []domain.AuditLog
 	query := database.DB.Where("timestamp BETWEEN ? AND ?", startTime, endTime).
 		Order("timestamp DESC").
@@ -216,7 +216,7 @@ func (s *AuditService) GetAuditLogsByDateRange(startTime time.Time, endTime time
 }
 
 // Helper function to parse IP address string
-func parseIPAddress(ipStr string) *net.IP {
+func parseIPAddress(ipStr string) net.IP {
 	if ipStr == "" {
 		return nil
 	}

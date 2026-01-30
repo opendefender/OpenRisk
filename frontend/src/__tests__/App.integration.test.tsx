@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/ @vitest-environment jsdom /
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -55,7 +55,7 @@ describe('App Integration', () => {
     vi.mocked(useAuthStore).mockImplementation((selector: any) => {
       const store = {
         isAuthenticated: true,
-        user: { id: '1', email: 'test@example.com', full_name: 'Test User', role: 'analyst' },
+        user: { id: '', email: 'test@example.com', full_name: 'Test User', role: 'analyst' },
         token: 'fake-token',
       };
       return selector(store as any);
@@ -74,7 +74,7 @@ describe('App Integration', () => {
 
   it('should handle protected routes', async () => {
     const mockUser = {
-      id: '1',
+      id: '',
       email: 'test@example.com',
       full_name: 'Test User',
       role: 'analyst',

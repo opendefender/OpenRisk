@@ -25,39 +25,39 @@ const (
 )
 
 // GetPoolConfig returns a PoolConfig based on the specified mode
-// - dev: Small pool for local development (10 open, 2 idle)
-// - staging: Medium pool for staging testing (50 open, 10 idle)
-// - prod: Large pool for production (100 open, 25 idle)
+// - dev: Small pool for local development ( open,  idle)
+// - staging: Medium pool for staging testing ( open,  idle)
+// - prod: Large pool for production ( open,  idle)
 func GetPoolConfig(mode PoolMode) PoolConfig {
 	switch mode {
 	case PoolModeStaging:
 		return PoolConfig{
-			MaxOpenConnections: 50,
-			MaxIdleConnections: 10,
-			ConnMaxLifetime:    30 * time.Minute,
-			ConnMaxIdleTime:    5 * time.Minute,
+			MaxOpenConnections: ,
+			MaxIdleConnections: ,
+			ConnMaxLifetime:      time.Minute,
+			ConnMaxIdleTime:      time.Minute,
 		}
 	case PoolModeProd:
 		return PoolConfig{
-			MaxOpenConnections: 100,
-			MaxIdleConnections: 25,
-			ConnMaxLifetime:    1 * time.Hour,
-			ConnMaxIdleTime:    10 * time.Minute,
+			MaxOpenConnections: ,
+			MaxIdleConnections: ,
+			ConnMaxLifetime:      time.Hour,
+			ConnMaxIdleTime:      time.Minute,
 		}
 	case PoolModeDev:
 		fallthrough
 	default:
 		return PoolConfig{
-			MaxOpenConnections: 10,
-			MaxIdleConnections: 2,
-			ConnMaxLifetime:    10 * time.Minute,
-			ConnMaxIdleTime:    2 * time.Minute,
+			MaxOpenConnections: ,
+			MaxIdleConnections: ,
+			ConnMaxLifetime:      time.Minute,
+			ConnMaxIdleTime:      time.Minute,
 		}
 	}
 }
 
 // ApplyPoolConfig applies the pool configuration to a database connection
-func ApplyPoolConfig(db *sql.DB, config PoolConfig) error {
+func ApplyPoolConfig(db sql.DB, config PoolConfig) error {
 	if db == nil {
 		return fmt.Errorf("database connection is nil")
 	}
@@ -79,7 +79,7 @@ type PoolStats struct {
 }
 
 // GetPoolStats returns current connection pool statistics
-func GetPoolStats(db *sql.DB) (PoolStats, error) {
+func GetPoolStats(db sql.DB) (PoolStats, error) {
 	if db == nil {
 		return PoolStats{}, fmt.Errorf("database connection is nil")
 	}
@@ -94,7 +94,7 @@ func GetPoolStats(db *sql.DB) (PoolStats, error) {
 }
 
 // HealthCheck verifies the connection pool is healthy
-func HealthCheck(db *sql.DB) error {
+func HealthCheck(db sql.DB) error {
 	if db == nil {
 		return fmt.Errorf("database connection is nil")
 	}
@@ -111,11 +111,11 @@ func HealthCheck(db *sql.DB) error {
 
 // ValidatePoolConfig checks if pool configuration is valid
 func ValidatePoolConfig(config PoolConfig) error {
-	if config.MaxOpenConnections < 1 {
-		return fmt.Errorf("MaxOpenConnections must be at least 1")
+	if config.MaxOpenConnections <  {
+		return fmt.Errorf("MaxOpenConnections must be at least ")
 	}
 
-	if config.MaxIdleConnections < 0 {
+	if config.MaxIdleConnections <  {
 		return fmt.Errorf("MaxIdleConnections cannot be negative")
 	}
 
@@ -123,11 +123,11 @@ func ValidatePoolConfig(config PoolConfig) error {
 		return fmt.Errorf("MaxIdleConnections cannot exceed MaxOpenConnections")
 	}
 
-	if config.ConnMaxLifetime < 0 {
+	if config.ConnMaxLifetime <  {
 		return fmt.Errorf("ConnMaxLifetime cannot be negative")
 	}
 
-	if config.ConnMaxIdleTime < 0 {
+	if config.ConnMaxIdleTime <  {
 		return fmt.Errorf("ConnMaxIdleTime cannot be negative")
 	}
 
@@ -136,19 +136,19 @@ func ValidatePoolConfig(config PoolConfig) error {
 
 // PoolMetrics represents connection pool performance metrics
 type PoolMetrics struct {
-	TotalConnections    int64
+	TotalConnections    int
 	ActiveConnections   int
 	IdleConnections     int
-	WaitCount           int64
+	WaitCount           int
 	WaitDuration        time.Duration
-	MaxIdleClosed       int64
-	MaxLifetimeClosed   int64
-	MaxIdleTimeClosed   int64
+	MaxIdleClosed       int
+	MaxLifetimeClosed   int
+	MaxIdleTimeClosed   int
 	OpenConnectionTime  time.Duration
 }
 
 // GetPoolMetrics gathers detailed pool metrics
-func GetPoolMetrics(db *sql.DB) (PoolMetrics, error) {
+func GetPoolMetrics(db sql.DB) (PoolMetrics, error) {
 	if db == nil {
 		return PoolMetrics{}, fmt.Errorf("database connection is nil")
 	}
@@ -169,7 +169,7 @@ func GetPoolMetrics(db *sql.DB) (PoolMetrics, error) {
 
 // ConnectionPoolMonitor provides monitoring capabilities for the connection pool
 type ConnectionPoolMonitor struct {
-	db              *sql.DB
+	db              sql.DB
 	checkInterval   time.Duration
 	warningThreshold int
 	criticalThreshold int
@@ -177,7 +177,7 @@ type ConnectionPoolMonitor struct {
 }
 
 // NewConnectionPoolMonitor creates a new connection pool monitor
-func NewConnectionPoolMonitor(db *sql.DB, checkInterval time.Duration, warningThreshold, criticalThreshold int) *ConnectionPoolMonitor {
+func NewConnectionPoolMonitor(db sql.DB, checkInterval time.Duration, warningThreshold, criticalThreshold int) ConnectionPoolMonitor {
 	return &ConnectionPoolMonitor{
 		db:                 db,
 		checkInterval:      checkInterval,
@@ -187,7 +187,7 @@ func NewConnectionPoolMonitor(db *sql.DB, checkInterval time.Duration, warningTh
 }
 
 // CheckHealth performs a health check on the connection pool
-func (m *ConnectionPoolMonitor) CheckHealth() (bool, string) {
+func (m ConnectionPoolMonitor) CheckHealth() (bool, string) {
 	stats, err := GetPoolStats(m.db)
 	if err != nil {
 		return false, fmt.Sprintf("Failed to get pool stats: %v", err)
@@ -207,6 +207,6 @@ func (m *ConnectionPoolMonitor) CheckHealth() (bool, string) {
 }
 
 // GetLastStats returns the last recorded pool statistics
-func (m *ConnectionPoolMonitor) GetLastStats() PoolStats {
+func (m ConnectionPoolMonitor) GetLastStats() PoolStats {
 	return m.lastStats
 }

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -10,11 +10,11 @@ import (
 
 // RiskTimelineHandler handles risk timeline and history endpoints
 type RiskTimelineHandler struct {
-	service *services.RiskTimelineService
+	service services.RiskTimelineService
 }
 
 // NewRiskTimelineHandler creates a new risk timeline handler
-func NewRiskTimelineHandler() *RiskTimelineHandler {
+func NewRiskTimelineHandler() RiskTimelineHandler {
 	return &RiskTimelineHandler{
 		service: services.NewRiskTimelineService(),
 	}
@@ -22,7 +22,7 @@ func NewRiskTimelineHandler() *RiskTimelineHandler {
 
 // GetRiskTimeline handles GET /risks/:id/timeline
 // Retrieves the full history/timeline for a risk
-func (h *RiskTimelineHandler) GetRiskTimeline(c *fiber.Ctx) error {
+func (h RiskTimelineHandler) GetRiskTimeline(c fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -31,13 +31,13 @@ func (h *RiskTimelineHandler) GetRiskTimeline(c *fiber.Ctx) error {
 	}
 
 	// Get pagination parameters
-	limit := 50
-	if l := c.QueryInt("limit"); l > 0 && l <= 500 {
+	limit := 
+	if l := c.QueryInt("limit"); l >  && l <=  {
 		limit = l
 	}
 
-	offset := 0
-	if o := c.QueryInt("offset"); o >= 0 {
+	offset := 
+	if o := c.QueryInt("offset"); o >=  {
 		offset = o
 	}
 
@@ -60,7 +60,7 @@ func (h *RiskTimelineHandler) GetRiskTimeline(c *fiber.Ctx) error {
 
 // GetStatusChanges handles GET /risks/:id/timeline/status-changes
 // Retrieves only status change events
-func (h *RiskTimelineHandler) GetStatusChanges(c *fiber.Ctx) error {
+func (h RiskTimelineHandler) GetStatusChanges(c fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -83,7 +83,7 @@ func (h *RiskTimelineHandler) GetStatusChanges(c *fiber.Ctx) error {
 
 // GetScoreChanges handles GET /risks/:id/timeline/score-changes
 // Retrieves only score change events
-func (h *RiskTimelineHandler) GetScoreChanges(c *fiber.Ctx) error {
+func (h RiskTimelineHandler) GetScoreChanges(c fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -106,7 +106,7 @@ func (h *RiskTimelineHandler) GetScoreChanges(c *fiber.Ctx) error {
 
 // GetRiskTrend handles GET /risks/:id/timeline/trend
 // Analyzes the risk score trend over time
-func (h *RiskTimelineHandler) GetRiskTrend(c *fiber.Ctx) error {
+func (h RiskTimelineHandler) GetRiskTrend(c fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -126,7 +126,7 @@ func (h *RiskTimelineHandler) GetRiskTrend(c *fiber.Ctx) error {
 
 // GetChangesByType handles GET /risks/:id/timeline/changes/:type
 // Retrieves history entries of a specific change type
-func (h *RiskTimelineHandler) GetChangesByType(c *fiber.Ctx) error {
+func (h RiskTimelineHandler) GetChangesByType(c fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -157,9 +157,9 @@ func (h *RiskTimelineHandler) GetChangesByType(c *fiber.Ctx) error {
 
 // GetRecentActivity handles GET /timeline/recent
 // Gets the most recent changes across all risks
-func (h *RiskTimelineHandler) GetRecentActivity(c *fiber.Ctx) error {
-	limit := 100
-	if l := c.QueryInt("limit"); l > 0 && l <= 1000 {
+func (h RiskTimelineHandler) GetRecentActivity(c fiber.Ctx) error {
+	limit := 
+	if l := c.QueryInt("limit"); l >  && l <=  {
 		limit = l
 	}
 
@@ -179,7 +179,7 @@ func (h *RiskTimelineHandler) GetRecentActivity(c *fiber.Ctx) error {
 
 // GetChangesSince handles GET /risks/:id/timeline/since/:unix_timestamp
 // Gets all changes since a specific time
-func (h *RiskTimelineHandler) GetChangesSince(c *fiber.Ctx) error {
+func (h RiskTimelineHandler) GetChangesSince(c fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -187,8 +187,8 @@ func (h *RiskTimelineHandler) GetChangesSince(c *fiber.Ctx) error {
 		})
 	}
 
-	since := int64(c.QueryInt("since"))
-	if since == 0 {
+	since := int(c.QueryInt("since"))
+	if since ==  {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing or invalid 'since' parameter (unix timestamp)",
 		})
@@ -210,19 +210,19 @@ func (h *RiskTimelineHandler) GetChangesSince(c *fiber.Ctx) error {
 
 // TimelineEvent represents a single event in the timeline
 type TimelineEvent struct {
-	ID          uuid.UUID         `json:"id"`
-	RiskID      uuid.UUID         `json:"risk_id"`
-	Score       float64           `json:"score"`
-	Impact      int               `json:"impact"`
-	Probability int               `json:"probability"`
-	Status      domain.RiskStatus `json:"status"`
-	ChangeType  string            `json:"change_type"`
-	ChangedBy   string            `json:"changed_by"`
-	CreatedAt   int64             `json:"timestamp"`
+	ID          uuid.UUID         json:"id"
+	RiskID      uuid.UUID         json:"risk_id"
+	Score       float           json:"score"
+	Impact      int               json:"impact"
+	Probability int               json:"probability"
+	Status      domain.RiskStatus json:"status"
+	ChangeType  string            json:"change_type"
+	ChangedBy   string            json:"changed_by"
+	CreatedAt   int             json:"timestamp"
 }
 
 // ConvertToTimelineEvent converts RiskHistory to TimelineEvent
-func ConvertToTimelineEvent(h *domain.RiskHistory) *TimelineEvent {
+func ConvertToTimelineEvent(h domain.RiskHistory) TimelineEvent {
 	return &TimelineEvent{
 		ID:          h.ID,
 		RiskID:      h.RiskID,

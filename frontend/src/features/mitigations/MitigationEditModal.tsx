@@ -21,11 +21,11 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     if (isOpen && mitigation) {
       setValue('title', mitigation.title || '');
       setValue('assignee', mitigation.assignee || '');
-      setValue('progress', mitigation.progress || 0);
-      setValue('cost', mitigation.cost || 1);
-      setValue('mitigation_time', mitigation.mitigation_time || 1);
+      setValue('progress', mitigation.progress || );
+      setValue('cost', mitigation.cost || );
+      setValue('mitigation_time', mitigation.mitigation_time || );
       setValue('status', mitigation.status || 'PLANNED');
-      if (mitigation.due_date) setValue('due_date', new Date(mitigation.due_date).toISOString().slice(0,10));
+      if (mitigation.due_date) setValue('due_date', new Date(mitigation.due_date).toISOString().slice(,));
     } else {
       reset();
     }
@@ -34,14 +34,14 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
   const onSubmit = async (data: any) => {
     if (!mitigation) return;
     try {
-      await api.patch(`/mitigations/${mitigation.id}`, data);
-      toast.success('Mitigation sauvegardée');
+      await api.patch(/mitigations/${mitigation.id}, data);
+      toast.success('Mitigation sauvegard�e');
       onSaved?.();
       onClose();
     } catch (e) {
       const status = (e as any)?.response?.status;
-      if (status === 404) {
-        toast.error('La mitigation est introuvable (peut-être supprimée). Le modal va se fermer.');
+      if (status === ) {
+        toast.error('La mitigation est introuvable (peut-être supprim�e). Le modal va se fermer.');
         onSaved?.();
         onClose();
         return;
@@ -53,13 +53,13 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
   const addSubAction = async () => {
     if (!mitigation || !newSubTitle.trim()) return;
     try {
-      await api.post(`/mitigations/${mitigation.id}/subactions`, { title: newSubTitle });
+      await api.post(/mitigations/${mitigation.id}/subactions, { title: newSubTitle });
       setNewSubTitle('');
-      toast.success('Sous-action ajoutée');
+      toast.success('Sous-action ajout�e');
       onSaved?.();
     } catch (e) {
       const status = (e as any)?.response?.status;
-      if (status === 404) {
+      if (status === ) {
         toast.error('La mitigation est introuvable. Le modal va se fermer.');
         onSaved?.();
         onClose();
@@ -72,11 +72,11 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
   const toggleSub = async (sub: any) => {
     if (!mitigation) return;
     try {
-      await api.patch(`/mitigations/${mitigation.id}/subactions/${sub.id}/toggle`);
+      await api.patch(/mitigations/${mitigation.id}/subactions/${sub.id}/toggle);
       onSaved?.();
     } catch (e) {
       const status = (e as any)?.response?.status;
-      if (status === 404) {
+      if (status === ) {
         toast.error('Sous-action ou mitigation introuvable. Le modal va se fermer.');
         onSaved?.();
         onClose();
@@ -89,12 +89,12 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
   const deleteSub = async (sub: any) => {
     if (!mitigation) return;
     try {
-      await api.delete(`/mitigations/${mitigation.id}/subactions/${sub.id}`);
-      toast.success('Sous-action supprimée');
+      await api.delete(/mitigations/${mitigation.id}/subactions/${sub.id});
+      toast.success('Sous-action supprim�e');
       onSaved?.();
     } catch (e) {
       const status = (e as any)?.response?.status;
-      if (status === 404) {
+      if (status === ) {
         toast.error('Sous-action ou mitigation introuvable. Le modal va se fermer.');
         onSaved?.();
         onClose();
@@ -108,41 +108,41 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 z-40" />
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="fixed inset-0 m-auto w-full max-w-md h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-50 overflow-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">Modifier la mitigation</h3>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <motion.div initial={{ opacity:  }} animate={{ opacity:  }} exit={{ opacity:  }} onClick={onClose} className="fixed inset- bg-black/ z-" />
+          <motion.div initial={{ opacity: , y:  }} animate={{ opacity: , y:  }} exit={{ opacity: , y:  }} className="fixed inset- m-auto w-full max-w-md h-fit max-h-[vh] bg-surface border border-border rounded-xl shadow-xl p- z- overflow-auto">
+            <h className="text-lg font-semibold text-white mb-">Modifier la mitigation</h>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-">
               <Input label="Titre" {...register('title')} />
-              <Input label="Assigné à" {...register('assignee')} />
-              <div className="grid grid-cols-2 gap-2">
+              <Input label="Assign� à" {...register('assignee')} />
+              <div className="grid grid-cols- gap-">
                 <Input type="number" label="Progress (%)" {...register('progress')} />
                 <Input type="number" label="Temps (jours)" {...register('mitigation_time')} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input type="number" label="Coût (1-3)" {...register('cost')} />
+              <div className="grid grid-cols- gap-">
+                <Input type="number" label="Coût (-)" {...register('cost')} />
                 <Input type="date" label="Due date" {...register('due_date')} />
               </div>
-              {/* Sub-actions checklist */}
-              <div className="mt-3">
-                <h4 className="text-sm font-medium text-white mb-2">Checklist</h4>
-                <div className="space-y-2">
+              {/ Sub-actions checklist /}
+              <div className="mt-">
+                <h className="text-sm font-medium text-white mb-">Checklist</h>
+                <div className="space-y-">
                   {mitigation?.sub_actions?.length ? mitigation.sub_actions.map((s: any) => (
-                    <div key={s.id} className="flex items-center justify-between bg-muted p-2 rounded">
-                      <div className="flex items-center gap-2">
+                    <div key={s.id} className="flex items-center justify-between bg-muted p- rounded">
+                      <div className="flex items-center gap-">
                         <input type="checkbox" checked={s.completed} onChange={() => toggleSub(s)} />
                         <span className={s.completed ? 'line-through text-muted-foreground' : ''}>{s.title}</span>
                       </div>
-                      <button type="button" className="text-sm text-red-400" onClick={() => deleteSub(s)}>Supprimer</button>
+                      <button type="button" className="text-sm text-red-" onClick={() => deleteSub(s)}>Supprimer</button>
                     </div>
                   )) : <div className="text-xs text-muted-foreground">Aucune sous-action</div>}
                 </div>
 
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap- mt-">
                   <Input value={newSubTitle} onChange={(e:any) => setNewSubTitle(e.target.value)} placeholder="Nouvelle sous-action" />
                   <Button type="button" onClick={addSubAction}>Ajouter</Button>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex justify-end gap- mt-">
                 <Button variant="ghost" type="button" onClick={onClose}>Annuler</Button>
                 <Button type="submit" isLoading={isSubmitting}>Sauvegarder</Button>
               </div>

@@ -1,8 +1,8 @@
-/** @type {import('tailwindcss').Config} */
+/ @type {import('tailwindcss').Config} /
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src//.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class', 
   theme: {
@@ -11,53 +11,53 @@ export default {
         sans: ['Inter', 'sans-serif'], 
       },
       colors: {
-        background: '#09090b', // Fond très sombre - Midnight Blue
-        surface: '#18181b',    // Carte - Deep Navy
-        border: '#27272a',     // Bordure subtile
+        background: 'b', // Fond très sombre - Midnight Blue
+        surface: 'b',    // Carte - Deep Navy
+        border: 'a',     // Bordure subtile
         
         // Accents
-        primary: '#3b82f6',    // OpenDefender Blue
+        primary: 'bf',    // OpenDefender Blue
         
         // Semantic Risks
         risk: {
-          low: '#10b981',      // Emerald
-          medium: '#f59e0b',   // Amber
-          high: '#f97316',     // Orange
-          critical: '#ef4444', // Red
+          low: 'b',      // Emerald
+          medium: 'feb',   // Amber
+          high: 'f',     // Orange
+          critical: 'ef', // Red
         }
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-out',
-        'glow-pulse': 'glowPulse 3s ease-in-out infinite',
-        'neon-glow': 'neonGlow 2s ease-in-out infinite',
+        'fade-in': 'fadeIn .s ease-out',
+        'glow-pulse': 'glowPulse s ease-in-out infinite',
+        'neon-glow': 'neonGlow s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          '%': { opacity: '', transform: 'translateY(px)' },
+          '%': { opacity: '', transform: 'translateY()' },
         },
         glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)' },
-          '50%': { boxShadow: '0 0 40px rgba(59, 130, 246, 0.8)' },
+          '%, %': { boxShadow: '  px rgba(, , , .)' },
+          '%': { boxShadow: '  px rgba(, , , .)' },
         },
         neonGlow: {
-          '0%, 100%': { 
-            textShadow: '0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3)' 
+          '%, %': { 
+            textShadow: '  px rgba(, , , .),   px rgba(, , , .)' 
           },
-          '50%': { 
-            textShadow: '0 0 20px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.5)' 
+          '%': { 
+            textShadow: '  px rgba(, , , .),   px rgba(, , , .)' 
           },
         }
       },
       backdropBlur: {
-        'xl': '20px',
-        '2xl': '40px',
+        'xl': 'px',
+        'xl': 'px',
       },
       boxShadow: {
-        'glow': '0 0 20px rgba(59, 130, 246, 0.5)',
-        'glow-lg': '0 0 40px rgba(59, 130, 246, 0.5)',
-        'glow-red': '0 0 20px rgba(239, 68, 68, 0.5)',
-        'glow-orange': '0 0 20px rgba(249, 115, 22, 0.5)',
+        'glow': '  px rgba(, , , .)',
+        'glow-lg': '  px rgba(, , , .)',
+        'glow-red': '  px rgba(, , , .)',
+        'glow-orange': '  px rgba(, , , .)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

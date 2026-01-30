@@ -5,7 +5,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Incident repr√©sente une alerte ou un cas (Contrat avec TheHive)
+// Incident repr√sente une alerte ou un cas (Contrat avec TheHive)
 type Incident struct {
 	ID          uuid.UUID
 	Title       string
@@ -17,7 +17,7 @@ type Incident struct {
     ExternalID  string
 }
 
-// Threat repr√©sente une information de menace (Contrat avec OpenCTI)
+// Threat repr√sente une information de menace (Contrat avec OpenCTI)
 type Threat struct {
 	ID          uuid.UUID
 	Name        string
@@ -25,10 +25,10 @@ type Threat struct {
 	ReportedAt  time.Time
 }
 
-// Control repr√©sente un contr√¥le de s√©curit√©/conformit√© (Contrat avec OpenRMF)
+// Control repr√sente un contr√le de s√curit√/conformit√ (Contrat avec OpenRMF)
 type Control struct {
 	ID          uuid.UUID
 	Name        string
-	Framework   string // Ex: NIST, ISO 27001
+	Framework   string // Ex: NIST, ISO 
 	Status      string // Implemented, Planned, N/A
 }

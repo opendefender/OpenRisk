@@ -12,6 +12,6 @@ import (
 // Tests need to be rewritten once domain model is finalized
 // See domain/user.go for current UserClaims structure
 
-func TestPermissionTestsDisabled(t *testing.T) {
+func TestPermissionTestsDisabled(t testing.T) {
 assert.True(t, true)
 }

@@ -16,11 +16,11 @@ import (
 
 // SyncMetrics tracks synchronization performance and health
 type SyncMetrics struct {
-	TotalSyncs       int64
-	SuccessfulSyncs  int64
-	FailedSyncs      int64
-	IncidentsCreated int64
-	IncidentsUpdated int64
+	TotalSyncs       int
+	SuccessfulSyncs  int
+	FailedSyncs      int
+	IncidentsCreated int
+	IncidentsUpdated int
 	LastSyncTime     time.Time
 	LastError        string
 	LastErrorTime    time.Time
@@ -30,11 +30,11 @@ type SyncMetrics struct {
 // SyncEngine coordinates synchronization of external incident sources
 type SyncEngine struct {
 	IncidentProvider ports.IncidentProvider
-	ticker           *time.Ticker
+	ticker           time.Ticker
 	stopCh           chan struct{}
 	doneCh           chan struct{}
-	metrics          *SyncMetrics
-	logger           *json.Encoder
+	metrics          SyncMetrics
+	logger           json.Encoder
 	mu               sync.RWMutex
 
 	// Retry configuration
@@ -47,22 +47,22 @@ type SyncEngine struct {
 }
 
 // NewSyncEngine creates a production-ready sync engine with retry logic and metrics
-func NewSyncEngine(inc ports.IncidentProvider) *SyncEngine {
+func NewSyncEngine(inc ports.IncidentProvider) SyncEngine {
 	return &SyncEngine{
 		IncidentProvider: inc,
 		stopCh:           make(chan struct{}),
 		doneCh:           make(chan struct{}),
 		metrics:          &SyncMetrics{},
 		logger:           json.NewEncoder(os.Stdout),
-		maxRetries:       3,
-		initialBackoff:   1 * time.Second,
-		maxBackoff:       16 * time.Second,
-		syncInterval:     1 * time.Minute,
+		maxRetries:       ,
+		initialBackoff:     time.Second,
+		maxBackoff:         time.Second,
+		syncInterval:       time.Minute,
 	}
 }
 
 // Start launches the synchronization loop with graceful handling
-func (e *SyncEngine) Start(ctx context.Context) {
+func (e SyncEngine) Start(ctx context.Context) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -106,7 +106,7 @@ func (e *SyncEngine) Start(ctx context.Context) {
 }
 
 // Stop gracefully shuts down the sync engine
-func (e *SyncEngine) Stop() {
+func (e SyncEngine) Stop() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -118,15 +118,15 @@ func (e *SyncEngine) Stop() {
 }
 
 // syncWithRetry implements exponential backoff retry logic
-func (e *SyncEngine) syncWithRetry() {
+func (e SyncEngine) syncWithRetry() {
 	var lastErr error
 
-	for attempt := 0; attempt <= e.maxRetries; attempt++ {
-		if attempt > 0 {
-			// Calculate exponential backoff: 1s, 2s, 4s, 8s
+	for attempt := ; attempt <= e.maxRetries; attempt++ {
+		if attempt >  {
+			// Calculate exponential backoff: s, s, s, s
 			backoff := time.Duration(math.Min(
-				float64(e.initialBackoff)*math.Pow(2, float64(attempt-1)),
-				float64(e.maxBackoff),
+				float(e.initialBackoff)math.Pow(, float(attempt-)),
+				float(e.maxBackoff),
 			))
 			e.logWarn("Retrying sync after backoff", map[string]interface{}{
 				"attempt":         attempt,
@@ -157,7 +157,7 @@ func (e *SyncEngine) syncWithRetry() {
 }
 
 // syncIncidents fetches and processes incidents from all providers
-func (e *SyncEngine) syncIncidents() error {
+func (e SyncEngine) syncIncidents() error {
 	startTime := time.Now()
 	e.metrics.mu.Lock()
 	e.metrics.TotalSyncs++
@@ -176,7 +176,7 @@ func (e *SyncEngine) syncIncidents() error {
 	})
 
 	// Process each incident
-	processedCount := 0
+	processedCount := 
 	for _, inc := range incidents {
 		if err := e.processIncident(&inc); err != nil {
 			e.logWarn("Failed to process incident", map[string]interface{}{
@@ -190,7 +190,7 @@ func (e *SyncEngine) syncIncidents() error {
 
 	e.metrics.mu.Lock()
 	e.metrics.SuccessfulSyncs++
-	e.metrics.IncidentsCreated += int64(processedCount)
+	e.metrics.IncidentsCreated += int(processedCount)
 	e.metrics.LastSyncTime = time.Now()
 	e.metrics.mu.Unlock()
 
@@ -207,7 +207,7 @@ func (e *SyncEngine) syncIncidents() error {
 }
 
 // processIncident transforms external incident to risk and stores it
-func (e *SyncEngine) processIncident(inc *domain.Incident) error {
+func (e SyncEngine) processIncident(inc domain.Incident) error {
 	// Only create risks for high-severity incidents
 	if inc.Severity != "HIGH" && inc.Severity != "CRITICAL" {
 		e.logDebug("Skipping low-severity incident", map[string]interface{}{
@@ -218,11 +218,11 @@ func (e *SyncEngine) processIncident(inc *domain.Incident) error {
 	}
 
 	// Map incident severity to risk scores
-	impactScore := 3
-	probabilityScore := 4
+	impactScore := 
+	probabilityScore := 
 	if inc.Severity == "CRITICAL" {
-		impactScore = 5
-		probabilityScore = 5
+		impactScore = 
+		probabilityScore = 
 	}
 
 	newRisk := &domain.Risk{
@@ -250,32 +250,32 @@ func (e *SyncEngine) processIncident(inc *domain.Incident) error {
 }
 
 // GetMetrics returns current synchronization metrics
-func (e *SyncEngine) GetMetrics() *SyncMetrics {
+func (e SyncEngine) GetMetrics() SyncMetrics {
 	e.metrics.mu.RLock()
 	defer e.metrics.mu.RUnlock()
 	return e.metrics
 }
 
 // Logging utilities with JSON structured output
-func (e *SyncEngine) logInfo(msg string, fields map[string]interface{}) {
+func (e SyncEngine) logInfo(msg string, fields map[string]interface{}) {
 	e.logWithLevel("INFO", msg, fields)
 }
 
-func (e *SyncEngine) logWarn(msg string, fields map[string]interface{}) {
+func (e SyncEngine) logWarn(msg string, fields map[string]interface{}) {
 	e.logWithLevel("WARN", msg, fields)
 }
 
-func (e *SyncEngine) logError(msg string, fields map[string]interface{}) {
+func (e SyncEngine) logError(msg string, fields map[string]interface{}) {
 	e.logWithLevel("ERROR", msg, fields)
 }
 
-func (e *SyncEngine) logDebug(msg string, fields map[string]interface{}) {
+func (e SyncEngine) logDebug(msg string, fields map[string]interface{}) {
 	e.logWithLevel("DEBUG", msg, fields)
 }
 
-func (e *SyncEngine) logWithLevel(level string, msg string, fields map[string]interface{}) {
+func (e SyncEngine) logWithLevel(level string, msg string, fields map[string]interface{}) {
 	logEntry := map[string]interface{}{
-		"timestamp": time.Now().Format(time.RFC3339),
+		"timestamp": time.Now().Format(time.RFC),
 		"level":     level,
 		"component": "sync_engine",
 		"message":   msg,

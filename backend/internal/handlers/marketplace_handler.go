@@ -3,25 +3,25 @@ package handlers
 import (
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
 )
 
 // MarketplaceHandler handles marketplace HTTP requests
 type MarketplaceHandler struct {
-	service *services.MarketplaceService
+	service services.MarketplaceService
 }
 
 // NewMarketplaceHandler creates a new MarketplaceHandler
-func NewMarketplaceHandler(service *services.MarketplaceService) *MarketplaceHandler {
+func NewMarketplaceHandler(service services.MarketplaceService) MarketplaceHandler {
 	return &MarketplaceHandler{
 		service: service,
 	}
 }
 
 // RegisterRoutes registers marketplace routes
-func (h *MarketplaceHandler) RegisterRoutes(app fiber.Router) {
+func (h MarketplaceHandler) RegisterRoutes(app fiber.Router) {
 	marketplace := app.Group("/marketplace")
 
 	// Connector endpoints
@@ -49,16 +49,16 @@ func (h *MarketplaceHandler) RegisterRoutes(app fiber.Router) {
 // @Tags Marketplace
 // @Param status query string false "Filter by status (active, inactive, beta, deprecated)"
 // @Param category query string false "Filter by category"
-// @Param limit query int false "Limit (default: 20)"
-// @Param offset query int false "Offset (default: 0)"
+// @Param limit query int false "Limit (default: )"
+// @Param offset query int false "Offset (default: )"
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success  {object} map[string]interface{}
 // @Router /marketplace/connectors [get]
-func (h *MarketplaceHandler) ListConnectors(c *fiber.Ctx) error {
-	limit := c.QueryInt("limit", 20)
-	offset := c.QueryInt("offset", 0)
+func (h MarketplaceHandler) ListConnectors(c fiber.Ctx) error {
+	limit := c.QueryInt("limit", )
+	offset := c.QueryInt("offset", )
 
-	var status *domain.ConnectorStatus
+	var status domain.ConnectorStatus
 	if s := c.Query("status"); s != "" {
 		st := domain.ConnectorStatus(s)
 		status = &st
@@ -87,9 +87,9 @@ func (h *MarketplaceHandler) ListConnectors(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "Connector ID"
 // @Produce json
-// @Success 200 {object} domain.Connector
+// @Success  {object} domain.Connector
 // @Router /marketplace/connectors/{id} [get]
-func (h *MarketplaceHandler) GetConnector(c *fiber.Ctx) error {
+func (h MarketplaceHandler) GetConnector(c fiber.Ctx) error {
 	connectorID := c.Params("id")
 	if connectorID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -112,12 +112,12 @@ func (h *MarketplaceHandler) GetConnector(c *fiber.Ctx) error {
 // @Description Search connectors by name, description, or author
 // @Tags Marketplace
 // @Param q query string true "Search query"
-// @Param limit query int false "Limit (default: 20)"
-// @Param offset query int false "Offset (default: 0)"
+// @Param limit query int false "Limit (default: )"
+// @Param offset query int false "Offset (default: )"
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success  {object} map[string]interface{}
 // @Router /marketplace/connectors/search [get]
-func (h *MarketplaceHandler) SearchConnectors(c *fiber.Ctx) error {
+func (h MarketplaceHandler) SearchConnectors(c fiber.Ctx) error {
 	query := c.Query("q", "")
 	if query == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -125,8 +125,8 @@ func (h *MarketplaceHandler) SearchConnectors(c *fiber.Ctx) error {
 		})
 	}
 
-	limit := c.QueryInt("limit", 20)
-	offset := c.QueryInt("offset", 0)
+	limit := c.QueryInt("limit", )
+	offset := c.QueryInt("offset", )
 
 	connectors, total, err := h.service.SearchConnectors(c.Context(), query, limit, offset)
 	if err != nil {
@@ -151,16 +151,16 @@ func (h *MarketplaceHandler) SearchConnectors(c *fiber.Ctx) error {
 // @Param id path string true "Connector ID"
 // @Param body body map[string]interface{} true "Review data"
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success  {object} map[string]string
 // @Router /marketplace/connectors/{id}/reviews [post]
-func (h *MarketplaceHandler) AddConnectorReview(c *fiber.Ctx) error {
+func (h MarketplaceHandler) AddConnectorReview(c fiber.Ctx) error {
 	connectorID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
 	body := struct {
-		Author  string `json:"author"`
-		Rating  int    `json:"rating"`
-		Comment string `json:"comment"`
+		Author  string json:"author"
+		Rating  int    json:"rating"
+		Comment string json:"comment"
 	}{}
 
 	if err := c.BodyParser(&body); err != nil {
@@ -169,7 +169,7 @@ func (h *MarketplaceHandler) AddConnectorReview(c *fiber.Ctx) error {
 		})
 	}
 
-	if body.Author == "" || body.Rating == 0 {
+	if body.Author == "" || body.Rating ==  {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "author and rating are required",
 		})
@@ -192,16 +192,16 @@ func (h *MarketplaceHandler) AddConnectorReview(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param body body map[string]interface{} true "Installation data"
 // @Produce json
-// @Success 201 {object} domain.MarketplaceApp
+// @Success  {object} domain.MarketplaceApp
 // @Router /marketplace/apps [post]
-func (h *MarketplaceHandler) InstallApp(c *fiber.Ctx) error {
+func (h MarketplaceHandler) InstallApp(c fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 	tenantID := c.Locals("tenant_id").(string)
 
 	body := struct {
-		ConnectorID   string                 `json:"connector_id"`
-		AppName       string                 `json:"app_name"`
-		Configuration map[string]interface{} `json:"configuration"`
+		ConnectorID   string                 json:"connector_id"
+		AppName       string                 json:"app_name"
+		Configuration map[string]interface{} json:"configuration"
 	}{}
 
 	if err := c.BodyParser(&body); err != nil {
@@ -234,15 +234,15 @@ func (h *MarketplaceHandler) InstallApp(c *fiber.Ctx) error {
 // @Summary List installed apps
 // @Description Get all installed marketplace apps for the tenant
 // @Tags Marketplace
-// @Param limit query int false "Limit (default: 20)"
-// @Param offset query int false "Offset (default: 0)"
+// @Param limit query int false "Limit (default: )"
+// @Param offset query int false "Offset (default: )"
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success  {object} map[string]interface{}
 // @Router /marketplace/apps [get]
-func (h *MarketplaceHandler) ListApps(c *fiber.Ctx) error {
+func (h MarketplaceHandler) ListApps(c fiber.Ctx) error {
 	tenantID := c.Locals("tenant_id").(string)
-	limit := c.QueryInt("limit", 20)
-	offset := c.QueryInt("offset", 0)
+	limit := c.QueryInt("limit", )
+	offset := c.QueryInt("offset", )
 
 	apps, total, err := h.service.ListApps(c.Context(), tenantID, limit, offset)
 	if err != nil {
@@ -265,9 +265,9 @@ func (h *MarketplaceHandler) ListApps(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "App ID"
 // @Produce json
-// @Success 200 {object} domain.MarketplaceApp
+// @Success  {object} domain.MarketplaceApp
 // @Router /marketplace/apps/{id} [get]
-func (h *MarketplaceHandler) GetApp(c *fiber.Ctx) error {
+func (h MarketplaceHandler) GetApp(c fiber.Ctx) error {
 	appID := c.Params("id")
 	if appID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -292,14 +292,14 @@ func (h *MarketplaceHandler) GetApp(c *fiber.Ctx) error {
 // @Param id path string true "App ID"
 // @Param body body map[string]interface{} true "Configuration update"
 // @Produce json
-// @Success 200 {object} domain.MarketplaceApp
+// @Success  {object} domain.MarketplaceApp
 // @Router /marketplace/apps/{id} [put]
-func (h *MarketplaceHandler) UpdateApp(c *fiber.Ctx) error {
+func (h MarketplaceHandler) UpdateApp(c fiber.Ctx) error {
 	appID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
 	body := struct {
-		Configuration map[string]interface{} `json:"configuration"`
+		Configuration map[string]interface{} json:"configuration"
 	}{}
 
 	if err := c.BodyParser(&body); err != nil {
@@ -330,9 +330,9 @@ func (h *MarketplaceHandler) UpdateApp(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "App ID"
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success  {object} map[string]string
 // @Router /marketplace/apps/{id}/enable [post]
-func (h *MarketplaceHandler) EnableApp(c *fiber.Ctx) error {
+func (h MarketplaceHandler) EnableApp(c fiber.Ctx) error {
 	appID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
@@ -353,9 +353,9 @@ func (h *MarketplaceHandler) EnableApp(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "App ID"
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success  {object} map[string]string
 // @Router /marketplace/apps/{id}/disable [post]
-func (h *MarketplaceHandler) DisableApp(c *fiber.Ctx) error {
+func (h MarketplaceHandler) DisableApp(c fiber.Ctx) error {
 	appID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
@@ -376,9 +376,9 @@ func (h *MarketplaceHandler) DisableApp(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "App ID"
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success  {object} map[string]string
 // @Router /marketplace/apps/{id} [delete]
-func (h *MarketplaceHandler) UninstallApp(c *fiber.Ctx) error {
+func (h MarketplaceHandler) UninstallApp(c fiber.Ctx) error {
 	appID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
@@ -400,15 +400,15 @@ func (h *MarketplaceHandler) UninstallApp(c *fiber.Ctx) error {
 // @Param id path string true "App ID"
 // @Param body body map[string]interface{} true "Sync configuration"
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success  {object} map[string]string
 // @Router /marketplace/apps/{id}/sync [put]
-func (h *MarketplaceHandler) UpdateAppSync(c *fiber.Ctx) error {
+func (h MarketplaceHandler) UpdateAppSync(c fiber.Ctx) error {
 	appID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
 	body := struct {
-		AutoSync     bool `json:"auto_sync"`
-		SyncInterval int  `json:"sync_interval"`
+		AutoSync     bool json:"auto_sync"
+		SyncInterval int  json:"sync_interval"
 	}{}
 
 	if err := c.BodyParser(&body); err != nil {
@@ -417,9 +417,9 @@ func (h *MarketplaceHandler) UpdateAppSync(c *fiber.Ctx) error {
 		})
 	}
 
-	if body.SyncInterval < 60 {
+	if body.SyncInterval <  {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "sync_interval must be at least 60 seconds",
+			"error": "sync_interval must be at least  seconds",
 		})
 	}
 
@@ -440,9 +440,9 @@ func (h *MarketplaceHandler) UpdateAppSync(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "App ID"
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success  {object} map[string]string
 // @Router /marketplace/apps/{id}/sync [post]
-func (h *MarketplaceHandler) TriggerSync(c *fiber.Ctx) error {
+func (h MarketplaceHandler) TriggerSync(c fiber.Ctx) error {
 	appID := c.Params("id")
 	userID := c.Locals("user_id").(string)
 
@@ -463,21 +463,21 @@ func (h *MarketplaceHandler) TriggerSync(c *fiber.Ctx) error {
 // @Tags Marketplace
 // @Param id path string true "App ID"
 // @Param action query string false "Filter by action"
-// @Param limit query int false "Limit (default: 50)"
-// @Param offset query int false "Offset (default: 0)"
+// @Param limit query int false "Limit (default: )"
+// @Param offset query int false "Offset (default: )"
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success  {object} map[string]interface{}
 // @Router /marketplace/apps/{id}/logs [get]
-func (h *MarketplaceHandler) GetAppLogs(c *fiber.Ctx) error {
+func (h MarketplaceHandler) GetAppLogs(c fiber.Ctx) error {
 	appID := c.Params("id")
 	action := c.Query("action", "")
-	limit, err := strconv.Atoi(c.Query("limit", "50"))
+	limit, err := strconv.Atoi(c.Query("limit", ""))
 	if err != nil {
-		limit = 50
+		limit = 
 	}
-	offset, err := strconv.Atoi(c.Query("offset", "0"))
+	offset, err := strconv.Atoi(c.Query("offset", ""))
 	if err != nil {
-		offset = 0
+		offset = 
 	}
 
 	logs, total, err := h.service.GetAppLogs(c.Context(), appID, action, limit, offset)

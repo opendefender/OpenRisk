@@ -5,7 +5,7 @@ import (
 "fmt"
 "time"
 
-"github.com/gofiber/fiber/v2"
+"github.com/gofiber/fiber/v"
 "github.com/opendefender/openrisk/internal/cache"
 )
 
@@ -20,22 +20,22 @@ MarketplaceAppTTL  time.Duration
 // DefaultCacheConfig returns default cache TTLs
 func DefaultCacheConfig() CacheConfig {
 return CacheConfig{
-RiskCacheTTL:      5 * time.Minute,
-DashboardCacheTTL: 10 * time.Minute,
-ConnectorCacheTTL: 15 * time.Minute,
-MarketplaceAppTTL: 20 * time.Minute,
+RiskCacheTTL:        time.Minute,
+DashboardCacheTTL:   time.Minute,
+ConnectorCacheTTL:   time.Minute,
+MarketplaceAppTTL:   time.Minute,
 }
 }
 
 // CacheableHandlers provides cache-enabled handler wrapper
 type CacheableHandlers struct {
-cache       *cache.Cache
+cache       cache.Cache
 cacheConfig CacheConfig
-decoration  *cache.CacheDecoration
+decoration  cache.CacheDecoration
 }
 
 // NewCacheableHandlers creates a new caching handler wrapper
-func NewCacheableHandlers(cacheInstance *cache.Cache) *CacheableHandlers {
+func NewCacheableHandlers(cacheInstance cache.Cache) CacheableHandlers {
 return &CacheableHandlers{
 cache:       cacheInstance,
 cacheConfig: DefaultCacheConfig(),
@@ -44,7 +44,7 @@ decoration:  cache.NewCacheDecoration(cacheInstance),
 }
 
 // SetCacheConfig updates cache TTL configuration
-func (ch *CacheableHandlers) SetCacheConfig(cfg CacheConfig) {
+func (ch CacheableHandlers) SetCacheConfig(cfg CacheConfig) {
 ch.cacheConfig = cfg
 }
 
@@ -53,7 +53,7 @@ ch.cacheConfig = cfg
 // ============================================================================
 
 // GetRiskCacheKey generates cache key for risk operations
-func (ch *CacheableHandlers) GetRiskCacheKey(operation string, params ...string) string {
+func (ch CacheableHandlers) GetRiskCacheKey(operation string, params ...string) string {
 key := fmt.Sprintf("risk:%s", operation)
 for _, param := range params {
 key += fmt.Sprintf(":%s", param)
@@ -62,31 +62,31 @@ return key
 }
 
 // InvalidateRiskCaches invalidates all risk-related cache entries
-func (ch *CacheableHandlers) InvalidateRiskCaches(ctx context.Context) error {
+func (ch CacheableHandlers) InvalidateRiskCaches(ctx context.Context) error {
 return ch.decoration.BatchInvalidate(ctx,
-"risk:*",        // All risk entries
-"report:*",      // Reports depend on risks
-"dashboard:*",   // Dashboard depends on risks
+"risk:",        // All risk entries
+"report:",      // Reports depend on risks
+"dashboard:",   // Dashboard depends on risks
 )
 }
 
 // InvalidateSpecificRisk invalidates cache for a specific risk
-func (ch *CacheableHandlers) InvalidateSpecificRisk(ctx context.Context, riskID string) error {
+func (ch CacheableHandlers) InvalidateSpecificRisk(ctx context.Context, riskID string) error {
 return ch.decoration.BatchInvalidate(ctx,
 fmt.Sprintf("risk:id:%s", riskID),
-"risk:list:*",
-"risk:search:*",
-"report:*",
-"dashboard:*",
+"risk:list:",
+"risk:search:",
+"report:",
+"dashboard:",
 )
 }
 
 // CacheRiskListGET wraps a GET risk list handler with caching
-func (ch *CacheableHandlers) CacheRiskListGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheRiskListGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
-page := c.Query("page", "1")
+func(c fiber.Ctx) string {
+page := c.Query("page", "")
 severity := c.Query("severity", "")
 status := c.Query("status", "")
 return fmt.Sprintf("risk:list:page:%s:sev:%s:status:%s", page, severity, status)
@@ -96,10 +96,10 @@ ch.cacheConfig.RiskCacheTTL,
 }
 
 // CacheRiskSearchGET wraps a GET risk search handler with caching
-func (ch *CacheableHandlers) CacheRiskSearchGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheRiskSearchGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 query := c.Query("q", "")
 return fmt.Sprintf("risk:search:%s", hashQuery(query))
 },
@@ -108,10 +108,10 @@ ch.cacheConfig.RiskCacheTTL,
 }
 
 // CacheRiskGetByIDGET wraps a GET risk by ID handler with caching
-func (ch *CacheableHandlers) CacheRiskGetByIDGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheRiskGetByIDGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 riskID := c.Params("id")
 return fmt.Sprintf("risk:id:%s", riskID)
 },
@@ -124,7 +124,7 @@ ch.cacheConfig.RiskCacheTTL,
 // ============================================================================
 
 // GetDashboardCacheKey generates cache key for dashboard operations
-func (ch *CacheableHandlers) GetDashboardCacheKey(operation string, params ...string) string {
+func (ch CacheableHandlers) GetDashboardCacheKey(operation string, params ...string) string {
 key := fmt.Sprintf("dashboard:%s", operation)
 for _, param := range params {
 key += fmt.Sprintf(":%s", param)
@@ -133,15 +133,15 @@ return key
 }
 
 // InvalidateDashboardCaches invalidates all dashboard cache entries
-func (ch *CacheableHandlers) InvalidateDashboardCaches(ctx context.Context) error {
-return ch.cache.DeletePattern(ctx, "dashboard:*")
+func (ch CacheableHandlers) InvalidateDashboardCaches(ctx context.Context) error {
+return ch.cache.DeletePattern(ctx, "dashboard:")
 }
 
 // CacheDashboardStatsGET wraps a GET dashboard stats handler with caching
-func (ch *CacheableHandlers) CacheDashboardStatsGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheDashboardStatsGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 period := c.Query("period", "month")
 return fmt.Sprintf("dashboard:stats:%s", period)
 },
@@ -150,10 +150,10 @@ ch.cacheConfig.DashboardCacheTTL,
 }
 
 // CacheDashboardMatrixGET wraps a GET dashboard matrix handler with caching
-func (ch *CacheableHandlers) CacheDashboardMatrixGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheDashboardMatrixGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 return "dashboard:matrix:all"
 },
 ch.cacheConfig.DashboardCacheTTL,
@@ -161,11 +161,11 @@ ch.cacheConfig.DashboardCacheTTL,
 }
 
 // CacheDashboardTimelineGET wraps a GET dashboard timeline handler with caching
-func (ch *CacheableHandlers) CacheDashboardTimelineGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheDashboardTimelineGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
-days := c.Query("days", "30")
+func(c fiber.Ctx) string {
+days := c.Query("days", "")
 return fmt.Sprintf("dashboard:timeline:%s", days)
 },
 ch.cacheConfig.DashboardCacheTTL,
@@ -177,7 +177,7 @@ ch.cacheConfig.DashboardCacheTTL,
 // ============================================================================
 
 // GetMarketplaceCacheKey generates cache key for marketplace operations
-func (ch *CacheableHandlers) GetMarketplaceCacheKey(operation string, params ...string) string {
+func (ch CacheableHandlers) GetMarketplaceCacheKey(operation string, params ...string) string {
 key := fmt.Sprintf("connector:%s", operation)
 for _, param := range params {
 key += fmt.Sprintf(":%s", param)
@@ -186,27 +186,27 @@ return key
 }
 
 // InvalidateMarketplaceCaches invalidates all marketplace cache entries
-func (ch *CacheableHandlers) InvalidateMarketplaceCaches(ctx context.Context) error {
+func (ch CacheableHandlers) InvalidateMarketplaceCaches(ctx context.Context) error {
 return ch.decoration.BatchInvalidate(ctx,
-"connector:*",
-"marketplace:app:*",
+"connector:",
+"marketplace:app:",
 )
 }
 
 // InvalidateSpecificConnector invalidates cache for a specific connector
-func (ch *CacheableHandlers) InvalidateSpecificConnector(ctx context.Context, connectorID string) error {
+func (ch CacheableHandlers) InvalidateSpecificConnector(ctx context.Context, connectorID string) error {
 return ch.decoration.BatchInvalidate(ctx,
 fmt.Sprintf("connector:id:%s", connectorID),
-"connector:list:*",
+"connector:list:",
 "connector:health",
 )
 }
 
 // CacheConnectorListGET wraps a GET connector list handler with caching
-func (ch *CacheableHandlers) CacheConnectorListGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheConnectorListGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 category := c.Query("category", "all")
 status := c.Query("status", "all")
 return fmt.Sprintf("connector:list:cat:%s:status:%s", category, status)
@@ -216,10 +216,10 @@ ch.cacheConfig.ConnectorCacheTTL,
 }
 
 // CacheConnectorGetByIDGET wraps a GET connector by ID handler with caching
-func (ch *CacheableHandlers) CacheConnectorGetByIDGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheConnectorGetByIDGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 connectorID := c.Params("id")
 return fmt.Sprintf("connector:id:%s", connectorID)
 },
@@ -228,10 +228,10 @@ ch.cacheConfig.ConnectorCacheTTL,
 }
 
 // CacheMarketplaceAppGetByIDGET wraps a GET app by ID handler with caching
-func (ch *CacheableHandlers) CacheMarketplaceAppGetByIDGET(handler fiber.Handler) fiber.Handler {
+func (ch CacheableHandlers) CacheMarketplaceAppGetByIDGET(handler fiber.Handler) fiber.Handler {
 return ch.decoration.WrapWithCache(
 handler,
-func(c *fiber.Ctx) string {
+func(c fiber.Ctx) string {
 appID := c.Params("id")
 return fmt.Sprintf("marketplace:app:%s", appID)
 },
@@ -248,10 +248,10 @@ func hashQuery(query string) string {
 if query == "" {
 return "empty"
 }
-// Simple hash for cache key (can use MD5 for collision resistance)
-h := 0
+// Simple hash for cache key (can use MD for collision resistance)
+h := 
 for _, c := range query {
-h = ((h << 5) - h) + int(c)
+h = ((h << ) - h) + int(c)
 }
 return fmt.Sprintf("%x", h)
 }
@@ -261,19 +261,19 @@ return fmt.Sprintf("%x", h)
 // ============================================================================
 
 // GetOrSetRiskData provides cache-or-compute pattern for risk data
-func (ch *CacheableHandlers) GetOrSetRiskData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
+func (ch CacheableHandlers) GetOrSetRiskData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
 cacheCtx := cache.NewRequestCacheContext(ch.cache, ctx)
 return cacheCtx.GetOrSet(key, dest, compute)
 }
 
 // GetOrSetDashboardData provides cache-or-compute pattern for dashboard data
-func (ch *CacheableHandlers) GetOrSetDashboardData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
+func (ch CacheableHandlers) GetOrSetDashboardData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
 cacheCtx := cache.NewRequestCacheContext(ch.cache, ctx)
 return cacheCtx.GetOrSet(key, dest, compute)
 }
 
 // GetOrSetMarketplaceData provides cache-or-compute pattern for marketplace data
-func (ch *CacheableHandlers) GetOrSetMarketplaceData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
+func (ch CacheableHandlers) GetOrSetMarketplaceData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
 cacheCtx := cache.NewRequestCacheContext(ch.cache, ctx)
 return cacheCtx.GetOrSet(key, dest, compute)
 }

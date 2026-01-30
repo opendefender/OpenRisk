@@ -1,227 +1,227 @@
-# 🚀 Deployment Directory
+  Deployment Directory
 
 Complete guide and configuration files for deploying OpenRisk using free services.
 
-## 📁 Directory Structure
+  Directory Structure
 
-```
+
 deployment/
-├── 📖 guides/                    # Complete deployment guides
-│   ├── README_DEPLOYMENT.txt     # Main guide (45 min) - START HERE
-│   ├── QUICK_DEPLOY_GUIDE.md     # Fast track (30 min)
-│   ├── DEPLOYMENT_FREE_SERVICES.md # Detailed instructions
-│   ├── INTEGRATION_GUIDE.md      # Technical reference
-│   ├── ARCHITECTURE_DEPLOYMENT.md # Visual diagrams & architecture
-│   └── DEPLOYMENT_START_HERE.md  # Orientation & overview
-│
-├── 🐳 docker/                    # Docker configuration
-│   └── Dockerfile.render         # Optimized for Render.com
-│
-├── ⚙️ configs/                   # Configuration files
-│   └── .env.production           # Production environment variables
-│
-├── 🔧 scripts/                   # Automation scripts
-│   ├── deploy-free-setup.sh      # Interactive setup assistant
-│   └── create-checklist.sh       # Generate deployment checklist
-│
-├── 📖 00_START_HERE.txt          # Overview & quick links
-├── 📋 INDEX.md                   # File navigation & reference
-├── 📝 GIT_COMMANDS.md            # Git commands for deployment
-└── ✅ DEPLOYMENT_CHECKLIST.txt   # Progress tracking (8 phases)
-```
+  guides/                     Complete deployment guides
+    README_DEPLOYMENT.txt      Main guide ( min) - START HERE
+    QUICK_DEPLOY_GUIDE.md      Fast track ( min)
+    DEPLOYMENT_FREE_SERVICES.md  Detailed instructions
+    INTEGRATION_GUIDE.md       Technical reference
+    ARCHITECTURE_DEPLOYMENT.md  Visual diagrams & architecture
+    DEPLOYMENT_START_HERE.md   Orientation & overview
+
+  docker/                     Docker configuration
+    Dockerfile.render          Optimized for Render.com
+
+  configs/                    Configuration files
+    .env.production            Production environment variables
+
+  scripts/                    Automation scripts
+    deploy-free-setup.sh       Interactive setup assistant
+    create-checklist.sh        Generate deployment checklist
+
+  _START_HERE.txt           Overview & quick links
+  INDEX.md                    File navigation & reference
+  GIT_COMMANDS.md             Git commands for deployment
+  DEPLOYMENT_CHECKLIST.txt    Progress tracking ( phases)
+
 
 ---
 
-## 🎯 Quick Start
+  Quick Start
 
-### Option 1: Fast Track (30 minutes)
-```bash
+ Option : Fast Track ( minutes)
+bash
 cd deployment/guides
 Open: QUICK_DEPLOY_GUIDE.md
-```
 
-### Option 2: Complete Guide (45 minutes)
-```bash
+
+ Option : Complete Guide ( minutes)
+bash
 cd deployment/guides
 Open: README_DEPLOYMENT.txt
-```
 
-### Option 3: Automated Setup
-```bash
+
+ Option : Automated Setup
+bash
 cd deployment/scripts
 bash deploy-free-setup.sh
-```
+
 
 ---
 
-## 📚 Guide Selection
+  Guide Selection
 
 | I want to... | Read this |
 |---|---|
-| Get started quickly | `guides/QUICK_DEPLOY_GUIDE.md` |
-| Complete deployment | `guides/README_DEPLOYMENT.txt` |
-| Understand architecture | `guides/ARCHITECTURE_DEPLOYMENT.md` |
-| Debug issues | `guides/INTEGRATION_GUIDE.md` |
-| Track progress | `DEPLOYMENT_CHECKLIST.txt` |
-| Find files | `INDEX.md` |
-| Understand Git steps | `GIT_COMMANDS.md` |
+| Get started quickly | guides/QUICK_DEPLOY_GUIDE.md |
+| Complete deployment | guides/README_DEPLOYMENT.txt |
+| Understand architecture | guides/ARCHITECTURE_DEPLOYMENT.md |
+| Debug issues | guides/INTEGRATION_GUIDE.md |
+| Track progress | DEPLOYMENT_CHECKLIST.txt |
+| Find files | INDEX.md |
+| Understand Git steps | GIT_COMMANDS.md |
 
 ---
 
-## 🚀 Services Stack (Free)
+  Services Stack (Free)
 
-```
+
 Vercel (Frontend)
   ↓ HTTPS
 Render.com (Backend - Docker)
   ↓
-Supabase (PostgreSQL - 500 MB)
-Redis Cloud (Cache - 30 MB)
-```
+Supabase (PostgreSQL -  MB)
+Redis Cloud (Cache -  MB)
 
-**Total Cost: $0.00/month**
+
+Total Cost: $./month
 
 ---
 
-## ⏱️ Timeline
+  Timeline
 
 | Phase | Duration | Task |
 |-------|----------|------|
-| 1 | 10 min | Create service accounts |
-| 2 | 15 min | Deploy backend (Render) |
-| 3 | 10 min | Deploy frontend (Vercel) |
-| 4 | 5 min | Integration testing |
-| 5 | 5 min | Validation & sharing |
-| **Total** | **45 min** | **From zero to demo link** |
+|  |  min | Create service accounts |
+|  |  min | Deploy backend (Render) |
+|  |  min | Deploy frontend (Vercel) |
+|  |  min | Integration testing |
+|  |  min | Validation & sharing |
+| Total |  min | From zero to demo link |
 
 ---
 
-## 🎯 Default Credentials
+  Default Credentials
 
 After deployment:
-- **Email**: `admin@openrisk.local`
-- **Password**: `admin123`
+- Email: admin@openrisk.local
+- Password: admin
 
 Change these after initial setup!
 
 ---
 
-## 📖 Files Overview
+  Files Overview
 
-### Guides Directory
-- **README_DEPLOYMENT.txt** - Your main deployment guide with all 5 phases
-- **QUICK_DEPLOY_GUIDE.md** - Abbreviated version for 30-minute deployment
-- **DEPLOYMENT_FREE_SERVICES.md** - Detailed instructions for each service
-- **INTEGRATION_GUIDE.md** - Frontend/Backend API integration & debugging
-- **ARCHITECTURE_DEPLOYMENT.md** - Diagrams, data flow, security architecture
-- **DEPLOYMENT_START_HERE.md** - Overview of all deployment resources
+ Guides Directory
+- README_DEPLOYMENT.txt - Your main deployment guide with all  phases
+- QUICK_DEPLOY_GUIDE.md - Abbreviated version for -minute deployment
+- DEPLOYMENT_FREE_SERVICES.md - Detailed instructions for each service
+- INTEGRATION_GUIDE.md - Frontend/Backend API integration & debugging
+- ARCHITECTURE_DEPLOYMENT.md - Diagrams, data flow, security architecture
+- DEPLOYMENT_START_HERE.md - Overview of all deployment resources
 
-### Root Level
-- **00_START_HERE.txt** - Entry point with key information
-- **INDEX.md** - Navigation hub for all files
-- **GIT_COMMANDS.md** - Git push commands to save your work
-- **DEPLOYMENT_CHECKLIST.txt** - Track progress through 8 phases
+ Root Level
+- _START_HERE.txt - Entry point with key information
+- INDEX.md - Navigation hub for all files
+- GIT_COMMANDS.md - Git push commands to save your work
+- DEPLOYMENT_CHECKLIST.txt - Track progress through  phases
 
-### Docker
-- **Dockerfile.render** - Production-optimized Docker image for Render.com
+ Docker
+- Dockerfile.render - Production-optimized Docker image for Render.com
 
-### Config
-- **.env.production** - Environment variables template
+ Config
+- .env.production - Environment variables template
 
-### Scripts
-- **deploy-free-setup.sh** - Interactive setup that checks prerequisites
-- **create-checklist.sh** - Generate an interactive checklist
+ Scripts
+- deploy-free-setup.sh - Interactive setup that checks prerequisites
+- create-checklist.sh - Generate an interactive checklist
 
 ---
 
-## 🔑 Environment Setup
+  Environment Setup
 
-### Frontend (.env.production in frontend/)
-```env
+ Frontend (.env.production in frontend/)
+env
 VITE_API_URL=https://openrisk-api.onrender.com
 VITE_ENV=production
-```
 
-### Backend (set in Render.com dashboard)
-```env
+
+ Backend (set in Render.com dashboard)
+env
 DATABASE_URL=postgresql://postgres:PASSWORD@...
 REDIS_URL=redis://default:PASSWORD@...
-JWT_SECRET=your-32-character-secret-key
+JWT_SECRET=your--character-secret-key
 CORS_ORIGINS=https://openrisk-xxxx.vercel.app
 API_BASE_URL=https://openrisk-api.onrender.com
-PORT=8080
+PORT=
 ENVIRONMENT=production
 LOG_LEVEL=info
-```
+
 
 ---
 
-## 🌟 Expected Result
+  Expected Result
 
 After following the guides:
 
-✅ **Frontend**: https://openrisk-xxxx.vercel.app  
-✅ **API**: https://openrisk-api.onrender.com  
-✅ **Docs**: https://openrisk-api.onrender.com/swagger  
-✅ **Auto-Deploy**: Push to GitHub → Auto-deploy everywhere  
-✅ **HTTPS**: Automatic certificate management  
-✅ **CDN**: Global content delivery network  
+ Frontend: https://openrisk-xxxx.vercel.app  
+ API: https://openrisk-api.onrender.com  
+ Docs: https://openrisk-api.onrender.com/swagger  
+ Auto-Deploy: Push to GitHub → Auto-deploy everywhere  
+ HTTPS: Automatic certificate management  
+ CDN: Global content delivery network  
 
 ---
 
-## ⚠️ Important Notes
+  Important Notes
 
-1. **Render Sleep Mode** - Services sleep after 15 min inactivity (free tier)
-   - Solution: Use uptimerobot.com (free) to ping every 14 minutes
+. Render Sleep Mode - Services sleep after  min inactivity (free tier)
+   - Solution: Use uptimerobot.com (free) to ping every  minutes
 
-2. **Supabase Limits** - 500 MB storage, 2 GB/month transfer
+. Supabase Limits -  MB storage,  GB/month transfer
    - Archive old risks periodically
 
-3. **Redis Cache** - 30 MB RAM
+. Redis Cache -  MB RAM
    - Implement session cleanup
 
-4. **Vercel Bandwidth** - 100 GB/month included
+. Vercel Bandwidth -  GB/month included
    - Optimize images if needed
 
 ---
 
-## 🚀 Next Steps
+  Next Steps
 
-1. **Choose your learning style**:
-   - Fast? → Open `guides/QUICK_DEPLOY_GUIDE.md`
-   - Thorough? → Open `guides/README_DEPLOYMENT.txt`
-   - Interactive? → Run `scripts/deploy-free-setup.sh`
+. Choose your learning style:
+   - Fast? → Open guides/QUICK_DEPLOY_GUIDE.md
+   - Thorough? → Open guides/README_DEPLOYMENT.txt
+   - Interactive? → Run scripts/deploy-free-setup.sh
 
-2. **Create accounts**:
+. Create accounts:
    - https://supabase.com (Database)
    - https://app.redislabs.com (Cache)
    - https://render.com (Backend)
    - https://vercel.com (Frontend)
 
-3. **Follow the 5 phases**
+. Follow the  phases
 
-4. **Share your demo link!**
+. Share your demo link!
 
 ---
 
-## 📞 Support
+  Support
 
 All answers are in the guides. Quick reference:
 
-- **CORS Error?** → See `guides/INTEGRATION_GUIDE.md`
-- **API Issue?** → See `guides/INTEGRATION_GUIDE.md`
-- **Lost?** → See `00_START_HERE.txt`
-- **Tracking progress?** → Use `DEPLOYMENT_CHECKLIST.txt`
+- CORS Error? → See guides/INTEGRATION_GUIDE.md
+- API Issue? → See guides/INTEGRATION_GUIDE.md
+- Lost? → See _START_HERE.txt
+- Tracking progress? → Use DEPLOYMENT_CHECKLIST.txt
 
 ---
 
-## 📝 Version Info
+  Version Info
 
-- **Created**: December 25, 2025
-- **OpenRisk Version**: 1.0.4
-- **Framework**: React 19 + Go 1.25.4
-- **Status**: Production-ready deployment package
+- Created: December , 
+- OpenRisk Version: ..
+- Framework: React  + Go ..
+- Status: Production-ready deployment package
 
 ---
 
-**Ready to deploy? Open `00_START_HERE.txt` or `guides/README_DEPLOYMENT.txt` → Let's go! 🚀**
+Ready to deploy? Open _START_HERE.txt or guides/README_DEPLOYMENT.txt → Let's go! 

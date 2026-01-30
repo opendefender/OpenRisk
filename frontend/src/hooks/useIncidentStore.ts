@@ -25,13 +25,13 @@ interface IncidentStore {
 }
 
 export const useIncidentStore = create<IncidentStore>((set) => {
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:/api/v';
 
   return {
     incidents: [],
-    total: 0,
-    page: 1,
-    pageSize: 10,
+    total: ,
+    page: ,
+    pageSize: ,
     isLoading: false,
     error: null,
 
@@ -39,30 +39,30 @@ export const useIncidentStore = create<IncidentStore>((set) => {
       set({ isLoading: true, error: null });
       try {
         const token = useAuthStore.getState().token;
-        const page = params.page ?? 1;
-        const limit = params.limit ?? 10;
+        const page = params.page ?? ;
+        const limit = params.limit ?? ;
         
-        let url = `${apiBaseUrl}/incidents?page=${page}&limit=${limit}`;
-        if (params.severity) url += `&severity=${params.severity}`;
-        if (params.status) url += `&status=${params.status}`;
+        let url = ${apiBaseUrl}/incidents?page=${page}&limit=${limit};
+        if (params.severity) url += &severity=${params.severity};
+        if (params.status) url += &status=${params.status};
 
         const response = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: Bearer ${token},
             'Content-Type': 'application/json',
           },
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(HTTP ${response.status});
         }
 
         const data = await response.json();
         set({
           incidents: data.incidents || [],
-          total: data.total || 0,
-          page: data.page || 1,
-          pageSize: data.limit || 10,
+          total: data.total || ,
+          page: data.page || ,
+          pageSize: data.limit || ,
           isLoading: false,
         });
       } catch (error) {
@@ -74,15 +74,15 @@ export const useIncidentStore = create<IncidentStore>((set) => {
     getIncident: async (id: string) => {
       try {
         const token = useAuthStore.getState().token;
-        const response = await fetch(`${apiBaseUrl}/incidents/${id}`, {
+        const response = await fetch(${apiBaseUrl}/incidents/${id}, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: Bearer ${token},
             'Content-Type': 'application/json',
           },
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(HTTP ${response.status});
         }
 
         return await response.json();

@@ -1,307 +1,307 @@
-# 📋 État du Projet OpenRisk - Décembre 22, 2025
+  État du Projet OpenRisk - D�cembre , 
 
-## 🎯 Récapitulatif Global
+  R�capitulatif Global
 
-**Status Global:** ✅ **80% Complet** - Prêt pour Phase 5/6
+Status Global:  % Complet - Prêt pour Phase /
 
-### Phases Complétées
-- ✅ **Phase 1 (MVP)**: 100% - Risk CRUD, Mitigations, Sync Engine
-- ✅ **Phase 2 (Auth)**: 100% - RBAC, Token API, User Management
-- ✅ **Phase 3 (Infrastructure)**: 100% - Docker, CI/CD, Kubernetes Helm
-- ✅ **Phase 4 (Entreprise)**: 100% - Custom Fields, Bulk Ops, Timeline, SAML/OAuth2
-- 🟡 **Phase 5 (Analytics)**: 40% - Dashboard complète, API endpoints
-- ⬜ **Phase 6 (Marketplace)**: 0% - Non commencé
+ Phases Compl�t�es
+-  Phase  (MVP): % - Risk CRUD, Mitigations, Sync Engine
+-  Phase  (Auth): % - RBAC, Token API, User Management
+-  Phase  (Infrastructure): % - Docker, CI/CD, Kubernetes Helm
+-  Phase  (Entreprise): % - Custom Fields, Bulk Ops, Timeline, SAML/OAuth
+- 🟡 Phase  (Analytics): % - Dashboard compl�te, API endpoints
+- ⬜ Phase  (Marketplace): % - Non commenc�
 
 ---
 
-## ✅ CE QUI EST FAIT (Session du 22 Décembre)
+  CE QUI EST FAIT (Session du  D�cembre)
 
-### Implémentation Backend - Endpoints Demandés
-**Status:** ✅ **COMPLET** - Tous les 6 endpoints implémentés et testés
+ Impl�mentation Backend - Endpoints Demand�s
+Status:  COMPLET - Tous les  endpoints impl�ment�s et test�s
 
 | Endpoint | Status | Type | Notes |
 |----------|--------|------|-------|
-| `POST /users` | ✅ Done | Admin | Créer utilisateur + validation |
-| `PATCH /users/{id}` | ✅ Done | Any | Update profil (bio, phone, dept, tz) |
-| `POST /teams` | ✅ Done | Admin | Créer équipe avec soft delete |
-| `GET /teams` | ✅ Done | Admin | Lister équipes + count membres |
-| `DELETE /teams/{id}` | ✅ Done | Admin | Supprimer équipe + nettoyage |
-| `POST /integrations/{id}/test` | ✅ Done | Auth | Test intégration + retry logic |
+| POST /users |  Done | Admin | Cr�er utilisateur + validation |
+| PATCH /users/{id} |  Done | Any | Update profil (bio, phone, dept, tz) |
+| POST /teams |  Done | Admin | Cr�er �quipe avec soft delete |
+| GET /teams |  Done | Admin | Lister �quipes + count membres |
+| DELETE /teams/{id} |  Done | Admin | Supprimer �quipe + nettoyage |
+| POST /integrations/{id}/test |  Done | Auth | Test int�gration + retry logic |
 
-**Fichiers Créés:**
-- `backend/internal/core/domain/team.go` - Modèles Team & TeamMember
-- `backend/internal/handlers/team_handler.go` - 7 team endpoints
-- `backend/internal/handlers/integration_handler.go` - Test integration
-- `migrations/0008_add_user_profile_fields.sql` - Profil utilisateur
-- `migrations/0009_create_teams_table.sql` - Tables teams & team_members
+Fichiers Cr��s:
+- backend/internal/core/domain/team.go - Mod�les Team & TeamMember
+- backend/internal/handlers/team_handler.go -  team endpoints
+- backend/internal/handlers/integration_handler.go - Test integration
+- migrations/_add_user_profile_fields.sql - Profil utilisateur
+- migrations/_create_teams_table.sql - Tables teams & team_members
 
-**Fichiers Modifiés:**
-- `backend/internal/core/domain/user.go` - +4 champs profil
-- `backend/internal/core/domain/audit_log.go` - +2 constantes audit
-- `backend/internal/handlers/user_handler.go` - +2 endpoints
-- `backend/cmd/server/main.go` - +7 routes + migration Team
+Fichiers Modifi�s:
+- backend/internal/core/domain/user.go - + champs profil
+- backend/internal/core/domain/audit_log.go - + constantes audit
+- backend/internal/handlers/user_handler.go - + endpoints
+- backend/cmd/server/main.go - + routes + migration Team
 
-**Documentation:**
-- `BACKEND_ENDPOINTS_GUIDE.md` (571 lignes)
-- `BACKEND_IMPLEMENTATION_SUMMARY.md` (402 lignes)
-- `ENDPOINTS_COMPLETION_REPORT.md` (373 lignes)
+Documentation:
+- BACKEND_ENDPOINTS_GUIDE.md ( lignes)
+- BACKEND_IMPLEMENTATION_SUMMARY.md ( lignes)
+- ENDPOINTS_COMPLETION_REPORT.md ( lignes)
 
-**Build Status:**
-- ✅ Backend compiles sans erreurs
-- ✅ Tous les endpoints routés
-- ✅ Migrations prêtes
-- ✅ Audit logging intégré
+Build Status:
+-  Backend compiles sans erreurs
+-  Tous les endpoints rout�s
+-  Migrations prêtes
+-  Audit logging int�gr�
 
 ---
 
-## ⬜ CE QUI RESTE À FAIRE
+ ⬜ CE QUI RESTE À FAIRE
 
-### Phase 5 - Finition (40% Complete)
+ Phase  - Finition (% Complete)
 
-**1. API Marketplace Framework** ⬜ (0%)
-- [ ] Dashboard pour gérer les extensions/plugins
-- [ ] Système de versioning pour les connecteurs
+. API Marketplace Framework ⬜ (%)
+- [ ] Dashboard pour g�rer les extensions/plugins
+- [ ] Syst�me de versioning pour les connecteurs
 - [ ] Marketplace repository public (GitHub)
-- [ ] Système d'installation de plugins automatique
+- [ ] Syst�me d'installation de plugins automatique
 
-**2. Performance Optimization & Load Testing** ⬜ (0%)
-- [ ] Profiling de la base de données
-- [ ] Caching layer (Redis) pour queries fréquentes
-- [ ] Tests de charge avec 10k+ risques
+. Performance Optimization & Load Testing ⬜ (%)
+- [ ] Profiling de la base de donn�es
+- [ ] Caching layer (Redis) pour queries fr�quentes
+- [ ] Tests de charge avec k+ risques
 - [ ] Optimisation des indexes
 - [ ] Query optimization avec EXPLAIN ANALYZE
 
-**3. Mobile App MVP** ⬜ (0%)
+. Mobile App MVP ⬜ (%)
 - [ ] React Native ou Flutter setup
-- [ ] Dashboard mobile simplifié
+- [ ] Dashboard mobile simplifi�
 - [ ] Risk list avec filtrage
 - [ ] Push notifications
 - [ ] Offline mode basic
 
 ---
 
-### Phase 6 - Étapes Futures (0% Complete)
+ Phase  - Étapes Futures (% Complete)
 
-**1. Multi-Tenant SaaS** ⬜
+. Multi-Tenant SaaS ⬜
 - [ ] Isolation tenant_id dans toutes les tables
 - [ ] Namespace/Tenant switching
 - [ ] Billing & Usage tracking
 - [ ] Tenant-specific branding
 
-**2. Advanced Intégrations** ⬜
+. Advanced Int�grations ⬜
 - [ ] OpenCTI connector (threats syncing)
 - [ ] Cortex integration (playbooks)
 - [ ] Splunk/Elastic (log → risk triggers)
 - [ ] AWS Security Hub import
 - [ ] Azure Security Center
 
-**3. IA/ML Layer** ⬜
-- [ ] Déduplication intelligente des risques
+. IA/ML Layer ⬜
+- [ ] D�duplication intelligente des risques
 - [ ] Priorisation automatique
-- [ ] Génération de mitigations suggestions
+- [ ] G�n�ration de mitigations suggestions
 - [ ] Anomaly detection
 - [ ] Predictive risk scoring
 
-**4. UI/UX Enhancements** ⬜
+. UI/UX Enhancements ⬜
 - [ ] Design System complet (Storybook)
 - [ ] Dashboard drag-and-drop
-- [ ] Dark mode complète
+- [ ] Dark mode compl�te
 - [ ] Mobile responsive improvements
 - [ ] Accessibility (WCAG AA)
 
 ---
 
-## 📊 Métriques du Projet
+  M�triques du Projet
 
-### Code
-- **Backend**: 2,744+ lignes (Phase 4)
-- **Frontend**: 4,500+ lignes (React)
-- **Tests**: 142+ tests unitaires (all passing)
-- **Documentation**: 8,000+ lignes de docs
-- **Kubernetes**: 2,247 lignes de manifests
+ Code
+- Backend: ,+ lignes (Phase )
+- Frontend: ,+ lignes (React)
+- Tests: + tests unitaires (all passing)
+- Documentation: ,+ lignes de docs
+- Kubernetes: , lignes de manifests
 
-### Infrastructure
-- ✅ Docker multi-stage build
-- ✅ Docker Compose avec 5+ services
-- ✅ GitHub Actions CI/CD
-- ✅ Helm Charts K8s
-- ✅ PostgreSQL migrations
-- ✅ Redis cache ready
+ Infrastructure
+-  Docker multi-stage build
+-  Docker Compose avec + services
+-  GitHub Actions CI/CD
+-  Helm Charts Ks
+-  PostgreSQL migrations
+-  Redis cache ready
 
-### API
-- **Total Endpoints**: 56+ endpoints
-- **Protected**: 45+ (JWT required)
-- **Admin-only**: 25+ (role check)
-- **OpenAPI**: Complet pour tous endpoints
+ API
+- Total Endpoints: + endpoints
+- Protected: + (JWT required)
+- Admin-only: + (role check)
+- OpenAPI: Complet pour tous endpoints
 
-### Sécurité
-- ✅ JWT authentication
-- ✅ RBAC avec wildcards
-- ✅ SAML/OAuth2 support
-- ✅ Audit logging complet
-- ✅ Permission middleware
-- ✅ API token management
-- ✅ Bcrypt password hashing
-
----
-
-## 🚀 Ce Qui Est Prêt pour Production
-
-### Backend (100% Ready)
-✅ Risk CRUD API complet
-✅ User management & RBAC
-✅ Teams & organization
-✅ Custom fields
-✅ Bulk operations
-✅ Analytics API
-✅ Sync engine (TheHive)
-✅ Audit logging
-✅ API tokens
-✅ Integration testing
-✅ Error handling
-✅ Validation
-
-### Frontend (95% Ready)
-✅ Authentication (Login/Register)
-✅ Risk dashboard
-✅ User management
-✅ Settings pages (profile, teams, integrations)
-✅ Analytics dashboard
-✅ Token management
-✅ Audit logs viewer
-✅ Responsive design
-⚠️ Mobile optimization needed
-
-### Infrastructure (100% Ready)
-✅ Local Docker setup
-✅ Docker Compose services
-✅ Kubernetes Helm charts
-✅ CI/CD pipeline (GitHub Actions)
-✅ Database migrations
-✅ Monitoring ready (Prometheus/Grafana)
-✅ Deployment scripts
-✅ Documentation
-
-### Documentation (95% Ready)
-✅ API Reference
-✅ OpenAPI spec
-✅ Deployment guides (Local, Staging, Prod, Kubernetes)
-✅ Integration tests guide
-✅ RBAC documentation
-✅ Sync engine guide
-✅ Custom fields documentation
-✅ Analytics guide
-⚠️ Mobile app docs needed
+ S�curit�
+-  JWT authentication
+-  RBAC avec wildcards
+-  SAML/OAuth support
+-  Audit logging complet
+-  Permission middleware
+-  API token management
+-  Bcrypt password hashing
 
 ---
 
-## 🎯 Recommandations pour les Prochaines Étapes
+  Ce Qui Est Prêt pour Production
 
-### Priorité 1 (Immédiate - 1-2 jours)
-1. [ ] Tester les endpoints créés avec Postman/Insomnia
-2. [ ] Connecter frontend aux nouveaux endpoints
-3. [ ] Valider les migrations en base de données
-4. [ ] Tester le flow complet User + Team
+ Backend (% Ready)
+ Risk CRUD API complet
+ User management & RBAC
+ Teams & organization
+ Custom fields
+ Bulk operations
+ Analytics API
+ Sync engine (TheHive)
+ Audit logging
+ API tokens
+ Integration testing
+ Error handling
+ Validation
 
-### Priorité 2 (Court terme - 3-5 jours)
-1. [ ] Performance testing (load test 10k+ risks)
-2. [ ] Database optimization (indexes, query profiling)
-3. [ ] Frontend E2E tests (Cypress)
-4. [ ] Security audit (OWASP Top 10)
+ Frontend (% Ready)
+ Authentication (Login/Register)
+ Risk dashboard
+ User management
+ Settings pages (profile, teams, integrations)
+ Analytics dashboard
+ Token management
+ Audit logs viewer
+ Responsive design
+ Mobile optimization needed
 
-### Priorité 3 (Moyen terme - 1-2 semaines)
-1. [ ] Deployer en staging (DO/AWS/Azure)
-2. [ ] User acceptance testing
-3. [ ] Mobile app MVP (React Native)
-4. [ ] API marketplace framework
+ Infrastructure (% Ready)
+ Local Docker setup
+ Docker Compose services
+ Kubernetes Helm charts
+ CI/CD pipeline (GitHub Actions)
+ Database migrations
+ Monitoring ready (Prometheus/Grafana)
+ Deployment scripts
+ Documentation
 
-### Priorité 4 (Long terme - Q1 2026)
-1. [ ] Multi-tenant SaaS
-2. [ ] Advanced integrations (OpenCTI, Cortex)
-3. [ ] IA/ML layer
-4. [ ] Community & marketplace
-
----
-
-## ✨ Points Forts du Projet
-
-- ✅ Architecture hexagonale bien structurée
-- ✅ RBAC/PBAC complet avec wildcards
-- ✅ Tests unitaires exhaustifs
-- ✅ CI/CD automatisé
-- ✅ Kubernetes ready
-- ✅ Documentation professionnelle
-- ✅ Audit logging intégré
-- ✅ API tokens pour service accounts
-- ✅ Sync engine production-grade
-- ✅ Analytics dashboard moderne
-
----
-
-## 📝 Fichiers Clés à Connaître
-
-### Backend
-- `backend/cmd/server/main.go` - Point d'entrée, routes enregistrées
-- `backend/internal/core/domain/` - Modèles de données
-- `backend/internal/handlers/` - HTTP handlers
-- `backend/internal/services/` - Logique métier
-- `backend/internal/middleware/` - Auth, RBAC, logging
-
-### Frontend
-- `frontend/src/App.tsx` - Router et layout
-- `frontend/src/pages/` - Pages principales
-- `frontend/src/components/` - Composants réutilisables
-- `frontend/src/hooks/` - Custom hooks (stores)
-- `frontend/src/lib/api.ts` - Client API
-
-### Infrastructure
-- `docker-compose.yaml` - Services locaux
-- `Dockerfile` - Build multi-stage
-- `helm/` - Kubernetes Helm charts
-- `.github/workflows/` - CI/CD pipeline
-- `migrations/` - Database migrations
-
-### Documentation
-- `BACKEND_ENDPOINTS_GUIDE.md` - Référence API
-- `docs/LOCAL_DEVELOPMENT.md` - Setup local
-- `docs/KUBERNETES_DEPLOYMENT.md` - Déploiement K8s
-- `docs/SAML_OAUTH2_INTEGRATION.md` - SSO
+ Documentation (% Ready)
+ API Reference
+ OpenAPI spec
+ Deployment guides (Local, Staging, Prod, Kubernetes)
+ Integration tests guide
+ RBAC documentation
+ Sync engine guide
+ Custom fields documentation
+ Analytics guide
+ Mobile app docs needed
 
 ---
 
-## 📞 Résumé Quick Start
+  Recommandations pour les Prochaines Étapes
 
-**Pour tester les nouveaux endpoints:**
-```bash
-# Backend
+ Priorit�  (Imm�diate - - jours)
+. [ ] Tester les endpoints cr��s avec Postman/Insomnia
+. [ ] Connecter frontend aux nouveaux endpoints
+. [ ] Valider les migrations en base de donn�es
+. [ ] Tester le flow complet User + Team
+
+ Priorit�  (Court terme - - jours)
+. [ ] Performance testing (load test k+ risks)
+. [ ] Database optimization (indexes, query profiling)
+. [ ] Frontend EE tests (Cypress)
+. [ ] Security audit (OWASP Top )
+
+ Priorit�  (Moyen terme - - semaines)
+. [ ] Deployer en staging (DO/AWS/Azure)
+. [ ] User acceptance testing
+. [ ] Mobile app MVP (React Native)
+. [ ] API marketplace framework
+
+ Priorit�  (Long terme - Q )
+. [ ] Multi-tenant SaaS
+. [ ] Advanced integrations (OpenCTI, Cortex)
+. [ ] IA/ML layer
+. [ ] Community & marketplace
+
+---
+
+  Points Forts du Projet
+
+-  Architecture hexagonale bien structur�e
+-  RBAC/PBAC complet avec wildcards
+-  Tests unitaires exhaustifs
+-  CI/CD automatis�
+-  Kubernetes ready
+-  Documentation professionnelle
+-  Audit logging int�gr�
+-  API tokens pour service accounts
+-  Sync engine production-grade
+-  Analytics dashboard moderne
+
+---
+
+  Fichiers Cl�s à Conna�tre
+
+ Backend
+- backend/cmd/server/main.go - Point d'entr�e, routes enregistr�es
+- backend/internal/core/domain/ - Mod�les de donn�es
+- backend/internal/handlers/ - HTTP handlers
+- backend/internal/services/ - Logique m�tier
+- backend/internal/middleware/ - Auth, RBAC, logging
+
+ Frontend
+- frontend/src/App.tsx - Router et layout
+- frontend/src/pages/ - Pages principales
+- frontend/src/components/ - Composants r�utilisables
+- frontend/src/hooks/ - Custom hooks (stores)
+- frontend/src/lib/api.ts - Client API
+
+ Infrastructure
+- docker-compose.yaml - Services locaux
+- Dockerfile - Build multi-stage
+- helm/ - Kubernetes Helm charts
+- .github/workflows/ - CI/CD pipeline
+- migrations/ - Database migrations
+
+ Documentation
+- BACKEND_ENDPOINTS_GUIDE.md - R�f�rence API
+- docs/LOCAL_DEVELOPMENT.md - Setup local
+- docs/KUBERNETES_DEPLOYMENT.md - D�ploiement Ks
+- docs/SAML_OAUTH_INTEGRATION.md - SSO
+
+---
+
+ 📞 R�sum� Quick Start
+
+Pour tester les nouveaux endpoints:
+bash
+ Backend
 cd backend
 go run ./cmd/server/main.go
 
-# Frontend (nouveau terminal)
+ Frontend (nouveau terminal)
 cd frontend
 npm install && npm run dev
 
-# API available at http://localhost:8080/api/v1
-# Frontend at http://localhost:5173
-```
+ API available at http://localhost:/api/v
+ Frontend at http://localhost:
 
-**Pour accéder aux endpoints:**
-```bash
-# Créer un utilisateur
-POST /api/v1/users (requires admin token)
 
-# Mettre à jour profil
-PATCH /api/v1/users/:id
+Pour acc�der aux endpoints:
+bash
+ Cr�er un utilisateur
+POST /api/v/users (requires admin token)
 
-# Créer une équipe
-POST /api/v1/teams (requires admin token)
+ Mettre à jour profil
+PATCH /api/v/users/:id
 
-# Tester une intégration
-POST /api/v1/integrations/:id/test
-```
+ Cr�er une �quipe
+POST /api/v/teams (requires admin token)
+
+ Tester une int�gration
+POST /api/v/integrations/:id/test
+
 
 ---
 
-**Status**: ✅ **Prêt pour test & déploiement staging**
-**Date**: 22 Décembre 2025
-**Prochaine Session**: Performance & Mobile MVP
+Status:  Prêt pour test & d�ploiement staging
+Date:  D�cembre 
+Prochaine Session: Performance & Mobile MVP

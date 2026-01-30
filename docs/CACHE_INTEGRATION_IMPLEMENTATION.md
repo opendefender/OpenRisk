@@ -1,26 +1,26 @@
-# Integration Implementation Guide: Adding Cache to main.go
+ Integration Implementation Guide: Adding Cache to main.go
 
-## Overview
+ Overview
 This guide shows the exact code changes needed to integrate the caching layer into your existing main.go routes.
 
-## Step 1: Import Required Packages
+ Step : Import Required Packages
 
-**File**: `backend/cmd/server/main.go`
+File: backend/cmd/server/main.go
 
-**Add to imports section** (around line 20):
-```go
+Add to imports section (around line ):
+go
 import (
     // ... existing imports ...
     "github.com/opendefender/openrisk/internal/cache"
 )
-```
 
-## Step 2: Initialize Cache in main()
 
-**Location**: After database initialization, before route setup (around line 120)
+ Step : Initialize Cache in main()
 
-**Add this code**:
-```go
+Location: After database initialization, before route setup (around line )
+
+Add this code:
+go
     // =========================================================================
     // CACHE INITIALIZATION
     // =========================================================================
@@ -32,11 +32,11 @@ import (
     }
     redisPort := os.Getenv("REDIS_PORT")
     if redisPort == "" {
-        redisPort = "6379"
+        redisPort = ""
     }
     redisPassword := os.Getenv("REDIS_PASSWORD")
     if redisPassword == "" {
-        redisPassword = "redis123"  // Development default
+        redisPassword = "redis"  // Development default
     }
     
     // Create Redis cache instance
@@ -56,17 +56,17 @@ import (
     // Initialize caching handler utilities
     cacheableHandlers := handlers.NewCacheableHandlers(cacheInstance)
     log.Println("Cache: Handler utilities initialized")
-```
 
-## Step 3: Update Route Registration
 
-**Location**: API routes section (starting around line 200)
+ Step : Update Route Registration
 
-### Dashboard & Read-Only Routes (Add Caching)
+Location: API routes section (starting around line )
 
-**BEFORE:**
-```go
-    // Dashboard & Analytics (Read-Only accessible à tous les connectés)
+ Dashboard & Read-Only Routes (Add Caching)
+
+BEFORE:
+go
+    // Dashboard & Analytics (Read-Only accessible à tous les connect�s)
     protected.Get("/stats", handlers.GetDashboardStats)
     protected.Get("/risks",
         middleware.RequirePermissions(permissionService, domain.Permission{
@@ -80,11 +80,11 @@ import (
             Action:   domain.PermissionRead,
         }),
         handlers.GetRisk)
-```
 
-**AFTER:**
-```go
-    // Dashboard & Analytics (Read-Only accessible à tous les connectés)
+
+AFTER:
+go
+    // Dashboard & Analytics (Read-Only accessible à tous les connect�s)
     protected.Get("/stats",
         cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
     protected.Get("/risks",
@@ -99,13 +99,13 @@ import (
             Action:   domain.PermissionRead,
         }),
         cacheableHandlers.CacheRiskGetByIDGET(handlers.GetRisk))
-```
 
-### Other GET Endpoints with Caching
 
-**Add caching to these routes** (search for these in main.go and update):
+ Other GET Endpoints with Caching
 
-```go
+Add caching to these routes (search for these in main.go and update):
+
+go
     // Statistics endpoints
     api.Get("/stats/risk-matrix",
         cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
@@ -132,21 +132,21 @@ import (
     // Mitigations
     api.Get("/mitigations/recommended",
         handlers.GetRecommendedMitigations)  // Consider adding cache
-```
 
-### POST/PATCH/DELETE Routes (Invalidation)
 
-**No changes needed** - The cache invalidation is handled internally in the handlers. However, you can verify the handlers are calling invalidation methods:
+ POST/PATCH/DELETE Routes (Invalidation)
 
-```go
+No changes needed - The cache invalidation is handled internally in the handlers. However, you can verify the handlers are calling invalidation methods:
+
+go
     // These routes automatically invalidate caches on mutations
     protected.Post("/risks", riskCreate, handlers.CreateRisk)
     protected.Patch("/risks/:id", riskUpdate, handlers.UpdateRisk)
     protected.Delete("/risks/:id", riskDelete, handlers.DeleteRisk)
-```
 
-**Ensure these handlers call**:
-```go
+
+Ensure these handlers call:
+go
 // In risk_handler.go CreateRisk function (add after DB write):
 cacheableHandlers.InvalidateRiskCaches(c.Context())
 
@@ -155,54 +155,54 @@ cacheableHandlers.InvalidateSpecificRisk(c.Context(), riskID)
 
 // In risk_handler.go DeleteRisk function (add after DB delete):
 cacheableHandlers.InvalidateRiskCaches(c.Context())
-```
 
-## Step 4: Add Cache Configuration (Optional)
 
-**Location**: After cacheableHandlers initialization (around line 130)
+ Step : Add Cache Configuration (Optional)
 
-**Add this to customize TTLs** (if default values don't work):
-```go
+Location: After cacheableHandlers initialization (around line )
+
+Add this to customize TTLs (if default values don't work):
+go
     // Optional: Customize cache TTLs per environment
     if os.Getenv("APP_ENV") == "production" {
-        cacheableHandlers.Config.RiskCacheTTL = 10 * time.Minute      // More aggressive caching
-        cacheableHandlers.Config.DashboardCacheTTL = 15 * time.Minute
+        cacheableHandlers.Config.RiskCacheTTL =   time.Minute      // More aggressive caching
+        cacheableHandlers.Config.DashboardCacheTTL =   time.Minute
     } else if os.Getenv("APP_ENV") == "staging" {
-        cacheableHandlers.Config.RiskCacheTTL = 5 * time.Minute
-        cacheableHandlers.Config.DashboardCacheTTL = 10 * time.Minute
+        cacheableHandlers.Config.RiskCacheTTL =   time.Minute
+        cacheableHandlers.Config.DashboardCacheTTL =   time.Minute
     }
     log.Printf("Cache TTLs: Risk=%v, Dashboard=%v, Connector=%v, App=%v",
         cacheableHandlers.Config.RiskCacheTTL,
         cacheableHandlers.Config.DashboardCacheTTL,
         cacheableHandlers.Config.ConnectorCacheTTL,
         cacheableHandlers.Config.MarketplaceAppTTL)
-```
 
-## Step 5: Update Environment Variables
 
-**File**: `.env` or `config/` environment setup
+ Step : Update Environment Variables
 
-**Add these variables** (if not already present):
-```env
+File: .env or config/ environment setup
+
+Add these variables (if not already present):
+env
 REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=redis123
+REDIS_PORT=
+REDIS_PASSWORD=redis
 CACHE_ENABLED=true
-```
 
-**For Docker/Production**:
-```env
+
+For Docker/Production:
+env
 REDIS_HOST=redis
-REDIS_PORT=6379
+REDIS_PORT=
 REDIS_PASSWORD=secure_production_password
 CACHE_ENABLED=true
-```
 
-## Complete Integration Example
+
+ Complete Integration Example
 
 Here's the full section of updated code for reference:
 
-```go
+go
 func main() {
     // ... existing configuration and database setup ...
 
@@ -216,11 +216,11 @@ func main() {
     }
     redisPort := os.Getenv("REDIS_PORT")
     if redisPort == "" {
-        redisPort = "6379"
+        redisPort = ""
     }
     redisPassword := os.Getenv("REDIS_PASSWORD")
     if redisPassword == "" {
-        redisPassword = "redis123"
+        redisPassword = "redis"
     }
     
     cacheInstance, err := cache.NewRedisCache(
@@ -241,7 +241,7 @@ func main() {
     // API ROUTES
     // =========================================================================
 
-    api := app.Group("/api/v1")
+    api := app.Group("/api/v")
 
     // ... existing routes ...
 
@@ -265,52 +265,52 @@ func main() {
 
     // ... rest of routes ...
 }
-```
 
-## Testing the Integration
 
-### 1. Verify Compilation
-```bash
+ Testing the Integration
+
+ . Verify Compilation
+bash
 cd backend
 go build ./cmd/server
-```
 
-### 2. Start Services
-```bash
-# Terminal 1: Start monitoring
+
+ . Start Services
+bash
+ Terminal : Start monitoring
 cd deployment
 docker-compose -f docker-compose-monitoring.yaml up -d
 
-# Terminal 2: Start application
+ Terminal : Start application
 cd backend
 go run ./cmd/server/main.go
-```
 
-### 3. Test Cache Functionality
-```bash
-# Make first request (cache miss)
-curl http://localhost:3000/api/v1/risks
 
-# Check Redis for cached data
-redis-cli -a redis123
-> KEYS risk:*
-> TTL risk:list:page=0
+ . Test Cache Functionality
+bash
+ Make first request (cache miss)
+curl http://localhost:/api/v/risks
 
-# Make second request (cache hit)
-curl http://localhost:3000/api/v1/risks
+ Check Redis for cached data
+redis-cli -a redis
+> KEYS risk:
+> TTL risk:list:page=
 
-# Verify in Grafana
-# Navigate to http://localhost:3001
-# Check "Cache Hit Ratio" (should increase)
-```
+ Make second request (cache hit)
+curl http://localhost:/api/v/risks
 
-### 4. Run Load Test
-```bash
+ Verify in Grafana
+ Navigate to http://localhost:
+ Check "Cache Hit Ratio" (should increase)
+
+
+ . Run Load Test
+bash
 cd load_tests
-k6 run cache_test.js
-```
+k run cache_test.js
 
-## Verification Checklist
+
+ Verification Checklist
 
 - [ ] Code compiles without errors
 - [ ] Redis connection successful (check logs)
@@ -321,72 +321,72 @@ k6 run cache_test.js
 - [ ] Load test shows improved throughput
 - [ ] Alerts functioning (can trigger manually)
 
-## Common Issues During Integration
+ Common Issues During Integration
 
-### Issue 1: "undefined: handlers.NewCacheableHandlers"
-**Solution**: Verify cache_integration.go exists in `backend/internal/handlers/`
+ Issue : "undefined: handlers.NewCacheableHandlers"
+Solution: Verify cache_integration.go exists in backend/internal/handlers/
 
-### Issue 2: Redis connection refused
-**Solution**: Start Redis container first
-```bash
+ Issue : Redis connection refused
+Solution: Start Redis container first
+bash
 docker-compose -f deployment/docker-compose-monitoring.yaml up redis -d
-```
 
-### Issue 3: Cache not working (hit rate = 0%)
-**Solution**: 
-1. Verify Redis is running: `redis-cli -a redis123 PING`
-2. Check Redis keys: `redis-cli -a redis123 KEYS '*'`
-3. Verify cache is enabled (not NoCache)
-4. Check application logs for errors
 
-### Issue 4: High memory usage
-**Solution**: Reduce TTL values in cacheableHandlers.Config
+ Issue : Cache not working (hit rate = %)
+Solution: 
+. Verify Redis is running: redis-cli -a redis PING
+. Check Redis keys: redis-cli -a redis KEYS ''
+. Verify cache is enabled (not NoCache)
+. Check application logs for errors
 
-## Next Steps After Integration
+ Issue : High memory usage
+Solution: Reduce TTL values in cacheableHandlers.Config
 
-1. **Monitor Performance**
+ Next Steps After Integration
+
+. Monitor Performance
    - Watch Grafana dashboard
-   - Target: Cache hit rate > 75%
-   - Target: Response time < 100ms P95
+   - Target: Cache hit rate > %
+   - Target: Response time < ms P
 
-2. **Optimize Cache Keys**
+. Optimize Cache Keys
    - If hit rate low, review query parameters
    - Consider normalizing filters/pagination
 
-3. **Tune TTLs**
-   - Too short (3 min): Low hit rate
-   - Too long (30 min): High memory usage
-   - Sweet spot: 5-15 minutes for most endpoints
+. Tune TTLs
+   - Too short ( min): Low hit rate
+   - Too long ( min): High memory usage
+   - Sweet spot: - minutes for most endpoints
 
-4. **Add to More Endpoints**
+. Add to More Endpoints
    - Apply to marketplace endpoints
    - Apply to other high-frequency GET routes
 
-5. **Production Deployment**
+. Production Deployment
    - Test on staging first
-   - Monitor for 24 hours
+   - Monitor for  hours
    - Adjust thresholds based on actual data
 
-## Rollback Procedure
+ Rollback Procedure
 
 If you need to disable caching:
 
-```bash
-# Option 1: Revert code changes
+bash
+ Option : Revert code changes
 git checkout backend/cmd/server/main.go
 
-# Option 2: Disable via environment variable
+ Option : Disable via environment variable
 export CACHE_ENABLED=false
-export REDIS_HOST=""  # Forces NoCache
+export REDIS_HOST=""   Forces NoCache
 
-# Option 3: Comment out cache wrappers in routes
-# Replace:
-#   cacheableHandlers.CacheRiskListGET(handlers.GetRisks)
-# With:
-#   handlers.GetRisks
-```
+ Option : Comment out cache wrappers in routes
+ Replace:
+   cacheableHandlers.CacheRiskListGET(handlers.GetRisks)
+ With:
+   handlers.GetRisks
 
-## References
+
+ References
 
 - Full integration guide: [CACHING_INTEGRATION_GUIDE.md](./CACHING_INTEGRATION_GUIDE.md)
 - Cache API reference: [cache_integration.go](../backend/internal/handlers/cache_integration.go)

@@ -9,39 +9,39 @@ import (
 	"os"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
-	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/microsoft"
+	"golang.org/x/oauth"
+	"golang.org/x/oauth/github"
+	"golang.org/x/oauth/google"
+	"golang.org/x/oauth/microsoft"
 )
 
-// OAuth2Config holds OAuth2 provider configurations
-type OAuth2Config struct {
-	GoogleConfig *oauth2.Config
-	GitHubConfig *oauth2.Config
-	AzureConfig  *oauth2.Config
+// OAuthConfig holds OAuth provider configurations
+type OAuthConfig struct {
+	GoogleConfig oauth.Config
+	GitHubConfig oauth.Config
+	AzureConfig  oauth.Config
 }
 
-var oauth2Config *OAuth2Config
+var oauthConfig OAuthConfig
 
-// InitializeOAuth2 initializes all OAuth2 configurations
-func InitializeOAuth2() *OAuth2Config {
-	redirectURI := os.Getenv("OAUTH2_REDIRECT_URI")
+// InitializeOAuth initializes all OAuth configurations
+func InitializeOAuth() OAuthConfig {
+	redirectURI := os.Getenv("OAUTH_REDIRECT_URI")
 	if redirectURI == "" {
-		redirectURI = "http://localhost:8080/api/v1/auth/oauth2/callback"
+		redirectURI = "http://localhost:/api/v/auth/oauth/callback"
 	}
 
-	cfg := &OAuth2Config{
-		GoogleConfig: &oauth2.Config{
-			ClientID:     os.Getenv("OAUTH2_GOOGLE_CLIENT_ID"),
-			ClientSecret: os.Getenv("OAUTH2_GOOGLE_CLIENT_SECRET"),
+	cfg := &OAuthConfig{
+		GoogleConfig: &oauth.Config{
+			ClientID:     os.Getenv("OAUTH_GOOGLE_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_GOOGLE_CLIENT_SECRET"),
 			RedirectURL:  redirectURI + "/google",
 			Scopes: []string{
 				"https://www.googleapis.com/auth/userinfo.email",
@@ -49,9 +49,9 @@ func InitializeOAuth2() *OAuth2Config {
 			},
 			Endpoint: google.Endpoint,
 		},
-		GitHubConfig: &oauth2.Config{
-			ClientID:     os.Getenv("OAUTH2_GITHUB_CLIENT_ID"),
-			ClientSecret: os.Getenv("OAUTH2_GITHUB_CLIENT_SECRET"),
+		GitHubConfig: &oauth.Config{
+			ClientID:     os.Getenv("OAUTH_GITHUB_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_GITHUB_CLIENT_SECRET"),
 			RedirectURL:  redirectURI + "/github",
 			Scopes: []string{
 				"user:email",
@@ -59,23 +59,23 @@ func InitializeOAuth2() *OAuth2Config {
 			},
 			Endpoint: github.Endpoint,
 		},
-		AzureConfig: &oauth2.Config{
-			ClientID:     os.Getenv("OAUTH2_AZURE_CLIENT_ID"),
-			ClientSecret: os.Getenv("OAUTH2_AZURE_CLIENT_SECRET"),
+		AzureConfig: &oauth.Config{
+			ClientID:     os.Getenv("OAUTH_AZURE_CLIENT_ID"),
+			ClientSecret: os.Getenv("OAUTH_AZURE_CLIENT_SECRET"),
 			RedirectURL:  redirectURI + "/azure",
 			Scopes: []string{
 				"https://graph.microsoft.com/.default",
 			},
-			Endpoint: microsoft.AzureADEndpoint(os.Getenv("OAUTH2_AZURE_TENANT_ID")),
+			Endpoint: microsoft.AzureADEndpoint(os.Getenv("OAUTH_AZURE_TENANT_ID")),
 		},
 	}
 
-	oauth2Config = cfg
+	oauthConfig = cfg
 	return cfg
 }
 
-// OAuth2UserInfo represents user information from OAuth2 provider
-type OAuth2UserInfo struct {
+// OAuthUserInfo represents user information from OAuth provider
+type OAuthUserInfo struct {
 	ID       string
 	Email    string
 	Name     string
@@ -84,27 +84,27 @@ type OAuth2UserInfo struct {
 	Groups   []string
 }
 
-// OAuth2Login initiates OAuth2 login flow
-func OAuth2Login(c *fiber.Ctx) error {
+// OAuthLogin initiates OAuth login flow
+func OAuthLogin(c fiber.Ctx) error {
 	provider := c.Params("provider") // google, github, azure
 
-	var config *oauth2.Config
+	var config oauth.Config
 	switch provider {
 	case "google":
-		config = oauth2Config.GoogleConfig
+		config = oauthConfig.GoogleConfig
 	case "github":
-		config = oauth2Config.GitHubConfig
+		config = oauthConfig.GitHubConfig
 	case "azure":
-		config = oauth2Config.AzureConfig
+		config = oauthConfig.AzureConfig
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Unsupported OAuth2 provider",
+			"error": "Unsupported OAuth provider",
 		})
 	}
 
 	if config.ClientID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("OAuth2 provider %s not configured", provider),
+			"error": fmt.Sprintf("OAuth provider %s not configured", provider),
 		})
 	}
 
@@ -114,7 +114,7 @@ func OAuth2Login(c *fiber.Ctx) error {
 	// Store state in session/cache (TODO: implement session storage)
 	// For now, we'll verify state matches the provider's requirement
 
-	authURL := config.AuthCodeURL(randomState, oauth2.AccessTypeOffline)
+	authURL := config.AuthCodeURL(randomState, oauth.AccessTypeOffline)
 
 	return c.JSON(fiber.Map{
 		"redirect_url": authURL,
@@ -122,8 +122,8 @@ func OAuth2Login(c *fiber.Ctx) error {
 	})
 }
 
-// OAuth2Callback handles OAuth2 provider callback
-func OAuth2Callback(c *fiber.Ctx) error {
+// OAuthCallback handles OAuth provider callback
+func OAuthCallback(c fiber.Ctx) error {
 	provider := c.Params("provider")
 	code := c.Query("code")
 	// TODO: Validate state parameter for CSRF protection
@@ -135,17 +135,17 @@ func OAuth2Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	var config *oauth2.Config
+	var config oauth.Config
 	switch provider {
 	case "google":
-		config = oauth2Config.GoogleConfig
+		config = oauthConfig.GoogleConfig
 	case "github":
-		config = oauth2Config.GitHubConfig
+		config = oauthConfig.GitHubConfig
 	case "azure":
-		config = oauth2Config.AzureConfig
+		config = oauthConfig.AzureConfig
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Unsupported OAuth2 provider",
+			"error": "Unsupported OAuth provider",
 		})
 	}
 
@@ -159,7 +159,7 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	}
 
 	// Get user info from provider
-	userInfo, err := getOAuth2UserInfo(provider, token)
+	userInfo, err := getOAuthUserInfo(provider, token)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to get user info: %v", err),
@@ -169,7 +169,7 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	userInfo.Provider = provider
 
 	// Provision user (find or create)
-	user, err := provisionOAuth2User(userInfo)
+	user, err := provisionOAuthUser(userInfo)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to provision user: %v", err),
@@ -177,7 +177,7 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	}
 
 	// Generate JWT token
-	authService := services.NewAuthService(os.Getenv("JWT_SECRET"), 24*time.Hour)
+	authService := services.NewAuthService(os.Getenv("JWT_SECRET"), time.Hour)
 	jwtToken, err := authService.GenerateToken(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -197,8 +197,8 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	})
 }
 
-// getOAuth2UserInfo fetches user information from OAuth2 provider
-func getOAuth2UserInfo(provider string, token *oauth2.Token) (*OAuth2UserInfo, error) {
+// getOAuthUserInfo fetches user information from OAuth provider
+func getOAuthUserInfo(provider string, token oauth.Token) (OAuthUserInfo, error) {
 	switch provider {
 	case "google":
 		return getGoogleUserInfo(token)
@@ -212,8 +212,8 @@ func getOAuth2UserInfo(provider string, token *oauth2.Token) (*OAuth2UserInfo, e
 }
 
 // getGoogleUserInfo fetches user info from Google
-func getGoogleUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+func getGoogleUserInfo(token oauth.Token) (OAuthUserInfo, error) {
+	resp, err := http.Get("https://www.googleapis.com/oauth/v/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func getGoogleUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 		return nil, err
 	}
 
-	return &OAuth2UserInfo{
+	return &OAuthUserInfo{
 		ID:      data["id"].(string),
 		Email:   data["email"].(string),
 		Name:    data["name"].(string),
@@ -238,7 +238,7 @@ func getGoogleUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 }
 
 // getGitHubUserInfo fetches user info from GitHub
-func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
+func getGitHubUserInfo(token oauth.Token) (OAuthUserInfo, error) {
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return nil, err
@@ -269,7 +269,7 @@ func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 		email, _ = getGitHubEmail(token)
 	}
 
-	return &OAuth2UserInfo{
+	return &OAuthUserInfo{
 		ID:      fmt.Sprintf("%v", data["id"]),
 		Email:   email,
 		Name:    data["login"].(string),
@@ -278,7 +278,7 @@ func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 }
 
 // getGitHubEmail fetches email from GitHub /user/emails endpoint
-func getGitHubEmail(token *oauth2.Token) (string, error) {
+func getGitHubEmail(token oauth.Token) (string, error) {
 	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
 	if err != nil {
 		return "", err
@@ -311,8 +311,8 @@ func getGitHubEmail(token *oauth2.Token) (string, error) {
 	}
 
 	// Fallback to first email
-	if len(emails) > 0 {
-		if email, ok := emails[0]["email"].(string); ok {
+	if len(emails) >  {
+		if email, ok := emails[]["email"].(string); ok {
 			return email, nil
 		}
 	}
@@ -321,8 +321,8 @@ func getGitHubEmail(token *oauth2.Token) (string, error) {
 }
 
 // getAzureUserInfo fetches user info from Azure AD
-func getAzureUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
-	req, err := http.NewRequest("GET", "https://graph.microsoft.com/v1.0/me", nil)
+func getAzureUserInfo(token oauth.Token) (OAuthUserInfo, error) {
+	req, err := http.NewRequest("GET", "https://graph.microsoft.com/v./me", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -344,15 +344,15 @@ func getAzureUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 		return nil, err
 	}
 
-	return &OAuth2UserInfo{
+	return &OAuthUserInfo{
 		ID:    data["id"].(string),
 		Email: data["userPrincipalName"].(string),
 		Name:  data["displayName"].(string),
 	}, nil
 }
 
-// provisionOAuth2User finds or creates a user from OAuth2 info
-func provisionOAuth2User(userInfo *OAuth2UserInfo) (*domain.User, error) {
+// provisionOAuthUser finds or creates a user from OAuth info
+func provisionOAuthUser(userInfo OAuthUserInfo) (domain.User, error) {
 	user := &domain.User{}
 
 	// Find existing user by email

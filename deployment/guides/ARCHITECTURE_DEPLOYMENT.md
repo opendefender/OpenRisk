@@ -1,8 +1,8 @@
-# 🏗️ Architecture de déploiement OpenRisk
+ 🏗 Architecture de d�ploiement OpenRisk
 
-## Diagramme global
+ Diagramme global
 
-```
+
                         🌍 INTERNET 🌍
                         
     User Browser          Mobile App         API Clients
@@ -12,28 +12,28 @@
                         HTTPS (TLS/SSL)
                               │
       ╔═════════════════════════════════════════╗
-      ║          🟦 VERCEL CDN GLOBAL           ║
+      ║          � VERCEL CDN GLOBAL           ║
       ║   https://openrisk-xxxx.vercel.app     ║
       ║                                         ║
       ║  Frontend (React + Vite + TailwindCSS) ║
-      ║  ✅ Auto-deploy from GitHub            ║
-      ║  ✅ Global CDN                         ║
-      ║  ✅ 100GB/mois bandwidth               ║
-      ║  ✅ HTTPS automatic                    ║
+      ║   Auto-deploy from GitHub            ║
+      ║   Global CDN                         ║
+      ║   GB/mois bandwidth               ║
+      ║   HTTPS automatic                    ║
       ╚═════════════════════════════════════════╝
                               │
                               │ HTTPS API Calls
                               │ (JSON REST)
                               ▼
       ╔═════════════════════════════════════════╗
-      ║      🟩 RENDER.COM - BACKEND           ║
+      ║      � RENDER.COM - BACKEND           ║
       ║  https://openrisk-api.onrender.com     ║
       ║                                         ║
-      ║  Go 1.25.4 + Fiber API Server          ║
-      ║  ✅ Docker container                   ║
-      ║  ✅ Auto-deploy from GitHub            ║
-      ║  ✅ Free tier with 15min sleep         ║
-      ║  ✅ HTTPS automatic                    ║
+      ║  Go .. + Fiber API Server          ║
+      ║   Docker container                   ║
+      ║   Auto-deploy from GitHub            ║
+      ║   Free tier with min sleep         ║
+      ║   HTTPS automatic                    ║
       ╚═════════════════════════════════════════╝
                               │
                 ┌─────────────┼─────────────┐
@@ -42,28 +42,28 @@
                 │             │             │
                 ▼             ▼             ▼
     ╔═══════════════════╗ ╔═════════════╗ ╔══════════════╗
-    ║   🟪 SUPABASE     ║ ║ 🔴 REDIS    ║ ║ 📝 LOGS      ║
+    ║   🟪 SUPABASE     ║ ║ � REDIS    ║ ║  LOGS      ║
     ║                 ║ ║ CLOUD       ║ ║              ║
     ║  PostgreSQL DB  ║ ║             ║ ║ Server Logs  ║
-    ║  500 MB Storage ║ ║ 30 MB Cache ║ ║ Request Logs ║
-    ║  2GB trans/mo   ║ ║ Sessions    ║ ║              ║
+    ║   MB Storage ║ ║  MB Cache ║ ║ Request Logs ║
+    ║  GB trans/mo   ║ ║ Sessions    ║ ║              ║
     ║                 ║ ║ Caching     ║ ║ Render/Vercel║
     ╚═══════════════════╝ ╚═════════════╝ ╚══════════════╝
-```
 
-## Architecture détaillée par composant
 
-### 1️⃣ Frontend Layer (Vercel)
+ Architecture d�taill�e par composant
 
-```
+ ⃣ Frontend Layer (Vercel)
+
+
                     Vercel.com (Free Plan)
         ┌─────────────────────────────────────┐
         │                                     │
-        │  HTTPS + HTTP/2 (Auto)             │
+        │  HTTPS + HTTP/ (Auto)             │
         │  CDN Global Distribution           │
         │                                     │
         ├─────────────────────────────────────┤
-        │  React 19.2.0 Application          │
+        │  React .. Application          │
         │  ├─ Pages (Dashboard, Risks, etc)  │
         │  ├─ Components (React)             │
         │  ├─ State Management (Zustand)     │
@@ -87,7 +87,7 @@
         ├─────────────────────────────────────┤
         │  Deployment                        │
         │  ├─ Git push → automatic deploy    │
-        │  ├─ Build time: 2-3 minutes        │
+        │  ├─ Build time: - minutes        │
         │  ├─ Zero downtime deploys          │
         │  └─ Instant rollback option        │
         │                                     │
@@ -97,11 +97,11 @@
                │ (JSON payloads)
                │
                ▼
-```
 
-### 2️⃣ Backend API Layer (Render.com)
 
-```
+ ⃣ Backend API Layer (Render.com)
+
+
                  Render.com Web Service (Free Plan)
         ┌──────────────────────────────────────┐
         │                                      │
@@ -109,8 +109,8 @@
         │  Auto-renewal certificates         │
         │                                      │
         ├──────────────────────────────────────┤
-        │  Go 1.25.4 Application              │
-        │  ├─ Fiber v2.52 Web Framework      │
+        │  Go .. Application              │
+        │  ├─ Fiber v. Web Framework      │
         │  ├─ RESTful API endpoints           │
         │  ├─ Middleware (CORS, Auth, etc)   │
         │  ├─ Business Logic (Services)      │
@@ -141,28 +141,28 @@
         ├──────────────────────────────────────┤
         │  Deployment                         │
         │  ├─ Git push → Docker build         │
-        │  ├─ Build time: 3-5 minutes         │
-        │  ├─ Free tier: 15min sleep timeout │
+        │  ├─ Build time: - minutes         │
+        │  ├─ Free tier: min sleep timeout │
         │  └─ Auto-restart on crash           │
         │                                      │
         └──────────────────────────────────────┘
                │              │
                │              │
-        TCP/Port 5432   TCP/Port 6379
+        TCP/Port    TCP/Port 
                │              │
                ▼              ▼
-```
 
-### 3️⃣ Data Layer
 
-#### PostgreSQL Database (Supabase)
+ ⃣ Data Layer
 
-```
+ PostgreSQL Database (Supabase)
+
+
         Supabase PostgreSQL (Free Plan)
     ┌───────────────────────────────────┐
     │  Database: openrisk                │
-    │  Size: 500 MB available            │
-    │  Monthly transfer: 2 GB            │
+    │  Size:  MB available            │
+    │  Monthly transfer:  GB            │
     │                                    │
     ├────────────────────────────────────┤
     │  Tables:                           │
@@ -184,15 +184,15 @@
     │  └─ Replication ready              │
     │                                    │
     └────────────────────────────────────┘
-```
 
-#### Redis Cache (Redis Cloud)
 
-```
+ Redis Cache (Redis Cloud)
+
+
         Redis Cloud (Free Plan)
     ┌──────────────────────────┐
     │  Database: openrisk-cache │
-    │  Size: 30 MB available    │
+    │  Size:  MB available    │
     │  Eviction: LRU            │
     │                           │
     ├──────────────────────────┤
@@ -203,37 +203,37 @@
     │  └─ Temporary data        │
     │                           │
     └──────────────────────────┘
-```
 
-## Flux de données - Exemple: Login Utilisateur
 
-```
-1. USER INTERACTION
+ Flux de donn�es - Exemple: Login Utilisateur
+
+
+. USER INTERACTION
    │
    ├─ Enter credentials → Frontend (React)
    │
    └─ Click "Login" button
                 │
                 ▼
-2. FRONTEND PROCESSING
+. FRONTEND PROCESSING
    │
    ├─ Form validation (Zod)
    ├─ Hash password (bcrypt)
    ├─ Create POST request (axios)
    │
    └─ Send HTTPS request
-      POST /api/v1/auth/login
+      POST /api/v/auth/login
          ↓
                 │
                 ▼
-3. VERCEL (GLOBAL CDN)
+. VERCEL (GLOBAL CDN)
    │
    ├─ Route request to backend
    │
    └─ Maintain HTTPS connection
                 │
                 ▼
-4. BACKEND PROCESSING (Render)
+. BACKEND PROCESSING (Render)
    │
    ├─ CORS middleware check
    ├─ Rate limit check (Redis)
@@ -241,7 +241,7 @@
    ├─ Extract credentials
    │
    ├─ Database query (PostgreSQL)
-   │  SELECT * FROM users WHERE email = ?
+   │  SELECT  FROM users WHERE email = ?
    │
    ├─ Verify password (bcrypt)
    ├─ Generate JWT token
@@ -252,7 +252,7 @@
          ↓
                 │
                 ▼
-5. FRONTEND PROCESSING
+. FRONTEND PROCESSING
    │
    ├─ Parse JWT response
    ├─ Store token (localStorage)
@@ -261,9 +261,9 @@
    └─ Redirect to dashboard
                 │
                 ▼
-6. DASHBOARD LOAD
+. DASHBOARD LOAD
    │
-   ├─ Send GET /api/v1/risks
+   ├─ Send GET /api/v/risks
       Header: Authorization: Bearer JWT_TOKEN
    │
    ├─ Backend validates token
@@ -271,60 +271,60 @@
    ├─ Return risks JSON
    │
    └─ Frontend renders dashboard
-```
 
-## Infrastructure Stack - Technology Matrix
 
-```
+ Infrastructure Stack - Technology Matrix
+
+
 LAYER           TECHNOLOGY          VERSION        STATUS
 ═════════════════════════════════════════════════════════════════
-Frontend        React               19.2.0         ✅ Latest
-                Vite                5.1.1          ✅ Latest
-                TailwindCSS         3.4.0          ✅ Latest
-                TypeScript          5.x            ✅ Latest
-                Zustand (state)     5.0.8          ✅ Latest
-                Axios (HTTP)        1.13.2         ✅ Latest
+Frontend        React               ..          Latest
+                Vite                ..           Latest
+                TailwindCSS         ..           Latest
+                TypeScript          .x             Latest
+                Zustand (state)     ..           Latest
+                Axios (HTTP)        ..          Latest
 
-Backend         Go                  1.25.4         ✅ Latest
-                Fiber               2.52.10        ✅ Latest
-                GORM (ORM)          1.31.1         ✅ Latest
-                JWT (auth)          5.3.0          ✅ Latest
-                PostgreSQL driver   1.10.9         ✅ Compatible
+Backend         Go                  ..          Latest
+                Fiber               ..         Latest
+                GORM (ORM)          ..          Latest
+                JWT (auth)          ..           Latest
+                PostgreSQL driver   ..          Compatible
 
-Database        PostgreSQL          15-alpine      ✅ Cloud managed
-                Redis               7-alpine       ✅ Cloud managed
+Database        PostgreSQL          -alpine       Cloud managed
+                Redis               -alpine        Cloud managed
 
-Infrastructure  Docker              Latest         ✅ Containerized
-                Render.com          -              ✅ Free hosting
-                Vercel              -              ✅ Free hosting
-                Supabase            -              ✅ Free DBaaS
-                Redis Cloud         -              ✅ Free cache
-```
+Infrastructure  Docker              Latest          Containerized
+                Render.com          -               Free hosting
+                Vercel              -               Free hosting
+                Supabase            -               Free DBaaS
+                Redis Cloud         -               Free cache
 
-## Limites et Contraintes
 
-```
+ Limites et Contraintes
+
+
 SERVICE          LIMIT               IMPACT              SOLUTION
 ════════════════════════════════════════════════════════════════════════
-Render.com       15min sleep         API not responsive  uptimerobot.com
-                 Free tier           for 30-60 sec       ping service
+Render.com       min sleep         API not responsive  uptimerobot.com
+                 Free tier           for - sec       ping service
 
-Vercel           100GB/month         High traffic may    Optimize images
+Vercel           GB/month         High traffic may    Optimize images
                  bandwidth           exceed limit        Use CDN
 
-Supabase         500 MB storage      Database fills up   Archive old data
-                 2GB/month transfer  with time           Delete old risks
+Supabase          MB storage      Database fills up   Archive old data
+                 GB/month transfer  with time           Delete old risks
 
-Redis Cloud      30 MB cache         Memory overflow     Limit sessions
+Redis Cloud       MB cache         Memory overflow     Limit sessions
                  RAM                 if many users       Clear cache
 
 GitHub           Public repo only    Code is public      Accept or use
                  for free auto-deploy                   Enterprise plan
-```
 
-## Deployment Pipeline - CI/CD
 
-```
+ Deployment Pipeline - CI/CD
+
+
 Developer writes code
       ↓
     git push
@@ -332,7 +332,7 @@ Developer writes code
 GitHub receives push
       ├─ Trigger Render webhook
       │  ├─ Pull latest code
-      │  ├─ Build Docker image (3-5 min)
+      │  ├─ Build Docker image (- min)
       │  ├─ Run tests
       │  ├─ Deploy new container
       │  └─ Health check
@@ -340,33 +340,33 @@ GitHub receives push
       └─ Trigger Vercel webhook
          ├─ Pull latest code
          ├─ Install dependencies
-         ├─ Build frontend (2-3 min)
+         ├─ Build frontend (- min)
          ├─ Run tests
          ├─ Deploy to CDN
          └─ Invalidate cache
               ↓
-         ✅ Both services live
-```
+          Both services live
 
-## Monitoring Points
 
-```
+ Monitoring Points
+
+
 COMPONENT           CHECK POINT         FREQUENCY       ACTION
 ════════════════════════════════════════════════════════════════════════
-Render Backend      /api/health         Every 14min      Keep awake
-Vercel Frontend     Load time           24 hours         Performance
+Render Backend      /api/health         Every min      Keep awake
+Vercel Frontend     Load time            hours         Performance
 Supabase DB         Storage usage       Daily            Archive data
 Redis Cache         Memory usage        Daily            Clear cache
 Error logs          Backend logs        Real-time        Alert on error
 Performance         Response time       Hourly           Optimize
-```
 
-## High Availability Considerations
+
+ High Availability Considerations
 
 Current architecture:
-- ✅ Frontend: Global CDN (99.99% uptime)
-- ✅ Backend: Single region (99.9% uptime)
-- ✅ Database: Single region (99.9% uptime)
+-  Frontend: Global CDN (.% uptime)
+-  Backend: Single region (.% uptime)
+-  Database: Single region (.% uptime)
 
 For production upgrade:
 - Add backup backend on different region
@@ -374,9 +374,9 @@ For production upgrade:
 - Implement Redis clustering
 - Add load balancing
 
-## Security Architecture
+ Security Architecture
 
-```
+
                     HTTPS/TLS
                  ┌───────────┐
                  │ Encryption│
@@ -393,19 +393,19 @@ For production upgrade:
                   SQL Injection
                   Prevention
                        │
-                  ✅ Safe DB Query
-```
+                   Safe DB Query
+
 
 ---
 
-## Résumé
+ R�sum�
 
-✅ **Frontend**: Vercel (Global CDN, Auto-deploy, Free HTTPS)
-✅ **Backend**: Render.com (Docker, Auto-deploy, Free HTTPS)
-✅ **Database**: Supabase (PostgreSQL, 500MB, Managed)
-✅ **Cache**: Redis Cloud (30MB, Managed)
-✅ **CI/CD**: GitHub (Auto-deploy on push)
+ Frontend: Vercel (Global CDN, Auto-deploy, Free HTTPS)
+ Backend: Render.com (Docker, Auto-deploy, Free HTTPS)
+ Database: Supabase (PostgreSQL, MB, Managed)
+ Cache: Redis Cloud (MB, Managed)
+ CI/CD: GitHub (Auto-deploy on push)
 
-**Total Cost**: $0.00/month 💰
-**Availability**: 99.9% uptime
-**Scalability**: Ready to scale when needed
+Total Cost: $./month �
+Availability: .% uptime
+Scalability: Ready to scale when needed

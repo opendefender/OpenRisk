@@ -1,19 +1,19 @@
-# OpenRisk — Roadmap & TODO
+ OpenRisk — Roadmap & TODO
 
-Date: 2025-12-01
+Date: --
 
-Ce fichier centralise la todo-list décrite en session. Il regroupe les fonctionnalités par domaines, indique l'état actuel (✅ = complété, ⬜ = à faire) et propose une priorisation initiale.
-
-
-- Les éléments marqués ✅ sont déjà implémentés ou partiellement implémentés dans cette branche.
-- Les éléments marqués ⬜ sont à planifier/implémenter.
+Ce fichier centralise la todo-list d�crite en session. Il regroupe les fonctionnalit�s par domaines, indique l'�tat actuel ( = compl�t�, ⬜ = à faire) et propose une priorisation initiale.
 
 
-## Priorités immédiates (Top 5)
+- Les �l�ments marqu�s  sont d�jà impl�ment�s ou partiellement impl�ment�s dans cette branche.
+- Les �l�ments marqu�s ⬜ sont à planifier/impl�menter.
 
 
-- ✅ 9. Implement Risk CRUD API (backend handlers + validation)
-	 - ⬜ Subtasks for `Implement Risk CRUD API`:
+ Priorit�s imm�diates (Top )
+
+
+-  . Implement Risk CRUD API (backend handlers + validation)
+	 - ⬜ Subtasks for Implement Risk CRUD API:
 		 - schema & migrations
 		 - DB models + associations
 		 - REST handlers (list/get/create/update/delete)
@@ -26,41 +26,41 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 
 
-## Strategic Initiatives (long-term)
+ Strategic Initiatives (long-term)
 
-- ⬜ 60. Strategic: API-First — Full API coverage & CI/CD integration
+- ⬜ . Strategic: API-First — Full API coverage & CI/CD integration
 
 	- Purpose: Make OpenRisk fully scriptable and automatable via API; enable DevSecOps integration (GitHub Actions, GitLab CI) so the platform can block or annotate risky deployments.
 
-- ⬜ 61. Strategic: Contextualization — correlate threat intel with internal risk
+- ⬜ . Strategic: Contextualization — correlate threat intel with internal risk
 
 	- Purpose: Reduce false positives by combining external threat indicators (CVE, actors, TTPs) with internal context (asset exposure, data sensitivity, business impact).
 
-- ⬜ 62. Strategic: CTEM Integration — external threat → internal asset mapping
+- ⬜ . Strategic: CTEM Integration — external threat → internal asset mapping
 
 	- Purpose: Implement Continuous Threat Exposure Management: map external threat events to owned assets and compute exposure.
 
-- ⬜ 63. Strategic: Reporting for C-Level — automated PDF/HTML reports
+- ⬜ . Strategic: Reporting for C-Level — automated PDF/HTML reports
 
 	- Purpose: Executive-ready reports that show risk posture trends and business impact (downloadable PDF/HTML).
 
-- ⬜ 64. Strategic: Templates — Default compliance templates (ISO27001, SOC2, PCI-DSS)
+- ⬜ . Strategic: Templates — Default compliance templates (ISO, SOC, PCI-DSS)
 
 	- Purpose: Provide out-of-the-box templates and mappings to accelerate audits and adoption.
 
-- ⬜ 65. Strategic: False-Positive Reduction — enrichment & context rules
+- ⬜ . Strategic: False-Positive Reduction — enrichment & context rules
 
 	- Purpose: Enrichment pipelines, heuristics, and ML/IA assists to prioritize true positives and suppress noise.
 
-- Écrire un README exhaustif : incluez screenshots, un quickstart (5 min setup), et un contributeur guide.
+- Écrire un README exhaustif : incluez screenshots, un quickstart ( min setup), et un contributeur guide.
 
 
 
 
 
-## Integrations & Ecosystem
+ Integrations & Ecosystem
 
-- ⬜ 70. Integrations: Ready-made connectors for popular tools (SIEM, SOAR, ticketing)
+- ⬜ . Integrations: Ready-made connectors for popular tools (SIEM, SOAR, ticketing)
 
 	- Purpose: Provide out-of-the-box connectors and templates for SIEMs (Splunk, Elastic), SOARs (TheHive, Cortex, Demisto), ticketing (Jira, ServiceNow), and cloud providers (AWS Security Hub, Azure Sentinel).
 	- Subtasks:
@@ -73,21 +73,21 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 
 
-## UI/UX Excellence
-- ⬜ 71. UI/UX: World-class modern UI/UX — design system & onboarding flows
+ UI/UX Excellence
+- ⬜ . UI/UX: World-class modern UI/UX — design system & onboarding flows
 	- Purpose: Build the most beautiful and simple UX in risk management: fast onboarding, accessible, performant, and delightfully simple.
 	- Subtasks:
-		- Create `OpenDefender Design System` (tokens, Tailwind config, components)
+		- Create OpenDefender Design System (tokens, Tailwind config, components)
 		- Onboarding flows & product tours (first-time user experience)
-		- Accessibility & performance audits (a11y, Lighthouse)
+		- Accessibility & performance audits (ay, Lighthouse)
 		- UX research: run tests with real analysts, gather feedback
 
 
 
 
 
-## Community & Adoption
-- ⬜ 72. Community & Adoption: Make OpenRisk a global community success
+ Community & Adoption
+- ⬜ . Community & Adoption: Make OpenRisk a global community success
 	- Purpose: Drive adoption, contributions, and make OpenRisk indispensable in cybersecurity.
 	- Subtasks:
 		- Comprehensive docs & quickstarts (multi-language)
@@ -101,108 +101,108 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 
 
-## 1. Risk Register (coeur du produit)
-- ✅ Typeahead keyboard nav
-- ✅ Create Risks list page
-- ✅ Wire Risks page into router
-- ✅ Type-check frontend
-- ✅ Add server-side sorting
-- ✅ Wire Risks Edit button
-- ✅ 7. Add tests for Risks pagination
-- ✅ 8. Design Risk schema
-- ✅ 9. Implement Risk CRUD API
-- ✅ 10. Implement Risk CRUD frontend
-- ✅ 11. Add score calculation engine
- - ✅ 12. Add frameworks classification (ISO27001, CIS, NIST, OWASP)
-	 - ✅ Subtasks for `Add frameworks classification`:
-		 - ✅ model schema (fields, types, relations)
-		 - ✅ DB migration plan
-		 - ✅ API handlers (create/update/assign/complete)
-		 - ✅ unit & integration tests
-		 - ✅ OpenAPI contract
- - ✅ 18. Design Mitigation model & API
-	 - ✅ Subtasks for `Design Mitigation model & API`:
-		 - ✅ model schema (actions, sub-actions, checklists)
-		 - ✅ DB migration plan
-		 - ✅ API handlers (create/update/assign/complete)
-		 - ✅ unit & integration tests
-		 - ✅ OpenAPI contract
-- ⬜ 19. Mitigation frontend UI (plans, cards, list)
-	 - ⬜ Subtasks for `Mitigation frontend UI`:
+ . Risk Register (coeur du produit)
+-  Typeahead keyboard nav
+-  Create Risks list page
+-  Wire Risks page into router
+-  Type-check frontend
+-  Add server-side sorting
+-  Wire Risks Edit button
+-  . Add tests for Risks pagination
+-  . Design Risk schema
+-  . Implement Risk CRUD API
+-  . Implement Risk CRUD frontend
+-  . Add score calculation engine
+ -  . Add frameworks classification (ISO, CIS, NIST, OWASP)
+	 -  Subtasks for Add frameworks classification:
+		 -  model schema (fields, types, relations)
+		 -  DB migration plan
+		 -  API handlers (create/update/assign/complete)
+		 -  unit & integration tests
+		 -  OpenAPI contract
+ -  . Design Mitigation model & API
+	 -  Subtasks for Design Mitigation model & API:
+		 -  model schema (actions, sub-actions, checklists)
+		 -  DB migration plan
+		 -  API handlers (create/update/assign/complete)
+		 -  unit & integration tests
+		 -  OpenAPI contract
+- ⬜ . Mitigation frontend UI (plans, cards, list)
+	 - ⬜ Subtasks for Mitigation frontend UI:
 		 - plan card UI + progress bar
 		 - creation / edit forms
 		 - assignment UI (users, deadlines)
 		 - checklist & sub-actions UI
 		 - tests (RTL)
-- ⬜ 20. Sub-actions & checklists (sous-actions)
-- ⬜ 21. Assign users & deadlines
-- ⬜ 22. Mitigation progress bar
-- ⬜ 23. Internal notifications system (rappels, alertes)
-- ⬜ 24. Gamification states & UI (progress, levels, badges)
+- ⬜ . Sub-actions & checklists (sous-actions)
+- ⬜ . Assign users & deadlines
+- ⬜ . Mitigation progress bar
+- ⬜ . Internal notifications system (rappels, alertes)
+- ⬜ . Gamification states & UI (progress, levels, badges)
 
 
 
 
 
-## 3. Dashboard moderne & dynamique
+ . Dashboard moderne & dynamique
 
-- ⬜ 25. Dashboard widgets framework (drag & drop)
-- ⬜ 26. Charts & animated cards (Recharts, Framer Motion)
-- ⬜ 27. Global security score widget
-- ⬜ 28. Trends (30/60/90 days)
+- ⬜ . Dashboard widgets framework (drag & drop)
+- ⬜ . Charts & animated cards (Recharts, Framer Motion)
+- ⬜ . Global security score widget
+- ⬜ . Trends (// days)
 - ⬜ UI Kit + composant Atom/Molecule/Organism
 - ⬜ Standardisation animations & theme
-- ⬜ Composants réutilisables dans toute la suite
+- ⬜ Composants r�utilisables dans toute la suite
 
 
 
 
 
-## 4. Backend & API
+ . Backend & API
 
-- ⬜ 29. Unified API endpoints (risks, mitigations, assets, stats)
-	 - ⬜ Subtasks for `Unified API endpoints`:
+- ⬜ . Unified API endpoints (risks, mitigations, assets, stats)
+	 - ⬜ Subtasks for Unified API endpoints:
 		 - API design & OpenAPI spec
 		 - versioning strategy
 		 - auth & RBAC checks
 		 - unit & API tests
 
 
-- ⬜ 30. Integrations: TheHive / OpenCTI / Cortex / OpenRMF
-	 - ⬜ Subtasks for `Integrations`:
+- ⬜ . Integrations: TheHive / OpenCTI / Cortex / OpenRMF
+	 - ⬜ Subtasks for Integrations:
 		 - PoC connector for each integration (prototype)
 		 - mapping design (fields/events)
 		 - reliable sync logic (idempotency)
 		 - integration tests / mocks
 		 - production hardening (retries, backoff, metrics)
-- ⬜ 31. Implement sync-engine (workers)
-	 - ⬜ Subtasks for `Implement sync-engine`:
+- ⬜ . Implement sync-engine (workers)
+	 - ⬜ Subtasks for Implement sync-engine:
 		 - PoC worker that pulls from one integration
 		 - queue design (in-memory / Redis)
 		 - error handling & retries
 		 - monitoring & metrics
 		 - tests (unit + integration)
-- ⬜ 32. Orchestration & cron jobs
-- ⬜ 36. Unit & API tests (backend coverage)
-	 - ⬜ Subtasks for `Unit & API tests`:
+- ⬜ . Orchestration & cron jobs
+- ⬜ . Unit & API tests (backend coverage)
+	 - ⬜ Subtasks for Unit & API tests:
 		 - testing strategy (tools + coverage targets)
 		 - unit test suites for core services
 		 - API/integration tests (docker-compose + test DB)
 		 - CI integration (run tests in GitHub Actions)
 
 
-## 5. Infrastructure & CI/CD
+ . Infrastructure & CI/CD
 
-- ⬜ 33. Dockerfile optimisés & healthchecks
-	 - ⬜ Subtasks for `Dockerfile optimisés & healthchecks`:
+- ⬜ . Dockerfile optimis�s & healthchecks
+	 - ⬜ Subtasks for Dockerfile optimis�s & healthchecks:
 		 - multi-stage Dockerfiles (backend/frontend)
 		 - healthcheck endpoints
 		 - security best practices (non-root, minimal image)
 		 - local dev compose with env examples
 
 
-- ⬜ 34. Helm chart & k8s manifests
-	 - ⬜ Subtasks for `Helm chart & k8s manifests`:
+- ⬜ . Helm chart & ks manifests
+	 - ⬜ Subtasks for Helm chart & ks manifests:
 		 - helm chart scaffold
 		 - values schema & secrets handling
 		 - manifests for deployments, svc, ingress
@@ -210,8 +210,8 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 		 - docs for deployment
 
 
-- ⬜ 35. CI/CD GitHub Actions (build/test/release)
-	 - ⬜ Subtasks for `CI/CD GitHub Actions`:
+- ⬜ . CI/CD GitHub Actions (build/test/release)
+	 - ⬜ Subtasks for CI/CD GitHub Actions:
 		 - workflow: lint -> build -> test -> release
 		 - caching & artifact strategy
 		 - auto-release to GHCR/Docker Hub
@@ -219,70 +219,70 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 
 
-## 6. Documentation & install
+ . Documentation & install
 
-- ⬜ 37. `INSTALLATION.md`
-- ⬜ 38. `INTEGRATION_GUIDE.md`
-- ⬜ 39. `API_REFERENCE.md`
-- ⬜ 40. Create `deploy.sh` installer
+- ⬜ . INSTALLATION.md
+- ⬜ . INTEGRATION_GUIDE.md
+- ⬜ . API_REFERENCE.md
+- ⬜ . Create deploy.sh installer
 	 - ⬜ Subtasks for docs & installer:
 		 - draft installation steps (dev & prod)
 		 - integration guide for external systems
 		 - generate API reference from OpenAPI
-		 - create `deploy.sh` with checks and rollback hints
+		 - create deploy.sh with checks and rollback hints
 
 
 
-## 7. Scalabilité, sécurité et product features avancées
+ . Scalabilit�, s�curit� et product features avanc�es
 
-- ⬜ 41. RBAC & multi-tenant support
-	 - ⬜ Subtasks for `RBAC & multi-tenant support`:
+- ⬜ . RBAC & multi-tenant support
+	 - ⬜ Subtasks for RBAC & multi-tenant support:
   	 - tenant model & data isolation plan
 		 - RBAC roles & policies
 		 - API enforcement & middleware
 		 - tests for tenant isolation
-- ⬜ 42. IA Risk Advisor PoC (génération + recommandations)
-- ⬜ 43. IA deduplication PoC
-- ⬜ 44. IA prioritization PoC
-- ⬜ 45. Risk timeline UI (zoomable / events)
-- ⬜ 46. Playbooks & automations (no-code flows)
-- ⬜ 47. OpenDefender native integrations (OpenAsset / OpenSec...)
-- ⬜ 48. Reports: PDF / HTML / JSON export
+- ⬜ . IA Risk Advisor PoC (g�n�ration + recommandations)
+- ⬜ . IA deduplication PoC
+- ⬜ . IA prioritization PoC
+- ⬜ . Risk timeline UI (zoomable / events)
+- ⬜ . Playbooks & automations (no-code flows)
+- ⬜ . OpenDefender native integrations (OpenAsset / OpenSec...)
+- ⬜ . Reports: PDF / HTML / JSON export
 
 
 
 
 
-## 8. Qualité & UX
+ . Qualit� & UX
 
 
-- ⬜ 49. Accessibility & a11y polish
-- ⬜ 50. UX polish & theme/dark mode
+- ⬜ . Accessibility & ay polish
+- ⬜ . UX polish & theme/dark mode
 
 
 
 
 
-## 9. Ajouter un "OpenDefender Design System"
+ . Ajouter un "OpenDefender Design System"
 
 > couleurs
 > spacing
-> composants tailwind réutilisables
+> composants tailwind r�utilisables
 > typography scale
 > badges
 > alerts
 > cards
 > states (loading/error/empty/success)
-> animations standardisées
+> animations standardis�es
 
 - ⬜ OpenDefender UI Kit (frontend library)
 - ⬜ Standardisation des composants (atoms/molecules/organisms)
 
 
 
-## 10. Ajouter les événements (Webhooks + EventBus)
+ . Ajouter les �v�nements (Webhooks + EventBus)
 
-# OpenRisk doit envoyer :
+ OpenRisk doit envoyer :
 
 > risk.created
 > risk.updated
@@ -298,13 +298,13 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 
 
-## Ajouter un module Notifications (email + Slack + webhook)
+ Ajouter un module Notifications (email + Slack + webhook)
 
-> Très important pour :
+> Tr�s important pour :
 > deadlines
 > risques critiques
-> nouvelles vulnérabilités
-> actions assignées
+> nouvelles vuln�rabilit�s
+> actions assign�es
 
 - ⬜ Notification service (backend)
 - ⬜ Notification rules engine
@@ -314,30 +314,30 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 
 
 
-## Ajouter l'Export Pro (PDF / HTML / JSON)
+ Ajouter l'Export Pro (PDF / HTML / JSON)
 
 > rapport des risques
 > rapport mitigation
 > tableau complet heatmap
 
 
-- ⬜ Service de génération PDF
-- ⬜ Modèle “Executive Summary”
+- ⬜ Service de g�n�ration PDF
+- ⬜ Mod�le “Executive Summary”
 - ⬜ Export HTML interactif
 - ⬜ Export JSON via API
 
 
-## Ajouter un vrai système de tags & taxonomies
+ Ajouter un vrai syst�me de tags & taxonomies
 
-- ⬜ Taxonomie centrale OpenDefender : ISO27001, CIS Controls, NIST 800-53, MITRE ATT&CK, OWASP Top 10
-- ⬜ Mapping automatique (IA suggérée plus tard)
+- ⬜ Taxonomie centrale OpenDefender : ISO, CIS Controls, NIST -, MITRE ATT&CK, OWASP Top 
+- ⬜ Mapping automatique (IA sugg�r�e plus tard)
   
 
-## Ajouter un module “Risk Templates”
+ Ajouter un module “Risk Templates”
 
-> Réutilisables lors de la création d’un risque.
+> R�utilisables lors de la cr�ation d’un risque.
 
-> Exemples : “Risque intrusion externe”, “Risque données sensibles exposées”, “Risque CVE critique non patchée”, “Risque configuration cloud non conforme”
+> Exemples : “Risque intrusion externe”, “Risque donn�es sensibles expos�es”, “Risque CVE critique non patch�e”, “Risque configuration cloud non conforme”
 
 
 À ajouter :
@@ -347,107 +347,107 @@ Ce fichier centralise la todo-list décrite en session. Il regroupe les fonction
 - ⬜ UI de gestion des templates
 
 
-## Ajouter un SLA / SLO pour la mitigation
+ Ajouter un SLA / SLO pour la mitigation
 
-> Très utile pour les équipes :
-> Critique → SLA 7 jours
-> High → SLA 14 jours
-> Medium → 30 jours
-> Low → 90 jours
+> Tr�s utile pour les �quipes :
+> Critique → SLA  jours
+> High → SLA  jours
+> Medium →  jours
+> Low →  jours
 
 
 À ajouter :
 
 - ⬜ SLA module
-- ⬜ badges SLA respectés / dépassés
+- ⬜ badges SLA respect�s / d�pass�s
 - ⬜ graphes SLA
 
 ---
 
 
-## Risk Timeline avancée
+ Risk Timeline avanc�e
 
-Déjà dans ta roadmap, mais il faut la détailler :
+D�jà dans ta roadmap, mais il faut la d�tailler :
 
 À ajouter :
 
 
 - ⬜ Zoom / Pan
-- ⬜ Événements clés (changement probabilité/impact)
-- ⬜ État avant/après mitigation
+- ⬜ Év�nements cl�s (changement probabilit�/impact)
+- ⬜ État avant/apr�s mitigation
 - ⬜ Snapshots historiques
 
 
 
 
 
-## Risk Matrix Designer
+ Risk Matrix Designer
 
-> Donner à l’utilisateur la possibilité de :
-> définir sa propre matrice
+> Donner à l’utilisateur la possibilit� de :
+> d�finir sa propre matrice
 > changer le nombre de niveaux
 > personnaliser la couleur
-> adapter aux réalités locales
+> adapter aux r�alit�s locales
 
 
-## Risk Comments / Discussion Thread
+ Risk Comments / Discussion Thread
 
 
 > Comme GitHub issues mais pour les risques :
 > commentaires
 > mentions @user
-> pièces jointes
+> pi�ces jointes
 > historique complet
 
 
 
 
 
-## Gestion des Assets enrichie (mini-CMDB)
+ Gestion des Assets enrichie (mini-CMDB)
 
 
 > OpenRisk doit afficher :
 
 > asset
-> criticité
-> propriétaire
+> criticit�
+> propri�taire
 > type
 > statut
 > localisation
 Cela renforce les calculs de risques.
 
 
-## Playbooks Automations (inspiré de Zapier)
+ Playbooks Automations (inspir� de Zapier)
 
 > Exemples :
 
-> “Si CVE > 9 → créer un risque critique”
+> “Si CVE >  → cr�er un risque critique”
 > “Si action en retard → envoyer email responsable”
 
 
 
-## Mode auditor (lecture seule avancée)
+ Mode auditor (lecture seule avanc�e)
 
-> Pour les audits externes (ISO, SOC2, RGPD).
+> Pour les audits externes (ISO, SOC, RGPD).
 
 
 
-## Marketplace (futur)
+ Marketplace (futur)
 
 ⬜ Place pour modules externes
 
 
-## PoC requirement for backend-critical tasks
+ PoC requirement for backend-critical tasks
 
 
-- Pour toutes les tâches backend critiques (ex: `Integrations`, `sync-engine`, `RBAC & multi-tenant`), ajouter une phase PoC (prototype) avant d'industrialiser. La phase PoC doit produire :
+- Pour toutes les tâches backend critiques (ex: Integrations, sync-engine, RBAC & multi-tenant), ajouter une phase PoC (prototype) avant d'industrialiser. La phase PoC doit produire :
 	- un prototype minimal fonctionnel
-	- tests de non-régression minimaux
-	- métriques/observabilité de base (logs, erreurs)
+	- tests de non-r�gression minimaux
+	- m�triques/observabilit� de base (logs, erreurs)
 	- un document court (README) listant les risques et besoins pour production
   
 
 
-## Priorité tests
+ Priorit� tests
 
-- Prioriser les tests automatisés (unit + API) : chaque feature backend majeure doit être accompagnée de tests unitaires et d'au moins un test d'intégration API. Intégrer ces tests dans CI avant les releases.
+- Prioriser les tests automatis�s (unit + API) : chaque feature backend majeure doit être accompagn�e de tests unitaires et d'au moins un test d'int�gration API. Int�grer ces tests dans CI avant les releases.

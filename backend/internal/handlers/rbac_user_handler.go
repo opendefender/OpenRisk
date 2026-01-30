@@ -3,24 +3,24 @@ package handlers
 import (
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/services"
 )
 
 // RBACUserHandler manages user RBAC operations
 type RBACUserHandler struct {
-	userService   *services.UserService
-	roleService   *services.RoleService
-	tenantService *services.TenantService
+	userService   services.UserService
+	roleService   services.RoleService
+	tenantService services.TenantService
 }
 
 // NewRBACUserHandler creates a new RBAC user handler
 func NewRBACUserHandler(
-	userService *services.UserService,
-	roleService *services.RoleService,
-	tenantService *services.TenantService,
-) *RBACUserHandler {
+	userService services.UserService,
+	roleService services.RoleService,
+	tenantService services.TenantService,
+) RBACUserHandler {
 	return &RBACUserHandler{
 		userService:   userService,
 		roleService:   roleService,
@@ -30,36 +30,36 @@ func NewRBACUserHandler(
 
 // ListUsersRequest defines query parameters for listing users
 type ListUsersRequest struct {
-	TenantID string `query:"tenant_id"`
-	RoleID   string `query:"role_id"`
-	Limit    int    `query:"limit"`
-	Offset   int    `query:"offset"`
+	TenantID string query:"tenant_id"
+	RoleID   string query:"role_id"
+	Limit    int    query:"limit"
+	Offset   int    query:"offset"
 }
 
 // ListUsersResponse contains paginated user list
 type ListUsersResponse struct {
-	Users      interface{} `json:"users"`
-	Total      int64       `json:"total"`
-	Limit      int         `json:"limit"`
-	Offset     int         `json:"offset"`
-	HasMore    bool        `json:"has_more"`
-	TotalPages int         `json:"total_pages"`
+	Users      interface{} json:"users"
+	Total      int       json:"total"
+	Limit      int         json:"limit"
+	Offset     int         json:"offset"
+	HasMore    bool        json:"has_more"
+	TotalPages int         json:"total_pages"
 }
 
 // ListUsers retrieves all users in a tenant
-func (h *RBACUserHandler) ListUsers(c *fiber.Ctx) error {
+func (h RBACUserHandler) ListUsers(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
-	limit := 20
-	offset := 0
+	limit := 
+	offset := 
 
 	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed >  {
 			limit = parsed
 		}
 	}
 	if o := c.Query("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >=  {
 			offset = parsed
 		}
 	}
@@ -72,7 +72,7 @@ func (h *RBACUserHandler) ListUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	totalPages := (int(total) + limit - 1) / limit
+	totalPages := (int(total) + limit - ) / limit
 
 	return c.JSON(ListUsersResponse{
 		Users:      userTenants,
@@ -86,11 +86,11 @@ func (h *RBACUserHandler) ListUsers(c *fiber.Ctx) error {
 
 // GetUserRequest is unused but defined for consistency
 type GetUserRequest struct {
-	UserID string `params:"user_id"`
+	UserID string params:"user_id"
 }
 
 // GetUser retrieves a specific user's tenant information
-func (h *RBACUserHandler) GetUser(c *fiber.Ctx) error {
+func (h RBACUserHandler) GetUser(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
 	userIDStr := c.Params("user_id")
@@ -114,12 +114,12 @@ func (h *RBACUserHandler) GetUser(c *fiber.Ctx) error {
 
 // AddUserToTenantRequest defines request body for adding user to tenant
 type AddUserToTenantRequest struct {
-	UserID string `json:"user_id"`
-	RoleID string `json:"role_id"`
+	UserID string json:"user_id"
+	RoleID string json:"role_id"
 }
 
 // AddUserToTenant adds a user to the current tenant with a role
-func (h *RBACUserHandler) AddUserToTenant(c *fiber.Ctx) error {
+func (h RBACUserHandler) AddUserToTenant(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -154,7 +154,7 @@ func (h *RBACUserHandler) AddUserToTenant(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can add users to tenant",
 		})
@@ -174,11 +174,11 @@ func (h *RBACUserHandler) AddUserToTenant(c *fiber.Ctx) error {
 
 // ChangeUserRoleRequest defines request body for changing user role
 type ChangeUserRoleRequest struct {
-	RoleID string `json:"role_id"`
+	RoleID string json:"role_id"
 }
 
 // ChangeUserRole changes a user's role in the tenant
-func (h *RBACUserHandler) ChangeUserRole(c *fiber.Ctx) error {
+func (h RBACUserHandler) ChangeUserRole(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -214,7 +214,7 @@ func (h *RBACUserHandler) ChangeUserRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can change user roles",
 		})
@@ -236,7 +236,7 @@ func (h *RBACUserHandler) ChangeUserRole(c *fiber.Ctx) error {
 type RemoveUserFromTenantRequest struct{}
 
 // RemoveUserFromTenant removes a user from the tenant
-func (h *RBACUserHandler) RemoveUserFromTenant(c *fiber.Ctx) error {
+func (h RBACUserHandler) RemoveUserFromTenant(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 	requestorID := c.Locals("userID").(uuid.UUID)
 
@@ -258,7 +258,7 @@ func (h *RBACUserHandler) RemoveUserFromTenant(c *fiber.Ctx) error {
 		})
 	}
 
-	if requestorLevel < 9 { // 9 = Admin
+	if requestorLevel <  { //  = Admin
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "only admins can remove users from tenant",
 		})
@@ -266,7 +266,7 @@ func (h *RBACUserHandler) RemoveUserFromTenant(c *fiber.Ctx) error {
 
 	// Prevent removing admin user
 	userRole, err := h.userService.GetUserRole(ctx, userID, tenantID)
-	if err == nil && userRole.Level == 9 {
+	if err == nil && userRole.Level ==  {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "cannot remove admin users",
 		})
@@ -286,15 +286,15 @@ func (h *RBACUserHandler) RemoveUserFromTenant(c *fiber.Ctx) error {
 
 // GetUserPermissionsResponse contains user's permissions
 type GetUserPermissionsResponse struct {
-	UserID      uuid.UUID `json:"user_id"`
-	TenantID    uuid.UUID `json:"tenant_id"`
-	Role        string    `json:"role"`
-	Level       int       `json:"level"`
-	Permissions []string  `json:"permissions"`
+	UserID      uuid.UUID json:"user_id"
+	TenantID    uuid.UUID json:"tenant_id"
+	Role        string    json:"role"
+	Level       int       json:"level"
+	Permissions []string  json:"permissions"
 }
 
 // GetUserPermissions retrieves all permissions for a user in the tenant
-func (h *RBACUserHandler) GetUserPermissions(c *fiber.Ctx) error {
+func (h RBACUserHandler) GetUserPermissions(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
 	userIDStr := c.Params("user_id")
@@ -334,32 +334,32 @@ func (h *RBACUserHandler) GetUserPermissions(c *fiber.Ctx) error {
 
 // GetTenantUsersCountResponse contains user count statistics
 type GetTenantUsersCountResponse struct {
-	Total      int64 `json:"total"`
-	ByAdmins   int64 `json:"by_admins"`
-	ByManagers int64 `json:"by_managers"`
-	ByAnalysts int64 `json:"by_analysts"`
-	ByViewers  int64 `json:"by_viewers"`
+	Total      int json:"total"
+	ByAdmins   int json:"by_admins"
+	ByManagers int json:"by_managers"
+	ByAnalysts int json:"by_analysts"
+	ByViewers  int json:"by_viewers"
 }
 
 // GetTenantUserStats retrieves statistics about users in the tenant
-func (h *RBACUserHandler) GetTenantUserStats(c *fiber.Ctx) error {
+func (h RBACUserHandler) GetTenantUserStats(c fiber.Ctx) error {
 	tenantID := c.Locals("tenantID").(uuid.UUID)
 
 	ctx := c.Context()
 
 	// Get total user count
 	var counts struct {
-		Total      int64
-		ByAdmins   int64
-		ByManagers int64
-		ByAnalysts int64
-		ByViewers  int64
+		Total      int
+		ByAdmins   int
+		ByManagers int
+		ByAnalysts int
+		ByViewers  int
 	}
 
 	// Note: This is a simplified version. A real implementation would query the database
 	// For now, we'll just get the total and note that role-based counts would need DB queries
 
-	_, total, err := h.userService.GetTenantUsers(ctx, tenantID, 1, 0)
+	_, total, err := h.userService.GetTenantUsers(ctx, tenantID, , )
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve user statistics",
@@ -370,9 +370,9 @@ func (h *RBACUserHandler) GetTenantUserStats(c *fiber.Ctx) error {
 
 	return c.JSON(GetTenantUsersCountResponse{
 		Total:      counts.Total,
-		ByAdmins:   0, // Would be populated from database query
-		ByManagers: 0,
-		ByAnalysts: 0,
-		ByViewers:  0,
+		ByAdmins:   , // Would be populated from database query
+		ByManagers: ,
+		ByAnalysts: ,
+		ByViewers:  ,
 	})
 }

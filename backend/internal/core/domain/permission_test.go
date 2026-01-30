@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParsePermission_ValidFormat(t *testing.T) {
+func TestParsePermission_ValidFormat(t testing.T) {
 	tests := []struct {
 		input    string
 		expected Permission
@@ -31,15 +31,15 @@ func TestParsePermission_ValidFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
+		t.Run(tt.input, func(t testing.T) {
 			perm, err := ParsePermission(tt.input)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expected, *perm)
+			assert.Equal(t, tt.expected, perm)
 		})
 	}
 }
 
-func TestParsePermission_InvalidFormat(t *testing.T) {
+func TestParsePermission_InvalidFormat(t testing.T) {
 	tests := []string{
 		"risk:read",
 		"read:any",
@@ -48,7 +48,7 @@ func TestParsePermission_InvalidFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt, func(t *testing.T) {
+		t.Run(tt, func(t testing.T) {
 			perm, err := ParsePermission(tt)
 			assert.Error(t, err)
 			assert.Nil(t, perm)
@@ -56,7 +56,7 @@ func TestParsePermission_InvalidFormat(t *testing.T) {
 	}
 }
 
-func TestPermissionString(t *testing.T) {
+func TestPermissionString(t testing.T) {
 	perm := Permission{
 		Resource: PermissionResourceRisk,
 		Action:   PermissionRead,
@@ -66,7 +66,7 @@ func TestPermissionString(t *testing.T) {
 	assert.Equal(t, "risk:read:own", perm.String())
 }
 
-func TestPermissionMatches_ExactMatch(t *testing.T) {
+func TestPermissionMatches_ExactMatch(t testing.T) {
 	testCases := []struct {
 		name     string
 		perm     Permission
@@ -94,15 +94,15 @@ func TestPermissionMatches_ExactMatch(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := tc.perm.Matches(tc.required)
 			assert.Equal(t, tc.matches, result)
 		})
 	}
 }
 
-func TestPermissionMatches_ResourceWildcard(t *testing.T) {
-	perm := Permission{Resource: "*", Action: PermissionRead, Scope: PermissionScopeOwn}
+func TestPermissionMatches_ResourceWildcard(t testing.T) {
+	perm := Permission{Resource: "", Action: PermissionRead, Scope: PermissionScopeOwn}
 
 	testCases := []struct {
 		name     string
@@ -127,15 +127,15 @@ func TestPermissionMatches_ResourceWildcard(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := perm.Matches(tc.required)
 			assert.Equal(t, tc.matches, result)
 		})
 	}
 }
 
-func TestPermissionMatches_ActionWildcard(t *testing.T) {
-	perm := Permission{Resource: PermissionResourceRisk, Action: "*", Scope: PermissionScopeAny}
+func TestPermissionMatches_ActionWildcard(t testing.T) {
+	perm := Permission{Resource: PermissionResourceRisk, Action: "", Scope: PermissionScopeAny}
 
 	testCases := []struct {
 		name     string
@@ -160,14 +160,14 @@ func TestPermissionMatches_ActionWildcard(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := perm.Matches(tc.required)
 			assert.Equal(t, tc.matches, result)
 		})
 	}
 }
 
-func TestPermissionMatches_ScopeWildcard(t *testing.T) {
+func TestPermissionMatches_ScopeWildcard(t testing.T) {
 	perm := Permission{Resource: PermissionResourceRisk, Action: PermissionRead, Scope: PermissionScopeAny}
 
 	testCases := []struct {
@@ -193,15 +193,15 @@ func TestPermissionMatches_ScopeWildcard(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := perm.Matches(tc.required)
 			assert.Equal(t, tc.matches, result)
 		})
 	}
 }
 
-func TestPermissionMatches_FullWildcard(t *testing.T) {
-	perm := Permission{Resource: "*", Action: "*", Scope: PermissionScopeAny}
+func TestPermissionMatches_FullWildcard(t testing.T) {
+	perm := Permission{Resource: "", Action: "", Scope: PermissionScopeAny}
 
 	testCases := []struct {
 		name     string
@@ -221,14 +221,14 @@ func TestPermissionMatches_FullWildcard(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := perm.Matches(tc.required)
 			assert.Equal(t, tc.matches, result)
 		})
 	}
 }
 
-func TestPermissionMatrixHasPermission(t *testing.T) {
+func TestPermissionMatrixHasPermission(t testing.T) {
 	matrix := &PermissionMatrix{
 		Permissions: []Permission{
 			{Resource: PermissionResourceRisk, Action: PermissionRead, Scope: PermissionScopeAny},
@@ -254,14 +254,14 @@ func TestPermissionMatrixHasPermission(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t testing.T) {
 			result := matrix.HasPermission(tc.permission)
 			assert.Equal(t, tc.has, result)
 		})
 	}
 }
 
-func TestPermissionMatrixAddPermission(t *testing.T) {
+func TestPermissionMatrixAddPermission(t testing.T) {
 	matrix := &PermissionMatrix{}
 
 	perm := Permission{
@@ -272,11 +272,11 @@ func TestPermissionMatrixAddPermission(t *testing.T) {
 
 	err := matrix.AddPermission(perm)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(matrix.Permissions))
-	assert.Equal(t, perm, matrix.Permissions[0])
+	assert.Equal(t, , len(matrix.Permissions))
+	assert.Equal(t, perm, matrix.Permissions[])
 }
 
-func TestPermissionMatrixRemovePermission(t *testing.T) {
+func TestPermissionMatrixRemovePermission(t testing.T) {
 	perm := Permission{
 		Resource: PermissionResourceRisk,
 		Action:   PermissionRead,
@@ -289,10 +289,10 @@ func TestPermissionMatrixRemovePermission(t *testing.T) {
 
 	err := matrix.RemovePermission(perm)
 	require.NoError(t, err)
-	assert.Equal(t, 0, len(matrix.Permissions))
+	assert.Equal(t, , len(matrix.Permissions))
 }
 
-func TestStandardPermissions_AdminPermissions(t *testing.T) {
+func TestStandardPermissions_AdminPermissions(t testing.T) {
 	matrix := &PermissionMatrix{Permissions: AdminPermissions}
 
 	// Admin should have all permissions (full wildcard)
@@ -307,7 +307,7 @@ func TestStandardPermissions_AdminPermissions(t *testing.T) {
 	}
 }
 
-func TestStandardPermissions_AnalystPermissions(t *testing.T) {
+func TestStandardPermissions_AnalystPermissions(t testing.T) {
 	matrix := &PermissionMatrix{Permissions: AnalystPermissions}
 
 	// Analyst should have risk CRUD
@@ -320,7 +320,7 @@ func TestStandardPermissions_AnalystPermissions(t *testing.T) {
 	assert.False(t, matrix.HasPermission(Permission{Resource: PermissionResourceRisk, Action: PermissionDelete, Scope: PermissionScopeAny}))
 }
 
-func TestStandardPermissions_ViewerPermissions(t *testing.T) {
+func TestStandardPermissions_ViewerPermissions(t testing.T) {
 	matrix := &PermissionMatrix{Permissions: ViewerPermissions}
 
 	// Viewer can read
@@ -332,7 +332,7 @@ func TestStandardPermissions_ViewerPermissions(t *testing.T) {
 	assert.False(t, matrix.HasPermission(Permission{Resource: PermissionResourceRisk, Action: PermissionDelete, Scope: PermissionScopeAny}))
 }
 
-func TestAnalystCanCreateRisks(t *testing.T) {
+func TestAnalystCanCreateRisks(t testing.T) {
 	matrix := &PermissionMatrix{Permissions: AnalystPermissions}
 
 	assert.True(t, matrix.HasPermission(Permission{
@@ -342,7 +342,7 @@ func TestAnalystCanCreateRisks(t *testing.T) {
 	}))
 }
 
-func TestViewerCannotDeleteRisks(t *testing.T) {
+func TestViewerCannotDeleteRisks(t testing.T) {
 	matrix := &PermissionMatrix{Permissions: ViewerPermissions}
 
 	assert.False(t, matrix.HasPermission(Permission{
@@ -352,7 +352,7 @@ func TestViewerCannotDeleteRisks(t *testing.T) {
 	}))
 }
 
-func TestAdminCanDoAnything(t *testing.T) {
+func TestAdminCanDoAnything(t testing.T) {
 	matrix := &PermissionMatrix{Permissions: AdminPermissions}
 
 	testCases := []Permission{

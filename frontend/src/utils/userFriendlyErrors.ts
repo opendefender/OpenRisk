@@ -1,7 +1,7 @@
-/**
- * User-Friendly Error Messages
- * Converts technical errors into clear, actionable messages for end users
- */
+/
+  User-Friendly Error Messages
+  Converts technical errors into clear, actionable messages for end users
+ /
 
 export const userFriendlyErrors = {
   // Authentication errors
@@ -80,9 +80,9 @@ export const userFriendlyErrors = {
 
   // Validation errors
   VALIDATION: {
-    REQUIRED_FIELD: (fieldName: string) => `${fieldName} is required. Please fill it in.`,
+    REQUIRED_FIELD: (fieldName: string) => ${fieldName} is required. Please fill it in.,
     INVALID_EMAIL: 'Please enter a valid email address.',
-    INVALID_FORMAT: (fieldName: string) => `${fieldName} has an invalid format. Please check and try again.`,
+    INVALID_FORMAT: (fieldName: string) => ${fieldName} has an invalid format. Please check and try again.,
     INVALID_SELECTION: 'Please make a valid selection and try again.',
     EMPTY_INPUT: 'Please fill in all required fields.',
   },
@@ -92,11 +92,11 @@ export const userFriendlyErrors = {
   TRY_AGAIN: 'Please try again.',
 };
 
-/**
- * Get a user-friendly error message
- * @param error - The error object or string
- * @param defaultMessage - Fallback message if error can't be parsed
- */
+/
+  Get a user-friendly error message
+  @param error - The error object or string
+  @param defaultMessage - Fallback message if error can't be parsed
+ /
 export const getUserFriendlyErrorMessage = (error: any, defaultMessage: string = userFriendlyErrors.GENERIC): string => {
   // If it's already a user-friendly message, return it
   if (typeof error === 'string') {
@@ -132,9 +132,9 @@ export const getUserFriendlyErrorMessage = (error: any, defaultMessage: string =
   return defaultMessage;
 };
 
-/**
- * Format validation error with field name
- */
+/
+  Format validation error with field name
+ /
 export const getValidationError = (fieldName: string, errorType: string = 'required'): string => {
   if (errorType === 'required') {
     return userFriendlyErrors.VALIDATION.REQUIRED_FIELD(fieldName);
@@ -142,5 +142,5 @@ export const getValidationError = (fieldName: string, errorType: string = 'requi
   if (errorType === 'invalid') {
     return userFriendlyErrors.VALIDATION.INVALID_FORMAT(fieldName);
   }
-  return `Please check the ${fieldName} field.`;
+  return Please check the ${fieldName} field.;
 };

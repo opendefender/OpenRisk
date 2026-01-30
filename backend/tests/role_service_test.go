@@ -11,8 +11,8 @@ import (
 )
 
 // TestRoleServiceCreate tests role creation
-func TestRoleServiceCreate(t *testing.T) {
-	t.Run("create_valid_role", func(t *testing.T) {
+func TestRoleServiceCreate(t testing.T) {
+	t.Run("create_valid_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -22,7 +22,7 @@ func TestRoleServiceCreate(t *testing.T) {
 		role := &domain.Role{
 			Name:        "Manager",
 			Description: "Manager role for teams",
-			RoleLevel:   5,
+			RoleLevel:   ,
 			Permissions: []string{},
 		}
 
@@ -34,10 +34,10 @@ func TestRoleServiceCreate(t *testing.T) {
 		assert.NotNil(t, created)
 		assert.NotEmpty(t, created.ID)
 		assert.Equal(t, "Manager", created.Name)
-		assert.Equal(t, 5, created.RoleLevel)
+		assert.Equal(t, , created.RoleLevel)
 	})
 
-	t.Run("create_role_missing_name", func(t *testing.T) {
+	t.Run("create_role_missing_name", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -47,7 +47,7 @@ func TestRoleServiceCreate(t *testing.T) {
 		role := &domain.Role{
 			Name:        "",
 			Description: "Invalid role",
-			RoleLevel:   5,
+			RoleLevel:   ,
 		}
 
 		// Execute
@@ -59,7 +59,7 @@ func TestRoleServiceCreate(t *testing.T) {
 		assert.Equal(t, "role name is required", err.Error())
 	})
 
-	t.Run("create_role_invalid_level", func(t *testing.T) {
+	t.Run("create_role_invalid_level", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -69,7 +69,7 @@ func TestRoleServiceCreate(t *testing.T) {
 		role := &domain.Role{
 			Name:        "Invalid",
 			Description: "Invalid level",
-			RoleLevel:   15, // Out of valid range (0-9)
+			RoleLevel:   , // Out of valid range (-)
 		}
 
 		// Execute
@@ -78,13 +78,13 @@ func TestRoleServiceCreate(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, created)
-		assert.Contains(t, err.Error(), "role level must be between 0 and 9")
+		assert.Contains(t, err.Error(), "role level must be between  and ")
 	})
 }
 
 // TestRoleServiceRead tests role retrieval
-func TestRoleServiceRead(t *testing.T) {
-	t.Run("read_existing_role", func(t *testing.T) {
+func TestRoleServiceRead(t testing.T) {
+	t.Run("read_existing_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -92,25 +92,25 @@ func TestRoleServiceRead(t *testing.T) {
 
 		// Create test role
 		testRole := &domain.Role{
-			ID:          "role-123",
+			ID:          "role-",
 			Name:        "Admin",
 			Description: "Administrator",
-			RoleLevel:   9,
-			Permissions: []string{"*"},
+			RoleLevel:   ,
+			Permissions: []string{""},
 		}
 		repo.SetRole(testRole)
 
 		// Execute
-		retrieved, err := svc.GetByID(ctx, "role-123")
+		retrieved, err := svc.GetByID(ctx, "role-")
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, retrieved)
 		assert.Equal(t, "Admin", retrieved.Name)
-		assert.Equal(t, 9, retrieved.RoleLevel)
+		assert.Equal(t, , retrieved.RoleLevel)
 	})
 
-	t.Run("read_nonexistent_role", func(t *testing.T) {
+	t.Run("read_nonexistent_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -126,8 +126,8 @@ func TestRoleServiceRead(t *testing.T) {
 }
 
 // TestRoleServiceUpdate tests role updates
-func TestRoleServiceUpdate(t *testing.T) {
-	t.Run("update_role_fields", func(t *testing.T) {
+func TestRoleServiceUpdate(t testing.T) {
+	t.Run("update_role_fields", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -135,16 +135,16 @@ func TestRoleServiceUpdate(t *testing.T) {
 
 		// Create test role
 		testRole := &domain.Role{
-			ID:          "role-456",
+			ID:          "role-",
 			Name:        "Viewer",
 			Description: "Viewer role",
-			RoleLevel:   2,
+			RoleLevel:   ,
 		}
 		repo.SetRole(testRole)
 
 		// Update
 		testRole.Description = "Updated viewer role"
-		testRole.RoleLevel = 3
+		testRole.RoleLevel = 
 
 		// Execute
 		updated, err := svc.Update(ctx, testRole)
@@ -153,10 +153,10 @@ func TestRoleServiceUpdate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, updated)
 		assert.Equal(t, "Updated viewer role", updated.Description)
-		assert.Equal(t, 3, updated.RoleLevel)
+		assert.Equal(t, , updated.RoleLevel)
 	})
 
-	t.Run("update_invalid_role", func(t *testing.T) {
+	t.Run("update_invalid_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -167,7 +167,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 			ID:          "nonexistent",
 			Name:        "Test",
 			Description: "Test",
-			RoleLevel:   5,
+			RoleLevel:   ,
 		}
 
 		// Execute
@@ -180,8 +180,8 @@ func TestRoleServiceUpdate(t *testing.T) {
 }
 
 // TestRoleServiceDelete tests role deletion
-func TestRoleServiceDelete(t *testing.T) {
-	t.Run("delete_existing_role", func(t *testing.T) {
+func TestRoleServiceDelete(t testing.T) {
+	t.Run("delete_existing_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -189,24 +189,24 @@ func TestRoleServiceDelete(t *testing.T) {
 
 		// Create test role
 		testRole := &domain.Role{
-			ID:        "role-789",
+			ID:        "role-",
 			Name:      "Temporary",
-			RoleLevel: 2,
+			RoleLevel: ,
 		}
 		repo.SetRole(testRole)
 
 		// Execute
-		err := svc.Delete(ctx, "role-789")
+		err := svc.Delete(ctx, "role-")
 
 		// Assert
 		assert.NoError(t, err)
 
 		// Verify deletion
-		retrieved, _ := svc.GetByID(ctx, "role-789")
+		retrieved, _ := svc.GetByID(ctx, "role-")
 		assert.Nil(t, retrieved)
 	})
 
-	t.Run("delete_admin_role_fails", func(t *testing.T) {
+	t.Run("delete_admin_role_fails", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -216,7 +216,7 @@ func TestRoleServiceDelete(t *testing.T) {
 		adminRole := &domain.Role{
 			ID:        "admin-role",
 			Name:      "Administrator",
-			RoleLevel: 9,
+			RoleLevel: ,
 		}
 		repo.SetRole(adminRole)
 
@@ -230,18 +230,18 @@ func TestRoleServiceDelete(t *testing.T) {
 }
 
 // TestRoleServiceList tests role listing
-func TestRoleServiceList(t *testing.T) {
-	t.Run("list_all_roles", func(t *testing.T) {
+func TestRoleServiceList(t testing.T) {
+	t.Run("list_all_roles", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
 		ctx := context.Background()
 
 		// Create test roles
-		roles := []*domain.Role{
-			{ID: "role-1", Name: "Admin", RoleLevel: 9},
-			{ID: "role-2", Name: "Manager", RoleLevel: 5},
-			{ID: "role-3", Name: "Viewer", RoleLevel: 1},
+		roles := []domain.Role{
+			{ID: "role-", Name: "Admin", RoleLevel: },
+			{ID: "role-", Name: "Manager", RoleLevel: },
+			{ID: "role-", Name: "Viewer", RoleLevel: },
 		}
 
 		for _, role := range roles {
@@ -249,48 +249,48 @@ func TestRoleServiceList(t *testing.T) {
 		}
 
 		// Execute
-		retrieved, err := svc.List(ctx, 0, 10)
+		retrieved, err := svc.List(ctx, , )
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Equal(t, 3, len(retrieved))
+		assert.Equal(t, , len(retrieved))
 	})
 
-	t.Run("list_roles_with_pagination", func(t *testing.T) {
+	t.Run("list_roles_with_pagination", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
 		ctx := context.Background()
 
 		// Create multiple roles
-		for i := 1; i <= 25; i++ {
+		for i := ; i <= ; i++ {
 			role := &domain.Role{
 				ID:        "role-" + string(rune(i)),
 				Name:      "Role" + string(rune(i)),
-				RoleLevel: i % 10,
+				RoleLevel: i % ,
 			}
 			repo.SetRole(role)
 		}
 
 		// Execute - get first page
-		page1, err := svc.List(ctx, 0, 10)
+		page, err := svc.List(ctx, , )
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Equal(t, 10, len(page1))
+		assert.Equal(t, , len(page))
 
 		// Execute - get second page
-		page2, err := svc.List(ctx, 10, 10)
+		page, err := svc.List(ctx, , )
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Equal(t, 10, len(page2))
+		assert.Equal(t, , len(page))
 	})
 }
 
 // TestRoleServicePermissions tests permission management
-func TestRoleServicePermissions(t *testing.T) {
-	t.Run("grant_permission_to_role", func(t *testing.T) {
+func TestRoleServicePermissions(t testing.T) {
+	t.Run("grant_permission_to_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -300,7 +300,7 @@ func TestRoleServicePermissions(t *testing.T) {
 		role := &domain.Role{
 			ID:          "role-perm",
 			Name:        "Editor",
-			RoleLevel:   5,
+			RoleLevel:   ,
 			Permissions: []string{},
 		}
 		repo.SetRole(role)
@@ -314,7 +314,7 @@ func TestRoleServicePermissions(t *testing.T) {
 		assert.Contains(t, retrieved.Permissions, "users:write")
 	})
 
-	t.Run("revoke_permission_from_role", func(t *testing.T) {
+	t.Run("revoke_permission_from_role", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -324,7 +324,7 @@ func TestRoleServicePermissions(t *testing.T) {
 		role := &domain.Role{
 			ID:          "role-revoke",
 			Name:        "Editor",
-			RoleLevel:   5,
+			RoleLevel:   ,
 			Permissions: []string{"users:read", "users:write"},
 		}
 		repo.SetRole(role)
@@ -339,7 +339,7 @@ func TestRoleServicePermissions(t *testing.T) {
 		assert.Contains(t, retrieved.Permissions, "users:read")
 	})
 
-	t.Run("bulk_grant_permissions", func(t *testing.T) {
+	t.Run("bulk_grant_permissions", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -349,7 +349,7 @@ func TestRoleServicePermissions(t *testing.T) {
 		role := &domain.Role{
 			ID:          "role-bulk",
 			Name:        "Manager",
-			RoleLevel:   6,
+			RoleLevel:   ,
 			Permissions: []string{},
 		}
 		repo.SetRole(role)
@@ -361,21 +361,21 @@ func TestRoleServicePermissions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		retrieved, _ := svc.GetByID(ctx, "role-bulk")
-		assert.Equal(t, 4, len(retrieved.Permissions))
+		assert.Equal(t, , len(retrieved.Permissions))
 	})
 }
 
 // TestRoleServiceHierarchy tests role hierarchy
-func TestRoleServiceHierarchy(t *testing.T) {
-	t.Run("verify_role_hierarchy", func(t *testing.T) {
+func TestRoleServiceHierarchy(t testing.T) {
+	t.Run("verify_role_hierarchy", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
 
 		// Create roles
-		admin := &domain.Role{Name: "Admin", RoleLevel: 9}
-		manager := &domain.Role{Name: "Manager", RoleLevel: 5}
-		viewer := &domain.Role{Name: "Viewer", RoleLevel: 1}
+		admin := &domain.Role{Name: "Admin", RoleLevel: }
+		manager := &domain.Role{Name: "Manager", RoleLevel: }
+		viewer := &domain.Role{Name: "Viewer", RoleLevel: }
 
 		// Verify hierarchy
 		assert.True(t, svc.IsHigherLevel(admin, manager))
@@ -383,7 +383,7 @@ func TestRoleServiceHierarchy(t *testing.T) {
 		assert.False(t, svc.IsHigherLevel(viewer, manager))
 	})
 
-	t.Run("prevent_permission_escalation", func(t *testing.T) {
+	t.Run("prevent_permission_escalation", func(t testing.T) {
 		// Setup
 		repo := NewMockRoleRepository()
 		svc := service.NewRoleService(repo)
@@ -393,7 +393,7 @@ func TestRoleServiceHierarchy(t *testing.T) {
 		viewer := &domain.Role{
 			ID:        "viewer-role",
 			Name:      "Viewer",
-			RoleLevel: 1,
+			RoleLevel: ,
 		}
 		repo.SetRole(viewer)
 
@@ -406,7 +406,7 @@ func TestRoleServiceHierarchy(t *testing.T) {
 }
 
 // BenchmarkRoleServiceCreate benchmarks role creation
-func BenchmarkRoleServiceCreate(b *testing.B) {
+func BenchmarkRoleServiceCreate(b testing.B) {
 	repo := NewMockRoleRepository()
 	svc := service.NewRoleService(repo)
 	ctx := context.Background()
@@ -414,17 +414,17 @@ func BenchmarkRoleServiceCreate(b *testing.B) {
 	role := &domain.Role{
 		Name:        "Test",
 		Description: "Test role",
-		RoleLevel:   5,
+		RoleLevel:   ,
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := ; i < b.N; i++ {
 		svc.Create(ctx, role)
 	}
 }
 
 // BenchmarkRoleServiceGetByID benchmarks role retrieval
-func BenchmarkRoleServiceGetByID(b *testing.B) {
+func BenchmarkRoleServiceGetByID(b testing.B) {
 	repo := NewMockRoleRepository()
 	svc := service.NewRoleService(repo)
 	ctx := context.Background()
@@ -432,12 +432,12 @@ func BenchmarkRoleServiceGetByID(b *testing.B) {
 	role := &domain.Role{
 		ID:        "bench-role",
 		Name:      "Bench",
-		RoleLevel: 5,
+		RoleLevel: ,
 	}
 	repo.SetRole(role)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := ; i < b.N; i++ {
 		svc.GetByID(ctx, "bench-role")
 	}
 }

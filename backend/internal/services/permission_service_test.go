@@ -6,7 +6,7 @@ import (
 	"github.com/opendefender/openrisk/internal/core/domain"
 )
 
-func TestPermissionServiceSetRolePermissions(t *testing.T) {
+func TestPermissionServiceSetRolePermissions(t testing.T) {
 	ps := NewPermissionService()
 
 	permissions := []domain.Permission{
@@ -24,7 +24,7 @@ func TestPermissionServiceSetRolePermissions(t *testing.T) {
 	}
 }
 
-func TestPermissionServiceCheckPermission(t *testing.T) {
+func TestPermissionServiceCheckPermission(t testing.T) {
 	ps := NewPermissionService()
 
 	permissions := []domain.Permission{
@@ -43,21 +43,21 @@ func TestPermissionServiceCheckPermission(t *testing.T) {
 	}{
 		{
 			name:     "user has permission",
-			userID:   "user1",
+			userID:   "user",
 			roleID:   "analyst",
 			required: domain.Permission{Resource: domain.PermissionResourceRisk, Action: domain.PermissionRead, Scope: domain.PermissionScopeAny},
 			want:     true,
 		},
 		{
 			name:     "user does not have permission",
-			userID:   "user1",
+			userID:   "user",
 			roleID:   "analyst",
 			required: domain.Permission{Resource: domain.PermissionResourceRisk, Action: domain.PermissionDelete, Scope: domain.PermissionScopeAny},
 			want:     false,
 		},
 		{
 			name:     "user has mitigation create permission",
-			userID:   "user1",
+			userID:   "user",
 			roleID:   "analyst",
 			required: domain.Permission{Resource: domain.PermissionResourceMitigation, Action: domain.PermissionCreate, Scope: domain.PermissionScopeOwn},
 			want:     true,
@@ -65,7 +65,7 @@ func TestPermissionServiceCheckPermission(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t testing.T) {
 			if got := ps.CheckPermission(tt.userID, tt.roleID, tt.required); got != tt.want {
 				t.Errorf("CheckPermission() = %v, want %v", got, tt.want)
 			}
@@ -73,7 +73,7 @@ func TestPermissionServiceCheckPermission(t *testing.T) {
 	}
 }
 
-func TestPermissionServiceUserPermissionsOverrideRole(t *testing.T) {
+func TestPermissionServiceUserPermissionsOverrideRole(t testing.T) {
 	ps := NewPermissionService()
 
 	rolePermissions := []domain.Permission{
@@ -85,21 +85,21 @@ func TestPermissionServiceUserPermissionsOverrideRole(t *testing.T) {
 	}
 
 	ps.SetRolePermissions("analyst", rolePermissions)
-	ps.SetUserPermissions("user1", userPermissions)
+	ps.SetUserPermissions("user", userPermissions)
 
 	// User should have both role and custom permissions
-	allPerms := ps.GetUserPermissions("user1", "analyst")
-	if len(allPerms) < 2 {
-		t.Errorf("expected at least 2 permissions, got %d", len(allPerms))
+	allPerms := ps.GetUserPermissions("user", "analyst")
+	if len(allPerms) <  {
+		t.Errorf("expected at least  permissions, got %d", len(allPerms))
 	}
 
 	// Check that user has custom permission
-	if !ps.CheckPermission("user1", "analyst", userPermissions[0]) {
+	if !ps.CheckPermission("user", "analyst", userPermissions[]) {
 		t.Errorf("user should have custom permission")
 	}
 }
 
-func TestPermissionServiceAddPermissionToRole(t *testing.T) {
+func TestPermissionServiceAddPermissionToRole(t testing.T) {
 	ps := NewPermissionService()
 
 	perm := domain.Permission{Resource: domain.PermissionResourceRisk, Action: domain.PermissionRead, Scope: domain.PermissionScopeAny}
@@ -108,12 +108,12 @@ func TestPermissionServiceAddPermissionToRole(t *testing.T) {
 		t.Errorf("AddPermissionToRole() error = %v", err)
 	}
 
-	if !ps.CheckPermission("user1", "analyst", perm) {
+	if !ps.CheckPermission("user", "analyst", perm) {
 		t.Errorf("permission should be added to role")
 	}
 }
 
-func TestPermissionServiceRemovePermissionFromRole(t *testing.T) {
+func TestPermissionServiceRemovePermissionFromRole(t testing.T) {
 	ps := NewPermissionService()
 
 	perm := domain.Permission{Resource: domain.PermissionResourceRisk, Action: domain.PermissionRead, Scope: domain.PermissionScopeAny}
@@ -124,12 +124,12 @@ func TestPermissionServiceRemovePermissionFromRole(t *testing.T) {
 		t.Errorf("RemovePermissionFromRole() error = %v", err)
 	}
 
-	if ps.CheckPermission("user1", "analyst", perm) {
+	if ps.CheckPermission("user", "analyst", perm) {
 		t.Errorf("permission should be removed from role")
 	}
 }
 
-func TestPermissionServiceCheckPermissionMultiple(t *testing.T) {
+func TestPermissionServiceCheckPermissionMultiple(t testing.T) {
 	ps := NewPermissionService()
 
 	permissions := []domain.Permission{
@@ -145,12 +145,12 @@ func TestPermissionServiceCheckPermissionMultiple(t *testing.T) {
 		{Resource: domain.PermissionResourceRisk, Action: domain.PermissionRead, Scope: domain.PermissionScopeAny},
 	}
 
-	if !ps.CheckPermissionMultiple("user1", "analyst", required) {
+	if !ps.CheckPermissionMultiple("user", "analyst", required) {
 		t.Errorf("should have at least one permission")
 	}
 }
 
-func TestPermissionServiceCheckPermissionAll(t *testing.T) {
+func TestPermissionServiceCheckPermissionAll(t testing.T) {
 	ps := NewPermissionService()
 
 	permissions := []domain.Permission{
@@ -166,19 +166,19 @@ func TestPermissionServiceCheckPermissionAll(t *testing.T) {
 		{Resource: domain.PermissionResourceMitigation, Action: domain.PermissionCreate, Scope: domain.PermissionScopeAny},
 	}
 
-	if !ps.CheckPermissionAll("user1", "analyst", required) {
+	if !ps.CheckPermissionAll("user", "analyst", required) {
 		t.Errorf("should have all permissions")
 	}
 
 	// Add impossible permission
 	required = append(required, domain.Permission{Resource: domain.PermissionResourceUser, Action: domain.PermissionDelete, Scope: domain.PermissionScopeAny})
 
-	if ps.CheckPermissionAll("user1", "analyst", required) {
+	if ps.CheckPermissionAll("user", "analyst", required) {
 		t.Errorf("should not have all permissions")
 	}
 }
 
-func TestPermissionServiceInitializeDefaultRoles(t *testing.T) {
+func TestPermissionServiceInitializeDefaultRoles(t testing.T) {
 	ps := NewPermissionService()
 
 	if err := ps.InitializeDefaultRoles(); err != nil {
@@ -186,7 +186,7 @@ func TestPermissionServiceInitializeDefaultRoles(t *testing.T) {
 	}
 
 	// Check that admin role exists and can do anything
-	if !ps.CheckPermission("admin_user", "admin", domain.Permission{Resource: "*", Action: "*", Scope: "any"}) {
+	if !ps.CheckPermission("admin_user", "admin", domain.Permission{Resource: "", Action: "", Scope: "any"}) {
 		t.Errorf("admin should have full permissions")
 	}
 
@@ -210,7 +210,7 @@ func TestPermissionServiceInitializeDefaultRoles(t *testing.T) {
 	}
 }
 
-func TestPermissionServiceGetUserPermissions(t *testing.T) {
+func TestPermissionServiceGetUserPermissions(t testing.T) {
 	ps := NewPermissionService()
 
 	rolePerms := []domain.Permission{
@@ -222,21 +222,21 @@ func TestPermissionServiceGetUserPermissions(t *testing.T) {
 	}
 
 	ps.SetRolePermissions("analyst", rolePerms)
-	ps.SetUserPermissions("user1", userPerms)
+	ps.SetUserPermissions("user", userPerms)
 
-	allPerms := ps.GetUserPermissions("user1", "analyst")
+	allPerms := ps.GetUserPermissions("user", "analyst")
 
-	// Should have 2 total: 1 from role + 1 custom
-	if len(allPerms) != 2 {
-		t.Errorf("expected 2 permissions, got %d", len(allPerms))
+	// Should have  total:  from role +  custom
+	if len(allPerms) !=  {
+		t.Errorf("expected  permissions, got %d", len(allPerms))
 	}
 }
 
-func TestPermissionServiceNonexistentRole(t *testing.T) {
+func TestPermissionServiceNonexistentRole(t testing.T) {
 	ps := NewPermissionService()
 
 	retrieved := ps.GetRolePermissions("nonexistent")
-	if len(retrieved) != 0 {
-		t.Errorf("expected 0 permissions for nonexistent role, got %d", len(retrieved))
+	if len(retrieved) !=  {
+		t.Errorf("expected  permissions for nonexistent role, got %d", len(retrieved))
 	}
 }

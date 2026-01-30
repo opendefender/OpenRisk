@@ -21,41 +21,41 @@ export const Settings = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Settings Sidebar */}
-      <div className="w-64 border-r border-border bg-surface/30 p-6 flex flex-col">
-        <h2 className="text-lg font-bold text-white mb-6 px-3">Settings</h2>
-        <nav className="space-y-1">
+      {/ Settings Sidebar /}
+      <div className="w- border-r border-border bg-surface/ p- flex flex-col">
+        <h className="text-lg font-bold text-white mb- px-">Settings</h>
+        <nav className="space-y-">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={w-full flex items-center gap- px- py- rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.id 
-                  ? 'bg-primary/10 text-primary' 
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
-              }`}
+                  ? 'bg-primary/ text-primary' 
+                  : 'text-zinc- hover:text-zinc- hover:bg-white/'
+              }}
             >
-              <tab.icon size={18} />
+              <tab.icon size={} />
               {tab.label}
             </button>
           ))}
         </nav>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-12">
-        <div className="max-w-3xl mx-auto">
+      {/ Content Area /}
+      <div className="flex- overflow-y-auto p-">
+        <div className="max-w-xl mx-auto">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: , y:  }}
+            animate={{ opacity: , y:  }}
+            transition={{ duration: . }}
           >
             {activeTab === 'general' && <GeneralTab />}
             {activeTab === 'integrations' && <IntegrationsTab />}
             {activeTab === 'team' && <TeamTab />}
             {activeTab === 'rbac' && <RBACTab />}
-            {activeTab === 'security' && <div className="text-zinc-500">Security Audit Logs (Coming Soon)</div>}
+            {activeTab === 'security' && <div className="text-zinc-">Security Audit Logs (Coming Soon)</div>}
           </motion.div>
         </div>
       </div>

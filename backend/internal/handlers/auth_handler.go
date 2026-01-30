@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -14,46 +14,46 @@ import (
 )
 
 type LoginInput struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
+	Email    string json:"email" validate:"required,email"
+	Password string json:"password" validate:"required,min="
 }
 
 type RegisterInput struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
-	Username string `json:"username" validate:"required,min=3"`
-	FullName string `json:"full_name" validate:"required"`
+	Email    string json:"email" validate:"required,email"
+	Password string json:"password" validate:"required,min="
+	Username string json:"username" validate:"required,min="
+	FullName string json:"full_name" validate:"required"
 }
 
 type RefreshInput struct {
-	Token string `json:"token" validate:"required"`
+	Token string json:"token" validate:"required"
 }
 
 type AuthResponse struct {
-	Token     string   `json:"token"`
-	User      *UserDTO `json:"user"`
-	ExpiresIn int64    `json:"expires_in"`
+	Token     string   json:"token"
+	User      UserDTO json:"user"
+	ExpiresIn int    json:"expires_in"
 }
 
 type UserDTO struct {
-	ID       string `json:"id"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	FullName string `json:"full_name"`
-	Role     string `json:"role"`
+	ID       string json:"id"
+	Email    string json:"email"
+	Username string json:"username"
+	FullName string json:"full_name"
+	Role     string json:"role"
 }
 
 type AuthHandler struct {
-	authService  *services.AuthService
-	auditService *services.AuditService
+	authService  services.AuthService
+	auditService services.AuditService
 }
 
-func NewAuthHandler() *AuthHandler {
+func NewAuthHandler() AuthHandler {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		jwtSecret = "dev-secret-key"
 	}
-	authService := services.NewAuthService(jwtSecret, 24*time.Hour)
+	authService := services.NewAuthService(jwtSecret, time.Hour)
 	auditService := services.NewAuditService()
 	return &AuthHandler{
 		authService:  authService,
@@ -62,7 +62,7 @@ func NewAuthHandler() *AuthHandler {
 }
 
 // Login handles user authentication and returns JWT token
-func (h *AuthHandler) Login(c *fiber.Ctx) error {
+func (h AuthHandler) Login(c fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
@@ -76,7 +76,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Email and password required"})
 	}
 
-	if len(input.Password) < 8 {
+	if len(input.Password) <  {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
@@ -125,12 +125,12 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 			FullName: user.FullName,
 			Role:     user.Role.Name,
 		},
-		ExpiresIn: 24 * 60 * 60,
+		ExpiresIn:     ,
 	})
 }
 
 // RefreshToken generates a new JWT token for authenticated user
-func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
+func (h AuthHandler) RefreshToken(c fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
@@ -173,12 +173,12 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 			FullName: user.FullName,
 			Role:     user.Role.Name,
 		},
-		ExpiresIn: 24 * 60 * 60,
+		ExpiresIn:     ,
 	})
 }
 
 // GetProfile returns current user's profile
-func (h *AuthHandler) GetProfile(c *fiber.Ctx) error {
+func (h AuthHandler) GetProfile(c fiber.Ctx) error {
 	// Get user claims from context
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -201,7 +201,7 @@ func (h *AuthHandler) GetProfile(c *fiber.Ctx) error {
 }
 
 // Register creates a new user account
-func (h *AuthHandler) Register(c *fiber.Ctx) error {
+func (h AuthHandler) Register(c fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
@@ -217,14 +217,14 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "All fields are required"})
 	}
 
-	if len(input.Password) < 8 {
+	if len(input.Password) <  {
 		_ = h.auditService.LogRegister(nil, domain.ResultFailure, ipAddress, userAgent, "Password too short")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password must be at least 8 characters"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password must be at least  characters"})
 	}
 
-	if len(input.Username) < 3 {
+	if len(input.Username) <  {
 		_ = h.auditService.LogRegister(nil, domain.ResultFailure, ipAddress, userAgent, "Username too short")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username must be at least 3 characters"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username must be at least  characters"})
 	}
 
 	// Check if email already exists
@@ -294,6 +294,6 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 			FullName: newUser.FullName,
 			Role:     newUser.Role.Name,
 		},
-		ExpiresIn: 24 * 60 * 60,
+		ExpiresIn:     ,
 	})
 }

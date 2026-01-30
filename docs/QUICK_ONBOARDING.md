@@ -1,406 +1,406 @@
-# OpenRisk - Guide de Démarrage Rapide
+ OpenRisk - Guide de D�marrage Rapide
 
-Bienvenue! Ce guide vous permet de **démarrer en 5 minutes** et d'explorer OpenRisk avec des données réalistes.
+Bienvenue! Ce guide vous permet de d�marrer en  minutes et d'explorer OpenRisk avec des donn�es r�alistes.
 
 ---
 
-## ⚡ Étape 1: Démarrer le Système (2 min)
+ ⚡ Étape : D�marrer le Syst�me ( min)
 
-### Prérequis
-- Docker & Docker Compose installés
+ Pr�requis
+- Docker & Docker Compose install�s
 - Git
 - Un terminal (Bash, Zsh, PowerShell, etc.)
 
-### Lancer OpenRisk
+ Lancer OpenRisk
 
-```bash
-# 1. Cloner le repo
+bash
+ . Cloner le repo
 git clone https://github.com/alex-dembele/OpenRisk.git
 cd OpenRisk
 
-# 2. Démarrer tous les services
+ . D�marrer tous les services
 docker compose up -d
 
-# 3. Vérifier que tout fonctionne
+ . V�rifier que tout fonctionne
 docker compose ps
-# Devrait afficher: db, redis, backend, frontend (tous UP)
+ Devrait afficher: db, redis, backend, frontend (tous UP)
 
-# 4. Accéder à l'interface
-# → Frontend: http://localhost:5173
-# → API Backend: http://localhost:8080
-```
+ . Acc�der à l'interface
+ → Frontend: http://localhost:
+ → API Backend: http://localhost:
 
-### ✅ Contrôle de Santé
 
-```bash
-# Vérifier que les services répondent
-curl http://localhost:8080/health
-# Résultat attendu: {"status":"healthy"}
-```
+  Contr�le de Sant�
+
+bash
+ V�rifier que les services r�pondent
+curl http://localhost:/health
+ R�sultat attendu: {"status":"healthy"}
+
 
 ---
 
-## 🔐 Étape 2: Se Connecter (1 min)
+  Étape : Se Connecter ( min)
 
-### Identifiants par défaut
-```
+ Identifiants par d�faut
+
 📧 Email: admin@openrisk.local
-🔑 Mot de passe: admin123
-```
+ Mot de passe: admin
 
-### Première Connexion
 
-1. Ouvrir http://localhost:5173 dans votre navigateur
-2. Entrer les identifiants ci-dessus
-3. Cliquer "Login"
+ Premi�re Connexion
 
-**Vous arrivez sur le Dashboard!**
+. Ouvrir http://localhost: dans votre navigateur
+. Entrer les identifiants ci-dessus
+. Cliquer "Login"
+
+Vous arrivez sur le Dashboard!
 
 ---
 
-## 📊 Étape 3: Explorer le Dashboard (30 sec)
+  Étape : Explorer le Dashboard ( sec)
 
-Vous voyez 4 sections:
+Vous voyez  sections:
 
-### 📈 Haut Gauche: Vue d'Ensemble
-```
-8 Risques Hauts
-12 Risques Moyens
-5 Risques Bas
-```
+ 📈 Haut Gauche: Vue d'Ensemble
 
-### 📉 Haut Droit: Graphique de Tendance
-```
-Montre l'évolution des risques sur les 30 derniers jours
-(Actuellement vide, on va ajouter des données)
-```
+ Risques Hauts
+ Risques Moyens
+ Risques Bas
 
-### 🗺️ Bas Gauche: Heatmap
-```
-Matrice de probabilité vs impact
+
+ 📉 Haut Droit: Graphique de Tendance
+
+Montre l'�volution des risques sur les  derniers jours
+(Actuellement vide, on va ajouter des donn�es)
+
+
+ 🗺 Bas Gauche: Heatmap
+
+Matrice de probabilit� vs impact
 Permet de visualiser les risques visuellement
-```
 
-### 📋 Bas Droit: Risques Récents
-```
-Liste des derniers risques créés
+
+  Bas Droit: Risques R�cents
+
+Liste des derniers risques cr��s
 (Actuellement vide)
-```
+
 
 ---
 
-## 📥 Étape 4: Importer des Données de Test (2 min)
+ 📥 Étape : Importer des Donn�es de Test ( min)
 
-### Option A: Importer via API (Recommandé)
+ Option A: Importer via API (Recommand�)
 
-**Télécharger le fichier de test:**
+T�l�charger le fichier de test:
 
-```bash
-# Le fichier est inclus dans le repo
+bash
+ Le fichier est inclus dans le repo
 cat dev/fixtures/risks.json
-```
 
-**Importer les données:**
 
-```bash
-# Option 1: Via cURL (ligne de commande)
-curl -X POST http://localhost:8080/api/risks/bulk-import \
+Importer les donn�es:
+
+bash
+ Option : Via cURL (ligne de commande)
+curl -X POST http://localhost:/api/risks/bulk-import \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d @dev/fixtures/risks.json
 
-# Option 2: Via l'interface (plus simple)
-# 1. Aller à Settings → Data Management
-# 2. Cliquer "Import Data"
-# 3. Télécharger dev/fixtures/risks.json
-# 4. Cliquer "Import"
-```
+ Option : Via l'interface (plus simple)
+ . Aller à Settings → Data Management
+ . Cliquer "Import Data"
+ . T�l�charger dev/fixtures/risks.json
+ . Cliquer "Import"
 
-### Option B: Créer Manuellement un Risque
 
-1. Cliquer sur "Risks" dans le menu
-2. Cliquer "Create Risk"
-3. Remplir le formulaire:
+ Option B: Cr�er Manuellement un Risque
 
-```
-Titre: Vulnérabilité SQL Injection dans formulaire login
-Description: L'input utilisateur n'est pas échappé
-Framework: OWASP Top 10 - A03:2021 Injection
-Criticité: Haute
-Probabilité: Moyenne
-Status: Identifié
+. Cliquer sur "Risks" dans le menu
+. Cliquer "Create Risk"
+. Remplir le formulaire:
 
-Score Calculé Automatiquement: 7.5/10 ✅
-```
 
-4. Cliquer "Save"
+Titre: Vuln�rabilit� SQL Injection dans formulaire login
+Description: L'input utilisateur n'est pas �chapp�
+Framework: OWASP Top  - A: Injection
+Criticit�: Haute
+Probabilit�: Moyenne
+Status: Identifi�
+
+Score Calcul� Automatiquement: ./ 
+
+
+. Cliquer "Save"
 
 ---
 
-## 🛡️ Étape 5: Créer une Mitigation (2 min)
+  Étape : Cr�er une Mitigation ( min)
 
-### Depuis un Risque Existant
+ Depuis un Risque Existant
 
-1. Cliquer sur un risque (ex: "Vulnérabilité SQL")
-2. Aller à l'onglet "Mitigations"
-3. Cliquer "Add Mitigation"
-4. Remplir:
+. Cliquer sur un risque (ex: "Vuln�rabilit� SQL")
+. Aller à l'onglet "Mitigations"
+. Cliquer "Add Mitigation"
+. Remplir:
 
-```
+
 Titre: Utiliser des Prepared Statements
-Description: Refactoriser la couche base de données
+Description: Refactoriser la couche base de donn�es
 Status: In Progress
 Owner: Backend Team Lead
-Deadline: 15 Janvier 2026
-```
+Deadline:  Janvier 
 
-### Ajouter des Sous-Actions (Checklist)
 
-```
+ Ajouter des Sous-Actions (Checklist)
+
+
 Sub-actions:
-☐ Valider avec l'équipe sécurité
+☐ Valider avec l'�quipe s�curit�
 ☐ Écrire les tests unitaires
-☐ Déployer en staging
-☐ Tester 24h en prod
+☐ D�ployer en staging
+☐ Tester h en prod
 ☐ Monitorer les logs
-```
 
-**Cocher au fur et à mesure:**
-```bash
-# Quand l'action est faite, cliquer la case ☐ → ☑️
-# Le système track automatiquement la progression
-```
+
+Cocher au fur et à mesure:
+bash
+ Quand l'action est faite, cliquer la case ☐ → ☑
+ Le syst�me track automatiquement la progression
+
 
 ---
 
-## 📊 Étape 6: Générer un Rapport (1 min)
+  Étape : G�n�rer un Rapport ( min)
 
-### Créer un Rapport Simple
+ Cr�er un Rapport Simple
 
-1. Cliquer "Reports" dans le menu
-2. Cliquer "Create Report"
-3. Sélectionner:
-   - **Type**: Risk Summary
-   - **Période**: Ce mois-ci
-   - **Format**: PDF
-4. Cliquer "Generate"
+. Cliquer "Reports" dans le menu
+. Cliquer "Create Report"
+. S�lectionner:
+   - Type: Risk Summary
+   - P�riode: Ce mois-ci
+   - Format: PDF
+. Cliquer "Generate"
 
-**Le rapport est généré en 10 secondes!**
+Le rapport est g�n�r� en  secondes!
 
-### Ce qu'on Voit dans le Rapport
+ Ce qu'on Voit dans le Rapport
 
-```
-📊 RAPPORT DE GESTION DES RISQUES
-Généré le: 22 Décembre 2025
 
-Résumé:
-- Total risques: 3
-- Critiques: 1
-- Hauts: 1
-- Moyens: 1
+ RAPPORT DE GESTION DES RISQUES
+G�n�r� le:  D�cembre 
 
-Détail:
-1. Vulnérabilité SQL (Score: 7.5) → Mitigation en cours
-2. ...
+R�sum�:
+- Total risques: 
+- Critiques: 
+- Hauts: 
+- Moyens: 
 
-Actions Recommandées:
-- Accélérer la mitigation Critique
+D�tail:
+. Vuln�rabilit� SQL (Score: .) → Mitigation en cours
+. ...
+
+Actions Recommand�es:
+- Acc�l�rer la mitigation Critique
 - ...
-```
+
 
 ---
 
-## 🔌 Étape 7: Connecter vos Outils (Optionnel)
+ 🔌 Étape : Connecter vos Outils (Optionnel)
 
-### Splunk Integration
+ Splunk Integration
 
-Si vous utilisez Splunk pour la sécurité:
+Si vous utilisez Splunk pour la s�curit�:
 
-```bash
-# 1. Aller à Settings → Integrations
-# 2. Cliquer "Add Integration"
-# 3. Sélectionner "Splunk"
-# 4. Entrer:
-   SPLUNK_URL=https://splunk.votreentreprise.com:8089
+bash
+ . Aller à Settings → Integrations
+ . Cliquer "Add Integration"
+ . S�lectionner "Splunk"
+ . Entrer:
+   SPLUNK_URL=https://splunk.votreentreprise.com:
    SPLUNK_API_TOKEN=xxxxxxxxxxxxx
    IMPORT_ALERTS=true
-# 5. Cliquer "Test Connection"
-# 6. Cliquer "Enable"
-```
+ . Cliquer "Test Connection"
+ . Cliquer "Enable"
 
-Après activation, les alertes Splunk s'importeront automatiquement dans OpenRisk!
 
-### TheHive Integration
+Apr�s activation, les alertes Splunk s'importeront automatiquement dans OpenRisk!
+
+ TheHive Integration
 
 Si vous utilisez TheHive pour les incidents:
 
-```bash
-# Settings → Integrations → TheHive
+bash
+ Settings → Integrations → TheHive
    THEHIVE_URL=https://thehive.votreentreprise.com
    THEHIVE_API_KEY=xxxxxxxxxxxxx
-# Synchronisation bi-directionnelle activée!
-```
+ Synchronisation bi-directionnelle activ�e!
+
 
 ---
 
-## 📝 Étape 8: Inviter des Utilisateurs (Optionnel)
+  Étape : Inviter des Utilisateurs (Optionnel)
 
-### Ajouter un Membre de l'Équipe
+ Ajouter un Membre de l'Équipe
 
-1. Aller à "Settings" → "Team"
-2. Cliquer "Invite User"
-3. Entrer l'email: `john@votreentreprise.com`
-4. Sélectionner le rôle:
-   ```
-   - Admin: Accès complet
-   - Risk Manager: Créer/modifier risques
+. Aller à "Settings" → "Team"
+. Cliquer "Invite User"
+. Entrer l'email: john@votreentreprise.com
+. S�lectionner le r�le:
+   
+   - Admin: Acc�s complet
+   - Risk Manager: Cr�er/modifier risques
    - Analyst: Voir & commenter
    - Viewer: Lecture seule
-   ```
-5. Cliquer "Send Invite"
+   
+. Cliquer "Send Invite"
 
 L'utilisateur recevra un email d'invitation!
 
 ---
 
-## 🎯 Commandes Utiles
+  Commandes Utiles
 
-### Vérifier l'État
+ V�rifier l'État
 
-```bash
-# Est-ce que tout fonctionne?
+bash
+ Est-ce que tout fonctionne?
 docker compose ps
 
-# Voir les logs
+ Voir les logs
 docker compose logs backend
 docker compose logs frontend
 
-# Redémarrer les services
+ Red�marrer les services
 docker compose restart
-```
 
-### Arrêter / Redémarrer
 
-```bash
-# Arrêter
+ Arrêter / Red�marrer
+
+bash
+ Arrêter
 docker compose down
 
-# Arrêter et effacer les données
+ Arrêter et effacer les donn�es
 docker compose down -v
 
-# Redémarrer
+ Red�marrer
 docker compose up -d
-```
 
-### Réinitialiser les Données de Test
 
-```bash
-# Effacer et recommencer zéro
+ R�initialiser les Donn�es de Test
+
+bash
+ Effacer et recommencer z�ro
 docker compose down -v
 docker compose up -d
-# Puis importer les données (Étape 4)
-```
+ Puis importer les donn�es (Étape )
+
 
 ---
 
-## 🚨 Troubleshooting
+  Troubleshooting
 
-### "Connection refused" sur localhost:5173
+ "Connection refused" sur localhost:
 
-```bash
-# Le frontend n'a pas démarré
-# Solution:
+bash
+ Le frontend n'a pas d�marr�
+ Solution:
 docker compose restart frontend
-docker compose logs frontend  # Voir l'erreur
+docker compose logs frontend   Voir l'erreur
 
-# Ou attendre 30 secondes, Docker est lent au premier démarrage
-```
+ Ou attendre  secondes, Docker est lent au premier d�marrage
 
-### "Database connection error"
 
-```bash
-# La base de données n'est pas prête
-# Solution:
-docker compose logs db  # Vérifier les logs
+ "Database connection error"
 
-# Ou:
+bash
+ La base de donn�es n'est pas prête
+ Solution:
+docker compose logs db   V�rifier les logs
+
+ Ou:
 docker compose down -v
 docker compose up -d
-```
 
-### "Can't login with admin@openrisk.local"
 
-```bash
-# Les credentials par défaut ne fonctionnent pas
-# Solution:
-# 1. Vérifier que le backend est bien démarré
+ "Can't login with admin@openrisk.local"
+
+bash
+ Les credentials par d�faut ne fonctionnent pas
+ Solution:
+ . V�rifier que le backend est bien d�marr�
 docker compose ps | grep backend
-# Doit être "UP"
+ Doit être "UP"
 
-# 2. Vérifier les migrations sont appliquées
+ . V�rifier les migrations sont appliqu�es
 docker compose logs backend | grep "migration"
 
-# 3. Réinitialiser complet
+ . R�initialiser complet
 docker compose down -v
 docker compose up -d
-# Attendre 30 secondes
+ Attendre  secondes
 
-# 4. Réessayer
-```
+ . R�essayer
 
-### Port 5173 déjà utilisé
 
-```bash
-# Un autre processus utilise le port
-# Solution:
+ Port  d�jà utilis�
 
-# Option 1: Chercher le processus
-lsof -i :5173
-kill -9 <PID>
+bash
+ Un autre processus utilise le port
+ Solution:
 
-# Option 2: Utiliser un autre port
+ Option : Chercher le processus
+lsof -i :
+kill - <PID>
+
+ Option : Utiliser un autre port
 docker compose down
-# Modifier docker-compose.yaml ligne frontend:
-#   ports:
-#     - "5174:5173"  # ← Changer 5173 en 5174
+ Modifier docker-compose.yaml ligne frontend:
+   ports:
+     - ":"   ← Changer  en 
 docker compose up -d
 
-# Accéder à http://localhost:5174
-```
+ Acc�der à http://localhost:
+
 
 ---
 
-## 📚 Prochaines Étapes
+ 📚 Prochaines Étapes
 
-### Pour Aller Plus Loin
+ Pour Aller Plus Loin
 
-1. **Lire les cas d'usage réels**: [USE_CASES.md](USE_CASES.md)
-2. **Explorer l'API complète**: [API_REFERENCE.md](API_REFERENCE.md)
-3. **Configurer SSO**: [SAML_OAUTH2_INTEGRATION.md](SAML_OAUTH2_INTEGRATION.md)
-4. **Déployer en Production**: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
-5. **Intégrer vos outils**: [SYNC_ENGINE.md](SYNC_ENGINE.md)
+. Lire les cas d'usage r�els: [USE_CASES.md](USE_CASES.md)
+. Explorer l'API compl�te: [API_REFERENCE.md](API_REFERENCE.md)
+. Configurer SSO: [SAML_OAUTH_INTEGRATION.md](SAML_OAUTH_INTEGRATION.md)
+. D�ployer en Production: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
+. Int�grer vos outils: [SYNC_ENGINE.md](SYNC_ENGINE.md)
 
-### Documentation Recommandée
+ Documentation Recommand�e
 
 | Doc | Pour Qui | Temps |
 |-----|----------|-------|
-| [USE_CASES.md](USE_CASES.md) | Découvrir la valeur réelle | 5 min |
-| [API_REFERENCE.md](API_REFERENCE.md) | Développeurs & API | 10 min |
-| [SAML_OAUTH2_INTEGRATION.md](SAML_OAUTH2_INTEGRATION.md) | IT & Admins | 15 min |
-| [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Contribuer au projet | 20 min |
+| [USE_CASES.md](USE_CASES.md) | D�couvrir la valeur r�elle |  min |
+| [API_REFERENCE.md](API_REFERENCE.md) | D�veloppeurs & API |  min |
+| [SAML_OAUTH_INTEGRATION.md](SAML_OAUTH_INTEGRATION.md) | IT & Admins |  min |
+| [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Contribuer au projet |  min |
 
 ---
 
-## ❓ Questions?
+ ❓ Questions?
 
-- 💬 **Chat**: [GitHub Discussions](https://github.com/alex-dembele/OpenRisk/discussions)
-- 🐛 **Bug**: [Ouvrir une Issue](https://github.com/alex-dembele/OpenRisk/issues)
-- 📖 **Docs**: [Voir tous les guides](./README.md)
+- 💬 Chat: [GitHub Discussions](https://github.com/alex-dembele/OpenRisk/discussions)
+- 🐛 Bug: [Ouvrir une Issue](https://github.com/alex-dembele/OpenRisk/issues)
+- 📖 Docs: [Voir tous les guides](./README.md)
 
 ---
 
-## 🎉 Bravo!
+  Bravo!
 
-Vous venez de mettre en place une **plateforme de gestion des risques complète** en 5 minutes!
+Vous venez de mettre en place une plateforme de gestion des risques compl�te en  minutes!
 
-**Prochaine étape?** → Lire [USE_CASES.md](USE_CASES.md) pour voir comment l'utiliser pour votre équipe 🚀
+Prochaine �tape? → Lire [USE_CASES.md](USE_CASES.md) pour voir comment l'utiliser pour votre �quipe 

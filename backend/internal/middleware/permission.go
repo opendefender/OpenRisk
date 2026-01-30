@@ -3,17 +3,17 @@ package middleware
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
 )
 
 // RequirePermissions middleware checks if the user has the required permission(s)
 // It should be used after the Auth middleware which sets the user context
-func RequirePermissions(ps *services.PermissionService, required ...domain.Permission) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func RequirePermissions(ps services.PermissionService, required ...domain.Permission) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// Get user claims from context (set by Auth middleware)
-		claims, ok := c.Locals("user").(*domain.UserClaims)
+		claims, ok := c.Locals("user").(domain.UserClaims)
 		if !ok {
 			return fiber.NewError(fiber.StatusUnauthorized, "user context not found")
 		}
@@ -30,7 +30,7 @@ func RequirePermissions(ps *services.PermissionService, required ...domain.Permi
 		if !hasPermission {
 			requiredStr := ""
 			for i, perm := range required {
-				if i > 0 {
+				if i >  {
 					requiredStr += " OR "
 				}
 				requiredStr += perm.String()
@@ -46,10 +46,10 @@ func RequirePermissions(ps *services.PermissionService, required ...domain.Permi
 }
 
 // RequireAllPermissions middleware checks if the user has ALL required permissions
-func RequireAllPermissions(ps *services.PermissionService, required ...domain.Permission) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func RequireAllPermissions(ps services.PermissionService, required ...domain.Permission) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// Get user claims from context
-		claims, ok := c.Locals("user").(*domain.UserClaims)
+		claims, ok := c.Locals("user").(domain.UserClaims)
 		if !ok {
 			return fiber.NewError(fiber.StatusUnauthorized, "user context not found")
 		}
@@ -58,7 +58,7 @@ func RequireAllPermissions(ps *services.PermissionService, required ...domain.Pe
 		if !ps.CheckPermissionAll(claims.ID.String(), claims.RoleName, required) {
 			requiredStr := ""
 			for i, perm := range required {
-				if i > 0 {
+				if i >  {
 					requiredStr += " AND "
 				}
 				requiredStr += perm.String()
@@ -75,10 +75,10 @@ func RequireAllPermissions(ps *services.PermissionService, required ...domain.Pe
 
 // RequireResourcePermission checks if the user has permission for a specific resource with context
 // This supports scope checking (own vs team vs any)
-func RequireResourcePermission(ps *services.PermissionService, resource domain.PermissionResource, action domain.PermissionAction) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func RequireResourcePermission(ps services.PermissionService, resource domain.PermissionResource, action domain.PermissionAction) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// Get user claims from context
-		claims, ok := c.Locals("user").(*domain.UserClaims)
+		claims, ok := c.Locals("user").(domain.UserClaims)
 		if !ok {
 			return fiber.NewError(fiber.StatusUnauthorized, "user context not found")
 		}
@@ -118,27 +118,27 @@ func RequireResourcePermission(ps *services.PermissionService, resource domain.P
 
 // PermissionMiddlewareFactory provides middleware functions for permission checking
 type PermissionMiddlewareFactory struct {
-	permissionService *services.PermissionService
+	permissionService services.PermissionService
 }
 
 // NewPermissionMiddlewareFactory creates a new permission middleware factory
-func NewPermissionMiddlewareFactory(ps *services.PermissionService) *PermissionMiddlewareFactory {
+func NewPermissionMiddlewareFactory(ps services.PermissionService) PermissionMiddlewareFactory {
 	return &PermissionMiddlewareFactory{
 		permissionService: ps,
 	}
 }
 
 // CreatePermissionMiddleware creates a middleware that requires specific permissions
-func (pmf *PermissionMiddlewareFactory) CreatePermissionMiddleware(required ...domain.Permission) fiber.Handler {
+func (pmf PermissionMiddlewareFactory) CreatePermissionMiddleware(required ...domain.Permission) fiber.Handler {
 	return RequirePermissions(pmf.permissionService, required...)
 }
 
 // CreateAllPermissionsMiddleware creates a middleware that requires all permissions
-func (pmf *PermissionMiddlewareFactory) CreateAllPermissionsMiddleware(required ...domain.Permission) fiber.Handler {
+func (pmf PermissionMiddlewareFactory) CreateAllPermissionsMiddleware(required ...domain.Permission) fiber.Handler {
 	return RequireAllPermissions(pmf.permissionService, required...)
 }
 
 // CreateResourcePermissionMiddleware creates a middleware for resource-specific permissions
-func (pmf *PermissionMiddlewareFactory) CreateResourcePermissionMiddleware(resource domain.PermissionResource, action domain.PermissionAction) fiber.Handler {
+func (pmf PermissionMiddlewareFactory) CreateResourcePermissionMiddleware(resource domain.PermissionResource, action domain.PermissionAction) fiber.Handler {
 	return RequireResourcePermission(pmf.permissionService, resource, action)
 }

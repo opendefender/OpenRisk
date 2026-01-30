@@ -1,161 +1,161 @@
-# SAML/OAuth2 Enterprise SSO Integration Guide
+ SAML/OAuth Enterprise SSO Integration Guide
 
-## Overview
+ Overview
 
 This guide covers integrating OpenRisk with enterprise authentication providers using:
 
-- **OAuth2**: For modern SaaS applications (Google, GitHub, Microsoft, etc.)
-- **SAML2**: For enterprise directory services (Active Directory, Okta, etc.)
+- OAuth: For modern SaaS applications (Google, GitHub, Microsoft, etc.)
+- SAML: For enterprise directory services (Active Directory, Okta, etc.)
 
-## Architecture
+ Architecture
 
-```
-┌──────────────┐
-│  User        │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────────────────┐
-│  OpenRisk Frontend       │
-└──────┬───────────────────┘
-       │
-       ├─→ /api/auth/oauth2/login
-       ├─→ /api/auth/saml/login
-       │
-       ▼
-┌──────────────────────────┐         ┌──────────────────┐
-│  OpenRisk Backend        │◄────────►  Identity Provider  │
-│  (Auth Handler)          │         (OAuth2/SAML Provider)
-└──────┬───────────────────┘         └──────────────────┘
-       │
-       ├─→ Create/Update User
-       ├─→ Assign Role
-       ├─→ Generate JWT
-       │
-       ▼
-┌──────────────────────────┐
-│  Database                │
-│  (users, roles, tokens)  │
-└──────────────────────────┘
-```
 
-## Supported Providers
 
-### OAuth2
+  User        
+
+       
+       
+
+  OpenRisk Frontend       
+
+       
+       → /api/auth/oauth/login
+       → /api/auth/saml/login
+       
+       
+         
+  OpenRisk Backend          Identity Provider  
+  (Auth Handler)                   (OAuth/SAML Provider)
+         
+       
+       → Create/Update User
+       → Assign Role
+       → Generate JWT
+       
+       
+
+  Database                
+  (users, roles, tokens)  
+
+
+
+ Supported Providers
+
+ OAuth
 - Google
 - GitHub
 - Microsoft Azure AD
-- Auth0
+- Auth
 - Okta
-- Custom OAuth2 provider
+- Custom OAuth provider
 
-### SAML2
+ SAML
 - Okta
 - Azure AD
 - Active Directory (via ADFS)
 - OneLogin
 - Custom SAML provider
 
-## Implementation Plan
+ Implementation Plan
 
-### Phase 1: OAuth2 (Basic Support)
-- [ ] Google OAuth2
-- [ ] GitHub OAuth2
-- [ ] OAuth2 token validation
+ Phase : OAuth (Basic Support)
+- [ ] Google OAuth
+- [ ] GitHub OAuth
+- [ ] OAuth token validation
 - [ ] User provisioning
 
-### Phase 2: SAML2 (Enterprise)
-- [ ] SAML2 metadata parsing
+ Phase : SAML (Enterprise)
+- [ ] SAML metadata parsing
 - [ ] Assertion validation
 - [ ] Attribute mapping
 - [ ] Group/Role mapping
 
-### Phase 3: Advanced (Multi-tenant)
+ Phase : Advanced (Multi-tenant)
 - [ ] Per-tenant provider configuration
 - [ ] Federated identity management
 - [ ] Account linking
-- [ ] SAML2 encryption
+- [ ] SAML encryption
 
-## Configuration
+ Configuration
 
-### Environment Variables
+ Environment Variables
 
-```env
-# ============================================================================
-# OAuth2 Configuration
-# ============================================================================
+env
+ ============================================================================
+ OAuth Configuration
+ ============================================================================
 
-# Google OAuth2
-OAUTH2_GOOGLE_ENABLED=true
-OAUTH2_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-OAUTH2_GOOGLE_CLIENT_SECRET=your-client-secret
-OAUTH2_GOOGLE_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth2/google/callback
+ Google OAuth
+OAUTH_GOOGLE_ENABLED=true
+OAUTH_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+OAUTH_GOOGLE_CLIENT_SECRET=your-client-secret
+OAUTH_GOOGLE_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth/google/callback
 
-# GitHub OAuth2
-OAUTH2_GITHUB_ENABLED=true
-OAUTH2_GITHUB_CLIENT_ID=your-github-client-id
-OAUTH2_GITHUB_CLIENT_SECRET=your-github-secret
-OAUTH2_GITHUB_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth2/github/callback
+ GitHub OAuth
+OAUTH_GITHUB_ENABLED=true
+OAUTH_GITHUB_CLIENT_ID=your-github-client-id
+OAUTH_GITHUB_CLIENT_SECRET=your-github-secret
+OAUTH_GITHUB_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth/github/callback
 
-# Microsoft Azure AD
-OAUTH2_AZURE_ENABLED=true
-OAUTH2_AZURE_TENANT_ID=your-tenant-id
-OAUTH2_AZURE_CLIENT_ID=your-client-id
-OAUTH2_AZURE_CLIENT_SECRET=your-client-secret
-OAUTH2_AZURE_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth2/azure/callback
+ Microsoft Azure AD
+OAUTH_AZURE_ENABLED=true
+OAUTH_AZURE_TENANT_ID=your-tenant-id
+OAUTH_AZURE_CLIENT_ID=your-client-id
+OAUTH_AZURE_CLIENT_SECRET=your-client-secret
+OAUTH_AZURE_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth/azure/callback
 
-# Custom OAuth2 Provider
-OAUTH2_CUSTOM_ENABLED=false
-OAUTH2_CUSTOM_AUTHORIZE_URL=https://provider.com/oauth/authorize
-OAUTH2_CUSTOM_TOKEN_URL=https://provider.com/oauth/token
-OAUTH2_CUSTOM_USERINFO_URL=https://provider.com/oauth/userinfo
-OAUTH2_CUSTOM_CLIENT_ID=your-client-id
-OAUTH2_CUSTOM_CLIENT_SECRET=your-client-secret
+ Custom OAuth Provider
+OAUTH_CUSTOM_ENABLED=false
+OAUTH_CUSTOM_AUTHORIZE_URL=https://provider.com/oauth/authorize
+OAUTH_CUSTOM_TOKEN_URL=https://provider.com/oauth/token
+OAUTH_CUSTOM_USERINFO_URL=https://provider.com/oauth/userinfo
+OAUTH_CUSTOM_CLIENT_ID=your-client-id
+OAUTH_CUSTOM_CLIENT_SECRET=your-client-secret
 
-# ============================================================================
-# SAML2 Configuration
-# ============================================================================
+ ============================================================================
+ SAML Configuration
+ ============================================================================
 
-# Okta SAML2
-SAML2_ENABLED=true
-SAML2_PROVIDER=okta
-SAML2_IDP_URL=https://your-org.okta.com
-SAML2_IDP_CERT_PATH=/etc/openrisk/saml/idp-cert.pem
-SAML2_SP_ENTITY_ID=openrisk-saml-sp
-SAML2_ACS_URL=https://openrisk.yourdomain.com/api/auth/saml/acs
+ Okta SAML
+SAML_ENABLED=true
+SAML_PROVIDER=okta
+SAML_IDP_URL=https://your-org.okta.com
+SAML_IDP_CERT_PATH=/etc/openrisk/saml/idp-cert.pem
+SAML_SP_ENTITY_ID=openrisk-saml-sp
+SAML_ACS_URL=https://openrisk.yourdomain.com/api/auth/saml/acs
 
-# SAML2 Attribute Mapping
-SAML2_ATTR_EMAIL=email
-SAML2_ATTR_NAME=displayName
-SAML2_ATTR_GROUPS=memberOf
+ SAML Attribute Mapping
+SAML_ATTR_EMAIL=email
+SAML_ATTR_NAME=displayName
+SAML_ATTR_GROUPS=memberOf
 
-# ============================================================================
-# User Provisioning
-# ============================================================================
+ ============================================================================
+ User Provisioning
+ ============================================================================
 
-# Default role for new users (viewer, analyst, admin)
+ Default role for new users (viewer, analyst, admin)
 SSO_DEFAULT_ROLE=viewer
 
-# Auto-create users from SSO provider
+ Auto-create users from SSO provider
 SSO_AUTO_PROVISION=true
 
-# Auto-update user info from provider
+ Auto-update user info from provider
 SSO_AUTO_UPDATE_PROFILE=true
 
-# Map provider groups to OpenRisk roles
+ Map provider groups to OpenRisk roles
 SSO_GROUP_ROLE_MAPPING={
   "admin-group": "admin",
   "analyst-group": "analyst",
   "viewer-group": "viewer"
 }
-```
 
-## Implementation Examples
 
-### OAuth2 Handler
+ Implementation Examples
 
-```go
-// backend/internal/handlers/oauth2_handler.go
+ OAuth Handler
+
+go
+// backend/internal/handlers/oauth_handler.go
 package handlers
 
 import (
@@ -165,29 +165,29 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/gofiber/fiber/v"
+	"github.com/golang-jwt/jwt/v"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/services"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth"
+	"golang.org/x/oauth/google"
 )
 
-// OAuth2Config holds OAuth2 provider configuration
-type OAuth2Config struct {
-	GoogleConfig *oauth2.Config
-	GitHubConfig *oauth2.Config
-	AzureConfig  *oauth2.Config
+// OAuthConfig holds OAuth provider configuration
+type OAuthConfig struct {
+	GoogleConfig oauth.Config
+	GitHubConfig oauth.Config
+	AzureConfig  oauth.Config
 }
 
-// InitializeOAuth2 initializes OAuth2 configurations
-func InitializeOAuth2() *OAuth2Config {
-	return &OAuth2Config{
-		GoogleConfig: &oauth2.Config{
-			ClientID:     getEnv("OAUTH2_GOOGLE_CLIENT_ID", ""),
-			ClientSecret: getEnv("OAUTH2_GOOGLE_CLIENT_SECRET", ""),
+// InitializeOAuth initializes OAuth configurations
+func InitializeOAuth() OAuthConfig {
+	return &OAuthConfig{
+		GoogleConfig: &oauth.Config{
+			ClientID:     getEnv("OAUTH_GOOGLE_CLIENT_ID", ""),
+			ClientSecret: getEnv("OAUTH_GOOGLE_CLIENT_SECRET", ""),
 			Scopes: []string{
 				"https://www.googleapis.com/auth/userinfo.email",
 				"https://www.googleapis.com/auth/userinfo.profile",
@@ -197,8 +197,8 @@ func InitializeOAuth2() *OAuth2Config {
 	}
 }
 
-// OAuth2Callback handles the OAuth2 callback from provider
-func OAuth2Callback(c *fiber.Ctx) error {
+// OAuthCallback handles the OAuth callback from provider
+func OAuthCallback(c fiber.Ctx) error {
 	provider := c.Params("provider") // google, github, azure
 	code := c.Query("code")
 	state := c.Query("state")
@@ -210,14 +210,14 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	}
 
 	// Verify state (CSRF protection)
-	if !verifyOAuth2State(state) {
+	if !verifyOAuthState(state) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid state parameter",
 		})
 	}
 
 	// Exchange code for token
-	token, err := exchangeOAuth2Token(provider, code)
+	token, err := exchangeOAuthToken(provider, code)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to exchange token: %v", err),
@@ -225,7 +225,7 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	}
 
 	// Get user info from provider
-	userInfo, err := getOAuth2UserInfo(provider, token)
+	userInfo, err := getOAuthUserInfo(provider, token)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to get user info: %v", err),
@@ -241,7 +241,7 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	}
 
 	// Generate JWT
-	authService := services.NewAuthService(getEnv("JWT_SECRET", ""), 24*time.Hour)
+	authService := services.NewAuthService(getEnv("JWT_SECRET", ""), time.Hour)
 	jwtToken, err := authService.GenerateToken(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -263,8 +263,8 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	return c.Redirect(redirectURL)
 }
 
-// OAuth2UserInfo represents user info from OAuth2 provider
-type OAuth2UserInfo struct {
+// OAuthUserInfo represents user info from OAuth provider
+type OAuthUserInfo struct {
 	ID    string
 	Email string
 	Name  string
@@ -272,8 +272,8 @@ type OAuth2UserInfo struct {
 	Groups []string
 }
 
-// provisionUser finds or creates a user from OAuth2 info
-func provisionUser(userInfo *OAuth2UserInfo, provider string) (*domain.User, error) {
+// provisionUser finds or creates a user from OAuth info
+func provisionUser(userInfo OAuthUserInfo, provider string) (domain.User, error) {
 	user := &domain.User{}
 
 	// Find existing user by email
@@ -316,51 +316,51 @@ func provisionUser(userInfo *OAuth2UserInfo, provider string) (*domain.User, err
 	return user, nil
 }
 
-func exchangeOAuth2Token(provider, code string) (*oauth2.Token, error) {
+func exchangeOAuthToken(provider, code string) (oauth.Token, error) {
 	// Implementation depends on provider
 	// For Google:
-	cfg := InitializeOAuth2()
+	cfg := InitializeOAuth()
 	ctx := context.Background()
 	return cfg.GoogleConfig.Exchange(ctx, code)
 }
 
-func getOAuth2UserInfo(provider string, token *oauth2.Token) (*OAuth2UserInfo, error) {
+func getOAuthUserInfo(provider string, token oauth.Token) (OAuthUserInfo, error) {
 	// Call provider's userinfo endpoint
 	// Example for Google:
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	resp, err := http.Get("https://www.googleapis.com/oauth/v/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var userInfo OAuth2UserInfo
+	var userInfo OAuthUserInfo
 	json.NewDecoder(resp.Body).Decode(&userInfo)
 
 	return &userInfo, nil
 }
 
-func verifyOAuth2State(state string) bool {
+func verifyOAuthState(state string) bool {
 	// Verify state matches what was stored in session
 	// This is CSRF protection
 	return true // Implement proper state validation
 }
-```
 
-### SAML2 Handler
 
-```go
-// backend/internal/handlers/saml2_handler.go
+ SAML Handler
+
+go
+// backend/internal/handlers/saml_handler.go
 package handlers
 
 import (
 	"github.com/crewjam/saml/samlsp"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 )
 
-// SAML2InitiateLogin initiates SAML2 login
-func SAML2InitiateLogin(c *fiber.Ctx) error {
-	// Initialize SAML2 service provider
-	sp := initSAML2SP()
+// SAMLInitiateLogin initiates SAML login
+func SAMLInitiateLogin(c fiber.Ctx) error {
+	// Initialize SAML service provider
+	sp := initSAMLSP()
 
 	// Generate authentication request
 	authRequest := sp.AuthnRequest()
@@ -369,9 +369,9 @@ func SAML2InitiateLogin(c *fiber.Ctx) error {
 	return c.Redirect(redirectURL)
 }
 
-// SAML2ACS handles the SAML2 Assertion Consumer Service callback
-func SAML2ACS(c *fiber.Ctx) error {
-	sp := initSAML2SP()
+// SAMLACS handles the SAML Assertion Consumer Service callback
+func SAMLACS(c fiber.Ctx) error {
+	sp := initSAMLSP()
 
 	// Parse SAML assertion
 	assertion, err := sp.ParseResponse(c.Body(), nil)
@@ -383,9 +383,9 @@ func SAML2ACS(c *fiber.Ctx) error {
 
 	// Extract user attributes
 	email := assertion.NameID.Value
-	attributes := assertion.AttributeStatements[0].Attributes
+	attributes := assertion.AttributeStatements[].Attributes
 
-	userInfo := &OAuth2UserInfo{
+	userInfo := &OAuthUserInfo{
 		Email: email,
 		Name:  getAttribute(attributes, "displayName"),
 	}
@@ -408,7 +408,7 @@ func SAML2ACS(c *fiber.Ctx) error {
 	}
 
 	// Generate JWT
-	authService := services.NewAuthService(getEnv("JWT_SECRET", ""), 24*time.Hour)
+	authService := services.NewAuthService(getEnv("JWT_SECRET", ""), time.Hour)
 	jwtToken, err := authService.GenerateToken(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -426,19 +426,19 @@ func SAML2ACS(c *fiber.Ctx) error {
 	})
 }
 
-func initSAML2SP() *samlsp.ServiceProvider {
+func initSAMLSP() samlsp.ServiceProvider {
 	// Load IdP certificate
-	idpCert, _ := ioutil.ReadFile(getEnv("SAML2_IDP_CERT_PATH", ""))
+	idpCert, _ := ioutil.ReadFile(getEnv("SAML_IDP_CERT_PATH", ""))
 
 	// Create service provider
 	sp := &samlsp.ServiceProvider{
-		EntityID: getEnv("SAML2_SP_ENTITY_ID", "openrisk-saml-sp"),
+		EntityID: getEnv("SAML_SP_ENTITY_ID", "openrisk-saml-sp"),
 		ACSURL: url.URL{
 			Scheme: "https",
-			Host:   getEnv("SAML2_ACS_URL", "openrisk.yourdomain.com"),
+			Host:   getEnv("SAML_ACS_URL", "openrisk.yourdomain.com"),
 			Path:   "/api/auth/saml/acs",
 		},
-		IDPMetadataURL: getEnv("SAML2_IDP_URL", ""),
+		IDPMetadataURL: getEnv("SAML_IDP_URL", ""),
 	}
 
 	return sp
@@ -446,15 +446,15 @@ func initSAML2SP() *samlsp.ServiceProvider {
 
 func getAttribute(attributes []saml.Attribute, name string) string {
 	for _, attr := range attributes {
-		if attr.Name == name && len(attr.Values) > 0 {
-			return attr.Values[0].Value
+		if attr.Name == name && len(attr.Values) >  {
+			return attr.Values[].Value
 		}
 	}
 	return ""
 }
 
-func provisionUserWithGroups(userInfo *OAuth2UserInfo, groups []string) (*domain.User, error) {
-	user, err := provisionUser(userInfo, "saml2")
+func provisionUserWithGroups(userInfo OAuthUserInfo, groups []string) (domain.User, error) {
+	user, err := provisionUser(userInfo, "saml")
 	if err != nil {
 		return nil, err
 	}
@@ -472,24 +472,24 @@ func mapGroupsToRole(groups []string) uuid.UUID {
 	for _, group := range groups {
 		if group == "openrisk-admin" {
 			// Return admin role ID
-			return uuid.MustParse("00000000-0000-0000-0000-000000000001")
+			return uuid.MustParse("----")
 		}
 		if group == "openrisk-analyst" {
 			// Return analyst role ID
-			return uuid.MustParse("00000000-0000-0000-0000-000000000002")
+			return uuid.MustParse("----")
 		}
 	}
 
 	// Default to viewer role
-	return uuid.MustParse("00000000-0000-0000-0000-000000000003")
+	return uuid.MustParse("----")
 }
-```
 
-## Frontend Integration
 
-### Login Page with SSO Options
+ Frontend Integration
 
-```tsx
+ Login Page with SSO Options
+
+tsx
 // frontend/src/pages/LoginWithSSO.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -498,125 +498,125 @@ export function LoginWithSSO() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleOAuth2Login = (provider: string) => {
+  const handleOAuthLogin = (provider: string) => {
     setIsLoading(true);
     
     // Generate state for CSRF protection
     const state = crypto.randomUUID();
-    sessionStorage.setItem('oauth2_state', state);
+    sessionStorage.setItem('oauth_state', state);
 
-    // Redirect to backend OAuth2 login endpoint
+    // Redirect to backend OAuth login endpoint
     window.location.href = 
-      `${import.meta.env.VITE_API_URL}/auth/oauth2/${provider}/login?state=${state}`;
+      ${import.meta.env.VITE_API_URL}/auth/oauth/${provider}/login?state=${state};
   };
 
-  const handleSAML2Login = () => {
+  const handleSAMLLogin = () => {
     setIsLoading(true);
     
-    // Redirect to backend SAML2 login endpoint
+    // Redirect to backend SAML login endpoint
     window.location.href = 
-      `${import.meta.env.VITE_API_URL}/auth/saml/login`;
+      ${import.meta.env.VITE_API_URL}/auth/saml/login;
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="w-full max-w-md p-8 bg-zinc-900 rounded-lg border border-zinc-800">
-        <h1 className="text-2xl font-bold text-white mb-8">Sign In to OpenRisk</h1>
+    <div className="min-h-screen bg-zinc- flex items-center justify-center">
+      <div className="w-full max-w-md p- bg-zinc- rounded-lg border border-zinc-">
+        <h className="text-xl font-bold text-white mb-">Sign In to OpenRisk</h>
 
-        {/* Email/Password Login */}
-        <div className="mb-6">
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">
+        {/ Email/Password Login /}
+        <div className="mb-">
+          <button className="w-full bg-blue- hover:bg-blue- text-white py- rounded">
             Sign in with Email
           </button>
         </div>
 
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-700"></div>
+        <div className="relative mb-">
+          <div className="absolute inset- flex items-center">
+            <div className="w-full border-t border-zinc-"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-zinc-900 text-zinc-400">Or continue with</span>
+            <span className="px- bg-zinc- text-zinc-">Or continue with</span>
           </div>
         </div>
 
-        {/* OAuth2 Providers */}
-        <div className="space-y-3 mb-6">
+        {/ OAuth Providers /}
+        <div className="space-y- mb-">
           <button
-            onClick={() => handleOAuth2Login('google')}
+            onClick={() => handleOAuthLogin('google')}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 bg-white text-black py-2 rounded hover:bg-gray-100 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap- bg-white text-black py- rounded hover:bg-gray- disabled:opacity-"
           >
-            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w- h-" />
             Google
           </button>
 
           <button
-            onClick={() => handleOAuth2Login('github')}
+            onClick={() => handleOAuthLogin('github')}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 bg-zinc-800 text-white py-2 rounded hover:bg-zinc-700 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap- bg-zinc- text-white py- rounded hover:bg-zinc- disabled:opacity-"
           >
             <span>GitHub</span>
           </button>
 
           <button
-            onClick={() => handleOAuth2Login('azure')}
+            onClick={() => handleOAuthLogin('azure')}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap- bg-blue- text-white py- rounded hover:bg-blue- disabled:opacity-"
           >
             <span>Microsoft</span>
           </button>
         </div>
 
-        {/* Enterprise SAML2 */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-700"></div>
+        {/ Enterprise SAML /}
+        <div className="relative mb-">
+          <div className="absolute inset- flex items-center">
+            <div className="w-full border-t border-zinc-"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-zinc-900 text-zinc-400">Enterprise</span>
+            <span className="px- bg-zinc- text-zinc-">Enterprise</span>
           </div>
         </div>
 
         <button
-          onClick={handleSAML2Login}
+          onClick={handleSAMLLogin}
           disabled={isLoading}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded disabled:opacity-50"
+          className="w-full bg-purple- hover:bg-purple- text-white py- rounded disabled:opacity-"
         >
           Enterprise SAML Login
         </button>
 
-        <p className="text-center text-zinc-400 text-sm mt-4">
+        <p className="text-center text-zinc- text-sm mt-">
           Don't have an account? Contact your administrator.
         </p>
       </div>
     </div>
   );
 }
-```
 
-## Router Configuration
 
-```go
-// backend/cmd/server/main.go (relevant OAuth2/SAML2 routes)
+ Router Configuration
 
-// OAuth2 routes
-oauth2Handler := handlers.NewOAuth2Handler(authService, permissionService)
-api.Get("/auth/oauth2/:provider/login", oauth2Handler.InitiateLogin)
-api.Get("/auth/oauth2/:provider/callback", oauth2Handler.Callback)
+go
+// backend/cmd/server/main.go (relevant OAuth/SAML routes)
 
-// SAML2 routes
-saml2Handler := handlers.NewSAML2Handler(authService, permissionService)
-api.Get("/auth/saml/login", saml2Handler.InitiateLogin)
-api.Post("/auth/saml/acs", saml2Handler.ACS)
-api.Get("/auth/saml/metadata", saml2Handler.Metadata)
-```
+// OAuth routes
+oauthHandler := handlers.NewOAuthHandler(authService, permissionService)
+api.Get("/auth/oauth/:provider/login", oauthHandler.InitiateLogin)
+api.Get("/auth/oauth/:provider/callback", oauthHandler.Callback)
 
-## Testing OAuth2/SAML2
+// SAML routes
+samlHandler := handlers.NewSAMLHandler(authService, permissionService)
+api.Get("/auth/saml/login", samlHandler.InitiateLogin)
+api.Post("/auth/saml/acs", samlHandler.ACS)
+api.Get("/auth/saml/metadata", samlHandler.Metadata)
 
-### Mock OAuth2 Provider
 
-```go
-// backend/internal/handlers/oauth2_mock.go
+ Testing OAuth/SAML
+
+ Mock OAuth Provider
+
+go
+// backend/internal/handlers/oauth_mock.go
 package handlers
 
 import (
@@ -625,40 +625,40 @@ import (
 	"net/http"
 )
 
-// MockOAuth2Server simulates an OAuth2 provider for testing
-type MockOAuth2Server struct {
-	server *http.Server
+// MockOAuthServer simulates an OAuth provider for testing
+type MockOAuthServer struct {
+	server http.Server
 }
 
-func NewMockOAuth2Server() *MockOAuth2Server {
+func NewMockOAuthServer() MockOAuthServer {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/oauth/authorize", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/oauth/authorize", func(w http.ResponseWriter, r http.Request) {
 		clientID := r.URL.Query().Get("client_id")
 		redirectURI := r.URL.Query().Get("redirect_uri")
 		state := r.URL.Query().Get("state")
 
 		// Redirect back with authorization code
 		http.Redirect(w, r, fmt.Sprintf(
-			"%s?code=mock_code_123&state=%s",
+			"%s?code=mock_code_&state=%s",
 			redirectURI,
 			state,
 		), http.StatusFound)
 	})
 
-	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token": "mock_access_token",
 			"token_type":   "Bearer",
-			"expires_in":   3600,
+			"expires_in":   ,
 		})
 	})
 
-	mux.HandleFunc("/oauth/userinfo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/oauth/userinfo", func(w http.ResponseWriter, r http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":       "mock_user_123",
+			"id":       "mock_user_",
 			"email":    "test@example.com",
 			"name":     "Test User",
 			"picture":  "https://example.com/avatar.jpg",
@@ -666,26 +666,26 @@ func NewMockOAuth2Server() *MockOAuth2Server {
 	})
 
 	server := &http.Server{
-		Addr:    ":8888",
+		Addr:    ":",
 		Handler: mux,
 	}
 
-	return &MockOAuth2Server{server: server}
+	return &MockOAuthServer{server: server}
 }
 
-func (m *MockOAuth2Server) Start() error {
+func (m MockOAuthServer) Start() error {
 	return m.server.ListenAndServe()
 }
 
-func (m *MockOAuth2Server) Stop() error {
+func (m MockOAuthServer) Stop() error {
 	return m.server.Close()
 }
-```
 
-### Test Cases
 
-```go
-// backend/internal/handlers/oauth2_handler_test.go
+ Test Cases
+
+go
+// backend/internal/handlers/oauth_handler_test.go
 package handlers
 
 import (
@@ -694,9 +694,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOAuth2GoogleCallback_Success(t *testing.T) {
-	// Setup mock OAuth2 server
-	mockServer := NewMockOAuth2Server()
+func TestOAuthGoogleCallback_Success(t testing.T) {
+	// Setup mock OAuth server
+	mockServer := NewMockOAuthServer()
 	go mockServer.Start()
 	defer mockServer.Stop()
 
@@ -704,27 +704,27 @@ func TestOAuth2GoogleCallback_Success(t *testing.T) {
 	// ... test implementation
 }
 
-func TestOAuth2Callback_InvalidState(t *testing.T) {
+func TestOAuthCallback_InvalidState(t testing.T) {
 	// Test CSRF protection
 	// ... test implementation
 }
 
-func TestSAML2ACS_ValidAssertion(t *testing.T) {
-	// Test SAML2 assertion processing
+func TestSAMLACS_ValidAssertion(t testing.T) {
+	// Test SAML assertion processing
 	// ... test implementation
 }
 
-func TestGroupToRoleMapping(t *testing.T) {
+func TestGroupToRoleMapping(t testing.T) {
 	groups := []string{"openrisk-admin", "developers"}
 	roleID := mapGroupsToRole(groups)
 	assert.NotNil(t, roleID)
 }
-```
 
-## Deployment Checklist
 
-- [ ] OAuth2 credentials obtained from providers
-- [ ] SAML2 IdP metadata downloaded
+ Deployment Checklist
+
+- [ ] OAuth credentials obtained from providers
+- [ ] SAML IdP metadata downloaded
 - [ ] Certificates configured and validated
 - [ ] Callback URLs configured in providers
 - [ ] Environment variables set in deployment
@@ -736,18 +736,18 @@ func TestGroupToRoleMapping(t *testing.T) {
 - [ ] Audit logging enabled
 - [ ] Documentation updated
 
-## Security Considerations
+ Security Considerations
 
-1. **State Parameter**: Always verify state to prevent CSRF attacks
-2. **Token Storage**: Store JWTs securely (httpOnly cookies preferred)
-3. **Encrypted Transport**: Always use HTTPS/TLS
-4. **Certificate Validation**: Verify SAML2 IdP certificates
-5. **Assertion Signature**: Always validate SAML2 assertion signatures
-6. **Audience Restriction**: Verify assertion intended for your service
-7. **Not On/Not Before**: Check SAML2 time constraints
-8. **Session Management**: Implement proper session timeout and revocation
+. State Parameter: Always verify state to prevent CSRF attacks
+. Token Storage: Store JWTs securely (httpOnly cookies preferred)
+. Encrypted Transport: Always use HTTPS/TLS
+. Certificate Validation: Verify SAML IdP certificates
+. Assertion Signature: Always validate SAML assertion signatures
+. Audience Restriction: Verify assertion intended for your service
+. Not On/Not Before: Check SAML time constraints
+. Session Management: Implement proper session timeout and revocation
 
-## Troubleshooting
+ Troubleshooting
 
 | Error | Cause | Solution |
 |-------|-------|----------|
@@ -759,7 +759,7 @@ func TestGroupToRoleMapping(t *testing.T) {
 
 ---
 
-**Next Steps**:
-- Integrate with Okta: `docs/OKTA_INTEGRATION.md`
-- Integrate with Azure AD: `docs/AZURE_AD_INTEGRATION.md`
-- Multi-tenant SAML: `docs/MULTI_TENANT_SAML.md`
+Next Steps:
+- Integrate with Okta: docs/OKTA_INTEGRATION.md
+- Integrate with Azure AD: docs/AZURE_AD_INTEGRATION.md
+- Multi-tenant SAML: docs/MULTI_TENANT_SAML.md

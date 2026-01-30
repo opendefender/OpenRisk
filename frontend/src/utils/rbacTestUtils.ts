@@ -1,18 +1,18 @@
-/**
- * RBAC Testing Utilities
- * Helper functions for testing RBAC components and logic
- */
+/
+  RBAC Testing Utilities
+  Helper functions for testing RBAC components and logic
+ /
 
 import { ROLE_TEMPLATES } from '../config/rbacConfig';
 import type { User } from '../store/authStore';
 import type { RoleTemplate } from './roleTemplateUtils';
 
-/**
- * Create mock user for testing
- */
+/
+  Create mock user for testing
+ /
 export const createMockUser = (overrides?: Partial<User>): User => {
   return {
-    id: 'user-123',
+    id: 'user-',
     email: 'test@example.com',
     name: 'Test User',
     role: 'Analyst',
@@ -21,13 +21,13 @@ export const createMockUser = (overrides?: Partial<User>): User => {
   };
 };
 
-/**
- * Create mock admin user
- */
+/
+  Create mock admin user
+ /
 export const createMockAdminUser = (overrides?: Partial<User>): User => {
   const adminTemplate = ROLE_TEMPLATES.ADMIN as RoleTemplate;
   return {
-    id: 'admin-123',
+    id: 'admin-',
     email: 'admin@example.com',
     name: 'Admin User',
     role: 'Administrator',
@@ -36,13 +36,13 @@ export const createMockAdminUser = (overrides?: Partial<User>): User => {
   };
 };
 
-/**
- * Create mock viewer user
- */
+/
+  Create mock viewer user
+ /
 export const createMockViewerUser = (overrides?: Partial<User>): User => {
   const viewerTemplate = ROLE_TEMPLATES.VIEWER as RoleTemplate;
   return {
-    id: 'viewer-123',
+    id: 'viewer-',
     email: 'viewer@example.com',
     name: 'Viewer User',
     role: 'Viewer',
@@ -51,38 +51,38 @@ export const createMockViewerUser = (overrides?: Partial<User>): User => {
   };
 };
 
-/**
- * Create users with different roles for testing
- */
+/
+  Create users with different roles for testing
+ /
 export const createUsersByRoles = (roles?: string[]): User[] => {
   const rolesArray = roles || ['Viewer', 'Analyst', 'Manager', 'Administrator'];
   return rolesArray.map((role, index) => {
     const template = Object.values(ROLE_TEMPLATES).find((t) => (t as RoleTemplate).name === role) as RoleTemplate;
     return {
-      id: `user-${index}`,
-      email: `${role.toLowerCase()}@example.com`,
-      name: `${role} User`,
+      id: user-${index},
+      email: ${role.toLowerCase()}@example.com,
+      name: ${role} User,
       role,
       permissions: template?.permissions || [],
     };
   });
 };
 
-/**
- * Generate random permission
- */
+/
+  Generate random permission
+ /
 export const generateRandomPermission = (): string => {
   const resources = ['users', 'roles', 'tenants', 'dashboards', 'audit-logs'];
   const actions = ['read', 'create', 'update', 'delete', 'manage'];
-  const resource = resources[Math.floor(Math.random() * resources.length)];
-  const action = actions[Math.floor(Math.random() * actions.length)];
-  return `${resource}:${action}`;
+  const resource = resources[Math.floor(Math.random()  resources.length)];
+  const action = actions[Math.floor(Math.random()  actions.length)];
+  return ${resource}:${action};
 };
 
-/**
- * Generate multiple random permissions
- */
-export const generateRandomPermissions = (count: number = 5): string[] => {
+/
+  Generate multiple random permissions
+ /
+export const generateRandomPermissions = (count: number = ): string[] => {
   const permissions = new Set<string>();
   while (permissions.size < count) {
     permissions.add(generateRandomPermission());
@@ -90,9 +90,9 @@ export const generateRandomPermissions = (count: number = 5): string[] => {
   return Array.from(permissions);
 };
 
-/**
- * Mock audit log entry
- */
+/
+  Mock audit log entry
+ /
 export interface MockAuditEntry {
   id: string;
   userId: string;
@@ -102,31 +102,31 @@ export interface MockAuditEntry {
   timestamp: Date;
 }
 
-/**
- * Create mock audit log entry
- */
+/
+  Create mock audit log entry
+ /
 export const createMockAuditEntry = (overrides?: Partial<MockAuditEntry>): MockAuditEntry => {
   return {
-    id: `audit-${Date.now()}`,
-    userId: 'user-123',
+    id: audit-${Date.now()},
+    userId: 'user-',
     action: 'check',
     permission: generateRandomPermission(),
-    allowed: Math.random() > 0.1, // 90% success rate
+    allowed: Math.random() > ., // % success rate
     timestamp: new Date(),
     ...overrides,
   };
 };
 
-/**
- * Create mock audit log entries
- */
-export const createMockAuditLog = (count: number = 10): MockAuditEntry[] => {
+/
+  Create mock audit log entries
+ /
+export const createMockAuditLog = (count: number = ): MockAuditEntry[] => {
   return Array.from({ length: count }, () => createMockAuditEntry());
 };
 
-/**
- * Test permission matching
- */
+/
+  Test permission matching
+ /
 export const testPermissionMatching = (
   userPermissions: string[],
   requiredPermission: string
@@ -135,11 +135,11 @@ export const testPermissionMatching = (
     // Exact match
     if (perm === requiredPermission) return true;
     // Wildcard matches
-    if (perm === '*') return true;
+    if (perm === '') return true;
     const [userRes, userAct] = perm.split(':');
     const [reqRes, reqAct] = requiredPermission.split(':');
-    if (userAct === '*' && userRes === reqRes) return true;
-    if (userRes === '*' && userAct === reqAct) return true;
+    if (userAct === '' && userRes === reqRes) return true;
+    if (userRes === '' && userAct === reqAct) return true;
     return false;
   });
 
@@ -149,9 +149,9 @@ export const testPermissionMatching = (
   };
 };
 
-/**
- * Generate test scenarios
- */
+/
+  Generate test scenarios
+ /
 export interface TestScenario {
   name: string;
   user: User;
@@ -159,9 +159,9 @@ export interface TestScenario {
   expectedResult: boolean;
 }
 
-/**
- * Create test scenarios for RBAC
- */
+/
+  Create test scenarios for RBAC
+ /
 export const createTestScenarios = (): TestScenario[] => {
   const adminUser = createMockAdminUser();
   const viewerUser = createMockViewerUser();
@@ -207,9 +207,9 @@ export const createTestScenarios = (): TestScenario[] => {
   ];
 };
 
-/**
- * Run test scenarios
- */
+/
+  Run test scenarios
+ /
 export const runTestScenarios = (
   scenarios: TestScenario[],
   checkPermissionFn: (user: User, permission: string) => boolean
@@ -225,9 +225,9 @@ export const runTestScenarios = (
   });
 };
 
-/**
- * Generate coverage report for role template
- */
+/
+  Generate coverage report for role template
+ /
 export interface CoverageReport {
   roleName: string;
   totalPermissions: number;
@@ -251,27 +251,27 @@ export const generateRoleCoverageReport = (
     roleName: template.name,
     totalPermissions: allPossiblePermissions.length,
     coveredByTemplate: covered.length,
-    coverage: (covered.length / allPossiblePermissions.length) * 100,
+    coverage: (covered.length / allPossiblePermissions.length)  ,
     missingPermissions: missing,
   };
 };
 
-/**
- * Mock API responses for testing
- */
+/
+  Mock API responses for testing
+ /
 export const mockApiResponses = {
-  /**
-   * Mock successful permission check
-   */
+  /
+    Mock successful permission check
+   /
   checkPermissionSuccess: (permission: string) => ({
     permission,
     allowed: true,
     timestamp: new Date(),
   }),
 
-  /**
-   * Mock failed permission check
-   */
+  /
+    Mock failed permission check
+   /
   checkPermissionFailed: (permission: string, reason?: string) => ({
     permission,
     allowed: false,
@@ -279,28 +279,28 @@ export const mockApiResponses = {
     timestamp: new Date(),
   }),
 
-  /**
-   * Mock role list response
-   */
+  /
+    Mock role list response
+   /
   roleListResponse: (roles: RoleTemplate[] = []) => ({
-    roles: roles.length > 0 ? roles : Object.values(ROLE_TEMPLATES),
+    roles: roles.length >  ? roles : Object.values(ROLE_TEMPLATES),
     total: roles.length || Object.keys(ROLE_TEMPLATES).length,
   }),
 
-  /**
-   * Mock audit log response
-   */
+  /
+    Mock audit log response
+   /
   auditLogResponse: (entries: MockAuditEntry[] = []) => ({
-    entries: entries.length > 0 ? entries : createMockAuditLog(),
-    total: entries.length || 10,
-    page: 1,
-    pageSize: 50,
+    entries: entries.length >  ? entries : createMockAuditLog(),
+    total: entries.length || ,
+    page: ,
+    pageSize: ,
   }),
 };
 
-/**
- * Test utilities summary
- */
+/
+  Test utilities summary
+ /
 export const testUtilsSummary = {
   users: {
     createMockUser,

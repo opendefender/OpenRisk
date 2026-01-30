@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -19,8 +19,8 @@ import (
 
 // Test-only lightweight structs to avoid DB-specific defaults (used with sqlite in-memory)
 type UserT struct {
-	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
-	Email        string    `gorm:"not null"`
+	ID           uuid.UUID gorm:"type:uuid;primaryKey"
+	Email        string    gorm:"not null"
 	Password     string
 	FullName     string
 	Role         string
@@ -32,54 +32,54 @@ type UserT struct {
 	ExternalID   string
 	CustomFields string
 	Frameworks   string
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	DeletedAt    gorm.DeletedAt gorm:"index"
 }
 
 func (UserT) TableName() string { return "users" }
 
 type RiskT struct {
-	ID          uuid.UUID `gorm:"type:uuid;primaryKey"`
-	Title       string    `gorm:"size:255;not null"`
-	Description string    `gorm:"type:text"`
+	ID          uuid.UUID gorm:"type:uuid;primaryKey"
+	Title       string    gorm:"size:;not null"
+	Description string    gorm:"type:text"
 	Impact      int
 	Probability int
-	Score       float64
+	Score       float
 	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	DeletedAt   gorm.DeletedAt gorm:"index"
 }
 
 func (RiskT) TableName() string { return "risks" }
 
 type MitigationT struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID        uuid.UUID gorm:"type:uuid;primaryKey"
 	RiskID    uuid.UUID
 	Title     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	DeletedAt gorm.DeletedAt gorm:"index"
 }
 
 func (MitigationT) TableName() string { return "mitigations" }
 
 type AssetT struct {
-	ID   uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID   uuid.UUID gorm:"type:uuid;primaryKey"
 	Name string
 }
 
 func (AssetT) TableName() string { return "assets" }
 
 type RiskHistoryT struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID        uuid.UUID gorm:"type:uuid;primaryKey"
 	RiskID    uuid.UUID
-	Score     float64
+	Score     float
 	CreatedAt time.Time
 }
 
 func (RiskHistoryT) TableName() string { return "risk_histories" }
 
-func setupAppWithDB(t *testing.T) *fiber.App {
+func setupAppWithDB(t testing.T) fiber.App {
 	// In-memory SQLite for fast tests
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -95,7 +95,7 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 	database.DB = db
 
 	app := fiber.New()
-	api := app.Group("/api/v1")
+	api := app.Group("/api/v")
 	api.Post("/risks", CreateRisk)
 	api.Get("/risks/:id", GetRisk)
 	api.Patch("/risks/:id", UpdateRisk)
@@ -104,22 +104,22 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 	return app
 }
 
-func TestRiskCRUDFlow(t *testing.T) {
+func TestRiskCRUDFlow(t testing.T) {
 	app := setupAppWithDB(t)
 
-	// 1. Create risk
+	// . Create risk
 	payload := map[string]interface{}{
 		"title":       "Test Risk",
 		"description": "desc",
-		"impact":      3,
-		"probability": 4,
+		"impact":      ,
+		"probability": ,
 	}
 	b, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/v/risks", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
-	if resp.StatusCode != 201 {
-		t.Fatalf("expected 201 got %d", resp.StatusCode)
+	if resp.StatusCode !=  {
+		t.Fatalf("expected  got %d", resp.StatusCode)
 	}
 
 	var created domain.Risk
@@ -128,47 +128,47 @@ func TestRiskCRUDFlow(t *testing.T) {
 		t.Fatalf("expected created id, got nil")
 	}
 
-	// 2. Get risk
-	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/risks/"+created.ID.String(), nil)
+	// . Get risk
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v/risks/"+created.ID.String(), nil)
 	getResp, _ := app.Test(getReq)
-	if getResp.StatusCode != 200 {
-		t.Fatalf("expected 200 got %d", getResp.StatusCode)
+	if getResp.StatusCode !=  {
+		t.Fatalf("expected  got %d", getResp.StatusCode)
 	}
 
-	// 3. Update risk
-	updatePayload := map[string]interface{}{"title": "Updated", "impact": 5}
+	// . Update risk
+	updatePayload := map[string]interface{}{"title": "Updated", "impact": }
 	ub, _ := json.Marshal(updatePayload)
-	upReq := httptest.NewRequest(http.MethodPatch, "/api/v1/risks/"+created.ID.String(), bytes.NewReader(ub))
+	upReq := httptest.NewRequest(http.MethodPatch, "/api/v/risks/"+created.ID.String(), bytes.NewReader(ub))
 	upReq.Header.Set("Content-Type", "application/json")
 	upResp, _ := app.Test(upReq)
-	if upResp.StatusCode != 200 {
-		t.Fatalf("expected 200 on update got %d", upResp.StatusCode)
+	if upResp.StatusCode !=  {
+		t.Fatalf("expected  on update got %d", upResp.StatusCode)
 	}
 
 	var updated domain.Risk
 	json.NewDecoder(upResp.Body).Decode(&updated)
-	if updated.Title != "Updated" || updated.Impact != 5 {
+	if updated.Title != "Updated" || updated.Impact !=  {
 		t.Fatalf("update did not apply: %+v", updated)
 	}
 
-	// 4. Delete
-	delReq := httptest.NewRequest(http.MethodDelete, "/api/v1/risks/"+created.ID.String(), nil)
+	// . Delete
+	delReq := httptest.NewRequest(http.MethodDelete, "/api/v/risks/"+created.ID.String(), nil)
 	delResp, _ := app.Test(delReq)
-	if delResp.StatusCode != 204 {
-		t.Fatalf("expected 204 on delete got %d", delResp.StatusCode)
+	if delResp.StatusCode !=  {
+		t.Fatalf("expected  on delete got %d", delResp.StatusCode)
 	}
 }
 
-func TestCreateValidationFail(t *testing.T) {
+func TestCreateValidationFail(t testing.T) {
 	app := setupAppWithDB(t)
 
 	// Missing required title
-	payload := map[string]interface{}{"impact": 3, "probability": 4}
+	payload := map[string]interface{}{"impact": , "probability": }
 	b, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/v/risks", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
-	if resp.StatusCode != 400 {
-		t.Fatalf("expected 400 got %d", resp.StatusCode)
+	if resp.StatusCode !=  {
+		t.Fatalf("expected  got %d", resp.StatusCode)
 	}
 }

@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewTheHiveAdapter(t *testing.T) {
+func TestNewTheHiveAdapter(t testing.T) {
 	cfg := config.ExternalService{
 		Enabled: true,
-		URL:     "http://localhost:9000",
+		URL:     "http://localhost:",
 		APIKey:  "test-api-key",
 	}
 
@@ -25,10 +25,10 @@ func TestNewTheHiveAdapter(t *testing.T) {
 	assert.NotNil(t, adapter)
 	assert.Equal(t, cfg, adapter.Config)
 	assert.NotNil(t, adapter.Client)
-	assert.Equal(t, 30*time.Second, adapter.Client.Timeout)
+	assert.Equal(t, time.Second, adapter.Client.Timeout)
 }
 
-func TestFetchRecentIncidentsDisabled(t *testing.T) {
+func TestFetchRecentIncidentsDisabled(t testing.T) {
 	cfg := config.ExternalService{
 		Enabled: false,
 	}
@@ -41,7 +41,7 @@ func TestFetchRecentIncidentsDisabled(t *testing.T) {
 	assert.Empty(t, incidents)
 }
 
-func TestFetchRecentIncidentsMockData(t *testing.T) {
+func TestFetchRecentIncidentsMockData(t testing.T) {
 	cfg := config.ExternalService{
 		Enabled: true,
 	}
@@ -51,13 +51,13 @@ func TestFetchRecentIncidentsMockData(t *testing.T) {
 	incidents, err := adapter.FetchRecentIncidents()
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(incidents))
-	assert.Equal(t, "THEHIVE", incidents[0].Source)
-	assert.NotEmpty(t, incidents[0].Title)
+	assert.Equal(t, , len(incidents))
+	assert.Equal(t, "THEHIVE", incidents[].Source)
+	assert.NotEmpty(t, incidents[].Title)
 }
 
-func TestFetchRecentIncidentsFromAPI(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetchRecentIncidentsFromAPI(t testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Contains(t, r.URL.Path, "/api/case")
 		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
@@ -66,22 +66,22 @@ func TestFetchRecentIncidentsFromAPI(t *testing.T) {
 			Success: true,
 			Data: []TheHiveCase{
 				{
-					ID:          "case_1",
+					ID:          "case_",
 					Title:       "Ransomware Attack",
 					Description: "Files encrypted on server",
-					Severity:    3,
+					Severity:    ,
 					Status:      "Open",
-					CreatedAt:   time.Now().Unix() * 1000,
-					UpdatedAt:   time.Now().Unix() * 1000,
+					CreatedAt:   time.Now().Unix()  ,
+					UpdatedAt:   time.Now().Unix()  ,
 				},
 				{
-					ID:          "case_2",
+					ID:          "case_",
 					Title:       "Suspicious Login",
 					Description: "Multiple failed attempts",
-					Severity:    4,
+					Severity:    ,
 					Status:      "In Progress",
-					CreatedAt:   time.Now().Unix() * 1000,
-					UpdatedAt:   time.Now().Unix() * 1000,
+					CreatedAt:   time.Now().Unix()  ,
+					UpdatedAt:   time.Now().Unix()  ,
 				},
 			},
 		}
@@ -102,16 +102,16 @@ func TestFetchRecentIncidentsFromAPI(t *testing.T) {
 	incidents, err := adapter.FetchRecentIncidents()
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(incidents))
-	assert.Equal(t, "Ransomware Attack", incidents[0].Title)
-	assert.Equal(t, "HIGH", incidents[0].Severity)
-	assert.Equal(t, "case_1", incidents[0].ExternalID)
+	assert.Equal(t, , len(incidents))
+	assert.Equal(t, "Ransomware Attack", incidents[].Title)
+	assert.Equal(t, "HIGH", incidents[].Severity)
+	assert.Equal(t, "case_", incidents[].ExternalID)
 }
 
-func TestFetchRecentIncidentsAPIError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetchRecentIncidentsAPIError(t testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "Invalid API key"}`))
+		w.Write([]byte({"error": "Invalid API key"}))
 	}))
 	defer server.Close()
 
@@ -126,12 +126,12 @@ func TestFetchRecentIncidentsAPIError(t *testing.T) {
 	incidents, err := adapter.FetchRecentIncidents()
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(incidents))
+	assert.Equal(t, , len(incidents))
 }
 
-func TestFetchRecentIncidentsNetworkError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(2 * time.Second)
+func TestFetchRecentIncidentsNetworkError(t testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r http.Request) {
+		time.Sleep(  time.Second)
 	}))
 	defer server.Close()
 
@@ -142,25 +142,25 @@ func TestFetchRecentIncidentsNetworkError(t *testing.T) {
 	}
 
 	adapter := NewTheHiveAdapter(cfg)
-	adapter.Client.Timeout = 100 * time.Millisecond
+	adapter.Client.Timeout =   time.Millisecond
 
 	incidents, err := adapter.FetchRecentIncidents()
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(incidents))
+	assert.Equal(t, , len(incidents))
 }
 
-func TestSeverityMapping(t *testing.T) {
+func TestSeverityMapping(t testing.T) {
 	adapter := NewTheHiveAdapter(config.ExternalService{})
 
 	testCases := []struct {
 		theHiveSeverity  int
 		expectedSeverity string
 	}{
-		{1, "LOW"},
-		{2, "MEDIUM"},
-		{3, "HIGH"},
-		{4, "CRITICAL"},
+		{, "LOW"},
+		{, "MEDIUM"},
+		{, "HIGH"},
+		{, "CRITICAL"},
 	}
 
 	for _, tc := range testCases {
@@ -168,7 +168,7 @@ func TestSeverityMapping(t *testing.T) {
 			ID:        "test",
 			Title:     "Test Case",
 			Severity:  tc.theHiveSeverity,
-			CreatedAt: time.Now().Unix() * 1000,
+			CreatedAt: time.Now().Unix()  ,
 		}
 
 		incident := adapter.transformCase(theHiveCase)
@@ -178,15 +178,15 @@ func TestSeverityMapping(t *testing.T) {
 	}
 }
 
-func TestTransformCase(t *testing.T) {
+func TestTransformCase(t testing.T) {
 	adapter := NewTheHiveAdapter(config.ExternalService{})
 
 	now := time.Now()
 	theHiveCase := TheHiveCase{
-		ID:          "case_123",
+		ID:          "case_",
 		Title:       "Security Incident",
 		Description: "Detailed description",
-		Severity:    3,
+		Severity:    ,
 		Status:      "Open",
 		CreatedAt:   now.UnixMilli(),
 		UpdatedAt:   now.UnixMilli(),
@@ -198,17 +198,17 @@ func TestTransformCase(t *testing.T) {
 	assert.Equal(t, "Detailed description", incident.Description)
 	assert.Equal(t, "HIGH", incident.Severity)
 	assert.Equal(t, "Open", incident.Status)
-	assert.Equal(t, "case_123", incident.ExternalID)
+	assert.Equal(t, "case_", incident.ExternalID)
 	assert.Equal(t, "THEHIVE", incident.Source)
 	assert.NotZero(t, incident.ID)
 }
 
-func TestMockIncidents(t *testing.T) {
+func TestMockIncidents(t testing.T) {
 	adapter := NewTheHiveAdapter(config.ExternalService{})
 
 	mockInc := adapter.mockIncidents()
 
-	assert.Equal(t, 2, len(mockInc))
+	assert.Equal(t, , len(mockInc))
 
 	for _, inc := range mockInc {
 		assert.NotZero(t, inc.ID)
@@ -219,31 +219,31 @@ func TestMockIncidents(t *testing.T) {
 	}
 }
 
-func TestFetchRecentIncidentsFiltersClosedCases(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetchRecentIncidentsFiltersClosedCases(t testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r http.Request) {
 		response := TheHiveResponse{
 			Success: true,
 			Data: []TheHiveCase{
 				{
 					ID:        "open_case",
 					Title:     "Open Case",
-					Severity:  3,
+					Severity:  ,
 					Status:    "Open",
-					CreatedAt: time.Now().Unix() * 1000,
+					CreatedAt: time.Now().Unix()  ,
 				},
 				{
 					ID:        "closed_case",
 					Title:     "Closed Case",
-					Severity:  3,
+					Severity:  ,
 					Status:    "Closed",
-					CreatedAt: time.Now().Unix() * 1000,
+					CreatedAt: time.Now().Unix()  ,
 				},
 				{
 					ID:        "in_progress_case",
 					Title:     "In Progress Case",
-					Severity:  3,
+					Severity:  ,
 					Status:    "In Progress",
-					CreatedAt: time.Now().Unix() * 1000,
+					CreatedAt: time.Now().Unix()  ,
 				},
 			},
 		}
@@ -264,16 +264,16 @@ func TestFetchRecentIncidentsFiltersClosedCases(t *testing.T) {
 	incidents, err := adapter.FetchRecentIncidents()
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(incidents))
-	assert.Equal(t, "Open Case", incidents[0].Title)
-	assert.Equal(t, "In Progress Case", incidents[1].Title)
+	assert.Equal(t, , len(incidents))
+	assert.Equal(t, "Open Case", incidents[].Title)
+	assert.Equal(t, "In Progress Case", incidents[].Title)
 }
 
-func TestAPIAuthenticationHeader(t *testing.T) {
+func TestAPIAuthenticationHeader(t testing.T) {
 	headerCaptured := false
 	correctAuth := false
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r http.Request) {
 		auth := r.Header.Get("Authorization")
 		if auth != "" {
 			headerCaptured = true

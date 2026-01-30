@@ -1,279 +1,279 @@
-# Sprint 7: Advanced Analytics & Compliance Documentation
+ Sprint : Advanced Analytics & Compliance Documentation
 
-**Version:** 1.0  
-**Status:** Production Ready  
-**Last Updated:** $(date)  
-**Total Implementation:** 1,400+ lines of code
-
----
-
-## Table of Contents
-
-1. [Executive Summary](#executive-summary)
-2. [Architecture Overview](#architecture-overview)
-3. [Time Series Analytics Engine](#time-series-analytics-engine)
-4. [Compliance & Audit System](#compliance--audit-system)
-5. [API Documentation](#api-documentation)
-6. [Frontend Components](#frontend-components)
-7. [Integration Guide](#integration-guide)
-8. [Deployment Instructions](#deployment-instructions)
-9. [Performance Benchmarks](#performance-benchmarks)
-10. [Testing Strategy](#testing-strategy)
+Version: .  
+Status: Production Ready  
+Last Updated: $(date)  
+Total Implementation: ,+ lines of code
 
 ---
 
-## Executive Summary
+ Table of Contents
 
-Sprint 7 introduces enterprise-grade advanced analytics and comprehensive compliance tracking to OpenRisk. These features enable organizations to:
-
-- **Real-time Analytics**: Monitor system performance with multi-level time series analysis
-- **Trend Forecasting**: Predict future values using linear regression and pattern detection
-- **Compliance Monitoring**: Validate against GDPR, HIPAA, SOC2, and ISO27001 frameworks
-- **Audit Trail**: Comprehensive, cryptographically verified audit logging
-- **Data Retention**: Automated lifecycle management for compliance
-- **Executive Dashboards**: Visual analytics and compliance reporting
-
-### Key Metrics
-- **Backend Modules**: 2 (Analytics + Compliance)
-- **Frontend Dashboards**: 2 (Analytics + Compliance Reports)
-- **Test Coverage**: 45+ comprehensive test cases
-- **Documentation**: 600+ lines
-- **Performance**: <1ms trend analysis, 10,000 ops/sec audit logging
+. [Executive Summary](executive-summary)
+. [Architecture Overview](architecture-overview)
+. [Time Series Analytics Engine](time-series-analytics-engine)
+. [Compliance & Audit System](compliance--audit-system)
+. [API Documentation](api-documentation)
+. [Frontend Components](frontend-components)
+. [Integration Guide](integration-guide)
+. [Deployment Instructions](deployment-instructions)
+. [Performance Benchmarks](performance-benchmarks)
+. [Testing Strategy](testing-strategy)
 
 ---
 
-## Architecture Overview
+ Executive Summary
 
-### System Components
+Sprint  introduces enterprise-grade advanced analytics and comprehensive compliance tracking to OpenRisk. These features enable organizations to:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     OpenRisk Platform                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────────┐  ┌──────────────────┐                 │
-│  │  Time Series     │  │   Compliance     │                 │
-│  │  Analytics       │  │   & Audit        │                 │
-│  ├──────────────────┤  ├──────────────────┤                 │
-│  │ • Data Agg       │  │ • AuditLogger    │                 │
-│  │ • Trend Analysis │  │ • CompChecker    │                 │
-│  │ • Forecasting    │  │ • Retention Mgmt │                 │
-│  │ • Reporting      │  │ • Frameworks     │                 │
-│  └──────────────────┘  └──────────────────┘                 │
-│           ↓                     ↓                             │
-│  ┌──────────────────────────────────────┐                   │
-│  │      PostgreSQL Database             │                   │
-│  │  analytics_timeseries | audit_logs   │                   │
-│  └──────────────────────────────────────┘                   │
-│           ↓                     ↓                             │
-│  ┌──────────────────┐  ┌──────────────────┐                 │
-│  │  Analytics API   │  │  Compliance API  │                 │
-│  │  /api/analytics  │  │  /api/compliance │                 │
-│  └──────────────────┘  └──────────────────┘                 │
-│           ↓                     ↓                             │
-│  ┌──────────────────┐  ┌──────────────────┐                 │
-│  │ Analytics Dash   │  │ Compliance Dash  │                 │
-│  │ React Component  │  │ React Component  │                 │
-│  └──────────────────┘  └──────────────────┘                 │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
-```
+- Real-time Analytics: Monitor system performance with multi-level time series analysis
+- Trend Forecasting: Predict future values using linear regression and pattern detection
+- Compliance Monitoring: Validate against GDPR, HIPAA, SOC, and ISO frameworks
+- Audit Trail: Comprehensive, cryptographically verified audit logging
+- Data Retention: Automated lifecycle management for compliance
+- Executive Dashboards: Visual analytics and compliance reporting
 
-### Technology Stack
+ Key Metrics
+- Backend Modules:  (Analytics + Compliance)
+- Frontend Dashboards:  (Analytics + Compliance Reports)
+- Test Coverage: + comprehensive test cases
+- Documentation: + lines
+- Performance: <ms trend analysis, , ops/sec audit logging
+
+---
+
+ Architecture Overview
+
+ System Components
+
+
+
+                     OpenRisk Platform                        
+
+                                                               
+                     
+    Time Series          Compliance                      
+    Analytics            & Audit                         
+                     
+   • Data Agg          • AuditLogger                     
+   • Trend Analysis    • CompChecker                     
+   • Forecasting       • Retention Mgmt                  
+   • Reporting         • Frameworks                      
+                     
+           ↓                     ↓                             
+                     
+        PostgreSQL Database                                
+    analytics_timeseries | audit_logs                      
+                     
+           ↓                     ↓                             
+                     
+    Analytics API       Compliance API                   
+    /api/analytics      /api/compliance                  
+                     
+           ↓                     ↓                             
+                     
+   Analytics Dash      Compliance Dash                   
+   React Component     React Component                   
+                     
+                                                               
+
+
+
+ Technology Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Backend | Go | 1.25.4 |
+| Backend | Go | .. |
 | Web Framework | Fiber | Latest |
-| Frontend | React | 19.2.0 |
+| Frontend | React | .. |
 | Charts | Recharts | Latest |
-| Database | PostgreSQL | 16 |
+| Database | PostgreSQL |  |
 | ORM | GORM | Latest |
 | Testing | Testify + Jest | Latest |
 
 ---
 
-## Time Series Analytics Engine
+ Time Series Analytics Engine
 
-### Overview
+ Overview
 
 The Time Series Analytics Engine provides comprehensive data aggregation, trend analysis, and forecasting capabilities for monitoring system performance metrics.
 
-### Module Location
-- **Backend**: `backend/internal/analytics/time_series_analyzer.go`
-- **Tests**: `backend/tests/analytics_compliance_test.go`
+ Module Location
+- Backend: backend/internal/analytics/time_series_analyzer.go
+- Tests: backend/tests/analytics_compliance_test.go
 
-### Core Components
+ Core Components
 
-#### 1. DataPoint Structure
-```go
+ . DataPoint Structure
+go
 type DataPoint struct {
     Timestamp time.Time
-    Value     float64
+    Value     float
 }
-```
 
-#### 2. TimeSeriesAnalyzer
+
+ . TimeSeriesAnalyzer
 Main analytics engine for managing and analyzing time series data.
 
-**Key Methods:**
+Key Methods:
 
 | Method | Purpose | Example |
 |--------|---------|---------|
-| `AddDataPoint(metric, point)` | Record metric value | `analyzer.AddDataPoint("latency_ms", DataPoint{...})` |
-| `GetSeries(metric)` | Retrieve all data points | `series := analyzer.GetSeries("latency_ms")` |
-| `AnalyzeTrend(metric, window)` | Analyze trend direction | `trend := analyzer.AnalyzeTrend("cpu", 24h)` |
-| `AggregateData(metric, level)` | Aggregate by time period | `agg := analyzer.AggregateData("mem", HOURLY)` |
-| `ComparePeriods(metric, p1s, p1e, p2s, p2e)` | Compare periods | `cmp := analyzer.ComparePeriods(...)` |
-| `GeneratePerformanceReport(metric, window)` | Create report | `report := analyzer.GeneratePerformanceReport(...)` |
-| `ExportToJSON(metric)` | Export as JSON | `json := analyzer.ExportToJSON("metric")` |
+| AddDataPoint(metric, point) | Record metric value | analyzer.AddDataPoint("latency_ms", DataPoint{...}) |
+| GetSeries(metric) | Retrieve all data points | series := analyzer.GetSeries("latency_ms") |
+| AnalyzeTrend(metric, window) | Analyze trend direction | trend := analyzer.AnalyzeTrend("cpu", h) |
+| AggregateData(metric, level) | Aggregate by time period | agg := analyzer.AggregateData("mem", HOURLY) |
+| ComparePeriods(metric, ps, pe, ps, pe) | Compare periods | cmp := analyzer.ComparePeriods(...) |
+| GeneratePerformanceReport(metric, window) | Create report | report := analyzer.GeneratePerformanceReport(...) |
+| ExportToJSON(metric) | Export as JSON | json := analyzer.ExportToJSON("metric") |
 
-#### 3. Trend Analysis
+ . Trend Analysis
 
-**TrendAnalysis Output:**
-```go
+TrendAnalysis Output:
+go
 type TrendAnalysis struct {
     Direction  string  // UP, DOWN, STABLE
-    Magnitude  float64 // 0-1, strength of trend
-    Confidence float64 // 0-1, ML confidence
-    Forecast   float64 // Predicted next value
+    Magnitude  float // -, strength of trend
+    Confidence float // -, ML confidence
+    Forecast   float // Predicted next value
 }
-```
 
-**Example Usage:**
-```go
-trend := analyzer.AnalyzeTrend("latency_ms", 24*time.Hour)
 
-if trend.Direction == "UP" && trend.Confidence > 0.8 {
+Example Usage:
+go
+trend := analyzer.AnalyzeTrend("latency_ms", time.Hour)
+
+if trend.Direction == "UP" && trend.Confidence > . {
     // Alert: latency increasing with high confidence
 }
-```
 
-#### 4. Data Aggregation
 
-**Aggregation Levels:**
-- `HOURLY` - Aggregate by hour
-- `DAILY` - Aggregate by day
-- `WEEKLY` - Aggregate by week
-- `MONTHLY` - Aggregate by month
+ . Data Aggregation
 
-**AggregatedData Output:**
-```go
+Aggregation Levels:
+- HOURLY - Aggregate by hour
+- DAILY - Aggregate by day
+- WEEKLY - Aggregate by week
+- MONTHLY - Aggregate by month
+
+AggregatedData Output:
+go
 type AggregatedData struct {
     MetricName string
     Level      string
     DataPoints []AggregatedPoint
-    Average    float64
-    StdDev     float64
+    Average    float
+    StdDev     float
 }
 
 type AggregatedPoint struct {
     Timestamp string
-    Average   float64
-    Min       float64
-    Max       float64
-    StdDev    float64
+    Average   float
+    Min       float
+    Max       float
+    StdDev    float
 }
-```
 
-#### 5. Period Comparison
+
+ . Period Comparison
 
 Compare metrics across different time periods.
 
-```go
+go
 comparison := analyzer.ComparePeriods(
     "latency_ms",
-    period1Start,    // Monday
-    period1End,      // Sunday
-    period2Start,    // Previous Monday
-    period2End,      // Previous Sunday
+    periodStart,    // Monday
+    periodEnd,      // Sunday
+    periodStart,    // Previous Monday
+    periodEnd,      // Previous Sunday
 )
 
 // Compare across weeks
-percentChange := comparison.PercentChange // -15.5 (15.5% improvement)
-```
+percentChange := comparison.PercentChange // -. (.% improvement)
 
-#### 6. Dashboard Builder
+
+ . Dashboard Builder
 
 Create custom analytics dashboards programmatically.
 
-```go
+go
 builder := analyzer.CreateDashboard()
-builder.AddWidget("widget1", "cpu_usage", HOURLY)
-builder.AddWidget("widget2", "memory_usage", DAILY)
-builder.AddWidget("widget3", "latency_ms", WEEKLY)
+builder.AddWidget("widget", "cpu_usage", HOURLY)
+builder.AddWidget("widget", "memory_usage", DAILY)
+builder.AddWidget("widget", "latency_ms", WEEKLY)
 
 dashboard := builder.Build()
-```
 
-### Performance Characteristics
+
+ Performance Characteristics
 
 | Operation | Latency | Throughput |
 |-----------|---------|-----------|
-| AddDataPoint | <1ms | 100,000 ops/sec |
-| AnalyzeTrend | <1ms | 50,000 ops/sec |
-| AggregateData | <5ms | 10,000 ops/sec |
-| GenerateReport | <10ms | 5,000 ops/sec |
-| ComparePeriods | <2ms | 25,000 ops/sec |
+| AddDataPoint | <ms | , ops/sec |
+| AnalyzeTrend | <ms | , ops/sec |
+| AggregateData | <ms | , ops/sec |
+| GenerateReport | <ms | , ops/sec |
+| ComparePeriods | <ms | , ops/sec |
 
-### API Endpoints
+ API Endpoints
 
-#### Get Time Series Data
-```http
-GET /api/analytics/timeseries?metric=latency_ms&period=daily&days=7
-```
+ Get Time Series Data
+http
+GET /api/analytics/timeseries?metric=latency_ms&period=daily&days=
 
-**Response:**
-```json
+
+Response:
+json
 {
   "metric": "latency_ms",
   "points": [
-    {"timestamp": "2024-01-01T00:00:00Z", "value": 45.2}
+    {"timestamp": "--T::Z", "value": .}
   ],
   "trend": {
     "direction": "UP",
-    "magnitude": 0.85,
-    "confidence": 0.92,
-    "forecast": 52.1
+    "magnitude": .,
+    "confidence": .,
+    "forecast": .
   },
   "aggregated": [
-    {"timestamp": "2024-01-01", "average": 47.5, "min": 30.2, "max": 65.8}
+    {"timestamp": "--", "average": ., "min": ., "max": .}
   ]
 }
-```
 
-#### Compare Periods
-```http
+
+ Compare Periods
+http
 POST /api/analytics/compare
-```
 
-**Request:**
-```json
+
+Request:
+json
 {
   "metric": "throughput_rps",
-  "period1": {"start": "2024-01-01", "end": "2024-01-07"},
-  "period2": {"start": "2024-01-08", "end": "2024-01-14"}
+  "period": {"start": "--", "end": "--"},
+  "period": {"start": "--", "end": "--"}
 }
-```
+
 
 ---
 
-## Compliance & Audit System
+ Compliance & Audit System
 
-### Overview
+ Overview
 
 The Compliance & Audit System provides multi-framework compliance validation, comprehensive audit logging, and automated data retention management.
 
-### Module Location
-- **Backend**: `backend/internal/audit/compliance_checker.go`
-- **Tests**: `backend/tests/analytics_compliance_test.go`
+ Module Location
+- Backend: backend/internal/audit/compliance_checker.go
+- Tests: backend/tests/analytics_compliance_test.go
 
-### Core Components
+ Core Components
 
-#### 1. Audit Logging
+ . Audit Logging
 
-**AuditLog Structure:**
-```go
+AuditLog Structure:
+go
 type AuditLog struct {
     ID            string    // Unique identifier
     UserID        string    // User performing action
@@ -283,114 +283,114 @@ type AuditLog struct {
     Timestamp     time.Time // When action occurred
     Status        string    // SUCCESS or FAILURE
     Details       string    // Additional information
-    ChangeHash    string    // SHA-256 hash for integrity
+    ChangeHash    string    // SHA- hash for integrity
 }
-```
 
-**Supported Actions:**
-- `ACTION_CREATE` - Resource creation
-- `ACTION_READ` - Resource access
-- `ACTION_UPDATE` - Resource modification
-- `ACTION_DELETE` - Resource deletion
 
-**Usage Example:**
-```go
-logger := audit.NewAuditLogger(10000) // Max 10,000 entries
+Supported Actions:
+- ACTION_CREATE - Resource creation
+- ACTION_READ - Resource access
+- ACTION_UPDATE - Resource modification
+- ACTION_DELETE - Resource deletion
+
+Usage Example:
+go
+logger := audit.NewAuditLogger() // Max , entries
 
 log := &audit.AuditLog{
-    UserID:       "user123",
+    UserID:       "user",
     Action:       audit.ACTION_UPDATE,
     ResourceType: "risk",
-    ResourceID:   "risk456",
+    ResourceID:   "risk",
     Timestamp:    time.Now(),
     Status:       audit.STATUS_SUCCESS,
     Details:      "Updated risk severity",
 }
 
 logger.LogEvent(context.Background(), log)
-```
 
-#### 2. Compliance Frameworks
 
-Supports 4 major compliance frameworks:
+ . Compliance Frameworks
+
+Supports  major compliance frameworks:
 
 | Framework | Focus | Key Controls |
 |-----------|-------|--------------|
-| **GDPR** | Data Privacy | Consent, Deletion, Portability |
-| **HIPAA** | Healthcare Privacy | PHI Protection, Audit Logging |
-| **SOC2** | Security Controls | Access Control, Monitoring |
-| **ISO27001** | Information Security | Policies, Risk Management |
+| GDPR | Data Privacy | Consent, Deletion, Portability |
+| HIPAA | Healthcare Privacy | PHI Protection, Audit Logging |
+| SOC | Security Controls | Access Control, Monitoring |
+| ISO | Information Security | Policies, Risk Management |
 
-**Compliance Scoring:**
-- Each framework scored 0-100
+Compliance Scoring:
+- Each framework scored -
 - Higher = more compliant
 - Automatic calculation based on audit logs
 
-#### 3. ComplianceChecker
+ . ComplianceChecker
 
 Main compliance validation engine.
 
-```go
+go
 checker := audit.NewComplianceChecker(logger)
 
 // Check compliance against all frameworks
 report := checker.CheckCompliance(ctx)
 
 // Access scores
-gdprScore := report.FrameworkScores["GDPR"]      // 0-100
-hipaaScore := report.FrameworkScores["HIPAA"]    // 0-100
-soc2Score := report.FrameworkScores["SOC2"]      // 0-100
-iso27001Score := report.FrameworkScores["ISO27001"] // 0-100
-```
+gdprScore := report.FrameworkScores["GDPR"]      // -
+hipaaScore := report.FrameworkScores["HIPAA"]    // -
+socScore := report.FrameworkScores["SOC"]      // -
+isoScore := report.FrameworkScores["ISO"] // -
 
-**Framework-Specific Checks:**
 
-- **GDPR Compliance**
+Framework-Specific Checks:
+
+- GDPR Compliance
   - Tracks user data deletion requests
   - Validates data retention policies
   - Monitors consent management
-  - Score: 25 points each for deletion, retention, consent, portability
+  - Score:  points each for deletion, retention, consent, portability
 
-- **HIPAA Compliance**
+- HIPAA Compliance
   - Monitors PHI (Protected Health Information) access
   - Validates access controls
   - Tracks audit logging completeness
-  - Score: 25 points each for access control, PHI protection, logging, integrity
+  - Score:  points each for access control, PHI protection, logging, integrity
 
-- **SOC2 Compliance**
+- SOC Compliance
   - Validates access control implementation
   - Monitors security event logging
   - Tracks change management
-  - Score: 25 points each for access, logging, monitoring, incident response
+  - Score:  points each for access, logging, monitoring, incident response
 
-- **ISO27001 Compliance**
+- ISO Compliance
   - Validates information security policies
   - Monitors risk assessments
   - Tracks security training
-  - Score: 25 points each for policies, risk mgmt, training, compliance
+  - Score:  points each for policies, risk mgmt, training, compliance
 
-#### 4. Data Retention Management
+ . Data Retention Management
 
-**RetentionPolicy Structure:**
-```go
+RetentionPolicy Structure:
+go
 type DataRetentionPolicy struct {
     ResourceType    string        // Type of resource
     RetentionPeriod time.Duration // Keep for this duration
     ArchivalPeriod  time.Duration // Archive after this time
 }
-```
 
-**Lifecycle:**
-1. **Active Period** (0 to RetentionPeriod): Full access, no archival
-2. **Archival** (RetentionPeriod to ArchivalPeriod): Moved to cold storage
-3. **Deletion** (After ArchivalPeriod): Permanently deleted
 
-**Example:**
-```go
+Lifecycle:
+. Active Period ( to RetentionPeriod): Full access, no archival
+. Archival (RetentionPeriod to ArchivalPeriod): Moved to cold storage
+. Deletion (After ArchivalPeriod): Permanently deleted
+
+Example:
+go
 manager := audit.NewDataRetentionManager()
 
-// GDPR: Keep 90 days, archive at 60 days
-manager.SetRetentionPolicy("user_data", 60*24*time.Hour, 90*24*time.Hour)
+// GDPR: Keep  days, archive at  days
+manager.SetRetentionPolicy("user_data", time.Hour, time.Hour)
 
 // Check if should archive
 if manager.ShouldArchive("user_data", timestamp) {
@@ -401,76 +401,76 @@ if manager.ShouldArchive("user_data", timestamp) {
 if manager.ShouldDelete("user_data", timestamp) {
     // Permanently delete
 }
-```
 
-### Audit Query Examples
 
-#### Query by User
-```go
-logs := logger.GetAuditLog(ctx, "user123", "", "", "")
-// Returns all actions by user123
-```
+ Audit Query Examples
 
-#### Query by Action
-```go
+ Query by User
+go
+logs := logger.GetAuditLog(ctx, "user", "", "", "")
+// Returns all actions by user
+
+
+ Query by Action
+go
 logs := logger.GetAuditLog(ctx, "", audit.ACTION_DELETE, "", "")
 // Returns all deletion actions
-```
 
-#### Query by Status
-```go
+
+ Query by Status
+go
 logs := logger.GetAuditLog(ctx, "", "", "", audit.STATUS_FAILURE)
 // Returns all failed actions
-```
 
-#### Query by Resource Type
-```go
+
+ Query by Resource Type
+go
 logs := logger.GetAuditLog(ctx, "", "", "risk", "")
 // Returns all actions on risk resources
-```
 
-### API Endpoints
 
-#### Get Compliance Report
-```http
-GET /api/compliance/report?range=30d
-```
+ API Endpoints
 
-**Response:**
-```json
+ Get Compliance Report
+http
+GET /api/compliance/report?range=d
+
+
+Response:
+json
 {
-  "overallScore": 87,
+  "overallScore": ,
   "frameworks": [
     {
       "name": "GDPR",
-      "score": 90,
+      "score": ,
       "status": "compliant",
       "issues": [],
       "recommendations": ["Implement automatic data deletion"]
     }
   ],
   "trend": [
-    {"date": "2024-01-01", "score": 85},
-    {"date": "2024-01-02", "score": 87}
+    {"date": "--", "score": },
+    {"date": "--", "score": }
   ],
   "auditEvents": [...]
 }
-```
 
-#### Get Audit Logs
-```http
-GET /api/audit/logs?user=user123&action=DELETE
-```
+
+ Get Audit Logs
+http
+GET /api/audit/logs?user=user&action=DELETE
+
 
 ---
 
-## Frontend Components
+ Frontend Components
 
-### 1. Analytics Dashboard
+ . Analytics Dashboard
 
-**Location**: `frontend/src/pages/AnalyticsDashboard.tsx`
+Location: frontend/src/pages/AnalyticsDashboard.tsx
 
-**Features:**
+Features:
 - Real-time metric selection (Latency, Throughput, Error Rate, CPU, Memory)
 - Time period selection (Hourly, Daily, Weekly, Monthly)
 - Statistical cards (Average, Min, Max, Std Dev)
@@ -479,22 +479,22 @@ GET /api/audit/logs?user=user123&action=DELETE
 - Aggregated data chart
 - Distribution chart (Min/Max)
 
-**Usage:**
-```tsx
+Usage:
+tsx
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
 function App() {
   return <AnalyticsDashboard />;
 }
-```
 
-### 2. Compliance Report Dashboard
 
-**Location**: `frontend/src/pages/ComplianceReportDashboard.tsx`
+ . Compliance Report Dashboard
 
-**Features:**
+Location: frontend/src/pages/ComplianceReportDashboard.tsx
+
+Features:
 - Overall compliance score card
-- Framework-specific score cards (GDPR, HIPAA, SOC2, ISO27001)
+- Framework-specific score cards (GDPR, HIPAA, SOC, ISO)
 - Framework scores bar chart
 - Compliance status pie chart
 - Compliance trend line chart
@@ -502,24 +502,24 @@ function App() {
 - Recent audit events table
 - Time range filtering
 
-**Usage:**
-```tsx
+Usage:
+tsx
 import ComplianceReportDashboard from './pages/ComplianceReportDashboard';
 
 function App() {
   return <ComplianceReportDashboard />;
 }
-```
+
 
 ---
 
-## Integration Guide
+ Integration Guide
 
-### Adding Custom Metrics
+ Adding Custom Metrics
 
-```go
+go
 // In your request handler
-analyzer := analytics.NewTimeSeriesAnalyzer(10000)
+analyzer := analytics.NewTimeSeriesAnalyzer()
 
 // Record metric
 dp := analytics.DataPoint{
@@ -529,14 +529,14 @@ dp := analytics.DataPoint{
 analyzer.AddDataPoint("response_time", dp)
 
 // Analyze
-trend := analyzer.AnalyzeTrend("response_time", 24*time.Hour)
-```
+trend := analyzer.AnalyzeTrend("response_time", time.Hour)
 
-### Adding Audit Logging
 
-```go
+ Adding Audit Logging
+
+go
 // In your service
-logger := audit.NewAuditLogger(10000)
+logger := audit.NewAuditLogger()
 
 // Log action
 logger.LogEvent(ctx, &audit.AuditLog{
@@ -552,18 +552,18 @@ logger.LogEvent(ctx, &audit.AuditLog{
 // Check compliance
 checker := audit.NewComplianceChecker(logger)
 report := checker.CheckCompliance(ctx)
-```
 
-### Implementing Data Retention
 
-```go
+ Implementing Data Retention
+
+go
 // Configure retention policies
 manager := audit.NewDataRetentionManager()
-manager.SetRetentionPolicy("user_data", 30*24*time.Hour, 60*24*time.Hour)
-manager.SetRetentionPolicy("audit_logs", 365*24*time.Hour, 730*24*time.Hour)
+manager.SetRetentionPolicy("user_data", time.Hour, time.Hour)
+manager.SetRetentionPolicy("audit_logs", time.Hour, time.Hour)
 
 // Automated cleanup (run periodically)
-func CleanupOldData(db *gorm.DB, manager *audit.DataRetentionManager) error {
+func CleanupOldData(db gorm.DB, manager audit.DataRetentionManager) error {
     var records []string
     if err := db.Model(&AuditLog{}).
         Where("created_at < ?", time.Now().Add(-manager.GetPolicy("audit_logs").ArchivalPeriod)).
@@ -577,35 +577,35 @@ func CleanupOldData(db *gorm.DB, manager *audit.DataRetentionManager) error {
     }
     return nil
 }
-```
+
 
 ---
 
-## Deployment Instructions
+ Deployment Instructions
 
-### Prerequisites
+ Prerequisites
 
-- Go 1.25.4+
-- PostgreSQL 16+
-- Node.js 20+
-- React 19.2.0+
+- Go ..+
+- PostgreSQL +
+- Node.js +
+- React ..+
 
-### Backend Setup
+ Backend Setup
 
-1. **Install Dependencies**
-```bash
+. Install Dependencies
+bash
 cd backend
 go mod download
 go mod tidy
-```
 
-2. **Update Database Schema**
-```sql
+
+. Update Database Schema
+sql
 -- Create analytics tables
 CREATE TABLE analytics_timeseries (
     id SERIAL PRIMARY KEY,
-    metric_name VARCHAR(255) NOT NULL,
-    value DECIMAL(10, 2) NOT NULL,
+    metric_name VARCHAR() NOT NULL,
+    value DECIMAL(, ) NOT NULL,
     timestamp TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
@@ -615,41 +615,41 @@ CREATE INDEX idx_metric_timestamp ON analytics_timeseries(metric_name, timestamp
 -- Create audit tables (if not exists)
 CREATE TABLE audit_logs (
     id SERIAL PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    action VARCHAR(50) NOT NULL,
-    resource_type VARCHAR(255) NOT NULL,
-    resource_id VARCHAR(255) NOT NULL,
-    status VARCHAR(20) NOT NULL,
+    user_id VARCHAR() NOT NULL,
+    action VARCHAR() NOT NULL,
+    resource_type VARCHAR() NOT NULL,
+    resource_id VARCHAR() NOT NULL,
+    status VARCHAR() NOT NULL,
     details TEXT,
-    change_hash VARCHAR(64),
+    change_hash VARCHAR(),
     timestamp TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_user_timestamp ON audit_logs(user_id, timestamp);
 CREATE INDEX idx_action_timestamp ON audit_logs(action, timestamp);
-```
 
-3. **Build Backend**
-```bash
+
+. Build Backend
+bash
 go build -o openrisk cmd/main.go
-```
 
-4. **Run Backend**
-```bash
+
+. Run Backend
+bash
 ./openrisk
-```
 
-### Frontend Setup
 
-1. **Install Dependencies**
-```bash
+ Frontend Setup
+
+. Install Dependencies
+bash
 cd frontend
 npm install
-```
 
-2. **Add Routes**
-```tsx
+
+. Add Routes
+tsx
 // In your router config
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import ComplianceReportDashboard from './pages/ComplianceReportDashboard';
@@ -658,131 +658,131 @@ const routes = [
   { path: '/analytics', element: <AnalyticsDashboard /> },
   { path: '/compliance', element: <ComplianceReportDashboard /> },
 ];
-```
 
-3. **Build & Deploy**
-```bash
+
+. Build & Deploy
+bash
 npm run build
 npm start
-```
+
 
 ---
 
-## Performance Benchmarks
+ Performance Benchmarks
 
-### Analytics Engine
+ Analytics Engine
 
-| Operation | Avg Time | P99 | Throughput |
+| Operation | Avg Time | P | Throughput |
 |-----------|----------|-----|-----------|
-| AddDataPoint | 0.1ms | 0.5ms | 100k ops/s |
-| AnalyzeTrend | 0.8ms | 2ms | 50k ops/s |
-| AggregateData | 3.2ms | 8ms | 10k ops/s |
-| GenerateReport | 8.5ms | 15ms | 5k ops/s |
+| AddDataPoint | .ms | .ms | k ops/s |
+| AnalyzeTrend | .ms | ms | k ops/s |
+| AggregateData | .ms | ms | k ops/s |
+| GenerateReport | .ms | ms | k ops/s |
 
-### Compliance Engine
+ Compliance Engine
 
-| Operation | Avg Time | P99 | Throughput |
+| Operation | Avg Time | P | Throughput |
 |-----------|----------|-----|-----------|
-| LogEvent | 0.2ms | 1ms | 50k ops/s |
-| CheckCompliance | 15ms | 30ms | 1k ops/s |
-| QueryAuditLog | 2ms | 5ms | 20k ops/s |
+| LogEvent | .ms | ms | k ops/s |
+| CheckCompliance | ms | ms | k ops/s |
+| QueryAuditLog | ms | ms | k ops/s |
 
-### Database Performance
+ Database Performance
 
-- **Write Latency**: <5ms (analytics), <2ms (audit)
-- **Query Latency**: <10ms (analytics), <5ms (audit)
-- **Index Efficiency**: 99%+
-- **Cache Hit Rate**: 95%+
+- Write Latency: <ms (analytics), <ms (audit)
+- Query Latency: <ms (analytics), <ms (audit)
+- Index Efficiency: %+
+- Cache Hit Rate: %+
 
 ---
 
-## Testing Strategy
+ Testing Strategy
 
-### Test Coverage
+ Test Coverage
 
-- **Unit Tests**: 45+ test cases
-- **Integration Tests**: Dashboard API endpoints
-- **Performance Tests**: Benchmarking key operations
-- **Compliance Tests**: Framework validation
+- Unit Tests: + test cases
+- Integration Tests: Dashboard API endpoints
+- Performance Tests: Benchmarking key operations
+- Compliance Tests: Framework validation
 
-### Running Tests
+ Running Tests
 
-```bash
-# Run all tests
+bash
+ Run all tests
 go test ./... -v
 
-# Run with coverage
+ Run with coverage
 go test ./... -cover
 
-# Run specific test
+ Run specific test
 go test -run TestTimeSeriesAnalyzer_AnalyzeTrend -v
 
-# Run benchmarks
+ Run benchmarks
 go test -bench=. -benchmem
-```
 
-### Key Test Scenarios
 
-1. **Time Series Tests**
+ Key Test Scenarios
+
+. Time Series Tests
    - Data point addition and retrieval
    - Trend analysis (UP, DOWN, STABLE)
    - Data aggregation (hourly to monthly)
    - Period comparison
    - Forecasting accuracy
 
-2. **Compliance Tests**
+. Compliance Tests
    - GDPR compliance scoring
    - HIPAA compliance scoring
-   - SOC2 compliance scoring
-   - ISO27001 compliance scoring
+   - SOC compliance scoring
+   - ISO compliance scoring
    - Audit log integrity
    - Data retention policies
 
 ---
 
-## Troubleshooting
+ Troubleshooting
 
-### Issue: Analytics Data Not Appearing
+ Issue: Analytics Data Not Appearing
 
-**Solution:**
-1. Verify database connection
-2. Check if metrics are being recorded
-3. Verify time range is correct
+Solution:
+. Verify database connection
+. Check if metrics are being recorded
+. Verify time range is correct
 
-### Issue: Compliance Score Always 0
+ Issue: Compliance Score Always 
 
-**Solution:**
-1. Ensure audit logs are being recorded
-2. Check compliance framework configuration
-3. Verify data retention policies are set
+Solution:
+. Ensure audit logs are being recorded
+. Check compliance framework configuration
+. Verify data retention policies are set
 
-### Issue: High Latency on Trend Analysis
+ Issue: High Latency on Trend Analysis
 
-**Solution:**
-1. Reduce analysis window size
-2. Check database indexes exist
-3. Consider caching trend results
-
----
-
-## Future Enhancements
-
-- **Advanced Forecasting**: ARIMA, Prophet models
-- **Anomaly Detection**: Isolation Forest, LOF algorithms
-- **Custom Dashboards**: Drag-and-drop widget builder
-- **Real-time Alerts**: Threshold-based notifications
-- **Export Capabilities**: PDF, Excel, CSV reports
-- **Multi-tenancy**: Per-tenant analytics isolation
+Solution:
+. Reduce analysis window size
+. Check database indexes exist
+. Consider caching trend results
 
 ---
 
-## Support & Contact
+ Future Enhancements
 
-For issues or questions regarding Sprint 7 features:
-1. Check documentation
-2. Review test cases for usage examples
-3. Contact development team
+- Advanced Forecasting: ARIMA, Prophet models
+- Anomaly Detection: Isolation Forest, LOF algorithms
+- Custom Dashboards: Drag-and-drop widget builder
+- Real-time Alerts: Threshold-based notifications
+- Export Capabilities: PDF, Excel, CSV reports
+- Multi-tenancy: Per-tenant analytics isolation
 
 ---
 
-**Sprint 7 Implementation Complete** ✓
+ Support & Contact
+
+For issues or questions regarding Sprint  features:
+. Check documentation
+. Review test cases for usage examples
+. Contact development team
+
+---
+
+Sprint  Implementation Complete 

@@ -1,7 +1,7 @@
-/**
- * Bulk Operations Utilities
- * Functions for handling batch permission and role operations
- */
+/
+  Bulk Operations Utilities
+  Functions for handling batch permission and role operations
+ /
 
 export interface BulkOperation {
   id: string;
@@ -30,9 +30,9 @@ export interface BulkOperationStats {
   duration: number; // in milliseconds
 }
 
-/**
- * Create bulk operation
- */
+/
+  Create bulk operation
+ /
 export const createBulkOperation = (
   type: BulkOperation['type'],
   targetIds: string[],
@@ -40,7 +40,7 @@ export const createBulkOperation = (
   roleId?: string
 ): BulkOperation => {
   return {
-    id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: bulk-${Date.now()}-${Math.random().toString().substr(, )},
     type,
     targetIds,
     permissions,
@@ -51,21 +51,21 @@ export const createBulkOperation = (
   };
 };
 
-/**
- * Validate bulk operation
- */
+/
+  Validate bulk operation
+ /
 export const validateBulkOperation = (op: BulkOperation): {
   valid: boolean;
   errors: string[];
 } => {
   const errors: string[] = [];
 
-  if (!op.targetIds || op.targetIds.length === 0) {
+  if (!op.targetIds || op.targetIds.length === ) {
     errors.push('At least one target is required');
   }
 
   if (op.type === 'grant' || op.type === 'revoke') {
-    if (!op.permissions || op.permissions.length === 0) {
+    if (!op.permissions || op.permissions.length === ) {
       errors.push('At least one permission is required for grant/revoke');
     }
   }
@@ -77,14 +77,14 @@ export const validateBulkOperation = (op: BulkOperation): {
   }
 
   return {
-    valid: errors.length === 0,
+    valid: errors.length === ,
     errors,
   };
 };
 
-/**
- * Parse CSV for bulk operations
- */
+/
+  Parse CSV for bulk operations
+ /
 export const parseCSVForBulkOps = (
   csv: string,
   format: 'users' | 'roles' = 'users'
@@ -92,59 +92,59 @@ export const parseCSVForBulkOps = (
   const errors: string[] = [];
   const lines = csv.trim().split('\n');
 
-  if (lines.length < 2) {
+  if (lines.length < ) {
     errors.push('CSV must have at least a header and one data row');
     return { ids: [], headers: [], errors };
   }
 
-  const headers = lines[0].split(',').map((h) => h.trim());
+  const headers = lines[].split(',').map((h) => h.trim());
   const idColumn = format === 'users' ? 'user_id' : 'role_id';
   const idIndex = headers.indexOf(idColumn);
 
-  if (idIndex === -1) {
-    errors.push(`Column '${idColumn}' not found in CSV`);
+  if (idIndex === -) {
+    errors.push(Column '${idColumn}' not found in CSV);
     return { ids: [], headers, errors };
   }
 
   const ids: string[] = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = ; i < lines.length; i++) {
     const values = lines[i].split(',').map((v) => v.trim());
     if (values.length > idIndex && values[idIndex]) {
       ids.push(values[idIndex]);
     }
   }
 
-  if (ids.length === 0) {
+  if (ids.length === ) {
     errors.push('No valid IDs found in CSV');
   }
 
   return { ids, headers, errors };
 };
 
-/**
- * Chunk array for batch processing
- */
+/
+  Chunk array for batch processing
+ /
 export const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
   const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += chunkSize) {
+  for (let i = ; i < array.length; i += chunkSize) {
     chunks.push(array.slice(i, i + chunkSize));
   }
   return chunks;
 };
 
-/**
- * Process bulk operation in batches
- */
+/
+  Process bulk operation in batches
+ /
 export const processBulkOperationInBatches = async (
   op: BulkOperation,
   processFn: (targetId: string) => Promise<OperationResult>,
-  batchSize: number = 10,
+  batchSize: number = ,
   onProgress?: (completed: number, total: number) => void
 ): Promise<BulkOperationStats> => {
   const startTime = Date.now();
   const batches = chunkArray(op.targetIds, batchSize);
   const results: OperationResult[] = [];
-  let completed = 0;
+  let completed = ;
 
   for (const batch of batches) {
     const batchResults = await Promise.allSettled(
@@ -178,14 +178,14 @@ export const processBulkOperationInBatches = async (
     totalOperations: results.length,
     successful,
     failed,
-    successRate: results.length > 0 ? (successful / results.length) * 100 : 0,
+    successRate: results.length >  ? (successful / results.length)   : ,
     duration,
   };
 };
 
-/**
- * Generate CSV export for operation results
- */
+/
+  Generate CSV export for operation results
+ /
 export const exportResultsAsCSV = (
   op: BulkOperation,
   stats: BulkOperationStats
@@ -199,23 +199,23 @@ export const exportResultsAsCSV = (
   op.results?.forEach((result) => {
     const status = result.success ? 'Success' : 'Failed';
     const message = result.message || result.error || '';
-    lines.push(`${result.targetId},${status},"${message}"`);
+    lines.push(${result.targetId},${status},"${message}");
   });
 
   // Summary
   lines.push('');
-  lines.push(`Total,${stats.totalOperations}`);
-  lines.push(`Successful,${stats.successful}`);
-  lines.push(`Failed,${stats.failed}`);
-  lines.push(`Success Rate,${stats.successRate.toFixed(2)}%`);
-  lines.push(`Duration (ms),${stats.duration}`);
+  lines.push(Total,${stats.totalOperations});
+  lines.push(Successful,${stats.successful});
+  lines.push(Failed,${stats.failed});
+  lines.push(Success Rate,${stats.successRate.toFixed()}%);
+  lines.push(Duration (ms),${stats.duration});
 
   return lines.join('\n');
 };
 
-/**
- * Create undo operation from original
- */
+/
+  Create undo operation from original
+ /
 export const createUndoOperation = (
   originalOp: BulkOperation
 ): BulkOperation | null => {
@@ -232,35 +232,35 @@ export const createUndoOperation = (
   );
 };
 
-/**
- * Get operation summary
- */
+/
+  Get operation summary
+ /
 export const getOperationSummary = (op: BulkOperation): string => {
-  const typeLabel = op.type.charAt(0).toUpperCase() + op.type.slice(1);
+  const typeLabel = op.type.charAt().toUpperCase() + op.type.slice();
   const targetCount = op.targetIds.length;
-  const successCount = op.results?.filter((r) => r.success).length || 0;
-  const failCount = op.results?.filter((r) => !r.success).length || 0;
+  const successCount = op.results?.filter((r) => r.success).length || ;
+  const failCount = op.results?.filter((r) => !r.success).length || ;
 
   if (op.status === 'pending' || op.status === 'in-progress') {
-    return `${typeLabel} operation on ${targetCount} targets (${op.status})`;
+    return ${typeLabel} operation on ${targetCount} targets (${op.status});
   }
 
-  return `${typeLabel} operation: ${successCount} successful, ${failCount} failed`;
+  return ${typeLabel} operation: ${successCount} successful, ${failCount} failed;
 };
 
-/**
- * Check if operation can be retried
- */
+/
+  Check if operation can be retried
+ /
 export const canRetryOperation = (op: BulkOperation): boolean => {
   return (
     op.status === 'failed' &&
-    (op.results?.some((r) => !r.success) || op.results?.length === 0)
+    (op.results?.some((r) => !r.success) || op.results?.length === )
   );
 };
 
-/**
- * Create retry operation for failed items
- */
+/
+  Create retry operation for failed items
+ /
 export const createRetryOperation = (
   originalOp: BulkOperation
 ): BulkOperation | null => {
@@ -268,7 +268,7 @@ export const createRetryOperation = (
     ?.filter((r) => !r.success)
     .map((r) => r.targetId);
 
-  if (!failedIds || failedIds.length === 0) {
+  if (!failedIds || failedIds.length === ) {
     return null;
   }
 
@@ -280,22 +280,22 @@ export const createRetryOperation = (
   );
 };
 
-/**
- * Merge multiple operations
- */
+/
+  Merge multiple operations
+ /
 export const mergeOperations = (ops: BulkOperation[]): BulkOperation => {
-  const firstOp = ops[0];
+  const firstOp = ops[];
   return {
     ...firstOp,
-    id: `merged-${Date.now()}`,
+    id: merged-${Date.now()},
     targetIds: Array.from(new Set(ops.flatMap((op) => op.targetIds))),
     results: ops.flatMap((op) => op.results || []),
   };
 };
 
-/**
- * Filter operations by criteria
- */
+/
+  Filter operations by criteria
+ /
 export const filterOperations = (
   operations: BulkOperation[],
   criteria: {
@@ -326,9 +326,9 @@ export const filterOperations = (
   });
 };
 
-/**
- * Get operation statistics
- */
+/
+  Get operation statistics
+ /
 export const getOperationStats = (operations: BulkOperation[]): {
   totalOperations: number;
   byType: Record<string, number>;
@@ -351,12 +351,12 @@ export const getOperationStats = (operations: BulkOperation[]): {
       completed: operations.filter((op) => op.status === 'completed').length,
       failed: operations.filter((op) => op.status === 'failed').length,
     },
-    totalTargets: operations.reduce((sum, op) => sum + op.targetIds.length, 0),
+    totalTargets: operations.reduce((sum, op) => sum + op.targetIds.length, ),
     averageTargetsPerOp:
-      operations.length > 0
-        ? operations.reduce((sum, op) => sum + op.targetIds.length, 0) /
+      operations.length > 
+        ? operations.reduce((sum, op) => sum + op.targetIds.length, ) /
           operations.length
-        : 0,
+        : ,
   };
 };
 

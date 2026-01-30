@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v"
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/core/domain"
@@ -10,11 +10,11 @@ import (
 
 // BulkOperationHandler handles bulk operation endpoints
 type BulkOperationHandler struct {
-	service *services.BulkOperationService
+	service services.BulkOperationService
 }
 
 // NewBulkOperationHandler creates a new bulk operation handler
-func NewBulkOperationHandler() *BulkOperationHandler {
+func NewBulkOperationHandler() BulkOperationHandler {
 	return &BulkOperationHandler{
 		service: services.NewBulkOperationService(),
 	}
@@ -22,8 +22,8 @@ func NewBulkOperationHandler() *BulkOperationHandler {
 
 // CreateBulkOperation handles POST /bulk-operations
 // Creates a new bulk operation job
-func (h *BulkOperationHandler) CreateBulkOperation(c *fiber.Ctx) error {
-	userClaims := c.Locals("user").(*domain.UserClaims)
+func (h BulkOperationHandler) CreateBulkOperation(c fiber.Ctx) error {
+	userClaims := c.Locals("user").(domain.UserClaims)
 	if userClaims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -58,7 +58,7 @@ func (h *BulkOperationHandler) CreateBulkOperation(c *fiber.Ctx) error {
 
 // GetBulkOperation handles GET /bulk-operations/:id
 // Retrieves a specific bulk operation
-func (h *BulkOperationHandler) GetBulkOperation(c *fiber.Ctx) error {
+func (h BulkOperationHandler) GetBulkOperation(c fiber.Ctx) error {
 	opID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -78,21 +78,21 @@ func (h *BulkOperationHandler) GetBulkOperation(c *fiber.Ctx) error {
 
 // ListBulkOperations handles GET /bulk-operations
 // Lists bulk operations for the authenticated user
-func (h *BulkOperationHandler) ListBulkOperations(c *fiber.Ctx) error {
-	userClaims := c.Locals("user").(*domain.UserClaims)
+func (h BulkOperationHandler) ListBulkOperations(c fiber.Ctx) error {
+	userClaims := c.Locals("user").(domain.UserClaims)
 	if userClaims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
 	}
 
-	limit := 20
-	if l := c.QueryInt("limit"); l > 0 && l <= 100 {
+	limit := 
+	if l := c.QueryInt("limit"); l >  && l <=  {
 		limit = l
 	}
 
-	offset := 0
-	if o := c.QueryInt("offset"); o >= 0 {
+	offset := 
+	if o := c.QueryInt("offset"); o >=  {
 		offset = o
 	}
 

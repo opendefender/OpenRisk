@@ -59,23 +59,23 @@ func (r AuditLogResult) String() string {
 
 // AuditLog represents an audit trail entry for authentication and authorization events
 type AuditLog struct {
-	ID           uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID       *uuid.UUID       `gorm:"index" json:"user_id,omitempty"` // NULL for pre-auth events
-	Action       AuditLogAction   `gorm:"type:varchar(100);index" json:"action"`
-	Resource     AuditLogResource `gorm:"type:varchar(100)" json:"resource,omitempty"`
-	ResourceID   *uuid.UUID       `json:"resource_id,omitempty"` // ID of affected resource
-	Result       AuditLogResult   `gorm:"type:varchar(20);index" json:"result"`
-	ErrorMessage string           `json:"error_message,omitempty"` // Description of failure
-	IPAddress    *net.IP          `gorm:"type:inet" json:"ip_address,omitempty"`
-	UserAgent    string           `json:"user_agent,omitempty"`
-	Timestamp    time.Time        `gorm:"index;default:CURRENT_TIMESTAMP" json:"timestamp"`
+	ID           uuid.UUID        gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"
+	UserID       uuid.UUID       gorm:"index" json:"user_id,omitempty" // NULL for pre-auth events
+	Action       AuditLogAction   gorm:"type:varchar();index" json:"action"
+	Resource     AuditLogResource gorm:"type:varchar()" json:"resource,omitempty"
+	ResourceID   uuid.UUID       json:"resource_id,omitempty" // ID of affected resource
+	Result       AuditLogResult   gorm:"type:varchar();index" json:"result"
+	ErrorMessage string           json:"error_message,omitempty" // Description of failure
+	IPAddress    net.IP          gorm:"type:inet" json:"ip_address,omitempty"
+	UserAgent    string           json:"user_agent,omitempty"
+	Timestamp    time.Time        gorm:"index;default:CURRENT_TIMESTAMP" json:"timestamp"
 	// Metadata for advanced queries
-	Duration int64 `json:"duration_ms,omitempty"` // Action duration in milliseconds
+	Duration int json:"duration_ms,omitempty" // Action duration in milliseconds
 }
 
 // Implement database scanner and valuer interfaces
-func (a *AuditLogAction) Scan(value interface{}) error {
-	*a = AuditLogAction(value.(string))
+func (a AuditLogAction) Scan(value interface{}) error {
+	a = AuditLogAction(value.(string))
 	return nil
 }
 
@@ -83,8 +83,8 @@ func (a AuditLogAction) Value() (driver.Value, error) {
 	return a.String(), nil
 }
 
-func (r *AuditLogResource) Scan(value interface{}) error {
-	*r = AuditLogResource(value.(string))
+func (r AuditLogResource) Scan(value interface{}) error {
+	r = AuditLogResource(value.(string))
 	return nil
 }
 
@@ -92,8 +92,8 @@ func (r AuditLogResource) Value() (driver.Value, error) {
 	return r.String(), nil
 }
 
-func (r *AuditLogResult) Scan(value interface{}) error {
-	*r = AuditLogResult(value.(string))
+func (r AuditLogResult) Scan(value interface{}) error {
+	r = AuditLogResult(value.(string))
 	return nil
 }
 
