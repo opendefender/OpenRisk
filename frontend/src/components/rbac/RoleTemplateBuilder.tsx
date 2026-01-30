@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronRight, Copy, Plus, Shield, Trash2 } from 'lucide-react';
-import { getAllTemplates, compareTemplates, getRecommendedTemplate, cloneTemplate } from '../../utils/roleTemplateUtils';
+import { getAllTemplates, compareTemplates, cloneTemplate } from '../../utils/roleTemplateUtils';
 import { motion } from 'framer-motion';
 import type { RoleTemplate } from '../../utils/roleTemplateUtils';
 

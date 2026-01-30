@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Clock, User, Filter, Search, MapPin, Users } from 'lucide-react';
+import { AlertTriangle, Clock, User, Filter, Search, Users } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { ViewToggle } from '../components/ViewToggle';
-import { useIncidentStore, type Incident } from '../hooks/useIncidentStore';
+import { useIncidentStore } from '../hooks/useIncidentStore';
 
 export const Incidents = () => {
   const { incidents, total, page, pageSize, isLoading, error, fetchIncidents } = useIncidentStore();

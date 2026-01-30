@@ -167,28 +167,39 @@ export const rolePermissionSets = {
     'assets:read',
     'incidents:read',
     'risks:read',
-  ],
-  analyst: [
-    ...this.viewer,
-    'risks:create',
-    'risks:update',
-    'incidents:create',
-    'reports:create',
-    'connector:read',
-  ],
-  manager: [
-    ...this.analyst,
-    'users:create',
-    'users:update',
-    'roles:read',
-    'roles:create',
-    'tenants:read',
-    'assets:create',
-    'assets:update',
-  ],
-  admin: [
-    '*',
-  ],
+  ] as const,
+} as const;
+
+// Define other role sets after viewer is available
+const viewerPerms = rolePermissionSets.viewer;
+const analystPerms = [
+  ...viewerPerms,
+  'risks:create',
+  'risks:update',
+  'incidents:create',
+  'reports:create',
+  'connector:read',
+] as const;
+
+const managerPerms = [
+  ...analystPerms,
+  'users:create',
+  'users:update',
+  'roles:read',
+  'roles:create',
+  'tenants:read',
+  'assets:create',
+  'assets:update',
+] as const;
+
+const adminPerms = ['*'] as const;
+
+// Re-export with complete sets
+export const rolePermissionSetsComplete = {
+  viewer: viewerPerms,
+  analyst: analystPerms,
+  manager: managerPerms,
+  admin: adminPerms,
 };
 
 /**
@@ -234,7 +245,7 @@ export default {
   getRoleLevel,
   isFeatureEnabled,
   getAvailableActions,
-  rolePermissionSets,
+  rolePermissionSets: rolePermissionSetsComplete,
   isProtectedPermission,
   buildPermissionString,
   parsePermission,

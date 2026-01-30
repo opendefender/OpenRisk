@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Shield, Users, Lock, Zap } from 'lucide-react';
+import { Shield, Users, Zap } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../hooks/useAuthStore';
 
@@ -59,7 +59,6 @@ export const RBACDashboardWidget = () => {
     return null;
   }
 
-  const levelName = ['Viewer', 'Analyst', 'Manager', 'Admin'][Math.min(Math.floor(roleInfo.level / 3), 3)];
   const colors = levelColors[roleInfo.level as keyof typeof levelColors] || levelColors[0];
 
   return (

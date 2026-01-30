@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Plus, Trash2, Edit2, Lock, Unlock, Search, ChevronRight } from 'lucide-react';
+import { Shield, Plus, Trash2, Lock, Search, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
@@ -46,7 +46,6 @@ export const RoleManagement = () => {
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDescription, setNewRoleDescription] = useState('');
   const [newRoleLevel, setNewRoleLevel] = useState(3);
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'ADMIN';
@@ -78,7 +77,6 @@ export const RoleManagement = () => {
     try {
       const response = await api.get(`/rbac/roles/${roleId}`);
       setSelectedRole(response.data);
-      setSelectedPermissions(response.data.permissions.map((p: Permission) => p.id));
     } catch (err: any) {
       toast.error("We couldn't load this role's permissions. Please try again.");
     }
@@ -463,7 +461,7 @@ export const RoleManagement = () => {
             <div className="flex gap-3">
               <Button
                 onClick={() => setShowCreateModal(false)}
-                variant="outline"
+                variant="ghost"
                 className="flex-1"
               >
                 Cancel

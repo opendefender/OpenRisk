@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Lock, Unlock, AlertCircle, Users, Check } from 'lucide-react';
+import { Shield, Lock, AlertCircle, Users, Check } from 'lucide-react';
 import { api } from '../../lib/api';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../hooks/useAuthStore';

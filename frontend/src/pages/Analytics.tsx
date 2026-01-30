@@ -369,7 +369,7 @@ function MetricCard({
             </p>
           )}
         </div>
-        {Icon && <Icon size={24} className="text-gray-600" />}
+        {Icon && <div className="text-gray-600"><Icon size={24} /></div>}
       </div>
     </div>
   );

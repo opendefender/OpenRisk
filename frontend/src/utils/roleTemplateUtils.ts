@@ -3,7 +3,7 @@
  * Functions for creating, modifying, and managing roles from templates
  */
 
-import { ROLE_TEMPLATES, type PermissionAction, type PermissionResource } from '../config/rbacConfig';
+import { ROLE_TEMPLATES } from '../config/rbacConfig';
 
 export interface RoleTemplate {
   name: string;
@@ -25,14 +25,25 @@ export interface CustomRole extends RoleTemplate {
 export const getTemplateByName = (name: string): RoleTemplate | null => {
   const key = name.toUpperCase();
   const template = ROLE_TEMPLATES[key as keyof typeof ROLE_TEMPLATES];
-  return template ? (template as RoleTemplate) : null;
+  if (template) {
+    return {
+      ...template,
+      permissions: [...template.permissions],
+      features: [...template.features],
+    };
+  }
+  return null;
 };
 
 /**
  * Get all available templates
  */
 export const getAllTemplates = (): RoleTemplate[] => {
-  return Object.values(ROLE_TEMPLATES) as RoleTemplate[];
+  return Object.values(ROLE_TEMPLATES).map(t => ({
+    ...t,
+    permissions: [...t.permissions],
+    features: [...t.features],
+  }));
 };
 
 /**
@@ -40,9 +51,16 @@ export const getAllTemplates = (): RoleTemplate[] => {
  */
 export const getTemplateByLevel = (level: number): RoleTemplate | null => {
   const template = Object.values(ROLE_TEMPLATES).find(
-    (t) => (t as RoleTemplate).level === level
+    (t) => t.level === level
   );
-  return template ? (template as RoleTemplate) : null;
+  if (template) {
+    return {
+      ...template,
+      permissions: [...template.permissions],
+      features: [...template.features],
+    };
+  }
+  return null;
 };
 
 /**

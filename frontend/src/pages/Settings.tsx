@@ -17,7 +17,7 @@ const tabs = [
 
 export const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
-  const currentUser = useAuthStore((state) => state.user);
+  useAuthStore((state) => state.user);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

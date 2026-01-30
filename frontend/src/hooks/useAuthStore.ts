@@ -7,6 +7,12 @@ interface User {
   username: string;
   full_name: string;
   role: string; // role name for quick access
+  role_level?: number; // role level for RBAC
+  permissions?: string[]; // array of permission strings
+  bio?: string;
+  phone?: string;
+  department?: string;
+  timezone?: string;
 }
 
 interface AuthStore {

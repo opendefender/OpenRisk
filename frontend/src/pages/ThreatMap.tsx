@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { useThreatStore, type Threat } from '../hooks/useThreatStore';
 
 export const ThreatMap = () => {
-  const { threats, stats, isLoading, error, fetchThreats, fetchThreatStats } = useThreatStore();
+  const { threats, stats, fetchThreats, fetchThreatStats } = useThreatStore();
   const [selectedThreat, setSelectedThreat] = useState<Threat | null>(null);
   const [threatFilter, setThreatFilter] = useState<string>('all');
 
@@ -31,8 +31,6 @@ export const ThreatMap = () => {
         return 'from-zinc-500 to-zinc-600 text-zinc-100';
     }
   };
-
-  const totalThreats = filteredThreats.reduce((acc, t) => acc + t.threats, 0);
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -94,7 +92,7 @@ export const ThreatMap = () => {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost">
               <RefreshCw size={16} />
             </Button>
           </div>
