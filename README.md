@@ -8,7 +8,7 @@
   Part of the [OpenDefender](https://github.com/opendefender) Ecosystem
   
   [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-  [![GitHub release](https://img.shields.io/badge/version-1.0.4-brightgreen.svg)](https://github.com/opendefender/OpenRisk/releases)
+  [![GitHub release](https://img.shields.io/badge/version-1.0.6-brightgreen.svg)](https://github.com/opendefender/OpenRisk/releases)
   [![Go version](https://img.shields.io/badge/go-1.25.4-blue.svg)](https://golang.org)
   [![React version](https://img.shields.io/badge/react-19.2.0-61dafb.svg)](https://react.dev)
 </div>
