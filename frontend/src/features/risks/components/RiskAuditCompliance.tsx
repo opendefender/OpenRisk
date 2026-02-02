@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/ui/Button';
+import { useRiskCompliance } from '../../../hooks/useRiskManagement';
 
 interface ComplianceReport {
   id: string;
@@ -14,40 +15,44 @@ interface ComplianceReport {
 }
 
 export const RiskAuditCompliance = () => {
-  const [reports] = useState<ComplianceReport[]>([
+  const { data: reports, isLoading, error } = useRiskCompliance();
+
+  const frameworks = [
+    'ISO 31000:2018',
+    'NIST RMF',
+    'ISO 27001',
+    'NIST 800-53',
+    'GDPR',
+    'HIPAA',
+    'PCI-DSS',
+  ];
+
+  const auditTrail = [
     {
-      id: '1',
-      framework: 'ISO 31000:2018',
-      status: 'Compliant',
-      complianceScore: 92,
-      lastUpdated: '2024-02-01',
-      nextAudit: '2024-08-01',
+      event: 'Risk Register Updated',
+      details: '5 new risks identified',
+      timestamp: '2024-02-02 14:30',
+      user: 'Alice Johnson',
     },
     {
-      id: '2',
-      framework: 'NIST RMF',
-      status: 'Compliant',
-      complianceScore: 88,
-      lastUpdated: '2024-02-01',
-      nextAudit: '2024-08-15',
+      event: 'Treatment Plan Approved',
+      details: 'Data Security Treatment',
+      timestamp: '2024-02-01 10:15',
+      user: 'Bob Smith',
     },
     {
-      id: '3',
-      framework: 'ISO 27001',
-      status: 'Compliant',
-      complianceScore: 85,
-      lastUpdated: '2024-01-15',
-      nextAudit: '2024-07-01',
+      event: 'Compliance Review',
+      details: 'ISO 31000 Assessment',
+      timestamp: '2024-01-31 09:00',
+      user: 'Carol Davis',
     },
     {
-      id: '4',
-      framework: 'NIST 800-53',
-      status: 'Compliant',
-      complianceScore: 90,
-      lastUpdated: '2024-02-01',
-      nextAudit: '2024-08-30',
+      event: 'Risk Decision Recorded',
+      details: 'Accept system downtime risk',
+      timestamp: '2024-01-30 16:45',
+      user: 'David Wilson',
     },
-  ]);
+  ];
 
   return (
     <div className="space-y-6">
@@ -64,18 +69,21 @@ export const RiskAuditCompliance = () => {
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-zinc-400">Frameworks Tracked</p>
-                  <p className="text-2xl font-bold">{reports.length}</p>
+                  <p className="text-2xl font-bold">{frameworks.length}</p>
                 </div>
                 <div>
-                  <p className="text-zinc-400">Compliant</p>
-                  <p className="text-2xl font-bold text-green-400">
-                    {reports.filter((r) => r.status === 'Compliant').length}
-                  </p>
+                  <p className="text-zinc-400">Reports Available</p>
+                  <p className="text-2xl font-bold text-green-400">{isLoading ? '...' : reports.length}</p>
                 </div>
                 <div>
                   <p className="text-zinc-400">Avg. Compliance</p>
                   <p className="text-2xl font-bold">
-                    {Math.round(reports.reduce((sum, r) => sum + r.complianceScore, 0) / reports.length)}%
+                    {isLoading
+                      ? '...'
+                      : reports.length > 0
+                        ? Math.round(reports.reduce((sum, r: any) => sum + r.complianceScore, 0) / reports.length)
+                        : 0}
+                    %
                   </p>
                 </div>
                 <div>
@@ -83,6 +91,7 @@ export const RiskAuditCompliance = () => {
                   <p className="text-2xl font-bold text-green-400">Yes</p>
                 </div>
               </div>
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             </div>
           </div>
         </div>
@@ -98,51 +107,70 @@ export const RiskAuditCompliance = () => {
           </Button>
         </div>
 
-        {reports.map((report, idx) => (
-          <motion.div
-            key={report.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-          >
-            <Card>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold">{report.framework}</h3>
-                  <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 font-semibold">
-                    {report.status}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-zinc-500 mb-1">Compliance Score</p>
-                    <p className="text-2xl font-bold">{report.complianceScore}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-zinc-500 mb-1">Last Updated</p>
-                    <p className="text-sm font-medium">{report.lastUpdated}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-zinc-500 mb-1">Next Audit</p>
-                    <p className="text-sm font-medium">{report.nextAudit}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-zinc-500 mb-1">Status</p>
-                    <p className="text-sm font-medium text-green-400">{report.status}</p>
-                  </div>
-                </div>
-
-                <div className="w-full bg-zinc-700 rounded-full h-2">
-                  <div
-                    className="h-full rounded-full bg-green-500 transition-all"
-                    style={{ width: `${report.complianceScore}%` }}
-                  />
-                </div>
-              </div>
+        {isLoading && (
+          <Card>
+            <div className="p-12 text-center">
+              <Loader2 size={48} className="mx-auto mb-4 text-zinc-500 animate-spin" />
+              <p className="text-zinc-400">Loading compliance reports...</p>
             </Card>
-          </motion.div>
-        ))}
+          </Card>
+        )}
+
+        {!isLoading && reports.length === 0 && (
+          <Card>
+            <div className="p-12 text-center">
+              <FileText size={48} className="mx-auto mb-4 text-zinc-500" />
+              <p className="text-zinc-400">No compliance reports available</p>
+            </Card>
+          </Card>
+        )}
+
+        {!isLoading &&
+          reports.map((report: any, idx: number) => (
+            <motion.div
+              key={report.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+            >
+              <Card>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold">{report.framework}</h3>
+                    <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 font-semibold">
+                      {report.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Compliance Score</p>
+                      <p className="text-2xl font-bold">{report.complianceScore}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Last Updated</p>
+                      <p className="text-sm font-medium">{report.lastUpdated}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Next Audit</p>
+                      <p className="text-sm font-medium">{report.nextAudit}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Status</p>
+                      <p className="text-sm font-medium text-green-400">{report.status}</p>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-zinc-700 rounded-full h-2">
+                    <div
+                      className="h-full rounded-full bg-green-500 transition-all"
+                      style={{ width: `${report.complianceScore}%` }}
+                    />
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
       </div>
 
       {/* Audit Trail */}
@@ -150,32 +178,7 @@ export const RiskAuditCompliance = () => {
         <div className="p-6">
           <h3 className="text-lg font-bold mb-4">Audit Trail & Evidence Management</h3>
           <div className="space-y-3">
-            {[
-              {
-                event: 'Risk Register Updated',
-                details: '5 new risks identified',
-                timestamp: '2024-02-02 14:30',
-                user: 'Alice Johnson',
-              },
-              {
-                event: 'Treatment Plan Approved',
-                details: 'Data Security Treatment',
-                timestamp: '2024-02-01 10:15',
-                user: 'Bob Smith',
-              },
-              {
-                event: 'Compliance Review',
-                details: 'ISO 31000 Assessment',
-                timestamp: '2024-01-31 09:00',
-                user: 'Carol Davis',
-              },
-              {
-                event: 'Risk Decision Recorded',
-                details: 'Accept system downtime risk',
-                timestamp: '2024-01-30 16:45',
-                user: 'David Wilson',
-              },
-            ].map((item, idx) => (
+            {auditTrail.map((item, idx) => (
               <div key={idx} className="border-l-2 border-blue-500 pl-4 py-2">
                 <div className="flex items-center justify-between mb-1">
                   <p className="font-medium">{item.event}</p>
