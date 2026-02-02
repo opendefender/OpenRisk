@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Gauge, Plus, Edit2, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Gauge, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/ui/Button';
+import { useRiskAnalysis } from '../../../hooks/useRiskManagement';
+import { toast } from 'sonner';
 
 interface RiskAnalysis {
   id: string;
@@ -18,33 +20,7 @@ interface RiskAnalysis {
 }
 
 export const RiskAnalysisPhase = () => {
-  const [analyses, setAnalyses] = useState<RiskAnalysis[]>([
-    {
-      id: '1',
-      riskTitle: 'Data Breach Risk',
-      probability: 3,
-      impact: 5,
-      riskScore: 15,
-      riskLevel: 'HIGH',
-      rootCause: 'Weak access controls',
-      affectedAreas: ['Customer Data', 'System Security'],
-      methodology: 'Qualitative Assessment',
-      analysisDate: '2024-02-01',
-    },
-    {
-      id: '2',
-      riskTitle: 'Compliance Gap',
-      probability: 2,
-      impact: 4,
-      riskScore: 8,
-      riskLevel: 'MEDIUM',
-      rootCause: 'Process gaps',
-      affectedAreas: ['Compliance', 'Operations'],
-      methodology: 'Process Review',
-      analysisDate: '2024-02-02',
-    },
-  ]);
-
+  const { data: analyses, isLoading, error, isSubmitting, analyzeNewRisk } = useRiskAnalysis();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -78,58 +54,39 @@ export const RiskAnalysisPhase = () => {
     }
   };
 
-  const handleAddAnalysis = () => {
+  const handleAddAnalysis = async () => {
     if (formData.riskTitle && formData.rootCause && formData.affectedAreas) {
-      const riskScore = formData.probability * formData.impact;
-      const riskLevel = getRiskLevel(riskScore);
+      const success = await analyzeNewRisk({
+        risk_id: editingId || Date.now().toString(),
+        probability_score: formData.probability,
+        impact_score: formData.impact,
+        root_cause: formData.rootCause,
+        affected_areas: formData.affectedAreas.split(',').map((a) => a.trim()),
+        analysis_methodology: formData.methodology,
+      });
 
-      const newAnalysis: RiskAnalysis = {
-        id: editingId || Date.now().toString(),
-        riskTitle: formData.riskTitle,
-        probability: formData.probability,
-        impact: formData.impact,
-        riskScore,
-        riskLevel,
-        rootCause: formData.rootCause,
-        affectedAreas: formData.affectedAreas.split(',').map((a) => a.trim()),
-        methodology: formData.methodology,
-        analysisDate: new Date().toISOString().split('T')[0],
-      };
-
-      if (editingId) {
-        setAnalyses(analyses.map((a) => (a.id === editingId ? newAnalysis : a)));
+      if (success) {
+        toast.success('Risk analysis saved successfully');
+        setFormData({
+          riskTitle: '',
+          probability: 3,
+          impact: 3,
+          rootCause: '',
+          affectedAreas: '',
+          methodology: 'Qualitative Assessment',
+        });
+        setShowForm(false);
         setEditingId(null);
       } else {
-        setAnalyses([...analyses, newAnalysis]);
+        toast.error('Failed to save risk analysis');
       }
-
-      setFormData({
-        riskTitle: '',
-        probability: 3,
-        impact: 3,
-        rootCause: '',
-        affectedAreas: '',
-        methodology: 'Qualitative Assessment',
-      });
-      setShowForm(false);
+    } else {
+      toast.error('Please fill in all required fields');
     }
   };
 
-  const handleEdit = (analysis: RiskAnalysis) => {
-    setFormData({
-      riskTitle: analysis.riskTitle,
-      probability: analysis.probability,
-      impact: analysis.impact,
-      rootCause: analysis.rootCause,
-      affectedAreas: analysis.affectedAreas.join(', '),
-      methodology: analysis.methodology,
-    });
-    setEditingId(analysis.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setAnalyses(analyses.filter((item) => item.id !== id));
+  const handleDelete = async (id: string) => {
+    toast.info('Delete functionality coming soon');
   };
 
   return (
@@ -147,25 +104,32 @@ export const RiskAnalysisPhase = () => {
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-zinc-400">Total Analyzed</p>
-                  <p className="text-2xl font-bold">{analyses.length}</p>
+                  <p className="text-2xl font-bold">{isLoading ? '...' : analyses.length}</p>
                 </div>
                 <div>
                   <p className="text-zinc-400">Critical</p>
-                  <p className="text-2xl font-bold text-red-400">{analyses.filter((a) => a.riskLevel === 'CRITICAL').length}</p>
+                  <p className="text-2xl font-bold text-red-400">
+                    {isLoading ? '...' : analyses.filter((a) => a.riskLevel === 'CRITICAL').length}
+                  </p>
                 </div>
                 <div>
                   <p className="text-zinc-400">High</p>
-                  <p className="text-2xl font-bold text-orange-400">{analyses.filter((a) => a.riskLevel === 'HIGH').length}</p>
+                  <p className="text-2xl font-bold text-orange-400">
+                    {isLoading ? '...' : analyses.filter((a) => a.riskLevel === 'HIGH').length}
+                  </p>
                 </div>
                 <div>
                   <p className="text-zinc-400">Avg. Score</p>
                   <p className="text-2xl font-bold">
-                    {analyses.length > 0
-                      ? (analyses.reduce((sum, a) => sum + a.riskScore, 0) / analyses.length).toFixed(1)
-                      : 0}
+                    {isLoading
+                      ? '...'
+                      : analyses.length > 0
+                        ? (analyses.reduce((sum, a) => sum + a.riskScore, 0) / analyses.length).toFixed(1)
+                        : 0}
                   </p>
                 </div>
               </div>
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             </div>
           </div>
         </div>
@@ -185,6 +149,7 @@ export const RiskAnalysisPhase = () => {
                   onChange={(e) => setFormData({ ...formData, riskTitle: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                   placeholder="e.g., Data Breach Risk"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -201,6 +166,7 @@ export const RiskAnalysisPhase = () => {
                       value={formData.probability}
                       onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value) })}
                       className="flex-1"
+                      disabled={isSubmitting}
                     />
                     <span className="text-lg font-bold w-8">{formData.probability}</span>
                   </div>
@@ -218,6 +184,7 @@ export const RiskAnalysisPhase = () => {
                       value={formData.impact}
                       onChange={(e) => setFormData({ ...formData, impact: parseInt(e.target.value) })}
                       className="flex-1"
+                      disabled={isSubmitting}
                     />
                     <span className="text-lg font-bold w-8">{formData.impact}</span>
                   </div>
@@ -238,6 +205,7 @@ export const RiskAnalysisPhase = () => {
                   onChange={(e) => setFormData({ ...formData, rootCause: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500 h-20"
                   placeholder="Describe the root cause..."
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -249,6 +217,7 @@ export const RiskAnalysisPhase = () => {
                   onChange={(e) => setFormData({ ...formData, affectedAreas: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                   placeholder="e.g., Customer Data, System Security"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -258,6 +227,7 @@ export const RiskAnalysisPhase = () => {
                   value={formData.methodology}
                   onChange={(e) => setFormData({ ...formData, methodology: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={isSubmitting}
                 >
                   <option>Qualitative Assessment</option>
                   <option>Quantitative Analysis</option>
@@ -269,8 +239,10 @@ export const RiskAnalysisPhase = () => {
               <div className="flex gap-2 pt-4">
                 <Button
                   onClick={handleAddAnalysis}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 disabled:opacity-50"
                 >
+                  {isSubmitting && <Loader2 size={16} className="animate-spin" />}
                   {editingId ? 'Update Analysis' : 'Add Analysis'}
                 </Button>
                 <Button
@@ -286,7 +258,8 @@ export const RiskAnalysisPhase = () => {
                       methodology: 'Qualitative Assessment',
                     });
                   }}
-                  className="bg-zinc-700 hover:bg-zinc-600 text-white"
+                  disabled={isSubmitting}
+                  className="bg-zinc-700 hover:bg-zinc-600 text-white disabled:opacity-50"
                 >
                   Cancel
                 </Button>
@@ -311,14 +284,25 @@ export const RiskAnalysisPhase = () => {
           )}
         </div>
 
-        {analyses.length === 0 ? (
+        {isLoading && (
+          <Card>
+            <div className="p-12 text-center">
+              <Loader2 size={48} className="mx-auto mb-4 text-zinc-500 animate-spin" />
+              <p className="text-zinc-400">Loading risk analyses...</p>
+            </div>
+          </Card>
+        )}
+
+        {!isLoading && analyses.length === 0 && (
           <Card>
             <div className="p-12 text-center">
               <Gauge size={48} className="mx-auto mb-4 text-zinc-500" />
               <p className="text-zinc-400">No risk analyses yet</p>
             </div>
           </Card>
-        ) : (
+        )}
+
+        {!isLoading &&
           analyses.map((analysis, idx) => (
             <motion.div
               key={analysis.id}
@@ -379,7 +363,18 @@ export const RiskAnalysisPhase = () => {
 
                     <div className="flex gap-2 ml-4">
                       <button
-                        onClick={() => handleEdit(analysis)}
+                        onClick={() => {
+                          setFormData({
+                            riskTitle: analysis.riskTitle,
+                            probability: analysis.probability,
+                            impact: analysis.impact,
+                            rootCause: analysis.rootCause,
+                            affectedAreas: analysis.affectedAreas.join(', '),
+                            methodology: analysis.methodology,
+                          });
+                          setEditingId(analysis.id);
+                          setShowForm(true);
+                        }}
                         className="text-zinc-400 hover:text-blue-500 transition-colors p-2"
                       >
                         <Edit2 size={20} />
@@ -395,8 +390,7 @@ export const RiskAnalysisPhase = () => {
                 </div>
               </Card>
             </motion.div>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );

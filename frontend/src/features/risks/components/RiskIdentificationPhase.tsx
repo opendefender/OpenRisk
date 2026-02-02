@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertCircle, Plus, Trash2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/ui/Button';
+import { useRiskIdentification } from '../../../hooks/useRiskManagement';
+import { toast } from 'sonner';
 
 interface RiskIdentification {
   id: string;
@@ -16,29 +18,7 @@ interface RiskIdentification {
 }
 
 export const RiskIdentificationPhase = () => {
-  const [identifications, setIdentifications] = useState<RiskIdentification[]>([
-    {
-      id: '1',
-      title: 'Data Breach Risk',
-      category: 'Security',
-      context: 'External threat actors targeting customer data',
-      method: 'Threat Assessment',
-      identifiedBy: 'Security Team',
-      identificationDate: '2024-02-01',
-      status: 'identified',
-    },
-    {
-      id: '2',
-      title: 'Compliance Gap',
-      category: 'Regulatory',
-      context: 'Potential non-compliance with GDPR requirements',
-      method: 'Audit Finding',
-      identifiedBy: 'Compliance Officer',
-      identificationDate: '2024-02-02',
-      status: 'pending-analysis',
-    },
-  ]);
-
+  const { data: identifications, isLoading, error, isSubmitting, addRisk } = useRiskIdentification();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -51,28 +31,36 @@ export const RiskIdentificationPhase = () => {
   const categories = ['Security', 'Operational', 'Financial', 'Compliance', 'Reputational', 'Strategic'];
   const methods = ['Workshop', 'Interview', 'Assessment', 'Scanning', 'Manual'];
 
-  const handleAddIdentification = () => {
+  const handleAddIdentification = async () => {
     if (formData.title && formData.context && formData.identifiedBy) {
-      const newIdentification: RiskIdentification = {
-        id: Date.now().toString(),
-        ...formData,
-        identificationDate: new Date().toISOString().split('T')[0],
-        status: 'identified',
-      };
-      setIdentifications([...identifications, newIdentification]);
-      setFormData({
-        title: '',
-        category: 'Security',
-        context: '',
-        method: 'Manual',
-        identifiedBy: '',
+      const success = await addRisk({
+        risk_id: Date.now().toString(),
+        risk_category: formData.category,
+        risk_context: formData.context,
+        identification_method: formData.method,
       });
-      setShowForm(false);
+
+      if (success) {
+        toast.success('Risk identified successfully');
+        setFormData({
+          title: '',
+          category: 'Security',
+          context: '',
+          method: 'Manual',
+          identifiedBy: '',
+        });
+        setShowForm(false);
+      } else {
+        toast.error('Failed to identify risk');
+      }
+    } else {
+      toast.error('Please fill in all required fields');
     }
   };
 
-  const handleDelete = (id: string) => {
-    setIdentifications(identifications.filter((item) => item.id !== id));
+  const handleDelete = async (id: string) => {
+    // TODO: Implement delete endpoint
+    toast.info('Delete functionality coming soon');
   };
 
   return (
@@ -94,13 +82,16 @@ export const RiskIdentificationPhase = () => {
                 </div>
                 <div>
                   <p className="text-zinc-400">Pending Analysis</p>
-                  <p className="text-2xl font-bold">{identifications.filter((i) => i.status === 'pending-analysis').length}</p>
+                  <p className="text-2xl font-bold">
+                    {isLoading ? '...' : identifications.filter((i) => i.status === 'pending-analysis').length}
+                  </p>
                 </div>
                 <div>
                   <p className="text-zinc-400">Completion Rate</p>
                   <p className="text-2xl font-bold">100%</p>
                 </div>
               </div>
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             </div>
           </div>
         </div>
@@ -179,8 +170,10 @@ export const RiskIdentificationPhase = () => {
               <div className="flex gap-2 pt-4">
                 <Button
                   onClick={handleAddIdentification}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 disabled:opacity-50"
                 >
+                  {isSubmitting && <Loader2 size={16} className="animate-spin" />}
                   Add Identification
                 </Button>
                 <Button
@@ -210,14 +203,25 @@ export const RiskIdentificationPhase = () => {
           )}
         </div>
 
-        {identifications.length === 0 ? (
+        {isLoading && (
+          <Card>
+            <div className="p-12 text-center">
+              <Loader2 size={48} className="mx-auto mb-4 text-zinc-500 animate-spin" />
+              <p className="text-zinc-400">Loading identified risks...</p>
+            </div>
+          </Card>
+        )}
+
+        {!isLoading && identifications.length === 0 && (
           <Card>
             <div className="p-12 text-center">
               <AlertCircle size={48} className="mx-auto mb-4 text-zinc-500" />
               <p className="text-zinc-400">No risks identified yet</p>
             </div>
           </Card>
-        ) : (
+        )}
+
+        {!isLoading &&
           identifications.map((identification, idx) => (
             <motion.div
               key={identification.id}
@@ -271,8 +275,7 @@ export const RiskIdentificationPhase = () => {
                 </div>
               </Card>
             </motion.div>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );

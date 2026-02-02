@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Zap, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Zap, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/ui/Button';
+import { useRiskTreatment } from '../../../hooks/useRiskManagement';
+import { toast } from 'sonner';
 
 interface RiskTreatment {
   id: string;
@@ -18,21 +20,7 @@ interface RiskTreatment {
 }
 
 export const RiskTreatmentPhase = () => {
-  const [treatments, setTreatments] = useState<RiskTreatment[]>([
-    {
-      id: '1',
-      riskTitle: 'Data Breach Risk',
-      strategy: 'Mitigate',
-      description: 'Implement enhanced access controls and encryption',
-      actionPlan: 'Deploy multi-factor authentication, implement data encryption',
-      owner: 'Security Team',
-      budget: '$150,000',
-      timeline: '3 months',
-      status: 'in-progress',
-      effectiveness: 75,
-    },
-  ]);
-
+  const { data: treatments, isLoading, error, isSubmitting, treatRisk } = useRiskTreatment();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
@@ -60,45 +48,6 @@ export const RiskTreatmentPhase = () => {
   const strategies = ['Mitigate', 'Avoid', 'Transfer', 'Accept', 'Enhance'] as const;
   const statuses = ['planned', 'in-progress', 'completed', 'on-hold'] as const;
 
-  const handleAddTreatment = () => {
-    if (formData.riskTitle && formData.actionPlan && formData.owner) {
-      const newTreatment: RiskTreatment = {
-        id: editingId || Date.now().toString(),
-        ...formData,
-      };
-
-      if (editingId) {
-        setTreatments(treatments.map((t) => (t.id === editingId ? newTreatment : t)));
-        setEditingId(null);
-      } else {
-        setTreatments([...treatments, newTreatment]);
-      }
-
-      setFormData({
-        riskTitle: '',
-        strategy: 'Mitigate',
-        description: '',
-        actionPlan: '',
-        owner: '',
-        budget: '',
-        timeline: '',
-        status: 'planned',
-        effectiveness: 0,
-      });
-      setShowForm(false);
-    }
-  };
-
-  const handleEdit = (treatment: RiskTreatment) => {
-    setFormData(treatment);
-    setEditingId(treatment.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setTreatments(treatments.filter((item) => item.id !== id));
-  };
-
   const getStrategyColor = (strategy: string) => {
     switch (strategy) {
       case 'Mitigate':
@@ -106,13 +55,13 @@ export const RiskTreatmentPhase = () => {
       case 'Avoid':
         return 'bg-red-500/20 text-red-400';
       case 'Transfer':
-        return 'bg-purple-500/20 text-purple-400';
-      case 'Accept':
         return 'bg-yellow-500/20 text-yellow-400';
+      case 'Accept':
+        return 'bg-zinc-500/20 text-zinc-400';
       case 'Enhance':
         return 'bg-green-500/20 text-green-400';
       default:
-        return 'bg-zinc-700/20 text-zinc-400';
+        return 'bg-zinc-500/20 text-zinc-400';
     }
   };
 
@@ -122,13 +71,68 @@ export const RiskTreatmentPhase = () => {
         return 'bg-green-500/20 text-green-400';
       case 'in-progress':
         return 'bg-blue-500/20 text-blue-400';
-      case 'on-hold':
-        return 'bg-yellow-500/20 text-yellow-400';
       case 'planned':
-        return 'bg-zinc-500/20 text-zinc-400';
+        return 'bg-yellow-500/20 text-yellow-400';
+      case 'on-hold':
+        return 'bg-red-500/20 text-red-400';
       default:
-        return 'bg-zinc-700/20 text-zinc-400';
+        return 'bg-zinc-500/20 text-zinc-400';
     }
+  };
+
+  const handleAddTreatment = async () => {
+    if (formData.riskTitle && formData.actionPlan && formData.owner) {
+      const success = await treatRisk({
+        risk_id: editingId || Date.now().toString(),
+        treatment_strategy: formData.strategy,
+        treatment_description: formData.description,
+        treatment_plan: formData.actionPlan,
+        responsible_owner: formData.owner,
+        estimated_budget: formData.budget,
+        estimated_timeline: formData.timeline,
+      });
+
+      if (success) {
+        toast.success('Risk treatment saved successfully');
+        setFormData({
+          riskTitle: '',
+          strategy: 'Mitigate',
+          description: '',
+          actionPlan: '',
+          owner: '',
+          budget: '',
+          timeline: '',
+          status: 'planned',
+          effectiveness: 0,
+        });
+        setShowForm(false);
+        setEditingId(null);
+      } else {
+        toast.error('Failed to save risk treatment');
+      }
+    } else {
+      toast.error('Please fill in all required fields');
+    }
+  };
+
+  const handleEdit = (treatment: RiskTreatment) => {
+    setFormData({
+      riskTitle: treatment.riskTitle,
+      strategy: treatment.strategy,
+      description: treatment.description,
+      actionPlan: treatment.actionPlan,
+      owner: treatment.owner,
+      budget: treatment.budget,
+      timeline: treatment.timeline,
+      status: treatment.status,
+      effectiveness: treatment.effectiveness,
+    });
+    setEditingId(treatment.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    toast.info('Delete functionality coming soon');
   };
 
   return (
@@ -137,34 +141,48 @@ export const RiskTreatmentPhase = () => {
       <Card>
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <Zap size={32} className="text-blue-500 flex-shrink-0 mt-1" />
+            <Zap size={32} className="text-yellow-500 flex-shrink-0 mt-1" />
             <div>
               <h3 className="text-xl font-bold mb-2">Phase 3: Risk Treatment</h3>
               <p className="text-zinc-400 mb-4">
-                Develop and execute treatment plans to address identified and analyzed risks using five treatment strategies: Mitigate, Avoid, Transfer, Accept, or Enhance.
+                Develop and implement risk treatment strategies. Plan mitigation actions, resource allocation, and monitor treatment effectiveness.
               </p>
-              <div className="grid grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-5 gap-4 text-sm">
                 <div>
                   <p className="text-zinc-400">Total Treatments</p>
-                  <p className="text-2xl font-bold">{treatments.length}</p>
+                  <p className="text-2xl font-bold">{isLoading ? '...' : treatments.length}</p>
                 </div>
                 <div>
                   <p className="text-zinc-400">In Progress</p>
-                  <p className="text-2xl font-bold text-blue-400">{treatments.filter((t) => t.status === 'in-progress').length}</p>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {isLoading ? '...' : treatments.filter((t) => t.status === 'in-progress').length}
+                  </p>
                 </div>
                 <div>
                   <p className="text-zinc-400">Completed</p>
-                  <p className="text-2xl font-bold text-green-400">{treatments.filter((t) => t.status === 'completed').length}</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {isLoading ? '...' : treatments.filter((t) => t.status === 'completed').length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-400">Planned</p>
+                  <p className="text-2xl font-bold text-yellow-400">
+                    {isLoading ? '...' : treatments.filter((t) => t.status === 'planned').length}
+                  </p>
                 </div>
                 <div>
                   <p className="text-zinc-400">Avg. Effectiveness</p>
                   <p className="text-2xl font-bold">
-                    {treatments.length > 0
-                      ? Math.round(treatments.reduce((sum, t) => sum + t.effectiveness, 0) / treatments.length)
-                      : 0}%
+                    {isLoading
+                      ? '...'
+                      : treatments.length > 0
+                        ? (treatments.reduce((sum, t) => sum + t.effectiveness, 0) / treatments.length).toFixed(0)
+                        : 0}
+                    %
                   </p>
                 </div>
               </div>
+              {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             </div>
           </div>
         </div>
@@ -184,48 +202,34 @@ export const RiskTreatmentPhase = () => {
                   onChange={(e) => setFormData({ ...formData, riskTitle: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                   placeholder="e.g., Data Breach Risk"
+                  disabled={isSubmitting}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Treatment Strategy *</label>
-                  <select
-                    value={formData.strategy}
-                    onChange={(e) => setFormData({ ...formData, strategy: e.target.value as any })}
-                    className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                  >
-                    {strategies.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Status *</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                  >
-                    {statuses.map((s) => (
-                      <option key={s} value={s}>
-                        {s.charAt(0).toUpperCase() + s.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Strategy *</label>
+                <select
+                  value={formData.strategy}
+                  onChange={(e) => setFormData({ ...formData, strategy: e.target.value as any })}
+                  className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={isSubmitting}
+                >
+                  {strategies.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Description *</label>
+                <label className="block text-sm font-medium mb-2">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500 h-20"
                   placeholder="Describe the treatment approach..."
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -235,7 +239,8 @@ export const RiskTreatmentPhase = () => {
                   value={formData.actionPlan}
                   onChange={(e) => setFormData({ ...formData, actionPlan: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500 h-20"
-                  placeholder="Detail specific actions required..."
+                  placeholder="Detail the action plan..."
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -248,6 +253,7 @@ export const RiskTreatmentPhase = () => {
                     onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
                     className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                     placeholder="e.g., Security Team"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -259,6 +265,7 @@ export const RiskTreatmentPhase = () => {
                     onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
                     className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                     placeholder="e.g., $150,000"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -272,30 +279,50 @@ export const RiskTreatmentPhase = () => {
                     onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
                     className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                     placeholder="e.g., 3 months"
+                    disabled={isSubmitting}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Effectiveness: {formData.effectiveness}%
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                    className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    disabled={isSubmitting}
+                  >
+                    {statuses.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Effectiveness (%)</label>
+                <div className="flex items-center gap-4">
                   <input
                     type="range"
                     min="0"
                     max="100"
-                    step="5"
                     value={formData.effectiveness}
                     onChange={(e) => setFormData({ ...formData, effectiveness: parseInt(e.target.value) })}
-                    className="w-full"
+                    className="flex-1"
+                    disabled={isSubmitting}
                   />
+                  <span className="text-lg font-bold w-12">{formData.effectiveness}%</span>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-4">
                 <Button
                   onClick={handleAddTreatment}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 disabled:opacity-50"
                 >
+                  {isSubmitting && <Loader2 size={16} className="animate-spin" />}
                   {editingId ? 'Update Treatment' : 'Add Treatment'}
                 </Button>
                 <Button
@@ -314,7 +341,8 @@ export const RiskTreatmentPhase = () => {
                       effectiveness: 0,
                     });
                   }}
-                  className="bg-zinc-700 hover:bg-zinc-600 text-white"
+                  disabled={isSubmitting}
+                  className="bg-zinc-700 hover:bg-zinc-600 text-white disabled:opacity-50"
                 >
                   Cancel
                 </Button>
@@ -339,14 +367,25 @@ export const RiskTreatmentPhase = () => {
           )}
         </div>
 
-        {treatments.length === 0 ? (
+        {isLoading && (
+          <Card>
+            <div className="p-12 text-center">
+              <Loader2 size={48} className="mx-auto mb-4 text-zinc-500 animate-spin" />
+              <p className="text-zinc-400">Loading risk treatments...</p>
+            </div>
+          </Card>
+        )}
+
+        {!isLoading && treatments.length === 0 && (
           <Card>
             <div className="p-12 text-center">
               <Zap size={48} className="mx-auto mb-4 text-zinc-500" />
-              <p className="text-zinc-400">No treatments defined yet</p>
+              <p className="text-zinc-400">No risk treatments yet</p>
             </div>
           </Card>
-        ) : (
+        )}
+
+        {!isLoading &&
           treatments.map((treatment, idx) => (
             <motion.div
               key={treatment.id}
@@ -364,41 +403,39 @@ export const RiskTreatmentPhase = () => {
                           {treatment.strategy}
                         </span>
                         <span className={`text-xs px-2 py-1 rounded font-semibold ${getStatusColor(treatment.status)}`}>
-                          {treatment.status.charAt(0).toUpperCase() + treatment.status.slice(1)}
+                          {treatment.status}
                         </span>
                       </div>
 
-                      <p className="text-sm text-zinc-400 mb-3">{treatment.description}</p>
-
-                      <div className="grid grid-cols-4 gap-4 mb-3 text-sm">
+                      <div className="grid grid-cols-4 gap-4 mb-4">
                         <div>
-                          <p className="text-zinc-500">Owner</p>
-                          <p className="font-medium">{treatment.owner}</p>
+                          <p className="text-xs text-zinc-500">Owner</p>
+                          <p className="text-sm font-medium">{treatment.owner}</p>
                         </div>
                         <div>
-                          <p className="text-zinc-500">Budget</p>
-                          <p className="font-medium">{treatment.budget || 'N/A'}</p>
+                          <p className="text-xs text-zinc-500">Budget</p>
+                          <p className="text-sm font-medium">{treatment.budget}</p>
                         </div>
                         <div>
-                          <p className="text-zinc-500">Timeline</p>
-                          <p className="font-medium">{treatment.timeline || 'N/A'}</p>
+                          <p className="text-xs text-zinc-500">Timeline</p>
+                          <p className="text-sm font-medium">{treatment.timeline}</p>
                         </div>
                         <div>
-                          <p className="text-zinc-500">Effectiveness</p>
-                          <p className="font-medium">{treatment.effectiveness}%</p>
+                          <p className="text-xs text-zinc-500">Effectiveness</p>
+                          <p className="text-sm font-medium">{treatment.effectiveness}%</p>
                         </div>
                       </div>
 
-                      <div className="mb-3">
+                      {treatment.description && (
+                        <div className="mb-3">
+                          <p className="text-xs text-zinc-500 mb-1">Description</p>
+                          <p className="text-sm">{treatment.description}</p>
+                        </div>
+                      )}
+
+                      <div>
                         <p className="text-xs text-zinc-500 mb-1">Action Plan</p>
                         <p className="text-sm">{treatment.actionPlan}</p>
-                      </div>
-
-                      <div className="w-full bg-zinc-700 rounded-full h-2">
-                        <div
-                          className="h-full rounded-full bg-blue-500 transition-all"
-                          style={{ width: `${treatment.effectiveness}%` }}
-                        />
                       </div>
                     </div>
 
@@ -420,8 +457,7 @@ export const RiskTreatmentPhase = () => {
                 </div>
               </Card>
             </motion.div>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );

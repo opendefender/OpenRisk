@@ -19,6 +19,8 @@ import { RiskCommunicationPhase } from '../features/risks/components/RiskCommuni
 import { RiskManagementPolicy } from '../features/risks/components/RiskManagementPolicy';
 import { RiskDecisionManagement } from '../features/risks/components/RiskDecisionManagement';
 import { RiskAuditCompliance } from '../features/risks/components/RiskAuditCompliance';
+import { useRiskIdentification, useRiskAnalysis, useRiskTreatment } from '../hooks/useRiskManagement';
+import { toast } from 'sonner';
 
 export interface RiskPhase {
   id: string;
