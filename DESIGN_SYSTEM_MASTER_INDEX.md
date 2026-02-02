@@ -26,7 +26,7 @@
    - File: [PHASE6_SESSION_HANDOFF.md](PHASE6_SESSION_HANDOFF.md)
    - How Design System track fits in Phase 6
    - Parallel tracks (Design System + Kubernetes)
-   - 30-day overall timeline
+   - 30-day overall timeline<>
 
 ---
 
