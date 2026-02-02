@@ -24,6 +24,7 @@ import { RiskDetails } from './features/risks/components/RiskDetails';
 import { EditRiskModal } from './features/risks/components/EditRiskModal';
 import { Assets } from './pages/Assets';
 import { Risks } from './pages/Risks';
+import { RiskManagement } from './pages/RiskManagement';
 import { TokenManagement } from './pages/TokenManagement';
 import { Recommendations } from './pages/Recommendations';
 import Analytics from './pages/Analytics';
@@ -197,6 +198,7 @@ function App() {
         >
           <Route index element={<DashboardView />} />
           <Route path="risks" element={<Risks />} />
+          <Route path="risk-management" element={<RiskManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="threat-map" element={<ThreatMap />} />
