@@ -348,7 +348,7 @@ export const RiskAnalysisPhase = () => {
                       <div className="mb-3">
                         <p className="text-xs text-zinc-500 mb-1">Affected Areas</p>
                         <div className="flex flex-wrap gap-2">
-                          {analysis.affectedAreas.map((area, i) => (
+                          {analysis.affectedAreas.map((area: string, i: number) => (
                             <span key={i} className="text-xs bg-zinc-700 px-2 py-1 rounded">
                               {area}
                             </span>

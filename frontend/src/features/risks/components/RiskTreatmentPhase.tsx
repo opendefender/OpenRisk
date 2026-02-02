@@ -20,7 +20,7 @@ interface RiskTreatment {
 }
 
 export const RiskTreatmentPhase = () => {
-  const { data: treatments, isLoading, error, isSubmitting, treatRisk } = useRiskTreatment();
+  const { data: treatments, isLoading, error, isSubmitting, addTreatment } = useRiskTreatment();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
@@ -82,7 +82,7 @@ export const RiskTreatmentPhase = () => {
 
   const handleAddTreatment = async () => {
     if (formData.riskTitle && formData.actionPlan && formData.owner) {
-      const success = await treatRisk({
+      const success = await addTreatment({
         risk_id: editingId || Date.now().toString(),
         treatment_strategy: formData.strategy,
         treatment_description: formData.description,

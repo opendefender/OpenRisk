@@ -28,7 +28,7 @@ interface UsePhaseState<T> {
 
 // Hook for Risk Identification
 export const useRiskIdentification = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -38,16 +38,17 @@ export const useRiskIdentification = () => {
 
   const fetchRisks = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskRegister(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -56,14 +57,15 @@ export const useRiskIdentification = () => {
   const addRisk = useCallback(async (input: IdentifyRiskInput) => {
     setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
     const result = await identifyRisk(input);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error || null }));
       return false;
     } else {
       setState((prev) => ({
         ...prev,
         isSubmitting: false,
+        error: null,
         data: [...prev.data, result.data],
       }));
       return true;
@@ -79,7 +81,7 @@ export const useRiskIdentification = () => {
 
 // Hook for Risk Analysis
 export const useRiskAnalysis = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -89,16 +91,17 @@ export const useRiskAnalysis = () => {
 
   const fetchAnalyses = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskRegister(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -107,14 +110,15 @@ export const useRiskAnalysis = () => {
   const analyzeNewRisk = useCallback(async (input: AnalyzeRiskInput) => {
     setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
     const result = await analyzeRisk(input);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error || null }));
       return false;
     } else {
       setState((prev) => ({
         ...prev,
         isSubmitting: false,
+        error: null,
         data: [...prev.data, result.data],
       }));
       return true;
@@ -130,7 +134,7 @@ export const useRiskAnalysis = () => {
 
 // Hook for Risk Treatment
 export const useRiskTreatment = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -140,16 +144,17 @@ export const useRiskTreatment = () => {
 
   const fetchTreatments = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskTreatments(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -158,14 +163,15 @@ export const useRiskTreatment = () => {
   const addTreatment = useCallback(async (input: TreatRiskInput) => {
     setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
     const result = await treatRisk(input);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error || null }));
       return false;
     } else {
       setState((prev) => ({
         ...prev,
         isSubmitting: false,
+        error: null,
         data: [...prev.data, result.data],
       }));
       return true;
@@ -181,7 +187,7 @@ export const useRiskTreatment = () => {
 
 // Hook for Risk Monitoring
 export const useRiskMonitoring = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -191,16 +197,17 @@ export const useRiskMonitoring = () => {
 
   const fetchMonitoringData = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskRegister(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -209,14 +216,15 @@ export const useRiskMonitoring = () => {
   const updateMonitoring = useCallback(async (input: MonitorRiskInput) => {
     setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
     const result = await monitorRisk(input);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error || null }));
       return false;
     } else {
       setState((prev) => ({
         ...prev,
         isSubmitting: false,
+        error: null,
         data: [...prev.data, result.data],
       }));
       return true;
@@ -232,7 +240,7 @@ export const useRiskMonitoring = () => {
 
 // Hook for Risk Review
 export const useRiskReview = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -242,16 +250,17 @@ export const useRiskReview = () => {
 
   const fetchReviews = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskRegister(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -260,14 +269,15 @@ export const useRiskReview = () => {
   const addReview = useCallback(async (input: ReviewRiskInput) => {
     setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
     const result = await reviewRisk(input);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error || null }));
       return false;
     } else {
       setState((prev) => ({
         ...prev,
         isSubmitting: false,
+        error: null,
         data: [...prev.data, result.data],
       }));
       return true;
@@ -283,7 +293,7 @@ export const useRiskReview = () => {
 
 // Hook for Risk Communication
 export const useRiskCommunication = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -293,16 +303,17 @@ export const useRiskCommunication = () => {
 
   const fetchCommunications = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskRegister(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -311,14 +322,15 @@ export const useRiskCommunication = () => {
   const addCommunication = useCallback(async (input: CommunicateRiskInput) => {
     setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
     const result = await communicateRisk(input);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error }));
+      setState((prev) => ({ ...prev, isSubmitting: false, error: result.error || null }));
       return false;
     } else {
       setState((prev) => ({
         ...prev,
         isSubmitting: false,
+        error: null,
         data: [...prev.data, result.data],
       }));
       return true;
@@ -334,7 +346,7 @@ export const useRiskCommunication = () => {
 
 // Hook for Compliance
 export const useRiskCompliance = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -344,16 +356,17 @@ export const useRiskCompliance = () => {
 
   const fetchCompliance = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getComplianceReports(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }
@@ -368,7 +381,7 @@ export const useRiskCompliance = () => {
 
 // Hook for Risk Decisions
 export const useRiskDecisions = () => {
-  const tenantId = useAuthStore((s) => s.currentTenant?.id);
+  const tenantId = useAuthStore((s) => s.user?.id || 'default');
   const [state, setState] = useState<UsePhaseState<any>>({
     data: [],
     isLoading: false,
@@ -378,16 +391,17 @@ export const useRiskDecisions = () => {
 
   const fetchDecisions = useCallback(async () => {
     if (!tenantId) return;
-    
+
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     const result = await getRiskDecisions(tenantId);
-    
+
     if (result.error) {
-      setState((prev) => ({ ...prev, isLoading: false, error: result.error }));
+      setState((prev) => ({ ...prev, isLoading: false, error: result.error || null }));
     } else {
       setState((prev) => ({
         ...prev,
         isLoading: false,
+        error: null,
         data: result.data || [],
       }));
     }

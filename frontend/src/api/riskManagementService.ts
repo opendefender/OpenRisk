@@ -117,7 +117,7 @@ export interface MonitorRiskInput {
   risk_id: string;
   monitoring_type: string;
   current_status: string;
-  control_effectiveness: string;
+  control_effectiveness: number;
   monitoring_notes: string;
 }
 
