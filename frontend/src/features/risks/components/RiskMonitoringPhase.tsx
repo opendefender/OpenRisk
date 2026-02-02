@@ -17,7 +17,7 @@ interface RiskMonitor {
 }
 
 export const RiskMonitoringPhase = () => {
-  const { data: monitors, isLoading, error, isSubmitting, monitorRisk } = useRiskMonitoring();
+  const { data: monitors, isLoading, error, isSubmitting, updateMonitoring } = useRiskMonitoring();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -63,7 +63,7 @@ export const RiskMonitoringPhase = () => {
 
   const handleAddMonitor = async () => {
     if (formData.riskTitle && formData.monitoringNotes) {
-      const success = await monitorRisk({
+      const success = await updateMonitoring({
         risk_id: editingId || Date.now().toString(),
         monitoring_type: formData.monitoringType,
         current_status: formData.currentStatus,

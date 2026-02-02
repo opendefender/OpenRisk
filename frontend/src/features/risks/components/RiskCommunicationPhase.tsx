@@ -17,7 +17,7 @@ interface RiskCommunication {
 }
 
 export const RiskCommunicationPhase = () => {
-  const { data: communications, isLoading, error, isSubmitting, communicateRisk } = useRiskCommunication();
+  const { data: communications, isLoading, error, isSubmitting, addCommunication } = useRiskCommunication();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -47,7 +47,7 @@ export const RiskCommunicationPhase = () => {
 
   const handleAddCommunication = async () => {
     if (formData.riskTitle && formData.content && formData.targetAudience) {
-      const success = await communicateRisk({
+      const success = await addCommunication({
         risk_id: editingId || Date.now().toString(),
         communication_type: formData.communicationType,
         target_audience: formData.targetAudience,

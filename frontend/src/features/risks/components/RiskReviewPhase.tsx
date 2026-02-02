@@ -16,7 +16,7 @@ interface RiskReview {
 }
 
 export const RiskReviewPhase = () => {
-  const { data: reviews, isLoading, error, isSubmitting, reviewRisk } = useRiskReview();
+  const { data: reviews, isLoading, error, isSubmitting, addReview } = useRiskReview();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -30,7 +30,7 @@ export const RiskReviewPhase = () => {
 
   const handleAddReview = async () => {
     if (formData.riskTitle && formData.findings) {
-      const success = await reviewRisk({
+      const success = await addReview({
         risk_id: editingId || Date.now().toString(),
         review_type: formData.reviewType,
         review_date: new Date().toISOString().split('T')[0],

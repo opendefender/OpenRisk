@@ -75,7 +75,7 @@ export const RiskDecisionManagement = () => {
             <div className="p-12 text-center">
               <Loader2 size={48} className="mx-auto mb-4 text-zinc-500 animate-spin" />
               <p className="text-zinc-400">Loading decisions...</p>
-            </Card>
+            </div>
           </Card>
         )}
 
@@ -84,7 +84,7 @@ export const RiskDecisionManagement = () => {
             <div className="p-12 text-center">
               <CheckCircle2 size={48} className="mx-auto mb-4 text-zinc-500" />
               <p className="text-zinc-400">No decisions recorded yet</p>
-            </Card>
+            </div>
           </Card>
         )}
 

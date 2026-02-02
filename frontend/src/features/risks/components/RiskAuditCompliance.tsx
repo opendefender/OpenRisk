@@ -112,7 +112,7 @@ export const RiskAuditCompliance = () => {
             <div className="p-12 text-center">
               <Loader2 size={48} className="mx-auto mb-4 text-zinc-500 animate-spin" />
               <p className="text-zinc-400">Loading compliance reports...</p>
-            </Card>
+            </div>
           </Card>
         )}
 
@@ -121,7 +121,7 @@ export const RiskAuditCompliance = () => {
             <div className="p-12 text-center">
               <FileText size={48} className="mx-auto mb-4 text-zinc-500" />
               <p className="text-zinc-400">No compliance reports available</p>
-            </Card>
+            </div>
           </Card>
         )}
 
