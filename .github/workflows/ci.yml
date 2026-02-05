@@ -79,7 +79,7 @@ jobs:
       
       - name: Run integration tests
         env:
-          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
           APP_ENV: test
         run: cd backend && go test -v -tags=integration ./...
       
