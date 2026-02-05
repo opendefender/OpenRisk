@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Test data constants
+const (
+	testIPLocal     = testIPLocal
+	testIPPrivate1  = testIPPrivate1
+	testIPPrivate2  = testIPPrivate2
+	testIPPrivate3  = testIPPrivate3
+	testIPPublic    = testIPPublic
+	testIPWildcard  = "*"
+	testTokenPrefix = testTokenPrefix
+	testTokenValue  = testTokenValue
+)
+
 func TestAPITokenIsExpired(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -290,23 +302,23 @@ func TestAPITokenIsIPAllowed(t *testing.T) {
 			token: &APIToken{
 				IPWhitelist: []string{},
 			},
-			clientIP: "192.168.1.100",
+			clientIP: testIPPublic,
 			expected: true,
 		},
 		{
 			name: "IP in whitelist",
 			token: &APIToken{
-				IPWhitelist: []string{"192.168.1.1", "10.0.0.1", "127.0.0.1"},
+				IPWhitelist: []string{testIPPrivate1, testIPPrivate2, testIPLocal},
 			},
-			clientIP: "10.0.0.1",
+			clientIP: testIPPrivate2,
 			expected: true,
 		},
 		{
 			name: "IP not in whitelist",
 			token: &APIToken{
-				IPWhitelist: []string{"192.168.1.1", "10.0.0.1"},
+				IPWhitelist: []string{testIPPrivate1, testIPPrivate2},
 			},
-			clientIP: "172.16.0.1",
+			clientIP: testIPPrivate3,
 			expected: false,
 		},
 		{
@@ -369,7 +381,7 @@ func TestTokenResponse_Conversion(t *testing.T) {
 		ID:          uuid.New(),
 		Name:        "Test Token",
 		Description: "Test Description",
-		TokenPrefix: "orsk_abc",
+		TokenPrefix: testTokenPrefix,
 		Type:        TokenTypeBearer,
 		Status:      TokenStatusActive,
 		ExpiresAt:   &now,
@@ -395,7 +407,7 @@ func TestTokenResponse_Conversion(t *testing.T) {
 }
 
 func TestTokenWithValue_SecureTokenDisplay(t *testing.T) {
-	tokenValue := "orsk_verysecrettokenvalue123456"
+	tokenValue := testTokenValue
 	response := &TokenWithValue{
 		TokenResponse: &TokenResponse{
 			TokenPrefix: "orsk_ve",
