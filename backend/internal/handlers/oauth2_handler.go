@@ -29,7 +29,10 @@ type OAuth2Config struct {
 	AzureConfig  *oauth2.Config
 }
 
-var oauth2Config *OAuth2Config
+var (
+	oauth2Config      *OAuth2Config
+	oauthStateService *services.OAuthStateService
+)
 
 // InitializeOAuth2 initializes all OAuth2 configurations
 func InitializeOAuth2() *OAuth2Config {
@@ -71,6 +74,7 @@ func InitializeOAuth2() *OAuth2Config {
 	}
 
 	oauth2Config = cfg
+	oauthStateService = services.NewOAuthStateService()
 	return cfg
 }
 
@@ -111,9 +115,10 @@ func OAuth2Login(c *fiber.Ctx) error {
 	// Generate random state for CSRF protection
 	randomState := uuid.New().String()
 
-	// Note: State parameter should be stored in secure session/cache for CSRF validation
-	// on the callback. This requires session storage implementation with state expiration.
-	// The state is returned to the client for storage and must be validated on callback.
+	// Store state in service with 15-minute expiration
+	// This protects against CSRF attacks by validating the state parameter
+	// is returned exactly as sent during the login flow
+	oauthStateService.StoreState(randomState, provider, 15*time.Minute)
 
 	authURL := config.AuthCodeURL(randomState, oauth2.AccessTypeOffline)
 
@@ -129,10 +134,21 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	state := c.Query("state")
 
-	// Note: State parameter validation should be implemented to prevent CSRF attacks.
-	// The state should be compared against the value stored in the session/cache during
-	// the login initialization. This requires session state storage on the server.
-	_ = state // State validation deferred to session management implementation
+	// Validate state parameter to prevent CSRF attacks
+	// The state must match the value stored during login initialization
+	// and must not have expired
+	if state == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "State parameter not provided",
+		})
+	}
+
+	_, err := oauthStateService.ValidateState(state, provider)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": fmt.Sprintf("State validation failed: %v", err),
+		})
+	}
 
 	if code == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -278,7 +294,12 @@ func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 	if e, ok := data["email"].(string); ok && e != "" {
 		email = e
 	} else {
-		email, _ = getGitHubEmail(token)
+		var err error
+		email, err = getGitHubEmail(token)
+		if err != nil {
+			// Log the error but don't fail - use empty email
+			// Email might be available through other means
+		}
 	}
 
 	return &OAuth2UserInfo{

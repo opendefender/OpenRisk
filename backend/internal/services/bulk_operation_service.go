@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ import (
 // BulkOperationService handles async bulk operations
 type BulkOperationService struct {
 	db *gorm.DB
+	mu sync.Mutex // Protects concurrent updates to bulk operations
 }
 
 // NewBulkOperationService creates a new bulk operation service
@@ -92,10 +94,12 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 
 	// Mark as processing
 	now := time.Now()
+	s.mu.Lock()
 	s.db.Model(op).Updates(map[string]interface{}{
 		"status":     domain.BulkOperationStatusProcessing,
 		"started_at": now,
 	})
+	s.mu.Unlock()
 
 	var err error
 	switch op.OperationType {
@@ -116,6 +120,7 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 		status = domain.BulkOperationStatusFailed
 	}
 
+	s.mu.Lock()
 	s.db.Model(op).Updates(map[string]interface{}{
 		"status":       status,
 		"completed_at": completed,
@@ -126,6 +131,7 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 			return ""
 		}(),
 	})
+	s.mu.Unlock()
 
 	log.Printf("✅ Bulk operation completed: %s (status: %s)", op.ID, status)
 }
@@ -141,13 +147,18 @@ func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error
 		// Update the risk with provided data
 		if err := s.updateRiskFromData(risk, op.UpdateData); err != nil {
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
+			s.mu.Lock()
 			op.ErrorCount++
+			s.db.Model(op).Update("error_count", op.ErrorCount)
+			s.mu.Unlock()
 			continue
 		}
 
 		s.logBulkOperationSuccess(op.ID, risk.ID, "risk")
+		s.mu.Lock()
 		op.ProcessedCount++
 		s.db.Model(op).Update("processed_count", op.ProcessedCount)
+		s.mu.Unlock()
 	}
 
 	return nil
@@ -163,13 +174,18 @@ func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error
 	for _, risk := range risks {
 		if err := s.db.Delete(risk).Error; err != nil {
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
+			s.mu.Lock()
 			op.ErrorCount++
+			s.db.Model(op).Update("error_count", op.ErrorCount)
+			s.mu.Unlock()
 			continue
 		}
 
 		s.logBulkOperationSuccess(op.ID, risk.ID, "risk")
+		s.mu.Lock()
 		op.ProcessedCount++
 		s.db.Model(op).Update("processed_count", op.ProcessedCount)
+		s.mu.Unlock()
 	}
 
 	return nil
@@ -208,13 +224,18 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 			Title: "Assigned via bulk operation",
 		}); err != nil {
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
+			s.mu.Lock()
 			op.ErrorCount++
+			s.db.Model(op).Update("error_count", op.ErrorCount)
+			s.mu.Unlock()
 			continue
 		}
 
 		s.logBulkOperationSuccess(op.ID, risk.ID, "risk")
+		s.mu.Lock()
 		op.ProcessedCount++
 		s.db.Model(op).Update("processed_count", op.ProcessedCount)
+		s.mu.Unlock()
 	}
 
 	_ = mitigationID // Use the ID as needed
