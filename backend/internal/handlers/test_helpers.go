@@ -14,7 +14,7 @@ import (
 func TestDB(t *testing.T) *gorm.DB {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://test:test@localhost:5432/openrisk_test"
+		t.Fatalf("DATABASE_URL environment variable not set")
 	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
