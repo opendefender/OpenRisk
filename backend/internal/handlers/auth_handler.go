@@ -50,9 +50,6 @@ type AuthHandler struct {
 
 func NewAuthHandler() *AuthHandler {
 	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "dev-secret-key"
-	}
 	authService := services.NewAuthService(jwtSecret, 24*time.Hour)
 	auditService := services.NewAuditService()
 	return &AuthHandler{

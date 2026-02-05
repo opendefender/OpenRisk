@@ -61,9 +61,6 @@ func main() {
 		redisPort = "6379"
 	}
 	redisPassword := os.Getenv("REDIS_PASSWORD")
-	if redisPassword == "" {
-		redisPassword = "redis123" // Development default
-	}
 
 	var cacheInstance interface{}
 	var cacheErr error

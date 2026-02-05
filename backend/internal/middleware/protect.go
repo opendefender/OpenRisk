@@ -10,9 +10,6 @@ import (
 // Use this to protect routes that require authentication
 func Protected() fiber.Handler {
 	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "dev-secret-key"
-	}
 	return AuthMiddleware(jwtSecret)
 }
 

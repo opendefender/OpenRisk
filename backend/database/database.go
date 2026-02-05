@@ -31,9 +31,6 @@ func Connect() {
 	}
 
 	password := os.Getenv("DB_PASSWORD")
-	if password == "" {
-		password = "openrisk"
-	}
 
 	dbname := os.Getenv("DB_NAME")
 	if dbname == "" {

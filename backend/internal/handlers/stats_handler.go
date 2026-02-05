@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"math/rand" // Utilisé pour simuler une variation réaliste
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -45,39 +44,36 @@ type TrendPoint struct {
 }
 
 // GetGlobalRiskTrend calcule l'évolution du score de sécurité total sur 30 jours.
-// NOTE: L'implémentation de production lirait la table 'risk_histories' pour une précision
-// mais nous simulons des données pour que le widget fonctionne immédiatement.
+// Lit les données réelles de la table risks, groupées par date de création
 func GetGlobalRiskTrend(c *fiber.Ctx) error {
-	trends := []TrendPoint{}
-	now := time.Now()
+	var results []struct {
+		Date  string
+		Score int
+	}
 
-	// Initialiser la graine du générateur aléatoire pour une simulation plus crédible
-	rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Requête pour obtenir les données réelles des 30 derniers jours
+	err := database.DB.Table("risks").
+		Select("DATE(created_at) as date, AVG(score) as score").
+		Where("deleted_at IS NULL AND created_at >= ?", time.Now().AddDate(0, 0, -30)).
+		Group("DATE(created_at)").
+		Order("date ASC").
+		Scan(&results).Error
 
-	// Simulation du score de sécurité (où 100 est parfait)
-	currentScore := 85
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch trend data"})
+	}
 
-	// Générer les 30 derniers jours
-	for i := 30; i >= 0; i-- {
-		date := now.AddDate(0, 0, -i).Format("2006-01-02")
+	// Si aucune donnée n'existe, retourner un tableau vide
+	if len(results) == 0 {
+		return c.JSON([]TrendPoint{})
+	}
 
-		// Variation: +/- 3 points pour simuler la fluctuation due aux mitigations/nouveaux risques
-		// et garantir qu'il y ait des données pour le graphique.
-		variation := rand.Intn(7) - 3 // Génère un nombre entre -3 et +3
-		currentScore += variation
-
-		// S'assurer que le score reste dans une plage raisonnable (ex: 70-95)
-		if currentScore > 95 {
-			currentScore = 95
+	trends := make([]TrendPoint, len(results))
+	for i, r := range results {
+		trends[i] = TrendPoint{
+			Date:  r.Date,
+			Score: r.Score,
 		}
-		if currentScore < 75 {
-			currentScore = 75
-		}
-
-		trends = append(trends, TrendPoint{
-			Date:  date,
-			Score: currentScore,
-		})
 	}
 
 	return c.JSON(trends)
