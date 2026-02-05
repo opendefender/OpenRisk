@@ -1,7 +1,11 @@
 package handlers
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/opendefender/openrisk/database"
+	"github.com/opendefender/openrisk/internal/core/domain"
 	"gorm.io/gorm"
 )
 
@@ -66,14 +70,48 @@ func (h *ThreatHandler) GetThreatStats(c *fiber.Ctx) error {
 		TrendPercent  float64 `json:"trend_percent"`
 	}
 
-	// TODO: Calculate actual stats from database
-	stats := StatsResponse{
-		TotalThreats:  153,
-		CriticalCount: 12,
-		HighCount:     28,
-		MediumCount:   45,
-		LowCount:      68,
-		TrendPercent:  12.5,
+	stats := StatsResponse{}
+
+	// Calculate total number of threats
+	if err := database.DB.Model(&domain.Threat{}).Count(&stats.TotalThreats).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve threat statistics",
+		})
+	}
+
+	// Count threats by severity level
+	database.DB.Model(&domain.Threat{}).
+		Where("severity = ?", "critical").
+		Count(&stats.CriticalCount)
+
+	database.DB.Model(&domain.Threat{}).
+		Where("severity = ?", "high").
+		Count(&stats.HighCount)
+
+	database.DB.Model(&domain.Threat{}).
+		Where("severity = ?", "medium").
+		Count(&stats.MediumCount)
+
+	database.DB.Model(&domain.Threat{}).
+		Where("severity = ?", "low").
+		Count(&stats.LowCount)
+
+	// Calculate trend percentage (comparing current month to previous month)
+	now := time.Now()
+	currentMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	previousMonthStart := currentMonthStart.AddDate(0, -1, 0)
+
+	var currentMonthCount, previousMonthCount int64
+	database.DB.Model(&domain.Threat{}).
+		Where("created_at >= ?", currentMonthStart).
+		Count(&currentMonthCount)
+
+	database.DB.Model(&domain.Threat{}).
+		Where("created_at >= ? AND created_at < ?", previousMonthStart, currentMonthStart).
+		Count(&previousMonthCount)
+
+	if previousMonthCount > 0 {
+		stats.TrendPercent = float64((currentMonthCount-previousMonthCount)*100) / float64(previousMonthCount)
 	}
 
 	return c.JSON(stats)
