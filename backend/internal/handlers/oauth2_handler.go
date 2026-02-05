@@ -278,7 +278,12 @@ func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 	if e, ok := data["email"].(string); ok && e != "" {
 		email = e
 	} else {
-		email, _ = getGitHubEmail(token)
+		var err error
+		email, err = getGitHubEmail(token)
+		if err != nil {
+			// Log the error but don't fail - use empty email
+			// Email might be available through other means
+		}
 	}
 
 	return &OAuth2UserInfo{
