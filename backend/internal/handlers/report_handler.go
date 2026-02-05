@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/opendefender/openrisk/database"
 	"gorm.io/gorm"
 )
 
@@ -118,13 +119,27 @@ func (h *ReportHandler) GetReportStats(c *fiber.Ctx) error {
 		ScheduledCount  int `json:"scheduled"`
 	}
 
-	// TODO: Calculate actual stats from database
-	stats := StatsResponse{
-		TotalReports:    6,
-		CompletedCount:  4,
-		GeneratingCount: 1,
-		ScheduledCount:  1,
+	stats := StatsResponse{}
+
+	// Calculate total number of reports
+	if err := database.DB.Model(&domain.Report{}).Count(&stats.TotalReports).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve report statistics",
+		})
 	}
+
+	// Count reports by status
+	database.DB.Model(&domain.Report{}).
+		Where("status = ?", "completed").
+		Count(&stats.CompletedCount)
+
+	database.DB.Model(&domain.Report{}).
+		Where("status = ?", "generating").
+		Count(&stats.GeneratingCount)
+
+	database.DB.Model(&domain.Report{}).
+		Where("status = ?", "scheduled").
+		Count(&stats.ScheduledCount)
 
 	return c.JSON(stats)
 }
