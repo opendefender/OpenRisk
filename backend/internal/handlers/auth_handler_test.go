@@ -20,6 +20,12 @@ import (
 
 const testJWTSecret = "test-jwt-secret-key"
 
+// Test data constants
+const (
+	testUserEmail    = "test@example.com"
+	testUserPassword = "TestPassword123!" // Must meet password requirements
+)
+
 // TestLoginSuccess tests successful login with valid credentials
 func TestLoginSuccess(t *testing.T) {
 	app := fiber.New()
@@ -37,8 +43,8 @@ func TestLoginSuccess(t *testing.T) {
 
 	// Prepare login request
 	loginReq := LoginInput{
-		Email:    "test@example.com",
-		Password: "secure123",
+		Email:    testUserEmail,
+		Password: testUserPassword,
 	}
 
 	reqBody, err := json.Marshal(loginReq)
@@ -62,7 +68,7 @@ func TestLoginMissingEmail(t *testing.T) {
 
 	loginReq := LoginInput{
 		Email:    "",
-		Password: "secure123",
+		Password: testUserPassword,
 	}
 
 	reqBody, _ := json.Marshal(loginReq)
@@ -76,8 +82,8 @@ func TestLoginMissingEmail(t *testing.T) {
 func TestLoginInvalidPassword(t *testing.T) {
 	t.Run("Password too short", func(t *testing.T) {
 		loginReq := LoginInput{
-			Email:    "test@example.com",
-			Password: "short",
+			Email:    testUserEmail,
+			Password: testUserPassword,
 		}
 
 		reqBody, _ := json.Marshal(loginReq)
@@ -92,7 +98,7 @@ func TestTokenGeneration(t *testing.T) {
 
 	user := &domain.User{
 		ID:       uuid.New(),
-		Email:    "test@example.com",
+		Email:    testUserEmail,
 		Username: "testuser",
 		Role: &domain.Role{
 			ID:          uuid.New(),
@@ -155,7 +161,7 @@ func TestTokenValidation(t *testing.T) {
 
 			claims := &domain.UserClaims{
 				ID:        uuid.New(),
-				Email:     "test@example.com",
+				Email:     testUserEmail,
 				RoleName:  "analyst",
 				ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 				IssuedAt:  time.Now().Unix(),
@@ -205,7 +211,7 @@ func TestPasswordHashing(t *testing.T) {
 func TestUserDTO(t *testing.T) {
 	user := domain.User{
 		ID:       uuid.New(),
-		Email:    "test@example.com",
+		Email:    testUserEmail,
 		Username: "testuser",
 		Role: &domain.Role{
 			ID:   uuid.New(),
@@ -230,12 +236,12 @@ func TestUserDTO(t *testing.T) {
 func TestAuthResponse(t *testing.T) {
 	response := AuthResponse{
 		Token:     "test.jwt.token",
-		User:      &UserDTO{ID: "123", Email: "test@example.com", Role: "analyst"},
+		User:      &UserDTO{ID: "123", Email: testUserEmail, Role: "analyst"},
 		ExpiresIn: 86400,
 	}
 
 	assert.NotEmpty(t, response.Token)
-	assert.Equal(t, "test@example.com", response.User.Email)
+	assert.Equal(t, testUserEmail, response.User.Email)
 	assert.Equal(t, int64(86400), response.ExpiresIn)
 }
 
@@ -245,8 +251,8 @@ func TestMultipleLoginAttempts(t *testing.T) {
 
 	for i := 0; i < attempts; i++ {
 		loginReq := LoginInput{
-			Email:    "test@example.com",
-			Password: "password123",
+			Email:    testUserEmail,
+			Password: testUserPassword,
 		}
 
 		reqBody, err := json.Marshal(loginReq)
@@ -297,27 +303,27 @@ func TestLoginInputValidation(t *testing.T) {
 	}{
 		{
 			name:  "Valid input",
-			input: LoginInput{Email: "test@example.com", Password: "secure123"},
+			input: LoginInput{Email: testUserEmail, Password: testUserPassword},
 			valid: true,
 		},
 		{
 			name:  "Missing email",
-			input: LoginInput{Email: "", Password: "secure123"},
+			input: LoginInput{Email: "", Password: testUserPassword},
 			valid: false,
 		},
 		{
 			name:  "Missing password",
-			input: LoginInput{Email: "test@example.com", Password: ""},
+			input: LoginInput{Email: testUserEmail, Password: ""},
 			valid: false,
 		},
 		{
 			name:  "Password too short",
-			input: LoginInput{Email: "test@example.com", Password: "short"},
+			input: LoginInput{Email: testUserEmail, Password: testUserPassword},
 			valid: false,
 		},
 		{
 			name:  "Invalid email format",
-			input: LoginInput{Email: "notanemail", Password: "secure123"},
+			input: LoginInput{Email: "notanemail", Password: testUserPassword},
 			valid: true, // Basic handler only checks if email is non-empty, not format
 		},
 	}
