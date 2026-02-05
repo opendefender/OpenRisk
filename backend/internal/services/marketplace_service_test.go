@@ -11,21 +11,40 @@ import (
 	"gorm.io/gorm"
 )
 
+// Test data constants
+const (
+	testConnectorName        = testConnectorName
+	testConnectorAuthor      = testConnectorAuthor
+	testConnectorVersion     = testConnectorVersion
+	testConnectorDescription = testConnectorDescription
+	testConnectorLicense     = testConnectorLicense
+	testConnectorCategory    = testConnectorCategory
+	testConnectorRating      = testConnectorRating
+	testUserID               = testUserID
+	testUserName             = testUserName
+	testTenantID             = testTenantID
+	testReviewRating         = 5
+	testReviewComment        = "Excellent connector!"
+	splunkConnectorName      = splunkConnectorName
+	splunkConnectorAuthor    = splunkConnectorAuthor
+	splunkConnectorDesc      = splunkConnectorDesc
+)
+
 func TestMarketplaceService_RegisterConnector(t *testing.T) {
 	db := setupTestDB(t)
 	service := NewMarketplaceService(db, nil)
 	ctx := context.Background()
 
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
-		Category:     "integration",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
+		Category:     testConnectorCategory,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 
 	err := service.RegisterConnector(ctx, connector)
@@ -41,14 +60,14 @@ func TestMarketplaceService_GetConnector(t *testing.T) {
 
 	// Register connector first
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
@@ -69,12 +88,12 @@ func TestMarketplaceService_ListConnectors(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		connector := &domain.Connector{
 			Name:         "Connector " + string(rune(i)),
-			Author:       "Test Author",
-			Version:      "1.0.0",
-			Description:  "Test description",
+			Author:       testConnectorAuthor,
+			Version:      testConnectorVersion,
+			Description:  testConnectorDescription,
 			Status:       domain.ConnectorStatusActive,
 			Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-			License:      "MIT",
+			License:      testConnectorLicense,
 			Rating:       float64(i) + 1,
 		}
 		err := service.RegisterConnector(ctx, connector)
@@ -95,14 +114,14 @@ func TestMarketplaceService_SearchConnectors(t *testing.T) {
 
 	// Register connectors
 	connector1 := &domain.Connector{
-		Name:         "Splunk Connector",
-		Author:       "Security Team",
-		Version:      "1.0.0",
-		Description:  "Splunk integration for logs",
+		Name:         splunkConnectorName,
+		Author:       splunkConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  splunkConnectorDesc,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityThreatIntel},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector1)
 	require.NoError(t, err)
@@ -121,14 +140,14 @@ func TestMarketplaceService_InstallApp(t *testing.T) {
 
 	// Register connector
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
@@ -139,7 +158,7 @@ func TestMarketplaceService_InstallApp(t *testing.T) {
 		"enabled": true,
 	}
 
-	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", config)
+	app, err := service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", config)
 	require.NoError(t, err)
 	assert.NotEmpty(t, app.ID)
 	assert.Equal(t, domain.InstallationStatusPending, app.Status)
@@ -154,24 +173,24 @@ func TestMarketplaceService_InstallApp_AlreadyInstalled(t *testing.T) {
 
 	// Register connector
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
 
 	// Install app first time
-	_, err = service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
+	_, err = service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", nil)
 	require.NoError(t, err)
 
 	// Try to install again
-	_, err = service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector 2", nil)
+	_, err = service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector 2", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already installed")
 }
@@ -183,23 +202,23 @@ func TestMarketplaceService_EnableDisableApp(t *testing.T) {
 
 	// Setup
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
 
-	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
+	app, err := service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", nil)
 	require.NoError(t, err)
 
 	// Disable app
-	err = service.DisableApp(ctx, app.ID, "user-1")
+	err = service.DisableApp(ctx, app.ID, testUserID)
 	require.NoError(t, err)
 
 	// Verify disabled
@@ -208,7 +227,7 @@ func TestMarketplaceService_EnableDisableApp(t *testing.T) {
 	assert.False(t, retrieved.Enabled)
 
 	// Enable app
-	err = service.EnableApp(ctx, app.ID, "user-1")
+	err = service.EnableApp(ctx, app.ID, testUserID)
 	require.NoError(t, err)
 
 	// Verify enabled
@@ -224,19 +243,19 @@ func TestMarketplaceService_UpdateApp(t *testing.T) {
 
 	// Setup
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
 
-	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
+	app, err := service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", nil)
 	require.NoError(t, err)
 
 	// Update configuration
@@ -245,7 +264,7 @@ func TestMarketplaceService_UpdateApp(t *testing.T) {
 		"enabled": false,
 	}
 
-	updated, err := service.UpdateApp(ctx, app.ID, "user-1", newConfig)
+	updated, err := service.UpdateApp(ctx, app.ID, testUserID, newConfig)
 	require.NoError(t, err)
 	assert.Equal(t, newConfig, updated.Configuration)
 }
@@ -257,23 +276,23 @@ func TestMarketplaceService_TriggerSync(t *testing.T) {
 
 	// Setup
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
 
-	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
+	app, err := service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", nil)
 	require.NoError(t, err)
 
 	// Trigger sync
-	err = service.TriggerSync(ctx, app.ID, "user-1")
+	err = service.TriggerSync(ctx, app.ID, testUserID)
 	require.NoError(t, err)
 
 	// Verify sync status updated
@@ -290,24 +309,24 @@ func TestMarketplaceService_UninstallApp(t *testing.T) {
 
 	// Setup
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
 
-	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
+	app, err := service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", nil)
 	require.NoError(t, err)
 	_ = connector.InstallCount // Capture initial state for verification
 
 	// Uninstall app
-	err = service.UninstallApp(ctx, app.ID, "user-1")
+	err = service.UninstallApp(ctx, app.ID, testUserID)
 	require.NoError(t, err)
 
 	// Verify status changed
@@ -323,19 +342,19 @@ func TestMarketplaceService_GetAppLogs(t *testing.T) {
 
 	// Setup
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
-		Rating:       4.5,
+		License:      testConnectorLicense,
+		Rating:       testConnectorRating,
 	}
 	err := service.RegisterConnector(ctx, connector)
 	require.NoError(t, err)
 
-	app, err := service.InstallApp(ctx, connector.ID, "tenant-1", "user-1", "My Connector", nil)
+	app, err := service.InstallApp(ctx, connector.ID, testTenantID, testUserID, "My Connector", nil)
 	require.NoError(t, err)
 
 	// Give logs time to be written
@@ -354,13 +373,13 @@ func TestMarketplaceService_AddConnectorReview(t *testing.T) {
 
 	// Register connector
 	connector := &domain.Connector{
-		Name:         "Test Connector",
-		Author:       "Test Author",
-		Version:      "1.0.0",
-		Description:  "Test description",
+		Name:         testConnectorName,
+		Author:       testConnectorAuthor,
+		Version:      testConnectorVersion,
+		Description:  testConnectorDescription,
 		Status:       domain.ConnectorStatusActive,
 		Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-		License:      "MIT",
+		License:      testConnectorLicense,
 		Rating:       0,
 		Reviews:      []domain.ConnectorReview{},
 	}
@@ -368,7 +387,7 @@ func TestMarketplaceService_AddConnectorReview(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add review
-	err = service.AddConnectorReview(ctx, connector.ID, "user-1", "John Doe", 5, "Excellent connector!")
+	err = service.AddConnectorReview(ctx, connector.ID, testUserID, testUserName, testReviewRating, testReviewComment)
 	require.NoError(t, err)
 
 	// Verify review was added
@@ -389,10 +408,10 @@ func TestConnectorValidation(t *testing.T) {
 			conn: &domain.Connector{
 				Name:         "Test",
 				Author:       "Author",
-				Version:      "1.0.0",
+				Version:      testConnectorVersion,
 				Description:  "Description",
 				Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
-				Rating:       4.5,
+				Rating:       testConnectorRating,
 			},
 			wantErr: false,
 		},
@@ -400,7 +419,7 @@ func TestConnectorValidation(t *testing.T) {
 			name: "missing name",
 			conn: &domain.Connector{
 				Author:       "Author",
-				Version:      "1.0.0",
+				Version:      testConnectorVersion,
 				Description:  "Description",
 				Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
 			},
@@ -411,7 +430,7 @@ func TestConnectorValidation(t *testing.T) {
 			conn: &domain.Connector{
 				Name:         "Test",
 				Author:       "Author",
-				Version:      "1.0.0",
+				Version:      testConnectorVersion,
 				Description:  "Description",
 				Capabilities: []domain.ConnectorCapability{domain.CapabilityRiskImport},
 				Rating:       10.0, // Invalid
