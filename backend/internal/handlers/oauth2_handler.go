@@ -213,7 +213,14 @@ func getOAuth2UserInfo(provider string, token *oauth2.Token) (*OAuth2UserInfo, e
 
 // getGoogleUserInfo fetches user info from Google
 func getGoogleUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
