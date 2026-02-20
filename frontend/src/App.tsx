@@ -33,6 +33,9 @@ import { ThreatMap } from './pages/ThreatMap';
 import { Reports } from './pages/Reports';
 import Marketplace from './pages/Marketplace';
 import PermissionAnalyticsPage from './pages/PermissionAnalytics';
+import CustomFields from './pages/CustomFields';
+import BulkOperations from './pages/BulkOperations';
+import RiskTimeline from './pages/RiskTimeline';
 
 
 // --- Imports UI Components ---
@@ -198,12 +201,15 @@ function App() {
         >
           <Route index element={<DashboardView />} />
           <Route path="risks" element={<Risks />} />
+          <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="risk-management" element={<RiskManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="threat-map" element={<ThreatMap />} />
           <Route path="reports" element={<Reports />} />
           <Route path="marketplace" element={<Marketplace />} />
+          <Route path="custom-fields" element={<CustomFields />} />
+          <Route path="bulk-operations" element={<BulkOperations />} />
           <Route path="settings" element={<Settings />} />
           <Route path="users" element={<Users />} />
           <Route path="roles" element={<RoleManagement />} />
