@@ -25,6 +25,7 @@
     "react-dom": "^19.2.0",
     "react-grid-layout": "^1.5.2",
     "react-hook-form": "^7.66.1",
+    "react-hot-toast": "^2.6.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.9.6",
     "react-use": "^17.6.0",
