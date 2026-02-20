@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3, Store, Shield, Building2, PieChart, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3, Store, Shield, Building2, PieChart, AlertCircle, Sliders, Zap as ZapIcon, GitBranch } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -13,6 +13,8 @@ const menuItems = [
   { icon: Map, label: 'Threat Map', path: '/threat-map' },
   { icon: FileText, label: 'Reports', path: '/reports' },
   { icon: Store, label: 'Marketplace', path: '/marketplace' },
+  { icon: Sliders, label: 'Custom Fields', path: '/custom-fields' },
+  { icon: ZapIcon, label: 'Bulk Ops', path: '/bulk-operations' },
   { icon: Settings, label: 'Settings', path: '/settings'},
   { icon: Users, label: 'Users', path: '/users'},
   { icon: Shield, label: 'Roles', path: '/roles'},
