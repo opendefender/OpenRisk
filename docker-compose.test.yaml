@@ -1,0 +1,225 @@
+version: '3.8'
+
+services:
+  # =========================================================================
+  # TEST DATABASES
+  # =========================================================================
+
+  test_db:
+    image: postgres:15-alpine
+    container_name: openrisk_test_db
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: openrisk_test
+    ports:
+      - "5436:5432"
+    volumes:
+      - openrisk_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+    restart: unless-stopped
+
+  # Test Redis
+  test_redis:
+    image: redis:7-alpine
+    container_name: openrisk_test_redis
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - openrisk_test_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+    restart: unless-stopped
+
+  # =========================================================================
+  # BACKEND TEST SERVICE
+  # =========================================================================
+
+  test_backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: openrisk_test_backend
+    environment:
+      DB_HOST: test_db
+      DB_PORT: 5432
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: openrisk_test
+      REDIS_HOST: test_redis
+      REDIS_PORT: 6379
+      ENVIRONMENT: test
+      JWT_SECRET: test-secret-key
+      API_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      test_db:
+        condition: service_healthy
+      test_redis:
+        condition: service_healthy
+    networks:
+      - test_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # FRONTEND TEST SERVICE
+  # =========================================================================
+
+  test_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: openrisk_test_frontend
+    environment:
+      VITE_API_URL: http://test_backend:8081
+      NODE_ENV: test
+    ports:
+      - "5174:5173"
+    depends_on:
+      - test_backend
+    networks:
+      - test_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # TEST RUNNERS
+  # =========================================================================
+
+  # Integration tests
+  integration_tests:
+    image: golang:1.21-alpine
+    container_name: openrisk_integration_tests
+    working_dir: /workspace
+    environment:
+      TEST_DB_HOST: test_db
+      TEST_DB_PORT: 5432
+      TEST_DB_USER: test
+      TEST_DB_PASSWORD: test
+      TEST_DB_NAME: openrisk_test
+      REDIS_HOST: test_redis
+      REDIS_PORT: 6379
+    volumes:
+      - ./backend:/workspace
+      - ./tests:/workspace/tests
+    depends_on:
+      test_db:
+        condition: service_healthy
+      test_redis:
+        condition: service_healthy
+    networks:
+      - test_network
+    command: go test -v ./tests/integration_test.go ./tests/mocks.go -timeout 30m
+    restart: "no"
+
+  # Security tests
+  security_tests:
+    image: golang:1.21-alpine
+    container_name: openrisk_security_tests
+    working_dir: /workspace
+    environment:
+      API_URL: http://test_backend:8081
+    volumes:
+      - ./backend:/workspace
+      - ./tests:/workspace/tests
+    depends_on:
+      test_backend:
+        condition: service_healthy
+    networks:
+      - test_network
+    command: go test -v ./tests/security_test.go -timeout 30m
+    restart: "no"
+
+  # Performance benchmarks
+  performance_tests:
+    image: golang:1.21-alpine
+    container_name: openrisk_performance_tests
+    working_dir: /workspace
+    environment:
+      TEST_DB_HOST: test_db
+      TEST_DB_PORT: 5432
+      TEST_DB_USER: test
+      TEST_DB_PASSWORD: test
+      TEST_DB_NAME: openrisk_test
+      REDIS_HOST: test_redis
+      REDIS_PORT: 6379
+    volumes:
+      - ./backend:/workspace
+      - ./tests:/workspace/tests
+    depends_on:
+      test_db:
+        condition: service_healthy
+      test_redis:
+        condition: service_healthy
+    networks:
+      - test_network
+    command: go test -v -bench=. ./tests/performance_benchmark_test.go -timeout 30m
+    restart: "no"
+
+  # E2E tests with Playwright
+  e2e_tests:
+    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    container_name: openrisk_e2e_tests
+    working_dir: /workspace
+    environment:
+      E2E_BASE_URL: http://test_frontend:5173
+      API_URL: http://test_backend:8081
+      TEST_EMAIL: test@example.com
+      TEST_PASSWORD: password123
+    volumes:
+      - ./frontend:/workspace
+      - ./tests:/workspace/tests
+    depends_on:
+      test_frontend:
+        condition: service_healthy
+    networks:
+      - test_network
+    command: npm run test:e2e
+    restart: "no"
+
+  # Load testing with k6
+  load_tests:
+    image: grafana/k6:latest
+    container_name: openrisk_load_tests
+    working_dir: /workspace
+    environment:
+      API_BASE_URL: http://test_backend:8081
+    volumes:
+      - ./load_tests:/workspace/load_tests
+    depends_on:
+      test_backend:
+        condition: service_healthy
+    networks:
+      - test_network
+    command: run /workspace/load_tests/performance_baseline.js
+    restart: "no"
+
+volumes:
+  openrisk_test_data:
+  openrisk_test_redis:
+
+networks:
+  test_network:
+    driver: bridge
