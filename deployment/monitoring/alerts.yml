@@ -2,17 +2,26 @@ groups:
   - name: openrisk_performance
     interval: 30s
     rules:
-      # Cache Hit Rate Alert
+      # ===== CACHE ALERTS =====
       - alert: LowCacheHitRate
-        expr: (redis_commands_processed_total - redis_keyspace_misses_total) / redis_commands_processed_total < 0.75
+        expr: openrisk_cache_hit_rate < 75
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "Low cache hit rate detected"
-          description: "Cache hit rate is below 75% threshold"
+          description: "Cache hit rate is {{ $value }}% (threshold: 75%)"
 
-      # Redis Memory Alert
+      - alert: CriticalLowCacheHitRate
+        expr: openrisk_cache_hit_rate < 50
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical cache hit rate"
+          description: "Cache hit rate is {{ $value }}% (critical threshold: 50%)"
+
+      # ===== REDIS ALERTS =====
       - alert: HighRedisMemory
         expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
         for: 5m
@@ -20,9 +29,18 @@ groups:
           severity: critical
         annotations:
           summary: "Redis memory usage is high"
-          description: "Redis is using more than 85% of allocated memory"
+          description: "Redis is using {{ $value | humanizePercentage }} of allocated memory"
 
-      # Database Connection Pool Alert
+      - alert: RedisConnectionErrors
+        expr: increase(redis_commands_failed_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis connection errors detected"
+          description: "Redis has {{ $value }} connection errors in the last 5 minutes"
+
+      # ===== DATABASE ALERTS =====
       - alert: HighDatabaseConnections
         expr: pg_stat_activity_count > 40
         for: 5m
@@ -30,9 +48,17 @@ groups:
           severity: warning
         annotations:
           summary: "Database connection pool near capacity"
-          description: "{{ $value }} connections active (max: 50)"
+          description: "{{ $value }} database connections active (max: 50)"
 
-      # Slow Database Queries
+      - alert: CriticalDatabaseConnections
+        expr: pg_stat_activity_count > 48
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool critical"
+          description: "{{ $value }} connections active - pool nearly full (max: 50)"
+
       - alert: SlowDatabaseQueries
         expr: rate(pg_stat_statements_mean_time[5m]) > 1000
         for: 5m
@@ -40,4 +66,122 @@ groups:
           severity: warning
         annotations:
           summary: "Slow database queries detected"
-          description: "Average query time exceeds 1 second"
+          description: "Average query time: {{ $value }}ms (threshold: 1000ms)"
+
+      - alert: HighDatabaseErrors
+        expr: increase(pg_errors[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database errors detected"
+          description: "{{ $value }} database errors in the last 5 minutes"
+
+      # ===== API PERFORMANCE ALERTS =====
+      - alert: HighAPIErrorRate
+        expr: |
+          (increase(openrisk_http_errors_total[5m]) / 
+           increase(openrisk_http_requests_total[5m])) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      - alert: CriticalAPIErrorRate
+        expr: |
+          (increase(openrisk_http_errors_total[2m]) / 
+           increase(openrisk_http_requests_total[2m])) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical API error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} (critical: 10%)"
+
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, openrisk_http_request_duration_seconds) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency: {{ $value }}s (threshold: 2s)"
+
+      - alert: CriticalAPILatency
+        expr: histogram_quantile(0.99, openrisk_http_request_duration_seconds) > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical API latency"
+          description: "99th percentile latency: {{ $value }}s (critical: 5s)"
+
+      # ===== APPLICATION METRICS ALERTS =====
+      - alert: HighMemoryUsage
+        expr: openrisk_go_memory_alloc_bytes / (1024*1024*1024) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High application memory usage"
+          description: "Memory usage: {{ $value | humanize }}GB (threshold: 1GB)"
+
+      - alert: TooManyGoroutines
+        expr: openrisk_go_goroutines > 10000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Excessive goroutine count"
+          description: "{{ $value }} goroutines running (threshold: 10000)"
+
+      - alert: AppDown
+        expr: up{job="openrisk-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpenRisk backend is down"
+          description: "OpenRisk backend has been down for more than 1 minute"
+
+      # ===== LOGIN & SECURITY ALERTS =====
+      - alert: HighLoginFailureRate
+        expr: |
+          (increase(openrisk_login_failures_total[10m]) /
+           increase(openrisk_login_attempts_total[10m])) > 0.3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High login failure rate"
+          description: "Login failure rate: {{ $value | humanizePercentage }} (threshold: 30%)"
+
+      - alert: PossibleBruteForceAttack
+        expr: increase(openrisk_login_failures_total[5m]) > 20
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Possible brute force attack detected"
+          description: "{{ $value }} failed login attempts in the last 5 minutes"
+
+      # ===== BUSINESS METRICS ALERTS =====
+      - alert: NoActiveUsers
+        expr: openrisk_active_users == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No active users detected"
+          description: "The system has reported 0 active users"
+
+      - alert: MitigationsDueAlert
+        expr: openrisk_mitigations_due_soon > 10
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "Upcoming mitigations due"
+          description: "{{ $value }} mitigations are due in the next 7 days"

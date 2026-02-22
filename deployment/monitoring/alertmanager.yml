@@ -2,6 +2,8 @@
 global:
   resolve_timeout: 5m
   slack_api_url: ${SLACK_WEBHOOK_URL}
+  pagerduty_url: https://events.pagerduty.com/v2/enqueue
+  opsgenie_api_key: ${OPSGENIE_API_KEY}
 
 # Inhibition rules - when to suppress alerts
 inhibit_rules:
@@ -11,50 +13,81 @@ inhibit_rules:
     target_match:
       severity: 'warning'
     equal: ['alertname', 'instance']
+  
+  # Suppress performance warnings if app is down
+  - source_match:
+      alertname: 'AppDown'
+    target_match:
+      severity: 'warning'
 
 # Notification routing - how to handle different alerts
 route:
   receiver: 'default'
-  group_by: ['alertname', 'instance']
+  group_by: ['alertname', 'instance', 'severity']
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 12h
   
   routes:
-    # Critical cache alerts to Slack and on-call
+    # Critical alerts - immediate notification to PagerDuty and Slack
     - match:
         severity: 'critical'
-      receiver: 'critical-channel'
+      receiver: 'critical-oncall'
       continue: true
       repeat_interval: 5m
+      group_wait: 1s
+      group_interval: 5m
     
     # Warning performance alerts to Slack
     - match:
         severity: 'warning'
       receiver: 'performance-alerts'
       repeat_interval: 1h
+    
+    # Info alerts to monitoring channel
+    - match:
+        severity: 'info'
+      receiver: 'monitoring-info'
+      repeat_interval: 6h
 
 # Receivers define where to send notifications
 receivers:
   - name: 'default'
     slack_configs:
       - channel: '#openrisk-alerts'
-        title: 'OpenRisk Performance Alert'
-        text: '{{ .GroupLabels.alertname }}'
+        title: 'OpenRisk Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}'
         send_resolved: true
-  
-  - name: 'critical-channel'
+
+  - name: 'critical-oncall'
     slack_configs:
       - channel: '#critical-alerts'
         title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
-        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}'
         send_resolved: true
         color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
-  
+    pagerduty_configs:
+      - service_key: ${PAGERDUTY_SERVICE_KEY}
+        description: '{{ .GroupLabels.alertname }} on {{ .GroupLabels.instance }}'
+        client: 'OpenRisk Monitoring'
+    opsgenie_configs:
+      - api_key: ${OPSGENIE_API_KEY}
+        description: '{{ .GroupLabels.alertname }}: {{ (index .Alerts 0).Annotations.description }}'
+        priority: 'P1'
+
   - name: 'performance-alerts'
     slack_configs:
       - channel: '#performance-alerts'
-        title: '⚠️ {{ .GroupLabels.alertname }}'
-        text: '{{ .GroupLabels.instance }} - {{ .Alerts.Firing | len }} firing'
+        title: '⚠️ Warning: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}'
         send_resolved: true
         color: 'warning'
+
+  - name: 'monitoring-info'
+    slack_configs:
+      - channel: '#monitoring-info'
+        title: 'ℹ️ {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}'
+        send_resolved: true
+        color: '#439FE0'
+
