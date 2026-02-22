@@ -17,17 +17,30 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Redis Exporter
+  # Redis Exporter - Cache metrics
   - job_name: 'redis'
     static_configs:
       - targets: ['redis-exporter:9121']
+    scrape_interval: 10s
+    scrape_timeout: 5s
 
-  # PostgreSQL Exporter
+  # PostgreSQL Exporter - Database metrics
   - job_name: 'postgres'
     static_configs:
       - targets: ['postgres-exporter:9187']
+    scrape_interval: 15s
+    scrape_timeout: 5s
 
-  # OpenRisk Backend (uncomment when backend exposes metrics)
-  # - job_name: 'openrisk'
-  #   static_configs:
-  #     - targets: ['openrisk-backend:2112']
+  # OpenRisk Backend - Application metrics
+  - job_name: 'openrisk-backend'
+    static_configs:
+      - targets: ['openrisk-backend:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__scheme__]
+        target_label: scheme
+
