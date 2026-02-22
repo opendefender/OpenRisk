@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import AnalyticsDashboardToolbar from '@/components/dashboard/AnalyticsDashboardToolbar';
 import MetricCard from '@/components/dashboard/MetricCard';
 import ChartWidget from '@/components/dashboard/ChartWidget';
@@ -24,25 +24,20 @@ import {
   useCompleteDashboard,
   useDashboardPoller,
 } from '@/hooks/useDashboard';
+import { useDashboardWithWebSocket } from '@/hooks/useWebSocket';
 
 const RealTimeAnalyticsDashboard: React.FC = () => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | '7d' | '30d' | '90d' | 'ytd' | 'custom'>('7d');
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['risk_score', 'mitigation_rate']);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Fetch data with auto-refresh enabled
-  const dashboard = useDashboardPoller(autoRefresh ? 30000 : 0);
-
-  const {
-    data: analyticsData,
-    loading,
-    error,
-    refetch,
-  } = dashboard;
+  // Fetch data with WebSocket (real-time) with fallback to polling
+  const dashboard = useDashboardWithWebSocket(true);
+  const { data: analyticsData, loading, error, connected, source, refresh } = dashboard;
 
   // Handle manual refresh
-  const handleRefresh = async () => {
-    await refetch();
+  const handleRefresh = () => {
+    refresh();
   };
 
   // Handle filter changes
@@ -179,11 +174,34 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header with toolbar */}
-      <AnalyticsDashboardToolbar
-        onRefresh={handleRefresh}
-        onExport={handleExport}
-        onSettingsClick={handleSettings}
-      />
+      <div className="flex items-center justify-between">
+        <AnalyticsDashboardToolbar
+          onRefresh={handleRefresh}
+          onExport={handleExport}
+          onSettingsClick={handleSettings}
+        />
+        
+        {/* WebSocket Status Indicator */}
+        <div className="flex items-center gap-2 px-6 py-4">
+          <div className="flex items-center gap-2">
+            {connected ? (
+              <>
+                <Wifi className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                  Live ({source})
+                </span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                  {loading ? 'Connecting...' : 'Polling'}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="p-6 max-w-7xl mx-auto">
         {/* Filter Section */}
