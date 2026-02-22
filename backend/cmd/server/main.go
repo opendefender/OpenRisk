@@ -359,17 +359,23 @@ func main() {
 	protected.Get("/analytics/dashboard", analyticsHandler.GetDashboardSnapshot)
 	protected.Get("/analytics/export", analyticsHandler.GetExportData)
 
+	// --- Enhanced Dashboard Analytics (Protected routes) ---
+	dashboardDataService := services.NewDashboardDataService(database.DB, nil)
+	enhancedDashboardHandler := handlers.NewEnhancedDashboardHandler(dashboardDataService)
+	protected.Get("/dashboard/metrics", enhancedDashboardHandler.GetDashboardMetrics)
+	protected.Get("/dashboard/risk-trends", enhancedDashboardHandler.GetRiskTrends)
+	protected.Get("/dashboard/severity-distribution", enhancedDashboardHandler.GetSeverityDistribution)
+	protected.Get("/dashboard/mitigation-status", enhancedDashboardHandler.GetMitigationStatus)
+	protected.Get("/dashboard/top-risks", enhancedDashboardHandler.GetTopRisks)
+	protected.Get("/dashboard/mitigation-progress", enhancedDashboardHandler.GetMitigationProgress)
+	protected.Get("/dashboard/complete", enhancedDashboardHandler.GetCompleteDashboard)
 
-        // --- Enhanced Dashboard Analytics (Protected routes) ---
-        dashboardDataService := services.NewDashboardDataService(database.DB, nil)
-        enhancedDashboardHandler := handlers.NewEnhancedDashboardHandler(dashboardDataService)
-        protected.Get("/dashboard/metrics", enhancedDashboardHandler.GetDashboardMetrics)
-        protected.Get("/dashboard/risk-trends", enhancedDashboardHandler.GetRiskTrends)
-        protected.Get("/dashboard/severity-distribution", enhancedDashboardHandler.GetSeverityDistribution)
-        protected.Get("/dashboard/mitigation-status", enhancedDashboardHandler.GetMitigationStatus)
-        protected.Get("/dashboard/top-risks", enhancedDashboardHandler.GetTopRisks)
-        protected.Get("/dashboard/mitigation-progress", enhancedDashboardHandler.GetMitigationProgress)
-        protected.Get("/dashboard/complete", enhancedDashboardHandler.GetCompleteDashboard)
+	// --- WebSocket Dashboard (Real-time updates) ---
+	wsHub := handlers.NewWebSocketHub(dashboardDataService)
+	go wsHub.Run(ctx)
+	protected.Get("/ws/dashboard", websocket.New(wsHub.HandleWebSocket))
+	protected.Get("/ws/stats", wsHub.DashboardWebSocketMetrics)
+
 	// --- Time Series Analytics (Protected routes) ---
 	handlers.RegisterTimeSeriesRoutes(app, database.DB)
 	protected.Get("/threats", threatHandler.GetThreats)
