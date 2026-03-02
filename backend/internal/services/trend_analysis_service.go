@@ -26,14 +26,14 @@ func (s *TrendAnalysisService) AnalyzeTrend(tenantID, metricType string, dataPoi
 	}
 
 	analysis := &models.TrendAnalysis{
-		ID:        generateID(),
-		TenantID:  tenantID,
+		ID:         generateID(),
+		TenantID:   tenantID,
 		MetricType: metricType,
 		DataPoints: dataPoints,
 		Timestamps: timestamps,
-		TimeRange: timeRange,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		TimeRange:  timeRange,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 
 	// Calculate basic statistics
@@ -71,16 +71,16 @@ func (s *TrendAnalysisService) GenerateForecast(tenantID, metricType string, dat
 	}
 
 	forecast := &models.TrendForecast{
-		ID:            generateID(),
-		TenantID:      tenantID,
-		MetricType:    metricType,
-		BasedOnDays:   len(dataPoints),
-		ForecastDays:  forecastDays,
-		LastUpdated:   time.Now(),
-		ValidUntil:    time.Now().AddDate(0, 0, forecastDays),
+		ID:              generateID(),
+		TenantID:        tenantID,
+		MetricType:      metricType,
+		BasedOnDays:     len(dataPoints),
+		ForecastDays:    forecastDays,
+		LastUpdated:     time.Now(),
+		ValidUntil:      time.Now().AddDate(0, 0, forecastDays),
 		ConfidenceLevel: 0.95,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	// Select best model based on data characteristics
@@ -144,19 +144,19 @@ func (s *TrendAnalysisService) GenerateRecommendations(tenantID string, analysis
 	// Recommendation 1: Anomaly alert
 	if analysis.IsAnomalous {
 		rec := models.TrendRecommendation{
-			ID:            generateID(),
-			TenantID:      tenantID,
-			MetricType:    analysis.MetricType,
-			Title:         fmt.Sprintf("Anomaly Detected: %s", analysis.AnomalyType),
-			Description:   fmt.Sprintf("The %s metric shows unusual %s activity. Score: %.2f", analysis.MetricType, analysis.AnomalyType, analysis.AnomalyScore),
-			Severity:      s.calculateAnomAlySeverity(analysis.AnomalyScore),
-			BasedOnTrendID: analysis.ID,
-			ConfidenceScore: analysis.AnomalyScore,
+			ID:                generateID(),
+			TenantID:          tenantID,
+			MetricType:        analysis.MetricType,
+			Title:             fmt.Sprintf("Anomaly Detected: %s", analysis.AnomalyType),
+			Description:       fmt.Sprintf("The %s metric shows unusual %s activity. Score: %.2f", analysis.MetricType, analysis.AnomalyType, analysis.AnomalyScore),
+			Severity:          s.calculateAnomAlySeverity(analysis.AnomalyScore),
+			BasedOnTrendID:    analysis.ID,
+			ConfidenceScore:   analysis.AnomalyScore,
 			RecommendedAction: fmt.Sprintf("Investigate %s in %s", analysis.AnomalyType, analysis.MetricType),
 			TimeframeToAction: "immediately",
-			Status:        "new",
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
+			Status:            "new",
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
 		}
 		recommendations = append(recommendations, rec)
 	}
@@ -171,20 +171,20 @@ func (s *TrendAnalysisService) GenerateRecommendations(tenantID string, analysis
 		}
 
 		rec := models.TrendRecommendation{
-			ID:            generateID(),
-			TenantID:      tenantID,
-			MetricType:    analysis.MetricType,
-			Title:         fmt.Sprintf("Strong %s Trend Detected", analysis.TrendDirection),
-			Description:   fmt.Sprintf("Strong %s trend with %.0f%% change. Trend strength: %.2f", analysis.TrendDirection, analysis.ChangePercent, analysis.TrendStrength),
-			Severity:      s.calculateTrendSeverity(analysis.TrendDirection, analysis.ChangePercent),
-			BasedOnTrendID: analysis.ID,
-			ConfidenceScore: analysis.TrendStrength,
+			ID:                generateID(),
+			TenantID:          tenantID,
+			MetricType:        analysis.MetricType,
+			Title:             fmt.Sprintf("Strong %s Trend Detected", analysis.TrendDirection),
+			Description:       fmt.Sprintf("Strong %s trend with %.0f%% change. Trend strength: %.2f", analysis.TrendDirection, analysis.ChangePercent, analysis.TrendStrength),
+			Severity:          s.calculateTrendSeverity(analysis.TrendDirection, analysis.ChangePercent),
+			BasedOnTrendID:    analysis.ID,
+			ConfidenceScore:   analysis.TrendStrength,
 			RecommendedAction: action,
-			EstimatedImpact: fmt.Sprintf("%.0f%% change expected", analysis.ChangePercent),
+			EstimatedImpact:   fmt.Sprintf("%.0f%% change expected", analysis.ChangePercent),
 			TimeframeToAction: "1 week",
-			Status:        "new",
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
+			Status:            "new",
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
 		}
 		recommendations = append(recommendations, rec)
 	}
@@ -194,20 +194,20 @@ func (s *TrendAnalysisService) GenerateRecommendations(tenantID string, analysis
 		lastForecast := forecast.Predictions[len(forecast.Predictions)-1]
 		if lastForecast.Value > lastForecast.UpperBound {
 			rec := models.TrendRecommendation{
-				ID:            generateID(),
-				TenantID:      tenantID,
-				MetricType:    analysis.MetricType,
-				Title:         "Predicted Threshold Breach",
-				Description:   fmt.Sprintf("Forecast predicts value of %.2f, exceeding upper bound of %.2f", lastForecast.Value, lastForecast.UpperBound),
-				Severity:      "high",
+				ID:                generateID(),
+				TenantID:          tenantID,
+				MetricType:        analysis.MetricType,
+				Title:             "Predicted Threshold Breach",
+				Description:       fmt.Sprintf("Forecast predicts value of %.2f, exceeding upper bound of %.2f", lastForecast.Value, lastForecast.UpperBound),
+				Severity:          "high",
 				BasedOnForecastID: forecast.ID,
-				ConfidenceScore: lastForecast.Confidence,
+				ConfidenceScore:   lastForecast.Confidence,
 				RecommendedAction: "Prepare mitigation strategy",
-				EstimatedImpact: "Threshold breach likely in " + fmt.Sprintf("%d days", forecast.ForecastDays),
+				EstimatedImpact:   "Threshold breach likely in " + fmt.Sprintf("%d days", forecast.ForecastDays),
 				TimeframeToAction: "2-3 weeks",
-				Status:        "new",
-				CreatedAt:     time.Now(),
-				UpdatedAt:     time.Now(),
+				Status:            "new",
+				CreatedAt:         time.Now(),
+				UpdatedAt:         time.Now(),
 			}
 			recommendations = append(recommendations, rec)
 		}
@@ -216,19 +216,19 @@ func (s *TrendAnalysisService) GenerateRecommendations(tenantID string, analysis
 	// Recommendation 4: Volatility alert
 	if analysis.Volatility > 0.3 {
 		rec := models.TrendRecommendation{
-			ID:            generateID(),
-			TenantID:      tenantID,
-			MetricType:    analysis.MetricType,
-			Title:         "High Volatility Detected",
-			Description:   fmt.Sprintf("Metric volatility is %.2f, indicating unstable conditions", analysis.Volatility),
-			Severity:      "medium",
-			BasedOnTrendID: analysis.ID,
-			ConfidenceScore: 0.8,
+			ID:                generateID(),
+			TenantID:          tenantID,
+			MetricType:        analysis.MetricType,
+			Title:             "High Volatility Detected",
+			Description:       fmt.Sprintf("Metric volatility is %.2f, indicating unstable conditions", analysis.Volatility),
+			Severity:          "medium",
+			BasedOnTrendID:    analysis.ID,
+			ConfidenceScore:   0.8,
 			RecommendedAction: "Stabilize underlying factors and reduce variance",
 			TimeframeToAction: "2-4 weeks",
-			Status:        "new",
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
+			Status:            "new",
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
 		}
 		recommendations = append(recommendations, rec)
 	}

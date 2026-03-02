@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"openrisk/internal/models"
 	"openrisk/internal/services"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // TrendHandler handles trend analysis API endpoints
@@ -110,8 +111,8 @@ func (h *TrendHandler) GetRecommendations(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status": "success",
 		"data": fiber.Map{
-			"trend_id":         trendID,
-			"recommendations":  recommendations,
+			"trend_id":             trendID,
+			"recommendations":      recommendations,
 			"recommendation_count": len(recommendations),
 		},
 	})
@@ -119,11 +120,11 @@ func (h *TrendHandler) GetRecommendations(c *fiber.Ctx) error {
 
 // FilterTrendsRequest represents filter request
 type FilterTrendsRequest struct {
-	MetricType        string `json:"metric_type"`
-	MinTrendStrength  float64 `json:"min_trend_strength"`
-	AnomalyOnly       bool   `json:"anomaly_only"`
-	Limit             int    `json:"limit"`
-	Offset            int    `json:"offset"`
+	MetricType       string  `json:"metric_type"`
+	MinTrendStrength float64 `json:"min_trend_strength"`
+	AnomalyOnly      bool    `json:"anomaly_only"`
+	Limit            int     `json:"limit"`
+	Offset           int     `json:"offset"`
 }
 
 // FilterTrends applies filters to trends
@@ -270,8 +271,8 @@ func (h *TrendHandler) CompareMetricTrends(c *fiber.Ctx) error {
 	// TODO: Compare trends
 	comparison := fiber.Map{
 		"metrics_compared": req.MetricTypes,
-		"time_range_days": req.TimeRange,
-		"comparison_data": fiber.Map{},
+		"time_range_days":  req.TimeRange,
+		"comparison_data":  fiber.Map{},
 	}
 
 	return c.JSON(fiber.Map{
