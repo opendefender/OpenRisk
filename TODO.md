@@ -94,15 +94,16 @@
 - [x] Implement EnhancedDashboardHandler (Mar 2, 2026) ✅
 - [x] Build TimeSeriesAnalyzer service (Mar 2, 2026) ✅
 - [x] Add additional export functionality (Mar 2, 2026) ✅ COMPLETE
-- [ ] Create custom metric builders
+- [x] Create custom metric builders (Mar 2, 2026) ✅ COMPLETE
 
-**Estimated Effort**: 40-50 hours (40% complete) ✅
+**Estimated Effort**: 40-50 hours (45% complete) ✅
 **Dependencies**: Phase 5 (complete) ✅
 **Implementation Status**: 
   - Backend: TimeSeriesAnalyzer (400+ lines), analytics endpoints (3 handlers)
   - Frontend: RealTimeAnalyticsDashboard, dashboard components
   - Integration: WebSocket live updates working
   - NEW: ExportService (CSV, JSON) for metrics, compliance, trends, audit logs
+  - NEW: MetricBuilderService with custom metric creation, calculation, trending, comparison
 
 #### Compliance & Risk Scoring
 - [x] Design compliance framework scoring system (Feb 22, 2026)
