@@ -201,31 +201,31 @@ Phase 6 - Risk Communication:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   React Frontend                     │
-│                  (localhost:5173)                    │
+│                   React Frontend                    │
+│                  (localhost:5173)                   │
 ├─────────────────────────────────────────────────────┤
-│                                                      │
+│                                                     │
 │  Components (9 Risk Management Pages)               │
-│  ├─ RiskIdentificationPhase                        │
-│  ├─ RiskAnalysisPhase                              │
-│  ├─ RiskTreatmentPhase                             │
-│  ├─ RiskMonitoringPhase                            │
-│  ├─ RiskReviewPhase                                │
-│  ├─ RiskCommunicationPhase                         │
-│  ├─ RiskManagementPolicy                           │
-│  ├─ RiskDecisionManagement                         │
-│  └─ RiskAuditCompliance                            │
+│  ├─ RiskIdentificationPhase                         │
+│  ├─ RiskAnalysisPhase                               │
+│  ├─ RiskTreatmentPhase                              │
+│  ├─ RiskMonitoringPhase                             │
+│  ├─ RiskReviewPhase                                 │
+│  ├─ RiskCommunicationPhase                          │
+│  ├─ RiskManagementPolicy                            │
+│  ├─ RiskDecisionManagement                          │
+│  └─ RiskAuditCompliance                             │
 │                    ↓                                │
-│  Custom Hooks (useRiskXXX) - State Management      │
+│  Custom Hooks (useRiskXXX) - State Management       │
 │                    ↓                                │
-│  API Service Layer (riskManagementService.ts)      │
-│  ├─ getAuthHeader() - Token injection              │
-│  ├─ POST handlers (identify, analyze, treat, etc)  │
-│  └─ GET handlers (register, treatments, etc)       │
+│  API Service Layer (riskManagementService.ts)       │
+│  ├─ getAuthHeader() - Token injection               │
+│  ├─ POST handlers (identify, analyze, treat, etc)   │
+│  └─ GET handlers (register, treatments, etc)        │
 ├─────────────────────────────────────────────────────┤
 │           HTTP Requests (Bearer Token)              │
 │                    ↓                                │
-│        Backend API (localhost:8080/api/v1)         │
+│        Backend API (localhost:8080/api/v1)          │
 │                    ↓                                │
 │                 Database                            │
 └─────────────────────────────────────────────────────┘
