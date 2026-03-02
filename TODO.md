@@ -1,7 +1,7 @@
 # OpenRisk - Project TODO & Roadmap
 
-**Last Updated**: March 2, 2026 (Phase 6A Complete)
-**Overall Completion**: 95%+ (Production Ready - 50% of Phase 6 Implemented)
+**Last Updated**: March 2, 2026 (Phase 6B Staging Tasks Complete)
+**Overall Completion**: 95%+ (Production Ready - 60% of Phase 6 Implemented)
 
 ---
 
@@ -427,8 +427,8 @@ Q4 2026 (Oct-Dec):
 2. [x] Create incident CRUD API endpoints (Mar 2, 2026) ✅
 3. [x] Implement incident-to-risk mapping (Mar 2, 2026) ✅
 4. [x] Build incident dashboard UI ✅ (Mar 2, 2026)
-5. [ ] Run staging validation tests
-6. [ ] Create performance baseline report
+5. [x] Run staging validation tests ✅ (Mar 2, 2026)
+6. [x] Create performance baseline report ✅ (Mar 2, 2026)
 
 ### Medium-Term (Next Month - Mar 22 - Apr 2)
 1. [ ] Complete incident management implementation
