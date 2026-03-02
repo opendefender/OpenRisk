@@ -1,0 +1,120 @@
+# Staging Deployment Configuration
+# For deploying Phase 6 features (WebSocket, Analytics, Incidents) to staging
+
+version: '3.9'
+
+services:
+  postgres-staging:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: openrisk_staging
+      POSTGRES_USER: openrisk_user
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:-staging_password_change_me}
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openrisk_user -d openrisk_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openrisk_staging
+
+  redis-staging:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${STAGING_REDIS_PASSWORD:-staging_redis_change_me}
+    volumes:
+      - redis_staging_data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openrisk_staging
+
+  backend-staging:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      ENV: staging
+      DB_HOST: postgres-staging
+      DB_PORT: 5432
+      DB_USER: openrisk_user
+      DB_PASSWORD: ${STAGING_DB_PASSWORD:-staging_password_change_me}
+      DB_NAME: openrisk_staging
+      DB_SSLMODE: disable
+      REDIS_HOST: redis-staging
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${STAGING_REDIS_PASSWORD:-staging_redis_change_me}
+      JWT_SECRET: ${STAGING_JWT_SECRET:-staging_jwt_secret_change_me}
+      LOG_LEVEL: debug
+      CORS_ORIGINS: ${STAGING_CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      API_PORT: 8080
+      WEBSOCKET_ENABLED: "true"
+      WEBSOCKET_HEARTBEAT_INTERVAL: "30s"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - openrisk_staging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend-staging:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.staging
+      args:
+        REACT_APP_API_URL: http://localhost:8080/api
+        REACT_APP_WS_URL: ws://localhost:8080/ws
+    environment:
+      REACT_APP_API_URL: ${STAGING_API_URL:-http://localhost:8080/api}
+      REACT_APP_WS_URL: ${STAGING_WS_URL:-ws://localhost:8080/ws}
+      REACT_APP_ENV: staging
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend-staging
+    networks:
+      - openrisk_staging
+    volumes:
+      - ./frontend/src:/app/src
+
+  prometheus-staging:
+    image: prom/prometheus:latest
+    volumes:
+      - ./deployment/monitoring/prometheus-staging.yml:/etc/prometheus/prometheus.yml
+      - prometheus_staging_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - openrisk_staging
+
+volumes:
+  postgres_staging_data:
+  redis_staging_data:
+  prometheus_staging_data:
+
+networks:
+  openrisk_staging:
+    driver: bridge
