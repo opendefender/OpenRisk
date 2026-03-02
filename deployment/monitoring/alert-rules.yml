@@ -1,0 +1,153 @@
+groups:
+  - name: openrisk_alerts
+    interval: 30s
+    rules:
+      # High error rate (>5%)
+      - alert: HighErrorRate
+        expr: (rate(http_request_total{status=~"5.."}[5m]) / rate(http_request_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # High API latency (p95 > 1 second)
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s on {{ $labels.instance }}"
+
+      # Database connection pool exhaustion
+      - alert: DBConnectionPoolExhausted
+        expr: pg_stat_activity{state="active"} > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "{{ $value }} active connections on {{ $labels.instance }}"
+
+      # High memory usage (>80%)
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # High CPU usage (>80%)
+      - alert: HighCPUUsage
+        expr: (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="openrisk-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpenRisk service is down"
+          description: "Service on {{ $labels.instance }} is not responding"
+
+      # High disk usage (>85%)
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes{fstype=~"ext4|xfs"})) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage is {{ $value | humanizePercentage }} on {{ $labels.device }}"
+
+      # High Redis memory usage (>80%)
+      - alert: HighRedisMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+      # Incident resolution SLA breach
+      - alert: IncidentSLABreach
+        expr: (incident_resolution_time_hours > incident_sla_hours) and (incident_status == "open")
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Incident SLA breach detected"
+          description: "Incident {{ $labels.incident_id }} has breached SLA"
+
+      # Low SLA compliance rate (<90%)
+      - alert: LowSLACompliance
+        expr: incident_sla_compliance_rate < 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low incident SLA compliance"
+          description: "SLA compliance is {{ $value | humanizePercentage }}"
+
+      # High incident creation rate (>50 per hour)
+      - alert: HighIncidentRate
+        expr: rate(incident_total[1h]) > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High incident creation rate"
+          description: "Creating {{ $value }} incidents per hour"
+
+      # Slow database queries (>1 second)
+      - alert: SlowDatabaseQueries
+        expr: pg_slow_queries > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "{{ $value }} slow queries detected"
+
+      # Cache hit rate low (<60%)
+      - alert: LowCacheHitRate
+        expr: redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) < 0.6
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # High request queue depth
+      - alert: HighRequestQueueDepth
+        expr: http_requests_in_flight > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request queue depth"
+          description: "{{ $value }} requests in flight"
+
+      # Certificate expiration warning (30 days)
+      - alert: CertificateExpiringWarning
+        expr: ssl_certificate_expiry_seconds < (30 * 24 * 3600)
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate expires in {{ $value | humanizeDuration }}"
