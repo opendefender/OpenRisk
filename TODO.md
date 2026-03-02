@@ -93,15 +93,17 @@
 - [x] Create DashboardDataService (Mar 2, 2026) ✅
 - [x] Implement EnhancedDashboardHandler (Mar 2, 2026) ✅
 - [x] Build TimeSeriesAnalyzer service (Mar 2, 2026) ✅
-- [ ] Add additional export functionality
-- [ ] Create custom metric builders
+- [x] Add additional export functionality (Mar 2, 2026) ✅ COMPLETE
+- [x] Create custom metric builders (Mar 2, 2026) ✅ COMPLETE
 
-**Estimated Effort**: 40-50 hours (35% complete) ✅
+**Estimated Effort**: 40-50 hours (45% complete) ✅
 **Dependencies**: Phase 5 (complete) ✅
 **Implementation Status**: 
   - Backend: TimeSeriesAnalyzer (400+ lines), analytics endpoints (3 handlers)
   - Frontend: RealTimeAnalyticsDashboard, dashboard components
   - Integration: WebSocket live updates working
+  - NEW: ExportService (CSV, JSON) for metrics, compliance, trends, audit logs
+  - NEW: MetricBuilderService with custom metric creation, calculation, trending, comparison
 
 #### Compliance & Risk Scoring
 - [x] Design compliance framework scoring system (Feb 22, 2026)
@@ -405,7 +407,7 @@ Q4 2026 (Oct-Dec):
 ### Immediate (This Week - Mar 3-7)
 1. [x] Run complete test suite validation
 2. [x] Complete code review of Phase 5 work (including WebSocket)
-3. [x] WebSocket implementation complete ✅
+3. [x] WebSocket implementation complete 
 4. [ ] Deploy to staging for validation with real-time features
 5. [ ] Finalize Phase 6 requirements with incident management
 

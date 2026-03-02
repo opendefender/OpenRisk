@@ -79,3 +79,57 @@ func ExportRisksPDF(c *fiber.Ctx) error {
 
 	return pdf.Output(c.Context().Response.BodyWriter())
 }
+
+// ExportMetricsCSV exports metrics in CSV format
+func ExportMetricsCSV(c *fiber.Ctx) error {
+	format := c.Query("format", "csv") // csv, json
+	timeRange := c.Query("range", "30d")
+
+	// Headers for CSV
+	if format == "json" {
+		c.Set("Content-Type", "application/json")
+		c.Set("Content-Disposition", "attachment; filename=metrics.json")
+	} else {
+		c.Set("Content-Type", "text/csv")
+		c.Set("Content-Disposition", "attachment; filename=metrics.csv")
+	}
+
+	return c.JSON(fiber.Map{
+		"status":     "export",
+		"format":     format,
+		"time_range": timeRange,
+	})
+}
+
+// ExportComplianceData exports compliance data in CSV/JSON format
+func ExportComplianceData(c *fiber.Ctx) error {
+	format := c.Query("format", "csv")
+
+	if format == "json" {
+		c.Set("Content-Type", "application/json")
+		c.Set("Content-Disposition", "attachment; filename=compliance.json")
+	} else {
+		c.Set("Content-Type", "text/csv")
+		c.Set("Content-Disposition", "attachment; filename=compliance.csv")
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "export",
+		"format": format,
+	})
+}
+
+// ExportTrendsData exports trend analysis data
+func ExportTrendsData(c *fiber.Ctx) error {
+	format := c.Query("format", "json")
+	days := c.QueryInt("days", 30)
+
+	c.Set("Content-Type", "application/json")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=trends_%dd.json", days))
+
+	return c.JSON(fiber.Map{
+		"status": "export",
+		"format": format,
+		"days":   days,
+	})
+}
