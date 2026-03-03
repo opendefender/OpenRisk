@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"openrisk/backend/internal/audit"
-	"openrisk/backend/internal/middleware"
+	"github.com/opendefender/openrisk/internal/audit"
+	"github.com/opendefender/openrisk/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/opendefender/openrisk/internal/analytics"

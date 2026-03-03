@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"openrisk/internal/models"
+	"github.com/opendefender/openrisk/internal/models"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"

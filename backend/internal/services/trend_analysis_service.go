@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"openrisk/internal/models"
+	"github.com/opendefender/openrisk/internal/models"
 )
 
 // TrendAnalysisService handles advanced trend analysis

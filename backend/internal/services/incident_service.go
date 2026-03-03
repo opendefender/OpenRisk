@@ -121,6 +121,22 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req m
 	// Track status change for timeline
 	oldStatus := incident.Status
 
+	// Validate status if provided
+	if req.Status != "" {
+		validStatuses := map[string]bool{"open": true, "in_progress": true, "resolved": true, "closed": true}
+		if !validStatuses[req.Status] {
+			return nil, fmt.Errorf("invalid status: %s", req.Status)
+		}
+	}
+
+	// Validate severity if provided
+	if req.Severity != "" {
+		validSeverities := map[string]bool{"critical": true, "high": true, "medium": true, "low": true}
+		if !validSeverities[req.Severity] {
+			return nil, fmt.Errorf("invalid severity: %s", req.Severity)
+		}
+	}
+
 	updates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
@@ -281,7 +297,13 @@ func (s *IncidentService) GetIncidentStats(tenantID string) map[string]interface
 	stats["open_incidents"] = open
 	stats["resolved_incidents"] = resolved
 	stats["critical_incidents"] = critical
-	stats["resolution_rate"] = float64(resolved) / float64(total) * 100
+
+	// Prevent division by zero
+	if total > 0 {
+		stats["resolution_rate"] = float64(resolved) / float64(total) * 100
+	} else {
+		stats["resolution_rate"] = 0.0
+	}
 
 	return stats
 }
@@ -295,4 +317,137 @@ func (s *IncidentService) GetIncidentsForRisk(tenantID string, riskID uint) ([]m
 		return nil, fmt.Errorf("failed to get incidents for risk: %w", err)
 	}
 	return incidents, nil
+}
+
+// GetIncidentMetrics retrieves comprehensive incident analytics metrics
+func (s *IncidentService) GetIncidentMetrics(tenantID string) map[string]interface{} {
+	metrics := make(map[string]interface{})
+
+	// Get status breakdown
+	var statusBreakdown []struct {
+		Status string
+		Count  int64
+	}
+	database.DB.Where("tenant_id = ?", tenantID).
+		Model(&models.Incident{}).
+		Group("status").
+		Select("status, count(*) as count").
+		Scan(&statusBreakdown)
+
+	// Get severity breakdown
+	var severityBreakdown []struct {
+		Severity string
+		Count    int64
+	}
+	database.DB.Where("tenant_id = ?", tenantID).
+		Model(&models.Incident{}).
+		Group("severity").
+		Select("severity, count(*) as count").
+		Scan(&severityBreakdown)
+
+	// Get incident type breakdown
+	var typeBreakdown []struct {
+		IncidentType string
+		Count        int64
+	}
+	database.DB.Where("tenant_id = ?", tenantID).
+		Model(&models.Incident{}).
+		Group("incident_type").
+		Select("incident_type, count(*) as count").
+		Scan(&typeBreakdown)
+
+	// Calculate MTTR (Mean Time To Resolve)
+	var mttrData []struct {
+		ResolvedAt *time.Time
+		CreatedAt  time.Time
+	}
+	database.DB.Where("tenant_id = ? AND status IN ?", tenantID, []string{"resolved", "closed"}).
+		Model(&models.Incident{}).
+		Select("resolved_at, created_at").
+		Scan(&mttrData)
+
+	var totalResolutionTime int64
+	if len(mttrData) > 0 {
+		for _, incident := range mttrData {
+			if incident.ResolvedAt != nil {
+				totalResolutionTime += incident.ResolvedAt.Sub(incident.CreatedAt).Nanoseconds()
+			}
+		}
+		metrics["mttr_hours"] = float64(totalResolutionTime) / float64(len(mttrData)) / 3.6e12
+	}
+
+	// Get trend data (incidents per day, last 30 days)
+	var trendData []struct {
+		Date  time.Time
+		Count int64
+	}
+	database.DB.Where("tenant_id = ? AND created_at > ?", tenantID, time.Now().AddDate(0, 0, -30)).
+		Model(&models.Incident{}).
+		Group("DATE(created_at)").
+		Select("DATE(created_at) as date, count(*) as count").
+		Order("date").
+		Scan(&trendData)
+
+	metrics["status_breakdown"] = statusBreakdown
+	metrics["severity_breakdown"] = severityBreakdown
+	metrics["incident_type_breakdown"] = typeBreakdown
+	metrics["trend_30_days"] = trendData
+
+	return metrics
+}
+
+// BulkUpdateIncidentStatus updates multiple incidents' status
+func (s *IncidentService) BulkUpdateIncidentStatus(tenantID string, incidentIDs []uint, status string) error {
+	if len(incidentIDs) == 0 {
+		return fmt.Errorf("no incident IDs provided")
+	}
+
+	// Validate status value
+	validStatuses := map[string]bool{"open": true, "in_progress": true, "resolved": true, "closed": true}
+	if !validStatuses[status] {
+		return fmt.Errorf("invalid status: %s", status)
+	}
+
+	if err := database.DB.Where("tenant_id = ? AND id IN ?", tenantID, incidentIDs).
+		Model(&models.Incident{}).
+		Updates(map[string]interface{}{
+			"status":     status,
+			"updated_at": time.Now(),
+		}).Error; err != nil {
+		return fmt.Errorf("failed to bulk update incidents: %w", err)
+	}
+
+	return nil
+}
+
+// GetIncidentTrendData returns incidents grouped by time period
+func (s *IncidentService) GetIncidentTrendData(tenantID string, days int) ([]map[string]interface{}, error) {
+	var results []struct {
+		Date  string
+		Count int64
+	}
+
+	query := fmt.Sprintf("DATE_TRUNC('day', created_at)")
+	if database.DB.Dialector.Name() == "sqlite" {
+		query = "DATE(created_at)"
+	}
+
+	if err := database.DB.Where("tenant_id = ? AND created_at > ?", tenantID, time.Now().AddDate(0, 0, -days)).
+		Model(&models.Incident{}).
+		Group(query).
+		Select(query + " as date, count(*) as count").
+		Order("date").
+		Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to get trend data: %w", err)
+	}
+
+	var trendData []map[string]interface{}
+	for _, result := range results {
+		trendData = append(trendData, map[string]interface{}{
+			"date":  result.Date,
+			"count": result.Count,
+		})
+	}
+
+	return trendData, nil
 }
