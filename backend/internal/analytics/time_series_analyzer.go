@@ -3,7 +3,6 @@ package analytics
 import (
 	"context"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 )
@@ -49,11 +48,11 @@ func (tsa *TimeSeriesAnalyzer) AddDataPoint(seriesName string, dp DataPoint) {
 
 // TrendAnalysis represents analysis of a trend
 type TrendAnalysis struct {
-	Direction   string  // UP, DOWN, STABLE
-	Magnitude   float64 // 0-1 scale
-	Confidence  float64 // 0-1 scale
-	Period      time.Duration
-	Forecast    float64
+	Direction  string  // UP, DOWN, STABLE
+	Magnitude  float64 // 0-1 scale
+	Confidence float64 // 0-1 scale
+	Period     time.Duration
+	Forecast   float64
 }
 
 // AnalyzeTrend analyzes the trend of a time series
@@ -165,21 +164,21 @@ func (tsa *TimeSeriesAnalyzer) forecastValue(points []DataPoint) float64 {
 type AggregationLevel string
 
 const (
-	HOURLY   AggregationLevel = "HOURLY"
-	DAILY    AggregationLevel = "DAILY"
-	WEEKLY   AggregationLevel = "WEEKLY"
-	MONTHLY  AggregationLevel = "MONTHLY"
+	HOURLY  AggregationLevel = "HOURLY"
+	DAILY   AggregationLevel = "DAILY"
+	WEEKLY  AggregationLevel = "WEEKLY"
+	MONTHLY AggregationLevel = "MONTHLY"
 )
 
 // AggregatedData represents aggregated analytics data
 type AggregatedData struct {
-	Period      time.Time
-	Sum         float64
-	Average     float64
-	Min         float64
-	Max         float64
-	Count       int64
-	Stddev      float64
+	Period  time.Time
+	Sum     float64
+	Average float64
+	Min     float64
+	Max     float64
+	Count   int64
+	Stddev  float64
 }
 
 // AggregateData aggregates data points by level
@@ -230,7 +229,7 @@ func (tsa *TimeSeriesAnalyzer) getPeriodKey(t time.Time, level AggregationLevel)
 	case DAILY:
 		return t.Format("2006-01-02")
 	case WEEKLY:
-		year, week := t.IsoWeek()
+		year, week := t.ISOWeek()
 		return fmt.Sprintf("%d-W%d", year, week)
 	case MONTHLY:
 		return t.Format("2006-01")
@@ -241,10 +240,10 @@ func (tsa *TimeSeriesAnalyzer) getPeriodKey(t time.Time, level AggregationLevel)
 
 // ComparisonAnalysis compares two time periods
 type ComparisonAnalysis struct {
-	Period1Avg     float64
-	Period2Avg     float64
-	PercentChange  float64
-	IsImprovement  bool
+	Period1Avg    float64
+	Period2Avg    float64
+	PercentChange float64
+	IsImprovement bool
 }
 
 // ComparePeriods compares two time periods
@@ -336,8 +335,8 @@ func (rg *ReportGenerator) GeneratePerformanceReport(ctx context.Context, series
 		aggregated := rg.analyzer.AggregateData(seriesName, DAILY)
 
 		report.Data[seriesName] = map[string]interface{}{
-			"trend":       trend,
-			"aggregated":  aggregated,
+			"trend":      trend,
+			"aggregated": aggregated,
 		}
 
 		// Add metrics
@@ -387,15 +386,6 @@ func (db *DashboardBuilder) Build() map[string]*DashboardWidget {
 // ExportToJSON exports data as JSON
 func (rg *ReportGenerator) ExportToJSON(report *Report) []byte {
 	// In production, use proper JSON marshaling
-	data := map[string]interface{}{
-		"title":       report.Title,
-		"description": report.Description,
-		"generated_at": report.GeneratedAt,
-		"data":        report.Data,
-		"insights":    report.Insights,
-		"metrics":     report.Metrics,
-	}
-
 	// Serialize to JSON (simplified)
 	jsonStr := fmt.Sprintf(`{
 		"title": "%s",

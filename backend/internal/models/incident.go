@@ -9,25 +9,24 @@ import (
 
 // Incident represents a security incident
 type Incident struct {
-	ID             uint                `gorm:"primaryKey" json:"id"`
-	TenantID       string              `gorm:"index" json:"tenant_id"`
-	Title          string              `gorm:"index" json:"title"`
-	Description    string              `gorm:"type:text" json:"description"`
-	IncidentType   string              `json:"incident_type"`         // vulnerability, breach, attack, data_loss, etc
-	Severity       string              `gorm:"index" json:"severity"` // critical, high, medium, low
-	Status         string              `gorm:"index" json:"status"`   // open, investigating, resolved, closed
-	Source         string              `json:"source"`                // internal, external, third_party
-	ReportedBy     string              `json:"reported_by"`           // user who reported
-	AssignedTo     string              `json:"assigned_to"`           // assigned team member
-	RiskID         *uint               `gorm:"index" json:"risk_id"`  // linked risk
-	Risk           *Risk               `json:"risk,omitempty"`
-	ImpactedAssets datatypes.JSONSlice `gorm:"type:jsonb" json:"impacted_assets"`
-	Timeline       datatypes.JSONSlice `gorm:"type:jsonb" json:"timeline"` // array of events
-	Resolution     string              `gorm:"type:text" json:"resolution"`
-	ResolvedAt     *time.Time          `json:"resolved_at"`
-	CreatedAt      time.Time           `json:"created_at"`
-	UpdatedAt      time.Time           `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt      `gorm:"index" json:"deleted_at,omitempty"`
+	ID             uint           `gorm:"primaryKey" json:"id"`
+	TenantID       string         `gorm:"index" json:"tenant_id"`
+	Title          string         `gorm:"index" json:"title"`
+	Description    string         `gorm:"type:text" json:"description"`
+	IncidentType   string         `json:"incident_type"`         // vulnerability, breach, attack, data_loss, etc
+	Severity       string         `gorm:"index" json:"severity"` // critical, high, medium, low
+	Status         string         `gorm:"index" json:"status"`   // open, investigating, resolved, closed
+	Source         string         `json:"source"`                // internal, external, third_party
+	ReportedBy     string         `json:"reported_by"`           // user who reported
+	AssignedTo     string         `json:"assigned_to"`           // assigned team member
+	RiskID         *uint          `gorm:"index" json:"risk_id"`  // linked risk
+	ImpactedAssets datatypes.JSON `gorm:"type:jsonb" json:"impacted_assets"`
+	Timeline       datatypes.JSON `gorm:"type:jsonb" json:"timeline"` // array of events
+	Resolution     string         `gorm:"type:text" json:"resolution"`
+	ResolvedAt     *time.Time     `json:"resolved_at"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 // IncidentTimeline represents an event in incident timeline

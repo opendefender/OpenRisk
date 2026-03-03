@@ -1,90 +1,89 @@
 package models
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}	return json.Marshal(m)func (m CustomMetric) Value() (driver.Value, error) {// Value implements driver.Valuer interface}	return json.Unmarshal(bytes, &m)	bytes, _ := value.([]byte)func (m *CustomMetric) Scan(value interface{}) error {// Scan implements sql.Scanner interface}	Benchmark  map[string]float64       `json:"benchmark,omitempty"`	Metrics    []CalculatedMetric       `json:"metrics"`	Period     string                   `json:"period"`type MetricComparison struct {// MetricComparison compares multiple metrics}	History     []MetricValue          `json:"history,omitempty"`	Change      float64                `json:"change"` // percentage change	Trend       string                 `json:"trend"` // up, down, stable	Timestamp   time.Time              `json:"timestamp"`	Value       float64                `json:"value"`	Name        string                 `json:"name"`	MetricID    uint                   `json:"metric_id"`type CalculatedMetric struct {// CalculatedMetric holds calculated metric result}	Aggregation string	EndDate    time.Time	StartDate  time.Time	TenantID   string	MetricID   uinttype MetricQuery struct {// MetricQuery represents parameters for querying metrics}	Aggregation string                 `json:"aggregation" binding:"required,oneof=daily weekly monthly yearly"`	Filters     map[string]interface{} `json:"filters"`	DataSource  string                 `json:"data_source" binding:"required"`	Formula     string                 `json:"formula" binding:"required"`	MetricType  string                 `json:"metric_type" binding:"required,oneof=count average sum percentage"`	Description string                 `json:"description"`	Name        string                 `json:"name" binding:"required"`type MetricDefinition struct {// MetricDefinition defines the structure for creating metrics}	CreatedAt  time.Time      `json:"created_at"`	Metadata   datatypes.JSON `gorm:"type:jsonb" json:"metadata,omitempty"`	Timestamp  time.Time      `gorm:"index" json:"timestamp"`	Value      float64        `json:"value"`	TenantID   string         `gorm:"index" json:"tenant_id"`	Metric     CustomMetric   `json:"metric,omitempty"`	MetricID   uint           `gorm:"index" json:"metric_id"`	ID         uint           `gorm:"primaryKey" json:"id"`type MetricValue struct {// MetricValue represents a value for a custom metric}	DeletedAt   gorm.DeletedAt         `gorm:"index" json:"deleted_at,omitempty"`	UpdatedAt   time.Time              `json:"updated_at"`	CreatedAt   time.Time              `json:"created_at"`	CreatedBy   string                 `json:"created_by"`	IsActive    bool                   `gorm:"default:true" json:"is_active"`	Aggregation string                 `json:"aggregation"` // daily, weekly, monthly, yearly	Filters     datatypes.JSONType     `gorm:"type:jsonb" json:"filters"`	DataSource  string                 `json:"data_source"` // risks, mitigations, assets, custom	Formula     string                 `json:"formula"`     // SQL/expression	MetricType  string                 `json:"metric_type"` // count, average, sum, percentage	Description string                 `json:"description"`	Name        string                 `gorm:"index" json:"name"`	TenantID    string                 `gorm:"index" json:"tenant_id"`	ID          uint                   `gorm:"primaryKey" json:"id"`type CustomMetric struct {// CustomMetric represents a user-defined metric)	"gorm.io/gorm"	"gorm.io/datatypes"	"time"	"encoding/json"	"database/sql/driver"import (
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"time"
+
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
+)
+
+// CustomMetric represents a user-defined metric
+type CustomMetric struct {
+	ID          uint               `gorm:"primaryKey" json:"id"`
+	TenantID    string             `gorm:"index" json:"tenant_id"`
+	Name        string             `gorm:"index" json:"name"`
+	Description string             `json:"description"`
+	MetricType  string             `json:"metric_type"` // count, average, sum, percentage
+	Formula     string             `json:"formula"`     // SQL/expression
+	DataSource  string             `json:"data_source"` // risks, mitigations, assets, custom
+	Filters     datatypes.JSON `gorm:"type:jsonb" json:"filters"`
+	Aggregation string             `json:"aggregation"` // daily, weekly, monthly, yearly
+	IsActive    bool               `gorm:"default:true" json:"is_active"`
+	CreatedBy   string             `json:"created_by"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt     `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+// MetricValue represents a value for a custom metric
+type MetricValue struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	MetricID  uint           `gorm:"index" json:"metric_id"`
+	Metric    CustomMetric   `json:"metric,omitempty"`
+	TenantID  string         `gorm:"index" json:"tenant_id"`
+	Value     float64        `json:"value"`
+	Timestamp time.Time      `gorm:"index" json:"timestamp"`
+	Metadata  datatypes.JSON `gorm:"type:jsonb" json:"metadata,omitempty"`
+	CreatedAt time.Time      `json:"created_at"`
+}
+
+// MetricDefinition defines the structure for creating metrics
+type MetricDefinition struct {
+	Name        string                 `json:"name" binding:"required"`
+	Description string                 `json:"description"`
+	MetricType  string                 `json:"metric_type" binding:"required,oneof=count average sum percentage"`
+	Formula     string                 `json:"formula" binding:"required"`
+	DataSource  string                 `json:"data_source" binding:"required"`
+	Filters     map[string]interface{} `json:"filters"`
+	Aggregation string                 `json:"aggregation" binding:"required,oneof=daily weekly monthly yearly"`
+}
+
+// MetricQuery represents parameters for querying metrics
+type MetricQuery struct {
+	MetricID    uint
+	TenantID    string
+	StartDate   time.Time
+	EndDate     time.Time
+	Aggregation string
+}
+
+// CalculatedMetric holds calculated metric result
+type CalculatedMetric struct {
+	MetricID  uint
+	Name      string
+	Value     float64
+	Timestamp time.Time
+	Trend     string  // up, down, stable
+	Change    float64 // percentage change
+	History   []MetricValue
+}
+
+// MetricComparison compares multiple metrics
+type MetricComparison struct {
+	Period    string
+	Metrics   []CalculatedMetric
+	Benchmark map[string]float64
+}
+
+// Scan implements sql.Scanner interface
+func (m *CustomMetric) Scan(value interface{}) error {
+	bytes, _ := value.([]byte)
+	return json.Unmarshal(bytes, &m)
+}
+
+// Value implements driver.Valuer interface
+func (m CustomMetric) Value() (driver.Value, error) {
+	return json.Marshal(m)
+}
