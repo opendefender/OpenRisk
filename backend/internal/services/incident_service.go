@@ -121,6 +121,22 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req m
 	// Track status change for timeline
 	oldStatus := incident.Status
 
+	// Validate status if provided
+	if req.Status != "" {
+		validStatuses := map[string]bool{"open": true, "in_progress": true, "resolved": true, "closed": true}
+		if !validStatuses[req.Status] {
+			return nil, fmt.Errorf("invalid status: %s", req.Status)
+		}
+	}
+
+	// Validate severity if provided
+	if req.Severity != "" {
+		validSeverities := map[string]bool{"critical": true, "high": true, "medium": true, "low": true}
+		if !validSeverities[req.Severity] {
+			return nil, fmt.Errorf("invalid severity: %s", req.Severity)
+		}
+	}
+
 	updates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
@@ -384,6 +400,12 @@ func (s *IncidentService) GetIncidentMetrics(tenantID string) map[string]interfa
 func (s *IncidentService) BulkUpdateIncidentStatus(tenantID string, incidentIDs []uint, status string) error {
 	if len(incidentIDs) == 0 {
 		return fmt.Errorf("no incident IDs provided")
+	}
+
+	// Validate status value
+	validStatuses := map[string]bool{"open": true, "in_progress": true, "resolved": true, "closed": true}
+	if !validStatuses[status] {
+		return fmt.Errorf("invalid status: %s", status)
 	}
 
 	if err := database.DB.Where("tenant_id = ? AND id IN ?", tenantID, incidentIDs).
