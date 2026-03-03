@@ -23,8 +23,9 @@ jobs:
       
       - name: Go dependency check
         run: |
-          cd backend && go mod tidy
-          cd backend && go list -json -m all | nancy sleuth
+          cd backend
+          go mod tidy
+          go list -json -m all | nancy sleuth
       
       - name: NPM dependency check
         run: |

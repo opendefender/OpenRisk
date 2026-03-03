@@ -3,7 +3,7 @@ package handlers
 import (
 	"time"
 
-	"openrisk/internal/models"
+	"github.com/opendefender/openrisk/internal/models"
 
 	"github.com/gofiber/fiber/v2"
 )

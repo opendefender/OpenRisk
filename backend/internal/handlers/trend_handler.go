@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"openrisk/internal/models"
-	"openrisk/internal/services"
+	"github.com/opendefender/openrisk/internal/models"
+	"github.com/opendefender/openrisk/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 )

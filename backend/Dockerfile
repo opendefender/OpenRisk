@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 # Compile le binaire unique statiquement
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /openrisk ./cmd/server/main.go
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /openrisk ./cmd/server
 
 # 2. Final stage
 FROM alpine:latest
