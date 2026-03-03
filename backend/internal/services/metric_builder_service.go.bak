@@ -1,30 +1,31 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
 	"time"
 
-	"github.com/opendefender/openrisk/database"
+	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/models"
-	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 // MetricBuilderService handles custom metric creation and calculation
 type MetricBuilderService struct {
-	db *database.Database
+	db *gorm.DB
 }
 
 // NewMetricBuilderService creates a new metric builder service
-func NewMetricBuilderService(db *database.Database) *MetricBuilderService {
+func NewMetricBuilderService(db *gorm.DB) *MetricBuilderService {
 	return &MetricBuilderService{
 		db: db,
 	}
 }
 
 // CreateCustomMetric creates a new custom metric definition
-func (s *MetricBuilderService) CreateCustomMetric(tenantID string, def models.MetricDefinition, createdBy string) (*models.CustomMetric, error) {
+func (s *MetricBuilderService) CreateCustomMetric(tenantID string, def models.MetricDefinition, createdBy string) (*domain.Risk, error) {
 	// Validate metric type
 	validTypes := map[string]bool{"count": true, "average": true, "sum": true, "percentage": true}
 	if !validTypes[def.MetricType] {
@@ -38,12 +39,9 @@ func (s *MetricBuilderService) CreateCustomMetric(tenantID string, def models.Me
 	}
 
 	// Convert filters to JSON
-	filterBytes, err := datatypes.JSONType(fmt.Sprintf(`%v`, def.Filters)).MarshalJSON()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal filters: %w", err)
-	}
+	filterBytes, _ := json.Marshal(def.Filters)
 
-	metric := &models.CustomMetric{
+	metric := &domain.Risk{
 		TenantID:    tenantID,
 		Name:        def.Name,
 		Description: def.Description,
@@ -57,7 +55,7 @@ func (s *MetricBuilderService) CreateCustomMetric(tenantID string, def models.Me
 		CreatedAt:   time.Now(),
 	}
 
-	if err := database.DB.Create(metric).Error; err != nil {
+	if err := s.db.Create(metric).Error; err != nil {
 		log.Printf("Error creating custom metric: %v", err)
 		return nil, fmt.Errorf("failed to create metric: %w", err)
 	}
@@ -66,18 +64,18 @@ func (s *MetricBuilderService) CreateCustomMetric(tenantID string, def models.Me
 }
 
 // GetCustomMetric retrieves a custom metric by ID
-func (s *MetricBuilderService) GetCustomMetric(tenantID string, metricID uint) (*models.CustomMetric, error) {
-	var metric models.CustomMetric
-	if err := database.DB.Where("tenant_id = ? AND id = ?", tenantID, metricID).First(&metric).Error; err != nil {
+func (s *MetricBuilderService) GetCustomMetric(tenantID string, metricID uint) (*domain.Risk, error) {
+	var metric domain.Risk
+	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, metricID).First(&metric).Error; err != nil {
 		return nil, fmt.Errorf("metric not found: %w", err)
 	}
 	return &metric, nil
 }
 
 // ListCustomMetrics lists all custom metrics for a tenant
-func (s *MetricBuilderService) ListCustomMetrics(tenantID string) ([]models.CustomMetric, error) {
-	var metrics []models.CustomMetric
-	if err := database.DB.Where("tenant_id = ? AND is_active = ?", tenantID, true).
+func (s *MetricBuilderService) ListCustomMetrics(tenantID string) ([]domain.Risk, error) {
+	var metrics []domain.Risk
+	if err := s.db.Where("tenant_id = ? AND is_active = ?", tenantID, true).
 		Order("created_at DESC").
 		Find(&metrics).Error; err != nil {
 		return nil, fmt.Errorf("failed to list metrics: %w", err)
@@ -86,7 +84,7 @@ func (s *MetricBuilderService) ListCustomMetrics(tenantID string) ([]models.Cust
 }
 
 // UpdateCustomMetric updates a custom metric definition
-func (s *MetricBuilderService) UpdateCustomMetric(tenantID string, metricID uint, def models.MetricDefinition) (*models.CustomMetric, error) {
+func (s *MetricBuilderService) UpdateCustomMetric(tenantID string, metricID uint, def models.MetricDefinition) (*domain.Risk, error) {
 	metric, err := s.GetCustomMetric(tenantID, metricID)
 	if err != nil {
 		return nil, err
@@ -99,7 +97,7 @@ func (s *MetricBuilderService) UpdateCustomMetric(tenantID string, metricID uint
 		"updated_at":  time.Now(),
 	}
 
-	if err := database.DB.Model(metric).Updates(updates).Error; err != nil {
+	if err := s.db.Model(metric).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update metric: %w", err)
 	}
 
@@ -108,22 +106,22 @@ func (s *MetricBuilderService) UpdateCustomMetric(tenantID string, metricID uint
 
 // DeleteCustomMetric soft deletes a custom metric
 func (s *MetricBuilderService) DeleteCustomMetric(tenantID string, metricID uint) error {
-	if err := database.DB.Where("tenant_id = ? AND id = ?", tenantID, metricID).
-		Delete(&models.CustomMetric{}).Error; err != nil {
+	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, metricID).
+		Delete(&domain.Risk{}).Error; err != nil {
 		return fmt.Errorf("failed to delete metric: %w", err)
 	}
 	return nil
 }
 
 // CalculateMetricValue calculates the current value for a metric
-func (s *MetricBuilderService) CalculateMetricValue(metric *models.CustomMetric) (float64, error) {
+func (s *MetricBuilderService) CalculateMetricValue(metric *domain.Risk) (float64, error) {
 	var value float64
 
 	switch metric.MetricType {
 	case "count":
 		// Count risks matching criteria
 		var count int64
-		if err := database.DB.Model(&models.Risk{}).
+		if err := s.db.Model(&domain.Risk{}).
 			Where("tenant_id = ?", metric.TenantID).
 			Count(&count).Error; err != nil {
 			return 0, fmt.Errorf("failed to count: %w", err)
@@ -133,7 +131,7 @@ func (s *MetricBuilderService) CalculateMetricValue(metric *models.CustomMetric)
 	case "average":
 		// Calculate average score
 		var avgScore float64
-		if err := database.DB.Model(&models.Risk{}).
+		if err := s.db.Model(&domain.Risk{}).
 			Where("tenant_id = ?", metric.TenantID).
 			Select("COALESCE(AVG(score), 0)").
 			Row().Scan(&avgScore); err != nil {
@@ -144,7 +142,7 @@ func (s *MetricBuilderService) CalculateMetricValue(metric *models.CustomMetric)
 	case "sum":
 		// Sum of values
 		var sumVal float64
-		if err := database.DB.Model(&models.Risk{}).
+		if err := s.db.Model(&domain.Risk{}).
 			Where("tenant_id = ?", metric.TenantID).
 			Select("COALESCE(SUM(CAST(score AS FLOAT)), 0)").
 			Row().Scan(&sumVal); err != nil {
@@ -155,10 +153,10 @@ func (s *MetricBuilderService) CalculateMetricValue(metric *models.CustomMetric)
 	case "percentage":
 		// Calculate percentage
 		var total, critical int64
-		database.DB.Model(&models.Risk{}).
+		s.db.Model(&domain.Risk{}).
 			Where("tenant_id = ?", metric.TenantID).
 			Count(&total)
-		database.DB.Model(&models.Risk{}).
+		s.db.Model(&domain.Risk{}).
 			Where("tenant_id = ? AND severity = ?", metric.TenantID, "critical").
 			Count(&critical)
 
@@ -171,15 +169,15 @@ func (s *MetricBuilderService) CalculateMetricValue(metric *models.CustomMetric)
 }
 
 // RecordMetricValue records a metric value with timestamp
-func (s *MetricBuilderService) RecordMetricValue(metricID uint, tenantID string, value float64) (*models.MetricValue, error) {
-	metricValue := &models.MetricValue{
+func (s *MetricBuilderService) RecordMetricValue(metricID uint, tenantID string, value float64) (*domain.Risk, error) {
+	metricValue := &domain.Risk{
 		MetricID:  metricID,
 		TenantID:  tenantID,
 		Value:     value,
 		Timestamp: time.Now().UTC(),
 	}
 
-	if err := database.DB.Create(metricValue).Error; err != nil {
+	if err := s.db.Create(metricValue).Error; err != nil {
 		return nil, fmt.Errorf("failed to record metric value: %w", err)
 	}
 
@@ -187,11 +185,11 @@ func (s *MetricBuilderService) RecordMetricValue(metricID uint, tenantID string,
 }
 
 // GetMetricHistory retrieves historical values for a metric
-func (s *MetricBuilderService) GetMetricHistory(tenantID string, metricID uint, days int) ([]models.MetricValue, error) {
-	var history []models.MetricValue
+func (s *MetricBuilderService) GetMetricHistory(tenantID string, metricID uint, days int) ([]domain.Risk, error) {
+	var history []domain.Risk
 	startDate := time.Now().AddDate(0, 0, -days)
 
-	if err := database.DB.Where("tenant_id = ? AND metric_id = ? AND timestamp >= ?",
+	if err := s.db.Where("tenant_id = ? AND metric_id = ? AND timestamp >= ?",
 		tenantID, metricID, startDate).
 		Order("timestamp ASC").
 		Find(&history).Error; err != nil {
@@ -202,7 +200,7 @@ func (s *MetricBuilderService) GetMetricHistory(tenantID string, metricID uint, 
 }
 
 // CalculateTrend analyzes metric trend
-func (s *MetricBuilderService) CalculateTrend(history []models.MetricValue) string {
+func (s *MetricBuilderService) CalculateTrend(history []domain.Risk) string {
 	if len(history) < 2 {
 		return "stable"
 	}
@@ -219,7 +217,7 @@ func (s *MetricBuilderService) CalculateTrend(history []models.MetricValue) stri
 }
 
 // CalculateChange computes percentage change
-func (s *MetricBuilderService) CalculateChange(history []models.MetricValue) float64 {
+func (s *MetricBuilderService) CalculateChange(history []domain.Risk) float64 {
 	if len(history) < 2 || history[0].Value == 0 {
 		return 0
 	}

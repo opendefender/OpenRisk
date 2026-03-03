@@ -225,3 +225,63 @@ type RiskTreatmentPlan struct {
 	UpdatedAt            time.Time      `json:"updated_at"`
 	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 }
+
+// RiskTreatmentAction represents individual action items within a treatment plan
+type RiskTreatmentAction struct {
+	ID              uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID        uuid.UUID      `gorm:"type:uuid;index" json:"tenant_id"`
+	TreatmentPlanID uuid.UUID      `gorm:"type:uuid;not null;index" json:"treatment_plan_id"`
+	ActionName      string         `gorm:"size:255;not null" json:"action_name"`
+	ActionDesc      string         `gorm:"type:text" json:"action_desc"`
+	ActionOwner     uuid.UUID      `gorm:"type:uuid;not null" json:"action_owner"`
+	DueDate         time.Time      `json:"due_date"`
+	CompletedDate   time.Time      `json:"completed_date"`
+	Priority        string         `gorm:"size:50" json:"priority"`
+	Status          string         `gorm:"size:50;default:'NOT_STARTED'" json:"status"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// RiskDecision records decisions made regarding risk management
+type RiskDecision struct {
+	ID                uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID          uuid.UUID      `gorm:"type:uuid;index" json:"tenant_id"`
+	RiskRegisterID    uuid.UUID      `gorm:"type:uuid;index" json:"risk_register_id"`
+	DecisionType      string         `gorm:"size:100;not null" json:"decision_type"`
+	DecisionTitle     string         `gorm:"size:255;not null" json:"decision_title"`
+	DecisionDesc      string         `gorm:"type:text" json:"decision_desc"`
+	Rationale         string         `gorm:"type:text" json:"rationale"`
+	DecisionMaker     uuid.UUID      `gorm:"type:uuid;not null" json:"decision_maker"`
+	DecisionMakerRole string         `gorm:"size:100" json:"decision_maker_role"`
+	DecisionDate      time.Time      `json:"decision_date"`
+	Status            string         `gorm:"size:50;default:'PROPOSED'" json:"status"`
+	ApprovedBy        uuid.UUID      `gorm:"type:uuid" json:"approved_by"`
+	ApprovedDate      time.Time      `json:"approved_date"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// RiskMonitoringReview represents periodic reviews of risk monitoring
+type RiskMonitoringReview struct {
+	ID                      uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID                uuid.UUID      `gorm:"type:uuid;index" json:"tenant_id"`
+	RiskRegisterID          uuid.UUID      `gorm:"type:uuid;not null;index" json:"risk_register_id"`
+	ReviewDate              time.Time      `json:"review_date"`
+	ReviewType              string         `gorm:"size:100;not null" json:"review_type"`
+	ReviewedBy              uuid.UUID      `gorm:"type:uuid;not null" json:"reviewed_by"`
+	CurrentProbabilityScore int            `json:"current_probability_score"`
+	CurrentImpactScore      int            `json:"current_impact_score"`
+	CurrentRiskScore        float64        `gorm:"type:numeric(8,2)" json:"current_risk_score"`
+	CurrentRiskLevel        string         `gorm:"size:50" json:"current_risk_level"`
+	TreatmentEffectiveness  string         `gorm:"type:text" json:"treatment_effectiveness"`
+	StatusChangedFrom       string         `gorm:"size:50" json:"status_changed_from"`
+	StatusChangedTo         string         `gorm:"size:50" json:"status_changed_to"`
+	NextReviewDate          time.Time      `json:"next_review_date"`
+	ReviewNotes             string         `gorm:"type:text" json:"review_notes"`
+	Recommendations         string         `gorm:"type:text" json:"recommendations"`
+	CreatedAt               time.Time      `json:"created_at"`
+	UpdatedAt               time.Time      `json:"updated_at"`
+	DeletedAt               gorm.DeletedAt `gorm:"index" json:"-"`
+}

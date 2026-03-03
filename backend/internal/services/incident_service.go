@@ -9,15 +9,16 @@ import (
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/models"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 // IncidentService handles incident management operations
 type IncidentService struct {
-	db *database.Database
+	db *gorm.DB
 }
 
 // NewIncidentService creates a new incident service
-func NewIncidentService(db *database.Database) *IncidentService {
+func NewIncidentService(db *gorm.DB) *IncidentService {
 	return &IncidentService{
 		db: db,
 	}
@@ -49,7 +50,7 @@ func (s *IncidentService) CreateIncident(tenantID string, req models.IncidentCre
 		UpdatedAt:      time.Now(),
 	}
 
-	if err := database.DB.Create(incident).Error; err != nil {
+	if err := s.db.Create(incident).Error; err != nil {
 		log.Printf("Error creating incident: %v", err)
 		return nil, fmt.Errorf("failed to create incident: %w", err)
 	}
@@ -63,7 +64,7 @@ func (s *IncidentService) CreateIncident(tenantID string, req models.IncidentCre
 // GetIncident retrieves an incident by ID
 func (s *IncidentService) GetIncident(tenantID string, incidentID uint) (*models.Incident, error) {
 	var incident models.Incident
-	if err := database.DB.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
+	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
 		Preload("Risk").
 		First(&incident).Error; err != nil {
 		return nil, fmt.Errorf("incident not found: %w", err)
@@ -76,7 +77,7 @@ func (s *IncidentService) ListIncidents(tenantID string, query models.IncidentQu
 	var incidents []models.Incident
 	var total int64
 
-	q := database.DB.Where("tenant_id = ?", tenantID)
+	q := s.db.Where("tenant_id = ?", tenantID)
 
 	// Apply filters
 	if query.Status != "" {
@@ -163,7 +164,7 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req m
 		}
 	}
 
-	if err := database.DB.Model(incident).Updates(updates).Error; err != nil {
+	if err := s.db.Model(incident).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update incident: %w", err)
 	}
 
@@ -185,7 +186,7 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req m
 
 // DeleteIncident soft deletes an incident
 func (s *IncidentService) DeleteIncident(tenantID string, incidentID uint) error {
-	if err := database.DB.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
+	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
 		Delete(&models.Incident{}).Error; err != nil {
 		return fmt.Errorf("failed to delete incident: %w", err)
 	}
@@ -206,7 +207,7 @@ func (s *IncidentService) AddTimelineEntry(incidentID uint, eventType, message, 
 		entry.Metadata = datatypes.JSON([]byte(fmt.Sprintf(`{"data":"%s"}`, metadata)))
 	}
 
-	if err := database.DB.Create(&entry).Error; err != nil {
+	if err := s.db.Create(&entry).Error; err != nil {
 		log.Printf("Error adding timeline entry: %v", err)
 		return fmt.Errorf("failed to add timeline entry: %w", err)
 	}
@@ -217,7 +218,7 @@ func (s *IncidentService) AddTimelineEntry(incidentID uint, eventType, message, 
 // GetTimeline retrieves incident timeline
 func (s *IncidentService) GetTimeline(incidentID uint) ([]models.IncidentTimeline, error) {
 	var timeline []models.IncidentTimeline
-	if err := database.DB.Where("incident_id = ?", incidentID).
+	if err := s.db.Where("incident_id = ?", incidentID).
 		Order("created_at ASC").
 		Find(&timeline).Error; err != nil {
 		return nil, fmt.Errorf("failed to get timeline: %w", err)
@@ -227,7 +228,7 @@ func (s *IncidentService) GetTimeline(incidentID uint) ([]models.IncidentTimelin
 
 // LinkRisk links an incident to a risk
 func (s *IncidentService) LinkRisk(incidentID, riskID uint) error {
-	if err := database.DB.Model(&models.Incident{}).
+	if err := s.db.Model(&models.Incident{}).
 		Where("id = ?", incidentID).
 		Update("risk_id", riskID).Error; err != nil {
 		return fmt.Errorf("failed to link risk: %w", err)
@@ -254,7 +255,7 @@ func (s *IncidentService) CreateIncidentAction(incidentID uint, title, descripti
 		CreatedAt:   time.Now(),
 	}
 
-	if err := database.DB.Create(action).Error; err != nil {
+	if err := s.db.Create(action).Error; err != nil {
 		return nil, fmt.Errorf("failed to create action: %w", err)
 	}
 
@@ -264,7 +265,7 @@ func (s *IncidentService) CreateIncidentAction(incidentID uint, title, descripti
 // GetIncidentActions retrieves all actions for incident
 func (s *IncidentService) GetIncidentActions(incidentID uint) ([]models.IncidentAction, error) {
 	var actions []models.IncidentAction
-	if err := database.DB.Where("incident_id = ?", incidentID).
+	if err := s.db.Where("incident_id = ?", incidentID).
 		Order("created_at ASC").
 		Find(&actions).Error; err != nil {
 		return nil, fmt.Errorf("failed to get actions: %w", err)
@@ -274,7 +275,7 @@ func (s *IncidentService) GetIncidentActions(incidentID uint) ([]models.Incident
 
 // UpdateIncidentAction updates action status
 func (s *IncidentService) UpdateIncidentAction(actionID uint, status string) error {
-	if err := database.DB.Model(&models.IncidentAction{}).
+	if err := s.db.Model(&models.IncidentAction{}).
 		Where("id = ?", actionID).
 		Update("status", status).
 		Update("updated_at", time.Now()).Error; err != nil {
@@ -288,10 +289,10 @@ func (s *IncidentService) GetIncidentStats(tenantID string) map[string]interface
 	stats := make(map[string]interface{})
 
 	var total, open, resolved, critical int64
-	database.DB.Where("tenant_id = ?", tenantID).Model(&models.Incident{}).Count(&total)
-	database.DB.Where("tenant_id = ? AND status = ?", tenantID, "open").Model(&models.Incident{}).Count(&open)
-	database.DB.Where("tenant_id = ? AND status IN ?", tenantID, []string{"resolved", "closed"}).Model(&models.Incident{}).Count(&resolved)
-	database.DB.Where("tenant_id = ? AND severity = ?", tenantID, "critical").Model(&models.Incident{}).Count(&critical)
+	s.db.Where("tenant_id = ?", tenantID).Model(&models.Incident{}).Count(&total)
+	s.db.Where("tenant_id = ? AND status = ?", tenantID, "open").Model(&models.Incident{}).Count(&open)
+	s.db.Where("tenant_id = ? AND status IN ?", tenantID, []string{"resolved", "closed"}).Model(&models.Incident{}).Count(&resolved)
+	s.db.Where("tenant_id = ? AND severity = ?", tenantID, "critical").Model(&models.Incident{}).Count(&critical)
 
 	stats["total_incidents"] = total
 	stats["open_incidents"] = open
@@ -350,7 +351,7 @@ func (s *IncidentService) GetIncidentMetrics(tenantID string) map[string]interfa
 		IncidentType string
 		Count        int64
 	}
-	database.DB.Where("tenant_id = ?", tenantID).
+	s.db.Where("tenant_id = ?", tenantID).
 		Model(&models.Incident{}).
 		Group("incident_type").
 		Select("incident_type, count(*) as count").
@@ -361,7 +362,7 @@ func (s *IncidentService) GetIncidentMetrics(tenantID string) map[string]interfa
 		ResolvedAt *time.Time
 		CreatedAt  time.Time
 	}
-	database.DB.Where("tenant_id = ? AND status IN ?", tenantID, []string{"resolved", "closed"}).
+	s.db.Where("tenant_id = ? AND status IN ?", tenantID, []string{"resolved", "closed"}).
 		Model(&models.Incident{}).
 		Select("resolved_at, created_at").
 		Scan(&mttrData)
@@ -381,7 +382,7 @@ func (s *IncidentService) GetIncidentMetrics(tenantID string) map[string]interfa
 		Date  time.Time
 		Count int64
 	}
-	database.DB.Where("tenant_id = ? AND created_at > ?", tenantID, time.Now().AddDate(0, 0, -30)).
+	s.db.Where("tenant_id = ? AND created_at > ?", tenantID, time.Now().AddDate(0, 0, -30)).
 		Model(&models.Incident{}).
 		Group("DATE(created_at)").
 		Select("DATE(created_at) as date, count(*) as count").
@@ -408,7 +409,7 @@ func (s *IncidentService) BulkUpdateIncidentStatus(tenantID string, incidentIDs 
 		return fmt.Errorf("invalid status: %s", status)
 	}
 
-	if err := database.DB.Where("tenant_id = ? AND id IN ?", tenantID, incidentIDs).
+	if err := s.db.Where("tenant_id = ? AND id IN ?", tenantID, incidentIDs).
 		Model(&models.Incident{}).
 		Updates(map[string]interface{}{
 			"status":     status,
@@ -428,11 +429,11 @@ func (s *IncidentService) GetIncidentTrendData(tenantID string, days int) ([]map
 	}
 
 	query := fmt.Sprintf("DATE_TRUNC('day', created_at)")
-	if database.DB.Dialector.Name() == "sqlite" {
+	if s.db.Dialector.Name() == "sqlite" {
 		query = "DATE(created_at)"
 	}
 
-	if err := database.DB.Where("tenant_id = ? AND created_at > ?", tenantID, time.Now().AddDate(0, 0, -days)).
+	if err := s.db.Where("tenant_id = ? AND created_at > ?", tenantID, time.Now().AddDate(0, 0, -days)).
 		Model(&models.Incident{}).
 		Group(query).
 		Select(query + " as date, count(*) as count").
