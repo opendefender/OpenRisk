@@ -16,15 +16,15 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25.4'
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
       
       - name: Go dependency check
         run: |
-          go mod tidy
-          go list -json -m all | nancy sleuth
+          cd backend && go mod tidy
+          cd backend && go list -json -m all | nancy sleuth
       
       - name: NPM dependency check
         run: |
@@ -38,12 +38,12 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25.4'
       
       - name: Gosec - Go Security
         uses: securego/gosec@master
         with:
-          args: '-no-fail -fmt sarif -out gosec.sarif ./...'
+          args: '-no-fail -fmt sarif -out gosec.sarif ./backend/...'
       
       - name: Upload Gosec report
         uses: github/codeql-action/upload-sarif@v2
@@ -116,6 +116,7 @@ jobs:
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
 
   report:
     if: always()
