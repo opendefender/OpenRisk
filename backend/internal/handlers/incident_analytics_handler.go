@@ -30,7 +30,12 @@ func NewIncidentAnalyticsHandler(
 // GetIncidentMetrics retrieves comprehensive incident metrics
 // GET /api/v1/incidents/analytics/metrics
 func (h *IncidentAnalyticsHandler) GetIncidentMetrics(c *fiber.Ctx) error {
-	tenantID := c.Locals("tenant_id").(string)
+	tenantID, ok := c.Locals("tenant_id").(string)
+	if !ok || tenantID == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
 
 	metrics := h.incidentService.GetIncidentMetrics(tenantID)
 
@@ -43,7 +48,12 @@ func (h *IncidentAnalyticsHandler) GetIncidentMetrics(c *fiber.Ctx) error {
 // GetIncidentTrends retrieves incident trends over time
 // GET /api/v1/incidents/analytics/trends?days=30
 func (h *IncidentAnalyticsHandler) GetIncidentTrends(c *fiber.Ctx) error {
-	tenantID := c.Locals("tenant_id").(string)
+	tenantID, ok := c.Locals("tenant_id").(string)
+	if !ok || tenantID == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
 
 	days := 30
 	if d := c.Query("days"); d != "" {
@@ -55,7 +65,7 @@ func (h *IncidentAnalyticsHandler) GetIncidentTrends(c *fiber.Ctx) error {
 	trendData, err := h.incidentService.GetIncidentTrendData(tenantID, days)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to get trend data: %v", err),
+			"error": "Failed to retrieve trend data",
 		})
 	}
 
@@ -64,7 +74,12 @@ func (h *IncidentAnalyticsHandler) GetIncidentTrends(c *fiber.Ctx) error {
 		"days":  days,
 		"count": len(trendData),
 	})
-}
+}, ok := c.Locals("tenant_id").(string)
+	if !ok || tenantID == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
 
 // GetIncidentStats retrieves incident statistics
 // GET /api/v1/incidents/analytics/stats
@@ -76,12 +91,12 @@ func (h *IncidentAnalyticsHandler) GetIncidentStats(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"data": stats,
 	})
-}
-
-// BulkUpdateIncidents updates multiple incidents
-// POST /api/v1/incidents/bulk-update
-func (h *IncidentAnalyticsHandler) BulkUpdateIncidents(c *fiber.Ctx) error {
-	tenantID := c.Locals("tenant_id").(string)
+}, ok := c.Locals("tenant_id").(string)
+	if !ok || tenantID == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
 
 	var req struct {
 		IncidentIDs []uint `json:"incident_ids" binding:"required"`
@@ -94,13 +109,36 @@ func (h *IncidentAnalyticsHandler) BulkUpdateIncidents(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.incidentService.BulkUpdateIncidentStatus(tenantID, req.IncidentIDs, req.Status); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to update incidents: %v", err),
+	// Validate status value
+	validStatuses := map[string]bool{"open": true, "in_progress": true, "resolved": true, "closed": true}
+	if !validStatuses[req.Status] {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid status value",
 		})
 	}
 
-	return c.JSON(fiber.Map{
+	if len(req.IncidentIDs) == 0 {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "No incident IDs provided",
+		})
+	}
+
+	if err := h.incidentService.BulkUpdateIncidentStatus(tenantID, req.IncidentIDs, req.Status); err != nil {
+		return , ok := c.Locals("tenant_id").(string)
+	if !ok || tenantID == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	metrics := h.incidentService.GetIncidentMetrics(tenantID)
+	trendData, err := h.incidentService.GetIncidentTrendData(tenantID, 30)
+	if err != nil {
+		trendData = []map[string]interface{}{}
+	}
+
+	exportData := fiber.Map{
+		"export_type": "incident_analytics"
 		"message": fmt.Sprintf("Successfully updated %d incidents", len(req.IncidentIDs)),
 		"count":   len(req.IncidentIDs),
 	})

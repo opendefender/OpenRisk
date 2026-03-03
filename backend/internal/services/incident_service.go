@@ -281,7 +281,13 @@ func (s *IncidentService) GetIncidentStats(tenantID string) map[string]interface
 	stats["open_incidents"] = open
 	stats["resolved_incidents"] = resolved
 	stats["critical_incidents"] = critical
-	stats["resolution_rate"] = float64(resolved) / float64(total) * 100
+
+	// Prevent division by zero
+	if total > 0 {
+		stats["resolution_rate"] = float64(resolved) / float64(total) * 100
+	} else {
+		stats["resolution_rate"] = 0.0
+	}
 
 	return stats
 }
