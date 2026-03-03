@@ -1,272 +1,276 @@
 package services
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"time"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}	Role   string    `json:"role" validate:"required"`	UserID uuid.UUID `json:"user_id" validate:"required"`type AddMemberRequest struct {}	Timezone    string `json:"timezone"`	CompanySize string `json:"company_size"`	Industry    string `json:"industry"`	Country     string `json:"country"`	Website     string `json:"website"`	Description string `json:"description"`	Name        string `json:"name"`type UpdateOrgRequest struct {}	Timezone    string `json:"timezone"`	CompanySize string `json:"company_size"`	Industry    string `json:"industry"`	Country     string `json:"country"`	Website     string `json:"website"`	Description string `json:"description"`	Slug        string `json:"slug" validate:"required"`	Name        string `json:"name" validate:"required"`type CreateOrgRequest struct {// Request DTOs}	return datatypes.JSON(fmt.Sprintf("%v", features))	}		}			"max_api_calls_per_month":  10000000,			"webhooks":                 true,			"custom_fields":            true,			"advanced_compliance":      true,			"data_export":              true,			"audit_logs":               true,			"sso_enabled":              true,			"api_access":               true,			"custom_reports":           true,			"advanced_analytics":       true,			"max_risks":                100000,			"max_users":                1000,		features = map[string]interface{}{	case "enterprise":		}			"max_api_calls_per_month":  100000,			"webhooks":                 true,			"custom_fields":            true,			"advanced_compliance":      true,			"data_export":              true,			"audit_logs":               true,			"sso_enabled":              false,			"api_access":               true,			"custom_reports":           true,			"advanced_analytics":       true,			"max_risks":                1000,			"max_users":                10,		features = map[string]interface{}{	case "pro":		}			"max_api_calls_per_month":  100,			"webhooks":                 false,			"custom_fields":            false,			"advanced_compliance":      false,			"data_export":              false,			"audit_logs":               true,			"sso_enabled":              false,			"api_access":               false,			"custom_reports":           false,			"advanced_analytics":       false,			"max_risks":                10,			"max_users":                1,		features = map[string]interface{}{	case "freemium":	switch tier {	features := map[string]interface{}{}func (s *OrganizationService) getDefaultFeatures(tier string) datatypes.JSONType {// Helper function to get default features based on tier}		Update("role", newRole).Error		Where("organization_id = ? AND user_id = ?", orgID, userID).	return s.db.WithContext(ctx).func (s *OrganizationService) UpdateMemberRole(ctx context.Context, orgID, userID uuid.UUID, newRole string) error {// UpdateMemberRole updates a member's role}	return members, nil	}		return nil, err		Find(&members).Error; err != nil {		Preload("User").		Where("organization_id = ? AND deleted_at IS NULL", orgID).	if err := s.db.WithContext(ctx).	var members []OrganizationMemberfunc (s *OrganizationService) GetOrganizationMembers(ctx context.Context, orgID uuid.UUID) ([]OrganizationMember, error) {// GetOrganizationMembers retrieves all members of an organization}		Delete(&OrganizationMember{}).Error		Where("organization_id = ? AND user_id = ?", orgID, userID).	return s.db.WithContext(ctx).func (s *OrganizationService) RemoveMemberFromOrganization(ctx context.Context, orgID, userID uuid.UUID) error {// RemoveMemberFromOrganization removes a user from an organization}	return member, nil	}		return nil, fmt.Errorf("failed to add member to organization: %w", err)	if err := s.db.WithContext(ctx).Create(member).Error; err != nil {	}		UpdatedAt:      time.Now(),		CreatedAt:      time.Now(),		JoinedAt:       time.Now(),		Status:         "active",		Role:           role,		UserID:         userID,		OrganizationID: orgID,		ID:             uuid.New(),	member := &OrganizationMember{func (s *OrganizationService) AddMemberToOrganization(ctx context.Context, orgID, userID uuid.UUID, role string) (*OrganizationMember, error) {// AddMemberToOrganization adds a user to an organization}	return s.UpdateOrganization(ctx, orgID, updates)	}		"features":            s.getDefaultFeatures(newTier),		"subscription_status": "active",		"subscription_tier":   newTier,	updates := map[string]interface{}{	}		return nil, errors.New("invalid subscription tier")	if newTier != "freemium" && newTier != "pro" && newTier != "enterprise" {func (s *OrganizationService) UpgradeSubscription(ctx context.Context, orgID uuid.UUID, newTier string) (*Organization, error) {// UpgradeSubscription upgrades an organization's subscription tier}	return org, nil	}		return nil, fmt.Errorf("failed to update organization: %w", err)	if err := s.db.WithContext(ctx).Model(org).Updates(updates).Error; err != nil {	}		return nil, err	if err != nil {	org, err := s.GetOrganization(ctx, orgID)func (s *OrganizationService) UpdateOrganization(ctx context.Context, orgID uuid.UUID, updates map[string]interface{}) (*Organization, error) {// UpdateOrganization updates an organization}	return &org, nil	}		return nil, err		}			return nil, fmt.Errorf("organization not found")		if errors.Is(err, gorm.ErrRecordNotFound) {		First(&org).Error; err != nil {		Where("id = ? AND deleted_at IS NULL", orgID).	if err := s.db.WithContext(ctx).	var org Organizationfunc (s *OrganizationService) GetOrganization(ctx context.Context, orgID uuid.UUID) (*Organization, error) {// GetOrganization retrieves an organization by ID}	return org, nil	}		return nil, fmt.Errorf("failed to create organization: %w", err)	if err := s.db.WithContext(ctx).Create(org).Error; err != nil {	org.Features = s.getDefaultFeatures("freemium")	// Set default features based on tier	}		UpdatedAt:             time.Now(),		CreatedAt:             time.Now(),		SubscriptionStartDate: time.Now(),		SubscriptionStatus:    "trial",		SubscriptionTier:      "freemium",		Timezone:              req.Timezone,		CompanySize:           req.CompanySize,		Industry:              req.Industry,		Country:               req.Country,		Website:               req.Website,		Description:           req.Description,		Slug:                  req.Slug,		Name:                  req.Name,		ID:                    uuid.New(),	org := &Organization{func (s *OrganizationService) CreateOrganization(ctx context.Context, req *CreateOrgRequest) (*Organization, error) {// CreateOrganization creates a new organization}	return &OrganizationService{db: db}func NewOrganizationService(db *gorm.DB) *OrganizationService {}	db *gorm.DBtype OrganizationService struct {// OrganizationService handles organization operations}	User         *User         `json:"user,omitempty" gorm:"foreignKey:UserID"`	Organization *Organization `json:"organization,omitempty" gorm:"foreignKey:OrganizationID"`	// Relations		DeletedAt               *time.Time          `json:"deleted_at"`	UpdatedAt               time.Time           `json:"updated_at"`	CreatedAt               time.Time           `json:"created_at"`	JoinedAt                time.Time           `json:"joined_at"`	PermissionsOverride     datatypes.JSONType  `json:"permissions_override"`	InvitationExpiresAt     *time.Time          `json:"invitation_expires_at"`	InvitationAcceptedAt    *time.Time          `json:"invitation_accepted_at"`	InvitationToken         string              `json:"invitation_token"`	Status                  string              `json:"status"`	Role                    string              `json:"role"`	UserID                  uuid.UUID           `json:"user_id"`	OrganizationID          uuid.UUID           `json:"organization_id"`	ID                      uuid.UUID           `gorm:"primaryKey" json:"id"`type OrganizationMember struct {// OrganizationMember model}	DeletedAt             *time.Time             `json:"deleted_at"`	UpdatedAt             time.Time              `json:"updated_at"`	CreatedAt             time.Time              `json:"created_at"`	CurrentAPICallsMonth  int                    `json:"current_api_calls_month"`	CurrentRiskCount      int                    `json:"current_risk_count"`	CurrentUserCount      int                    `json:"current_user_count"`	Features              datatypes.JSONType    `json:"features"`	VATNumber             string                 `json:"vat_number"`	BillingAddress        datatypes.JSONType    `json:"billing_address"`	BillingEmail          string                 `json:"billing_email"`	SubscriptionRenewalDate *time.Time           `json:"subscription_renewal_date"`	SubscriptionEndDate   *time.Time             `json:"subscription_end_date"`	SubscriptionStartDate time.Time              `json:"subscription_start_date"`	SubscriptionStatus    string                 `json:"subscription_status"`	SubscriptionTier      string                 `json:"subscription_tier"`	Timezone              string                 `json:"timezone"`	CompanySize           string                 `json:"company_size"`	Industry              string                 `json:"industry"`	Country               string                 `json:"country"`	LogoURL               string                 `json:"logo_url"`	Website               string                 `json:"website"`	Description           string                 `json:"description"`	Slug                  string                 `gorm:"uniqueIndex" json:"slug"`	Name                  string                 `json:"name"`	ID                    uuid.UUID              `gorm:"primaryKey" json:"id"`type Organization struct {// Organization models)	"gorm.io/gorm"	"gorm.io/datatypes"	"github.com/google/uuid"
+"context"
+"errors"
+"fmt"
+"time"
+
+"github.com/google/uuid"
+"gorm.io/datatypes"
+"gorm.io/gorm"
+)
+
+// Organization model
+type Organization struct {
+ID                      uuid.UUID              `gorm:"primaryKey" json:"id"`
+Name                    string                 `json:"name"`
+Slug                    string                 `gorm:"uniqueIndex" json:"slug"`
+Description             string                 `json:"description"`
+Website                 string                 `json:"website"`
+LogoURL                 string                 `json:"logo_url"`
+Country                 string                 `json:"country"`
+Industry                string                 `json:"industry"`
+CompanySize             string                 `json:"company_size"`
+Timezone                string                 `json:"timezone"`
+SubscriptionTier        string                 `json:"subscription_tier"`
+SubscriptionStatus      string                 `json:"subscription_status"`
+SubscriptionStartDate   time.Time              `json:"subscription_start_date"`
+SubscriptionEndDate     *time.Time             `json:"subscription_end_date"`
+SubscriptionRenewalDate *time.Time             `json:"subscription_renewal_date"`
+BillingEmail            string                 `json:"billing_email"`
+BillingAddress          datatypes.JSONType    `json:"billing_address"`
+VATNumber               string                 `json:"vat_number"`
+Features                datatypes.JSONType    `json:"features"`
+CurrentUserCount        int                    `json:"current_user_count"`
+CurrentRiskCount        int                    `json:"current_risk_count"`
+CurrentAPICallsMonth    int                    `json:"current_api_calls_month"`
+CreatedAt               time.Time              `json:"created_at"`
+UpdatedAt               time.Time              `json:"updated_at"`
+DeletedAt               *time.Time             `json:"deleted_at"`
+}
+
+// OrganizationMember model
+type OrganizationMember struct {
+ID                      uuid.UUID           `gorm:"primaryKey" json:"id"`
+OrganizationID          uuid.UUID           `json:"organization_id"`
+UserID                  uuid.UUID           `json:"user_id"`
+Role                    string              `json:"role"`
+Status                  string              `json:"status"`
+InvitationToken         string              `json:"invitation_token"`
+InvitationAcceptedAt    *time.Time          `json:"invitation_accepted_at"`
+InvitationExpiresAt     *time.Time          `json:"invitation_expires_at"`
+PermissionsOverride     datatypes.JSONType  `json:"permissions_override"`
+JoinedAt                time.Time           `json:"joined_at"`
+CreatedAt               time.Time           `json:"created_at"`
+UpdatedAt               time.Time           `json:"updated_at"`
+DeletedAt               *time.Time          `json:"deleted_at"`
+// Relations
+Organization *Organization `json:"organization,omitempty" gorm:"foreignKey:OrganizationID"`
+User         *User         `json:"user,omitempty" gorm:"foreignKey:UserID"`
+}
+
+// OrganizationService handles organization operations
+type OrganizationService struct {
+db *gorm.DB
+}
+
+func NewOrganizationService(db *gorm.DB) *OrganizationService {
+return &OrganizationService{db: db}
+}
+
+// CreateOrgRequest DTO
+type CreateOrgRequest struct {
+Name        string `json:"name" validate:"required"`
+Slug        string `json:"slug" validate:"required"`
+Description string `json:"description"`
+Website     string `json:"website"`
+Country     string `json:"country"`
+Industry    string `json:"industry"`
+CompanySize string `json:"company_size"`
+Timezone    string `json:"timezone"`
+}
+
+// UpdateOrgRequest DTO
+type UpdateOrgRequest struct {
+Name        string `json:"name"`
+Description string `json:"description"`
+Website     string `json:"website"`
+Country     string `json:"country"`
+Industry    string `json:"industry"`
+CompanySize string `json:"company_size"`
+Timezone    string `json:"timezone"`
+}
+
+// AddMemberRequest DTO
+type AddMemberRequest struct {
+UserID uuid.UUID `json:"user_id" validate:"required"`
+Role   string    `json:"role" validate:"required"`
+}
+
+// CreateOrganization creates a new organization
+func (s *OrganizationService) CreateOrganization(ctx context.Context, req *CreateOrgRequest) (*Organization, error) {
+org := &Organization{
+ID:                    uuid.New(),
+Name:                  req.Name,
+Slug:                  req.Slug,
+Description:           req.Description,
+Website:               req.Website,
+Country:               req.Country,
+Industry:              req.Industry,
+CompanySize:           req.CompanySize,
+Timezone:              req.Timezone,
+SubscriptionTier:      "freemium",
+SubscriptionStatus:    "trial",
+SubscriptionStartDate: time.Now(),
+CreatedAt:             time.Now(),
+UpdatedAt:             time.Now(),
+}
+
+// Set default features based on tier
+org.Features = s.getDefaultFeatures("freemium")
+
+if err := s.db.WithContext(ctx).Create(org).Error; err != nil {
+return nil, fmt.Errorf("failed to create organization: %w", err)
+}
+
+return org, nil
+}
+
+// GetOrganization retrieves an organization by ID
+func (s *OrganizationService) GetOrganization(ctx context.Context, orgID uuid.UUID) (*Organization, error) {
+var org Organization
+
+if err := s.db.WithContext(ctx).
+Where("id = ? AND deleted_at IS NULL", orgID).
+First(&org).Error; err != nil {
+if errors.Is(err, gorm.ErrRecordNotFound) {
+return nil, fmt.Errorf("organization not found")
+}
+return nil, err
+}
+
+return &org, nil
+}
+
+// UpdateOrganization updates an organization
+func (s *OrganizationService) UpdateOrganization(ctx context.Context, orgID uuid.UUID, updates map[string]interface{}) (*Organization, error) {
+org, err := s.GetOrganization(ctx, orgID)
+if err != nil {
+return nil, err
+}
+
+if err := s.db.WithContext(ctx).Model(org).Updates(updates).Error; err != nil {
+return nil, fmt.Errorf("failed to update organization: %w", err)
+}
+
+return org, nil
+}
+
+// UpgradeSubscription upgrades an organization's subscription tier
+func (s *OrganizationService) UpgradeSubscription(ctx context.Context, orgID uuid.UUID, newTier string) (*Organization, error) {
+if newTier != "freemium" && newTier != "pro" && newTier != "enterprise" {
+return nil, errors.New("invalid subscription tier")
+}
+
+updates := map[string]interface{}{
+"subscription_tier":   newTier,
+"subscription_status": "active",
+"features":            s.getDefaultFeatures(newTier),
+}
+
+return s.UpdateOrganization(ctx, orgID, updates)
+}
+
+// AddMemberToOrganization adds a user to an organization
+func (s *OrganizationService) AddMemberToOrganization(ctx context.Context, orgID, userID uuid.UUID, role string) (*OrganizationMember, error) {
+member := &OrganizationMember{
+ID:             uuid.New(),
+OrganizationID: orgID,
+UserID:         userID,
+Role:           role,
+Status:         "active",
+JoinedAt:       time.Now(),
+CreatedAt:      time.Now(),
+UpdatedAt:      time.Now(),
+}
+
+if err := s.db.WithContext(ctx).Create(member).Error; err != nil {
+return nil, fmt.Errorf("failed to add member to organization: %w", err)
+}
+
+return member, nil
+}
+
+// RemoveMemberFromOrganization removes a user from an organization
+func (s *OrganizationService) RemoveMemberFromOrganization(ctx context.Context, orgID, userID uuid.UUID) error {
+return s.db.WithContext(ctx).
+Where("organization_id = ? AND user_id = ?", orgID, userID).
+Delete(&OrganizationMember{}).Error
+}
+
+// GetOrganizationMembers retrieves all members of an organization
+func (s *OrganizationService) GetOrganizationMembers(ctx context.Context, orgID uuid.UUID) ([]OrganizationMember, error) {
+var members []OrganizationMember
+
+if err := s.db.WithContext(ctx).
+Where("organization_id = ? AND deleted_at IS NULL", orgID).
+Preload("User").
+Find(&members).Error; err != nil {
+return nil, err
+}
+
+return members, nil
+}
+
+// UpdateMemberRole updates a member's role
+func (s *OrganizationService) UpdateMemberRole(ctx context.Context, orgID, userID uuid.UUID, newRole string) error {
+return s.db.WithContext(ctx).
+Where("organization_id = ? AND user_id = ?", orgID, userID).
+Update("role", newRole).Error
+}
+
+// Helper function to get default features based on tier
+func (s *OrganizationService) getDefaultFeatures(tier string) datatypes.JSONType {
+features := map[string]interface{}{}
+
+switch tier {
+case "freemium":
+features = map[string]interface{}{
+"max_users":                1,
+"max_risks":                10,
+"advanced_analytics":       false,
+"custom_reports":           false,
+"api_access":               false,
+"sso_enabled":              false,
+"audit_logs":               true,
+"data_export":              false,
+"advanced_compliance":      false,
+"custom_fields":            false,
+"webhooks":                 false,
+"max_api_calls_per_month":  100,
+}
+case "pro":
+features = map[string]interface{}{
+"max_users":                10,
+"max_risks":                1000,
+"advanced_analytics":       true,
+"custom_reports":           true,
+"api_access":               true,
+"sso_enabled":              false,
+"audit_logs":               true,
+"data_export":              true,
+"advanced_compliance":      true,
+"custom_fields":            true,
+"webhooks":                 true,
+"max_api_calls_per_month":  100000,
+}
+case "enterprise":
+features = map[string]interface{}{
+"max_users":                1000,
+"max_risks":                100000,
+"advanced_analytics":       true,
+"custom_reports":           true,
+"api_access":               true,
+"sso_enabled":              true,
+"audit_logs":               true,
+"data_export":              true,
+"advanced_compliance":      true,
+"custom_fields":            true,
+"webhooks":                 true,
+"max_api_calls_per_month":  10000000,
+}
+}
+
+return datatypes.JSON(fmt.Sprintf("%v", features))
+}
