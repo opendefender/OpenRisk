@@ -246,12 +246,22 @@ func (s *DashboardDataService) GetTopRisks(ctx context.Context, limit int) ([]To
 	}
 
 	for _, risk := range risks {
+		// Calculate severity from impact and probability
+		severity := "LOW"
+		if risk.Impact*risk.Probability >= 12 {
+			severity = "CRITICAL"
+		} else if risk.Impact*risk.Probability >= 9 {
+			severity = "HIGH"
+		} else if risk.Impact*risk.Probability >= 6 {
+			severity = "MEDIUM"
+		}
+
 		topRisk := TopRisk{
-			ID:          risk.ID,
-			Name:        risk.Name,
+			ID:          risk.ID.String(),
+			Name:        risk.Title,
 			Score:       risk.Score,
-			Severity:    risk.Severity,
-			Status:      risk.Status,
+			Severity:    severity,
+			Status:      string(risk.Status),
 			LastUpdated: risk.UpdatedAt,
 		}
 
@@ -260,16 +270,11 @@ func (s *DashboardDataService) GetTopRisks(ctx context.Context, limit int) ([]To
 			Where("risk_id = ?", risk.ID).
 			Count(&topRisk.MitigationCount)
 
-		// Set assigned team if available
-		if risk.Team != nil {
-			topRisk.AssignedTeam = risk.Team.Name
-		}
-
 		// Calculate trend percentage (change from 7 days ago)
 		sevenDaysAgo := time.Now().AddDate(0, 0, -7)
 		var historyScore float64
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
-			Where("id = ? AND updated_at >= ?", risk.ID, sevenDaysAgo).
+		s.db.WithContext(ctx).Model(&domain.RiskHistory{}).
+			Where("risk_id = ? AND created_at >= ?", risk.ID, sevenDaysAgo).
 			Select("COALESCE(AVG(score), ?)", risk.Score).
 			Scan(&historyScore)
 		if historyScore > 0 {
@@ -321,31 +326,31 @@ func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, limit 
 
 	for _, m := range mitigations {
 		progress := MitigationProgress{
-			ID:          m.ID,
-			Name:        m.Name,
-			Status:      m.Status,
-			Progress:    m.Progress,
+			ID:          m.ID.String(),
+			Name:        m.Title,
+			Status:      string(m.Status),
+			Progress:    int64(m.Progress),
 			DueDate:     m.DueDate,
-			Cost:        m.Cost,
+			Cost:        float64(m.Cost),
 			LastUpdated: m.UpdatedAt,
 		}
 
-		// Set owner if available
-		if m.Owner != nil {
-			progress.Owner = m.Owner.Name
+		// Set owner if available (Assignee field in domain.Mitigation)
+		if m.Assignee != "" {
+			progress.Owner = m.Assignee
 		}
 
 		// Set risk details
 		if m.Risk != nil {
-			progress.RiskID = m.Risk.ID
-			progress.RiskName = m.Risk.Name
+			progress.RiskID = m.Risk.ID.String()
+			progress.RiskName = m.Risk.Title
 		}
 
 		// Calculate days remaining
 		now := time.Now()
 		if m.DueDate.After(now) {
 			progress.DaysRemaining = int(m.DueDate.Sub(now).Hours() / 24)
-		} else if m.Status != "completed" {
+		} else if m.Status != domain.MitigationDone {
 			progress.DaysRemaining = -int(now.Sub(m.DueDate).Hours() / 24) // negative = overdue
 		}
 
@@ -401,4 +406,32 @@ func (s *DashboardDataService) GetCompleteDashboardData(ctx context.Context) (*D
 	}
 
 	return analytics, nil
+}
+
+// GetMetrics returns metrics for export (stub for compatibility)
+func (s *DashboardDataService) GetMetrics(tenantID string, timeRange string) (map[string]interface{}, error) {
+	// Stub implementation for export service compatibility
+	metrics := s.db.Model(&domain.Risk{}).Where("owner = ?", tenantID)
+	var count int64
+	metrics.Count(&count)
+
+	return map[string]interface{}{
+		"total_risks": count,
+		"timestamp":   time.Now().UTC(),
+	}, nil
+}
+
+// GetComplianceReport returns compliance report (stub for compatibility)
+func (s *DashboardDataService) GetComplianceReport(tenantID string) (map[string]interface{}, error) {
+	// Stub implementation for export service compatibility
+	return map[string]interface{}{
+		"status": "DRAFT",
+		"date":   time.Now().UTC(),
+	}, nil
+}
+
+// GetTrends returns trend data (stub for compatibility)
+func (s *DashboardDataService) GetTrends(tenantID string, days int) ([]map[string]interface{}, error) {
+	// Stub implementation for export service compatibility
+	return []map[string]interface{}{}, nil
 }

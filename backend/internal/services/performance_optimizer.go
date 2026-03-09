@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opendefender/openrisk/internal/core/domain"
 	"github.com/opendefender/openrisk/internal/models"
-
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -27,18 +27,18 @@ func NewPerformanceOptimizer(db *gorm.DB, cache *redis.Client) *PerformanceOptim
 }
 
 // GetRisksCached retrieves risks with intelligent caching
-func (po *PerformanceOptimizer) GetRisksCached(ctx context.Context, tenantID string, limit int) ([]models.Risk, error) {
+func (po *PerformanceOptimizer) GetRisksCached(ctx context.Context, tenantID string, limit int) ([]domain.Risk, error) {
 	// Try cache first
 	cacheKey := fmt.Sprintf("risks:%s:%d", tenantID, limit)
 	cachedData, err := po.cache.Get(ctx, cacheKey).Result()
 	if err == nil {
-		var risks []models.Risk
+		var risks []domain.Risk
 		json.Unmarshal([]byte(cachedData), &risks)
 		return risks, nil
 	}
 
 	// Cache miss - query database with optimized query
-	var risks []models.Risk
+	var risks []domain.Risk
 	result := po.db.
 		Where("tenant_id = ?", tenantID).
 		Limit(limit).
@@ -57,18 +57,18 @@ func (po *PerformanceOptimizer) GetRisksCached(ctx context.Context, tenantID str
 }
 
 // GetRiskByIDOptimized retrieves a single risk with joins optimized
-func (po *PerformanceOptimizer) GetRiskByIDOptimized(ctx context.Context, riskID, tenantID string) (*models.Risk, error) {
+func (po *PerformanceOptimizer) GetRiskByIDOptimized(ctx context.Context, riskID, tenantID string) (*domain.Risk, error) {
 	// Try cache
 	cacheKey := fmt.Sprintf("risk:%s:%s", tenantID, riskID)
 	cachedData, err := po.cache.Get(ctx, cacheKey).Result()
 	if err == nil {
-		var risk models.Risk
+		var risk domain.Risk
 		json.Unmarshal([]byte(cachedData), &risk)
 		return &risk, nil
 	}
 
 	// Optimized query with specific fields
-	var risk models.Risk
+	var risk domain.Risk
 	result := po.db.
 		Where("id = ? AND tenant_id = ?", riskID, tenantID).
 		Select("id", "title", "description", "severity", "status", "probability", "impact", "asset_id", "owner_id", "created_at", "updated_at").
@@ -86,8 +86,8 @@ func (po *PerformanceOptimizer) GetRiskByIDOptimized(ctx context.Context, riskID
 }
 
 // BatchGetRisks retrieves multiple risks efficiently
-func (po *PerformanceOptimizer) BatchGetRisks(ctx context.Context, tenantID string, ids []string) ([]models.Risk, error) {
-	var risks []models.Risk
+func (po *PerformanceOptimizer) BatchGetRisks(ctx context.Context, tenantID string, ids []string) ([]domain.Risk, error) {
+	var risks []domain.Risk
 
 	// Single query with IN clause (more efficient than N queries)
 	result := po.db.
@@ -190,7 +190,7 @@ func (po *PerformanceOptimizer) InvalidateCache(ctx context.Context, tenantID, p
 // WarmCache preloads frequently accessed data
 func (po *PerformanceOptimizer) WarmCache(ctx context.Context, tenantID string) error {
 	// Pre-load top risks
-	var risks []models.Risk
+	var risks []domain.Risk
 	po.db.Where("tenant_id = ?", tenantID).
 		Order("severity DESC, probability DESC").
 		Limit(50).

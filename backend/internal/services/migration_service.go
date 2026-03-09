@@ -16,38 +16,38 @@ import (
 
 // MigrationJob represents a data migration from self-hosted to SaaS
 type MigrationJob struct {
-	ID                    uuid.UUID          `gorm:"primaryKey" json:"id"`
-	SourceDeploymentType  string             `json:"source_deployment_type"`
-	SourceDatabaseVersion string             `json:"source_database_version"`
-	SourceDataSizeBytes   int64              `json:"source_data_size_bytes"`
-	TargetOrganizationID  uuid.UUID          `json:"target_organization_id"`
-	TargetUserID          uuid.UUID          `json:"target_user_id"`
-	MigrationType         string             `json:"migration_type"`
-	Status                string             `json:"status"`
-	TotalItems            int                `json:"total_items"`
-	MigratedItems         int                `json:"migrated_items"`
-	FailedItems           int                `json:"failed_items"`
-	SkippedItems          int                `json:"skipped_items"`
-	MigrationLog          datatypes.JSONType `json:"migration_log"`
-	ErrorDetails          datatypes.JSONType `json:"error_details"`
-	ValidationResults     datatypes.JSONType `json:"validation_results"`
-	CreatedAt             time.Time          `json:"created_at"`
-	StartedAt             *time.Time         `json:"started_at"`
-	CompletedAt           *time.Time         `json:"completed_at"`
-	EstimatedCompletion   *time.Time         `json:"estimated_completion"`
+	ID                    uuid.UUID      `gorm:"primaryKey" json:"id"`
+	SourceDeploymentType  string         `json:"source_deployment_type"`
+	SourceDatabaseVersion string         `json:"source_database_version"`
+	SourceDataSizeBytes   int64          `json:"source_data_size_bytes"`
+	TargetOrganizationID  uuid.UUID      `json:"target_organization_id"`
+	TargetUserID          uuid.UUID      `json:"target_user_id"`
+	MigrationType         string         `json:"migration_type"`
+	Status                string         `json:"status"`
+	TotalItems            int            `json:"total_items"`
+	MigratedItems         int            `json:"migrated_items"`
+	FailedItems           int            `json:"failed_items"`
+	SkippedItems          int            `json:"skipped_items"`
+	MigrationLog          datatypes.JSON `json:"migration_log"`
+	ErrorDetails          datatypes.JSON `json:"error_details"`
+	ValidationResults     datatypes.JSON `json:"validation_results"`
+	CreatedAt             time.Time      `json:"created_at"`
+	StartedAt             *time.Time     `json:"started_at"`
+	CompletedAt           *time.Time     `json:"completed_at"`
+	EstimatedCompletion   *time.Time     `json:"estimated_completion"`
 }
 
 // MigrationItem represents a single item being migrated
 type MigrationItem struct {
-	ID             uuid.UUID          `gorm:"primaryKey" json:"id"`
-	MigrationJobID uuid.UUID          `json:"migration_job_id"`
-	ItemType       string             `json:"item_type"`
-	SourceID       string             `json:"source_id"`
-	TargetID       *uuid.UUID         `json:"target_id"`
-	ItemData       datatypes.JSONType `json:"item_data"`
-	Status         string             `json:"status"`
-	ErrorMessage   string             `json:"error_message"`
-	AttemptedAt    *time.Time         `json:"attempted_at"`
+	ID             uuid.UUID      `gorm:"primaryKey" json:"id"`
+	MigrationJobID uuid.UUID      `json:"migration_job_id"`
+	ItemType       string         `json:"item_type"`
+	SourceID       string         `json:"source_id"`
+	TargetID       *uuid.UUID     `json:"target_id"`
+	ItemData       datatypes.JSON `json:"item_data"`
+	Status         string         `json:"status"`
+	ErrorMessage   string         `json:"error_message"`
+	AttemptedAt    *time.Time     `json:"attempted_at"`
 }
 
 // MigrationService handles data migration from self-hosted to SaaS

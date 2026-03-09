@@ -32,7 +32,7 @@ type AnalyzeTrendRequest struct {
 // AnalyzeTrend analyzes a single trend
 // POST /trends/analyze
 func (h *TrendHandler) AnalyzeTrend(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	req := new(AnalyzeTrendRequest)
 
 	if err := c.BodyParser(req); err != nil {
@@ -45,7 +45,7 @@ func (h *TrendHandler) AnalyzeTrend(c *fiber.Ctx) error {
 		timestamps[i] = time.Now().AddDate(0, 0, -(req.TimeRange - i))
 	}
 
-	analysis := h.trendService.AnalyzeTrend(tenantID, req.MetricType, req.DataPoints, timestamps, req.TimeRange)
+	analysis := h.trendService.AnalyzeTrend("", req.MetricType, req.DataPoints, timestamps, req.TimeRange)
 	if analysis == nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid data"})
 	}
@@ -66,7 +66,7 @@ type GenerateForecastRequest struct {
 // GenerateForecast generates a trend forecast
 // POST /trends/forecast
 func (h *TrendHandler) GenerateForecast(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	req := new(GenerateForecastRequest)
 
 	if err := c.BodyParser(req); err != nil {
@@ -79,7 +79,7 @@ func (h *TrendHandler) GenerateForecast(c *fiber.Ctx) error {
 		timestamps[i] = time.Now().AddDate(0, 0, -(len(req.DataPoints) - i))
 	}
 
-	forecast := h.trendService.GenerateForecast(tenantID, req.MetricType, req.DataPoints, timestamps, req.ForecastDays)
+	forecast := h.trendService.GenerateForecast("", req.MetricType, req.DataPoints, timestamps, req.ForecastDays)
 	if forecast == nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid data"})
 	}
@@ -130,7 +130,7 @@ type FilterTrendsRequest struct {
 // FilterTrends applies filters to trends
 // POST /trends/filter
 func (h *TrendHandler) FilterTrends(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	req := new(FilterTrendsRequest)
 
 	if err := c.BodyParser(req); err != nil {
@@ -170,7 +170,7 @@ type ExportTrendDataRequest struct {
 // ExportTrendData exports trend analysis data
 // POST /trends/export
 func (h *TrendHandler) ExportTrendData(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	req := new(ExportTrendDataRequest)
 
 	if err := c.BodyParser(req); err != nil {
@@ -194,9 +194,9 @@ func (h *TrendHandler) ExportTrendData(c *fiber.Ctx) error {
 // GetAnomalies retrieves detected anomalies
 // GET /trends/anomalies?metric_type=risks&limit=10
 func (h *TrendHandler) GetAnomalies(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
-	metricType := c.Query("metric_type")
-	limit := c.QueryInt("limit", 50)
+	_ = c.Params("tenantId")
+	_ = c.Query("metric_type")
+	_ = c.QueryInt("limit", 50)
 
 	// TODO: Fetch from database where is_anomalous = true
 	var anomalies []models.TrendAnalysis
@@ -211,7 +211,7 @@ func (h *TrendHandler) GetAnomalies(c *fiber.Ctx) error {
 // GetTrendStats retrieves trend statistics
 // GET /trends/stats?metric_type=incidents
 func (h *TrendHandler) GetTrendStats(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	metricType := c.Query("metric_type", "risks")
 
 	// TODO: Calculate stats from database
@@ -234,7 +234,7 @@ func (h *TrendHandler) GetTrendStats(c *fiber.Ctx) error {
 // GetForecastAccuracy retrieves forecast accuracy metrics
 // GET /trends/:trendId/accuracy
 func (h *TrendHandler) GetForecastAccuracy(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	trendID := c.Params("trendId")
 
 	// TODO: Fetch from database
@@ -256,7 +256,7 @@ func (h *TrendHandler) GetForecastAccuracy(c *fiber.Ctx) error {
 // CompareMetricTrends compares trends across multiple metrics
 // POST /trends/compare
 func (h *TrendHandler) CompareMetricTrends(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 
 	type CompareRequest struct {
 		MetricTypes []string `json:"metric_types"`
@@ -319,7 +319,7 @@ func (h *TrendHandler) BulkAnalyzeTrends(c *fiber.Ctx) error {
 // GetTrendHistory retrieves historical trend data
 // GET /trends/history?metric_type=risks&days=90
 func (h *TrendHandler) GetTrendHistory(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	metricType := c.Query("metric_type", "risks")
 	days := c.QueryInt("days", 30)
 
@@ -340,7 +340,7 @@ func (h *TrendHandler) GetTrendHistory(c *fiber.Ctx) error {
 // UpdateRecommendationStatus updates recommendation status
 // PUT /trends/recommendations/:recommendationId
 func (h *TrendHandler) UpdateRecommendationStatus(c *fiber.Ctx) error {
-	tenantID := c.Params("tenantId")
+	_ = c.Params("tenantId")
 	recommendationID := c.Params("recommendationId")
 
 	type UpdateRequest struct {

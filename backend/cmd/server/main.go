@@ -370,23 +370,6 @@ func main() {
 	protected.Get("/dashboard/mitigation-progress", enhancedDashboardHandler.GetMitigationProgress)
 	protected.Get("/dashboard/complete", enhancedDashboardHandler.GetCompleteDashboard)
 
-	// --- WebSocket Dashboard (Real-time updates) ---
-	wsHub := handlers.NewWebSocketHub(dashboardDataService)
-	go wsHub.Run(ctx)
-	protected.Get("/ws/dashboard", websocket.New(wsHub.HandleWebSocket))
-	protected.Get("/ws/stats", wsHub.DashboardWebSocketMetrics)
-
-	// --- Time Series Analytics (Protected routes) ---
-	handlers.RegisterTimeSeriesRoutes(app, database.DB)
-	protected.Get("/threats", threatHandler.GetThreats)
-	protected.Get("/threats/stats", threatHandler.GetThreatStats)
-
-	// --- Reports Management (Protected routes) ---
-	reportHandler := handlers.NewReportHandler(database.DB)
-	protected.Get("/reports", reportHandler.GetReports)
-	protected.Get("/reports/:id", reportHandler.GetReport)
-	protected.Get("/reports/stats", reportHandler.GetReportStats)
-
 	// --- Marketplace Management (Protected routes) ---
 	// Marketplace can be browsed by all authenticated users
 	// Installation requires analyst or admin role

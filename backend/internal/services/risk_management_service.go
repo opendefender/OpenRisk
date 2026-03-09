@@ -46,7 +46,7 @@ func (s *RiskManagementService) IdentifyRisk(
 		return nil, fmt.Errorf("failed to identify risk: %w", err)
 	}
 
-	s.logChange(tenantID, riskRegister.ID, "RISK_REGISTER", riskRegister.ID, "CREATE", "", "", identifiedBy)
+	s.logChange(tenantID, riskRegister.ID, "RISK_REGISTER", riskRegister.ID, "CREATE", "", "", "IDENTIFIED", identifiedBy)
 	return riskRegister, nil
 }
 
@@ -151,7 +151,7 @@ func (s *RiskManagementService) CreateTreatmentPlan(
 	riskRegister.Status = "TREATMENT_PLANNED"
 	s.db.Save(&riskRegister)
 
-	s.logChange(tenantID, riskRegisterID, "TREATMENT_PLAN", treatmentPlan.ID, "CREATE", "", "", createdBy)
+	s.logChange(tenantID, riskRegisterID, "TREATMENT_PLAN", treatmentPlan.ID, "CREATE", "", "", "PLANNED", createdBy)
 	return treatmentPlan, nil
 }
 
@@ -180,7 +180,7 @@ func (s *RiskManagementService) AddTreatmentAction(
 		return nil, fmt.Errorf("failed to add action: %w", err)
 	}
 
-	s.logChange(tenantID, treatmentPlanID, "TREATMENT_ACTION", action.ID, "CREATE", "", "", createdBy)
+	s.logChange(tenantID, treatmentPlanID, "TREATMENT_ACTION", action.ID, "CREATE", "", "", "NOT_STARTED", createdBy)
 	return action, nil
 }
 
@@ -229,7 +229,7 @@ func (s *RiskManagementService) CreateMonitoringReview(
 	riskRegister.Status = "MONITORED"
 	s.db.Save(&riskRegister)
 
-	s.logChange(tenantID, riskRegisterID, "MONITORING_REVIEW", review.ID, "CREATE", "", "", reviewedBy)
+	s.logChange(tenantID, riskRegisterID, "MONITORING_REVIEW", review.ID, "CREATE", "", "", "MONITORED", reviewedBy)
 	return review, nil
 }
 
@@ -262,7 +262,7 @@ func (s *RiskManagementService) RecordDecision(
 		return nil, fmt.Errorf("failed to record decision: %w", err)
 	}
 
-	s.logChange(tenantID, riskRegisterID, "RISK_DECISION", decision.ID, "CREATE", "", "", decisionMaker)
+	s.logChange(tenantID, riskRegisterID, "RISK_DECISION", decision.ID, "CREATE", "", "", "PROPOSED", decisionMaker)
 	return decision, nil
 }
 
@@ -285,7 +285,7 @@ func (s *RiskManagementService) ApproveDecision(
 		return fmt.Errorf("failed to approve decision: %w", err)
 	}
 
-	s.logChange(tenantID, decision.RiskRegisterID, "RISK_DECISION", decisionID, "APPROVE", decision.Status, "APPROVED", approvedBy)
+	s.logChange(tenantID, decision.RiskRegisterID, "RISK_DECISION", decisionID, "APPROVE", "status", string(decision.Status), "APPROVED", approvedBy)
 	return nil
 }
 
@@ -318,7 +318,7 @@ func (s *RiskManagementService) GenerateAuditReport(
 		return nil, fmt.Errorf("failed to generate audit report: %w", err)
 	}
 
-	s.logChange(tenantID, uuid.Nil, "AUDIT_REPORT", report.ID, "CREATE", "", "", generatedBy)
+	s.logChange(tenantID, uuid.Nil, "AUDIT_REPORT", report.ID, "CREATE", "", "", "DRAFT", generatedBy)
 	return report, nil
 }
 

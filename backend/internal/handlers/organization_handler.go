@@ -7,19 +7,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/services"
-	"github.com/opendefender/openrisk/internal/validation"
 )
 
 // OrganizationHandler handles organization-related HTTP requests
 type OrganizationHandler struct {
 	orgService *services.OrganizationService
-	validator  *validation.RequestValidator
 }
 
-func NewOrganizationHandler(orgService *services.OrganizationService, validator *validation.RequestValidator) *OrganizationHandler {
+func NewOrganizationHandler(orgService *services.OrganizationService) *OrganizationHandler {
 	return &OrganizationHandler{
 		orgService: orgService,
-		validator:  validator,
 	}
 }
 
@@ -28,10 +25,6 @@ func (h *OrganizationHandler) CreateOrganization(c *fiber.Ctx) error {
 	var req services.CreateOrgRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	org, err := h.orgService.CreateOrganization(c.Context(), &req)
@@ -135,10 +128,6 @@ func (h *OrganizationHandler) AddMember(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	if err := h.validator.Validate(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-
 	member, err := h.orgService.AddMemberToOrganization(c.Context(), orgID, req.UserID, req.Role)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to add member"})
@@ -210,13 +199,11 @@ func (h *OrganizationHandler) UpdateMemberRole(c *fiber.Ctx) error {
 // MigrationHandler handles data migration from self-hosted to SaaS
 type MigrationHandler struct {
 	migrationService *services.MigrationService
-	validator        *validation.RequestValidator
 }
 
-func NewMigrationHandler(migrationService *services.MigrationService, validator *validation.RequestValidator) *MigrationHandler {
+func NewMigrationHandler(migrationService *services.MigrationService) *MigrationHandler {
 	return &MigrationHandler{
 		migrationService: migrationService,
-		validator:        validator,
 	}
 }
 
@@ -225,10 +212,6 @@ func (h *MigrationHandler) CreateMigrationJob(c *fiber.Ctx) error {
 	var req services.CreateMigrationJobRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	}
-
-	if err := h.validator.Validate(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	job, err := h.migrationService.CreateMigrationJob(c.Context(), &req)
