@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, CheckCircle2, Server, TrendingUp, AlertTriangle, ChevronRight, Loader2, FileDown, GripVertical, Clock, TrendingDown } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Server, TrendingUp, AlertTriangle, ChevronRight, Loader2, FileDown, GripVertical, Clock, TrendingDown, Settings, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import type { Layout } from 'react-grid-layout';
@@ -14,8 +14,14 @@ import { useAuthStore } from '../../../hooks/useAuthStore';
 import { RiskDistribution } from './RiskDistribution';
 import { TopVulnerabilities } from './TopVulnerabilities';
 import { AverageMitigationTime } from './AverageMitigationTime';
-import { Button } from '../../../components/ui/Button';
 import { RiskTrendChart } from './RiskTrendChart';
+import { RiskTrendMultiPeriod } from './RiskTrendMultiPeriod';
+import { SecurityScore } from './SecurityScore';
+import { AssetStatistics } from './AssetStatistics';
+import { FrameworkAnalytics } from './FrameworkAnalytics';
+import { RiskMatrix } from './RiskMatrix';
+import { DashboardSettings, loadDashboardConfig, saveDashboardConfig } from './DashboardSettings';
+import { Button } from '../../../components/ui/Button';
 
 // =================================================================
 // Composants UI Internes (Widgets)
@@ -88,8 +94,13 @@ const defaultLayout: Layout[] = [
   { i: 'risk-trend', x: 6, y: 0, w: 6, h: 4 },
   { i: 'top-vulnerabilities', x: 0, y: 4, w: 6, h: 4 },
   { i: 'mitigation-time', x: 6, y: 4, w: 6, h: 4 },
-  { i: 'key-indicators', x: 0, y: 8, w: 12, h: 3 },
-  { i: 'top-risks', x: 0, y: 11, w: 12, h: 4 },
+  { i: 'security-score', x: 0, y: 8, w: 4, h: 4 },
+  { i: 'asset-statistics', x: 4, y: 8, w: 8, h: 4 },
+  { i: 'framework-analytics', x: 0, y: 12, w: 6, h: 4 },
+  { i: 'risk-matrix', x: 6, y: 12, w: 6, h: 4 },
+  { i: 'trend-multi-period', x: 0, y: 16, w: 12, h: 4 },
+  { i: 'key-indicators', x: 0, y: 20, w: 12, h: 3 },
+  { i: 'top-risks', x: 0, y: 23, w: 12, h: 4 },
 ];
 
 export const DashboardGrid: React.FC = () => {
@@ -98,6 +109,8 @@ export const DashboardGrid: React.FC = () => {
   const { user } = useAuthStore();
   const [layout, setLayout] = useState<Layout[]>(defaultLayout);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [showSettings, setShowSettings] = useState(false);
+  const [dashboardConfig, setDashboardConfig] = useState(loadDashboardConfig());
   
   // Track container width for responsive grid
   useEffect(() => {
@@ -113,16 +126,22 @@ export const DashboardGrid: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Handle dashboard config changes
+  const handleConfigChange = (newConfig: typeof dashboardConfig) => {
+    setDashboardConfig(newConfig);
+    saveDashboardConfig(newConfig);
+  };
   
   // Calcul des Stats Rapides
   const totalRisks = risks.length;
-  const criticalRisks = risks.filter(r => r.score >= 15).length;
-  const mitigatedCount = risks.filter(r => r.status === 'MITIGATED').length;
+  const criticalRisks = risks.filter((r: any) => r.score >= 15).length;
+  const mitigatedCount = risks.filter((r: any) => r.status === 'MITIGATED').length;
   
   // Top 5 des risques non mitigés (Triés par score décroissant)
   const topRisks = [...risks]
-    .filter(r => r.status !== 'MITIGATED' && r.status !== 'CLOSED')
-    .sort((a, b) => b.score - a.score)
+    .filter((r: any) => r.status !== 'MITIGATED' && r.status !== 'CLOSED')
+    .sort((a: any, b: any) => b.score - a.score)
     .slice(0, 5);
 
   // Chargement initial des données
@@ -160,12 +179,36 @@ export const DashboardGrid: React.FC = () => {
       );
   }
 
+  // Handle settings modal close
+  const handleSettingsClose = () => {
+    setShowSettings(false);
+  };
+
   return (
     <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         className="p-8 space-y-8 h-full overflow-y-auto bg-gradient-to-br from-background via-background to-blue-950/10"
     >
+        {/* Settings Modal */}
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
+          >
+            <div className="bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full my-8">
+              <div className="max-h-[90vh] overflow-y-auto p-6">
+                <DashboardSettings 
+                  onConfigChange={handleConfigChange}
+                  onClose={handleSettingsClose}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Enhanced Header with Gradient */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-white/10 gap-4">
             <div>
@@ -181,6 +224,14 @@ export const DashboardGrid: React.FC = () => {
                         <Server size={16} className="mr-2" /> Inventory
                     </Button>
                 </Link>
+                <Button 
+                  onClick={() => setShowSettings(true)} 
+                  variant="ghost" 
+                  className="text-zinc-400 hover:text-white border-white/20 hover:bg-white/5"
+                  title="Dashboard Settings"
+                >
+                    <Settings size={16} className="mr-2" /> Settings
+                </Button>
                 <Button onClick={resetLayout} variant="ghost" className="text-zinc-400 hover:text-white border-white/20 hover:bg-white/5">
                     Reset Layout
                 </Button>
@@ -291,7 +342,72 @@ export const DashboardGrid: React.FC = () => {
             </GlassmorphicWidget>
           </div>
 
-          {/* 6. Top Unmitigated Risks */}
+          {/* 7. Security Score Widget */}
+          {dashboardConfig.widgets.find(w => w.id === 'security-score')?.visible && (
+            <div key="security-score">
+              <GlassmorphicWidget 
+                title="Security Score" 
+                icon={ShieldAlert}
+                className="rounded-2xl overflow-hidden h-full"
+              >
+                <SecurityScore />
+              </GlassmorphicWidget>
+            </div>
+          )}
+
+          {/* 8. Asset Statistics Widget */}
+          {dashboardConfig.widgets.find(w => w.id === 'asset-statistics')?.visible && (
+            <div key="asset-statistics">
+              <GlassmorphicWidget 
+                title="Risk by Asset Type" 
+                icon={Server}
+                className="rounded-2xl overflow-hidden h-full"
+              >
+                <AssetStatistics topN={6} />
+              </GlassmorphicWidget>
+            </div>
+          )}
+
+          {/* 9. Framework Analytics Widget */}
+          {dashboardConfig.widgets.find(w => w.id === 'framework-analytics')?.visible && (
+            <div key="framework-analytics">
+              <GlassmorphicWidget 
+                title="Compliance Frameworks" 
+                icon={BookOpen}
+                className="rounded-2xl overflow-hidden h-full"
+              >
+                <FrameworkAnalytics chartType="bar" />
+              </GlassmorphicWidget>
+            </div>
+          )}
+
+          {/* 10. Risk Matrix Heatmap Widget */}
+          {dashboardConfig.widgets.find(w => w.id === 'risk-matrix')?.visible && (
+            <div key="risk-matrix">
+              <GlassmorphicWidget 
+                title="Risk Matrix Heatmap" 
+                icon={AlertTriangle}
+                className="rounded-2xl overflow-hidden h-full"
+              >
+                <RiskMatrix />
+              </GlassmorphicWidget>
+            </div>
+          )}
+
+          {/* 11. Multi-Period Trend Analysis Widget */}
+          {dashboardConfig.widgets.find(w => w.id === 'trend-multi-period')?.visible && (
+            <div key="trend-multi-period">
+              <GlassmorphicWidget 
+                title="Risk Trends (30/60/90 Days)" 
+                icon={TrendingUp}
+                className="rounded-2xl overflow-hidden h-full"
+              >
+                <RiskTrendMultiPeriod />
+              </GlassmorphicWidget>
+            </div>
+          )}
+
+          {/* 12. Top Unmitigated Risks */}
           <div key="top-risks">
             <GlassmorphicWidget 
               title="Top Unmitigated Risks" 
