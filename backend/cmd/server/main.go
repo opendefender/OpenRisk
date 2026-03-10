@@ -137,6 +137,10 @@ func main() {
 	// Initialize Token Service for API token management
 	tokenService := services.NewTokenService()
 
+	// Initialize Score Engine Service for automatic risk score calculation
+	scoreEngineService := services.NewScoreEngineService(database.DB)
+	log.Println("Score Engine: Service initialized with default configuration")
+
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
 	// =========================================================================
@@ -283,6 +287,18 @@ func main() {
 	api.Get("/stats/trends", middleware.Protected(), cacheableHandlers.CacheDashboardTimelineGET(handlers.GetGlobalRiskTrend))
 	api.Get("/mitigations/recommended", handlers.GetRecommendedMitigations)
 	api.Get("/gamification/me", middleware.Protected(), handlers.GetMyGamificationProfile)
+
+	// --- Score Engine Management (Protected routes) ---
+	scoreEngineHandler := handlers.NewScoreEngineHandler(database.DB, scoreEngineService)
+	scoreEngineRoutes := protected.Group("/score-engine")
+	scoreEngineRoutes.Get("/configs", scoreEngineHandler.GetScoringConfigs)
+	scoreEngineRoutes.Get("/configs/:id", scoreEngineHandler.GetScoringConfig)
+	scoreEngineRoutes.Post("/configs", middleware.RequireRole("admin"), scoreEngineHandler.CreateScoringConfig)
+	scoreEngineRoutes.Put("/configs/:id", middleware.RequireRole("admin"), scoreEngineHandler.UpdateScoringConfig)
+	scoreEngineRoutes.Post("/compute", scoreEngineHandler.ComputeRiskScore)
+	scoreEngineRoutes.Get("/matrix", scoreEngineHandler.GetRiskMatrix)
+	scoreEngineRoutes.Post("/classify", scoreEngineHandler.ClassifyRisk)
+	scoreEngineRoutes.Get("/metrics", scoreEngineHandler.GetScoringMetrics)
 
 	// --- User Management (Admin only) ---
 	adminRole := middleware.RequireRole("admin")

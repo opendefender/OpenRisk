@@ -9,6 +9,7 @@ import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore'; // Import Assets Store
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { ScoreEngineVisualizer } from '../../scoreEngine/components/ScoreEngineVisualizer';
 
 // --- 1. Schéma de Validation Zod ---
 const riskSchema = z.object({
@@ -178,6 +179,16 @@ export const CreateRiskModal = ({ isOpen, onClose }: CreateRiskModalProps) => {
               <div className="grid grid-cols-2 gap-4 pt-2">
                  {renderScoreSelector('impact', 'Impact (1-5)')}
                  {renderScoreSelector('probability', 'Probabilité (1-5)')}
+              </div>
+
+              {/* Score Engine Visualizer */}
+              <div className="pt-4 border-t border-white/5">
+                <ScoreEngineVisualizer
+                  impact={watch('impact')}
+                  probability={watch('probability')}
+                  assetIds={selectedAssetIds}
+                  configId="default"
+                />
               </div>
 
               {/* SECTION SÉLECTION ASSETS (Nouveau) */}
