@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 type DashboardStats struct {
@@ -19,8 +20,16 @@ func GetDashboardStats(c *fiber.Ctx) error {
 	var stats DashboardStats
 	var risks []domain.Risk
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	// 1. Récupère tout (pour l'instant ok, plus tard on paginera)
-	database.DB.Find(&risks).Count(&stats.TotalRisks)
+	query := database.DB
+	// NEW: Filter by organization_id if available
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	query.Find(&risks).Count(&stats.TotalRisks)
 
 	// 2. Calculs
 	var totalScore float64

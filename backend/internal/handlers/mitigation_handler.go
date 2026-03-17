@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/services"
 )
 
@@ -20,6 +21,19 @@ func AddMitigation(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid Risk ID"})
 	}
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
+	// NEW: Verify risk exists in the organization
+	var risk domain.Risk
+	query := database.DB
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	if err := query.First(&risk, "id = ?", riskID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
+	}
+
 	mitigation := new(domain.Mitigation)
 	if err := c.BodyParser(mitigation); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
@@ -28,6 +42,10 @@ func AddMitigation(c *fiber.Ctx) error {
 	// Lier au risque
 	mitigation.RiskID = uuid.MustParse(riskID)
 	mitigation.Status = domain.MitigationPlanned
+	// NEW: Add organization_id
+	if ctx != nil {
+		mitigation.OrganizationID = ctx.OrganizationID
+	}
 
 	if err := database.DB.Create(mitigation).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not create mitigation"})
@@ -41,7 +59,15 @@ func ToggleMitigationStatus(c *fiber.Ctx) error {
 	mitigationID := c.Params("mitigationId")
 	var mitigation domain.Mitigation
 
-	if err := database.DB.First(&mitigation, "id = ?", mitigationID).Error; err != nil {
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
+	// NEW: Filter by organization_id if available
+	query := database.DB
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	if err := query.First(&mitigation, "id = ?", mitigationID).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
 	}
 
@@ -82,7 +108,15 @@ func UpdateMitigation(c *fiber.Ctx) error {
 	mitigationID := c.Params("mitigationId")
 	var mitigation domain.Mitigation
 
-	if err := database.DB.First(&mitigation, "id = ?", mitigationID).Error; err != nil {
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
+	// NEW: Filter by organization_id if available
+	query := database.DB
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	if err := query.First(&mitigation, "id = ?", mitigationID).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
 	}
 
@@ -140,6 +174,9 @@ func CreateMitigationSubAction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid mitigation ID"})
 	}
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	payload := struct {
 		Title string `json:"title"`
 	}{}
@@ -149,7 +186,11 @@ func CreateMitigationSubAction(c *fiber.Ctx) error {
 
 	// Ensure mitigation exists
 	var m domain.Mitigation
-	if err := database.DB.First(&m, "id = ?", mitigationID).Error; err != nil {
+	query := database.DB
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	if err := query.First(&m, "id = ?", mitigationID).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
 	}
 
@@ -168,9 +209,20 @@ func CreateMitigationSubAction(c *fiber.Ctx) error {
 // ToggleMitigationSubAction bascule l'état d'une sous-action
 func ToggleMitigationSubAction(c *fiber.Ctx) error {
 	subID := c.Params("subactionId")
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	var sa domain.MitigationSubAction
 	if err := database.DB.First(&sa, "id = ?", subID).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
+	}
+
+	// NEW: Verify mitigation belongs to the organization
+	if ctx != nil {
+		var mitigation domain.Mitigation
+		if err := database.DB.Where("organization_id = ?", ctx.OrganizationID).First(&mitigation, "id = ?", sa.MitigationID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
+		}
 	}
 
 	// If route contains mitigation id, verify ownership to avoid mismatch
@@ -193,6 +245,9 @@ func ToggleMitigationSubAction(c *fiber.Ctx) error {
 // DeleteMitigationSubAction supprime une sous-action
 func DeleteMitigationSubAction(c *fiber.Ctx) error {
 	subID := c.Params("subactionId")
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	// Verify ownership if mitigation id present in path
 	if mid := c.Params("id"); mid != "" {
 		if _, err := uuid.Parse(mid); err == nil {
