@@ -12,6 +12,7 @@ import (
 )
 
 // AuthMiddleware extracts and validates JWT token, populates request context with user claims
+// This is backward compatible with the existing UserClaims auth flow
 func AuthMiddleware(jwtSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Skip auth for public endpoints

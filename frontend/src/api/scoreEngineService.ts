@@ -8,13 +8,20 @@ interface ApiResponse<T> {
   status: number;
 }
 
-// Helper function to get auth header
-const getAuthHeader = () => {
-  const token = useAuthStore.getState().token;
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+// Helper function to get auth header - lazy loads token from store
+const getAuthHeader = (): Record<string, string> => {
+  try {
+    const token = useAuthStore.getState?.().token;
+    return {
+      'Authorization': `Bearer ${token || ''}`,
+      'Content-Type': 'application/json',
+    };
+  } catch (error) {
+    // Fallback if store is not yet initialized
+    return {
+      'Content-Type': 'application/json',
+    };
+  }
 };
 
 // Score Engine Types

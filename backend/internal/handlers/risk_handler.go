@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/database"
 	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/services"
 	"github.com/opendefender/openrisk/internal/validation"
 )
@@ -74,6 +75,9 @@ func CreateRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Probability must be between 1 and 5"})
 	}
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	// 3. Mapping DTO -> Domain Entity
 	risk := domain.Risk{
 		Title:       input.Title,
@@ -81,6 +85,11 @@ func CreateRisk(c *fiber.Ctx) error {
 		Impact:      input.Impact,
 		Probability: input.Probability,
 		Status:      domain.StatusDraft, // Statut par défaut
+	}
+
+	// NEW: Add organization_id if available
+	if ctx != nil {
+		risk.OrganizationID = ctx.OrganizationID
 	}
 
 	// Only set Tags if provided to avoid inserting NULL into databases that
@@ -98,7 +107,12 @@ func CreateRisk(c *fiber.Ctx) error {
 	if len(input.AssetIDs) > 0 {
 		var assets []*domain.Asset
 		// GORM est intelligent : "id IN ?" fonctionne avec un slice de strings
-		result := database.DB.Where("id IN ?", input.AssetIDs).Find(&assets)
+		// NEW: Filter assets by organization_id if available
+		query := database.DB
+		if ctx != nil {
+			query = query.Where("organization_id = ?", ctx.OrganizationID)
+		}
+		result := query.Where("id IN ?", input.AssetIDs).Find(&assets)
 		if result.Error != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to verify assets"})
 		}
@@ -157,6 +171,9 @@ func CreateRisk(c *fiber.Ctx) error {
 func GetRisks(c *fiber.Ctx) error {
 	var risks []domain.Risk
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	// Supported query params: q, status, min_score, max_score, tag
 	q := c.Query("q")
 	status := c.Query("status")
@@ -168,6 +185,11 @@ func GetRisks(c *fiber.Ctx) error {
 		Preload("Mitigations").
 		Preload("Mitigations.SubActions").
 		Preload("Assets")
+
+	// NEW: Filter by organization_id if available
+	if ctx != nil {
+		db = db.Where("organization_id = ?", ctx.OrganizationID)
+	}
 
 	// Server-side sorting: safe-guard allowed fields and map friendly names
 	sortBy := c.Query("sort_by")
@@ -274,12 +296,21 @@ func GetRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
 	}
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	var risk domain.Risk
-	result := database.DB.
+	query := database.DB.
 		Preload("Mitigations").
 		Preload("Mitigations.SubActions").
-		Preload("Assets").
-		First(&risk, "id = ?", id)
+		Preload("Assets")
+
+	// NEW: Filter by organization_id if available
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+
+	result := query.First(&risk, "id = ?", id)
 
 	if result.Error != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
@@ -295,8 +326,15 @@ func UpdateRisk(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var risk domain.Risk
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	// 1. Vérifier l'existence
-	if err := database.DB.First(&risk, "id = ?", id).Error; err != nil {
+	query := database.DB
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	if err := query.First(&risk, "id = ?", id).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
 	}
 
@@ -332,7 +370,12 @@ func UpdateRisk(c *fiber.Ctx) error {
 	// If AssetIDs provided, reload and attach assets before computing score
 	if len(input.AssetIDs) > 0 {
 		var assets []*domain.Asset
-		if err := database.DB.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
+		// NEW: Filter assets by organization_id if available
+		assetQuery := database.DB
+		if ctx != nil {
+			assetQuery = assetQuery.Where("organization_id = ?", ctx.OrganizationID)
+		}
+		if err := assetQuery.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
 			risk.Assets = assets
 		}
 	}
@@ -394,8 +437,15 @@ func DeleteRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
 	}
 
+	// NEW: Get organization context for multi-tenancy
+	ctx := middleware.GetContext(c)
+
 	// Delete avec GORM (Soft Delete par défaut grâce au champ DeletedAt dans le modèle)
-	result := database.DB.Delete(&domain.Risk{}, "id = ?", id)
+	query := database.DB
+	if ctx != nil {
+		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	}
+	result := query.Delete(&domain.Risk{}, "id = ?", id)
 
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not delete risk"})
