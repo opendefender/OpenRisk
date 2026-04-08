@@ -28,7 +28,7 @@ func (h *MultitenantOrgHandler) CreateOrganization(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	var req service.CreateOrgRequest
+	var req service.CreateOrgRequestMultitenant
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}

@@ -259,8 +259,6 @@ func ToggleMitigationSubAction(c *fiber.Ctx) error {
 // DeleteMitigationSubAction supprime une sous-action
 func DeleteMitigationSubAction(c *fiber.Ctx) error {
 	subID := c.Params("subactionId")
-	// NEW: Get organization context for multi-tenancy
-	ctx := middleware.GetContext(c)
 
 	// Verify ownership if mitigation id present in path
 	if mid := c.Params("id"); mid != "" {

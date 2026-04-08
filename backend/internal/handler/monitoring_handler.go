@@ -2,16 +2,16 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 // MetricsHandler provides HTTP handlers for metrics endpoints
 type MetricsHandler struct {
-	collector *MetricsCollector
+	collector *middleware.MetricsCollector
 }
 
 // NewMetricsHandler creates a new metrics handler
-func NewMetricsHandler(collector *MetricsCollector) *MetricsHandler {
+func NewMetricsHandler(collector *middleware.MetricsCollector) *MetricsHandler {
 	return &MetricsHandler{
 		collector: collector,
 	}
@@ -19,16 +19,16 @@ func NewMetricsHandler(collector *MetricsCollector) *MetricsHandler {
 
 // RegisterRoutes registers metrics routes on a Fiber router
 func (mh *MetricsHandler) RegisterRoutes(app *fiber.App) {
-	// Prometheus metrics endpoint - GET /metrics
-	// This endpoint is typically scraped by Prometheus
-	http := promhttp.Handler()
+	// Lightweight metrics endpoint compatible with Fiber context.
 	app.Get("/metrics", func(c *fiber.Ctx) error {
-		http.ServeHTTP(c.Response().BodyWriter(), c.Request())
-		return nil
+		if mh.collector == nil {
+			return c.JSON(fiber.Map{"status": "ok"})
+		}
+		return c.JSON(mh.collector.GetStats())
 	})
 }
 
 // GetCollector returns the metrics collector
-func (mh *MetricsHandler) GetCollector() *MetricsCollector {
+func (mh *MetricsHandler) GetCollector() *middleware.MetricsCollector {
 	return mh.collector
 }
