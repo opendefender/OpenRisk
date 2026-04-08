@@ -15,16 +15,15 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"github.com/opendefender/openrisk/config"
-	"github.com/opendefender/openrisk/database"
-	"github.com/opendefender/openrisk/internal/adapters/thehive"
-	"github.com/opendefender/openrisk/internal/cache"
-	"github.com/opendefender/openrisk/internal/core/domain"
-	"github.com/opendefender/openrisk/internal/handlers"
+	"github.com/opendefender/openrisk/internal/config"
+	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
-	"github.com/opendefender/openrisk/internal/services"
-	"github.com/opendefender/openrisk/internal/workers"
+	"github.com/opendefender/openrisk/internal/service"
+	"github.com/opendefender/openrisk/pkg/cache"
 )
 
 func main() {
@@ -131,14 +130,14 @@ func main() {
 	// =========================================================================
 
 	// Initialize Permission Service for advanced access control
-	permissionService := services.NewPermissionService()
+	permissionService := service.NewPermissionService()
 	permissionService.InitializeDefaultRoles()
 
 	// Initialize Token Service for API token management
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 
 	// Initialize Score Engine Service for automatic risk score calculation
-	scoreEngineService := services.NewScoreEngineService(database.DB)
+	scoreEngineService := service.NewScoreEngineService(database.DB)
 	log.Println("Score Engine: Service initialized with default configuration")
 
 	// =========================================================================
@@ -355,6 +354,51 @@ func main() {
 	protected.Get("/bulk-operations", bulkOpHandler.ListBulkOperations)
 	protected.Get("/bulk-operations/:id", bulkOpHandler.GetBulkOperation)
 
+	// --- Incidents (Protected routes) ---
+	incidentService := service.NewIncidentService(database.DB)
+	incidentHandler := handlers.NewIncidentHandler(incidentService)
+	incidentsGroup := protected.Group("/incidents")
+	incidentsGroup.Post("", writerRole, incidentHandler.CreateIncident)
+	incidentsGroup.Get("/stats", incidentHandler.GetIncidentStats)
+	incidentsGroup.Get("", incidentHandler.ListIncidents)
+	incidentsGroup.Get("/:id", incidentHandler.GetIncident)
+	incidentsGroup.Put("/:id", writerRole, incidentHandler.UpdateIncident)
+	incidentsGroup.Delete("/:id", writerRole, incidentHandler.DeleteIncident)
+	incidentsGroup.Get("/:id/timeline", incidentHandler.GetIncidentTimeline)
+	incidentsGroup.Post("/:id/risks/:riskId", writerRole, incidentHandler.LinkRisk)
+	incidentsGroup.Post("/:id/actions", writerRole, incidentHandler.CreateIncidentAction)
+	incidentsGroup.Get("/:id/actions", incidentHandler.GetIncidentActions)
+	incidentsGroup.Put("/:id/actions/:actionId", writerRole, incidentHandler.UpdateIncidentAction)
+	protected.Get("/risks/:id/incidents", incidentHandler.GetIncidentsForRisk)
+
+	// --- Risk Management Lifecycle (Protected routes) ---
+	riskMgmtService := service.NewRiskManagementService(database.DB)
+	riskMgmtHandler := handlers.NewRiskManagementHandler(riskMgmtService)
+	riskMgmtGroup := protected.Group("/risk-management")
+	riskMgmtGroup.Post("/identify", writerRole, riskMgmtHandler.IdentifyRisk)
+	riskMgmtGroup.Post("/analyze", writerRole, riskMgmtHandler.AnalyzeRisk)
+	riskMgmtGroup.Post("/evaluate", writerRole, riskMgmtHandler.EvaluateRisk)
+	riskMgmtGroup.Post("/treatment-plans", writerRole, riskMgmtHandler.CreateTreatmentPlan)
+	riskMgmtGroup.Post("/treatment-plans/:id/actions", writerRole, riskMgmtHandler.AddTreatmentAction)
+	riskMgmtGroup.Post("/monitoring-reviews", writerRole, riskMgmtHandler.CreateMonitoringReview)
+	riskMgmtGroup.Post("/decisions", writerRole, riskMgmtHandler.RecordDecision)
+	riskMgmtGroup.Post("/decisions/:id/approve", writerRole, riskMgmtHandler.ApproveDecision)
+	riskMgmtGroup.Post("/audit-reports", riskMgmtHandler.GenerateAuditReport)
+	riskMgmtGroup.Get("/risks/:id/lifecycle-status", riskMgmtHandler.GetRiskLifecycleStatus)
+
+	// --- Notifications (Protected routes) ---
+	notificationService := service.NewNotificationService(database.DB, nil, nil, nil)
+	notificationHandler := handlers.NewNotificationHandler(notificationService)
+	notificationsGroup := protected.Group("/notifications")
+	notificationsGroup.Get("", notificationHandler.GetNotifications)
+	notificationsGroup.Get("/unread-count", notificationHandler.GetUnreadCount)
+	notificationsGroup.Patch("/read-all", notificationHandler.MarkAllAsRead)
+	notificationsGroup.Patch("/:notificationId/read", notificationHandler.MarkAsRead)
+	notificationsGroup.Delete("/:notificationId", notificationHandler.DeleteNotification)
+	notificationsGroup.Get("/preferences", notificationHandler.GetNotificationPreferences)
+	notificationsGroup.Patch("/preferences", notificationHandler.UpdateNotificationPreferences)
+	notificationsGroup.Post("/test", notificationHandler.TestNotification)
+
 	// --- Risk Timeline (Protected routes) ---
 	timelineHandler := handlers.NewRiskTimelineHandler()
 	protected.Get("/risks/:id/timeline", timelineHandler.GetRiskTimeline)
@@ -366,7 +410,7 @@ func main() {
 	protected.Get("/timeline/recent", timelineHandler.GetRecentActivity)
 
 	// --- Analytics & Advanced Reporting (Protected routes) ---
-	analyticsService := services.NewAnalyticsService(database.DB)
+	analyticsService := service.NewAnalyticsService(database.DB)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 	protected.Get("/analytics/risks/metrics", analyticsHandler.GetRiskMetrics)
 	protected.Get("/analytics/risks/trends", analyticsHandler.GetRiskTrends)
@@ -376,7 +420,7 @@ func main() {
 	protected.Get("/analytics/export", analyticsHandler.GetExportData)
 
 	// --- Enhanced Dashboard Analytics (Protected routes) ---
-	dashboardDataService := services.NewDashboardDataService(database.DB, nil)
+	dashboardDataService := service.NewDashboardDataService(database.DB, nil)
 	enhancedDashboardHandler := handlers.NewEnhancedDashboardHandler(dashboardDataService)
 	protected.Get("/dashboard/metrics", enhancedDashboardHandler.GetDashboardMetrics)
 	protected.Get("/dashboard/risk-trends", enhancedDashboardHandler.GetRiskTrends)
@@ -389,7 +433,7 @@ func main() {
 	// --- Marketplace Management (Protected routes) ---
 	// Marketplace can be browsed by all authenticated users
 	// Installation requires analyst or admin role
-	marketplaceService := services.NewMarketplaceService(database.DB, log.New(os.Stderr, "[Marketplace] ", log.LstdFlags))
+	marketplaceService := service.NewMarketplaceService(database.DB, log.New(os.Stderr, "[Marketplace] ", log.LstdFlags))
 	marketplaceHandler := handlers.NewMarketplaceHandler(marketplaceService)
 
 	// Public marketplace endpoints (all authenticated users can browse)
@@ -418,9 +462,9 @@ func main() {
 	// =========================================================================
 
 	// Initialize RBAC services
-	rbacUserService := services.NewUserService(database.DB)
-	rbacRoleService := services.NewRoleService(database.DB)
-	rbacTenantService := services.NewTenantService(database.DB)
+	rbacUserService := service.NewUserService(database.DB)
+	rbacRoleService := service.NewRoleService(database.DB)
+	rbacTenantService := service.NewTenantService(database.DB)
 
 	// Initialize RBAC handlers
 	rbacUserHandler := handlers.NewRBACUserHandler(rbacUserService, rbacRoleService, rbacTenantService)

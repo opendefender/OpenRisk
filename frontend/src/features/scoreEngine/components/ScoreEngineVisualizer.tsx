@@ -7,10 +7,10 @@ import {
   getRiskMatrix,
   classifyRisk,
   getScoringMetrics,
-  ComputeScoreInput,
-  ComputeScoreResponse,
-  RiskMatrixResponse,
-  ScoringMetricsResponse,
+  type ComputeScoreInput,
+  type ComputeScoreResponse,
+  type RiskMatrixResponse,
+  type ScoringMetricsResponse,
 } from '../../../api/scoreEngineService';
 
 interface ScoreEngineVisualizerProps {

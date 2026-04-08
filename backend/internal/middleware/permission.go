@@ -4,13 +4,13 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/opendefender/openrisk/internal/core/domain"
-	"github.com/opendefender/openrisk/internal/services"
+	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/service"
 )
 
 // RequirePermissions middleware checks if the user has the required permission(s)
 // It should be used after the Auth middleware which sets the user context
-func RequirePermissions(ps *services.PermissionService, required ...domain.Permission) fiber.Handler {
+func RequirePermissions(ps *service.PermissionService, required ...domain.Permission) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get user claims from context (set by Auth middleware)
 		claims, ok := c.Locals("user").(*domain.UserClaims)
@@ -46,7 +46,7 @@ func RequirePermissions(ps *services.PermissionService, required ...domain.Permi
 }
 
 // RequireAllPermissions middleware checks if the user has ALL required permissions
-func RequireAllPermissions(ps *services.PermissionService, required ...domain.Permission) fiber.Handler {
+func RequireAllPermissions(ps *service.PermissionService, required ...domain.Permission) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get user claims from context
 		claims, ok := c.Locals("user").(*domain.UserClaims)
@@ -75,7 +75,7 @@ func RequireAllPermissions(ps *services.PermissionService, required ...domain.Pe
 
 // RequireResourcePermission checks if the user has permission for a specific resource with context
 // This supports scope checking (own vs team vs any)
-func RequireResourcePermission(ps *services.PermissionService, resource domain.PermissionResource, action domain.PermissionAction) fiber.Handler {
+func RequireResourcePermission(ps *service.PermissionService, resource domain.PermissionResource, action domain.PermissionAction) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get user claims from context
 		claims, ok := c.Locals("user").(*domain.UserClaims)
@@ -118,11 +118,11 @@ func RequireResourcePermission(ps *services.PermissionService, resource domain.P
 
 // PermissionMiddlewareFactory provides middleware functions for permission checking
 type PermissionMiddlewareFactory struct {
-	permissionService *services.PermissionService
+	permissionService *service.PermissionService
 }
 
 // NewPermissionMiddlewareFactory creates a new permission middleware factory
-func NewPermissionMiddlewareFactory(ps *services.PermissionService) *PermissionMiddlewareFactory {
+func NewPermissionMiddlewareFactory(ps *service.PermissionService) *PermissionMiddlewareFactory {
 	return &PermissionMiddlewareFactory{
 		permissionService: ps,
 	}
