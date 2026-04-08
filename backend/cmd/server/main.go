@@ -17,8 +17,11 @@ import (
 
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/application/risk"
+	handlers "github.com/opendefender/openrisk/internal/handler"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
@@ -234,18 +237,27 @@ func main() {
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
+	// Initialize clean architecture risk module
+	riskRepo := repository.NewGormRiskRepository(database.DB)
+	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo)
+	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo)
+	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
+	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
+	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase)
+
 	protected.Get("/risks",
 		middleware.RequirePermissions(permissionService, domain.Permission{
 			Resource: domain.PermissionResourceRisk,
 			Action:   domain.PermissionRead,
 		}),
-		cacheableHandlers.CacheRiskListGET(handlers.GetRisks))
+		cacheableHandlers.CacheRiskListGET(riskHandler.GetRisks))
 	protected.Get("/risks/:id",
 		middleware.RequirePermissions(permissionService, domain.Permission{
 			Resource: domain.PermissionResourceRisk,
 			Action:   domain.PermissionRead,
 		}),
-		cacheableHandlers.CacheRiskGetByIDGET(handlers.GetRisk))
+		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
 
 	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
 	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
@@ -264,9 +276,9 @@ func main() {
 	// Backward compatibility: writerRole for other RBAC-based endpoints
 	writerRole := middleware.RequireRole("admin", "analyst")
 
-	protected.Post("/risks", riskCreate, handlers.CreateRisk)
-	protected.Patch("/risks/:id", riskUpdate, handlers.UpdateRisk)
-	protected.Delete("/risks/:id", riskDelete, handlers.DeleteRisk)
+	protected.Post("/risks", riskCreate, riskHandler.CreateRisk)
+	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
+	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
 	protected.Post("/risks/:id/mitigations", writerRole, handlers.AddMitigation)
 	protected.Patch("/mitigations/:mitigationId/toggle", writerRole, handlers.ToggleMitigationStatus)
 	protected.Patch("/mitigations/:mitigationId", writerRole, handlers.UpdateMitigation)

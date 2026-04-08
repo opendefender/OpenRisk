@@ -1,4 +1,4 @@
-package repositories
+package repository
 
 import (
 	"github.com/opendefender/openrisk/internal/domain"
