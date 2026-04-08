@@ -1,5 +1,7 @@
 package handler
 
+import (
+	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"

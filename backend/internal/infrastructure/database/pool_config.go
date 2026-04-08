@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -88,7 +89,7 @@ func GetPoolStats(db *sql.DB) (PoolStats, error) {
 		OpenConnections: stats.OpenConnections,
 		IdleConnections: stats.Idle,
 		MaxOpenConns:    stats.MaxOpenConnections,
-		MaxIdleConns:    stats.MaxIdleClosed,
+		MaxIdleConns:    stats.Idle,
 	}, nil
 }
 
@@ -98,7 +99,7 @@ func HealthCheck(db *sql.DB) error {
 		return fmt.Errorf("database connection is nil")
 	}
 
-	ctx, cancel := defaultContext()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
@@ -154,7 +155,7 @@ func GetPoolMetrics(db *sql.DB) (PoolMetrics, error) {
 
 	stats := db.Stats()
 	return PoolMetrics{
-		TotalConnections:   stats.Milliseconds,
+		TotalConnections:   int64(stats.OpenConnections),
 		ActiveConnections:  stats.OpenConnections,
 		IdleConnections:    stats.Idle,
 		WaitCount:          stats.WaitCount,
@@ -162,7 +163,7 @@ func GetPoolMetrics(db *sql.DB) (PoolMetrics, error) {
 		MaxIdleClosed:      stats.MaxIdleClosed,
 		MaxLifetimeClosed:  stats.MaxLifetimeClosed,
 		MaxIdleTimeClosed:  stats.MaxIdleTimeClosed,
-		OpenConnectionTime: stats.OpenConnectionLifetime,
+		OpenConnectionTime: stats.WaitDuration,
 	}, nil
 }
 
