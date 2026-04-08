@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
-	"github.com/opendefender/openrisk/internal/domain"
 )
 
 // NotificationHandler handles notification-related requests
@@ -282,26 +281,12 @@ func (h *NotificationHandler) TestNotification(c *fiber.Ctx) error {
 		})
 	}
 
-	// Create test notification
-	testNotification := &domain.Notification{
-		ID:          uuid.New(),
-		UserID:      userID,
-		TenantID:    tenantID,
-		Type:        domain.NotificationTypeCriticalRisk,
-		Channel:     domain.NotificationChannel(req.Channel),
-		Status:      domain.NotificationStatusPending,
-		Subject:     "Test Notification from OpenRisk",
-		Message:     "This is a test notification to verify your notification channels are working correctly.",
-		Description: "You can test each channel separately to ensure they are configured properly.",
-		Metadata: map[string]interface{}{
-			"test": true,
-		},
-	}
-
 	// Note: In production, actually send the test notification
 	// For now, just return success
 	return c.JSON(fiber.Map{
 		"message": "test notification would be sent",
 		"channel": req.Channel,
+		"user_id": userID,
+		"tenant_id": tenantID,
 	})
 }

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/service"
@@ -99,7 +97,7 @@ func (h *ScoreEngineHandler) CreateScoringConfig(c *fiber.Ctx) error {
 	}
 
 	// Create configuration object
-	config := &services.ScoringConfig{
+	config := &service.ScoringConfig{
 		ID:                   c.Query("id", ""),
 		Name:                 input.Name,
 		Description:          input.Description,
@@ -158,7 +156,7 @@ func (h *ScoreEngineHandler) UpdateScoringConfig(c *fiber.Ctx) error {
 	}
 
 	// Create update object
-	updates := &services.ScoringConfig{
+	updates := &service.ScoringConfig{
 		BaseFormula:          input.BaseFormula,
 		WeightingFactors:     input.WeightingFactors,
 		RiskMatrixThresholds: input.RiskMatrixThresholds,

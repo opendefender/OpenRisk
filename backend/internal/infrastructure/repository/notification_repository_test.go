@@ -15,7 +15,55 @@ func setupNotificationRepo(t *testing.T) *NotificationRepository {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.Notification{}, &domain.NotificationPreference{}))
+	require.NoError(t, db.Exec(`
+		CREATE TABLE notifications (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			tenant_id TEXT NOT NULL,
+			type TEXT,
+			channel TEXT,
+			status TEXT,
+			subject TEXT,
+			message TEXT,
+			description TEXT,
+			resource_id TEXT,
+			resource_type TEXT,
+			metadata TEXT,
+			sent_at DATETIME,
+			delivered_at DATETIME,
+			read_at DATETIME,
+			failure_reason TEXT,
+			created_at DATETIME,
+			updated_at DATETIME
+		);
+	`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE notification_preferences (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			tenant_id TEXT NOT NULL,
+			email_on_mitigation_deadline BOOLEAN,
+			email_on_critical_risk BOOLEAN,
+			email_on_action_assigned BOOLEAN,
+			email_on_risk_update BOOLEAN,
+			email_on_risk_resolved BOOLEAN,
+			email_deadline_advance_days INTEGER,
+			slack_enabled BOOLEAN,
+			slack_channel_override TEXT,
+			slack_on_mitigation_deadline BOOLEAN,
+			slack_on_critical_risk BOOLEAN,
+			slack_on_action_assigned BOOLEAN,
+			webhook_enabled BOOLEAN,
+			webhook_on_mitigation_deadline BOOLEAN,
+			webhook_on_critical_risk BOOLEAN,
+			webhook_on_action_assigned BOOLEAN,
+			disable_all_notifications BOOLEAN,
+			enable_sound_notifications BOOLEAN,
+			enable_desktop_notifications BOOLEAN,
+			created_at DATETIME,
+			updated_at DATETIME
+		);
+	`).Error)
 	return NewNotificationRepository(db)
 }
 
@@ -27,21 +75,25 @@ func TestNotificationRepositoryTenantIsolationReadAndDelete(t *testing.T) {
 	allowedID := uuid.New()
 	otherID := uuid.New()
 
-	require.NoError(t, repo.db.Create(&domain.Notification{
-		ID:       allowedID,
-		UserID:   userID,
-		TenantID: tenantAllowed,
-		Channel:  domain.NotificationChannelInApp,
-		Status:   domain.NotificationStatusPending,
-		Subject:  "ok",
+	require.NoError(t, repo.db.Table("notifications").Create(map[string]interface{}{
+		"id":         allowedID.String(),
+		"user_id":    userID.String(),
+		"tenant_id":  tenantAllowed.String(),
+		"channel":    string(domain.NotificationChannelInApp),
+		"status":     string(domain.NotificationStatusPending),
+		"subject":    "ok",
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
 	}).Error)
-	require.NoError(t, repo.db.Create(&domain.Notification{
-		ID:       otherID,
-		UserID:   userID,
-		TenantID: tenantOther,
-		Channel:  domain.NotificationChannelInApp,
-		Status:   domain.NotificationStatusPending,
-		Subject:  "other",
+	require.NoError(t, repo.db.Table("notifications").Create(map[string]interface{}{
+		"id":         otherID.String(),
+		"user_id":    userID.String(),
+		"tenant_id":  tenantOther.String(),
+		"channel":    string(domain.NotificationChannelInApp),
+		"status":     string(domain.NotificationStatusPending),
+		"subject":    "other",
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
 	}).Error)
 
 	items, err := repo.GetUserNotifications(userID, tenantAllowed, 10, 0)
@@ -63,12 +115,26 @@ func TestNotificationRepositoryMarkReadScopedByTenant(t *testing.T) {
 	idA := uuid.New()
 	idB := uuid.New()
 
-	for _, n := range []domain.Notification{
-		{ID: idA, UserID: userID, TenantID: tenantA, Channel: domain.NotificationChannelInApp, Status: domain.NotificationStatusPending, Subject: "a"},
-		{ID: idB, UserID: userID, TenantID: tenantB, Channel: domain.NotificationChannelInApp, Status: domain.NotificationStatusPending, Subject: "b"},
-	} {
-		require.NoError(t, repo.db.Create(&n).Error)
-	}
+	require.NoError(t, repo.db.Table("notifications").Create(map[string]interface{}{
+		"id":         idA.String(),
+		"user_id":    userID.String(),
+		"tenant_id":  tenantA.String(),
+		"channel":    string(domain.NotificationChannelInApp),
+		"status":     string(domain.NotificationStatusPending),
+		"subject":    "a",
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
+	}).Error)
+	require.NoError(t, repo.db.Table("notifications").Create(map[string]interface{}{
+		"id":         idB.String(),
+		"user_id":    userID.String(),
+		"tenant_id":  tenantB.String(),
+		"channel":    string(domain.NotificationChannelInApp),
+		"status":     string(domain.NotificationStatusPending),
+		"subject":    "b",
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
+	}).Error)
 
 	require.NoError(t, repo.MarkNotificationAsRead(idB, userID, tenantA))
 

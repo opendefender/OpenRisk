@@ -13,7 +13,9 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
+	applicationrisk "github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
@@ -96,10 +98,18 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 
 	app := fiber.New()
 	api := app.Group("/api/v1")
-	api.Post("/risks", CreateRisk)
-	api.Get("/risks/:id", GetRisk)
-	api.Patch("/risks/:id", UpdateRisk)
-	api.Delete("/risks/:id", DeleteRisk)
+	riskRepo := repository.NewGormRiskRepository(db)
+	handler := NewRiskHandler(
+		applicationrisk.NewCreateRiskUseCase(riskRepo),
+		applicationrisk.NewGetRiskUseCase(riskRepo),
+		applicationrisk.NewListRisksUseCase(riskRepo),
+		applicationrisk.NewUpdateRiskUseCase(riskRepo),
+		applicationrisk.NewDeleteRiskUseCase(riskRepo),
+	)
+	api.Post("/risks", handler.CreateRisk)
+	api.Get("/risks/:id", handler.GetRisk)
+	api.Patch("/risks/:id", handler.UpdateRisk)
+	api.Delete("/risks/:id", handler.DeleteRisk)
 
 	return app
 }
