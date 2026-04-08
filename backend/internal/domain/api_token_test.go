@@ -10,14 +10,14 @@ import (
 
 // Test data constants
 const (
-	testIPLocal     = testIPLocal
-	testIPPrivate1  = testIPPrivate1
-	testIPPrivate2  = testIPPrivate2
-	testIPPrivate3  = testIPPrivate3
-	testIPPublic    = testIPPublic
+	testIPLocal     = "127.0.0.1"
+	testIPPrivate1  = "10.0.0.1"
+	testIPPrivate2  = "172.16.0.1"
+	testIPPrivate3  = "192.168.1.1"
+	testIPPublic    = "8.8.8.8"
 	testIPWildcard  = "*"
-	testTokenPrefix = testTokenPrefix
-	testTokenValue  = testTokenValue
+	testTokenPrefix = "tok_test_"
+	testTokenValue  = "tok_test_value_1234567890"
 )
 
 func TestAPITokenIsExpired(t *testing.T) {

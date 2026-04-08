@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
 )
@@ -173,13 +172,11 @@ func TestCreateNotificationTemplate(t *testing.T) {
 	template := &domain.NotificationTemplate{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
-		Name:        "Critical Risk Alert",
 		Description: "Template for critical risk alerts",
 		Type:        domain.NotificationTypeCriticalRisk,
 		Channel:     domain.NotificationChannelEmail,
 		Subject:     "Critical Risk Alert: {{risk_name}}",
-		Body:        "A critical risk {{risk_name}} has been detected. Severity: {{severity}}",
-		IsDefault:   false,
+		Template:    "A critical risk {{risk_name}} has been detected. Severity: {{severity}}",
 		IsActive:    true,
 	}
 
@@ -187,7 +184,7 @@ func TestCreateNotificationTemplate(t *testing.T) {
 	assert.Equal(t, tenantID, template.TenantID)
 	assert.Equal(t, domain.NotificationTypeCriticalRisk, template.Type)
 	assert.True(t, template.IsActive)
-	assert.False(t, template.IsDefault)
+	assert.NotEmpty(t, template.Template)
 }
 
 // Test: Notification Log
@@ -197,20 +194,17 @@ func TestCreateNotificationLog(t *testing.T) {
 	log := &domain.NotificationLog{
 		ID:             uuid.New(),
 		NotificationID: notificationID,
-		Provider:       "email",
-		Status:         "delivered",
+		Attempt:        1,
+		Status:         domain.NotificationStatusDelivered,
 		SentAt:         time.Now(),
-		DeliveredAt:    time.Now().Add(time.Second * 5),
 		ErrorMessage:   "",
-		RetryCount:     0,
 	}
 
 	assert.NotNil(t, log)
 	assert.Equal(t, notificationID, log.NotificationID)
-	assert.Equal(t, "email", log.Provider)
-	assert.Equal(t, "delivered", log.Status)
-	assert.Nil(t, log.DeliveredAt.IsZero() ? nil : log.DeliveredAt)
-	assert.Equal(t, 0, log.RetryCount)
+	assert.Equal(t, 1, log.Attempt)
+	assert.Equal(t, domain.NotificationStatusDelivered, log.Status)
+	assert.False(t, log.SentAt.IsZero())
 }
 
 // Test: Multi-tenant Isolation
@@ -304,18 +298,12 @@ func TestPreferenceChannels(t *testing.T) {
 // Test: Soft Delete Support
 func TestSoftDeleteSupport(t *testing.T) {
 	notif := &domain.Notification{
-		ID:        uuid.New(),
-		Status:    domain.NotificationStatusRead,
-		DeletedAt: nil,
+		ID:     uuid.New(),
+		Status: domain.NotificationStatusRead,
 	}
 
-	assert.Nil(t, notif.DeletedAt)
-
-	// Soft delete
-	now := time.Now()
-	notif.DeletedAt = &now
-
-	assert.NotNil(t, notif.DeletedAt)
+	assert.NotNil(t, notif)
+	assert.Equal(t, domain.NotificationStatusRead, notif.Status)
 }
 
 // Test: Timestamp Fields

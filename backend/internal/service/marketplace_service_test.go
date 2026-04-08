@@ -13,21 +13,21 @@ import (
 
 // Test data constants
 const (
-	testConnectorName        = testConnectorName
-	testConnectorAuthor      = testConnectorAuthor
-	testConnectorVersion     = testConnectorVersion
-	testConnectorDescription = testConnectorDescription
-	testConnectorLicense     = testConnectorLicense
-	testConnectorCategory    = testConnectorCategory
-	testConnectorRating      = testConnectorRating
-	testUserID               = testUserID
-	testUserName             = testUserName
-	testTenantID             = testTenantID
+	testConnectorName        = "OpenCTI Connector"
+	testConnectorAuthor      = "OpenDefender"
+	testConnectorVersion     = "1.0.0"
+	testConnectorDescription = "Connector for CTI ingestion"
+	testConnectorLicense     = "Apache-2.0"
+	testConnectorCategory    = "threat-intel"
+	testConnectorRating      = 4.5
+	testUserID               = "user-123"
+	testUserName             = "Test User"
+	testTenantID             = "tenant-123"
 	testReviewRating         = 5
 	testReviewComment        = "Excellent connector!"
-	splunkConnectorName      = splunkConnectorName
-	splunkConnectorAuthor    = splunkConnectorAuthor
-	splunkConnectorDesc      = splunkConnectorDesc
+	splunkConnectorName      = "Splunk Connector"
+	splunkConnectorAuthor    = "Splunk"
+	splunkConnectorDesc      = "Splunk SIEM integration"
 )
 
 func TestMarketplaceService_RegisterConnector(t *testing.T) {

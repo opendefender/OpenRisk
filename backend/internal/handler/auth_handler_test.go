@@ -83,7 +83,7 @@ func TestLoginInvalidPassword(t *testing.T) {
 	t.Run("Password too short", func(t *testing.T) {
 		loginReq := LoginInput{
 			Email:    testUserEmail,
-			Password: testUserPassword,
+			Password: "short",
 		}
 
 		reqBody, _ := json.Marshal(loginReq)
@@ -318,7 +318,7 @@ func TestLoginInputValidation(t *testing.T) {
 		},
 		{
 			name:  "Password too short",
-			input: LoginInput{Email: testUserEmail, Password: testUserPassword},
+			input: LoginInput{Email: testUserEmail, Password: "short"},
 			valid: false,
 		},
 		{

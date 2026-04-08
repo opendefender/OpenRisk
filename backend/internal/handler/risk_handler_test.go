@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	applicationrisk "github.com/opendefender/openrisk/internal/application/risk"
+	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -76,6 +77,11 @@ type RiskHistoryT struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
 	RiskID    uuid.UUID
 	Score     float64
+	Impact    int
+	Probability int
+	Status    string
+	ChangedBy string
+	ChangeType string
 	CreatedAt time.Time
 }
 
@@ -83,20 +89,57 @@ func (RiskHistoryT) TableName() string { return "risk_histories" }
 
 func setupAppWithDB(t *testing.T) *fiber.App {
 	// In-memory SQLite for fast tests
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	dsn := "file:risk_handler_" + uuid.New().String() + "?mode=memory&cache=private"
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
 
 	// migrate schema using test-only structs
-	if err := db.AutoMigrate(&UserT{}, &RiskT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}); err != nil {
+	if err := db.AutoMigrate(&UserT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
+	}
+	if err := db.Exec(`CREATE TABLE IF NOT EXISTS risks (
+		id TEXT PRIMARY KEY,
+		title TEXT NOT NULL,
+		description TEXT,
+		impact INTEGER,
+		probability INTEGER,
+		score REAL,
+		status TEXT,
+		tags TEXT,
+		owner TEXT,
+		source TEXT,
+		external_id TEXT,
+		level TEXT,
+		custom_fields TEXT,
+		frameworks TEXT,
+		organization_id TEXT,
+		created_at DATETIME,
+		updated_at DATETIME,
+		deleted_at DATETIME
+	);`).Error; err != nil {
+		t.Fatalf("create risks table failed: %v", err)
+	}
+	if err := db.Exec(`CREATE TABLE IF NOT EXISTS risk_assets (
+		risk_id TEXT NOT NULL,
+		asset_id TEXT NOT NULL
+	);`).Error; err != nil {
+		t.Fatalf("create risk_assets table failed: %v", err)
 	}
 
 	// replace global DB used by handlers
 	database.DB = db
 
 	app := fiber.New()
+	testOrgID := uuid.New()
+	app.Use(func(c *fiber.Ctx) error {
+		middleware.SetContext(c, &middleware.RequestContext{
+			UserID:         uuid.New(),
+			OrganizationID: testOrgID,
+		})
+		return c.Next()
+	})
 	api := app.Group("/api/v1")
 	riskRepo := repository.NewGormRiskRepository(db)
 	handler := NewRiskHandler(

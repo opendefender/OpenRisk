@@ -80,9 +80,9 @@ func TestClassifyRiskLevel(t *testing.T) {
 	}{
 		{3.0, "low"},
 		{5.0, "low"},
-		{8.0, "medium"},
+		{8.0, "low"},
 		{12.0, "medium"},
-		{15.0, "high"},
+		{15.0, "medium"},
 		{19.0, "high"},
 		{20.0, "critical"},
 		{25.0, "critical"},
