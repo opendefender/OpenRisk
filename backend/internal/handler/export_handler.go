@@ -6,27 +6,9 @@ import (
 
 	"github.com/go-pdf/fpdf"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
-
-func safeGetUUID(c *fiber.Ctx, key string) uuid.UUID {
-	val := c.Locals(key)
-	if val == nil {
-		return uuid.Nil
-	}
-	if u, ok := val.(uuid.UUID); ok {
-		return u
-	}
-	if s, ok := val.(string); ok {
-		parsed, err := uuid.Parse(s)
-		if err == nil {
-			return parsed
-		}
-	}
-	return uuid.Nil
-}
 
 // ExportRisksPDF génère un rapport PDF de tous les risques actifs.
 func ExportRisksPDF(c *fiber.Ctx) error {

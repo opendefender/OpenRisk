@@ -8,23 +8,6 @@ import (
 	"github.com/opendefender/openrisk/internal/service"
 )
 
-func safeGetUUID(c *fiber.Ctx, key string) uuid.UUID {
-	val := c.Locals(key)
-	if val == nil {
-		return uuid.Nil
-	}
-	if u, ok := val.(uuid.UUID); ok {
-		return u
-	}
-	if s, ok := val.(string); ok {
-		parsed, err := uuid.Parse(s)
-		if err == nil {
-			return parsed
-		}
-	}
-	return uuid.Nil
-}
-
 // RBACUserHandler manages user RBAC operations
 type RBACUserHandler struct {
 	userService   *service.UserService

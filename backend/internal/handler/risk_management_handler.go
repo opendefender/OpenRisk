@@ -5,27 +5,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
-
-func safeGetUUID(c *fiber.Ctx, key string) uuid.UUID {
-	val := c.Locals(key)
-	if val == nil {
-		return uuid.Nil
-	}
-	if u, ok := val.(uuid.UUID); ok {
-		return u
-	}
-	if s, ok := val.(string); ok {
-		parsed, err := uuid.Parse(s)
-		if err == nil {
-			return parsed
-		}
-	}
-	return uuid.Nil
-}
 
 // RiskManagementHandler for ISO 31000 and NIST RMF compliant workflows
 type RiskManagementHandler struct {

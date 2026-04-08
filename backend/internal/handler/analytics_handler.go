@@ -6,24 +6,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
 )
-
-func safeGetString(c *fiber.Ctx, key string) string {
-	val := c.Locals(key)
-	if val == nil {
-		return ""
-	}
-	if s, ok := val.(string); ok {
-		return s
-	}
-	if u, ok := val.(uuid.UUID); ok {
-		return u.String()
-	}
-	return fmt.Sprintf("%v", val)
-}
 
 // AnalyticsHandler handles analytics endpoints
 type AnalyticsHandler struct {
