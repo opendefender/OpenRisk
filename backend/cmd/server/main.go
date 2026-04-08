@@ -17,6 +17,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
+	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
@@ -399,8 +400,9 @@ func main() {
 	riskMgmtGroup.Get("/risks/:id/lifecycle-status", riskMgmtHandler.GetRiskLifecycleStatus)
 
 	// --- Notifications (Protected routes) ---
-	notificationService := service.NewNotificationService(database.DB, nil, nil, nil)
-	notificationHandler := handlers.NewNotificationHandler(notificationService)
+	notificationRepo := repository.NewNotificationRepository(database.DB)
+	notificationUseCase := notificationapp.NewUseCase(notificationRepo)
+	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 	notificationsGroup := protected.Group("/notifications")
 	notificationsGroup.Get("", notificationHandler.GetNotifications)
 	notificationsGroup.Get("/unread-count", notificationHandler.GetUnreadCount)

@@ -4,8 +4,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/service"
 )
 
 func safeGetUUID(c *fiber.Ctx, key string) uuid.UUID {
@@ -27,13 +27,13 @@ func safeGetUUID(c *fiber.Ctx, key string) uuid.UUID {
 
 // NotificationHandler handles notification-related requests
 type NotificationHandler struct {
-	notificationService *service.NotificationService
+	useCase *notificationapp.UseCase
 }
 
 // NewNotificationHandler creates a new notification handler
-func NewNotificationHandler(notificationService *service.NotificationService) *NotificationHandler {
+func NewNotificationHandler(useCase *notificationapp.UseCase) *NotificationHandler {
 	return &NotificationHandler{
-		notificationService: notificationService,
+		useCase: useCase,
 	}
 }
 
@@ -49,9 +49,18 @@ func (h *NotificationHandler) GetNotifications(c *fiber.Ctx) error {
 	if limit > 100 {
 		limit = 100 // Max 100 per request
 	}
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid offset"})
+	}
 
-	notifications, err := h.notificationService.GetUserNotifications(userID, tenantID, limit, offset)
+	notifications, err := h.useCase.GetNotifications(userID, tenantID, limit, offset)
 	if err != nil {
+		if err == notificationapp.ErrUnauthorized {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve notifications",
 		})
@@ -71,8 +80,11 @@ func (h *NotificationHandler) GetUnreadCount(c *fiber.Ctx) error {
 	userID := safeGetUUID(c, "user_id")
 	tenantID := safeGetUUID(c, "tenant_id")
 
-	count, err := h.notificationService.GetUnreadCount(userID, tenantID)
+	count, err := h.useCase.GetUnreadCount(userID, tenantID)
 	if err != nil {
+		if err == notificationapp.ErrUnauthorized {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve unread count",
 		})
@@ -94,7 +106,11 @@ func (h *NotificationHandler) MarkAsRead(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.notificationService.MarkNotificationAsRead(notificationID, userID); err != nil {
+	tenantID := safeGetUUID(c, "tenant_id")
+	if err := h.useCase.MarkAsRead(notificationID, userID, tenantID); err != nil {
+		if err == notificationapp.ErrValidation {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to mark notification as read",
 		})
@@ -111,7 +127,10 @@ func (h *NotificationHandler) MarkAllAsRead(c *fiber.Ctx) error {
 	userID := safeGetUUID(c, "user_id")
 	tenantID := safeGetUUID(c, "tenant_id")
 
-	if err := h.notificationService.MarkAllNotificationsAsRead(userID, tenantID); err != nil {
+	if err := h.useCase.MarkAllAsRead(userID, tenantID); err != nil {
+		if err == notificationapp.ErrUnauthorized {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to mark notifications as read",
 		})
@@ -133,7 +152,11 @@ func (h *NotificationHandler) DeleteNotification(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.notificationService.DeleteNotification(notificationID, userID); err != nil {
+	tenantID := safeGetUUID(c, "tenant_id")
+	if err := h.useCase.DeleteNotification(notificationID, userID, tenantID); err != nil {
+		if err == notificationapp.ErrValidation {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to delete notification",
 		})
@@ -150,8 +173,11 @@ func (h *NotificationHandler) GetNotificationPreferences(c *fiber.Ctx) error {
 	userID := safeGetUUID(c, "user_id")
 	tenantID := safeGetUUID(c, "tenant_id")
 
-	prefs, err := h.notificationService.GetUserNotificationPreferences(userID, tenantID)
+	prefs, err := h.useCase.GetPreferences(userID, tenantID)
 	if err != nil {
+		if err == notificationapp.ErrUnauthorized {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve preferences",
 		})
@@ -240,14 +266,19 @@ func (h *NotificationHandler) UpdateNotificationPreferences(c *fiber.Ctx) error 
 		updates["enable_desktop_notifications"] = *req.EnableDesktopNotifications
 	}
 
-	if err := h.notificationService.UpdateNotificationPreferences(userID, tenantID, updates); err != nil {
+	prefs, err := h.useCase.UpdatePreferences(userID, tenantID, updates)
+	if err != nil {
+		if err == notificationapp.ErrUnauthorized {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+		}
+		if err == notificationapp.ErrValidation {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid preference payload"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to update preferences",
 		})
 	}
 
-	// Get updated preferences
-	prefs, _ := h.notificationService.GetUserNotificationPreferences(userID, tenantID)
 	return c.JSON(prefs)
 }
 
