@@ -63,7 +63,6 @@ type MetricsCollector struct {
 // NewMetricsCollector creates and registers all Prometheus metrics
 func NewMetricsCollector() *MetricsCollector {
 	namespace := "openrisk"
-	subsystem := ""
 
 	mc := &MetricsCollector{
 		// API Metrics

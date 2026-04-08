@@ -119,6 +119,9 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Determine the key (IP or user ID)
 		key := c.IP()
+		if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
+			key = forwarded
+		}
 
 		if config.LimitByUser {
 			// Try to get user ID from context

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
 )
@@ -137,7 +136,7 @@ func (a *TheHiveAdapter) transformCase(caseData TheHiveCase) domain.Incident {
 	}
 
 	return domain.Incident{
-		ID:          uuid.New(),
+		ID:          uint(caseData.CreatedAt),
 		Title:       caseData.Title,
 		Description: caseData.Description,
 		Status:      caseData.Status,
@@ -152,7 +151,7 @@ func (a *TheHiveAdapter) transformCase(caseData TheHiveCase) domain.Incident {
 func (a *TheHiveAdapter) mockIncidents() []domain.Incident {
 	return []domain.Incident{
 		{
-			ID:          uuid.New(),
+			ID:          1,
 			Title:       "Ransomware Detection (Mock)",
 			Description: "Case #1234: Encrypted files detected on HR Server during automated daily scan",
 			Severity:    "HIGH",
@@ -162,7 +161,7 @@ func (a *TheHiveAdapter) mockIncidents() []domain.Incident {
 			CreatedAt:   time.Now().Add(-2 * time.Hour),
 		},
 		{
-			ID:          uuid.New(),
+			ID:          2,
 			Title:       "Suspicious Login Attempt (Mock)",
 			Description: "Case #5678: Multiple failed login attempts from unusual IP detected",
 			Severity:    "CRITICAL",

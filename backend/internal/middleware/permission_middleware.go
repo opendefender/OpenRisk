@@ -168,7 +168,7 @@ func AuditMiddleware(auditService interface{}) fiber.Handler {
 		}
 
 		log.Printf("AUDIT: user=%s, tenant=%s, method=%s, path=%s, status=%d",
-			userID, tenantID, c.Method(), c.Path(), c.Response().StatusCode)
+			userID, tenantID, c.Method(), c.Path(), c.Response().StatusCode())
 
 		return c.Next()
 	}

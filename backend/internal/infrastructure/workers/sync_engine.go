@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/repository"
-	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	ports "github.com/opendefender/openrisk/internal/repository"
+	repositories "github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
 // SyncMetrics tracks synchronization performance and health

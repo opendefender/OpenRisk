@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,7 +51,7 @@ func TestSyncEngineMetrics(t *testing.T) {
 	mockProvider := &MockIncidentProvider{
 		incidents: []domain.Incident{
 			{
-				ID:         uuid.New(),
+				ID:         1,
 				Title:      "Test Incident",
 				Severity:   "LOW", // Use LOW to skip DB operations
 				ExternalID: "ext-1",
@@ -87,7 +86,7 @@ func TestSyncEngineRetryLogic(t *testing.T) {
 	mockProvider := &MockIncidentProvider{
 		incidents: []domain.Incident{
 			{
-				ID:         uuid.New(),
+				ID:         1,
 				Title:      "Test Incident",
 				Severity:   "LOW", // Use LOW to skip DB operations
 				ExternalID: "ext-123",
@@ -145,7 +144,7 @@ func TestProcessIncidentLowSeverity(t *testing.T) {
 	engine := NewSyncEngine(mockProvider)
 
 	incident := &domain.Incident{
-		ID:          uuid.New(),
+		ID:          1,
 		Title:       "Low Severity Info",
 		Description: "Minor configuration issue",
 		Severity:    "LOW",
@@ -228,9 +227,9 @@ func TestIncidentSeverityMapping(t *testing.T) {
 		{"CRITICAL", true},
 	}
 
-	for _, tc := range testCases {
+	for idx, tc := range testCases {
 		incident := &domain.Incident{
-			ID:         uuid.New(),
+			ID:         uint(idx + 1),
 			Title:      "Test",
 			Severity:   tc.severity,
 			ExternalID: fmt.Sprintf("ext-%s", tc.severity),
