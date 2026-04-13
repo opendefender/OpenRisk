@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 

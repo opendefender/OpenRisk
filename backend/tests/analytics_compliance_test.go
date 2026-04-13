@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package tests
 
 import (
@@ -5,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"openrisk/backend/internal/analytics"
-	"openrisk/backend/internal/audit"
+	"github.com/opendefender/openrisk/internal/analytics"
+	"github.com/opendefender/openrisk/internal/audit"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -8,14 +8,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/opendefender/openrisk/internal/core/domain"
-	"github.com/opendefender/openrisk/internal/services"
+	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/service"
 )
 
 // PermissionMiddlewareConfig contains configuration for permission middleware
 type PermissionMiddlewareConfig struct {
-	UserService       *services.UserService
-	PermissionService *services.PermissionService
+	UserService       *service.UserService
+	PermissionService *service.PermissionService
 	JWTSecret         string
 }
 
@@ -94,7 +94,7 @@ func PermissionMiddleware(config PermissionMiddlewareConfig) fiber.Handler {
 }
 
 // TenantMiddleware validates tenant context and applies tenant isolation
-func TenantMiddleware(userService *services.UserService) fiber.Handler {
+func TenantMiddleware(userService *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get user context from previous middleware
 		userID := c.Locals("userID").(uuid.UUID)
@@ -127,7 +127,7 @@ func TenantMiddleware(userService *services.UserService) fiber.Handler {
 }
 
 // OwnershipMiddleware verifies resource ownership or inherited access via role
-func OwnershipMiddleware(userService *services.UserService) fiber.Handler {
+func OwnershipMiddleware(userService *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		userID := c.Locals("userID").(uuid.UUID)
 		roleLevel := c.Locals("roleLevel").(domain.RoleLevel)
@@ -168,7 +168,7 @@ func AuditMiddleware(auditService interface{}) fiber.Handler {
 		}
 
 		log.Printf("AUDIT: user=%s, tenant=%s, method=%s, path=%s, status=%d",
-			userID, tenantID, c.Method(), c.Path(), c.Response().StatusCode)
+			userID, tenantID, c.Method(), c.Path(), c.Response().StatusCode())
 
 		return c.Next()
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/opendefender/openrisk/internal/core/domain"
+	"github.com/opendefender/openrisk/internal/domain"
 )
 
 const contextKey = "openrisk_ctx"
@@ -66,10 +66,3 @@ func NewJWTClaims(user *domain.User, org *domain.Organization, member *domain.Or
 
 // GetUserClaims extracts user claims from Fiber context
 // This is for backward compatibility with existing code
-func GetUserClaims(c *fiber.Ctx) *domain.UserClaims {
-	user, ok := c.Locals("user").(*domain.UserClaims)
-	if !ok {
-		return nil
-	}
-	return user
-}

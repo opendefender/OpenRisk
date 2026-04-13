@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/opendefender/openrisk/internal/core/domain"
-	"github.com/opendefender/openrisk/internal/services"
+	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/service"
 )
 
 func TestTokenAuth_ExtractTokenFromRequest_Success(t *testing.T) {
@@ -90,7 +90,7 @@ func TestTokenAuth_ExtractTokenFromRequest_WrongScheme(t *testing.T) {
 }
 
 func TestTokenAuth_Verify_Success(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -114,7 +114,7 @@ func TestTokenAuth_Verify_Success(t *testing.T) {
 }
 
 func TestTokenAuth_Verify_NoHeader(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -130,7 +130,7 @@ func TestTokenAuth_Verify_NoHeader(t *testing.T) {
 }
 
 func TestTokenAuth_Verify_InvalidToken(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -148,7 +148,7 @@ func TestTokenAuth_Verify_InvalidToken(t *testing.T) {
 }
 
 func TestTokenAuth_Verify_RevokedToken(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -175,7 +175,7 @@ func TestTokenAuth_Verify_RevokedToken(t *testing.T) {
 }
 
 func TestTokenAuth_RequireTokenPermission_Success(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -201,7 +201,7 @@ func TestTokenAuth_RequireTokenPermission_Success(t *testing.T) {
 }
 
 func TestTokenAuth_RequireTokenPermission_Denied(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -226,7 +226,7 @@ func TestTokenAuth_RequireTokenPermission_Denied(t *testing.T) {
 }
 
 func TestTokenAuth_RequireTokenScope_Success(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -251,7 +251,7 @@ func TestTokenAuth_RequireTokenScope_Success(t *testing.T) {
 }
 
 func TestTokenAuth_RequireTokenScope_Denied(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	app := fiber.New()
@@ -276,7 +276,7 @@ func TestTokenAuth_RequireTokenScope_Denied(t *testing.T) {
 }
 
 func TestTokenAuth_ContextPopulation(t *testing.T) {
-	tokenService := services.NewTokenService()
+	tokenService := service.NewTokenService()
 	tokenAuth := NewTokenAuth(tokenService)
 
 	userID := uuid.New()

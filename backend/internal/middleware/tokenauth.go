@@ -8,16 +8,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"github.com/opendefender/openrisk/internal/services"
+	"github.com/opendefender/openrisk/internal/service"
 )
 
 // TokenAuth provides token-based authentication middleware
 type TokenAuth struct {
-	tokenService *services.TokenService
+	tokenService *service.TokenService
 }
 
 // NewTokenAuth creates a new token authentication middleware
-func NewTokenAuth(tokenService *services.TokenService) *TokenAuth {
+func NewTokenAuth(tokenService *service.TokenService) *TokenAuth {
 	return &TokenAuth{
 		tokenService: tokenService,
 	}
