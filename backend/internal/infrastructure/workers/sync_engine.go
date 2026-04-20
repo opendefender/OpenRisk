@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
-	ports "github.com/opendefender/openrisk/internal/repository"
 	repositories "github.com/opendefender/openrisk/internal/infrastructure/repository"
+	ports "github.com/opendefender/openrisk/internal/repository"
 )
 
 // SyncMetrics tracks synchronization performance and health
@@ -30,6 +31,7 @@ type SyncMetrics struct {
 // SyncEngine coordinates synchronization of external incident sources
 type SyncEngine struct {
 	IncidentProvider ports.IncidentProvider
+	OrganizationID   string // Required for tenant scoping (Rule 1)
 	ticker           *time.Ticker
 	stopCh           chan struct{}
 	doneCh           chan struct{}
@@ -47,9 +49,10 @@ type SyncEngine struct {
 }
 
 // NewSyncEngine creates a production-ready sync engine with retry logic and metrics
-func NewSyncEngine(inc ports.IncidentProvider) *SyncEngine {
+func NewSyncEngine(inc ports.IncidentProvider, organizationID string) *SyncEngine {
 	return &SyncEngine{
 		IncidentProvider: inc,
+		OrganizationID:   organizationID,
 		stopCh:           make(chan struct{}),
 		doneCh:           make(chan struct{}),
 		metrics:          &SyncMetrics{},
@@ -80,7 +83,7 @@ func (e *SyncEngine) Start(ctx context.Context) {
 		}()
 
 		// Run sync immediately on start
-		e.syncWithRetry()
+		e.syncWithRetry(context.Background())
 
 		for {
 			select {
@@ -97,7 +100,7 @@ func (e *SyncEngine) Start(ctx context.Context) {
 				e.logInfo("Sync engine stopped by signal", map[string]interface{}{})
 				return
 			case <-e.ticker.C:
-				e.syncWithRetry()
+				e.syncWithRetry(context.Background())
 			}
 		}
 	}()
@@ -118,7 +121,7 @@ func (e *SyncEngine) Stop() {
 }
 
 // syncWithRetry implements exponential backoff retry logic
-func (e *SyncEngine) syncWithRetry() {
+func (e *SyncEngine) syncWithRetry(ctx context.Context) {
 	var lastErr error
 
 	for attempt := 0; attempt <= e.maxRetries; attempt++ {
@@ -137,7 +140,7 @@ func (e *SyncEngine) syncWithRetry() {
 			time.Sleep(backoff)
 		}
 
-		lastErr = e.syncIncidents()
+		lastErr = e.syncIncidents(ctx)
 		if lastErr == nil {
 			return
 		}
@@ -157,7 +160,7 @@ func (e *SyncEngine) syncWithRetry() {
 }
 
 // syncIncidents fetches and processes incidents from all providers
-func (e *SyncEngine) syncIncidents() error {
+func (e *SyncEngine) syncIncidents(ctx context.Context) error {
 	startTime := time.Now()
 	e.metrics.mu.Lock()
 	e.metrics.TotalSyncs++
@@ -178,7 +181,7 @@ func (e *SyncEngine) syncIncidents() error {
 	// Process each incident
 	processedCount := 0
 	for _, inc := range incidents {
-		if err := e.processIncident(&inc); err != nil {
+		if err := e.processIncident(ctx, &inc); err != nil {
 			e.logWarn("Failed to process incident", map[string]interface{}{
 				"incident_id": inc.ExternalID,
 				"error":       err.Error(),
@@ -207,7 +210,7 @@ func (e *SyncEngine) syncIncidents() error {
 }
 
 // processIncident transforms external incident to risk and stores it
-func (e *SyncEngine) processIncident(inc *domain.Incident) error {
+func (e *SyncEngine) processIncident(ctx context.Context, inc *domain.Incident) error {
 	// Only create risks for high-severity incidents
 	if inc.Severity != "HIGH" && inc.Severity != "CRITICAL" {
 		e.logDebug("Skipping low-severity incident", map[string]interface{}{
@@ -225,17 +228,24 @@ func (e *SyncEngine) processIncident(inc *domain.Incident) error {
 		probabilityScore = 5
 	}
 
-	newRisk := &domain.Risk{
-		Title:       fmt.Sprintf("[INCIDENT] %s", inc.Title),
-		Description: fmt.Sprintf("Auto-created from incident %s\n\n%s", inc.ExternalID, inc.Description),
-		Impact:      impactScore,
-		Probability: probabilityScore,
-		Source:      "THEHIVE",
-		ExternalID:  inc.ExternalID,
-		Tags:        []string{"INCIDENT", "AUTOMATED", inc.Severity},
+	// Parse organization ID (validate it's a valid UUID)
+	orgID, err := uuid.Parse(e.OrganizationID)
+	if err != nil {
+		return fmt.Errorf("invalid organization ID: %w", err)
 	}
 
-	err := repositories.CreateRiskIfNotExists(newRisk)
+	newRisk := &domain.Risk{
+		OrganizationID: orgID, // Set organization_id for tenant scoping (Rule 1)
+		Title:          fmt.Sprintf("[INCIDENT] %s", inc.Title),
+		Description:    fmt.Sprintf("Auto-created from incident %s\n\n%s", inc.ExternalID, inc.Description),
+		Impact:         impactScore,
+		Probability:    probabilityScore,
+		Source:         "THEHIVE",
+		ExternalID:     inc.ExternalID,
+		Tags:           []string{"INCIDENT", "AUTOMATED", inc.Severity},
+	}
+
+	err = repositories.CreateRiskIfNotExists(ctx, newRisk)
 	if err != nil {
 		return fmt.Errorf("failed to create/update risk: %w", err)
 	}

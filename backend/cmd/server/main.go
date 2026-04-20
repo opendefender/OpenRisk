@@ -15,10 +15,10 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"github.com/opendefender/openrisk/internal/config"
-	"github.com/opendefender/openrisk/internal/domain"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
+	"github.com/opendefender/openrisk/internal/config"
+	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
@@ -152,9 +152,20 @@ func main() {
 	// Ils respectent les interfaces définies dans core/ports
 	theHiveAdapter := thehive.NewTheHiveAdapter(cfg.Integrations.TheHive)
 
+	// Get organization ID for SyncEngine (multi-tenant scoping - Rule 1)
+	// In a multi-tenant setup, there would be one SyncEngine per organization
+	// For now, we use the default organization from environment or placeholder
+	organizationID := os.Getenv("SYNC_ORGANIZATION_ID")
+	if organizationID == "" {
+		// Fall back to first organization in DB or placeholder
+		// TODO: In production, each organization should have its own SyncEngine instance
+		organizationID = "550e8400-e29b-41d4-a716-446655440000" // Default placeholder
+		log.Println("Warning: SYNC_ORGANIZATION_ID not set, using default placeholder. Set this env var for proper multi-tenant operation.")
+	}
+
 	// Initialisation du Moteur de Synchro (Background Worker)
 	// Il tourne indépendamment de l'API HTTP
-	syncEngine := workers.NewSyncEngine(theHiveAdapter)
+	syncEngine := workers.NewSyncEngine(theHiveAdapter, organizationID)
 	syncEngine.Start(context.Background())
 
 	log.Println("OpenDefender SyncEngine started in background")
