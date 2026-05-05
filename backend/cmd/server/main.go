@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/rs/zerolog"
 
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -22,12 +23,15 @@ import (
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
 	"github.com/opendefender/openrisk/internal/service"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
+	"github.com/opendefender/openrisk/pkg/scoring"
 )
 
 func main() {
@@ -121,6 +125,7 @@ func main() {
 		&domain.MarketplaceApp{},
 		&domain.ConnectorUpdate{},
 		&domain.MarketplaceLog{},
+		&domain.AdminAuditEvent{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -143,6 +148,42 @@ func main() {
 	// Initialize Score Engine Service for automatic risk score calculation
 	scoreEngineService := service.NewScoreEngineService(database.DB)
 	log.Println("Score Engine: Service initialized with default configuration")
+
+	// =========================================================================
+	// 3.5 JWT RS256 & SCORE WORKER INITIALIZATION (Critical Security & Events)
+	// =========================================================================
+
+	// Load RSA keys for JWT RS256 (fail-fast if missing)
+	rsaKeys := authpkg.MustLoadRSAKeys(
+		cfg.Server.RSAPrivateKeyPath,
+		cfg.Server.RSAPublicKeyPath,
+	)
+	log.Println("Auth: RSA keys loaded successfully for JWT RS256")
+
+	// Initialize Redis client for caching, events, and JWT blacklist
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379"
+	}
+	redisClientInstance := redisclient.NewClient(redisURL)
+	log.Println("Redis: Client connected for events, caching, and JWT blacklist")
+
+	// Initialize JWT token blacklist manager (via Redis)
+	tokenBlacklistManager := authpkg.NewTokenBlacklistManager(redisClientInstance)
+	log.Println("Auth: Token blacklist manager initialized (Redis-backed)")
+
+	// Initialize Score Engine (pure, stateless)
+	scoreEngine := scoring.NewEngine()
+	log.Println("Scoring: Engine initialized (pure, zero dependencies)")
+
+	// Initialize Score Worker (listens to Redis events)
+	zeroLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+	riskRepoForWorker := repository.NewGormRiskRepository(database.DB)
+	scoreWorker := workers.NewScoreWorker(redisClientInstance, scoreEngine, riskRepoForWorker, zeroLogger)
+
+	// Start Score Worker in background goroutine
+	go scoreWorker.Start(context.Background())
+	log.Println("Workers: Score Engine worker started (listening for risk.updated events)")
 
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
@@ -256,7 +297,7 @@ func main() {
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance)
 
 	protected.Get("/risks",
 		middleware.RequirePermissions(permissionService, domain.Permission{

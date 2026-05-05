@@ -50,9 +50,10 @@ func NewTheHiveAdapter(cfg config.ExternalService) *TheHiveAdapter {
 	}
 }
 
-// FetchRecentIncidents retrieves recent cases from TheHive API
+// FetchRecentIncidents retrieves recent cases from TheHive API for a specific organization
+// RULE #1: organizationID parameter ensures TENANT SCOPING — prevents multi-tenant data leak
 // Implements the IncidentProvider interface
-func (a *TheHiveAdapter) FetchRecentIncidents() ([]domain.Incident, error) {
+func (a *TheHiveAdapter) FetchRecentIncidents(organizationID string) ([]domain.Incident, error) {
 	if !a.Config.Enabled {
 		return []domain.Incident{}, nil
 	}
@@ -62,8 +63,8 @@ func (a *TheHiveAdapter) FetchRecentIncidents() ([]domain.Incident, error) {
 		return a.mockIncidents(), nil
 	}
 
-	// Fetch from real TheHive API
-	incidents, err := a.fetchFromAPI()
+	// Fetch from real TheHive API with organizationID filter
+	incidents, err := a.fetchFromAPI(organizationID)
 	if err != nil {
 		// Fallback to mock data if API call fails (graceful degradation)
 		fmt.Printf("[TheHive] API call failed, using mock data: %v\n", err)
@@ -74,10 +75,12 @@ func (a *TheHiveAdapter) FetchRecentIncidents() ([]domain.Incident, error) {
 }
 
 // fetchFromAPI makes authenticated requests to TheHive REST API
-func (a *TheHiveAdapter) fetchFromAPI() ([]domain.Incident, error) {
-	// Build request to fetch recent cases
-	// TheHive API: GET /api/case with filters for recent/open cases
-	url := fmt.Sprintf("%s/api/case?limit=50&sort=-createdAt", a.Config.URL)
+// organizationID ensures requests are scoped to the correct tenant (RULE #1)
+func (a *TheHiveAdapter) fetchFromAPI(organizationID string) ([]domain.Incident, error) {
+	// Build request to fetch recent cases filtered by organizationId
+	// TheHive API: GET /api/case?limit=50&sort=-createdAt&query=organizationId:<orgID>
+	// This ensures we ONLY fetch incidents for this organization, preventing multi-tenant data leak
+	url := fmt.Sprintf("%s/api/case?limit=50&sort=-createdAt&query=organizationId:%s", a.Config.URL, organizationID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

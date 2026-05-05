@@ -166,16 +166,19 @@ func (e *SyncEngine) syncIncidents(ctx context.Context) error {
 	e.metrics.TotalSyncs++
 	e.metrics.mu.Unlock()
 
-	e.logInfo("Starting incident sync cycle", map[string]interface{}{})
+	e.logInfo("Starting incident sync cycle", map[string]interface{}{
+		"organization_id": e.OrganizationID,
+	})
 
-	// Fetch incidents from TheHive
-	incidents, err := e.IncidentProvider.FetchRecentIncidents()
+	// RULE #1: Pass OrganizationID to ensure TENANT SCOPING and prevent multi-tenant data leak
+	incidents, err := e.IncidentProvider.FetchRecentIncidents(e.OrganizationID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch incidents: %w", err)
 	}
 
 	e.logInfo("Incidents fetched from provider", map[string]interface{}{
-		"incident_count": len(incidents),
+		"incident_count":   len(incidents),
+		"organization_id":  e.OrganizationID,
 	})
 
 	// Process each incident
@@ -202,6 +205,7 @@ func (e *SyncEngine) syncIncidents(ctx context.Context) error {
 		"duration_ms":      duration.Milliseconds(),
 		"incidents_total":  len(incidents),
 		"processed":        processedCount,
+		"organization_id":  e.OrganizationID,
 		"successful_syncs": e.metrics.SuccessfulSyncs,
 		"failed_syncs":     e.metrics.FailedSyncs,
 	})

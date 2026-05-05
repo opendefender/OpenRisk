@@ -3,17 +3,16 @@ package middleware
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/opendefender/openrisk/internal/domain"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
-// AuthMiddleware extracts and validates JWT token, populates request context with user claims
-// This is backward compatible with the existing UserClaims auth flow
-func AuthMiddleware(jwtSecret string) fiber.Handler {
+// AuthMiddlewareRS256 extracts and validates JWT token (RS256), populates request context.
+// Requires Redis client for JTI blacklist checking.
+// This replaces the old HMAC-based AuthMiddleware.
+func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti string) (bool, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Skip auth for public endpoints
 		if isPublicEndpoint(c.Path()) {
@@ -24,7 +23,8 @@ func AuthMiddleware(jwtSecret string) fiber.Handler {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing authorization header",
+				"code":    "UNAUTHORIZED",
+				"message": "Missing authorization header",
 			})
 		}
 
@@ -32,92 +32,142 @@ func AuthMiddleware(jwtSecret string) fiber.Handler {
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header format",
+				"code":    "UNAUTHORIZED",
+				"message": "Invalid authorization header format",
 			})
 		}
 
 		tokenString := parts[1]
 
-		// Parse and validate JWT token
-		claims := &domain.UserClaims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			// Verify signing method
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		// Validate JWT with RS256 signature and JTI blacklist check
+		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)
+		if err != nil {
+			switch err {
+			case authpkg.ErrTokenExpired:
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"code":    "TOKEN_EXPIRED",
+					"message": "Token has expired",
+				})
+			case authpkg.ErrTokenRevoked:
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"code":    "TOKEN_REVOKED",
+					"message": "Token has been revoked",
+				})
+			case authpkg.ErrTokenInvalid:
+				fallthrough
+			default:
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"code":    "TOKEN_INVALID",
+					"message": "Invalid token",
+				})
 			}
-			return []byte(jwtSecret), nil
-		})
+		}
 
-		if err != nil || !token.Valid {
+		// Validate required tenant_id
+		if claims.TenantID == uuid.Nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or expired token",
+				"code":    "UNAUTHORIZED",
+				"message": "Missing tenant_id in token",
 			})
 		}
 
-		// Check token expiration
-		if claims.ExpiresAt < time.Now().Unix() {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Token expired",
-			})
-		}
-
-		// Store user claims in context
+		// Store claims in context for downstream handlers
 		c.Locals("user", claims)
-		c.Locals("user_id", claims.ID)
-		c.Locals("role", claims.RoleName)
+		c.Locals("user_id", claims.Sub)
+		c.Locals("tenant_id", claims.TenantID)
+		c.Locals("org_roles", claims.OrgRoles)
 		c.Locals("permissions", claims.Permissions)
+		c.Locals("feature_flags", claims.FeatureFlags)
+		c.Locals("jti", claims.JTI)
 
 		return c.Next()
 	}
 }
 
-// RoleGuard middleware checks if user has required role
-func RoleGuard(allowedRoles ...string) fiber.Handler {
+// TenantMiddleware ensures tenant_id is present in context.
+// Must be placed AFTER AuthMiddlewareRS256.
+func TenantMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		role, ok := c.Locals("role").(string)
-		if !ok || role == "" {
+		tenantID, ok := c.Locals("tenant_id").(uuid.UUID)
+		if !ok || tenantID == uuid.Nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "No role in token",
+				"code":    "UNAUTHORIZED",
+				"message": "Missing tenant context",
+			})
+		}
+		return c.Next()
+	}
+}
+
+// RequirePermission checks if user has required permissions.
+// Supports wildcards: "risks:*" matches "risks:read", "risks:write", etc.
+func RequirePermission(requiredPerms ...string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		permissions, ok := c.Locals("permissions").([]string)
+		if !ok {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"code":    "FORBIDDEN",
+				"message": "No permissions in token",
 			})
 		}
 
-		// Check if role is in allowed list
-		for _, allowed := range allowedRoles {
-			if role == allowed {
-				return c.Next()
+		// Check if user has any of the required permissions
+		hasRequiredPerm := false
+		for _, required := range requiredPerms {
+			if hasPermission(permissions, required) {
+				hasRequiredPerm = true
+				break
+			}
+		}
+
+		if !hasRequiredPerm {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"code":    "FORBIDDEN",
+				"message": fmt.Sprintf("Missing required permission: %v", requiredPerms),
+			})
+		}
+
+		return c.Next()
+	}
+}
+
+// RoleGuard checks if user has required role (deprecated - use RequirePermission instead).
+// Maintained for backward compatibility.
+func RoleGuard(allowedRoles ...string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		orgRoles, ok := c.Locals("org_roles").(map[uuid.UUID]string)
+		if !ok || len(orgRoles) == 0 {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "UNAUTHORIZED",
+				"message": "No role in token",
+			})
+		}
+
+		// Check if any role is in allowed list
+		for _, role := range orgRoles {
+			for _, allowed := range allowedRoles {
+				if role == allowed {
+					return c.Next()
+				}
 			}
 		}
 
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": fmt.Sprintf("Role '%s' is not authorized for this operation", role),
+			"code":    "FORBIDDEN",
+			"message": fmt.Sprintf("Role not authorized for this operation"),
 		})
 	}
 }
 
-// PermissionGuard middleware checks if user has required permission
+// PermissionGuard is an alias for RequirePermission (deprecated - use RequirePermission).
 func PermissionGuard(requiredPermission string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		permissions, ok := c.Locals("permissions").([]string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "No permissions in token",
-			})
-		}
-
-		// Check if user has permission
-		if !hasPermission(permissions, requiredPermission) {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": fmt.Sprintf("Missing required permission: %s", requiredPermission),
-			})
-		}
-
-		return c.Next()
-	}
+	return RequirePermission(requiredPermission)
 }
 
-// GetUserClaims extracts user claims from context
-func GetUserClaims(c *fiber.Ctx) *domain.UserClaims {
-	claims, ok := c.Locals("user").(*domain.UserClaims)
+// GetUserClaims extracts RS256 claims from context.
+// Returns nil if claims not found or invalid.
+func GetUserClaims(c *fiber.Ctx) *authpkg.Claims {
+	claims, ok := c.Locals("user").(*authpkg.Claims)
 	if !ok {
 		return nil
 	}
@@ -127,13 +177,24 @@ func GetUserClaims(c *fiber.Ctx) *domain.UserClaims {
 // GetUserID extracts user ID from context
 func GetUserID(c *fiber.Ctx) (uuid.UUID, error) {
 	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	if !ok || userID == uuid.Nil {
 		return uuid.UUID{}, fmt.Errorf("user ID not found in context")
 	}
 	return userID, nil
 }
 
-// hasPermission checks if permissions array contains required permission
+// GetTenantID extracts tenant ID from context (tenant isolation key).
+func GetTenantID(c *fiber.Ctx) (uuid.UUID, error) {
+	tenantID, ok := c.Locals("tenant_id").(uuid.UUID)
+	if !ok || tenantID == uuid.Nil {
+		return uuid.UUID{}, fmt.Errorf("tenant ID not found in context")
+	}
+	return tenantID, nil
+}
+
+// hasPermission checks if permissions array contains required permission.
+// Supports wildcards: "risk:*" matches "risk:read", "risk:write", etc.
+// Supports admin wildcard: "*" matches everything.
 func hasPermission(permissions []string, required string) bool {
 	for _, perm := range permissions {
 		// Exact match or admin wildcard

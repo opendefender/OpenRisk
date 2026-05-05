@@ -1,0 +1,41 @@
+
+## Ce qui est déjà implémenté — Audit 20 avril 2026
+
+| Module | Statut | Fichiers | Lacunes critiques | Priorité |
+|--------|--------|----------|-------------------|----------|
+| Score Engine | ✅ | engine.go, scoring.go, tests | Intégration Redis manquante | **HAUTE** |
+| Auth JWT RS256 | ✅ | jwt.go, token.go, rsa.go + middlewares | Endpoints login/logout | **CRITIQUE** |
+| Domain Models | ✅ | 30+ entités | Aucune | — |
+| Repositories | 🟡 | 6 repos (risk, notification) | 9+ repos manquants | **CRITIQUE** |
+| Application Layer | 🟡 | Risk (5 use cases) + Notification | 5/7 modules manquants | **CRITIQUE** |
+| **HTTP Routes** | ❌ | 0 bindées | **TOUTES les routes manquent** | **CRITIQUE** |
+| **Frontend TS** | 🟡 | 134 fichiers | 136 × `any`, 0 skeleton loaders | **CRITIQUE** |
+| Middlewares | ✅ | 17 middlewares | Fail-open Redis | **MOYENNE** |
+| Database | ✅ | 12 migrations | Indexes à optimiser | **MOYENNE** |
+| Cache + Events | ✅ | Redis + pub/sub | Workers manquants | **HAUTE** |
+
+**Score global : 6.5/10** — Architecture solide mais API inopérante, frontend non prête
+
+## Sprint en cours — SEMAINE 0 (Priorité absolue)
+
+### ⚠️ BLOCKERS CRITIQUES À CORRIGER CETTE SEMAINE
+
+1. **Ajouter TOUTES les routes Fiber** (3-4h)
+   → Sans cela, l'API est inutilisable
+   
+2. **Fixer password hardcodé** (30min)
+   → Violation RÈGLE ABSOLUE 4 (secrets dans logs)
+   
+3. **Intégrer Score Engine via Redis events** (4-6h)
+   → Violation RÈGLE ABSOLUE 9
+   
+4. **Nettoyer TypeScript** (4-6h)
+   → 136 × `any` — violation RÈGLE ABSOLUE 11
+   
+5. **Ajouter Skeleton loaders** (6-8h)
+   → Violation RÈGLE ABSOLUE 14
+
+→ **Temps total Sprint 0 : 35-40 heures**
+→ **Objectif : Score 7/10 et API fonctionnelle**
+
+Voir `/AUDIT_MODULE_0_COMPLET.md` pour analyse détaillée.

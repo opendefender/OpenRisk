@@ -19,3 +19,11 @@ node_modules/
 postgres_data/
 redis_data/
 legacy_v1/
+
+# Security: RSA Keys for JWT RS256
+# NEVER commit private keys to version control
+*.pem
+secrets/
+backend/keys/
+/private_key.pem
+/public_key.pem
