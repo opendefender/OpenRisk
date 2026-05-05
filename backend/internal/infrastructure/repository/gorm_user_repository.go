@@ -1,0 +1,114 @@
+package repository
+
+import (
+	"context"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/domain"
+)
+
+// GormUserRepository implements domain.UserRepository using GORM
+type GormUserRepository struct {
+	db *gorm.DB
+}
+
+// NewGormUserRepository creates a new GORM user repository
+func NewGormUserRepository(db *gorm.DB) *GormUserRepository {
+	return &GormUserRepository{db: db}
+}
+
+// Create creates a new user
+func (r *GormUserRepository) Create(ctx context.Context, user *domain.User) error {
+	return r.db.WithContext(ctx).Create(user).Error
+}
+
+// GetByID retrieves a user by ID
+func (r *GormUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	var user domain.User
+	err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetByEmail retrieves a user by email
+func (r *GormUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var user domain.User
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetByUsername retrieves a user by username
+func (r *GormUserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
+	var user domain.User
+	err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+// Update updates an existing user
+func (r *GormUserRepository) Update(ctx context.Context, user *domain.User) error {
+	return r.db.WithContext(ctx).Save(user).Error
+}
+
+// Delete soft-deletes a user
+func (r *GormUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&domain.User{}, "id = ?", id).Error
+}
+
+// GetUserDefaultOrganization gets the default organization for a user
+func (r *GormUserRepository) GetUserDefaultOrganization(ctx context.Context, userID uuid.UUID) (*domain.Organization, error) {
+	var user domain.User
+	err := r.db.WithContext(ctx).
+		Preload("DefaultOrg").
+		First(&user, "id = ?", userID).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if user.DefaultOrgID == nil {
+		return nil, nil
+	}
+
+	return user.DefaultOrg, nil
+}
+
+// GetOrganizationMember gets the organization membership for a user
+func (r *GormUserRepository) GetOrganizationMember(ctx context.Context, userID, orgID uuid.UUID) (*domain.OrganizationMember, error) {
+	var member domain.OrganizationMember
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND organization_id = ?", userID, orgID).
+		First(&member).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &member, nil
+}
+
+// CreateOrganizationMember creates a new organization membership
+func (r *GormUserRepository) CreateOrganizationMember(ctx context.Context, member *domain.OrganizationMember) error {
+	return r.db.WithContext(ctx).Create(member).Error
+}

@@ -16,11 +16,14 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/rs/zerolog"
 
+	"github.com/opendefender/openrisk/internal/application/auth"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
+	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
+	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
@@ -31,6 +34,7 @@ import (
 	"github.com/opendefender/openrisk/internal/service"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
+	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/scoring"
 )
 
@@ -257,7 +261,38 @@ func main() {
 
 	api := app.Group("/api/v1")
 
-	// Initialize auth handler
+	// =========================================================================
+	// 5.1 CLEAN ARCHITECTURE AUTH MODULE INITIALIZATION
+	// =========================================================================
+
+	// Initialize repositories
+	userRepo := repository.NewGormUserRepository(database.DB)
+	orgRepo := repository.NewGormOrganizationRepository(database.DB)
+	refreshTokenRepo := repository.NewGormRefreshTokenRepository(database.DB)
+
+	// Initialize notification service
+	emailNotifier := notify.NewEmailNotifier() // Placeholder - implement actual email service
+	notificationService := notify.NewNotificationService(emailNotifier)
+
+	// Initialize password hasher (use bcrypt in production)
+	passwordHasher := auth.NewSimplePasswordHasher()
+
+	// Initialize use cases
+	loginUseCase := auth.NewLoginUseCase(userRepo, passwordHasher, notificationService)
+	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, passwordHasher, notificationService)
+	refreshUseCase := auth.NewRefreshTokenUseCase(refreshTokenRepo, userRepo)
+	logoutUseCase := auth.NewLogoutUseCase(refreshTokenRepo)
+
+	// Initialize Clean Architecture auth handler
+	cleanAuthHandler := authhandler.NewHandler(
+		loginUseCase,
+		registerUseCase,
+		refreshUseCase,
+		logoutUseCase,
+		passwordHasher,
+	)
+
+	// Initialize legacy auth handler (for backward compatibility)
 	authHandler := handlers.NewAuthHandler()
 
 	// Initialize OAuth2 and SAML2 configurations
@@ -271,9 +306,16 @@ func main() {
 			"db":      "CONNECTED",
 		})
 	})
-	api.Post("/auth/login", authHandler.Login)
-	api.Post("/auth/register", authHandler.Register)
-	api.Post("/auth/refresh", authHandler.RefreshToken)
+
+	// Clean Architecture Auth Routes
+	api.Post("/auth/login", cleanAuthHandler.Login)
+	api.Post("/auth/register", cleanAuthHandler.Register)
+	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
+	api.Post("/auth/logout", cleanAuthHandler.Logout)
+
+	// Legacy Auth Routes (for backward compatibility)
+	api.Post("/auth/legacy/login", authHandler.Login)
+	api.Post("/auth/legacy/refresh", authHandler.RefreshToken)
 
 	// --- OAuth2 Routes ---
 	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
@@ -288,8 +330,13 @@ func main() {
 	// Le middleware injecte user_id et role dans le contexte
 	protected := api.Use(middleware.Protected())
 
+	// Current user profile endpoint
+	api.Get("/auth/me", middleware.Protected(), cleanAuthHandler.Me)
+	api.Get("/users/me", authHandler.GetProfile)
+
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
+	
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo)
