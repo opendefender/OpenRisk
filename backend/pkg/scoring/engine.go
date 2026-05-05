@@ -3,6 +3,7 @@ package scoring
 import (
 	"fmt"
 	"math"
+	"strings"
 )
 
 // engine implémente l'interface Engine avec la formule officielle d'OpenRisk.
@@ -84,12 +85,12 @@ func (e *engine) Breakdown(
 
 	// Build explanation: "0.700 × 8.000 × 1.500 = 8.400 → Critical"
 	explanation := fmt.Sprintf(
-		"%.3f × %.1f × %.1f = %.3f → %s",
+		"%.3f × %.3f × %.3f = %.3f → %s",
 		probability,
 		impact,
 		assetCriticality,
 		score,
-		criticality,
+		strings.Title(string(criticality)),
 	)
 
 	breakdown := ScoreBreakdown{

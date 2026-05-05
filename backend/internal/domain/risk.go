@@ -18,6 +18,15 @@ const (
 	StatusAccepted  RiskStatus = "ACCEPTED"
 )
 
+type CriticalityLevel string
+
+const (
+	CriticalityLow      CriticalityLevel = "LOW"
+	CriticalityMedium   CriticalityLevel = "MEDIUM"
+	CriticalityHigh     CriticalityLevel = "HIGH"
+	CriticalityCritical CriticalityLevel = "CRITICAL"
+)
+
 type Risk struct {
 	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	Title       string    `gorm:"size:255;not null" json:"title"`
