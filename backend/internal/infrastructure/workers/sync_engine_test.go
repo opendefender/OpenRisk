@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Test organization ID used for all tests
+const testOrgID = "550e8400-e29b-41d4-a716-446655440000"
+
 // MockIncidentProvider implements IncidentProvider for testing
 type MockIncidentProvider struct {
 	incidents    []domain.Incident
@@ -36,10 +39,11 @@ func TestNewSyncEngine(t *testing.T) {
 		incidents: []domain.Incident{},
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	assert.NotNil(t, engine)
 	assert.Equal(t, mockProvider, engine.IncidentProvider)
+	assert.Equal(t, testOrgID, engine.OrganizationID)
 	assert.Equal(t, 3, engine.maxRetries)
 	assert.Equal(t, 1*time.Second, engine.initialBackoff)
 	assert.Equal(t, 16*time.Second, engine.maxBackoff)
@@ -60,7 +64,7 @@ func TestSyncEngineMetrics(t *testing.T) {
 		},
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	// Initial metrics should be zero
 	metrics := engine.GetMetrics()
@@ -69,7 +73,7 @@ func TestSyncEngineMetrics(t *testing.T) {
 	assert.Equal(t, int64(0), metrics.FailedSyncs)
 
 	// Run sync once (LOW severity will skip processing)
-	err := engine.syncIncidents()
+	err := engine.syncIncidents(context.Background())
 	require.NoError(t, err)
 
 	// Verify metrics were updated
@@ -97,10 +101,10 @@ func TestSyncEngineRetryLogic(t *testing.T) {
 		failureCount: 2,
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	startTime := time.Now()
-	engine.syncWithRetry()
+	engine.syncWithRetry(context.Background())
 	duration := time.Since(startTime)
 
 	// Should have called 3 times (2 failures + 1 success)
@@ -124,9 +128,9 @@ func TestSyncEngineFailureExhaustion(t *testing.T) {
 		failureCount: 100, // More than max retries
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
-	engine.syncWithRetry()
+	engine.syncWithRetry(context.Background())
 
 	// Should have called maxRetries + 1 times
 	assert.Equal(t, engine.maxRetries+1, mockProvider.callCount)
@@ -141,7 +145,7 @@ func TestSyncEngineFailureExhaustion(t *testing.T) {
 // TestProcessIncidentLowSeverity verifies LOW severity incident skipping
 func TestProcessIncidentLowSeverity(t *testing.T) {
 	mockProvider := &MockIncidentProvider{}
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	incident := &domain.Incident{
 		ID:          1,
@@ -153,7 +157,7 @@ func TestProcessIncidentLowSeverity(t *testing.T) {
 	}
 
 	// Low severity incidents should be skipped (no-op)
-	err := engine.processIncident(incident)
+	err := engine.processIncident(context.Background(), incident)
 	assert.NoError(t, err)
 }
 
@@ -172,7 +176,7 @@ func TestStartAndStop(t *testing.T) {
 		incidents: []domain.Incident{},
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	// Create context with cancel
 	ctx, cancel := context.WithCancel(context.Background())
@@ -200,7 +204,7 @@ func TestLoggingOutput(t *testing.T) {
 		incidents: []domain.Incident{},
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	// Log a test message (output will go to stdout)
 	engine.logInfo("Test message", map[string]interface{}{
@@ -215,7 +219,7 @@ func TestLoggingOutput(t *testing.T) {
 // TestIncidentSeverityMapping verifies correct severity transformation
 func TestIncidentSeverityMapping(t *testing.T) {
 	mockProvider := &MockIncidentProvider{}
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	testCases := []struct {
 		severity      string
@@ -243,7 +247,7 @@ func TestIncidentSeverityMapping(t *testing.T) {
 		}
 
 		// For LOW/MEDIUM, verify no-op returns no error
-		err := engine.processIncident(incident)
+		err := engine.processIncident(context.Background(), incident)
 		assert.NoError(t, err)
 	}
 }
@@ -254,7 +258,7 @@ func TestConcurrentMetricsUpdate(t *testing.T) {
 		incidents: []domain.Incident{},
 	}
 
-	engine := NewSyncEngine(mockProvider)
+	engine := NewSyncEngine(mockProvider, testOrgID)
 
 	// Simulate concurrent metric updates
 	done := make(chan bool)

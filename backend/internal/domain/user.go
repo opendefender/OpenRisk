@@ -47,6 +47,8 @@ type User struct {
 }
 
 // UserClaims represents JWT claims with user and role information
+// DEPRECATED: Use github.com/opendefender/openrisk/pkg/auth.Claims for new RS256 tokens
+// Kept for backward compatibility with legacy HMAC tokens (will be removed after migration)
 type UserClaims struct {
 	ID          uuid.UUID `json:"id"`
 	Email       string    `json:"email"`
@@ -56,6 +58,9 @@ type UserClaims struct {
 	Permissions []string  `json:"permissions"`
 	ExpiresAt   int64     `json:"exp"`
 	IssuedAt    int64     `json:"iat"`
+	// New fields for RS256 migration
+	TenantID *uuid.UUID `json:"tenant_id,omitempty"`
+	JTI      string     `json:"jti,omitempty"`
 }
 
 // Implement jwt.Claims interface

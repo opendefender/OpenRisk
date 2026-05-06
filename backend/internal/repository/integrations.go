@@ -3,8 +3,9 @@ package ports
 import "github.com/opendefender/openrisk/internal/domain"
 
 // IncidentProvider : Interface que TheHive devra respecter
+// RULE #1: organizationID is REQUIRED for tenant scoping — prevent multi-tenant data leak
 type IncidentProvider interface {
-	FetchRecentIncidents() ([]domain.Incident, error)
+	FetchRecentIncidents(organizationID string) ([]domain.Incident, error)
 }
 
 // ThreatProvider : Interface que OpenCTI devra respecter

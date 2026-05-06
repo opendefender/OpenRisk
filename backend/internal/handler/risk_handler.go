@@ -9,8 +9,9 @@ import (
 	"github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/middleware"
-	"github.com/opendefender/openrisk/internal/service"
+	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
 
@@ -21,6 +22,7 @@ type RiskHandler struct {
 	listRisksUseCase  *risk.ListRisksUseCase
 	updateRiskUseCase *risk.UpdateRiskUseCase
 	deleteRiskUseCase *risk.DeleteRiskUseCase
+	redisClient       *redis.Client
 }
 
 func NewRiskHandler(
@@ -29,6 +31,7 @@ func NewRiskHandler(
 	listRisks *risk.ListRisksUseCase,
 	updateRisk *risk.UpdateRiskUseCase,
 	deleteRisk *risk.DeleteRiskUseCase,
+	redisClient *redis.Client,
 ) *RiskHandler {
 	return &RiskHandler{
 		createRiskUseCase: createRisk,
@@ -36,6 +39,7 @@ func NewRiskHandler(
 		listRisksUseCase:  listRisks,
 		updateRiskUseCase: updateRisk,
 		deleteRiskUseCase: deleteRisk,
+		redisClient:       redisClient,
 	}
 }
 
@@ -108,12 +112,27 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		}
 		if err := query.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
 			domainRisk.Assets = assets
-			// Recompute score
-			domainRisk.Score = service.ComputeRiskScore(domainRisk.Impact, domainRisk.Probability, assets)
-			// Save relationships and updated score
-			database.DB.Save(domainRisk)
-            database.DB.Model(&domainRisk).Association("Assets").Replace(assets)
+			// Save relationships (no direct score compute — publish Redis event instead)
+			database.DB.Model(&domainRisk).Association("Assets").Replace(assets)
 		}
+	}
+
+	// RULE #12: Score Engine is NEVER called directly from handler.
+	// Always publish Redis event → ScoreWorker listens and recalculates async.
+	userID := uuid.Nil
+	if mwCtx != nil {
+		userID = mwCtx.UserID
+	}
+	if h.redisClient != nil {
+		event := events.RiskUpdatedEvent{
+			RiskID:           domainRisk.ID.String(),
+			TenantID:         orgID.String(),
+			Probability:      float64(domainRisk.Probability),
+			Impact:           float64(domainRisk.Impact),
+			AssetCriticality: 1.0, // Default; will be recalculated by worker
+			TriggeredBy:      userID.String(),
+		}
+		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
 	}
 
 	var out domain.Risk

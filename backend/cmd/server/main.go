@@ -14,20 +14,28 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/rs/zerolog"
 
-	"github.com/opendefender/openrisk/internal/config"
-	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/application/auth"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
+	"github.com/opendefender/openrisk/internal/auth"
+	"github.com/opendefender/openrisk/internal/config"
+	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
+	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
 	"github.com/opendefender/openrisk/internal/service"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
+	"github.com/opendefender/openrisk/pkg/notify"
+	"github.com/opendefender/openrisk/pkg/scoring"
 )
 
 func main() {
@@ -121,6 +129,7 @@ func main() {
 		&domain.MarketplaceApp{},
 		&domain.ConnectorUpdate{},
 		&domain.MarketplaceLog{},
+		&domain.AdminAuditEvent{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -145,6 +154,42 @@ func main() {
 	log.Println("Score Engine: Service initialized with default configuration")
 
 	// =========================================================================
+	// 3.5 JWT RS256 & SCORE WORKER INITIALIZATION (Critical Security & Events)
+	// =========================================================================
+
+	// Load RSA keys for JWT RS256 (fail-fast if missing)
+	rsaKeys := authpkg.MustLoadRSAKeys(
+		cfg.Server.RSAPrivateKeyPath,
+		cfg.Server.RSAPublicKeyPath,
+	)
+	log.Println("Auth: RSA keys loaded successfully for JWT RS256")
+
+	// Initialize Redis client for caching, events, and JWT blacklist
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379"
+	}
+	redisClientInstance := redisclient.NewClient(redisURL)
+	log.Println("Redis: Client connected for events, caching, and JWT blacklist")
+
+	// Initialize JWT token blacklist manager (via Redis)
+	tokenBlacklistManager := authpkg.NewTokenBlacklistManager(redisClientInstance)
+	log.Println("Auth: Token blacklist manager initialized (Redis-backed)")
+
+	// Initialize Score Engine (pure, stateless)
+	scoreEngine := scoring.NewEngine()
+	log.Println("Scoring: Engine initialized (pure, zero dependencies)")
+
+	// Initialize Score Worker (listens to Redis events)
+	zeroLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+	riskRepoForWorker := repository.NewGormRiskRepository(database.DB)
+	scoreWorker := workers.NewScoreWorker(redisClientInstance, scoreEngine, riskRepoForWorker, zeroLogger)
+
+	// Start Score Worker in background goroutine
+	go scoreWorker.Start(context.Background())
+	log.Println("Workers: Score Engine worker started (listening for risk.updated events)")
+
+	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
 	// =========================================================================
 
@@ -152,9 +197,20 @@ func main() {
 	// Ils respectent les interfaces définies dans core/ports
 	theHiveAdapter := thehive.NewTheHiveAdapter(cfg.Integrations.TheHive)
 
+	// Get organization ID for SyncEngine (multi-tenant scoping - Rule 1)
+	// In a multi-tenant setup, there would be one SyncEngine per organization
+	// For now, we use the default organization from environment or placeholder
+	organizationID := os.Getenv("SYNC_ORGANIZATION_ID")
+	if organizationID == "" {
+		// Fall back to first organization in DB or placeholder
+		// TODO: In production, each organization should have its own SyncEngine instance
+		organizationID = "550e8400-e29b-41d4-a716-446655440000" // Default placeholder
+		log.Println("Warning: SYNC_ORGANIZATION_ID not set, using default placeholder. Set this env var for proper multi-tenant operation.")
+	}
+
 	// Initialisation du Moteur de Synchro (Background Worker)
 	// Il tourne indépendamment de l'API HTTP
-	syncEngine := workers.NewSyncEngine(theHiveAdapter)
+	syncEngine := workers.NewSyncEngine(theHiveAdapter, organizationID)
 	syncEngine.Start(context.Background())
 
 	log.Println("OpenDefender SyncEngine started in background")
@@ -205,7 +261,38 @@ func main() {
 
 	api := app.Group("/api/v1")
 
-	// Initialize auth handler
+	// =========================================================================
+	// 5.1 CLEAN ARCHITECTURE AUTH MODULE INITIALIZATION
+	// =========================================================================
+
+	// Initialize repositories
+	userRepo := repository.NewGormUserRepository(database.DB)
+	orgRepo := repository.NewGormOrganizationRepository(database.DB)
+	refreshTokenRepo := repository.NewGormRefreshTokenRepository(database.DB)
+
+	// Initialize notification service
+	emailNotifier := notify.NewEmailNotifier() // Placeholder - implement actual email service
+	notificationService := notify.NewNotificationService(emailNotifier)
+
+	// Initialize password hasher (use bcrypt in production)
+	passwordHasher := auth.NewSimplePasswordHasher()
+
+	// Initialize use cases
+	loginUseCase := auth.NewLoginUseCase(userRepo, passwordHasher, notificationService)
+	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, passwordHasher, notificationService)
+	refreshUseCase := auth.NewRefreshTokenUseCase(refreshTokenRepo, userRepo)
+	logoutUseCase := auth.NewLogoutUseCase(refreshTokenRepo)
+
+	// Initialize Clean Architecture auth handler
+	cleanAuthHandler := authhandler.NewHandler(
+		loginUseCase,
+		registerUseCase,
+		refreshUseCase,
+		logoutUseCase,
+		passwordHasher,
+	)
+
+	// Initialize legacy auth handler (for backward compatibility)
 	authHandler := handlers.NewAuthHandler()
 
 	// Initialize OAuth2 and SAML2 configurations
@@ -219,9 +306,16 @@ func main() {
 			"db":      "CONNECTED",
 		})
 	})
-	api.Post("/auth/login", authHandler.Login)
-	api.Post("/auth/register", authHandler.Register)
-	api.Post("/auth/refresh", authHandler.RefreshToken)
+
+	// Clean Architecture Auth Routes
+	api.Post("/auth/login", cleanAuthHandler.Login)
+	api.Post("/auth/register", cleanAuthHandler.Register)
+	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
+	api.Post("/auth/logout", cleanAuthHandler.Logout)
+
+	// Legacy Auth Routes (for backward compatibility)
+	api.Post("/auth/legacy/login", authHandler.Login)
+	api.Post("/auth/legacy/refresh", authHandler.RefreshToken)
 
 	// --- OAuth2 Routes ---
 	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
@@ -236,8 +330,13 @@ func main() {
 	// Le middleware injecte user_id et role dans le contexte
 	protected := api.Use(middleware.Protected())
 
+	// Current user profile endpoint
+	api.Get("/auth/me", middleware.Protected(), cleanAuthHandler.Me)
+	api.Get("/users/me", authHandler.GetProfile)
+
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
+	
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo)
@@ -245,7 +344,7 @@ func main() {
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance)
 
 	protected.Get("/risks",
 		middleware.RequirePermissions(permissionService, domain.Permission{

@@ -1,0 +1,129 @@
+FichierHandler|NomHandler|Endpoint|Methode|MiddlewareAuth|MiddlewareTenant|RateLimit|InputValidation|SecretsEnLogs|TenantIsolation|AutresRisques
+auth_handler.go|Login|POST /api/v1/auth/login|POST|Non|Non|Non|Zod validation (email, password min=8)|Non|Manual safeGetString|Legacy JWT_SECRET en config deprecated; Pas de CSRF protection
+auth_handler.go|RefreshToken|POST /api/v1/auth/refresh|POST|GetUserClaims check|Non|Non|Basic validation (token required)|Non|Manual GetUserClaims|Token dans request body - risque exposure
+auth_handler.go|Register|POST /api/v1/auth/register|POST|Non|Non|Non|Zod validation (email, username min=3, password min=8)|Non|Aucune|Pas de email verification; Pas de rate limiting against spam
+user_handler.go|GetMe|GET /api/v1/auth/me|GET|GetUserClaims|Non|Non|Implicite (check userID != nil)|Non|GetUserClaims injection|Retourne DTO - OK; Pas de tenant filter
+user_handler.go|GetUsers|GET /api/v1/users|GET|GetUserClaims + admin check|Non|Non|Manuelle (admin role)|Non|Manual admin role check|CRITIQUE: Pas de tenant_id filter! Retourne tous users sans isolation
+user_handler.go|CreateUser|POST /api/v1/users|POST|GetUserClaims + admin check|Non|Non|Manuelle (admin role)|Zod validation (email, username, password, role)|Non|Manual admin check|CRITIQUE: Pas de tenant_id! User créé sans tenant association
+user_handler.go|UpdateUserStatus|PUT /api/v1/users/:id/status|PUT|GetUserClaims + admin check|Non|Non|Manuelle (admin role)|Basic (is_active boolean)|Non|Manual admin check|CRITIQUE: Pas de tenant isolation!
+user_handler.go|DeleteUser|DELETE /api/v1/users/:id|DELETE|GetUserClaims + admin check|Non|Non|Manuelle (admin role)|Aucune|Non|Manual admin check|CRITIQUE: Pas de tenant filter! Soft delete possible sans isolation
+user_handler.go|SeedAdminUser|INTERNAL|INTERNAL|Non (seed function)|Non|Non|Non|Hardcoded default admin123|Oui - WARNING en log|Non|CRITIQUE: Default credentials hardcoded! Password en env non forcé
+risk_handler.go|CreateRisk|POST /api/v1/risks|POST|Non explicite|GetContext (org)|Non|Zod validation (title, impact 1-5, probability 1-5)|Non|GetContext.OrganizationID injection|OK - tenant filter present; Mais pas de auth middleware explicite
+risk_handler.go|GetRisks|GET /api/v1/risks?filters|GET|Non explicite|GetContext (org)|Non|Manuelle (min_score, max_score parsing)|Non|GetContext.OrganizationID filter|OK - pagination avec min/max score filters; Pas d'auth middleware
+risk_handler.go|GetRisk|GET /api/v1/risks/:id|GET|Non explicite|GetContext (org)|Non|Manuelle (UUID parsing)|Non|GetContext.OrganizationID implicit|OK - GetRisk use case isolate; Pas d'auth check!
+risk_handler.go|UpdateRisk|PUT /api/v1/risks/:id|PUT|Non explicite|GetContext (org)|Non|Zod validation (tags dive uuid4)|Non|GetContext.OrganizationID filter|OK - tenant filter; Mais pas auth middleware
+risk_handler.go|DeleteRisk|DELETE /api/v1/risks/:id|DELETE|Non explicite|GetContext (org)|Non|Manuelle (UUID parsing)|Non|GetContext.OrganizationID implicit|OK - delete with tenant filter; Pas auth middleware
+organization_handler.go|CreateOrganization|POST /api/v1/organizations|POST|Non|Non|Non|Basic (name, description, etc)|Non|Aucune|CRITIQUE: Pas de user auth! Pas de tenant_id assignment à l'org créée
+organization_handler.go|GetOrganization|GET /api/v1/organizations/:id|GET|Non|Non|Non|Manual UUID parsing|Non|Aucune|Retourne org sans tenant filter - cross-tenant data leak risque!
+organization_handler.go|UpdateOrganization|PUT /api/v1/organizations/:id|PUT|Non|Non|Non|Manuelle (map updates)|Non|Aucune|CRITIQUE: Pas de permission check! N'importe qui peut modifier org
+organization_handler.go|UpgradeSubscription|POST /api/v1/organizations/:id/upgrade|POST|Non|Non|Non|Basic (tier string)|Non|Aucune|CRITIQUE: Pas d'auth! Business logic exposed sans protection
+organization_handler.go|AddMember|POST /api/v1/organizations/:id/members|POST|Non|Non|Non|Manual (userID, role)|Non|Aucune|CRITIQUE: Pas de permission check! Privilege escalation possible
+organization_handler.go|RemoveMember|DELETE /api/v1/organizations/:id/members/:userId|DELETE|Non|Non|Non|Manual UUID parsing|Non|Aucune|CRITIQUE: Pas d'auth! N'importe qui peut remove members
+notification_handler.go|GetNotifications|GET /api/v1/notifications|GET|Non explicite|safeGetUUID (tenant_id)|Non|Manuelle (limit max 100)|Non|safeGetUUID tenant_id filter|OK - tenant isolation; Mais pas auth middleware
+notification_handler.go|GetUnreadCount|GET /api/v1/notifications/unread-count|GET|Non explicite|safeGetUUID (tenant_id)|Non|Aucune|Non|safeGetUUID tenant_id filter|OK - tenant filter; Pas auth middleware
+notification_handler.go|MarkAsRead|PATCH /api/v1/notifications/:id/read|PATCH|Non explicite|safeGetUUID (tenant_id)|Non|Manual UUID parsing|Non|safeGetUUID tenant_id filter|OK - tenant isolation; Manque auth middleware
+notification_handler.go|MarkAllAsRead|PATCH /api/v1/notifications/read-all|PATCH|Non explicite|safeGetUUID (tenant_id)|Non|Aucune|Non|safeGetUUID tenant_id filter|OK - tenant filter; Pas auth
+notification_handler.go|DeleteNotification|DELETE /api/v1/notifications/:id|DELETE|Non explicite|safeGetUUID (tenant_id)|Non|Manual UUID parsing|Non|safeGetUUID tenant_id filter|OK - tenant isolation; Pas auth middleware
+token_handler.go|CreateToken|POST /api/tokens|POST|GetUserIDFromContext required|Non|Non|Zod validation (name required)|Non|GetUserIDFromContext check|OK - user owner check; Token value returned in response (exposure?)
+token_handler.go|ListTokens|GET /api/tokens|GET|GetUserIDFromContext required|Non|Non|Aucune|Non|GetUserIDFromContext filter|OK - user filter; Retourne token_prefix safe
+token_handler.go|GetToken|GET /api/tokens/:id|GET|GetUserIDFromContext + userID check|Non|Non|Manual UUID parsing|Non|GetUserIDFromContext + token.UserID comparison|OK - user isolation; Pas de tenant filter though
+token_handler.go|UpdateToken|PUT /api/tokens/:id|PUT|GetUserIDFromContext + userID check|Non|Non|Zod validation (body parser)|Non|GetUserIDFromContext + token.UserID check|OK - user isolation; Pas tenant filter
+token_handler.go|RevokeToken|POST /api/tokens/:id/revoke|POST|GetUserIDFromContext + userID check|Non|Non|Manual UUID parsing|Non|GetUserIDFromContext check|OK - user isolation; Pas tenant filter
+rbac_user_handler.go|ListUsers|GET /api/v1/users (tenant)|GET|Non explicite|safeGetUUID (tenantID)|Non|Manuelle (limit 20, offset)|Non|safeGetUUID tenantID filter|OK - tenant isolation; Pas auth middleware
+rbac_user_handler.go|GetUser|GET /api/v1/users/:id (tenant)|GET|Non explicite|safeGetUUID (tenantID)|Non|Manual UUID parsing|Non|safeGetUUID tenantID + query filter|OK - tenant isolation; Pas auth middleware
+rbac_user_handler.go|AddUserToTenant|POST /api/v1/users (tenant add)|POST|Non explicite|safeGetUUID (tenantID) + requestorID|Non|Zod validation (userID, roleID UUID)|Non|safeGetUUID + permission check (admin level < 9)|OK - tenant isolation + admin check; Pas explicit auth middleware
+rbac_user_handler.go|ChangeUserRole|PUT /api/v1/users/:id/role|PUT|Non explicite|safeGetUUID (tenantID)|Non|Zod validation (roleID UUID)|Non|safeGetUUID + requestorID admin check|OK - tenant isolation + admin check; Pas auth middleware
+rbac_role_handler.go|ListRoles|GET /api/v1/roles (tenant)|GET|Non explicite|safeGetUUID (tenantID)|Non|Manuelle (limit 20, offset)|Non|safeGetUUID tenantID filter|OK - tenant isolation; Pas auth middleware
+rbac_role_handler.go|GetRole|GET /api/v1/roles/:id (tenant)|GET|Non explicite|Non|Non|Manual UUID parsing|Non|Non|Retourne role sans tenant filter! Cross-tenant leak possible
+rbac_role_handler.go|CreateRole|POST /api/v1/roles (tenant)|POST|Non explicite|safeGetUUID (tenantID) + requestorID|Non|Zod validation (name, level)|Non|safeGetUUID + admin level check|OK - tenant isolation + admin check; Pas auth middleware
+rbac_role_handler.go|UpdateRole|PUT /api/v1/roles/:id|PUT|Non explicite|safeGetUUID (tenantID)|Non|Zod validation (body)|Non|safeGetUUID + admin check|OK - tenant isolation + admin check; Pas auth middleware
+rbac_role_handler.go|DeleteRole|DELETE /api/v1/roles/:id|DELETE|Non explicite|safeGetUUID (tenantID)|Non|Manual UUID parsing|Non|safeGetUUID + admin check|OK - tenant isolation + admin check; Pas auth middleware
+audit_log_handler.go|GetAuditLogs|GET /api/v1/audit/logs|GET|GetUserClaims required|Non|Non|Manuelle (page, limit max 100)|Non|GetUserClaims + admin permission check|OK - admin only + date range filter; Pas tenant filter (global admin?)
+audit_log_handler.go|GetUserAuditLogs|GET /api/v1/audit/users/:id|GET|GetUserClaims + admin check|Non|Non|Manuelle (page, limit)|Non|GetUserClaims admin check|OK - admin only; Pas tenant filter!
+audit_log_handler.go|GetAuditLogsByAction|GET /api/v1/audit/actions|GET|GetUserClaims + admin check|Non|Non|Manuelle (page, limit)|Non|GetUserClaims admin check|OK - admin only; Pas tenant filter!
+analytics_handler.go|GetRiskMetrics|GET /api/v1/analytics/risks/metrics|GET|safeGetString (userID) check|Non|Non|Aucune|Non|safeGetString userID existence|Pas de tenant isolation! Global metrics possible
+analytics_handler.go|GetRiskTrends|GET /api/v1/analytics/risks/trends|GET|safeGetString (userID) check|Non|Non|Manuelle (days 1-365 parsing)|Non|safeGetString userID check|Pas de tenant isolation!
+analytics_handler.go|GetMitigationMetrics|GET /api/v1/analytics/mitigations/metrics|GET|safeGetString (userID) check|Non|Non|Aucune|Non|safeGetString userID check|Pas de tenant isolation!
+analytics_handler.go|GetFrameworkAnalytics|GET /api/v1/analytics/frameworks|GET|safeGetString (userID) check|Non|Non|Aucune|Non|safeGetString userID check|Pas de tenant isolation!
+analytics_handler.go|GetDashboardSnapshot|GET /api/v1/analytics/dashboard|GET|safeGetString (userID) check|Non|Non|Aucune|Non|safeGetString userID check|Pas de tenant isolation! Business data leak
+analytics_handler.go|GetExportData|GET /api/v1/analytics/export|GET|safeGetString (userID) check|Non|Non|Manual (format parsing)|Non|safeGetString userID check|Pas de tenant isolation! Can export all data
+dashboard_handler.go|GetDashboardStats|GET /api/v1/dashboard/stats|GET|Non explicite|GetContext (org) optional|Non|Aucune|Non|GetContext optional filter|Pas d'auth middleware! Pas de fallback si GetContext nil
+asset_handler.go|GetAssets|GET /api/v1/assets|GET|Non explicite|GetContext (org) optional|Non|Aucune|Non|GetContext optional filter|CRITIQUE: Pas d'auth! Pas de tenant filter fallback
+asset_handler.go|CreateAsset|POST /api/v1/assets|POST|Non explicite|GetContext (org) optional|Non|Manual (BodyParser)|Non|GetContext optional assign|CRITIQUE: Pas d'auth! Pas de tenant enforcement
+incident_handler.go|CreateIncident|POST /api/incidents|POST|Non explicite|safeGetString (tenant_id)|Non|Zod validation (body)|Oui - fmt.Sprintf error in response|safeGetString tenant_id filter|Format string vulnerability! Error messages expose details
+incident_handler.go|GetIncident|GET /api/incidents/:id|GET|Non explicite|safeGetString (tenant_id)|Non|Manual (ID parsing)|Oui - fmt.Sprintf error msg|safeGetString filter|Format string vulnerability!
+incident_handler.go|ListIncidents|GET /api/incidents?filters|GET|Non explicite|safeGetString (tenant_id)|Non|Manuelle (limit, offset parsing)|Oui - fmt.Sprintf error|safeGetString filter|Format string vulnerability in error messages
+incident_handler.go|UpdateIncident|PUT /api/incidents/:id|PUT|Non explicite|safeGetString (tenant_id) + userID|Non|Zod validation (body)|Oui - fmt.Sprintf error|safeGetString filter + user check|Format string vulnerability!
+incident_handler.go|DeleteIncident|DELETE /api/incidents/:id|DELETE|Non explicite|safeGetString (tenant_id)|Non|Manual (ID parsing)|Oui - fmt.Sprintf error|safeGetString filter|Format string vulnerability!
+incident_handler.go|GetIncidentTimeline|GET /api/incidents/:id/timeline|GET|Non explicite|Non|Non|Manual (ID parsing)|Oui - fmt.Sprintf error|Aucune|CRITIQUE: Pas de tenant filter! Cross-tenant access possible
+incident_handler.go|LinkRisk|POST /api/incidents/:id/link-risk/:riskId|POST|Non explicite|Non|Non|Manual (ID parsing)|Oui - fmt.Sprintf error|Aucune|CRITIQUE: Pas de tenant filter!
+mitigation_handler.go|AddMitigation|POST /api/risks/:id/mitigations|POST|Non explicite|GetContext (org) check + UUID validate|Non|Basic UUID validation|Non|GetContext org isolation|OK - tenant filter; Pas auth middleware
+mitigation_handler.go|ToggleMitigationStatus|PATCH /api/mitigations/:id/status|PATCH|Non explicite|GetContext (org) optional|Non|Manual (ID parsing)|Non|GetContext optional filter|Pas d'auth! Pas de tenant fallback
+mitigation_handler.go|GetRecommendedMitigations|GET /api/mitigations/recommended|GET|Non explicite|GetContext optional + fallback|Non|Aucune|Non|GetContext + fallback to c.Locals|OK - tenant filter attempt; Pas auth middleware
+mitigation_handler.go|UpdateMitigation|PUT /api/mitigations/:id|PUT|Non explicite|GetContext (org) optional|Non|Zod validation (body fields)|Non|GetContext optional filter|Pas d'auth! Pas de tenant enforcement
+mitigation_handler.go|CreateMitigationSubAction|POST /api/mitigations/:id/subactions|POST|Non explicite|GetContext (org) check|Non|Zod validation (title required)|Non|GetContext org isolation|OK - tenant check; Pas auth middleware
+score_engine_handler.go|GetScoringConfigs|GET /api/v1/score-engine/configs|GET|Non|Non|Non|Aucune|Non|Non|Pas d'auth! Scoring configs exposed without permission
+score_engine_handler.go|GetScoringConfig|GET /api/v1/score-engine/configs/:id|GET|Non|Non|Non|Manual (id required string)|Non|Non|Pas d'auth! Pas de tenant filter
+score_engine_handler.go|CreateScoringConfig|POST /api/v1/score-engine/configs|POST|Non|Non|Non|Zod validation (name, formula, thresholds)|Non|Non|CRITIQUE: Pas d'auth! N'importe qui crée config
+score_engine_handler.go|UpdateScoringConfig|PUT /api/v1/score-engine/configs/:id|PUT|Non|Non|Non|Zod validation (body)|Non|Non|CRITIQUE: Pas d'auth! N'importe qui modifie config
+score_engine_handler.go|ComputeRiskScore|POST /api/v1/score-engine/compute|POST|Non|Non|Non|Zod validation (impact, probability)|Non|Non|CRITIQUE: Pas d'auth! Scoring exposed without permission
+integration_handler.go|TestIntegration|POST /api/integrations/:id/test|POST|GetUserClaims required|Non|Non|Zod validation (api_url, api_key)|Non - mais credential passing risky|GetUserClaims check|CRITIQUE: API key in request body! Can be logged; No rate limit on test endpoint
+integration_handler.go|TestIntegrationAdvanced|POST /api/integrations/:id/test-advanced|POST|GetUserClaims required|Non|Non|Zod validation (api_url, api_key)|Non - API key exposed|GetUserClaims check|CRITIQUE: API key in request body + retry logic! Credentials exposed in logs
+export_handler.go|ExportRisksPDF|GET /api/v1/risks/export/pdf|GET|Non explicite|safeGetUUID (tenant_id) filter|Non|Aucune|Non - but PDF generated|safeGetUUID tenant_id filter|OK - tenant isolation; Pas auth middleware; PDF gen vulnerable to XXE?
+export_handler.go|ExportMetricsCSV|GET /api/v1/metrics/export|GET|Non explicite|Non|Non|Manual (format, range parsing)|Non|Non|CRITIQUE: Pas de tenant filter! All metrics exported
+export_handler.go|ExportComplianceData|GET /api/v1/compliance/export|GET|Non explicite|Non|Non|Manual (format parsing)|Non|Non|CRITIQUE: Pas de tenant filter!
+export_handler.go|ExportTrendsData|GET /api/v1/trends/export|GET|Non explicite|Non|Non|Manual (days parsing)|Non|Non|CRITIQUE: Pas de tenant filter!
+oauth2_handler.go|OAuth2Login|GET /api/v1/auth/oauth2/login/:provider|GET|Non|Non|Non|Paramètre provider validation|Non|Non|OK - state generation for CSRF; Mais pas de rate limit on state storage
+oauth2_handler.go|OAuth2Callback|GET /api/v1/auth/oauth2/callback/:provider|GET|Non|Non|Non|Manual (state, code validation)|Non - but token exchanged|State validation present|OK - state validation; Mais token stored without tenant context?
+saml2_handler.go|SAML2InitiateLogin|GET /api/v1/auth/saml2/login|GET|Non|Non|Non|Environment variable check|Non|Non|OK - basic config check; Pas de rate limit
+saml2_handler.go|SAML2ACS|POST /api/v1/auth/saml2/acs|POST|Non|Non|Non|XML parsing + status validation|Non - XML parsing vulnerable|SAMLResponse base64 decode|CRITIQUE: Pas de signature validation! SAML response forgeable; XXE possible
+multitenancy_auth_handler.go|Login|POST /api/v1/auth/login (multitenant)|POST|Non|Non|Non|Zod validation (email, password)|Non|Manual credential check|OK - basic auth; Pas de tenant isolation return?
+multitenancy_auth_handler.go|SelectOrganization|POST /api/v1/auth/select-org|POST|GetUserClaims required|Non|Non|Zod validation (org_id UUID)|Non|GetUserClaims + org permission|OK - user auth + org select; Pas rate limit on org switch
+multitenancy_auth_handler.go|RefreshToken|POST /api/v1/auth/refresh|POST|Non|Non|Non|Zod validation (refresh_token)|Non|Manual token validation|OK - token refresh; Pas tenant context
+multitenancy_auth_handler.go|Logout|POST /api/v1/auth/logout|POST|GetContext required|Non|Non|Manual (auth header)|Non|GetContext + token hash|OK - logout; Pas of rate limit
+multitenancy_auth_handler.go|GetProfile|GET /api/v1/auth/profile|GET|GetContext required|Non|Non|Aucune|Non|GetContext check|OK - context check; Minimal data return
+multitenancy_auth_handler.go|GetMyOrganizations|GET /api/v1/auth/orgs|GET|GetContext required|Non|Non|Aucune|Non|GetContext check|OK - context check; Placeholder implementation
+multitenancy_org_handler.go|CreateOrganization|POST /api/v1/orgs|POST|GetContext required|Non|Non|Zod validation (body)|Non|GetContext.UserID association|OK - user auth + user passed to service; Pas explicit org isolation
+multitenancy_org_handler.go|GetOrganization|GET /api/v1/orgs/:id|GET|Non explicite|Non|Non|Manual (UUID/slug parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de org ownership check
+multitenancy_org_handler.go|ListMyOrganizations|GET /api/v1/orgs/my|GET|GetContext required|Non|Non|Aucune|Non|GetContext.UserID filter|OK - user context filter; Pas rate limit
+multitenancy_org_handler.go|UpdateOrganization|PUT /api/v1/orgs/:id|PUT|GetContext required|Non|Non|Manuelle (body parser)|Non|GetContext + root check|OK - org auth check; Pas explicit tenant isolation
+multitenancy_org_handler.go|DeleteOrganization|DELETE /api/v1/orgs/:id|DELETE|GetContext required|Non|Non|Manual (UUID parsing)|Non|GetContext + root check|OK - org auth; Soft delete; Pas explicit isolation
+multitenancy_org_handler.go|InviteMembers|POST /api/v1/orgs/:id/invite|POST|GetContext required|Non|Non|Zod validation (emails, role)|Non|GetContext + permission check|OK - org auth + permission; Pas rate limit on invites
+multitenancy_org_handler.go|AcceptInvitation|POST /api/v1/orgs/invitations/:token|POST|GetContext required|Non|Non|Manual (token UUID)|Non|GetContext + token validation|OK - context check; Pas explicit org isolation
+multitenancy_org_handler.go|TransferOwnership|POST /api/v1/orgs/:id/transfer|POST|GetContext required|Non|Non|Manual parsing|Non|GetContext + root check|OK - root check; Pas rate limit on ownership transfer
+custom_field_handler.go|CreateCustomField|POST /api/v1/custom-fields|POST|GetUserClaims required|Non|Non|Zod validation (name, type, scope)|Non|GetUserClaims check|OK - user auth; Pas tenant isolation!
+custom_field_handler.go|GetCustomField|GET /api/v1/custom-fields/:id|GET|Non explicite|Non|Non|Manual (UUID parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de tenant filter
+custom_field_handler.go|ListCustomFields|GET /api/v1/custom-fields|GET|Non explicite|Non|Non|Manual (scope parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de tenant filter
+bulk_operation_handler.go|CreateBulkOperation|POST /api/v1/bulk-operations|POST|GetUserClaims required|Non|Non|Zod validation (operation_type)|Non|GetUserClaims filter|OK - user auth; Pas tenant isolation!
+bulk_operation_handler.go|GetBulkOperation|GET /api/v1/bulk-operations/:id|GET|Non explicite|Non|Non|Manual (UUID parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de tenant filter
+bulk_operation_handler.go|ListBulkOperations|GET /api/v1/bulk-operations|GET|GetUserClaims required|Non|Non|Manuelle (limit, offset)|Non|GetUserClaims filter|OK - user auth; Pas tenant isolation!
+marketplace_handler.go|ListConnectors|GET /api/marketplace/connectors|GET|Non|Non|Non|Manuelle (limit, offset, filters)|Non|Non|OK - public marketplace; No auth needed
+marketplace_handler.go|GetConnector|GET /api/marketplace/connectors/:id|GET|Non|Non|Non|Manual (id required)|Non|Non|OK - public marketplace; No auth needed
+marketplace_handler.go|SearchConnectors|GET /api/marketplace/connectors/search|GET|Non|Non|Non|Manual (search params)|Non|Non|OK - public marketplace; No auth needed
+marketplace_handler.go|AddConnectorReview|POST /api/marketplace/connectors/:id/reviews|POST|Non|Non|Non|Manuelle (body parser)|Non|Non|CRITIQUE: Pas d'auth! Anyone can review
+marketplace_handler.go|InstallApp|POST /api/marketplace/apps|POST|Non|Non|Non|Manuelle (body parser)|Non|Non|CRITIQUE: Pas d'auth! Anyone can install apps
+rbac_tenant_handler.go|ListTenants|GET /api/v1/tenants (user)|GET|Non explicite|safeGetUUID (userID)|Non|Manuelle (limit, offset)|Non|safeGetUUID userID filter|OK - user filter; Pas auth middleware
+rbac_tenant_handler.go|GetTenant|GET /api/v1/tenants/:id|GET|Non explicite|Manual UUID parse|Non|Manual (UUID parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de user filter; Cross-tenant access
+rbac_tenant_handler.go|CreateTenant|POST /api/v1/tenants|POST|Non explicite|Non|Non|Manuelle (body)|Non|Non|CRITIQUE: Pas d'auth! N'importe qui crée tenant
+risk_management_handler.go|IdentifyRisk|POST /api/v1/risk-management/identify|POST|Non explicite|safeGetUUID (tenant_id) filter|Non|Zod validation (risk_id, category, context, method)|Non|safeGetUUID tenant_id + userID filter|OK - tenant isolation + user tracking
+risk_management_handler.go|AnalyzeRisk|POST /api/v1/risk-management/analyze|POST|Non explicite|safeGetUUID (tenant_id)|Non|Zod validation (risk_register_id, scores, methodology)|Non|safeGetUUID tenant_id + userID|OK - tenant isolation; Pas auth middleware
+team_handler.go|CreateTeam|POST /api/v1/teams|POST|GetUserClaims + admin check|Non|Non|Zod validation (name)|Non|GetUserClaims + admin role check|OK - admin only; Pas tenant isolation
+team_handler.go|GetTeams|GET /api/v1/teams|GET|GetUserClaims + admin check|Non|Non|Aucune|Non|GetUserClaims + admin check|OK - admin only; Pas tenant isolation
+trend_handler.go|AnalyzeTrend|POST /api/v1/trends/analyze|POST|Non explicite|Non (tenantId param unused)|Non|Zod validation (metric_type, data_points, time_range)|Non|Non|CRITIQUE: Pas d'auth! TenantId param ignée
+trend_handler.go|GenerateForecast|POST /api/v1/trends/forecast|POST|Non explicite|Non (tenantId param unused)|Non|Zod validation (metric_type, data_points, forecast_days)|Non|Non|CRITIQUE: Pas d'auth! TenantId param ignée
+trend_handler.go|GetRecommendations|POST /api/v1/trends/recommendations|POST|Non explicite|Non|Non|Manuelle (body parser)|Non|Non|CRITIQUE: Pas d'auth!
+risk_timeline_handler.go|GetRiskTimeline|GET /api/v1/risks/:id/timeline|GET|Non explicite|Non|Non|Manuelle (limit, offset parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de tenant filter; Cross-tenant access
+risk_timeline_handler.go|GetStatusChanges|GET /api/v1/risks/:id/timeline/status|GET|Non explicite|Non|Non|Manual (UUID parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de tenant filter
+risk_timeline_handler.go|GetScoreChanges|GET /api/v1/risks/:id/timeline/scores|GET|Non explicite|Non|Non|Manual (UUID parsing)|Non|Non|CRITIQUE: Pas d'auth! Pas de tenant filter
+stats_handler.go|GetRiskMatrixData|GET /api/v1/stats/risk-matrix|GET|Non explicite|safeGetUUID (tenant_id)|Non|Aucune|Non|safeGetUUID tenant_id filter|OK - tenant isolation; Pas auth middleware
+stats_handler.go|GetGlobalRiskTrend|GET /api/v1/stats/trends|GET|Non explicite|safeGetUUID (tenant_id)|Non|Aucune|Non|safeGetUUID tenant_id filter|OK - tenant isolation; Pas auth middleware
+stats_handler.go|GetRiskDistribution|GET /api/v1/stats/distribution|GET|Non explicite|safeGetUUID (tenant_id) optional|Non|Aucune|Non|safeGetUUID optional filter|Pas d'auth; Pas de fallback if nil
+enhanced_dashboard_handler.go|GetDashboardMetrics|GET /api/v1/dashboard/metrics|GET|c.Locals userID check|Non|Non|Aucune|Non|c.Locals userID existence|Pas de tenant isolation!
+enhanced_dashboard_handler.go|GetRiskTrends|GET /api/v1/dashboard/risk-trends|GET|c.Locals userID check|Non|Non|Aucune|Non|c.Locals userID existence|Pas de tenant isolation!
+enhanced_dashboard_handler.go|GetSeverityDistribution|GET /api/v1/dashboard/severity|GET|c.Locals userID check|Non|Non|Aucune|Non|c.Locals userID existence|Pas de tenant isolation!
+enhanced_dashboard_handler.go|GetMitigationStatus|GET /api/v1/dashboard/mitigations|GET|c.Locals userID check|Non|Non|Aucune|Non|c.Locals userID existence|Pas de tenant isolation!
+gamification_handler.go|GetMyGamificationProfile|GET /api/v1/gamification/profile|GET|GetUserClaims required|safeGetUUIDGamification (tenant_id)|Non|Aucune|Non|GetUserClaims + fallback to c.Locals|OK - user auth; Pas explicit rate limit
+monitoring_handler.go|GetMetrics|GET /metrics|GET|Non|Non|Non|Aucune|Non|Non|OK - Prometheus metrics; No auth (standard practice)
+cache_integration.go|[Multiple funcs]|[Various]|[Various]|[Varies]|[Varies]|[Varies]|[Varies]|[Varies]|[Varies]|Support functions - see main handlers
+context_helpers.go|safeGetUUID|[Internal]|[Internal]|N/A|N/A|N/A|N/A|N/A|N/A|Helper function - returns uuid.Nil on error (safe)
+context_helpers.go|safeGetString|[Internal]|[Internal]|N/A|N/A|N/A|N/A|N/A|N/A|Helper function - returns empty string on error (safe)
