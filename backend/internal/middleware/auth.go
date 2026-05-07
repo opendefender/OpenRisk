@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -219,6 +220,10 @@ func isPublicEndpoint(path string) bool {
 		"/api/v1/auth/login",
 		"/api/v1/auth/register",
 		"/api/v1/auth/refresh",
+		"/api/v1/auth/oauth2/google/redirect",
+		"/api/v1/auth/oauth2/google/callback",
+		"/api/v1/auth/oauth2/github/redirect",
+		"/api/v1/auth/oauth2/github/callback",
 	}
 
 	for _, public := range publicPaths {
@@ -227,4 +232,145 @@ func isPublicEndpoint(path string) bool {
 		}
 	}
 	return false
+}
+
+// MFATokenMiddleware handles MFA_REQUIRED temporary tokens
+// Allows access to /auth/mfa/challenge endpoint with temporary token
+func MFATokenMiddleware(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti string) (bool, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Only apply to MFA challenge endpoint
+		if c.Path() != "/api/v1/auth/mfa/challenge" {
+			return c.Next()
+		}
+
+		// Extract token from Authorization header
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "UNAUTHORIZED",
+				"message": "Missing authorization header",
+			})
+		}
+
+		// Parse "Bearer <token>"
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "UNAUTHORIZED",
+				"message": "Invalid authorization header format",
+			})
+		}
+
+		tokenString := parts[1]
+
+		// Validate JWT with RS256 signature and JTI blacklist check
+		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)
+		if err != nil {
+			switch err {
+			case authpkg.ErrTokenExpired:
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"code":    "TOKEN_EXPIRED",
+					"message": "Token has expired",
+				})
+			case authpkg.ErrTokenRevoked:
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"code":    "TOKEN_REVOKED",
+					"message": "Token has been revoked",
+				})
+			case authpkg.ErrTokenInvalid:
+				fallthrough
+			default:
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"code":    "TOKEN_INVALID",
+					"message": "Invalid token",
+				})
+			}
+		}
+
+		// Check if this is an MFA_REQUIRED token
+		if claims.Type != "MFA_REQUIRED" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "UNAUTHORIZED",
+				"message": "Invalid token type for MFA challenge",
+			})
+		}
+
+		// Validate required tenant_id
+		if claims.TenantID == uuid.Nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "UNAUTHORIZED",
+				"message": "Missing tenant_id in token",
+			})
+		}
+
+		// Store claims in context for downstream handlers
+		c.Locals("user", claims)
+		c.Locals("user_id", claims.Sub)
+		c.Locals("tenant_id", claims.TenantID)
+		c.Locals("org_roles", claims.OrgRoles)
+		c.Locals("permissions", claims.Permissions)
+		c.Locals("feature_flags", claims.FeatureFlags)
+		c.Locals("jti", claims.JTI)
+		c.Locals("mfa_required", true) // Flag for MFA challenge
+
+		return c.Next()
+	}
+}
+
+// MFARateLimit creates rate limiting for MFA endpoints (5 req/min per user)
+func MFARateLimit(store *RateLimitStore) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Only apply to MFA endpoints
+		if !strings.HasPrefix(c.Path(), "/api/v1/auth/mfa/") {
+			return c.Next()
+		}
+
+		// Get user ID from context (should be set by auth middleware)
+		userID, ok := c.Locals("user_id").(uuid.UUID)
+		if !ok || userID == uuid.Nil {
+			// Fallback to IP if no user ID (for MFA challenge endpoint)
+			key := c.IP()
+			if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
+				key = forwarded
+			}
+		} else {
+			key := fmt.Sprintf("user:%s", userID.String())
+		}
+
+		// Check rate limit: 5 requests per minute
+		if !store.IsAllowed(key, 5, 1*time.Minute) {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"code":    "RATE_LIMIT_EXCEEDED",
+				"message": "Too many MFA requests. Please try again later.",
+			})
+		}
+
+		return c.Next()
+	}
+}
+
+// OAuthRateLimit creates rate limiting for OAuth callbacks (10 req/min per IP)
+func OAuthRateLimit(store *RateLimitStore) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Only apply to OAuth callback endpoints
+		if !strings.HasSuffix(c.Path(), "/callback") || !strings.Contains(c.Path(), "/oauth2/") {
+			return c.Next()
+		}
+
+		// Use IP address for rate limiting
+		key := c.IP()
+		if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
+			key = forwarded
+		}
+
+		// Check rate limit: 10 requests per minute per IP
+		if !store.IsAllowed(key, 10, 1*time.Minute) {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"code":    "RATE_LIMIT_EXCEEDED",
+				"message": "Too many OAuth requests. Please try again later.",
+			})
+		}
+
+		return c.Next()
+	}
 }
