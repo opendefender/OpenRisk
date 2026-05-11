@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -95,7 +94,8 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 			return nil, fmt.Errorf("failed to parse private key: %w", err)
 		}
 
-		key, ok := keyInterface.(*rsa.PrivateKey)
+		var ok bool
+		key, ok = keyInterface.(*rsa.PrivateKey)
 		if !ok {
 			return nil, fmt.Errorf("private key is not RSA")
 		}
