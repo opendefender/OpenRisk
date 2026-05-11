@@ -34,7 +34,7 @@ func (r *GormAdminAuditEventRepository) GetByID(ctx context.Context, id uuid.UUI
 	result := r.db.WithContext(ctx).Where("id = ?", id).First(&event)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			return nil, domain.ErrNotFound("admin_audit_event", id.String())
+			return nil, domain.NewNotFoundError("admin_audit_event", id.String())
 		}
 		return nil, result.Error
 	}
