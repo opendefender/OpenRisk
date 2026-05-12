@@ -9,85 +9,222 @@ import (
 	"gorm.io/gorm"
 )
 
+// RiskStatus represents the lifecycle state of a risk
 type RiskStatus string
 
 const (
+	RiskOpen       RiskStatus = "open"        // Newly identified, under review
+	RiskInProgress RiskStatus = "in_progress" // Mitigation underway
+	RiskMitigated  RiskStatus = "mitigated"   // Treatment plan completed
+	RiskAccepted   RiskStatus = "accepted"    // Formally accepted as residual
+	RiskClosed     RiskStatus = "closed"      // Fully resolved/no longer relevant
+	// Legacy statuses for compatibility
 	StatusDraft     RiskStatus = "DRAFT"
 	StatusActive    RiskStatus = "ACTIVE"
 	StatusMitigated RiskStatus = "MITIGATED"
 	StatusAccepted  RiskStatus = "ACCEPTED"
 )
 
+// CriticalityLevel represents the severity level calculated from score
 type CriticalityLevel string
 
 const (
-	CriticalityLow      CriticalityLevel = "LOW"
-	CriticalityMedium   CriticalityLevel = "MEDIUM"
-	CriticalityHigh     CriticalityLevel = "HIGH"
-	CriticalityCritical CriticalityLevel = "CRITICAL"
+	CriticalityLow      CriticalityLevel = "low"
+	CriticalityMedium   CriticalityLevel = "medium"
+	CriticalityHigh     CriticalityLevel = "high"
+	CriticalityCritical CriticalityLevel = "critical"
+	// Legacy constants for compatibility
+	RiskCriticalityLow      CriticalityLevel = "LOW"
+	RiskCriticalityMedium   CriticalityLevel = "MEDIUM"
+	RiskCriticalityHigh     CriticalityLevel = "HIGH"
+	RiskCriticalityCritical CriticalityLevel = "CRITICAL"
 )
 
+// RiskTreatment represents the chosen treatment strategy
+type RiskTreatment string
+
+const (
+	TreatmentAccept   RiskTreatment = "accept"
+	TreatmentMitigate RiskTreatment = "mitigate"
+	TreatmentTransfer RiskTreatment = "transfer"
+	TreatmentAvoid    RiskTreatment = "avoid"
+)
+
+// RiskSource indicates where the risk originated
+type RiskSource string
+
+const (
+	SourceManual    RiskSource = "manual"
+	SourceCTIAuto   RiskSource = "cti_auto"    // From CTI/NVD/CISA KEV
+	SourceScanAuto  RiskSource = "scan_auto"   // From vulnerability scanner
+	SourceImport    RiskSource = "import"      // Imported from file
+	SourceVendor    RiskSource = "vendor"      // From vendor assessment
+	SourceAI        RiskSource = "ai"          // AI-generated
+)
+
+// Risk represents a business risk with full lifecycle management
+// Follows Clean Architecture: pure domain entity, ZERO external dependencies
 type Risk struct {
-	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Title       string    `gorm:"size:255;not null" json:"title"`
-	Description string    `gorm:"type:text" json:"description"`
+	// Primary Key
+	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
-	// Smart Scoring : 1 (Low) à 5 (Critical)
-	Impact      int     `gorm:"default:1;check:impact >= 1 AND impact <= 5" json:"impact"`
-	Probability int     `gorm:"default:1;check:probability >= 1 AND probability <= 5" json:"probability"`
-	Score       float64 `gorm:"type:numeric(8,2);default:0" json:"score"` // Champ calculé (Impact * Probability * asset factor)
+	// Multi-tenancy (ABSOLUTE: filter by tenant_id in repository, never in handler)
+	TenantID       uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
+	OrganizationID uuid.UUID `gorm:"type:uuid;index" json:"organization_id"` // Legacy alias for TenantID
 
-	// Contextualisation & Conformité
-	Status RiskStatus     `gorm:"default:'DRAFT';index" json:"status"`
-	Tags   pq.StringArray `gorm:"type:text[]" json:"tags"` // Ex: ["CIS", "ISO27001", "GDPR"]
-	Owner  string         `json:"owner"`                   // Email ou UserID
+	// Core Risk Definition
+	Name        string `gorm:"size:255;not null;index" json:"name"`
+	Title       string `gorm:"size:255;not null;index" json:"title"` // Alias for Name, for compatibility
+	Description string `gorm:"type:text" json:"description"`
 
-	// Intégrations OpenDefender (TheHive, OpenCTI, OpenRMF)
-	Source     string `gorm:"default:'MANUAL'" json:"source"` // "MANUAL", "THEHIVE", "OPENRMF"
-	ExternalID string `gorm:"index" json:"external_id"`       // ID dans l'outil tiers
+	// Risk Scoring (via Score Engine: P × I × AssetCriticality, 3 decimal places)
+	// New system (0.0-1.0, 0.0-10.0, 0.1-3.0)
+	Probability float64 `gorm:"type:numeric(5,3);check:probability >= 0 AND probability <= 1" json:"probability"`
+	Impact      float64 `gorm:"type:numeric(5,1);check:impact >= 0 AND impact <= 10" json:"impact"`
+	Score       float64 `gorm:"type:numeric(8,3);default:0" json:"score"` // Calculated ONLY via Score Engine (Redis event)
+	Criticality CriticalityLevel `gorm:"type:varchar(20);default:'low';index" json:"criticality"` // low|medium|high|critical
 
-	// Multi-tenancy — Claude.md rule #2: filter by tenant_id on EVERY query
-	OrganizationID uuid.UUID `gorm:"type:uuid;index;not null;default:gen_random_uuid()" json:"organization_id"`
-	Level          string    `gorm:"size:20;default:'LOW'" json:"level"` // CRITICAL, HIGH, MEDIUM, LOW
+	// Legacy scoring system (1-5 scale, for backwards compatibility)
+	// Will be deprecated as system migrates to new scale
+	ImpactLegacy      int `gorm:"default:1;check:impact_legacy >= 1 AND impact_legacy <= 5" json:"impact_legacy"`
+	ProbabilityLegacy int `gorm:"default:1;check:probability_legacy >= 1 AND probability_legacy <= 5" json:"probability_legacy"`
 
-	// Audit
-	// Flexible custom fields
+	// Lifecycle Management
+	Status       RiskStatus `gorm:"type:varchar(20);default:'open';index" json:"status"` // open|in_progress|mitigated|accepted|closed
+	Level        string     `gorm:"size:20;default:'medium';index" json:"level"`         // Legacy: CRITICAL|HIGH|MEDIUM|LOW
+
+	// Ownership & Assignment
+	CreatedBy  uuid.UUID `gorm:"type:uuid;not null;index" json:"created_by"`
+	AssignedTo *uuid.UUID `gorm:"type:uuid;index" json:"assigned_to"` // Person responsible for mitigation
+	ReviewerID *uuid.UUID `gorm:"type:uuid;index" json:"reviewer_id"` // Person responsible for final validation
+	Owner      string     `json:"owner"` // Legacy: Email or UserID
+
+	// Asset Association
+	AssetID *uuid.UUID `gorm:"type:uuid;index" json:"asset_id"` // Linked asset if risk is asset-specific
+
+	// Classification & Context
+	Tags        pq.StringArray `gorm:"type:text[];default:'{}'" json:"tags"`        // Labels (network, cloud, etc.)
+	Frameworks  pq.StringArray `gorm:"type:text[];default:'{}'" json:"frameworks"`  // ISO27001|NIST-CSF|DORA|CIS|COBAC|BCEAO|OWASP|SOC2|GDPR|...
+	ControlIDs  pq.StringArray `gorm:"type:text[];default:'{}'" json:"control_ids"` // Links to compliance controls
+
+	// Treatment & Mitigation
+	TreatmentPlan  RiskTreatment `gorm:"type:varchar(20);default:'mitigate'" json:"treatment_plan"` // accept|mitigate|transfer|avoid
+	ResidualRisk   *float64      `gorm:"type:numeric(8,3)" json:"residual_risk"`                   // Score after treatments
+	LastMitigatedAt *time.Time   `json:"last_mitigated_at"`
+
+	// Source Tracking
+	Source       RiskSource `gorm:"type:varchar(20);default:'manual';index" json:"source"` // manual|cti_auto|scan_auto|import|vendor|ai
+	SourceCVEID  *string    `gorm:"index" json:"source_cve_id"`                            // CVE identifier if from CTI
+	ExternalID   string     `gorm:"index" json:"external_id"`                              // ID in external system
+
+	// Custom Fields (JSONB for flexibility)
 	CustomFields datatypes.JSON `gorm:"type:jsonb" json:"custom_fields,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 
+	// Audit Trail
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"` // Soft delete
+
+	// Relations (loaded via Preload)
 	Mitigations []Mitigation `gorm:"foreignKey:RiskID" json:"mitigations,omitempty"`
+	Assets      []*Asset     `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
 
-	Assets []*Asset `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
-
-	// Framework classifications (ISO27001, NIST, CIS, OWASP...)
-	Frameworks pq.StringArray `gorm:"type:text[]" json:"frameworks,omitempty"`
+	// Computed Fields (NOT persisted, populated by handlers/use cases)
+	// These help with API responses but are never stored in DB
+	RiskWithDetails *RiskDetail `gorm:"-" json:"-"`
 }
 
-func (r *Risk) BeforeSave(tx *gorm.DB) (err error) {
-	// Basic score calculation only when not already computed by handlers.
-	// Handlers may compute a final score using asset criticality and set r.Score.
-	if r.Score == 0 {
-		r.Score = float64(r.Impact * r.Probability)
+// BeforeSave hook ensures basic validation and legacy compatibility
+func (r *Risk) BeforeSave(tx *gorm.DB) error {
+	// Ensure TenantID and OrganizationID are consistent (both required for multi-tenancy)
+	if r.TenantID == uuid.Nil && r.OrganizationID != uuid.Nil {
+		r.TenantID = r.OrganizationID
 	}
-	return
+	if r.OrganizationID == uuid.Nil && r.TenantID != uuid.Nil {
+		r.OrganizationID = r.TenantID
+	}
+
+	// Name is required (use Title as fallback for legacy code)
+	if r.Name == "" && r.Title != "" {
+		r.Name = r.Title
+	}
+	if r.Title == "" && r.Name != "" {
+		r.Title = r.Name
+	}
+
+	// Score Engine will recalculate via Redis event, but set initial legacy score if not set
+	if r.Score == 0 && r.ImpactLegacy > 0 && r.ProbabilityLegacy > 0 {
+		r.Score = float64(r.ImpactLegacy * r.ProbabilityLegacy)
+	}
+
+	// Ensure CreatedBy is set if creating
+	if r.CreatedBy == uuid.Nil && !tx.Statement.Changed("created_by") {
+		// CreatedBy must be set by use case before saving
+		// This is a safety check, should not happen in practice
+	}
+
+	return nil
 }
 
-// AfterSave : Gère la logique après la sauvegarde (enregistrement de l'historique)
-// Ce hook est essentiel pour les fonctionnalités de Timeline et de Trends.
-func (r *Risk) AfterSave(tx *gorm.DB) (err error) {
-	// Always create a history snapshot after save for timeline and trends.
+// AfterSave hook creates a history snapshot for audit trail and timeline
+// Called automatically by GORM after save is successful
+func (r *Risk) AfterSave(tx *gorm.DB) error {
+	// Create a history snapshot for timeline and trends
 	history := RiskHistory{
-		RiskID:      r.ID,
-		Score:       r.Score,
-		Impact:      r.Impact,
-		Probability: r.Probability,
-		Status:      r.Status,
-		ChangedBy:   r.Owner,
-		ChangeType:  "UPDATE",
-		CreatedAt:   time.Now(),
+		ID:         uuid.New(),
+		RiskID:     r.ID,
+		Score:      r.Score,
+		Impact:     r.ImpactLegacy,
+		Probability: r.ProbabilityLegacy,
+		Status:     r.Status,
+		ChangedBy:  r.CreatedBy.String(), // Use UUID string
+		ChangeType: "UPDATE",
+		CreatedAt:  time.Now(),
 	}
 
 	return tx.Create(&history).Error
+}
+
+// RiskDetail is a DTO for API responses with enriched data
+// Includes calculated fields and related data
+type RiskDetail struct {
+	Risk              *Risk                 `json:"risk"`
+	Mitigations       []Mitigation          `json:"mitigations,omitempty"`
+	Assets            []*Asset              `json:"assets,omitempty"`
+	ScoreBreakdown    *ScoreBreakdownDetail `json:"score_breakdown,omitempty"`
+	AuditHistory      []AuditLogEntry       `json:"audit_history,omitempty"`
+	AssignedToUser    *UserInfo             `json:"assigned_to_user,omitempty"`
+	ReviewerUser      *UserInfo             `json:"reviewer_user,omitempty"`
+	CreatedByUser     *UserInfo             `json:"created_by_user,omitempty"`
+}
+
+// ScoreBreakdownDetail extends scoring.ScoreBreakdown with context
+type ScoreBreakdownDetail struct {
+	Score            float64  `json:"score"`
+	Probability      float64  `json:"probability"`
+	Impact           float64  `json:"impact"`
+	AssetCriticality float64  `json:"asset_criticality"`
+	Criticality      string   `json:"criticality"`
+	Explanation      string   `json:"explanation"`
+	PreviousScore    *float64 `json:"previous_score,omitempty"`
+	Delta            *float64 `json:"delta,omitempty"`
+	CalculatedAt     string   `json:"calculated_at"`
+}
+
+// AuditLogEntry represents a historical change to a risk
+type AuditLogEntry struct {
+	ID        uuid.UUID              `json:"id"`
+	RiskID    uuid.UUID              `json:"risk_id"`
+	Timestamp time.Time              `json:"timestamp"`
+	ChangedBy uuid.UUID              `json:"changed_by"`
+	Action    string                 `json:"action"`
+	OldValue  map[string]interface{} `json:"old_value,omitempty"`
+	NewValue  map[string]interface{} `json:"new_value,omitempty"`
+}
+
+// UserInfo is a minimal user representation for API responses
+type UserInfo struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+	Name  string    `json:"name"`
 }

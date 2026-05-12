@@ -16,17 +16,17 @@ type Service interface {
 
 // EmailService implements Service using email
 type EmailService struct {
-	emailClient *email.Client
-	fromEmail   string
-	baseURL     string
+	emailService email.Service
+	fromEmail    string
+	baseURL      string
 }
 
 // NewEmailService creates a new email notification service
-func NewEmailService(emailClient *email.Client, fromEmail, baseURL string) *EmailService {
+func NewEmailService(emailService email.Service, fromEmail, baseURL string) *EmailService {
 	return &EmailService{
-		emailClient: emailClient,
-		fromEmail:   fromEmail,
-		baseURL:     baseURL,
+		emailService: emailService,
+		fromEmail:    fromEmail,
+		baseURL:      baseURL,
 	}
 }
 
@@ -49,13 +49,8 @@ func (s *EmailService) SendWelcomeEmail(ctx context.Context, userEmail, fullName
 		htmlBody = s.getPlainWelcomeEmail(fullName)
 	}
 
-	// Send email
-	return s.emailClient.Send(ctx, email.SendRequest{
-		From:    s.fromEmail,
-		To:      []string{userEmail},
-		Subject: subject,
-		HTML:    htmlBody,
-	})
+	// Send email using the service interface
+	return s.emailService.SendEmail(ctx, userEmail, subject, htmlBody)
 }
 
 func (s *EmailService) renderTemplate(templateName string, data interface{}) (string, error) {
