@@ -1,0 +1,154 @@
+import { api } from '../lib/api';
+
+export type RiskStatus = 'open' | 'in_progress' | 'mitigated' | 'accepted' | 'closed';
+export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface Risk {
+  id: string;
+  title: string;
+  description: string;
+  score: number;
+  impact: number;
+  probability: number;
+  status: RiskStatus;
+  level?: RiskLevel;
+  tags?: string[];
+  frameworks?: string[];
+  assets?: Asset[];
+  assigned_to?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  source?: string;
+  mitigations?: Mitigation[];
+  residual_risk?: number;
+}
+
+export interface Asset {
+  id: string;
+  name: string;
+  type: string;
+  criticality: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  owner?: string;
+}
+
+export interface Mitigation {
+  id: string;
+  title: string;
+  status: 'PLANNED' | 'IN_PROGRESS' | 'DONE';
+  progress: number;
+  assignee?: string;
+}
+
+export interface RiskListResponse {
+  items: Risk[];
+  total: number;
+}
+
+export interface RiskQueryParams {
+  q?: string;
+  status?: RiskStatus;
+  min_score?: number;
+  max_score?: number;
+  framework?: string;
+  assigned_to?: string;
+  created_by?: string;
+  source?: string;
+  tag?: string;
+  date_from?: string;
+  date_to?: string;
+  page?: number;
+  limit?: number;
+  sort_by?: string;
+  sort_dir?: 'asc' | 'desc';
+}
+
+export interface CreateRiskInput {
+  title: string;
+  description: string;
+  probability: number;
+  impact: number;
+  asset_criticality?: number;
+  framework?: string;
+  tags?: string[];
+  asset_ids?: string[];
+  source?: string;
+  status?: RiskStatus;
+}
+
+export interface UpdateRiskInput {
+  title?: string;
+  description?: string;
+  probability?: number;
+  impact?: number;
+  asset_criticality?: number;
+  framework?: string;
+  tags?: string[];
+  asset_ids?: string[];
+  status?: RiskStatus;
+}
+
+export interface BulkRiskActionInput {
+  action: 'change_status' | 'assign_to' | 'add_tags' | 'delete';
+  risk_ids: string[];
+  payload?: {
+    status?: RiskStatus;
+    assignee?: string;
+    tags?: string[];
+  };
+}
+
+export const riskService = {
+  listRisks: async (params: RiskQueryParams): Promise<RiskListResponse> => {
+    const response = await api.get<RiskListResponse>('/risks', { params });
+    return response.data;
+  },
+
+  getRisk: async (id: string): Promise<Risk> => {
+    const response = await api.get<Risk>(`/risks/${id}`);
+    return response.data;
+  },
+
+  createRisk: async (payload: CreateRiskInput): Promise<Risk> => {
+    const response = await api.post<Risk>('/risks', payload);
+    return response.data;
+  },
+
+  updateRisk: async (id: string, payload: UpdateRiskInput): Promise<Risk> => {
+    const response = await api.patch<Risk>(`/risks/${id}`, payload);
+    return response.data;
+  },
+
+  deleteRisk: async (id: string): Promise<void> => {
+    await api.delete(`/risks/${id}`);
+  },
+
+  acceptRisk: async (id: string, justification: string): Promise<Risk> => {
+    const response = await api.post<Risk>(`/risks/${id}/accept`, { justification });
+    return response.data;
+  },
+
+  duplicateRisk: async (id: string): Promise<Risk> => {
+    const response = await api.post<Risk>(`/risks/${id}/duplicate`);
+    return response.data;
+  },
+
+  bulkAction: async (payload: BulkRiskActionInput): Promise<void> => {
+    await api.post('/risks/bulk', payload);
+  },
+
+  exportRisks: async (params: RiskQueryParams, format: 'csv' | 'json' | 'xlsx' = 'csv') => {
+    const response = await api.get<Blob>('/risks/export', {
+      params: { ...params, format },
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  importRisks: async (formData: FormData) => {
+    const response = await api.post('/risks/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};

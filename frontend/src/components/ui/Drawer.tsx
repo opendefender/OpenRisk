@@ -7,9 +7,10 @@ interface DrawerProps {
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
+  widthClassName?: string;
 }
 
-export const Drawer = ({ isOpen, onClose, children, title }: DrawerProps) => {
+export const Drawer = ({ isOpen, onClose, children, title, widthClassName = 'max-w-2xl' }: DrawerProps) => {
   // Lock body scroll quand ouvert
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
@@ -35,7 +36,7 @@ export const Drawer = ({ isOpen, onClose, children, title }: DrawerProps) => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-surface border-l border-border shadow-2xl flex flex-col"
+            className={`fixed inset-y-0 right-0 z-50 w-full ${widthClassName} bg-surface border-l border-border shadow-2xl flex flex-col`}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">

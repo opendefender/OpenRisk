@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { motion } from 'framer-motion';
 import { Plus, Search } from 'lucide-react';
 
@@ -22,6 +21,8 @@ import { DashboardGrid } from './features/dashboard/components/DashboardGrid';
 import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
 import { RiskDetails } from './features/risks/components/RiskDetails';
 import { EditRiskModal } from './features/risks/components/EditRiskModal';
+import { ImportRisksPage } from './features/risks/ImportRisksPage';
+import { RiskListPage } from './features/risks/RiskListPage';
 import { Assets } from './pages/Assets';
 import { Risks } from './pages/Risks';
 import { RiskManagement } from './pages/RiskManagement';
@@ -200,7 +201,8 @@ function App() {
           }
         >
           <Route index element={<DashboardView />} />
-          <Route path="risks" element={<Risks />} />
+          <Route path="risks" element={<RiskListPage />} />
+          <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="risk-management" element={<RiskManagement />} />
           <Route path="analytics" element={<Analytics />} />
@@ -225,10 +227,5 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Toast Notifications Global */}
-      <Toaster position="top-left" theme="dark" richColors closeButton />
-    </BrowserRouter>
-  );
-}
 
 export default App;
