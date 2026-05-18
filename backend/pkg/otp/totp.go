@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image/jpeg"
+	"time"
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -86,12 +87,13 @@ func VerifyTOTP(secret, code string) bool {
 // window: number of time steps to check (default 1)
 func VerifyTOTPWithCustomWindow(secret, code string, window uint) bool {
 	// ValidateCustom takes (code, secret, timestamp, opts)
-	return totp.ValidateCustom(code, secret, 0, totp.ValidateOpts{
+	valid, _ := totp.ValidateCustom(code, secret, time.Now(), totp.ValidateOpts{
 		Period:    30,
 		Skew:      window,
 		Digits:    otp.DigitsSix,
 		Algorithm: otp.AlgorithmSHA1,
 	})
+	return valid
 }
 
 // GenerateBackupCodes generates 8 backup codes (12-character alphanumeric)
