@@ -29,10 +29,11 @@ const (
 type CriticalityLevel string
 
 const (
-	CriticalityLow      CriticalityLevel = "low"
-	CriticalityMedium   CriticalityLevel = "medium"
-	CriticalityHigh     CriticalityLevel = "high"
-	CriticalityCritical CriticalityLevel = "critical"
+	// New lowercase versions
+	CriticalityLowNew      CriticalityLevel = "low"
+	CriticalityMediumNew   CriticalityLevel = "medium"
+	CriticalityHighNew     CriticalityLevel = "high"
+	CriticalityCriticalNew CriticalityLevel = "critical"
 	// Legacy constants for compatibility
 	RiskCriticalityLow      CriticalityLevel = "LOW"
 	RiskCriticalityMedium   CriticalityLevel = "MEDIUM"
