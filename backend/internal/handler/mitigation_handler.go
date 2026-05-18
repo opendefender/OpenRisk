@@ -1,282 +1,282 @@
 package handler
 
 import (
-	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/opendefender/openrisk/internal/application/mitigation"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
-	"github.com/opendefender/openrisk/internal/service"
 )
 
-// AddMitigation ajoute une action corrective à un risque
-func AddMitigation(c *fiber.Ctx) error {
+// CreateMitigation creates a new mitigation plan for a risk
+func CreateMitigation(c *fiber.Ctx) error {
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.UserID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
 	riskID := c.Params("id")
-
-	// Validation UUID
 	if _, err := uuid.Parse(riskID); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid Risk ID"})
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid risk ID"})
 	}
 
-	// NEW: Get organization context for multi-tenancy
-	ctx := middleware.GetContext(c)
+	payload := struct {
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Priority    string   `json:"priority"`
+		AssignedTo  []string `json:"assigned_to"`
+		DueDate     *string  `json:"due_date"`
+		SubActions  []struct {
+			Title       string  `json:"title"`
+			Description string  `json:"description"`
+			DueDate     *string `json:"due_date"`
+		} `json:"sub_actions"`
+	}{}
 
-	// NEW: Verify risk exists in the organization
-	var risk domain.Risk
-	query := database.DB
-	if ctx != nil {
-		query = query.Where("organization_id = ?", ctx.OrganizationID)
-	}
-	if err := query.First(&risk, "id = ?", riskID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Risk not found"})
-	}
-
-	mitigation := new(domain.Mitigation)
-	if err := c.BodyParser(mitigation); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
-	}
-
-	// Lier au risque
-	mitigation.RiskID = uuid.MustParse(riskID)
-	mitigation.Status = domain.MitigationPlanned
-	// NEW: Add organization_id
-	if ctx != nil {
-		mitigation.OrganizationID = ctx.OrganizationID
+	if err := c.BodyParser(&payload); err != nil || payload.Title == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload: title is required"})
 	}
 
-	if err := database.DB.Create(mitigation).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create mitigation"})
-	}
-
-	return c.Status(201).JSON(mitigation)
-}
-
-// ToggleMitigationStatus change le statut (PLANNED <-> DONE)
-func ToggleMitigationStatus(c *fiber.Ctx) error {
-	mitigationID := c.Params("mitigationId")
-	var mitigation domain.Mitigation
-
-	// NEW: Get organization context for multi-tenancy
-	ctx := middleware.GetContext(c)
-
-	// NEW: Filter by organization_id if available
-	query := database.DB
-	if ctx != nil {
-		query = query.Where("organization_id = ?", ctx.OrganizationID)
-	}
-	if err := query.First(&mitigation, "id = ?", mitigationID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
-	}
-
-	// Logique de bascule simple
-	if mitigation.Status == domain.MitigationDone {
-		mitigation.Status = domain.MitigationInProgress
-		mitigation.Progress = 50
-	} else {
-		mitigation.Status = domain.MitigationDone
-		mitigation.Progress = 100
-	}
-
-	database.DB.Save(&mitigation)
-	return c.JSON(mitigation)
-}
-
-// GetRecommendedMitigations expose la liste des mitigations triées par SPP.
-func GetRecommendedMitigations(c *fiber.Ctx) error {
-	service := service.NewRecommendationService()
-
-	ctx := middleware.GetContext(c)
-	tenantID := ""
-	if ctx != nil && ctx.OrganizationID != uuid.Nil {
-		tenantID = ctx.OrganizationID.String()
-	} else {
-		// Fallback for unified tenant approach
-		val := c.Locals("tenant_id")
-		if u, ok := val.(uuid.UUID); ok {
-			tenantID = u.String()
-		} else if s, ok := val.(string); ok {
-			tenantID = s
+	// Convert assignedTo strings to UUIDs
+	var assignedTo domain.UUIDArray
+	for _, s := range payload.AssignedTo {
+		if id, err := uuid.Parse(s); err == nil {
+			assignedTo = append(assignedTo, id)
 		}
 	}
 
-	// 1. Récupérer et calculer les priorités
-	mitigations, err := service.GetPrioritizedMitigations(tenantID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to get prioritized mitigations"})
+	var dueDate *time.Time
+	if payload.DueDate != nil {
+		if t, err := time.Parse(time.RFC3339, *payload.DueDate); err == nil {
+			dueDate = &t
+		}
 	}
 
-	// 2. Trier la liste dans le Handler avant l'envoi (meilleure pratique)
-	// On veut le SPP le plus élevé en premier.
-	sort.Slice(mitigations, func(i, j int) bool {
-		return mitigations[i].WeightedPriority > mitigations[j].WeightedPriority
-	})
+	// Build subactions input
+	subActions := make([]struct {
+		Title       string
+		Description string
+		DueDate     *time.Time
+	}, len(payload.SubActions))
+	for i, sa := range payload.SubActions {
+		var saDueDate *time.Time
+		if sa.DueDate != nil {
+			if t, err := time.Parse(time.RFC3339, *sa.DueDate); err == nil {
+				saDueDate = &t
+			}
+		}
+		subActions[i] = struct {
+			Title       string
+			Description string
+			DueDate     *time.Time
+		}{
+			Title:       sa.Title,
+			Description: sa.Description,
+			DueDate:     saDueDate,
+		}
+	}
 
-	return c.JSON(mitigations)
+	// Use case
+	repo := repository.NewGormMitigationRepository(database.DB)
+	subRepo := repository.NewGormMitigationSubActionRepository(database.DB)
+	useCase := mitigation.NewCreateMitigationPlanUseCase(repo, subRepo)
+
+	input := mitigation.CreateMitigationPlanInput{
+		TenantID:    ctx.OrganizationID,
+		RiskID:      uuid.MustParse(riskID),
+		Title:       payload.Title,
+		Description: payload.Description,
+		Priority:    domain.MitigationPriority(payload.Priority),
+		AssignedTo:  assignedTo,
+		DueDate:     dueDate,
+		CreatedBy:   ctx.UserID,
+		Source:      domain.SourceManual,
+		SubActions:  subActions,
+	}
+
+	output, err := useCase.Execute(input)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Retrieve and return created plan
+	createdPlan, err := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), output.ID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve created plan"})
+	}
+
+	return c.Status(201).JSON(createdPlan)
 }
 
-// UpdateMitigation met à jour les champs éditables d'une mitigation
-func UpdateMitigation(c *fiber.Ctx) error {
-	mitigationID := c.Params("mitigationId")
-	var mitigation domain.Mitigation
-
-	// NEW: Get organization context for multi-tenancy
+// GetMitigation retrieves a mitigation plan by ID
+func GetMitigation(c *fiber.Ctx) error {
 	ctx := middleware.GetContext(c)
-
-	// NEW: Filter by organization_id if available
-	query := database.DB
-	if ctx != nil {
-		query = query.Where("organization_id = ?", ctx.OrganizationID)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
 	}
-	if err := query.First(&mitigation, "id = ?", mitigationID).Error; err != nil {
+
+	planID := c.Params("id")
+	if _, err := uuid.Parse(planID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid plan ID"})
+	}
+
+	repo := repository.NewGormMitigationRepository(database.DB)
+	plan, err := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), uuid.MustParse(planID))
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
 	}
 
-	// Parse payload
+	return c.JSON(plan)
+}
+
+// ListMitigationsByRisk retrieves all mitigations for a risk
+func ListMitigationsByRisk(c *fiber.Ctx) error {
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	riskID := c.Params("id")
+	if _, err := uuid.Parse(riskID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid risk ID"})
+	}
+
+	repo := repository.NewGormMitigationRepository(database.DB)
+	plans, err := repo.ListByRiskID(ctx.OrganizationID.String(), uuid.MustParse(riskID))
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve mitigations"})
+	}
+
+	return c.JSON(plans)
+}
+
+// UpdateMitigation updates a mitigation plan
+func UpdateMitigation(c *fiber.Ctx) error {
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	planID := c.Params("id")
+	if _, err := uuid.Parse(planID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid plan ID"})
+	}
+
 	payload := struct {
-		Title          *string `json:"title"`
-		Assignee       *string `json:"assignee"`
-		Status         *string `json:"status"`
-		Progress       *int    `json:"progress"`
-		DueDate        *string `json:"due_date"`
-		Cost           *int    `json:"cost"`
-		MitigationTime *int    `json:"mitigation_time"`
+		Title       *string  `json:"title"`
+		Description *string  `json:"description"`
+		Priority    *string  `json:"priority"`
+		AssignedTo  []string `json:"assigned_to"`
+		DueDate     *string  `json:"due_date"`
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
 	}
 
-	if payload.Title != nil {
-		mitigation.Title = *payload.Title
+	// Convert assignedTo if provided
+	var assignedTo *domain.UUIDArray
+	if len(payload.AssignedTo) > 0 {
+		var arr domain.UUIDArray
+		for _, s := range payload.AssignedTo {
+			if id, err := uuid.Parse(s); err == nil {
+				arr = append(arr, id)
+			}
+		}
+		assignedTo = &arr
 	}
-	if payload.Assignee != nil {
-		mitigation.Assignee = *payload.Assignee
+
+	var priority *domain.MitigationPriority
+	if payload.Priority != nil {
+		p := domain.MitigationPriority(*payload.Priority)
+		priority = &p
 	}
-	if payload.Status != nil {
-		mitigation.Status = domain.MitigationStatus(*payload.Status)
-	}
-	if payload.Progress != nil {
-		mitigation.Progress = *payload.Progress
-	}
-	if payload.Cost != nil {
-		mitigation.Cost = *payload.Cost
-	}
-	if payload.MitigationTime != nil {
-		mitigation.MitigationTime = *payload.MitigationTime
-	}
+
+	var dueDate *time.Time
 	if payload.DueDate != nil {
-		// try parse RFC3339
 		if t, err := time.Parse(time.RFC3339, *payload.DueDate); err == nil {
-			mitigation.DueDate = t
+			dueDate = &t
 		}
 	}
 
-	if err := database.DB.Save(&mitigation).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not update mitigation"})
+	repo := repository.NewGormMitigationRepository(database.DB)
+	useCase := mitigation.NewUpdateMitigationPlanUseCase(repo)
+
+	input := mitigation.UpdateMitigationPlanInput{
+		TenantID:    ctx.OrganizationID,
+		PlanID:      uuid.MustParse(planID),
+		Title:       payload.Title,
+		Description: payload.Description,
+		Priority:    priority,
+		AssignedTo:  assignedTo,
+		DueDate:     dueDate,
 	}
 
-	return c.JSON(mitigation)
+	if err := useCase.Execute(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	updated, _ := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), uuid.MustParse(planID))
+	return c.JSON(updated)
 }
 
-// CreateMitigationSubAction ajoute une sous-action (checklist) à une mitigation
-func CreateMitigationSubAction(c *fiber.Ctx) error {
-	mitigationID := c.Params("id")
-	if _, err := uuid.Parse(mitigationID); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid mitigation ID"})
-	}
-
-	// NEW: Get organization context for multi-tenancy
+// DeleteMitigation deletes (soft-deletes) a mitigation plan
+func DeleteMitigation(c *fiber.Ctx) error {
 	ctx := middleware.GetContext(c)
-
-	payload := struct {
-		Title string `json:"title"`
-	}{}
-	if err := c.BodyParser(&payload); err != nil || payload.Title == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Ensure mitigation exists
-	var m domain.Mitigation
-	query := database.DB
-	if ctx != nil {
-		query = query.Where("organization_id = ?", ctx.OrganizationID)
-	}
-	if err := query.First(&m, "id = ?", mitigationID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
+	planID := c.Params("id")
+	if _, err := uuid.Parse(planID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid plan ID"})
 	}
 
-	sa := domain.MitigationSubAction{
-		MitigationID: uuid.MustParse(mitigationID),
-		Title:        payload.Title,
+	repo := repository.NewGormMitigationRepository(database.DB)
+	if err := repo.Delete(ctx.OrganizationID.String(), uuid.MustParse(planID)); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if err := database.DB.Create(&sa).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create sub-action"})
-	}
-
-	return c.Status(201).JSON(sa)
-}
-
-// ToggleMitigationSubAction bascule l'état d'une sous-action
-func ToggleMitigationSubAction(c *fiber.Ctx) error {
-	subID := c.Params("subactionId")
-	// NEW: Get organization context for multi-tenancy
-	ctx := middleware.GetContext(c)
-
-	var sa domain.MitigationSubAction
-	if err := database.DB.First(&sa, "id = ?", subID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
-	}
-
-	// NEW: Verify mitigation belongs to the organization
-	if ctx != nil {
-		var mitigation domain.Mitigation
-		if err := database.DB.Where("organization_id = ?", ctx.OrganizationID).First(&mitigation, "id = ?", sa.MitigationID).Error; err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
-		}
-	}
-
-	// If route contains mitigation id, verify ownership to avoid mismatch
-	if mid := c.Params("id"); mid != "" {
-		if _, err := uuid.Parse(mid); err == nil {
-			if sa.MitigationID.String() != mid {
-				return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found for given mitigation"})
-			}
-		}
-	}
-
-	sa.Completed = !sa.Completed
-	if err := database.DB.Save(&sa).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not toggle sub-action"})
-	}
-
-	return c.JSON(sa)
-}
-
-// DeleteMitigationSubAction supprime une sous-action
-func DeleteMitigationSubAction(c *fiber.Ctx) error {
-	subID := c.Params("subactionId")
-
-	// Verify ownership if mitigation id present in path
-	if mid := c.Params("id"); mid != "" {
-		if _, err := uuid.Parse(mid); err == nil {
-			var sa domain.MitigationSubAction
-			if err := database.DB.First(&sa, "id = ?", subID).Error; err != nil {
-				return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
-			}
-			if sa.MitigationID.String() != mid {
-				return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found for given mitigation"})
-			}
-		}
-	}
-
-	if result := database.DB.Delete(&domain.MitigationSubAction{}, "id = ?", subID); result.Error != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not delete sub-action"})
-	} else if result.RowsAffected == 0 {
-		return c.Status(404).JSON(fiber.Map{"error": "Sub-action not found"})
-	}
 	return c.SendStatus(204)
+}
+
+// ValidateMitigation transitions a plan from REVIEW to DONE (reviewer approval)
+func ValidateMitigation(c *fiber.Ctx) error {
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.UserID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	planID := c.Params("id")
+	if _, err := uuid.Parse(planID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid plan ID"})
+	}
+
+	repo := repository.NewGormMitigationRepository(database.DB)
+	notifier := &NoOpNotifier{} // Placeholder
+	useCase := mitigation.NewValidateMitigationPlanUseCase(repo, notifier)
+
+	input := mitigation.ValidateMitigationPlanInput{
+		TenantID:   ctx.OrganizationID,
+		PlanID:     uuid.MustParse(planID),
+		ReviewedBy: ctx.UserID,
+	}
+
+	if err := useCase.Execute(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	validated, _ := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), uuid.MustParse(planID))
+	return c.JSON(validated)
+}
+
+// NoOpNotifier is a placeholder notifier (TODO: implement real notification system)
+type NoOpNotifier struct{}
+
+func (n *NoOpNotifier) Notify(userID uuid.UUID, title, message string) error {
+	return nil
 }
