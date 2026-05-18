@@ -1,5 +1,4 @@
 package handlers
-package handlers
 
 import (
 	"time"
