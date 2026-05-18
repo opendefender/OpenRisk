@@ -302,6 +302,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
               </form>
             </div>
           </motion.div>
+        </>
         )}
       </AnimatePresence>
     );

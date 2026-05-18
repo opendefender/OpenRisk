@@ -226,6 +226,8 @@ function App() {
         {/* Redirection par défaut */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-
+    </BrowserRouter>
+  );
+}
 
 export default App;
