@@ -37,6 +37,20 @@ interface RiskFetchParams {
   sort_dir?: 'asc' | 'desc';
 }
 
+interface RiskFilters {
+  q?: string;
+  status?: string;
+  framework?: string;
+  assignedTo?: string;
+  createdBy?: string;
+  source?: string;
+  tag?: string;
+  minScore?: number;
+  maxScore?: number;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 interface RiskStore {
   risks: Risk[];
   isLoading: boolean;
@@ -48,6 +62,28 @@ interface RiskStore {
   // selected risk for global drawer
   selectedRisk?: Risk | null;
   setSelectedRisk: (r: Risk | null) => void;
+
+  // filters & selection for bulk actions
+  filters: RiskFilters;
+  setFilters: (patch: Partial<RiskFilters>) => void;
+  clearFilters: () => void;
+
+  selectedIds: string[];
+  setSelectedIds: (ids: string[]) => void;
+  toggleSelection: (id: string) => void;
+  clearSelection: () => void;
+
+  // bulk operations
+  bulkDelete: (ids: string[]) => Promise<void>;
+  bulkUpdate: (ids: string[], payload: Partial<Risk>) => Promise<void>;
+
+  // import / export helpers
+  importRisks: (file: File) => Promise<void>;
+  exportRisks: (params?: Record<string, any>) => Promise<Blob>;
+
+  // realtime
+  startSSE: (url?: string) => void;
+  stopSSE: () => void;
 
   fetchRisks: (params?: RiskFetchParams & { page?: number; limit?: number }) => Promise<void>;
   createRisk: (payload: any) => Promise<void>;
@@ -64,6 +100,8 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   page: 1,
   pageSize: 20,
   selectedRisk: null,
+  filters: {},
+  selectedIds: [],
   setSelectedRisk: (r: Risk | null) => set({ selectedRisk: r }),
 
   setPage: async (p: number) => {
@@ -160,6 +198,126 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       throw err;
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  // filters & selection implementation
+  setFilters: (patch) => set((state) => ({ filters: { ...state.filters, ...patch } })),
+  clearFilters: () => set({ filters: {} }),
+
+  setSelectedIds: (ids) => set({ selectedIds: ids }),
+  toggleSelection: (id) => set((state) => ({ selectedIds: state.selectedIds.includes(id) ? state.selectedIds.filter((x) => x !== id) : [...state.selectedIds, id] })),
+  clearSelection: () => set({ selectedIds: [] }),
+
+  // bulk operations
+  bulkDelete: async (ids) => {
+    set({ isLoading: true });
+    const prev = get().risks;
+    const prevTotal = get().total;
+    set((state) => ({ risks: state.risks.filter((r) => !ids.includes(r.id)), total: Math.max(0, state.total - ids.length) }));
+    try {
+      // backend may not provide bulk delete endpoint; call per-id
+      await Promise.all(ids.map((id) => api.delete(`/risks/${id}`)));
+      // clear selection
+      set({ selectedIds: [] });
+    } catch (err) {
+      set({ risks: prev, total: prevTotal });
+      console.error('bulkDelete failed', err);
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  bulkUpdate: async (ids, payload) => {
+    set({ isLoading: true });
+    const prev = get().risks;
+    // optimistic update
+    set((state) => ({ risks: state.risks.map((r) => (ids.includes(r.id) ? { ...r, ...payload } : r)) }));
+    try {
+      await Promise.all(ids.map((id) => api.patch(`/risks/${id}`, payload)));
+    } catch (err) {
+      set({ risks: prev });
+      console.error('bulkUpdate failed', err);
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // import/export
+  importRisks: async (file) => {
+    set({ isLoading: true });
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.post('/risks/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // refresh
+      await get().fetchRisks({ page: get().page, limit: get().pageSize });
+    } catch (err) {
+      console.error('importRisks failed', err);
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  exportRisks: async (params) => {
+    try {
+      const res = await api.get('/risks/export', { params, responseType: 'blob' });
+      return res.data as Blob;
+    } catch (err) {
+      console.error('exportRisks failed', err);
+      throw err;
+    }
+  },
+
+  // SSE realtime support
+  startSSE: (url = '/api/v1/risks/events') => {
+    // avoid multiple event sources
+    // store eventSource on closure
+    // @ts-ignore - keep internal ref
+    if ((get() as any)._es) return;
+    try {
+      const es = new EventSource(url);
+      (set as any)((state) => state); // noop to satisfy linter
+      // save reference
+      (get() as any)._es = es;
+      es.onmessage = (evt) => {
+        try {
+          const payload = JSON.parse(evt.data);
+          const type = payload.type || payload.event || '';
+          const data = payload.data || payload;
+          if (type === 'risk.created') {
+            set((state) => ({ risks: [data, ...state.risks], total: state.total + 1 }));
+          } else if (type === 'risk.updated' || type === 'risk.score_updated') {
+            set((state) => ({ risks: state.risks.map((r) => (r.id === data.id ? { ...r, ...data } : r)) }));
+          } else if (type === 'risk.deleted') {
+            set((state) => ({ risks: state.risks.filter((r) => r.id !== data.id), total: Math.max(0, state.total - 1) }));
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+      };
+      es.onerror = () => {
+        // close on error to avoid retry storms
+        try { es.close(); } catch {};
+        (get() as any)._es = null;
+      };
+    } catch (err) {
+      console.error('startSSE failed', err);
+    }
+  },
+
+  stopSSE: () => {
+    try {
+      const ref = (get() as any)._es as EventSource | undefined | null;
+      if (ref) {
+        ref.close();
+        (get() as any)._es = null;
+      }
+    } catch (err) {
+      console.error('stopSSE failed', err);
     }
   },
 }));
