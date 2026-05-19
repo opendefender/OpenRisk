@@ -172,5 +172,48 @@
     "byName": "Par nom",
     "byDate": "Par date",
     "byStatus": "Par statut"
+  },
+  "mitigations": {
+    "title": "Plans d'atténuation",
+    "description": "Gérez et suivez vos plans d'atténuation des risques",
+    "createNew": "Nouveau plan",
+    "noMitigations": "Aucun plan d'atténuation",
+    "noMitigationsDescription": "Créez votre premier plan pour commencer à gérer vos risques",
+    "columns": {
+      "todo": "À faire",
+      "inProgress": "En cours",
+      "review": "Vérification",
+      "done": "Complété"
+    },
+    "status": {
+      "TODO": "À faire",
+      "IN_PROGRESS": "En cours",
+      "REVIEW": "Vérification",
+      "DONE": "Complété"
+    },
+    "priority": {
+      "low": "Bas",
+      "medium": "Moyen",
+      "high": "Élevé",
+      "critical": "Critique"
+    },
+    "deadline": {
+      "overdue": "{days}j en retard",
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "daysLeft": "{days}j restants"
+    },
+    "progress": "{completed}/{total} actions",
+    "autoDetected": "Auto-détecté par le scanner",
+    "autoDetectedTooltip": "Détecté automatiquement par le scanner le {date} (scan #{scanId})",
+    "subActions": "Sous-actions",
+    "evidence": "Preuves",
+    "timeline": "Historique",
+    "aiSuggestions": "Suggestions IA",
+    "overview": "Vue d'ensemble",
+    "closeDrawer": "Fermer",
+    "save": "Sauvegarder",
+    "dragHint": "Glissez des plans ici",
+    "reviewPending": "en retard"
   }
 }

@@ -1,0 +1,159 @@
+import { useMemo, memo, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import type { Mitigation } from '../../types/mitigation';
+import { cn } from '../../utils/cn';
+
+interface MitigationGanttViewProps {
+  mitigations: Mitigation[];
+  isLoading?: boolean;
+  onRowClick?: (mitigation: Mitigation) => void;
+}
+
+export const MitigationGanttView = memo(function MitigationGanttView({
+  mitigations,
+  isLoading = false,
+  onRowClick,
+}: MitigationGanttViewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dateRange = useMemo(() => {
+    if (mitigations.length === 0) {
+      const end = new Date(today);
+      end.setDate(end.getDate() + 30);
+      return { start: new Date(today), end };
+    }
+
+    const dates = mitigations.map((m) => new Date(m.due_date));
+    const start = new Date(Math.min(today.getTime(), Math.min(...dates.map((d) => d.getTime()))));
+    const end = new Date(Math.max(today.getTime(), Math.max(...dates.map((d) => d.getTime()))));
+    
+    start.setDate(start.getDate() - 5);
+    end.setDate(end.getDate() + 5);
+    
+    return { start, end };
+  }, [mitigations]);
+
+  const dayCount = Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
+
+  const getPosition = (date: string) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((d.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
+    return (diff / dayCount) * 100;
+  };
+
+  const getTodayPosition = () => {
+    const diff = Math.ceil((today.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
+    return (diff / dayCount) * 100;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin">⏳</div>
+      </div>
+    );
+  }
+
+  if (mitigations.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 text-zinc-400">
+        Aucun plan d'atténuation
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="w-full overflow-x-auto">
+      <div className="min-w-max p-4">
+        {/* Header with dates */}
+        <div className="flex mb-8">
+          <div className="w-48 shrink-0" />
+          <div className="flex-1 relative h-8 bg-zinc-800/50 rounded-lg overflow-hidden border border-zinc-700">
+            {/* Today indicator */}
+            <motion.div
+              className="absolute top-0 bottom-0 w-1 bg-red-500 z-10"
+              style={{ left: `${getTodayPosition()}%` }}
+            />
+            
+            {/* Month markers */}
+            <div className="absolute inset-0 flex">
+              {Array.from({ length: dayCount }).map((_, i) => {
+                const date = new Date(dateRange.start);
+                date.setDate(date.getDate() + i);
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex-1 border-r border-zinc-700/50 text-xs text-zinc-500 px-1 py-1',
+                      i % 7 === 0 ? 'border-r border-zinc-600 font-semibold' : ''
+                    )}
+                  >
+                    {i % 7 === 0 && date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Gantt bars */}
+        <div className="space-y-3">
+          {mitigations.map((mitigation) => {
+            const startPos = getPosition(mitigation.created_at || mitigation.due_date);
+            const endPos = getPosition(mitigation.due_date);
+            const width = Math.max(endPos - startPos, 1);
+            const isOverdue = new Date(mitigation.due_date) < today;
+
+            return (
+              <div
+                key={mitigation.id}
+                className="flex items-center gap-3"
+                onClick={() => onRowClick?.(mitigation)}
+              >
+                <div className="w-48 shrink-0 truncate text-sm text-white hover:text-blue-400 transition-colors cursor-pointer">
+                  {mitigation.title}
+                </div>
+                <div className="flex-1 relative h-8 bg-zinc-800/30 rounded border border-zinc-700 overflow-hidden">
+                  <motion.div
+                    className={cn(
+                      'absolute top-0 bottom-0 rounded transition-colors',
+                      isOverdue ? 'bg-red-500/40 hover:bg-red-500/50' : 'bg-blue-500/40 hover:bg-blue-500/50'
+                    )}
+                    style={{
+                      left: `${startPos}%`,
+                      width: `${width}%`,
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                  >
+                    <div className="h-full px-2 py-1 flex items-center text-xs text-white font-medium truncate">
+                      {mitigation.progress_percentage}%
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-6 flex items-center gap-4 text-xs text-zinc-400">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-red-500" />
+            <span>En retard</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-500" />
+            <span>En cours</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 bg-red-500" />
+            <span>Aujourd'hui</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});

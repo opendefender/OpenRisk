@@ -19,3 +19,9 @@ export type { } from './SkeletonTable';
 
 export { UserAvatar } from './UserAvatar';
 export type { } from './UserAvatar';
+
+export { ProgressBar } from './ProgressBar';
+export type { } from './ProgressBar';
+
+export { AutoDetectedBadge } from './AutoDetectedBadge';
+export type { } from './AutoDetectedBadge';
