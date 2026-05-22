@@ -16,6 +16,7 @@ import { MitigationDetailDrawer } from './MitigationDetailDrawer';
 import { ViewSwitcher } from './ViewSwitcher';
 import { MitigationTableView } from './MitigationTableView';
 import { MitigationGanttView } from './MitigationGanttView';
+import { CreateMitigationModal } from './CreateMitigationModal';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
@@ -41,34 +42,35 @@ export const MitigationKanbanPage = () => {
   const [mitigations, setMitigations] = useState<Mitigation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, OptimisticUpdate>>(new Map());
 
   const store = useMitigationStore();
   const { isDrawerOpen, selectedMitigationId, viewMode } = store;
 
   // Load mitigations
-  useEffect(() => {
-    const loadMitigations = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await mitigationService.listMitigations({
-          ...store.filters,
-          per_page: 100,
-        });
-        setMitigations(response.items);
-        store.setMitigations(response.items);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadMitigations = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await mitigationService.listMitigations({
+        ...store.filters,
+        per_page: 100,
+      });
+      setMitigations(response.items);
+      store.setMitigations(response.items);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store.filters, store]);
 
+  useEffect(() => {
     loadMitigations();
-  }, [store.filters]);
+  }, [loadMitigations]);
 
   // Group mitigations by status (for Kanban view)
   const groupedMitigations = useMemo(() => {
@@ -184,7 +186,7 @@ export const MitigationKanbanPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <ViewSwitcher />
-          <Button onClick={() => console.log('TODO: Open create modal')}>
+          <Button onClick={() => setIsCreateOpen(true)}>
             <Plus size={16} />
             <span className="hidden sm:inline ml-2">Nouveau plan</span>
           </Button>
@@ -207,7 +209,7 @@ export const MitigationKanbanPage = () => {
               description="Créez votre premier plan pour commencer à gérer vos risques"
               action={{
                 label: 'Créer un plan',
-                onClick: () => console.log('TODO: Open create modal'),
+                onClick: () => setIsCreateOpen(true),
               }}
             />
           </div>
@@ -337,6 +339,11 @@ export const MitigationKanbanPage = () => {
         isOpen={isDrawerOpen}
         mitigation={selectedMitigation}
         onClose={() => store.closeDrawer()}
+      />
+      <CreateMitigationModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={() => loadMitigations()}
       />
     </div>
   );
