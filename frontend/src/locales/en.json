@@ -172,5 +172,48 @@
     "byName": "By Name",
     "byDate": "By Date",
     "byStatus": "By Status"
+  },
+  "mitigations": {
+    "title": "Mitigation Plans",
+    "description": "Manage and track your risk mitigation plans",
+    "createNew": "New Plan",
+    "noMitigations": "No mitigation plans",
+    "noMitigationsDescription": "Create your first plan to start managing your risks",
+    "columns": {
+      "todo": "To Do",
+      "inProgress": "In Progress",
+      "review": "Review",
+      "done": "Done"
+    },
+    "status": {
+      "TODO": "To Do",
+      "IN_PROGRESS": "In Progress",
+      "REVIEW": "Review",
+      "DONE": "Done"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "deadline": {
+      "overdue": "{days}d overdue",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "daysLeft": "{days}d left"
+    },
+    "progress": "{completed}/{total} actions",
+    "autoDetected": "Auto-detected by scanner",
+    "autoDetectedTooltip": "Automatically detected by scanner on {date} (scan #{scanId})",
+    "subActions": "Sub-actions",
+    "evidence": "Evidence",
+    "timeline": "Timeline",
+    "aiSuggestions": "AI Suggestions",
+    "overview": "Overview",
+    "closeDrawer": "Close",
+    "save": "Save",
+    "dragHint": "Drag plans here",
+    "reviewPending": "overdue"
   }
 }
