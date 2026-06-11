@@ -209,9 +209,9 @@ func TestTokenPair_Generation(t *testing.T) {
 	assert.Equal(t, "Bearer", tokenPair.TokenType)
 }
 
-// TestPasswordHasher_Hash tests password hashing
-func TestPasswordHasher_Hash(t *testing.T) {
-	hasher := NewSimplePasswordHasher()
+// TestArgon2idPasswordHasher_Hash tests Argon2id password hashing
+func TestArgon2idPasswordHasher_Hash(t *testing.T) {
+	hasher := NewArgon2idPasswordHasher()
 
 	password := "mysecurepassword123"
 	hash, err := hasher.Hash(password)
@@ -219,11 +219,13 @@ func TestPasswordHasher_Hash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, hash)
 	assert.NotEqual(t, password, hash)
+	// Verify it's in Argon2id format
+	assert.Contains(t, hash, "$argon2id$")
 }
 
-// TestPasswordHasher_Verify tests password verification
-func TestPasswordHasher_Verify(t *testing.T) {
-	hasher := NewSimplePasswordHasher()
+// TestArgon2idPasswordHasher_Verify tests Argon2id password verification
+func TestArgon2idPasswordHasher_Verify(t *testing.T) {
+	hasher := NewArgon2idPasswordHasher()
 
 	password := "mysecurepassword123"
 	hash, err := hasher.Hash(password)
@@ -236,14 +238,33 @@ func TestPasswordHasher_Verify(t *testing.T) {
 	assert.False(t, hasher.Verify(hash, "wrongpassword"))
 }
 
-// TestPasswordHasher_VerifyWithDifferentHash tests verification with different hash
-func TestPasswordHasher_VerifyWithDifferentHash(t *testing.T) {
-	hasher := NewSimplePasswordHasher()
+// TestArgon2idPasswordHasher_VerifyWithDifferentHash tests verification with different hash
+func TestArgon2idPasswordHasher_VerifyWithDifferentHash(t *testing.T) {
+	hasher := NewArgon2idPasswordHasher()
 
 	password := "mysecurepassword123"
 	_, err := hasher.Hash(password)
 	require.NoError(t, err)
 
-	// Verify with different hash should fail
-	assert.False(t, hasher.Verify("differenthash", password))
+	// Verify with invalid Argon2id hash should fail
+	assert.False(t, hasher.Verify("$argon2id$invalid$hash", password))
+}
+
+// TestArgon2idPasswordHasher_MultipleHashes tests that different hashes are generated for same password
+func TestArgon2idPasswordHasher_MultipleHashes(t *testing.T) {
+	hasher := NewArgon2idPasswordHasher()
+
+	password := "mysecurepassword123"
+	hash1, err1 := hasher.Hash(password)
+	hash2, err2 := hasher.Hash(password)
+
+	require.NoError(t, err1)
+	require.NoError(t, err2)
+
+	// Hashes should be different (due to random salt)
+	assert.NotEqual(t, hash1, hash2)
+
+	// But both should verify the same password
+	assert.True(t, hasher.Verify(hash1, password))
+	assert.True(t, hasher.Verify(hash2, password))
 }

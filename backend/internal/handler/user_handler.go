@@ -7,11 +7,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	// "github.com/golang-jwt/jwt/v5"
+	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type UpdateUserStatusInput struct {
@@ -106,11 +106,13 @@ func SeedAdminUser() {
 			log.Println("WARNING: INITIAL_ADMIN_PASSWORD not set, using default password 'admin123'")
 		}
 
-		hash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), 14)
+		// Hash password using Argon2id (OWASP recommended)
+		passwordHasher := auth.NewArgon2idPasswordHasher()
+		hash, _ := passwordHasher.Hash(adminPassword)
 		admin := domain.User{
 			Email:    "admin@opendefender.io",
 			Username: "admin",
-			Password: string(hash),
+			Password: hash,
 			FullName: "System Administrator",
 			RoleID:   adminRole.ID,
 			IsActive: true,
@@ -361,8 +363,9 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Role not found"})
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
+	// Hash password using Argon2id (OWASP recommended)
+	passwordHasher := auth.NewArgon2idPasswordHasher()
+	hashedPassword, err := passwordHasher.Hash(input.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process password"})
 	}
@@ -371,7 +374,7 @@ func CreateUser(c *fiber.Ctx) error {
 		Email:      input.Email,
 		Username:   input.Username,
 		FullName:   input.FullName,
-		Password:   string(hashedPassword),
+		Password:   hashedPassword,
 		RoleID:     role.ID,
 		Department: input.Department,
 		IsActive:   true,
