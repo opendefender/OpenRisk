@@ -6,16 +6,25 @@
   **Enterprise-Grade Risk Management Platform**
   
   Part of the [OpenDefender](https://github.com/opendefender) Ecosystem
-  
-  [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+  [![GitHub license](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE)
   [![GitHub release](https://img.shields.io/badge/version-1.0.6-brightgreen.svg)](https://github.com/opendefender/OpenRisk/releases)
+  [![GitHub Actions CI/CD](https://github.com/opendefender/OpenRisk/workflows/CI/badge.svg)](https://github.com/opendefender/OpenRisk/actions)
   [![Go version](https://img.shields.io/badge/go-1.25.4-blue.svg)](https://golang.org)
   [![React version](https://img.shields.io/badge/react-19.2.0-61dafb.svg)](https://react.dev)
 </div>
 
 ---
 
-## 🎯 Overview
+## 🎬 Demo Visuelle
+
+![OpenRisk Demo](./docs/demo.gif)
+
+*Pour voir la démonstration complète en vidéo, consultez la section "Support & Contact" ci-dessous.*
+
+---
+
+## 🎯 Vue d'ensemble
 
 **OpenRisk** is a modern, enterprise-grade **Risk Management Platform** that transforms how organizations identify, assess, mitigate, and monitor risks. Built with a scalable microservices architecture, OpenRisk enables teams to move beyond spreadsheets and legacy systems into a seamless, automated risk management experience.
 
@@ -68,6 +77,25 @@ OpenRisk allows every organization to:
 git clone https://github.com/opendefender/OpenRisk.git
 cd OpenRisk
 
+# Create .env file with secure credentials
+cat > .env.local << 'EOF'
+# Admin Account (customize these values)
+INITIAL_ADMIN_EMAIL=admin@yourdomain.com
+INITIAL_ADMIN_PASSWORD=<YOUR_SECURE_PASSWORD_HERE>
+
+# JWT Configuration
+JWT_SECRET=<YOUR_JWT_SECRET_HERE>
+JWT_EXPIRATION_HOURS=24
+
+# Database
+DATABASE_URL=postgresql://openrisk:secure_password@postgres:5432/openrisk
+REDIS_URL=redis://redis:6379
+
+# API
+API_PORT=8080
+API_HOST=0.0.0.0
+EOF
+
 # Start all services (PostgreSQL, Redis, Backend, Frontend)
 docker compose up -d
 
@@ -75,13 +103,23 @@ docker compose up -d
 # Frontend: http://localhost:5173
 # Backend API: http://localhost:8080
 # API Docs: http://localhost:8080/swagger
+# Login with credentials from .env.local
 ```
 
-### Default Credentials
-```
-Email: admin@openrisk.local
-Password: admin123
-```
+### ⚠️ Security: Default Credentials
+
+**NEVER use default/hardcoded credentials in production!**
+
+1. Always create strong, unique passwords
+2. Use environment variables (`.env` files) - never commit them to Git
+3. Add `.env.local` to your `.gitignore`
+4. Rotate credentials regularly in production
+5. Use a secrets management solution (Vault, AWS Secrets Manager, etc.)
+
+**Password Requirements:**
+- Minimum 12 characters
+- Mix of uppercase, lowercase, numbers, and special characters
+- Generated with a password manager (1Password, LastPass, etc.)
 
 ---
 
@@ -351,15 +389,26 @@ See [API_REFERENCE.md](docs/API_REFERENCE.md) for complete endpoint documentatio
 
 OpenRisk implements enterprise-grade security:
 
-- **Authentication**: JWT tokens with expiration
-- **Authorization**: RBAC with permission matrices
-- **Encryption**: SHA256 hashing for sensitive data
-- **Audit**: Complete audit trail for all operations
-- **SSO**: OAuth2 and SAML2 support
-- **Rate Limiting**: API rate limiting middleware
-- **Input Validation**: Request validation with Zod/validator
+- **Authentication**: JWT tokens (RS256) with expiration and JTI blacklist
+- **Authorization**: RBAC with permission matrices and resource-level granularity
+- **Password Hashing**: Argon2id (OWASP recommended) - never SHA256 or bcrypt alone
+- **Encryption**: AES-256-GCM for sensitive data at rest
+- **Audit Trail**: Complete audit logging for all operations (append-only)
+- **SSO**: OAuth2 (Google, GitHub) and SAML2 support
+- **Rate Limiting**: API rate limiting middleware to prevent abuse
+- **Input Validation**: Request validation with Zod and explicit type checking
+- **Default Credentials**: Never hardcoded - always use environment variables
+- **Secrets Management**: Support for external secret managers (Vault, AWS Secrets Manager)
 
-See [ADVANCED_PERMISSIONS.md](docs/ADVANCED_PERMISSIONS.md) for detailed security documentation.
+⚠️ **Security Best Practices:**
+- Rotate credentials and API keys regularly
+- Use strong passwords (12+ characters, mixed case, numbers, symbols)
+- Enable MFA/2FA for all user accounts
+- Keep dependencies updated regularly
+- Run security scans (TruffleHog, Snyk, Trivy)
+- Monitor audit logs for suspicious activity
+
+See [ADVANCED_PERMISSIONS.md](docs/ADVANCED_PERMISSIONS.md) and [SECURITY.md](SECURITY.md) for detailed security documentation.
 
 ---
 
@@ -419,7 +468,16 @@ We welcome contributions from the community! Please see [CONTRIBUTING.md](CONTRI
 
 ## 📝 License
 
-OpenRisk is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+OpenRisk is licensed under the **Boost Software License 1.1** (BSL-1.1) - see the [LICENSE](LICENSE) file for details.
+
+### BSL 1.1 Key Terms:
+- ✅ Free for use (no license fee)
+- ✅ Free for commercial use (if revenues < $1M/year)
+- ✅ Source code availability for modifications
+- ✅ No royalties required
+- ⚠️ Attribution required in derivative works
+
+For more information, visit: https://www.boostlicense.org/LICENSE_1_0.txt
 
 ---
 
