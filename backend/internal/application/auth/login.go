@@ -26,15 +26,17 @@ type LoginOutput struct {
 
 // LoginUseCase handles user authentication
 type LoginUseCase struct {
-	userRepo    UserRepository
-	tokenManager *auth.TokenManager
+	userRepo       UserRepository
+	tokenManager   *auth.TokenManager
+	passwordHasher auth.PasswordHasher
 }
 
 // NewLoginUseCase creates a new login use case
-func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager) *LoginUseCase {
+func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager, passwordHasher auth.PasswordHasher) *LoginUseCase {
 	return &LoginUseCase{
-		userRepo:    userRepo,
-		tokenManager: tokenManager,
+		userRepo:       userRepo,
+		tokenManager:   tokenManager,
+		passwordHasher: passwordHasher,
 	}
 }
 
@@ -62,9 +64,8 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		return nil, domain.NewValidationError("account is disabled")
 	}
 
-	// Verify password (this should use proper password hashing)
-	// For now, we'll assume password verification is implemented
-	if !uc.verifyPassword(user.Password, input.Password) {
+	// Verify password using Argon2id (OWASP recommended)
+	if !uc.passwordHasher.Verify(user.Password, input.Password) {
 		return nil, domain.NewValidationError("invalid credentials")
 	}
 
@@ -117,13 +118,6 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		TokenPair:    tokenPair,
 		Organization: org,
 	}, nil
-}
-
-// verifyPassword verifies a password (placeholder - should use proper hashing)
-func (uc *LoginUseCase) verifyPassword(hashedPassword, plainPassword string) bool {
-	// TODO: Implement proper password verification with bcrypt or similar
-	// For now, this is a placeholder
-	return hashedPassword == plainPassword
 }
 
 // UserRepository interface for user operations

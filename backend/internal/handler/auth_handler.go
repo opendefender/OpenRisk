@@ -6,11 +6,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginInput struct {
@@ -44,17 +44,21 @@ type UserDTO struct {
 }
 
 type AuthHandler struct {
-	authService  *service.AuthService
-	auditService *service.AuditService
+	authService     *service.AuthService
+	auditService    *service.AuditService
+	passwordHasher  auth.PasswordHasher
 }
 
 func NewAuthHandler() *AuthHandler {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	authService := service.NewAuthService(jwtSecret, 24*time.Hour)
 	auditService := service.NewAuditService()
+	// Use Argon2id for secure password hashing (OWASP recommended)
+	passwordHasher := auth.NewArgon2idPasswordHasher()
 	return &AuthHandler{
-		authService:  authService,
-		auditService: auditService,
+		authService:    authService,
+		auditService:   auditService,
+		passwordHasher: passwordHasher,
 	}
 }
 
@@ -85,8 +89,8 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
-	// Verify password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+	// Verify password using Argon2id
+	if !h.passwordHasher.Verify(user.Password, input.Password) {
 		// Log failed login attempt
 		_ = h.auditService.LogLogin(user.ID, domain.ResultFailure, ipAddress, userAgent, "Invalid password")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials"})
@@ -237,8 +241,8 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Username already in use"})
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	// Hash password using Argon2id (OWASP recommended)
+	hashedPassword, err := h.passwordHasher.Hash(input.Password)
 	if err != nil {
 		_ = h.auditService.LogRegister(nil, domain.ResultFailure, ipAddress, userAgent, "Failed to process password")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process password"})
@@ -256,7 +260,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Email:    input.Email,
 		Username: input.Username,
 		FullName: input.FullName,
-		Password: string(hashedPassword),
+		Password: hashedPassword,
 		RoleID:   viewerRole.ID,
 		IsActive: true,
 	}

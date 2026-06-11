@@ -134,12 +134,12 @@ OpenRisk Platform
 | Document | Lines | Status |
 |----------|-------|--------|
 | [README.md](../README.md) | 388 | ✅ Complete |
-| [API_REFERENCE.md](../docs/API_REFERENCE.md) | 77+ | ✅ Complete |
-| [DEPLOYMENT_READY.md](../DEPLOYMENT_READY.md) | 351+ | ✅ Complete |
-| [KEYBOARD_SHORTCUTS.md](../docs/KEYBOARD_SHORTCUTS.md) | 465+ | ✅ Complete |
-| [STAGING_VALIDATION_CHECKLIST.md](../STAGING_VALIDATION_CHECKLIST.md) | 550+ | ✅ Complete |
-| [LOAD_TESTING_PROCEDURE.md](../LOAD_TESTING_PROCEDURE.md) | 750+ | ✅ Complete |
-| [RBAC_IMPLEMENTATION_PLAN.md](../docs/RBAC_IMPLEMENTATION_PLAN.md) | 500+ | ✅ Complete |
+| [API_REFERENCE.md](./API_REFERENCE.md) | 77+ | ✅ Complete |
+| [DEPLOYMENT_READY.md](./DEPLOYMENT_READY.md) | 351+ | ✅ Complete |
+| [KEYBOARD_SHORTCUTS.md](./KEYBOARD_SHORTCUTS.md) | 465+ | ✅ Complete |
+| [STAGING_VALIDATION_CHECKLIST.md](./STAGING_VALIDATION_CHECKLIST.md) | 550+ | ✅ Complete |
+| [LOAD_TESTING_PROCEDURE.md](./LOAD_TESTING_PROCEDURE.md) | 750+ | ✅ Complete |
+| [RBAC_IMPLEMENTATION_PLAN.md](./RBAC_IMPLEMENTATION_PLAN.md) | 500+ | ✅ Complete |
 | **Total** | **3,081+** | ✅ **COMPLETE** |
 
 ---
