@@ -1,3 +1,8 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: BUSL-1.1
+// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
+// If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
+
 import { useAuthStore } from '../hooks/useAuthStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
