@@ -253,7 +253,7 @@ git push origin v1.0.0
 6. Infrastructure: Docker, Kubernetes, CI/CD
 
 **Conseils pour succès:**
-- Ajouter LICENSE (MIT ou Apache 2.0)
+- Ajouter LICENSE (BUSL-1.1)
 - Ajouter CONTRIBUTING.md
 - Ajouter SECURITY.md
 - Annoncer sur HackerNews/ProductHunt (optionnel)
