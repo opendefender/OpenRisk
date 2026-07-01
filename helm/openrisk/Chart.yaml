@@ -18,5 +18,5 @@ keywords:
 dependencies: []
 annotations:
   category: Security
-  licenseUrl: https://opensource.org/licenses/MIT
+  licenseUrl: https://mariadb.com/bsl11/
   releaseNotes: "Phase 5 - Kubernetes deployment for OpenRisk"

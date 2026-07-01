@@ -12,7 +12,8 @@ info:
   contact:
     name: OpenDefender Team
   license:
-    name: MIT
+    name: Business Source License 1.1 (BUSL-1.1)
+    url: https://mariadb.com/bsl11/
 servers:
   - url: /api/v1
     description: Production API

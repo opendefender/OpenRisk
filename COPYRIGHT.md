@@ -2,23 +2,21 @@
 
 ## OpenRisk - Open Source Risk Management Platform
 
-**Copyright © 2024-2025 OpenDefender Contributors**  
-All rights reserved under the GNU General Public License v3.0
+**Copyright © 2024-2026 OpenDefender Contributors**  
+All rights reserved under the Business Source License 1.1 (BUSL-1.1)
 
 ---
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
+This project is licensed under the **Business Source License 1.1** (BUSL-1.1).  
 See the [LICENSE](./LICENSE) file for the full license text.
 
 **Key Points:**
-- ✅ You **CAN** use, modify, and distribute this software
-- ✅ You **MUST** share modifications under the same GPL-3.0 license
-- ✅ You **MUST** include copyright and license notices
-- ✅ You **MUST** disclose source code when distributing
-- ❌ You **CANNOT** sublicense or use proprietary licenses
-- ❌ You **CANNOT** hold authors liable
+- ✅ You **CAN** use, modify, and distribute this software for non-commercial and internal purposes.
+- ✅ You **MUST** include copyright and license notices.
+- ❌ You **CANNOT** provide the Licensed Work as a managed service (SaaS) or otherwise use it to provide a commercial competitive offering to third parties.
+- 🔄 Reverts to Apache 2.0 license after 4 years from the release date.
 
 ---
 
@@ -26,10 +24,10 @@ See the [LICENSE](./LICENSE) file for the full license text.
 
 The copyright for this project is held collectively by all contributors who have submitted code to the repository. By contributing to OpenRisk, you agree that:
 
-1. Your contributions are submitted under the GPL-3.0 license
+1. Your contributions are submitted under the BUSL-1.1 license
 2. You have the right to submit the contribution
 3. Your contribution becomes part of the collective work
-4. You retain copyright on your individual contributions
+4. You agree to the Contributor License Agreement (CLA) outlined in CONTRIBUTING.md
 
 ---
 
@@ -37,7 +35,7 @@ The copyright for this project is held collectively by all contributors who have
 
 **"OpenDefender"** and **"OpenRisk"** are trademarks of the OpenDefender project.
 
-While the code is open source under GPL-3.0, the trademarks are protected. Use of the trademarks requires compliance with our trademark policy:
+While the code is available under BUSL-1.1, the trademarks are protected. Use of the trademarks requires compliance with our trademark policy:
 
 - ✅ Permitted: Referring to the original project, linking, academic citations
 - ✅ Permitted: Unmodified redistribution with clear attribution
@@ -48,7 +46,7 @@ While the code is open source under GPL-3.0, the trademarks are protected. Use o
 
 ## Third-Party Components
 
-This project may include third-party libraries and components, each with their own copyright and license terms. All third-party components used are compatible with GPL-3.0. See individual component documentation for specific copyright notices.
+This project may include third-party libraries and components, each with their own copyright and license terms. All third-party components used are compatible with BUSL-1.1. See individual component documentation for specific copyright notices.
 
 ---
 
@@ -74,13 +72,7 @@ If you believe your copyright has been violated, contact us at:
 
 ## Commercial Use
 
-GPL-3.0 permits commercial use, but you must:
-- Distribute source code to your customers
-- License modifications under GPL-3.0
-- Respect trademark restrictions
-- Provide prominent attribution
-
-For alternative licensing arrangements, contact the project maintainers.
+BUSL-1.1 does not permit commercial SaaS deployment to third parties without a commercial license. For alternative licensing arrangements, contact the project maintainers.
 
 ---
 
@@ -92,4 +84,4 @@ For licensing questions or permissions:
 
 ---
 
-*Last Updated: December 2025*
+*Last Updated: 2026*

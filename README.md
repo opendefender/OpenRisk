@@ -7,7 +7,7 @@
   
   Part of the [OpenDefender](https://github.com/opendefender) Ecosystem
 
-  [![GitHub license](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE)
+  [![GitHub license](https://img.shields.io/badge/license-BUSL%201.1-blue.svg)](LICENSE)
   [![GitHub release](https://img.shields.io/badge/version-1.0.6-brightgreen.svg)](https://github.com/opendefender/OpenRisk/releases)
   [![GitHub Actions CI/CD](https://github.com/opendefender/OpenRisk/workflows/CI/badge.svg)](https://github.com/opendefender/OpenRisk/actions)
   [![Go version](https://img.shields.io/badge/go-1.25.4-blue.svg)](https://golang.org)
@@ -468,16 +468,15 @@ We welcome contributions from the community! Please see [CONTRIBUTING.md](CONTRI
 
 ## 📝 License
 
-OpenRisk is licensed under the **Boost Software License 1.1** (BSL-1.1) - see the [LICENSE](LICENSE) file for details.
+OpenRisk is licensed under the **Business Source License 1.1** (BUSL-1.1) - see the [LICENSE](LICENSE) file for details.
 
-### BSL 1.1 Key Terms:
-- ✅ Free for use (no license fee)
-- ✅ Free for commercial use (if revenues < $1M/year)
+### BUSL-1.1 Key Terms:
+- ✅ Free for non-commercial and internal use
 - ✅ Source code availability for modifications
-- ✅ No royalties required
-- ⚠️ Attribution required in derivative works
+- ⚠️ Cannot be offered as a competitive SaaS product
+- 🔄 Reverts to Apache 2.0 license after 4 years
 
-For more information, visit: https://www.boostlicense.org/LICENSE_1_0.txt
+For more information on the Business Source License, visit: https://mariadb.com/bsl11/
 
 ---
 

@@ -15,6 +15,7 @@ Thank you for your interest in contributing to OpenRisk! This document provides 
 9. [Testing](#testing)
 10. [Documentation](#documentation)
 11. [Community](#community)
+12. [Contributor License Agreement (CLA)](#contributor-license-agreement-cla)
 
 ## Code of Conduct
 
@@ -425,9 +426,20 @@ Contributors are recognized in:
 3. **Releases** - Contributors mentioned in release notes
 4. **Discord** - Special roles for active contributors
 
+## Contributor License Agreement (CLA)
+
+By contributing to OpenRisk, you agree that your contributions will be licensed under the project's [Business Source License 1.1 (BUSL-1.1)](LICENSE). 
+
+To ensure the OpenDefender project has the legal rights to distribute and potentially re-license the collective work in the future, we require all contributors to sign a Contributor License Agreement (CLA).
+
+When you submit your first Pull Request, you will be prompted to sign the CLA digitally. By signing, you confirm that:
+1. You grant the OpenDefender project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute your contributions.
+2. You are legally entitled to grant the above license.
+3. This is a license agreement only; you retain ownership of your original contributions.
+
 ## License
 
-By contributing to OpenRisk, you agree that your contributions will be licensed under the [license](LICENSE) of the project.
+By contributing to OpenRisk, you agree to the terms of the CLA and acknowledge the Business Source License 1.1 of the project.
 
 ## Additional Notes
 

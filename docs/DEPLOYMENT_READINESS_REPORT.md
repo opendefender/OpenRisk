@@ -259,7 +259,7 @@ git push origin stag
 - 🟢 Architecture scalable (microservices-ready)
 
 ### Éléments à Ajouter (OPTIONNEL, post-déploiement):
-- 📝 LICENSE file (MIT/Apache 2.0)
+- 📝 LICENSE file (BUSL-1.1)
 - 📝 CONTRIBUTING.md (guidelines pour contributors)
 - 📝 SECURITY.md (disclosure policy)
 - 📝 .github/ISSUE_TEMPLATE/ (templates pour bugs/features)

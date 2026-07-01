@@ -13,7 +13,7 @@
 ## 1. Open-Core Architecture & Strategy
 
 ### 1.1 GitHub Open-Source Edition (Community)
-**Repository**: OpenRisk (MIT License)
+**Repository**: OpenRisk (BUSL-1.1)
 **Target**: Startups, developers, educational institutions, community adoption
 
 **Features**:
@@ -109,7 +109,7 @@ Security Patches (immediate, all platforms)
 | **CI/CD Pipeline** | No | No | No | No | **✅ Yes** |
 | **Community** | Enterprise | Enterprise | Active | Small | **✅ Growing** |
 | **Compliance (NIS2)** | ✅ | ✅ | ✅ | ✅ | **✅ + Templates** |
-| **Open-source** | ❌ | ❌ | ✅ | ❌ | **✅ MIT** |
+| **Open-source** | ❌ | ❌ | ✅ | ❌ | **✅ BUSL-1.1** |
 | **Free Tier** | ❌ | ❌ | Limited | ❌ | **✅ Full** |
 
 ### Key Differentiators
@@ -157,7 +157,7 @@ Security Patches (immediate, all platforms)
 **Goal**: 5,000 active free users
 
 #### Actions:
-- [ ] Launch GitHub public repository (MIT)
+- [ ] Launch GitHub public repository (BUSL-1.1)
   - HackerNews #1 post
   - ProductHunt launch
   - Reddit community (r/cybersecurity, r/devops)
