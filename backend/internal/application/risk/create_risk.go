@@ -44,6 +44,13 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		return nil, err
 	}
 
+	// Convert the raw source string into the typed domain.RiskSource
+	// (empty defaults to SourceManual; anything else must be a known value).
+	source, err := domain.ParseRiskSource(input.Source)
+	if err != nil {
+		return nil, err
+	}
+
 	// 2. Build domain entity
 	// TenantID is the canonical (not-null) field; OrganizationID is kept as
 	// its legacy alias. Risk.BeforeSave() also syncs the two on real GORM
@@ -58,6 +65,7 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		Tags:           input.Tags,
 		Frameworks:     input.Frameworks,
 		Owner:          input.Owner,
+		Source:         source,
 		ExternalID:     input.ExternalID,
 		TenantID:       orgID,
 		OrganizationID: orgID,
