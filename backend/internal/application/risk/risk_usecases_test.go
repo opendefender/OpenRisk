@@ -14,89 +14,26 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// --- Mock Repository ---
-
-type mockRiskRepo struct {
-	risks  map[uuid.UUID]*domain.Risk
-	orgIdx map[uuid.UUID][]uuid.UUID // orgID -> riskIDs
-	err    error                     // injectable error
-}
-
-func newMockRiskRepo() *mockRiskRepo {
-	return &mockRiskRepo{
-		risks:  make(map[uuid.UUID]*domain.Risk),
-		orgIdx: make(map[uuid.UUID][]uuid.UUID),
-	}
-}
-
-func (m *mockRiskRepo) Create(ctx context.Context, risk *domain.Risk) error {
-	if m.err != nil {
-		return m.err
-	}
-	m.risks[risk.ID] = risk
-	m.orgIdx[risk.OrganizationID] = append(m.orgIdx[risk.OrganizationID], risk.ID)
-	return nil
-}
-
-func (m *mockRiskRepo) GetByID(ctx context.Context, id uuid.UUID, orgID uuid.UUID) (*domain.Risk, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	risk, ok := m.risks[id]
-	if !ok || risk.OrganizationID != orgID {
-		return nil, nil
-	}
-	return risk, nil
-}
-
-func (m *mockRiskRepo) List(ctx context.Context, orgID uuid.UUID, query domain.RiskQuery) (*domain.PaginatedResult[domain.Risk], error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	var results []domain.Risk
-	for _, id := range m.orgIdx[orgID] {
-		results = append(results, *m.risks[id])
-	}
-	return &domain.PaginatedResult[domain.Risk]{
-		Data:  results,
-		Total: int64(len(results)),
-		Page:  query.Page,
-		Limit: query.Limit,
-	}, nil
-}
-
-func (m *mockRiskRepo) Update(ctx context.Context, risk *domain.Risk) error {
-	if m.err != nil {
-		return m.err
-	}
-	m.risks[risk.ID] = risk
-	return nil
-}
-
-func (m *mockRiskRepo) Delete(ctx context.Context, id uuid.UUID, orgID uuid.UUID) error {
-	if m.err != nil {
-		return m.err
-	}
-	delete(m.risks, id)
-	return nil
-}
-
-func (m *mockRiskRepo) Count(ctx context.Context, orgID uuid.UUID) (int64, error) {
-	return int64(len(m.orgIdx[orgID])), m.err
-}
+// Uses MockRiskRepository (test_utils_test.go) — the mockRiskRepo previously
+// defined here did not implement the full domain.RiskRepository interface
+// (missing BulkCreate, BulkUpdate, BulkDelete, UpdateScore, GetRiskScore,
+// GetRisksByAssetID, GetHistory, CreateAuditEntry, GetBySource, GetByCVE),
+// so this file never compiled under `go vet`/`go test`, independent of the
+// Impact/Probability/Source type alignment. Consolidated onto the one
+// complete mock instead of maintaining two parallel, drifting mocks.
 
 // --- CreateRisk Tests ---
 
 func TestCreateRisk_Success(t *testing.T) {
-	repo := newMockRiskRepo()
+	repo := &MockRiskRepository{}
 	uc := NewCreateRiskUseCase(repo)
 
 	orgID := uuid.New()
 	input := CreateRiskInput{
 		Title:       "SQL Injection in login form",
 		Description: "The login endpoint is vulnerable to SQLi",
-		Impact:      4,
-		Probability: 3,
+		Impact:      8.0,
+		Probability: 0.5,
 		Owner:       "analyst@openrisk.io",
 	}
 
@@ -110,8 +47,8 @@ func TestCreateRisk_Success(t *testing.T) {
 	if risk.OrganizationID != orgID {
 		t.Error("expected risk to be scoped to organization")
 	}
-	if risk.Score != 12.0 { // 4 * 3
-		t.Errorf("expected score 12.0, got %.2f", risk.Score)
+	if risk.Score != 4.0 { // 8.0 * 0.5
+		t.Errorf("expected score 4.0, got %.2f", risk.Score)
 	}
 	if risk.Status != domain.StatusDraft {
 		t.Errorf("expected status DRAFT, got %s", risk.Status)
@@ -119,7 +56,7 @@ func TestCreateRisk_Success(t *testing.T) {
 }
 
 func TestCreateRisk_ValidationError(t *testing.T) {
-	repo := newMockRiskRepo()
+	repo := &MockRiskRepository{}
 	uc := NewCreateRiskUseCase(repo)
 
 	tests := []struct {
@@ -128,23 +65,23 @@ func TestCreateRisk_ValidationError(t *testing.T) {
 	}{
 		{
 			name:  "empty title",
-			input: CreateRiskInput{Title: "", Impact: 3, Probability: 2},
+			input: CreateRiskInput{Title: "", Impact: 5, Probability: 0.5},
 		},
 		{
 			name:  "impact too low",
-			input: CreateRiskInput{Title: "test", Impact: 0, Probability: 2},
+			input: CreateRiskInput{Title: "test", Impact: -1, Probability: 0.5},
 		},
 		{
 			name:  "impact too high",
-			input: CreateRiskInput{Title: "test", Impact: 6, Probability: 2},
+			input: CreateRiskInput{Title: "test", Impact: 11, Probability: 0.5},
 		},
 		{
 			name:  "probability too low",
-			input: CreateRiskInput{Title: "test", Impact: 3, Probability: 0},
+			input: CreateRiskInput{Title: "test", Impact: 5, Probability: -0.1},
 		},
 		{
 			name:  "probability too high",
-			input: CreateRiskInput{Title: "test", Impact: 3, Probability: 6},
+			input: CreateRiskInput{Title: "test", Impact: 5, Probability: 1.5},
 		},
 	}
 
@@ -162,12 +99,15 @@ func TestCreateRisk_ValidationError(t *testing.T) {
 }
 
 func TestCreateRisk_RepositoryError(t *testing.T) {
-	repo := newMockRiskRepo()
-	repo.err = errors.New("db connection lost")
+	repo := &MockRiskRepository{
+		createFunc: func(ctx context.Context, risk *domain.Risk) error {
+			return errors.New("db connection lost")
+		},
+	}
 	uc := NewCreateRiskUseCase(repo)
 
 	_, err := uc.Execute(context.Background(), uuid.New(), CreateRiskInput{
-		Title: "test", Impact: 3, Probability: 2,
+		Title: "test", Impact: 5, Probability: 0.5,
 	})
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -177,12 +117,17 @@ func TestCreateRisk_RepositoryError(t *testing.T) {
 // --- GetRisk Tests ---
 
 func TestGetRisk_Success(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgID := uuid.New()
 	riskID := uuid.New()
 
-	repo.risks[riskID] = &domain.Risk{ID: riskID, OrganizationID: orgID, Title: "Test Risk"}
-	repo.orgIdx[orgID] = []uuid.UUID{riskID}
+	repo := &MockRiskRepository{
+		getByIDFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) (*domain.Risk, error) {
+			if id == riskID && tid == orgID {
+				return &domain.Risk{ID: riskID, OrganizationID: orgID, Title: "Test Risk"}, nil
+			}
+			return nil, nil
+		},
+	}
 
 	uc := NewGetRiskUseCase(repo)
 	risk, err := uc.Execute(context.Background(), orgID, riskID)
@@ -195,7 +140,7 @@ func TestGetRisk_Success(t *testing.T) {
 }
 
 func TestGetRisk_NotFound(t *testing.T) {
-	repo := newMockRiskRepo()
+	repo := &MockRiskRepository{}
 	uc := NewGetRiskUseCase(repo)
 
 	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New())
@@ -208,13 +153,19 @@ func TestGetRisk_NotFound(t *testing.T) {
 }
 
 func TestGetRisk_WrongTenant(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgA := uuid.New()
 	orgB := uuid.New()
 	riskID := uuid.New()
 
 	// Risk belongs to orgA
-	repo.risks[riskID] = &domain.Risk{ID: riskID, OrganizationID: orgA, Title: "OrgA Risk"}
+	repo := &MockRiskRepository{
+		getByIDFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) (*domain.Risk, error) {
+			if id == riskID && tid == orgA {
+				return &domain.Risk{ID: riskID, OrganizationID: orgA, Title: "OrgA Risk"}, nil
+			}
+			return nil, nil
+		},
+	}
 
 	uc := NewGetRiskUseCase(repo)
 	// Try to access from orgB → should not find
@@ -227,13 +178,17 @@ func TestGetRisk_WrongTenant(t *testing.T) {
 // --- ListRisks Tests ---
 
 func TestListRisks_Success(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgID := uuid.New()
 
+	var risks []domain.Risk
 	for i := 0; i < 5; i++ {
-		id := uuid.New()
-		repo.risks[id] = &domain.Risk{ID: id, OrganizationID: orgID}
-		repo.orgIdx[orgID] = append(repo.orgIdx[orgID], id)
+		risks = append(risks, domain.Risk{ID: uuid.New(), OrganizationID: orgID})
+	}
+
+	repo := &MockRiskRepository{
+		listFunc: func(ctx context.Context, tid uuid.UUID, query domain.RiskQuery) (*domain.PaginatedResult[domain.Risk], error) {
+			return &domain.PaginatedResult[domain.Risk]{Data: risks, Total: int64(len(risks))}, nil
+		},
 	}
 
 	uc := NewListRisksUseCase(repo)
@@ -247,7 +202,7 @@ func TestListRisks_Success(t *testing.T) {
 }
 
 func TestListRisks_EmptyOrg(t *testing.T) {
-	repo := newMockRiskRepo()
+	repo := &MockRiskRepository{}
 	uc := NewListRisksUseCase(repo)
 
 	result, err := uc.Execute(context.Background(), uuid.New(), domain.NewRiskQuery())
@@ -262,19 +217,25 @@ func TestListRisks_EmptyOrg(t *testing.T) {
 // --- UpdateRisk Tests ---
 
 func TestUpdateRisk_Success(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgID := uuid.New()
 	riskID := uuid.New()
-
-	repo.risks[riskID] = &domain.Risk{
+	existing := &domain.Risk{
 		ID: riskID, OrganizationID: orgID,
-		Title: "Old Title", Impact: 2, Probability: 2,
+		Title: "Old Title", Impact: 2, Probability: 0.5,
 	}
-	repo.orgIdx[orgID] = []uuid.UUID{riskID}
+
+	repo := &MockRiskRepository{
+		getByIDFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) (*domain.Risk, error) {
+			if id == riskID && tid == orgID {
+				return existing, nil
+			}
+			return nil, nil
+		},
+	}
 
 	uc := NewUpdateRiskUseCase(repo)
 	newTitle := "Updated Title"
-	newImpact := 4
+	newImpact := 4.0
 	risk, err := uc.Execute(context.Background(), orgID, riskID, UpdateRiskInput{
 		Title:  &newTitle,
 		Impact: &newImpact,
@@ -285,13 +246,13 @@ func TestUpdateRisk_Success(t *testing.T) {
 	if risk.Title != "Updated Title" {
 		t.Errorf("expected 'Updated Title', got %q", risk.Title)
 	}
-	if risk.Score != 8.0 { // 4 * 2
-		t.Errorf("expected score 8.0, got %.2f", risk.Score)
+	if risk.Score != 2.0 { // 4.0 * 0.5
+		t.Errorf("expected score 2.0, got %.2f", risk.Score)
 	}
 }
 
 func TestUpdateRisk_NotFound(t *testing.T) {
-	repo := newMockRiskRepo()
+	repo := &MockRiskRepository{}
 	uc := NewUpdateRiskUseCase(repo)
 
 	title := "test"
@@ -302,17 +263,21 @@ func TestUpdateRisk_NotFound(t *testing.T) {
 }
 
 func TestUpdateRisk_ValidationError(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgID := uuid.New()
 	riskID := uuid.New()
-	repo.risks[riskID] = &domain.Risk{
+	existing := &domain.Risk{
 		ID: riskID, OrganizationID: orgID,
-		Title: "Test", Impact: 2, Probability: 2,
+		Title: "Test", Impact: 2, Probability: 0.5,
 	}
 
+	repo := &MockRiskRepository{
+		getByIDFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) (*domain.Risk, error) {
+			return existing, nil
+		},
+	}
 	uc := NewUpdateRiskUseCase(repo)
 
-	badImpact := 10
+	badImpact := 15.0 // ERD bound is [0,10] — 15 is out of range
 	_, err := uc.Execute(context.Background(), orgID, riskID, UpdateRiskInput{Impact: &badImpact})
 	if !errors.Is(err, domain.ErrValidation) {
 		t.Errorf("expected ErrValidation, got %v", err)
@@ -322,23 +287,36 @@ func TestUpdateRisk_ValidationError(t *testing.T) {
 // --- DeleteRisk Tests ---
 
 func TestDeleteRisk_Success(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgID := uuid.New()
 	riskID := uuid.New()
-	repo.risks[riskID] = &domain.Risk{ID: riskID, OrganizationID: orgID}
+	existing := &domain.Risk{ID: riskID, OrganizationID: orgID}
+	deleted := false
+
+	repo := &MockRiskRepository{
+		getByIDFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) (*domain.Risk, error) {
+			if deleted {
+				return nil, nil
+			}
+			return existing, nil
+		},
+		deleteFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) error {
+			deleted = true
+			return nil
+		},
+	}
 
 	uc := NewDeleteRiskUseCase(repo)
 	err := uc.Execute(context.Background(), orgID, riskID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if _, ok := repo.risks[riskID]; ok {
-		t.Error("expected risk to be deleted from store")
+	if !deleted {
+		t.Error("expected risk to be deleted")
 	}
 }
 
 func TestDeleteRisk_NotFound(t *testing.T) {
-	repo := newMockRiskRepo()
+	repo := &MockRiskRepository{}
 	uc := NewDeleteRiskUseCase(repo)
 
 	err := uc.Execute(context.Background(), uuid.New(), uuid.New())
@@ -348,11 +326,19 @@ func TestDeleteRisk_NotFound(t *testing.T) {
 }
 
 func TestDeleteRisk_WrongTenant(t *testing.T) {
-	repo := newMockRiskRepo()
 	orgA := uuid.New()
 	orgB := uuid.New()
 	riskID := uuid.New()
-	repo.risks[riskID] = &domain.Risk{ID: riskID, OrganizationID: orgA}
+	existing := &domain.Risk{ID: riskID, OrganizationID: orgA}
+
+	repo := &MockRiskRepository{
+		getByIDFunc: func(ctx context.Context, id uuid.UUID, tid uuid.UUID) (*domain.Risk, error) {
+			if id == riskID && tid == orgA {
+				return existing, nil
+			}
+			return nil, nil
+		},
+	}
 
 	uc := NewDeleteRiskUseCase(repo)
 	err := uc.Execute(context.Background(), orgB, riskID)
