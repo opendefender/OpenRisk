@@ -35,6 +35,16 @@ type Matcher interface {
 	MatchCVEsToAllTenantAssets(ctx context.Context) error
 }
 
+// RiskCreator is a port for turning a matched CVE into a risk proposal.
+//
+// ABSOLUTE RULE (Master Prompt Rule 11 — human-in-the-loop): implementations
+// MUST NOT silently persist a risk. A CVE match is a *proposal* awaiting
+// human validation, never an automatic write to the Risk Register. The
+// returned proposalID identifies the pending proposal, not a created risk.
+type RiskCreator interface {
+	ProposeRiskFromCVE(ctx context.Context, tenantID, assetID uuid.UUID, vuln CTIVulnerability) (proposalID uuid.UUID, err error)
+}
+
 // Repository defines data access functions for CTI vulnerabilities
 type Repository interface {
 	UpsertVulnerabilities(ctx context.Context, vulns []CTIVulnerability) error
