@@ -6,6 +6,7 @@
 package domain
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,6 +68,22 @@ const (
 	SourceVendor    RiskSource = "vendor"      // From vendor assessment
 	SourceAI        RiskSource = "ai"          // AI-generated
 )
+
+// ParseRiskSource validates and converts a string into a RiskSource.
+// An empty string defaults to SourceManual (matches the ERD column default:
+// `source VARCHAR(50) NOT NULL DEFAULT 'manual'`). Any other value must match
+// one of the known constants, or a typed validation error is returned.
+func ParseRiskSource(s string) (RiskSource, error) {
+	if s == "" {
+		return SourceManual, nil
+	}
+	switch RiskSource(s) {
+	case SourceManual, SourceCTIAuto, SourceScanAuto, SourceImport, SourceVendor, SourceAI:
+		return RiskSource(s), nil
+	default:
+		return "", NewValidationError(fmt.Sprintf("invalid risk source: %q", s))
+	}
+}
 
 // Risk represents a business risk with full lifecycle management
 // Follows Clean Architecture: pure domain entity, ZERO external dependencies
