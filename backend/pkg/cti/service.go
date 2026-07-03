@@ -7,8 +7,8 @@ package cti
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -25,30 +25,29 @@ func NewService(repo Repository, client *ExternalClient) Service {
 }
 
 // SyncAll fetches NVD and CISA feeds and upserts vulnerabilities.
+// Fetches a 24h NVD window; ExternalClient already returns parsed
+// []CTIVulnerability, so no manual JSON parsing is needed here.
 func (s *service) SyncAll(ctx context.Context) error {
-	// Example: fetch last 24h window from NVD (caller can craft URL)
-	// The detailed param assembly and JSON parsing is implemented here at a minimal level.
-	nvdURL := "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=2000"
-	data, err := s.client.FetchNVD(ctx, nvdURL)
+	now := time.Now().UTC()
+	pubEnd := now.Format("2006-01-02T15:04:05.000")
+	pubStart := now.Add(-24 * time.Hour).Format("2006-01-02T15:04:05.000")
+
+	nvdVulns, err := s.client.FetchNVDCVEs(ctx, pubStart, pubEnd)
 	if err != nil {
 		return fmt.Errorf("nvd fetch failed: %w", err)
 	}
-
-	// Parse NVD response minimally to extract CVE items.
-	// For now we store raw parsing placeholder: callers should extend JSON parsing to map fields.
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return fmt.Errorf("failed to parse nvd payload: %w", err)
+	if err := s.repo.UpsertVulnerabilities(ctx, nvdVulns); err != nil {
+		return fmt.Errorf("nvd upsert failed: %w", err)
 	}
 
-	// TODO: transform parsed into []CTIVulnerability. For now, no-op.
-	_ = parsed
+	kevVulns, err := s.client.FetchCISAKEV(ctx)
+	if err != nil {
+		return fmt.Errorf("cisa kev fetch failed: %w", err)
+	}
+	if err := s.repo.UpsertVulnerabilities(ctx, kevVulns); err != nil {
+		return fmt.Errorf("cisa kev upsert failed: %w", err)
+	}
 
-	// CISA KEV
-	cisaURL := "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-	_, _ = s.client.FetchCISAKEV(ctx, cisaURL)
-
-	// Upsert is a no-op placeholder until parser implemented
 	return nil
 }
 
@@ -57,7 +56,10 @@ func (s *service) GetVulnerability(ctx context.Context, cveID string) (*CTIVulne
 }
 
 func (s *service) Search(ctx context.Context, query string, filters CTIFilter) ([]CTIVulnerability, error) {
-	res, _, err := s.repo.Search(ctx, query, filters, 50, 0)
+	if filters.Limit <= 0 {
+		filters.Limit = 50
+	}
+	res, _, err := s.repo.Search(ctx, query, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +67,8 @@ func (s *service) Search(ctx context.Context, query string, filters CTIFilter) (
 }
 
 func (s *service) MatchAsset(ctx context.Context, tenantID uuid.UUID, assetID uuid.UUID) ([]CTIVulnerability, error) {
-	// The matcher logic lives in matcher.go but we expose a convenience method
-	// For now we call repo.FindByCPEOverlap with asset CPEs — asset CPE retrieval is external
-	return nil, fmt.Errorf("MatchAsset requires asset CPEs from asset repository; use matcher package")
+	// The matching logic (Repository.MatchByAssetCPEs) lives behind CPEMatcher
+	// in matcher.go; it needs the asset's CPE list, which this service does not
+	// have (asset retrieval is an external dependency, not part of pkg/cti).
+	return nil, fmt.Errorf("MatchAsset requires asset CPEs from asset repository; use CPEMatcher")
 }
