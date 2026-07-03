@@ -52,8 +52,8 @@ func NewRiskHandler(
 type CreateRiskInput struct {
 	Title       string   `json:"title" validate:"required"`
 	Description string   `json:"description"`
-	Impact      int      `json:"impact" validate:"required,min=1,max=5"`
-	Probability int      `json:"probability" validate:"required,min=1,max=5"`
+	Impact      float64  `json:"impact" validate:"required,min=0,max=10"` // ERD numeric(5,1) — bounds [0,10]
+	Probability float64  `json:"probability" validate:"required,min=0,max=1"` // ERD numeric(5,3) — bounds [0,1]
 	Tags        []string `json:"tags"`
 	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
 	Frameworks  []string `json:"frameworks"`
@@ -63,8 +63,8 @@ type CreateRiskInput struct {
 type UpdateRiskInput struct {
 	Title       string   `json:"title" validate:"omitempty"`
 	Description string   `json:"description" validate:"omitempty"`
-	Impact      int      `json:"impact" validate:"omitempty,min=1,max=5"`
-	Probability int      `json:"probability" validate:"omitempty,min=1,max=5"`
+	Impact      float64  `json:"impact" validate:"omitempty,min=0,max=10"`
+	Probability float64  `json:"probability" validate:"omitempty,min=0,max=1"`
 	Status      string   `json:"status" validate:"omitempty"`
 	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
 	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
