@@ -18,12 +18,12 @@ import (
 // ValidateMitigationPlanUseCase transitions a plan from REVIEW to DONE (reviewer approval)
 type ValidateMitigationPlanUseCase struct {
 	mitigationRepo repository.MitigationRepository
-	notifier       notify.Notifier
+	notifier       notify.Service
 }
 
 func NewValidateMitigationPlanUseCase(
 	mitigationRepo repository.MitigationRepository,
-	notifier notify.Notifier,
+	notifier notify.Service,
 ) *ValidateMitigationPlanUseCase {
 	return &ValidateMitigationPlanUseCase{
 		mitigationRepo: mitigationRepo,
