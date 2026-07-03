@@ -13,17 +13,15 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
-	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
 // MitigationEventWorker listens to mitigation events and triggers score recalculation
 type MitigationEventWorker struct {
 	redisClient  *redis.Client
-	riskRepo     repository.RiskRepository
+	riskRepo     domain.RiskRepository
 }
 
-func NewMitigationEventWorker(redisClient *redis.Client, riskRepo repository.RiskRepository) *MitigationEventWorker {
+func NewMitigationEventWorker(redisClient *redis.Client, riskRepo domain.RiskRepository) *MitigationEventWorker {
 	return &MitigationEventWorker{
 		redisClient: redisClient,
 		riskRepo:    riskRepo,
