@@ -98,7 +98,11 @@ func PermissionMiddleware(config PermissionMiddlewareConfig) fiber.Handler {
 	}
 }
 
-// TenantMiddleware validates tenant context and applies tenant isolation
+// TenantMiddleware performs server-side tenant membership validation.
+// NOT MOUNTED as of this commit: real routing enforces isolation via
+// Protected()/RequirePermissions plus repository-level tenant_id filtering.
+// To be reconciled in Phase 2 (Auth pipeline consolidation). Do not assume
+// this provides active protection until wired in the route table.
 func TenantMiddleware(userService *service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get user context from previous middleware

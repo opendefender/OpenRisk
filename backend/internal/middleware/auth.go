@@ -90,21 +90,6 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 	}
 }
 
-// TenantMiddleware ensures tenant_id is present in context.
-// Must be placed AFTER AuthMiddlewareRS256.
-func TenantMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		tenantID, ok := c.Locals("tenant_id").(uuid.UUID)
-		if !ok || tenantID == uuid.Nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "UNAUTHORIZED",
-				"message": "Missing tenant context",
-			})
-		}
-		return c.Next()
-	}
-}
-
 // RequirePermission checks if user has required permissions.
 // Supports wildcards: "risks:*" matches "risks:read", "risks:write", etc.
 func RequirePermission(requiredPerms ...string) fiber.Handler {
