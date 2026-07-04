@@ -7,19 +7,18 @@ package auth
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/application/auth"
+	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 // Handler handles authentication endpoints
 type Handler struct {
-	loginUseCase       *auth.LoginUseCase
-	registerUseCase    *auth.RegisterUseCase
-	refreshUseCase     *auth.RefreshTokenUseCase
-	logoutUseCase      *auth.LogoutUseCase
-	passwordHasher     auth.PasswordHasher
+	loginUseCase    *auth.LoginUseCase
+	registerUseCase *auth.RegisterUseCase
+	refreshUseCase  *auth.RefreshTokenUseCase
+	logoutUseCase   *auth.LogoutUseCase
+	passwordHasher  auth.PasswordHasher
 }
 
 // NewHandler creates a new auth handler
@@ -48,9 +47,9 @@ type LoginRequest struct {
 
 // LoginResponse represents the login response
 type LoginResponse struct {
-	User         *domain.User            `json:"user"`
-	TokenPair    *auth.TokenPair         `json:"token_pair"`
-	Organization *domain.Organization    `json:"organization"`
+	User         *domain.User         `json:"user"`
+	TokenPair    *coreauth.TokenPair  `json:"token_pair"`
+	Organization *domain.Organization `json:"organization"`
 }
 
 // Login godoc
@@ -174,7 +173,7 @@ type RefreshTokenRequest struct {
 
 // RefreshTokenResponse represents the refresh token response
 type RefreshTokenResponse struct {
-	TokenPair *auth.TokenPair `json:"token_pair"`
+	TokenPair *coreauth.TokenPair `json:"token_pair"`
 }
 
 // RefreshToken godoc
