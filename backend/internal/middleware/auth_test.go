@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -19,65 +18,6 @@ import (
 )
 
 const testSecret = "test-secret-key-for-auth-middleware"
-
-func TestAuthMiddleware(t *testing.T) {
-	tests := []struct {
-		name           string
-		path           string
-		authHeader     string
-		shouldSkip     bool
-		expectedStatus int
-		description    string
-	}{
-		{
-			name:           "Public endpoint skips auth",
-			path:           "/api/v1/health",
-			authHeader:     "",
-			shouldSkip:     true,
-			expectedStatus: fiber.StatusOK,
-			description:    "Health endpoint should not require authentication",
-		},
-		{
-			name:           "Missing auth header returns 401",
-			path:           "/api/v1/risks",
-			authHeader:     "",
-			shouldSkip:     false,
-			expectedStatus: fiber.StatusUnauthorized,
-			description:    "Protected endpoint without auth header should return 401",
-		},
-		{
-			name:           "Invalid auth header format returns 401",
-			path:           "/api/v1/risks",
-			authHeader:     "InvalidHeader",
-			shouldSkip:     false,
-			expectedStatus: fiber.StatusUnauthorized,
-			description:    "Invalid auth header format should return 401",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			app := fiber.New()
-
-			// Add auth middleware
-			app.Use(AuthMiddleware(testSecret))
-
-			// Test endpoint
-			app.Get("/api/v1/health", func(c *fiber.Ctx) error {
-				return c.SendStatus(fiber.StatusOK)
-			})
-
-			app.Get("/api/v1/risks", func(c *fiber.Ctx) error {
-				return c.SendStatus(fiber.StatusOK)
-			})
-
-			// Validate test case structure
-			assert.NotEmpty(t, tc.name)
-			assert.NotEmpty(t, tc.path)
-			// Test structure is valid for middleware testing
-		})
-	}
-}
 
 func TestPublicEndpoint(t *testing.T) {
 	publicPaths := []string{
