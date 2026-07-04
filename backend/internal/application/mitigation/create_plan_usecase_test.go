@@ -7,6 +7,7 @@ package mitigation
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -55,7 +56,7 @@ func TestCreateMitigationPlanUseCase_WithSubActions(t *testing.T) {
 		SubActions: []struct {
 			Title       string
 			Description string
-			DueDate     interface{}
+			DueDate     *time.Time
 		}{
 			{Title: "Step 1", Description: "First action"},
 			{Title: "Step 2", Description: "Second action"},
