@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/opendefender/openrisk/internal/domain"
+	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/scoring"
-	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/rs/zerolog"
 )
 
@@ -43,28 +45,20 @@ type ScoreWorker struct {
 }
 
 // RiskRepository est l'interface minimale requise par le worker.
-// Définie ICI (dans le package workers) pour éviter les imports circulaires.
+// Signatures alignées sur GormRiskRepository (uuid.UUID, domain.RiskForScoring) -
+// les events Redis restent en string (JSON), parsés en uuid.UUID à la frontière
+// du worker avant tout appel au repository.
 type RiskRepository interface {
 	// UpdateScore met à jour score + criticality d'un risque.
 	// OBLIGATOIRE: filtre par tenant_id ET id (isolation stricte).
 	// Si aucune ligne affectée → retourner une erreur (risque introuvable).
-	UpdateScore(ctx context.Context, riskID, tenantID string, score float64, criticality string) error
+	UpdateScore(ctx context.Context, riskID, tenantID uuid.UUID, score float64, criticality string) error
 
 	// GetRisksByAssetID retourne tous les risques liés à un asset.
-	GetRisksByAssetID(ctx context.Context, assetID, tenantID string) ([]RiskForScoring, error)
+	GetRisksByAssetID(ctx context.Context, assetID, tenantID uuid.UUID) ([]domain.RiskForScoring, error)
 
 	// GetRiskScore retourne le score actuel d'un risque (pour les events).
-	GetRiskScore(ctx context.Context, riskID, tenantID string) (float64, error)
-}
-
-// RiskForScoring est la struct minimale pour le recalcul.
-type RiskForScoring struct {
-	ID               string
-	TenantID         string
-	Probability      float64
-	Impact           float64
-	AssetCriticality float64
-	CurrentScore     float64
+	GetRiskScore(ctx context.Context, riskID, tenantID uuid.UUID) (float64, error)
 }
 
 // NewScoreWorker crée une nouvelle instance.
@@ -127,6 +121,23 @@ func (w *ScoreWorker) handleRiskUpdatedEvent(ctx context.Context, payload string
 		return
 	}
 
+	riskID, err := uuid.Parse(event.RiskID)
+	if err != nil {
+		w.logger.Warn().
+			Err(err).
+			Str("risk_id", event.RiskID).
+			Msg("risk.updated event has malformed risk_id, skipping")
+		return
+	}
+	tenantID, err := uuid.Parse(event.TenantID)
+	if err != nil {
+		w.logger.Warn().
+			Err(err).
+			Str("tenant_id", event.TenantID).
+			Msg("risk.updated event has malformed tenant_id, skipping")
+		return
+	}
+
 	w.logger.Debug().
 		Str("risk_id", event.RiskID).
 		Str("tenant_id", event.TenantID).
@@ -151,7 +162,7 @@ func (w *ScoreWorker) handleRiskUpdatedEvent(ctx context.Context, payload string
 	}
 
 	// Update database with retry logic
-	if err := w.retryUpdateScore(ctx, event.RiskID, event.TenantID, breakdown); err != nil {
+	if err := w.retryUpdateScore(ctx, riskID, tenantID, breakdown); err != nil {
 		w.logger.Error().
 			Err(err).
 			Str("risk_id", event.RiskID).
@@ -161,7 +172,7 @@ func (w *ScoreWorker) handleRiskUpdatedEvent(ctx context.Context, payload string
 	}
 
 	// Publish risk.score_updated event
-	oldScore, err := w.riskRepo.GetRiskScore(ctx, event.RiskID, event.TenantID)
+	oldScore, err := w.riskRepo.GetRiskScore(ctx, riskID, tenantID)
 	if err != nil {
 		w.logger.Warn().
 			Err(err).
@@ -213,8 +224,25 @@ func (w *ScoreWorker) handleAssetCriticalityChangedEvent(ctx context.Context, pa
 		Str("new_criticality", event.NewCriticality).
 		Msg("processing asset.criticality_changed event")
 
+	assetID, err := uuid.Parse(event.AssetID)
+	if err != nil {
+		w.logger.Warn().
+			Err(err).
+			Str("asset_id", event.AssetID).
+			Msg("asset.criticality_changed event has malformed asset_id, skipping")
+		return
+	}
+	tenantID, err := uuid.Parse(event.TenantID)
+	if err != nil {
+		w.logger.Warn().
+			Err(err).
+			Str("tenant_id", event.TenantID).
+			Msg("asset.criticality_changed event has malformed tenant_id, skipping")
+		return
+	}
+
 	// Get all risks linked to this asset
-	risks, err := w.riskRepo.GetRisksByAssetID(ctx, event.AssetID, event.TenantID)
+	risks, err := w.riskRepo.GetRisksByAssetID(ctx, assetID, tenantID)
 	if err != nil {
 		w.logger.Error().
 			Err(err).
@@ -231,8 +259,8 @@ func (w *ScoreWorker) handleAssetCriticalityChangedEvent(ctx context.Context, pa
 	// Republish risk.updated for each affected risk
 	for _, risk := range risks {
 		riskEvent := events.RiskUpdatedEvent{
-			RiskID:           risk.ID,
-			TenantID:         risk.TenantID,
+			RiskID:           risk.ID.String(),
+			TenantID:         risk.TenantID.String(),
 			Probability:      risk.Probability,
 			Impact:           risk.Impact,
 			AssetCriticality: risk.AssetCriticality,
@@ -242,7 +270,7 @@ func (w *ScoreWorker) handleAssetCriticalityChangedEvent(ctx context.Context, pa
 		if err := w.redis.Publish(ctx, events.RiskUpdated, riskEvent); err != nil {
 			w.logger.Error().
 				Err(err).
-				Str("risk_id", risk.ID).
+				Str("risk_id", risk.ID.String()).
 				Msg("failed to republish risk.updated event")
 		}
 	}
@@ -258,7 +286,7 @@ func (w *ScoreWorker) handleAssetCriticalityChangedEvent(ctx context.Context, pa
 // Si toujours en échec → logger l'erreur (ne pas panic)
 func (w *ScoreWorker) retryUpdateScore(
 	ctx context.Context,
-	riskID, tenantID string,
+	riskID, tenantID uuid.UUID,
 	breakdown scoring.ScoreBreakdown,
 ) error {
 	retries := 3
@@ -285,7 +313,7 @@ func (w *ScoreWorker) retryUpdateScore(
 		if attempt < retries-1 {
 			w.logger.Warn().
 				Err(err).
-				Str("risk_id", riskID).
+				Str("risk_id", riskID.String()).
 				Int("attempt", attempt+1).
 				Int("max_retries", retries).
 				Msg("UpdateScore failed, retrying...")
