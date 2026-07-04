@@ -52,7 +52,7 @@ func (h *CustomFieldHandler) CreateCustomField(c *fiber.Ctx) error {
 	}
 
 	// Create field
-	field, err := h.service.CreateCustomField(userClaims.ID, req)
+	field, err := h.service.CreateCustomField(userClaims.Sub, req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
@@ -201,7 +201,7 @@ func (h *CustomFieldHandler) ApplyTemplate(c *fiber.Ctx) error {
 	}
 
 	// Apply template
-	fields, err := h.service.ApplyTemplate(templateID, userClaims.ID)
+	fields, err := h.service.ApplyTemplate(templateID, userClaims.Sub)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
