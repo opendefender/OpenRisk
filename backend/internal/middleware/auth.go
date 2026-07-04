@@ -317,14 +317,15 @@ func MFARateLimit(store *RateLimitStore) fiber.Handler {
 
 		// Get user ID from context (should be set by auth middleware)
 		userID, ok := c.Locals("user_id").(uuid.UUID)
+		var key string
 		if !ok || userID == uuid.Nil {
 			// Fallback to IP if no user ID (for MFA challenge endpoint)
-			key := c.IP()
+			key = c.IP()
 			if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
 				key = forwarded
 			}
 		} else {
-			key := fmt.Sprintf("user:%s", userID.String())
+			key = fmt.Sprintf("user:%s", userID.String())
 		}
 
 		// Check rate limit: 5 requests per minute
