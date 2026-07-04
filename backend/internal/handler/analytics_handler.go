@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
 // AnalyticsHandler handles analytics endpoints
@@ -217,10 +218,10 @@ func (h *AnalyticsHandler) exportAsCSV(c *fiber.Ctx, snapshot *service.Dashboard
 }
 
 // RegisterAnalyticsRoutes registers all analytics routes
-func RegisterAnalyticsRoutes(app *fiber.App, handler *AnalyticsHandler) {
+func RegisterAnalyticsRoutes(app *fiber.App, handler *AnalyticsHandler, rsaKeys *authpkg.RSAKeys, blacklistChecker func(jti string) (bool, error)) {
 	// Create protected group
 	protected := app.Group("/api/v1/analytics")
-	protected.Use(middleware.Protected())
+	protected.Use(middleware.Protected(rsaKeys, blacklistChecker))
 
 	// Analytics endpoints
 	protected.Get("/risks/metrics", handler.GetRiskMetrics)
