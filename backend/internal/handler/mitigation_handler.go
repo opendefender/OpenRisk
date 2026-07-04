@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"context"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -279,9 +280,9 @@ func ValidateMitigation(c *fiber.Ctx) error {
 	return c.JSON(validated)
 }
 
-// NoOpNotifier is a placeholder notifier (TODO: implement real notification system)
+// NoOpNotifier is a placeholder notify.Service (TODO: implement real notification system)
 type NoOpNotifier struct{}
 
-func (n *NoOpNotifier) Notify(userID uuid.UUID, title, message string) error {
+func (n *NoOpNotifier) SendWelcomeEmail(ctx context.Context, email, fullName string) error {
 	return nil
 }
