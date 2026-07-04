@@ -16,6 +16,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -162,7 +163,7 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 		query.Search = q
 	}
 	if status := c.Query("status"); status != "" {
-		query.Status = status
+		query.Status = []string{status}
 	}
 	if minScoreStr := c.Query("min_score"); minScoreStr != "" {
 		if v, err := strconv.ParseFloat(minScoreStr, 64); err == nil {
