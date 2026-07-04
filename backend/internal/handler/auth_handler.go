@@ -149,8 +149,8 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 
 	// Fetch user from database
 	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
-		_ = h.auditService.LogTokenRefresh(claims.ID, domain.ResultFailure, ipAddress, userAgent, "User not found")
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
+		_ = h.auditService.LogTokenRefresh(claims.Sub, domain.ResultFailure, ipAddress, userAgent, "User not found")
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -193,7 +193,7 @@ func (h *AuthHandler) GetProfile(c *fiber.Ctx) error {
 
 	// Fetch user from database
 	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
