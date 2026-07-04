@@ -200,3 +200,21 @@ func (ps *PermissionSet) HasResource(resource Resource) bool {
 	_, ok := ps.rules[resource]
 	return ok
 }
+
+// GetAllPermissions flattens the permission set into "resource:action" strings,
+// for embedding into JWT claims. Root/admin get the "*" wildcard (see hasPermission
+// in internal/middleware, which already treats "*" as match-all).
+func (ps PermissionSet) GetAllPermissions() []string {
+	if ps.IsRoot || ps.IsAdmin {
+		return []string{"*"}
+	}
+	perms := make([]string, 0, len(ps.rules))
+	for resource, actions := range ps.rules {
+		for action, scope := range actions {
+			if scope != ScopeNone {
+				perms = append(perms, string(resource)+":"+string(action))
+			}
+		}
+	}
+	return perms
+}
