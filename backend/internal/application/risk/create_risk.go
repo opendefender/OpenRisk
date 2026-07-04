@@ -17,13 +17,13 @@ import (
 type CreateRiskInput struct {
 	Title        string
 	Description  string
-	Impact       int
-	Probability  int
+	Impact       float64 // ERD numeric(5,1) — bounds [0,10]
+	Probability  float64 // ERD numeric(5,3) — bounds [0,1]
 	Status       domain.RiskStatus
 	Tags         []string
 	Frameworks   []string
 	Owner        string
-	Source       string
+	Source       string // parsed into domain.RiskSource in Execute()
 	ExternalID   string
 }
 
@@ -44,7 +44,18 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		return nil, err
 	}
 
+	// Convert the raw source string into the typed domain.RiskSource
+	// (empty defaults to SourceManual; anything else must be a known value).
+	source, err := domain.ParseRiskSource(input.Source)
+	if err != nil {
+		return nil, err
+	}
+
 	// 2. Build domain entity
+	// TenantID is the canonical (not-null) field; OrganizationID is kept as
+	// its legacy alias. Risk.BeforeSave() also syncs the two on real GORM
+	// writes, but setting both explicitly here avoids depending solely on
+	// that hook (e.g. against mocked repositories in tests).
 	risk := &domain.Risk{
 		ID:             uuid.New(),
 		Title:          input.Title,
@@ -54,8 +65,9 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		Tags:           input.Tags,
 		Frameworks:     input.Frameworks,
 		Owner:          input.Owner,
-		Source:         input.Source,
+		Source:         source,
 		ExternalID:     input.ExternalID,
+		TenantID:       orgID,
 		OrganizationID: orgID,
 	}
 
@@ -67,7 +79,7 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 	}
 
 	// 3. Compute score (Claude.md formula: P × I, score engine can override later)
-	risk.Score = float64(risk.Impact * risk.Probability)
+	risk.Score = risk.Impact * risk.Probability
 
 	// 4. Persist
 	if err := uc.riskRepo.Create(ctx, risk); err != nil {
@@ -84,11 +96,11 @@ func (uc *CreateRiskUseCase) validate(input CreateRiskInput) error {
 	if len(input.Title) > 255 {
 		return domain.NewValidationError("title must be 255 characters or less")
 	}
-	if input.Impact < 1 || input.Impact > 5 {
-		return domain.NewValidationError("impact must be between 1 and 5")
+	if input.Impact < 0 || input.Impact > 10 {
+		return domain.NewValidationError("impact must be between 0 and 10")
 	}
-	if input.Probability < 1 || input.Probability > 5 {
-		return domain.NewValidationError("probability must be between 1 and 5")
+	if input.Probability < 0 || input.Probability > 1 {
+		return domain.NewValidationError("probability must be between 0 and 1")
 	}
 	return nil
 }

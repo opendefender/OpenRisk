@@ -18,8 +18,8 @@ import (
 type UpdateRiskInput struct {
 	Title       *string
 	Description *string
-	Impact      *int
-	Probability *int
+	Impact      *float64 // ERD numeric(5,1) — bounds [0,10]
+	Probability *float64 // ERD numeric(5,3) — bounds [0,1]
 	Status      *domain.RiskStatus
 	Tags        []string
 	Frameworks  []string
@@ -57,14 +57,14 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		risk.Description = *input.Description
 	}
 	if input.Impact != nil {
-		if *input.Impact < 1 || *input.Impact > 5 {
-			return nil, domain.NewValidationError("impact must be between 1 and 5")
+		if *input.Impact < 0 || *input.Impact > 10 {
+			return nil, domain.NewValidationError("impact must be between 0 and 10")
 		}
 		risk.Impact = *input.Impact
 	}
 	if input.Probability != nil {
-		if *input.Probability < 1 || *input.Probability > 5 {
-			return nil, domain.NewValidationError("probability must be between 1 and 5")
+		if *input.Probability < 0 || *input.Probability > 1 {
+			return nil, domain.NewValidationError("probability must be between 0 and 1")
 		}
 		risk.Probability = *input.Probability
 	}
@@ -82,7 +82,7 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 	}
 
 	// 3. Recompute score
-	risk.Score = float64(risk.Impact * risk.Probability)
+	risk.Score = risk.Impact * risk.Probability
 
 	// 4. Persist
 	if err := uc.riskRepo.Update(ctx, risk); err != nil {
