@@ -40,7 +40,7 @@ func TestFetchRecentIncidentsDisabled(t *testing.T) {
 
 	adapter := NewTheHiveAdapter(cfg)
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.Empty(t, incidents)
@@ -53,7 +53,7 @@ func TestFetchRecentIncidentsMockData(t *testing.T) {
 
 	adapter := NewTheHiveAdapter(cfg)
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(incidents))
@@ -104,7 +104,7 @@ func TestFetchRecentIncidentsFromAPI(t *testing.T) {
 
 	adapter := NewTheHiveAdapter(cfg)
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(incidents))
@@ -128,7 +128,7 @@ func TestFetchRecentIncidentsAPIError(t *testing.T) {
 
 	adapter := NewTheHiveAdapter(cfg)
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(incidents))
@@ -149,7 +149,7 @@ func TestFetchRecentIncidentsNetworkError(t *testing.T) {
 	adapter := NewTheHiveAdapter(cfg)
 	adapter.Client.Timeout = 100 * time.Millisecond
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(incidents))
@@ -266,7 +266,7 @@ func TestFetchRecentIncidentsFiltersClosedCases(t *testing.T) {
 
 	adapter := NewTheHiveAdapter(cfg)
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(incidents))
@@ -302,7 +302,7 @@ func TestAPIAuthenticationHeader(t *testing.T) {
 
 	adapter := NewTheHiveAdapter(cfg)
 
-	incidents, err := adapter.FetchRecentIncidents()
+	incidents, err := adapter.FetchRecentIncidents("test-org")
 
 	assert.NoError(t, err)
 	assert.True(t, headerCaptured, "Authorization header should be sent")
