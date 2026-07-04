@@ -74,7 +74,7 @@ func RequireTokenScope(requiredScopes ...string) fiber.Handler {
 			return c.Next()
 		}
 
-		tokenID, ok := c.Locals("token_id").(uuid.UUID)
+		_, ok := c.Locals("token_id").(uuid.UUID)
 		if !ok {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"code":    "UNAUTHORIZED",
@@ -122,4 +122,4 @@ func RequireTokenScope(requiredScopes ...string) fiber.Handler {
 
 		return c.Next()
 	}
-
+}
