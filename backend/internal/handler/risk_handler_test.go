@@ -153,6 +153,7 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 		applicationrisk.NewListRisksUseCase(riskRepo),
 		applicationrisk.NewUpdateRiskUseCase(riskRepo),
 		applicationrisk.NewDeleteRiskUseCase(riskRepo),
+		nil,
 	)
 	api.Post("/risks", handler.CreateRisk)
 	api.Get("/risks/:id", handler.GetRisk)
