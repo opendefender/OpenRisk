@@ -32,7 +32,7 @@ func GetMyGamificationProfile(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	userID := claims.ID.String()
+	userID := claims.Sub.String()
 	tenantID := safeGetUUIDGamification(c, "tenant_id")
 
 	svc := service.NewGamificationService()
