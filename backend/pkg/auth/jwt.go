@@ -25,6 +25,28 @@ type Claims struct {
 	Permissions  []string             `json:"permissions"`   // RBAC permissions
 	FeatureFlags []string             `json:"feature_flags"` // Feature toggles
 	JTI          string               `json:"jti"`           // JWT ID (for Redis blacklist)
+	// Type distinguishes access/refresh/MFA_REQUIRED tokens. Not yet populated by
+	// any issuer (GenerateAccessToken et al.) - reserved for the Phase 2 token
+	// semantics work that MFATokenMiddleware depends on.
+	Type string `json:"type,omitempty"`
+}
+
+// HasPermission checks whether the claims' Permissions slice grants the given
+// permission string. Supports the same "*" admin wildcard and "resource:*"
+// scoped wildcard already used by internal/middleware's hasPermission helper.
+func (c *Claims) HasPermission(required string) bool {
+	for _, perm := range c.Permissions {
+		if perm == required || perm == "*" {
+			return true
+		}
+		if len(perm) > 2 && perm[len(perm)-2:] == ":*" {
+			resourceWildcard := perm[:len(perm)-1]
+			if len(required) > len(resourceWildcard) && required[:len(resourceWildcard)] == resourceWildcard {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // GenerateAccessToken génère un JWT signé RS256, durée 15 minutes.
