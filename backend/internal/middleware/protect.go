@@ -6,16 +6,16 @@
 package middleware
 
 import (
-	"os"
-
 	"github.com/gofiber/fiber/v2"
+
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
-// Protected middleware verifies JWT token validity
-// Use this to protect routes that require authentication
-func Protected() fiber.Handler {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	return AuthMiddleware(jwtSecret)
+// Protected middleware verifies JWT token validity (RS256) and checks the
+// Redis-backed JTI blacklist. Use this to protect routes that require
+// authentication.
+func Protected(rsaKeys *authpkg.RSAKeys, blacklistChecker func(jti string) (bool, error)) fiber.Handler {
+	return AuthMiddlewareRS256(rsaKeys, blacklistChecker)
 }
 
 // RequireRole middleware checks if user has required role(s)
