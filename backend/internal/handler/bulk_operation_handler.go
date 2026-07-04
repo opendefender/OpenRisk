@@ -52,7 +52,7 @@ func (h *BulkOperationHandler) CreateBulkOperation(c *fiber.Ctx) error {
 	}
 
 	// Create bulk operation
-	op, err := h.service.CreateBulkOperation(userClaims.ID, req)
+	op, err := h.service.CreateBulkOperation(userClaims.Sub, req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
@@ -102,7 +102,7 @@ func (h *BulkOperationHandler) ListBulkOperations(c *fiber.Ctx) error {
 		offset = o
 	}
 
-	ops, err := h.service.ListBulkOperations(userClaims.ID, limit, offset)
+	ops, err := h.service.ListBulkOperations(userClaims.Sub, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
