@@ -7,7 +7,7 @@ package cache
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // non-cryptographic use: only for short, deterministic cache keys
 	"encoding/hex"
 	"sync"
 	"time"
@@ -361,7 +361,7 @@ func GenerateCacheKey(components ...string) string {
 	}
 
 	// Create MD5 hash for shorter, consistent keys
-	hash := md5.Sum([]byte(key))
+	hash := md5.Sum([]byte(key)) //nolint:gosec // non-cryptographic use: only for short, deterministic cache keys
 	return hex.EncodeToString(hash[:])
 }
 
