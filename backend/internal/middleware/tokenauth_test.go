@@ -35,6 +35,7 @@ func TestTokenAuth_ExtractTokenFromRequest_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -53,6 +54,7 @@ func TestTokenAuth_ExtractTokenFromRequest_MissingHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -72,6 +74,7 @@ func TestTokenAuth_ExtractTokenFromRequest_InvalidFormat(t *testing.T) {
 	req.Header.Set("Authorization", "InvalidFormat")
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -91,6 +94,7 @@ func TestTokenAuth_ExtractTokenFromRequest_WrongScheme(t *testing.T) {
 	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -115,6 +119,7 @@ func TestTokenAuth_Verify_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -131,6 +136,7 @@ func TestTokenAuth_Verify_NoHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -149,6 +155,7 @@ func TestTokenAuth_Verify_InvalidToken(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -176,6 +183,7 @@ func TestTokenAuth_Verify_RevokedToken(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -202,6 +210,7 @@ func TestTokenAuth_RequireTokenPermission_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -227,6 +236,7 @@ func TestTokenAuth_RequireTokenPermission_Denied(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
@@ -252,6 +262,7 @@ func TestTokenAuth_RequireTokenScope_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -277,6 +288,7 @@ func TestTokenAuth_RequireTokenScope_Denied(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
@@ -313,5 +325,6 @@ func TestTokenAuth_ContextPopulation(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }

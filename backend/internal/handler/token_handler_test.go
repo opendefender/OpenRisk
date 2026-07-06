@@ -61,6 +61,7 @@ func TestTokenHandler_CreateToken_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	var result map[string]interface{}
@@ -87,6 +88,7 @@ func TestTokenHandler_CreateToken_NoName(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
@@ -111,6 +113,7 @@ func TestTokenHandler_ListTokens(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/tokens", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var result map[string]interface{}
@@ -134,6 +137,7 @@ func TestTokenHandler_GetToken_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/tokens/"+tokenWithValue.ID.String(), nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var result map[string]interface{}
@@ -152,6 +156,7 @@ func TestTokenHandler_GetToken_NotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/tokens/"+fakeID.String(), nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
@@ -174,6 +179,7 @@ func TestTokenHandler_RevokeToken_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var result map[string]interface{}
@@ -197,6 +203,7 @@ func TestTokenHandler_DeleteToken_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/tokens/"+tokenWithValue.ID.String(), nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusNoContent, resp.StatusCode)
 
 	// Verify token is deleted
@@ -216,6 +223,7 @@ func TestTokenHandler_RotateToken_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/tokens/"+oldTokenWithValue.ID.String()+"/rotate", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	var result map[string]interface{}
@@ -249,6 +257,7 @@ func TestTokenHandler_UpdateToken_Success(t *testing.T) {
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var result map[string]interface{}
@@ -281,5 +290,6 @@ func TestTokenHandler_OwnershipEnforcement(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/tokens/"+tokenWithValue.ID.String(), nil)
 	resp, err := app2.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }

@@ -177,6 +177,7 @@ func TestRiskCRUDFlow(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
+	defer resp.Body.Close()
 	if resp.StatusCode != 201 {
 		t.Fatalf("expected 201 got %d", resp.StatusCode)
 	}
@@ -190,6 +191,7 @@ func TestRiskCRUDFlow(t *testing.T) {
 	// 2. Get risk
 	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/risks/"+created.ID.String(), nil)
 	getResp, _ := app.Test(getReq)
+	defer getResp.Body.Close()
 	if getResp.StatusCode != 200 {
 		t.Fatalf("expected 200 got %d", getResp.StatusCode)
 	}
@@ -200,6 +202,7 @@ func TestRiskCRUDFlow(t *testing.T) {
 	upReq := httptest.NewRequest(http.MethodPatch, "/api/v1/risks/"+created.ID.String(), bytes.NewReader(ub))
 	upReq.Header.Set("Content-Type", "application/json")
 	upResp, _ := app.Test(upReq)
+	defer upResp.Body.Close()
 	if upResp.StatusCode != 200 {
 		t.Fatalf("expected 200 on update got %d", upResp.StatusCode)
 	}
@@ -213,6 +216,7 @@ func TestRiskCRUDFlow(t *testing.T) {
 	// 4. Delete
 	delReq := httptest.NewRequest(http.MethodDelete, "/api/v1/risks/"+created.ID.String(), nil)
 	delResp, _ := app.Test(delReq)
+	defer delResp.Body.Close()
 	if delResp.StatusCode != 204 {
 		t.Fatalf("expected 204 on delete got %d", delResp.StatusCode)
 	}
@@ -227,6 +231,7 @@ func TestCreateValidationFail(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
+	defer resp.Body.Close()
 	if resp.StatusCode != 400 {
 		t.Fatalf("expected 400 got %d", resp.StatusCode)
 	}
