@@ -135,10 +135,8 @@ func (ars *AIRiskPredictorService) calculateTrend(history []float64) float64 {
 
 // predictWithFactors predicts risk considering factors
 func (ars *AIRiskPredictorService) predictWithFactors(currentScore, trend float64, factors []RiskFactor) float64 {
-	predicted := currentScore
-
 	alpha := 0.3
-	predicted = alpha*currentScore + (1-alpha)*(currentScore+trend)
+	predicted := alpha*currentScore + (1-alpha)*(currentScore+trend)
 
 	factorImpact := 0.0
 	totalWeight := 0.0

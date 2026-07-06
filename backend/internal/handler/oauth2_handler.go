@@ -317,8 +317,9 @@ func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 		var err error
 		email, err = getGitHubEmail(token)
 		if err != nil {
-			// Log the error but don't fail - use empty email
-			// Email might be available through other means
+			// Log the error but don't fail - use empty email, which might be
+			// available through other means
+			fmt.Printf("Warning: failed to fetch GitHub email: %v\n", err)
 		}
 	}
 
