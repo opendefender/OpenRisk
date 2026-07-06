@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -674,14 +673,4 @@ func main() {
 	}
 
 	log.Println("Server exited properly")
-}
-
-// parseEnvInt safely parses environment variables to integers
-func parseEnvInt(key string, defaultVal int) int {
-	if val := os.Getenv(key); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			return parsed
-		}
-	}
-	return defaultVal
 }

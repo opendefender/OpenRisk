@@ -8,7 +8,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,7 +22,6 @@ type NotificationService struct {
 	emailProvider        EmailProvider
 	slackProvider        SlackProvider
 	webhookProvider      WebhookProvider
-	mu                   sync.RWMutex
 	notificationChannels map[domain.NotificationChannel]NotificationProvider
 	templateCache        map[string]*domain.NotificationTemplate
 }

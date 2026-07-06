@@ -173,16 +173,6 @@ func (qo *QueryOptimizer) FindRisksSelectOptimized(filters map[string]interface{
 
 // AggregateRiskStats optimizes stats calculation with GROUP BY
 func (qo *QueryOptimizer) AggregateRiskStats() (map[string]interface{}, error) {
-	type StatsResult struct {
-		TotalRisks    int64
-		ByStatus      map[string]int64
-		ByLevel       map[string]int64
-		AvgScore      float64
-		MaxScore      float64
-		MinScore      float64
-		CriticalCount int64
-	}
-
 	stats := make(map[string]interface{})
 
 	// Total risks
