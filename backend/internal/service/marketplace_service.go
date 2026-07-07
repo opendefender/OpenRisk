@@ -498,7 +498,9 @@ func (m *MarketplaceService) startSyncWorker(app *domain.MarketplaceApp) {
 				return
 			case <-ticker.C:
 				m.logger.Printf("Auto-sync triggered for app: %s", app.ID)
-				m.TriggerSync(ctx, app.ID, app.UserID)
+				if err := m.TriggerSync(ctx, app.ID, app.UserID); err != nil {
+					m.logger.Printf("Warning: auto-sync failed for app %s: %v", app.ID, err)
+				}
 			}
 		}
 	}()

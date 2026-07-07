@@ -105,7 +105,7 @@ func (wp *WebhookProvider) SendWithSignature(
 
 		if attempt < wp.retries-1 {
 			// Exponential backoff: 1s, 2s, 4s
-			backoff := time.Duration(1<<uint(attempt)) * time.Second
+			backoff := time.Duration(1<<attempt) * time.Second
 			select {
 			case <-time.After(backoff):
 				continue

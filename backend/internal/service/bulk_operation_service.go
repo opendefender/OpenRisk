@@ -293,10 +293,10 @@ func (s *BulkOperationService) updateRiskFromData(risk *domain.Risk, data map[st
 		risk.Status = domain.RiskStatus(status)
 	}
 	if impact, ok := data["impact"].(float64); ok {
-		risk.Impact = int(impact)
+		risk.Impact = impact
 	}
 	if probability, ok := data["probability"].(float64); ok {
-		risk.Probability = int(probability)
+		risk.Probability = probability
 	}
 	if owner, ok := data["owner"].(string); ok {
 		risk.Owner = owner

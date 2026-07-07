@@ -335,7 +335,6 @@ func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, limit 
 			Name:        m.Title,
 			Status:      string(m.Status),
 			Progress:    int64(m.Progress),
-			DueDate:     m.DueDate,
 			Cost:        float64(m.Cost),
 			LastUpdated: m.UpdatedAt,
 		}
@@ -351,12 +350,15 @@ func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, limit 
 			progress.RiskName = m.Risk.Title
 		}
 
-		// Calculate days remaining
-		now := time.Now()
-		if m.DueDate.After(now) {
-			progress.DaysRemaining = int(m.DueDate.Sub(now).Hours() / 24)
-		} else if m.Status != domain.MitigationDone {
-			progress.DaysRemaining = -int(now.Sub(m.DueDate).Hours() / 24) // negative = overdue
+		// Calculate days remaining (DueDate is optional)
+		if m.DueDate != nil {
+			progress.DueDate = *m.DueDate
+			now := time.Now()
+			if m.DueDate.After(now) {
+				progress.DaysRemaining = int(m.DueDate.Sub(now).Hours() / 24)
+			} else if m.Status != domain.MitigationDone {
+				progress.DaysRemaining = -int(now.Sub(*m.DueDate).Hours() / 24) // negative = overdue
+			}
 		}
 
 		progressList = append(progressList, progress)

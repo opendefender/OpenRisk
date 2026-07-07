@@ -27,7 +27,7 @@ type MockIncidentProvider struct {
 	failureCount int
 }
 
-func (m *MockIncidentProvider) FetchRecentIncidents() ([]domain.Incident, error) {
+func (m *MockIncidentProvider) FetchRecentIncidents(organizationID string) ([]domain.Incident, error) {
 	m.callCount++
 
 	if m.shouldFail && m.failureCount > 0 {

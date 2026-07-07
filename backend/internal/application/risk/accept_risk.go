@@ -84,8 +84,8 @@ func (uc *AcceptRiskUseCase) Execute(ctx context.Context, tenantID uuid.UUID, ri
 		},
 	}
 	if err := uc.riskRepo.CreateAuditEntry(ctx, entry); err != nil {
-		// Log error but don't fail the operation
-		// The risk is already updated
+		// Log error but don't fail the operation - the risk is already updated
+		fmt.Printf("Warning: failed to create audit entry for accepted risk %s: %v\n", risk.ID, err)
 	}
 
 	return risk, nil

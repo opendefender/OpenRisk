@@ -47,10 +47,12 @@ func (s *PersonalAccessTokenService) generateTokenHash(token string) string {
 }
 
 // generateTokenPrefix creates a short prefix for token identification
-func (s *PersonalAccessTokenService) generateTokenPrefix() string {
+func (s *PersonalAccessTokenService) generateTokenPrefix() (string, error) {
 	bytes := make([]byte, 4)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)[:8]
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes)[:8], nil
 }
 
 // CreateToken creates a new personal access token
@@ -63,7 +65,10 @@ func (s *PersonalAccessTokenService) CreateToken(ctx context.Context, userID uui
 
 	// Create token hash
 	tokenHash := s.generateTokenHash(token)
-	tokenPrefix := s.generateTokenPrefix()
+	tokenPrefix, err := s.generateTokenPrefix()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate token prefix: %w", err)
+	}
 
 	// Create PAT entity
 	encodedScopes, err := json.Marshal(scopes)

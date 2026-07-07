@@ -61,7 +61,9 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 	}
 
 	// Add initial timeline entry
-	s.AddTimelineEntry(incident.ID, "status_change", "Incident created", "open", req.ReportedBy)
+	if err := s.AddTimelineEntry(incident.ID, "status_change", "Incident created", "open", req.ReportedBy); err != nil {
+		log.Printf("Warning: failed to add timeline entry for incident %d: %v", incident.ID, err)
+	}
 
 	return incident, nil
 }
@@ -175,15 +177,19 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 
 	// Add timeline entries for status changes
 	if req.Status != "" && req.Status != oldStatus {
-		s.AddTimelineEntry(incidentID, "status_change",
+		if err := s.AddTimelineEntry(incidentID, "status_change",
 			fmt.Sprintf("Status changed from %s to %s", oldStatus, req.Status),
-			req.Status, updatedBy)
+			req.Status, updatedBy); err != nil {
+			log.Printf("Warning: failed to add status_change timeline entry for incident %d: %v", incidentID, err)
+		}
 	}
 
 	if req.AssignedTo != "" {
-		s.AddTimelineEntry(incidentID, "assignment",
+		if err := s.AddTimelineEntry(incidentID, "assignment",
 			fmt.Sprintf("Assigned to %s", req.AssignedTo),
-			req.AssignedTo, updatedBy)
+			req.AssignedTo, updatedBy); err != nil {
+			log.Printf("Warning: failed to add assignment timeline entry for incident %d: %v", incidentID, err)
+		}
 	}
 
 	return incident, nil
@@ -240,9 +246,11 @@ func (s *IncidentService) LinkRisk(incidentID, riskID uint) error {
 	}
 
 	// Add timeline entry
-	s.AddTimelineEntry(incidentID, "risk_link",
+	if err := s.AddTimelineEntry(incidentID, "risk_link",
 		fmt.Sprintf("Linked to risk ID %d", riskID),
-		fmt.Sprintf("%d", riskID), "system")
+		fmt.Sprintf("%d", riskID), "system"); err != nil {
+		log.Printf("Warning: failed to add risk_link timeline entry for incident %d: %v", incidentID, err)
+	}
 
 	return nil
 }

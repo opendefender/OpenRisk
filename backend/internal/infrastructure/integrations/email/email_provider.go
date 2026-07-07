@@ -61,36 +61,3 @@ func (ep *EmailProvider) Validate(config map[string]interface{}) error {
 	return nil
 }
 
-// buildEmailBody builds HTML email body from notification
-func (ep *EmailProvider) buildEmailBody(notification *domain.Notification) string {
-	html := `
-	<html>
-	<head>
-		<style>
-			body { font-family: Arial, sans-serif; }
-			.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-			.header { background-color: #f5f5f5; padding: 20px; border-radius: 5px; }
-			.content { padding: 20px 0; }
-			.footer { font-size: 12px; color: #999; margin-top: 20px; }
-			.button { background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; }
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<div class="header">
-				<h2>%s</h2>
-			</div>
-			<div class="content">
-				<p>%s</p>
-				<p>%s</p>
-			</div>
-			<div class="footer">
-				<p>This is an automated notification from OpenRisk.</p>
-			</div>
-		</div>
-	</body>
-	</html>
-	`
-
-	return fmt.Sprintf(html, notification.Subject, notification.Message, notification.Description)
-}

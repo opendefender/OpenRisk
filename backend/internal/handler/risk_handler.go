@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -118,7 +120,9 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		if err := query.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
 			domainRisk.Assets = assets
 			// Save relationships (no direct score compute — publish Redis event instead)
-			database.DB.Model(&domainRisk).Association("Assets").Replace(assets)
+			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(assets); err != nil {
+				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
+			}
 		}
 	}
 
@@ -162,7 +166,7 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 		query.Search = q
 	}
 	if status := c.Query("status"); status != "" {
-		query.Status = status
+		query.Status = []string{status}
 	}
 	if minScoreStr := c.Query("min_score"); minScoreStr != "" {
 		if v, err := strconv.ParseFloat(minScoreStr, 64); err == nil {
@@ -306,7 +310,9 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 			domainRisk.Score = service.ComputeRiskScore(domainRisk.Impact, domainRisk.Probability, assets)
 			
 			database.DB.Save(domainRisk)
-			database.DB.Model(&domainRisk).Association("Assets").Replace(assets)
+			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(assets); err != nil {
+				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
+			}
 		}
 	}
 

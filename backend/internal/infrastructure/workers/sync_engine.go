@@ -230,11 +230,11 @@ func (e *SyncEngine) processIncident(ctx context.Context, inc *domain.Incident) 
 	}
 
 	// Map incident severity to risk scores
-	impactScore := 3
-	probabilityScore := 4
+	impactScore := 3.0
+	probabilityScore := 4.0
 	if inc.Severity == "CRITICAL" {
-		impactScore = 5
-		probabilityScore = 5
+		impactScore = 5.0
+		probabilityScore = 5.0
 	}
 
 	// Parse organization ID (validate it's a valid UUID)

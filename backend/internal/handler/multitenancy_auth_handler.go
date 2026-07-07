@@ -63,7 +63,7 @@ func (h *MultitenantAuthHandler) SelectOrganization(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	tokens, err := h.authService.SelectOrganization(c.Context(), claims.ID, req.OrganizationID)
+	tokens, err := h.authService.SelectOrganization(c.Context(), claims.Sub, req.OrganizationID)
 	if err != nil {
 		log.Printf("Organization selection failed: %v", err)
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})

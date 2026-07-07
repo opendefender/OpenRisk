@@ -337,7 +337,7 @@ func (r *GormRiskRepository) GetByCVE(ctx context.Context, cveID string, tenantI
 
 // BulkUpdate updates multiple risks atomically within a transaction.
 func (r *GormRiskRepository) BulkUpdate(ctx context.Context, tenantID uuid.UUID, updates []domain.RiskUpdate) (int64, error) {
-	tx := r.db.WithContext(ctx).BeginTx(ctx, nil)
+	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return 0, tx.Error
 	}
@@ -370,7 +370,7 @@ func (r *GormRiskRepository) BulkUpdate(ctx context.Context, tenantID uuid.UUID,
 
 // BulkCreate creates multiple risks atomically within a transaction.
 func (r *GormRiskRepository) BulkCreate(ctx context.Context, risks []*domain.Risk) (int64, error) {
-	tx := r.db.WithContext(ctx).BeginTx(ctx, nil)
+	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return 0, tx.Error
 	}

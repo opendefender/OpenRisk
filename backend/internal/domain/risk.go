@@ -180,10 +180,12 @@ func (r *Risk) BeforeSave(tx *gorm.DB) error {
 		r.Score = float64(r.ImpactLegacy * r.ProbabilityLegacy)
 	}
 
-	// Ensure CreatedBy is set if creating
-	if r.CreatedBy == uuid.Nil && !tx.Statement.Changed("created_by") {
-		// CreatedBy must be set by use case before saving
-		// This is a safety check, should not happen in practice
+	// Ensure CreatedBy is set if creating.
+	// CreatedBy must be set by the use case before saving; this is a
+	// deliberate no-op rather than an enforced error, since hardening it
+	// could break an existing save path that currently relies on this being
+	// silent. Revisit as part of a dedicated domain-invariants audit.
+	if r.CreatedBy == uuid.Nil && !tx.Statement.Changed("created_by") { //nolint:staticcheck // intentional no-op, see comment above
 	}
 
 	return nil

@@ -213,7 +213,9 @@ func OAuth2Callback(c *fiber.Ctx) error {
 
 	// Log successful authentication
 	auditService := service.NewAuditService()
-	auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), "")
+	if err := auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), ""); err != nil {
+		fmt.Printf("Warning: failed to log OAuth2 login for user %s: %v\n", user.ID, err)
+	}
 
 	// UserResponseDTO prevents leaking password hashes (Claude.md rule #6)
 	responseUser := UserResponseDTO{
@@ -317,8 +319,9 @@ func getGitHubUserInfo(token *oauth2.Token) (*OAuth2UserInfo, error) {
 		var err error
 		email, err = getGitHubEmail(token)
 		if err != nil {
-			// Log the error but don't fail - use empty email
-			// Email might be available through other means
+			// Log the error but don't fail - use empty email, which might be
+			// available through other means
+			fmt.Printf("Warning: failed to fetch GitHub email: %v\n", err)
 		}
 	}
 

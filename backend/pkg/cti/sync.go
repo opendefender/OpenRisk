@@ -336,7 +336,7 @@ func EnsureMITREDataFile(basePath string) error {
 	if _, err := os.Stat(dataFile); os.IsNotExist(err) {
 		emptyData := MITREData{Mappings: []MITREMapping{}}
 		jsonData, _ := json.MarshalIndent(emptyData, "", "  ")
-		if err := os.WriteFile(dataFile, jsonData, 0644); err != nil {
+		if err := os.WriteFile(dataFile, jsonData, 0600); err != nil {
 			return fmt.Errorf("failed to create MITRE data file: %w", err)
 		}
 	}

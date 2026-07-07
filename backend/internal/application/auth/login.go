@@ -128,7 +128,10 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 // UserRepository interface for user operations
 type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+	GetByUsername(ctx context.Context, username string) (*domain.User, error)
 	GetUserDefaultOrganization(ctx context.Context, userID uuid.UUID) (*domain.Organization, error)
 	GetOrganizationMember(ctx context.Context, userID, orgID uuid.UUID) (*domain.OrganizationMember, error)
+	Create(ctx context.Context, user *domain.User) error
 	Update(ctx context.Context, user *domain.User) error
+	CreateOrganizationMember(ctx context.Context, member *domain.OrganizationMember) error
 }

@@ -71,6 +71,7 @@ func TestNotificationHandlerGetNotifications(t *testing.T) {
 	req := httptest.NewRequest("GET", "/notifications?limit=10&offset=0", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
 }
 
@@ -81,6 +82,7 @@ func TestNotificationHandlerGetUnreadCount(t *testing.T) {
 	req := httptest.NewRequest("GET", "/notifications/unread-count", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
 }
 
@@ -89,6 +91,7 @@ func TestNotificationHandlerUpdatePreferencesValidation(t *testing.T) {
 	req := httptest.NewRequest("PATCH", "/notifications/preferences", nil)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
@@ -98,5 +101,6 @@ func TestNotificationHandlerUpdatePreferencesSuccess(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, fiber.StatusOK, resp.StatusCode)
 }

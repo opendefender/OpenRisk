@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, stag, develop]
+    branches: [master, stag, develop]
   pull_request:
-    branches: [main, stag, develop]
+    branches: [master, stag, develop]
 
 env:
   REGISTRY: ghcr.io
@@ -20,6 +20,12 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.25'
+
+      - name: Build
+        run: cd backend && go build ./...
+
+      - name: Vet
+        run: cd backend && go vet ./...
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3

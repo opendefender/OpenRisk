@@ -44,9 +44,10 @@ func TestCreateRisk_Integration(t *testing.T) {
 	req := httptest.NewRequest("POST", "/risks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
 
 	// Assertions
-	require.NoError(t, err)
 	assert.Equal(t, 201, resp.StatusCode)
 
 	var result domain.Risk
@@ -89,9 +90,10 @@ func TestGetRisks_Integration(t *testing.T) {
 	// Request
 	req := httptest.NewRequest("GET", "/risks", nil)
 	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
 
 	// Assertions
-	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 
 	var risks []domain.Risk
@@ -120,9 +122,10 @@ func TestGetRisk_Integration(t *testing.T) {
 	// Request
 	req := httptest.NewRequest("GET", "/risks/"+risk.ID.String(), nil)
 	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
 
 	// Assertions
-	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 
 	var result domain.Risk
@@ -160,9 +163,10 @@ func TestUpdateRisk_Integration(t *testing.T) {
 	req := httptest.NewRequest("PATCH", "/risks/"+risk.ID.String(), bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
 
 	// Assertions
-	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 
 	var result domain.Risk
@@ -191,9 +195,10 @@ func TestDeleteRisk_Integration(t *testing.T) {
 	// Request
 	req := httptest.NewRequest("DELETE", "/risks/"+risk.ID.String(), nil)
 	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
 
 	// Assertions
-	require.NoError(t, err)
 	assert.Equal(t, 204, resp.StatusCode)
 
 	// Verify soft delete

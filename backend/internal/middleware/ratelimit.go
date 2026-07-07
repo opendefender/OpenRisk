@@ -17,15 +17,12 @@ import (
 type RateLimitStore struct {
 	mu       sync.RWMutex
 	requests map[string][]time.Time
-	// Cleanup interval to prevent memory leaks
-	lastCleanup time.Time
 }
 
 // NewRateLimitStore creates a new rate limit store
 func NewRateLimitStore() *RateLimitStore {
 	return &RateLimitStore{
-		requests:    make(map[string][]time.Time),
-		lastCleanup: time.Now(),
+		requests: make(map[string][]time.Time),
 	}
 }
 
@@ -35,30 +32,6 @@ func (rls *RateLimitStore) cleanup(key string, windowSize time.Duration) {
 	if oldRequests, exists := rls.requests[key]; exists {
 		var validRequests []time.Time
 		for _, reqTime := range oldRequests {
-			if now.Sub(reqTime) < windowSize {
-				validRequests = append(validRequests, reqTime)
-			}
-		}
-		if len(validRequests) == 0 {
-			delete(rls.requests, key)
-		} else {
-			rls.requests[key] = validRequests
-		}
-	}
-}
-
-// cleanupAll removes all old entries periodically
-func (rls *RateLimitStore) cleanupAll(windowSize time.Duration) {
-	if time.Since(rls.lastCleanup) < 5*time.Minute {
-		return
-	}
-
-	rls.lastCleanup = time.Now()
-	now := time.Now()
-
-	for key, reqs := range rls.requests {
-		var validRequests []time.Time
-		for _, reqTime := range reqs {
 			if now.Sub(reqTime) < windowSize {
 				validRequests = append(validRequests, reqTime)
 			}

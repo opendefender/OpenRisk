@@ -6,6 +6,8 @@
 package service
 
 import (
+	"log"
+
 	"github.com/opendefender/openrisk/internal/domain"
 	"gorm.io/gorm"
 )
@@ -173,16 +175,6 @@ func (qo *QueryOptimizer) FindRisksSelectOptimized(filters map[string]interface{
 
 // AggregateRiskStats optimizes stats calculation with GROUP BY
 func (qo *QueryOptimizer) AggregateRiskStats() (map[string]interface{}, error) {
-	type StatsResult struct {
-		TotalRisks    int64
-		ByStatus      map[string]int64
-		ByLevel       map[string]int64
-		AvgScore      float64
-		MaxScore      float64
-		MinScore      float64
-		CriticalCount int64
-	}
-
 	stats := make(map[string]interface{})
 
 	// Total risks
@@ -200,10 +192,12 @@ func (qo *QueryOptimizer) AggregateRiskStats() (map[string]interface{}, error) {
 
 	// Average score
 	var avgScore float64
-	qo.db.Model(&domain.Risk{}).
+	if err := qo.db.Model(&domain.Risk{}).
 		Select("AVG(score)").
 		Row().
-		Scan(&avgScore)
+		Scan(&avgScore); err != nil {
+		log.Printf("Warning: failed to compute average risk score: %v", err)
+	}
 	stats["avg_score"] = avgScore
 
 	// Score distribution

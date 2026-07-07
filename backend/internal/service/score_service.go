@@ -22,8 +22,8 @@ var criticalityFactor = map[domain.AssetCriticality]float64{
 // ComputeRiskScore computes a final score using impact, probability and asset criticality.
 // Formula: base = impact * probability; final = base * avg(asset_factors)
 // If there are no assets, avg factor defaults to 1.0
-func ComputeRiskScore(impact, probability int, assets []*domain.Asset) float64 {
-	base := float64(impact * probability)
+func ComputeRiskScore(impact, probability float64, assets []*domain.Asset) float64 {
+	base := impact * probability
 	if len(assets) == 0 {
 		return math.Round(base*100) / 100 // 2 decimals
 	}

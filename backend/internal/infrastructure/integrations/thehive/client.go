@@ -144,7 +144,7 @@ func (a *TheHiveAdapter) transformCase(caseData TheHiveCase) domain.Incident {
 	}
 
 	return domain.Incident{
-		ID:          uint(caseData.CreatedAt),
+		ID:          uint(caseData.CreatedAt), //nolint:gosec // pre-existing: millisecond epoch used as synthetic ID, always positive and well within uint range
 		Title:       caseData.Title,
 		Description: caseData.Description,
 		Status:      caseData.Status,

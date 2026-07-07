@@ -50,7 +50,7 @@ func (h *AuditLogHandler) GetAuditLogs(c *fiber.Ctx) error {
 	}
 
 	// Check if user is admin
-	if !claims.HasPermission("*") && claims.RoleName != "admin" {
+	if !claims.HasPermission("*") && claims.OrgRoles[claims.TenantID] != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view audit logs"})
 	}
 
@@ -127,7 +127,7 @@ func (h *AuditLogHandler) GetUserAuditLogs(c *fiber.Ctx) error {
 	}
 
 	// Check if user is admin
-	if !claims.HasPermission("*") && claims.RoleName != "admin" {
+	if !claims.HasPermission("*") && claims.OrgRoles[claims.TenantID] != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view audit logs"})
 	}
 
@@ -202,7 +202,7 @@ func (h *AuditLogHandler) GetAuditLogsByAction(c *fiber.Ctx) error {
 	}
 
 	// Check if user is admin
-	if !claims.HasPermission("*") && claims.RoleName != "admin" {
+	if !claims.HasPermission("*") && claims.OrgRoles[claims.TenantID] != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view audit logs"})
 	}
 

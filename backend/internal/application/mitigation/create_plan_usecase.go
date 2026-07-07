@@ -39,7 +39,7 @@ type CreateMitigationPlanInput struct {
 	AssignedTo  domain.UUIDArray
 	DueDate     *time.Time
 	CreatedBy   uuid.UUID
-	Source      domain.MitigationSource
+	Source      domain.RiskSource
 	SubActions  []struct {
 		Title       string
 		Description string

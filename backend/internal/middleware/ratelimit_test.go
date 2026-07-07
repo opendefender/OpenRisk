@@ -82,6 +82,7 @@ func TestRateLimit_Middleware(t *testing.T) {
 		req, _ := http.NewRequest("GET", "http://localhost/test", nil)
 		req.Header.Set("X-Forwarded-For", "192.168.1.1")
 		resp, _ := app.Test(req)
+		defer resp.Body.Close()
 		if resp.StatusCode != fiber.StatusOK {
 			t.Errorf("Request %d failed with status %d", i+1, resp.StatusCode)
 		}
@@ -91,6 +92,7 @@ func TestRateLimit_Middleware(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://localhost/test", nil)
 	req.Header.Set("X-Forwarded-For", "192.168.1.1")
 	resp, _ := app.Test(req)
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusTooManyRequests {
 		t.Errorf("Request 4 should be rate limited, got status %d", resp.StatusCode)
 	}
@@ -107,6 +109,7 @@ func TestAuthRateLimit(t *testing.T) {
 		req, _ := http.NewRequest("POST", "http://localhost/auth/login", nil)
 		req.Header.Set("X-Forwarded-For", "192.168.1.100")
 		resp, _ := app.Test(req)
+		defer resp.Body.Close()
 
 		if i < 5 {
 			if resp.StatusCode != fiber.StatusOK {
@@ -131,6 +134,7 @@ func TestPublicRateLimit(t *testing.T) {
 		req, _ := http.NewRequest("GET", "http://localhost/public", nil)
 		req.Header.Set("X-Forwarded-For", "192.168.1.50")
 		resp, _ := app.Test(req)
+		defer resp.Body.Close()
 		if resp.StatusCode != fiber.StatusOK {
 			t.Errorf("Request %d failed: status %d", i+1, resp.StatusCode)
 		}
@@ -140,6 +144,7 @@ func TestPublicRateLimit(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://localhost/public", nil)
 	req.Header.Set("X-Forwarded-For", "192.168.1.50")
 	resp, _ := app.Test(req)
+	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusTooManyRequests {
 		t.Errorf("Request 101 should be blocked, got status %d", resp.StatusCode)
 	}
@@ -173,6 +178,7 @@ func TestRateLimit_DifferentIPs(t *testing.T) {
 			r, _ := http.NewRequest("GET", "http://localhost/test", nil)
 			r.Header.Set("X-Forwarded-For", ip)
 			resp, _ := app.Test(r)
+			defer resp.Body.Close()
 			if resp.StatusCode != fiber.StatusOK {
 				t.Errorf("IP %s Request %d failed with status %d", ip, req+1, resp.StatusCode)
 			}

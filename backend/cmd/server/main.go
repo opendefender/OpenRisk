@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -24,12 +23,13 @@ import (
 	"github.com/opendefender/openrisk/internal/application/auth"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
-	"github.com/opendefender/openrisk/internal/auth"
+	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/email"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
@@ -149,7 +149,9 @@ func main() {
 
 	// Initialize Permission Service for advanced access control
 	permissionService := service.NewPermissionService()
-	permissionService.InitializeDefaultRoles()
+	if err := permissionService.InitializeDefaultRoles(); err != nil {
+		log.Fatalf("Failed to initialize default permission roles: %v", err)
+	}
 
 	// Initialize Token Service for API token management
 	tokenService := service.NewTokenService()
@@ -180,6 +182,9 @@ func main() {
 	// Initialize JWT token blacklist manager (via Redis)
 	tokenBlacklistManager := authpkg.NewTokenBlacklistManager(redisClientInstance)
 	log.Println("Auth: Token blacklist manager initialized (Redis-backed)")
+
+	// Closure used by middleware.Protected(rsaKeys, jtiBlacklistChecker) to check the JTI blacklist on every request
+	jtiBlacklistChecker := tokenBlacklistManager.CheckJTIBlacklist(context.Background())
 
 	// Initialize Score Engine (pure, stateless)
 	scoreEngine := scoring.NewEngine()
@@ -273,20 +278,29 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewGormUserRepository(database.DB)
 	orgRepo := repository.NewGormOrganizationRepository(database.DB)
-	refreshTokenRepo := repository.NewGormRefreshTokenRepository(database.DB)
 
-	// Initialize notification service
-	emailNotifier := notify.NewEmailNotifier() // Placeholder - implement actual email service
-	notificationService := notify.NewNotificationService(emailNotifier)
+	// Initialize notification service (mock email transport - swap for SMTP in production)
+	emailFromAddr := os.Getenv("EMAIL_FROM")
+	if emailFromAddr == "" {
+		emailFromAddr = "noreply@openrisk.local"
+	}
+	appBaseURL := os.Getenv("APP_BASE_URL")
+	if appBaseURL == "" {
+		appBaseURL = "http://localhost:5173"
+	}
+	notificationService := notify.NewEmailService(email.NewMockService(), emailFromAddr, appBaseURL)
 
 	// Initialize password hasher (use bcrypt in production)
-	passwordHasher := auth.NewSimplePasswordHasher()
+	passwordHasher := coreauth.NewSimplePasswordHasher()
+
+	// Initialize token manager (access/refresh JWT pairs, backed by the DB)
+	tokenManager := coreauth.NewTokenManager(database.DB)
 
 	// Initialize use cases
-	loginUseCase := auth.NewLoginUseCase(userRepo, passwordHasher, notificationService)
-	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, passwordHasher, notificationService)
-	refreshUseCase := auth.NewRefreshTokenUseCase(refreshTokenRepo, userRepo)
-	logoutUseCase := auth.NewLogoutUseCase(refreshTokenRepo)
+	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher)
+	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher)
+	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
+	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
 
 	// Initialize Clean Architecture auth handler
 	cleanAuthHandler := authhandler.NewHandler(
@@ -333,10 +347,10 @@ func main() {
 
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
-	protected := api.Use(middleware.Protected())
+	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
 
 	// Current user profile endpoint
-	api.Get("/auth/me", middleware.Protected(), cleanAuthHandler.Me)
+	api.Get("/auth/me", middleware.Protected(rsaKeys, jtiBlacklistChecker), cleanAuthHandler.Me)
 	api.Get("/users/me", authHandler.GetProfile)
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
@@ -404,16 +418,18 @@ func main() {
 	protected.Post("/scanner/mitigations/auto-complete", handlers.AutoCompleteMitigationSubAction)
 
 	api.Get("/users/me", authHandler.GetProfile)
-	api.Get("/assets", middleware.Protected(), handlers.GetAssets)
-	api.Post("/assets", middleware.Protected(), handlers.CreateAsset)
+	api.Get("/assets", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.GetAssets)
+	api.Post("/assets", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.CreateAsset)
 	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
 	api.Get("/stats/risk-distribution", cacheableHandlers.CacheDashboardStatsGET(handlers.GetRiskDistribution))
 	api.Get("/stats/mitigation-metrics", cacheableHandlers.CacheDashboardStatsGET(handlers.GetMitigationMetrics))
 	api.Get("/stats/top-vulnerabilities", cacheableHandlers.CacheDashboardStatsGET(handlers.GetTopVulnerabilities))
 	api.Get("/export/pdf", handlers.ExportRisksPDF)
-	api.Get("/stats/trends", middleware.Protected(), cacheableHandlers.CacheDashboardTimelineGET(handlers.GetGlobalRiskTrend))
-	api.Get("/mitigations/recommended", handlers.GetRecommendedMitigations)
-	api.Get("/gamification/me", middleware.Protected(), handlers.GetMyGamificationProfile)
+	api.Get("/stats/trends", middleware.Protected(rsaKeys, jtiBlacklistChecker), cacheableHandlers.CacheDashboardTimelineGET(handlers.GetGlobalRiskTrend))
+	// TODO(Phase 3): Reconnect /mitigations/recommended once the handler is
+	// properly implemented with tests and pagination.
+	// api.Get("/mitigations/recommended", handlers.GetRecommendedMitigations)
+	api.Get("/gamification/me", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.GetMyGamificationProfile)
 
 	// --- Score Engine Management (Protected routes) ---
 	scoreEngineHandler := handlers.NewScoreEngineHandler(database.DB, scoreEngineService)
@@ -659,14 +675,4 @@ func main() {
 	}
 
 	log.Println("Server exited properly")
-}
-
-// parseEnvInt safely parses environment variables to integers
-func parseEnvInt(key string, defaultVal int) int {
-	if val := os.Getenv(key); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			return parsed
-		}
-	}
-	return defaultVal
 }

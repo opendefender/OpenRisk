@@ -48,7 +48,7 @@ func (rl *RateLimiter) Check(c *fiber.Ctx) error {
 	var limit int64 = 100
 	var windowSeconds int64 = 60
 
-	fmt.Sscanf(parts[0], "%d", &limit)
+	_, _ = fmt.Sscanf(parts[0], "%d", &limit) // parse failure keeps the default above
 	if parts[1] == "hour" {
 		windowSeconds = 3600
 	}
@@ -131,7 +131,7 @@ func (aks *APIKeySecurityMiddleware) ValidateRequestSignature(c *fiber.Ctx) erro
 
 	// Verify timestamp is recent (within 5 minutes)
 	var ts int64
-	fmt.Sscanf(timestamp, "%d", &ts)
+	_, _ = fmt.Sscanf(timestamp, "%d", &ts) // parse failure leaves ts at 0, which fails the freshness check below (fail-closed)
 	if time.Now().Unix()-ts > 300 {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{"error": "Request timestamp expired"})

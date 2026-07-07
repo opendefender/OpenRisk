@@ -88,6 +88,15 @@ func (e *engine) Breakdown(
 
 	criticality := e.ToCriticality(score)
 
+	// CriticalityLevel values are always a single lowercase word (low/medium/
+	// high/critical); capitalize the first letter for the explanation string
+	// without pulling in golang.org/x/text/cases (this package stays
+	// stdlib-only by design, see import comment above).
+	criticalityLabel := string(criticality)
+	if len(criticalityLabel) > 0 {
+		criticalityLabel = strings.ToUpper(criticalityLabel[:1]) + criticalityLabel[1:]
+	}
+
 	// Build explanation: "0.700 × 8.000 × 1.500 = 8.400 → Critical"
 	explanation := fmt.Sprintf(
 		"%.3f × %.3f × %.3f = %.3f → %s",
@@ -95,7 +104,7 @@ func (e *engine) Breakdown(
 		impact,
 		assetCriticality,
 		score,
-		strings.Title(string(criticality)),
+		criticalityLabel,
 	)
 
 	breakdown := ScoreBreakdown{

@@ -66,7 +66,7 @@ func GetMe(c *fiber.Ctx) error {
 	}
 
 	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -137,7 +137,7 @@ func GetUsers(c *fiber.Ctx) error {
 
 	// Check if user is admin
 	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -183,7 +183,7 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 
 	// Check if user is admin
 	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -216,7 +216,7 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 	}
 
 	_ = auditService.LogAction(&domain.AuditLog{
-		UserID:     &claims.ID,
+		UserID:     &claims.Sub,
 		Action:     action,
 		Resource:   domain.ResourceUser,
 		ResourceID: &targetUser.ID,
@@ -240,7 +240,7 @@ func UpdateUserRole(c *fiber.Ctx) error {
 
 	// Check if user is admin
 	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -272,7 +272,7 @@ func UpdateUserRole(c *fiber.Ctx) error {
 	}
 
 	// Log the role change
-	_ = auditService.LogRoleChange(claims.ID, targetUser.ID, oldRole, input.Role, ipAddress, userAgent)
+	_ = auditService.LogRoleChange(claims.Sub, targetUser.ID, oldRole, input.Role, ipAddress, userAgent)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User role updated"})
 }
@@ -289,7 +289,7 @@ func DeleteUser(c *fiber.Ctx) error {
 
 	// Check if user is admin
 	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -300,7 +300,7 @@ func DeleteUser(c *fiber.Ctx) error {
 	userID := c.Params("id")
 
 	// Prevent admin from deleting their own account
-	if userID == claims.ID.String() {
+	if userID == claims.Sub.String() {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot delete your own account"})
 	}
 
@@ -315,7 +315,7 @@ func DeleteUser(c *fiber.Ctx) error {
 	}
 
 	// Log the user deletion
-	_ = auditService.LogUserDelete(claims.ID, targetUser.ID, ipAddress, userAgent)
+	_ = auditService.LogUserDelete(claims.Sub, targetUser.ID, ipAddress, userAgent)
 
 	return c.Status(fiber.StatusNoContent).Send([]byte{})
 }
@@ -338,7 +338,7 @@ func CreateUser(c *fiber.Ctx) error {
 
 	// Check if user is admin
 	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -391,7 +391,7 @@ func CreateUser(c *fiber.Ctx) error {
 
 	// Log the action
 	_ = auditService.LogAction(&domain.AuditLog{
-		UserID:     &claims.ID,
+		UserID:     &claims.Sub,
 		Action:     domain.ActionUserCreate,
 		Resource:   domain.ResourceUser,
 		ResourceID: &newUser.ID,
@@ -426,7 +426,7 @@ func UpdateUserProfile(c *fiber.Ctx) error {
 	}
 
 	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.ID).Error; err != nil {
+	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 

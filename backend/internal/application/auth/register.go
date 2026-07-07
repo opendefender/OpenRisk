@@ -114,7 +114,9 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 
 	if err := uc.userRepo.Create(ctx, user); err != nil {
 		// Clean up organization if user creation fails
-		uc.orgRepo.Delete(ctx, org.ID)
+		if delErr := uc.orgRepo.Delete(ctx, org.ID); delErr != nil {
+			fmt.Printf("Warning: failed to roll back organization %s after user creation failure: %v\n", org.ID, delErr)
+		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
