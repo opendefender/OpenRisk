@@ -1246,6 +1246,7 @@ components:
     ComplianceFramework:
       type: object
       description: Global reference entity (not tenant-scoped), e.g. ISO 27001, COBAC.
+      required: [id, name, version, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1277,6 +1278,7 @@ components:
     ComplianceControl:
       type: object
       description: Tenant-scoped control instantiated under a global framework.
+      required: [id, tenant_id, framework_id, reference_code, name, status, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1332,6 +1334,7 @@ components:
     ControlEvidence:
       type: object
       description: Tenant-scoped evidence file attached to a control.
+      required: [id, tenant_id, control_id, filename, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1359,6 +1362,7 @@ components:
     ComplianceProgress:
       type: object
       description: Computed, not persisted — tallies a tenant's controls for a framework by status.
+      required: [framework_id, total, by_status, applicable, percent_complete]
       properties:
         framework_id:
           type: string
