@@ -6,68 +6,72 @@
 package database
 
 import (
-"fmt"
-"log"
-"os"
-"time"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
-"gorm.io/driver/postgres"
-"gorm.io/gorm"
-"gorm.io/gorm/logger"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
 
 func Connect() {
-// Build DSN from environment variables with sensible defaults
-host := os.Getenv("DB_HOST")
-if host == "" {
-host = "localhost"
-}
+	// Build DSN from environment variables with sensible defaults
+	host := os.Getenv("DB_HOST")
+	if host == "" {
+		host = "localhost"
+	}
 
-port := os.Getenv("DB_PORT")
-if port == "" {
-port = "5434"
-}
+	port := os.Getenv("DB_PORT")
+	if port == "" {
+		port = "5434"
+	}
 
-user := os.Getenv("DB_USER")
-if user == "" {
-user = "openrisk"
-}
+	user := os.Getenv("DB_USER")
+	if user == "" {
+		user = "openrisk"
+	}
 
-password := os.Getenv("DB_PASSWORD")
+	password := os.Getenv("DB_PASSWORD")
 
-dbname := os.Getenv("DB_NAME")
-if dbname == "" {
-dbname = "openrisk"
-}
+	dbname := os.Getenv("DB_NAME")
+	if dbname == "" {
+		dbname = "openrisk"
+	}
 
-// Try to use DATABASE_URL if provided (takes precedence)
-databaseURL := os.Getenv("DATABASE_URL")
-if databaseURL == "" {
-databaseURL = fmt.Sprintf(
-"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
-host, user, password, dbname, port,
-)
-}
+	// Try to use DATABASE_URL if provided (takes precedence)
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+			host, user, password, dbname, port,
+		)
+	}
 
-var err error
-DB, err = gorm.Open(postgres.Open(databaseURL), &gorm.Config{
-Logger: logger.Default.LogMode(logger.Info),
-})
+	var err error
+	DB, err = gorm.Open(postgres.Open(databaseURL), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+		// TranslateError lets repositories detect constraint violations via
+		// sentinel errors (e.g. errors.Is(err, gorm.ErrDuplicatedKey))
+		// instead of parsing driver-specific error codes.
+		TranslateError: true,
+	})
 
-if err != nil {
-log.Fatal("Failed to connect to database! \n", err)
-}
+	if err != nil {
+		log.Fatal("Failed to connect to database! \n", err)
+	}
 
-log.Println("Connected to PostgreSQL database successfully")
+	log.Println("Connected to PostgreSQL database successfully")
 
-sqlDB, err := DB.DB()
-if err != nil {
-log.Fatal("Failed to get database instance")
-}
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatal("Failed to get database instance")
+	}
 
-sqlDB.SetMaxIdleConns(10)
-sqlDB.SetMaxOpenConns(100)
-sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 }

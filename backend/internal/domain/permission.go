@@ -33,6 +33,15 @@ const (
 	PermissionResourceAuditLog    PermissionResource = "auditlog"
 	PermissionResourceDashboard   PermissionResource = "dashboard"
 	PermissionResourceIntegration PermissionResource = "integration"
+
+	// Compliance is split into 3 resources instead of one, on purpose:
+	// frameworks are global (cross-tenant blast radius if writable by
+	// anyone but an admin), controls/evidences are tenant-scoped. A single
+	// shared "compliance" resource would force every role that can create
+	// a control to also be able to create a global framework.
+	PermissionResourceComplianceFramework PermissionResource = "complianceframework"
+	PermissionResourceComplianceControl   PermissionResource = "compliancecontrol"
+	PermissionResourceComplianceEvidence  PermissionResource = "complianceevidence"
 )
 
 // PermissionScope defines the scope of a permission
@@ -81,14 +90,17 @@ func ParsePermission(permStr string) (*Permission, error) {
 // Validate checks if the permission is valid
 func (p Permission) Validate() error {
 	validResources := map[PermissionResource]bool{
-		"*":                           true,
-		PermissionResourceRisk:        true,
-		PermissionResourceMitigation:  true,
-		PermissionResourceAsset:       true,
-		PermissionResourceUser:        true,
-		PermissionResourceAuditLog:    true,
-		PermissionResourceDashboard:   true,
-		PermissionResourceIntegration: true,
+		"*":                                   true,
+		PermissionResourceRisk:                true,
+		PermissionResourceMitigation:          true,
+		PermissionResourceAsset:               true,
+		PermissionResourceUser:                true,
+		PermissionResourceAuditLog:            true,
+		PermissionResourceDashboard:           true,
+		PermissionResourceIntegration:         true,
+		PermissionResourceComplianceFramework: true,
+		PermissionResourceComplianceControl:   true,
+		PermissionResourceComplianceEvidence:  true,
 	}
 
 	validActions := map[PermissionAction]bool{
@@ -226,6 +238,18 @@ var (
 		{Resource: PermissionResourceDashboard, Action: PermissionRead, Scope: PermissionScopeAny},
 		// Audit logs
 		{Resource: PermissionResourceAuditLog, Action: PermissionRead, Scope: PermissionScopeTeam},
+		// Compliance: frameworks are global (read-only for non-admins —
+		// creating/editing a framework is admin-only, via the wildcard);
+		// controls/evidences are tenant-scoped and safe to grant broadly.
+		{Resource: PermissionResourceComplianceFramework, Action: PermissionRead, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceControl, Action: PermissionRead, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceControl, Action: PermissionCreate, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceControl, Action: PermissionUpdate, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceEvidence, Action: PermissionRead, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceEvidence, Action: PermissionCreate, Scope: PermissionScopeAny},
+		// No Delete on ComplianceControl/ComplianceEvidence for Analyst —
+		// audit-trail integrity: whoever can add evidence should not also
+		// be able to remove it. Delete is admin-only (wildcard).
 	}
 
 	ViewerPermissions = []Permission{
@@ -240,5 +264,9 @@ var (
 		{Resource: PermissionResourceDashboard, Action: PermissionRead, Scope: PermissionScopeAny},
 		// Audit logs: read own
 		{Resource: PermissionResourceAuditLog, Action: PermissionRead, Scope: PermissionScopeOwn},
+		// Compliance: read-only across the board
+		{Resource: PermissionResourceComplianceFramework, Action: PermissionRead, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceControl, Action: PermissionRead, Scope: PermissionScopeAny},
+		{Resource: PermissionResourceComplianceEvidence, Action: PermissionRead, Scope: PermissionScopeAny},
 	}
 )

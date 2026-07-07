@@ -21,7 +21,11 @@ import (
 // and returns a ready-to-use GormComplianceRepository.
 func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		// Required for errors.Is(err, gorm.ErrDuplicatedKey) to work — see
+		// gorm_compliance_repository.go's CreateFramework/CreateControl.
+		TranslateError: true,
+	})
 	require.NoError(t, err)
 
 	// compliance_frameworks (global)
@@ -35,6 +39,10 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			updated_at DATETIME,
 			deleted_at DATETIME
 		);
+	`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE UNIQUE INDEX idx_compliance_frameworks_name_version
+			ON compliance_frameworks(name, version) WHERE deleted_at IS NULL;
 	`).Error)
 
 	// compliance_controls (tenant-scoped)
@@ -51,6 +59,11 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			updated_at DATETIME,
 			deleted_at DATETIME
 		);
+	`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE UNIQUE INDEX idx_compliance_controls_tenant_fw_ref
+			ON compliance_controls(tenant_id, framework_id, reference_code)
+			WHERE deleted_at IS NULL AND reference_code != '';
 	`).Error)
 
 	// control_evidences (tenant-scoped)
@@ -399,4 +412,50 @@ func TestDeleteEvidence_CrossTenantReturnsError(t *testing.T) {
 	got, err := repo.GetEvidenceByID(ctx, evID, tenantA)
 	require.NoError(t, err)
 	require.NotNil(t, got, "Evidence must still exist after cross-tenant delete attempt")
+}
+
+func TestCreateFramework_DuplicateNameVersion_Conflict(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: uuid.New(), Name: "ISO 27001", Version: "2022",
+	}))
+
+	err := repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: uuid.New(), Name: "ISO 27001", Version: "2022",
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrConflict)
+}
+
+func TestCreateControl_DuplicateReferenceCode_Conflict(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	fwID := uuid.New()
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: fwID, Name: "ISO 27001", Version: "2022",
+	}))
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: tenantA, FrameworkID: fwID,
+		ReferenceCode: "A.5.1.1", Name: "Policies for information security",
+	}))
+
+	err := repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: tenantA, FrameworkID: fwID,
+		ReferenceCode: "A.5.1.1", Name: "Duplicate reference code",
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrConflict)
+
+	// A different tenant reusing the same reference_code under the same
+	// framework must succeed — the unique index is scoped by tenant_id too.
+	tenantB := uuid.New()
+	err = repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: tenantB, FrameworkID: fwID,
+		ReferenceCode: "A.5.1.1", Name: "Same code, different tenant",
+	})
+	require.NoError(t, err)
 }
