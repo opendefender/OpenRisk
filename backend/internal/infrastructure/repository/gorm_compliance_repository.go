@@ -106,14 +106,22 @@ func (r *GormComplianceRepository) ListControlsByFramework(ctx context.Context, 
 
 // UpdateControl updates an existing control.
 // MANDATORY: tenant_id is included in the WHERE clause via the struct's own TenantID.
+//
+// NOTE: GORM's Save() ignores a chained Where() once the model's primary key
+// is set — it derives its own WHERE clause from the PK alone, which would let
+// one tenant overwrite another tenant's row by ID. Model()+Where()+Updates()
+// (with an explicit Select) is the pattern that actually honors the WHERE
+// clause, so tenant scoping is enforced at the SQL level, not just in Go.
 func (r *GormComplianceRepository) UpdateControl(ctx context.Context, control *domain.ComplianceControl) error {
 	if control.TenantID == uuid.Nil {
 		return fmt.Errorf("tenant_id is required")
 	}
 
 	result := r.db.WithContext(ctx).
+		Model(&domain.ComplianceControl{}).
 		Where("id = ? AND tenant_id = ?", control.ID, control.TenantID).
-		Save(control)
+		Select("reference_code", "name", "description", "status").
+		Updates(control)
 
 	if result.Error != nil {
 		return fmt.Errorf("failed to update control: %w", result.Error)
