@@ -95,6 +95,12 @@ Méthode de vérification : présence de **table en migration** (persistance ré
 - [ ] **Nouveau gap découvert en corrigeant le build (07/07/2026), non traité — hors scope de ce fix :** `npm run lint` remonte **~350 problèmes** (330 erreurs, 20 warnings), majoritairement `@typescript-eslint/no-explicit-any` (viole la règle §1 « zéro any ») et variables non utilisées, répartis sur des dizaines de fichiers non touchés par le fix du build (`RiskTimeline.tsx`, `RoleManagement.tsx`, `TenantManagement.tsx`, `TokenManagement.tsx`, `Users.tsx`, `types/risk.ts`, `types/mitigation.ts`, `utils/*.ts`, etc.). Confirmé pré-existant (`git stash` avant fix). `npm run lint` n'est pas dans la CI bloquante actuelle.
 - [ ] **Nouveau gap découvert le 07/07/2026 — hors scope de ce fix :** 7 fichiers de tests frontend (`vitest`) échouent déjà sur `master` (confirmé par `git stash`) : `notifications.test.tsx`, `PermissionGates.test.tsx`, `App.integration.test.tsx` (3 tests), `useRiskStore.test.ts` (1 test), `Login.test.tsx` (1 test), `CreateRiskModal.test.tsx`, `EditRiskModal.test.tsx`. 47 tests passent, 7 échouent sur 11 fichiers.
 - **Acceptation (pas encore atteinte) :** CI bloquante sur gosec/govulncheck/gitleaks, racine propre, `npm run build` vert (✅ fait) ; lint et suite de tests frontend encore rouges.
+- [ ] **Backlog ajouté 07/07/2026 :** rétrofit du client TypeScript **généré depuis OpenAPI** (`openapi-typescript`, mis en place pour Compliance dans M1) sur les types **Risk et Mitigation**, actuellement écrits à la main (`src/types/risk.ts`, `src/types/mitigation.ts`). Décision explicite : pas fait en même temps que M1 pour ne prendre aucun risque de régression sur des modules qui fonctionnent déjà — à faire en tâche dédiée séparée.
+- [ ] **Nouveaux gaps backend découverts le 07/07/2026 (branche `feat/m1-compliance-engine`), confirmés pré-existants via `git stash`, hors scope compliance :**
+  - `TestRiskCRUDFlow` (`backend/internal/handler/risk_handler_test.go`) échoue seul (`expected 201 got 400`) : le payload de test utilise `probability: 4`, hors du domaine `[0,1]` que `CreateRiskUseCase` valide désormais — données de test obsolètes.
+  - `TestSetupMFA_Success` (`backend/internal/application/auth/mfa_usecase_test.go`) échoue dans cet environnement : `failed to encrypt secret: key must be exactly 32 bytes, got 31` — dépend d'une variable d'env de longueur incorrecte, pas un bug de code.
+  - `TestStartAndStop` (`backend/internal/infrastructure/workers/sync_engine_test.go`) — data race déjà documentée plus haut dans cette ROADMAP.
+- [ ] **Nouveau gap infra découvert le 07/07/2026 :** sur une base Postgres fraîche, le serveur ne démarre pas — `database.DB.AutoMigrate(&domain.User{}, ...)` dans `cmd/server/main.go` échoue avec `relation "users" does not exist` car GORM tente de créer la table `organizations` (association implicite du modèle `User`) avant `users`. Bloque toute vérification manuelle live tant que ce n'est pas corrigé (réordonner l'`AutoMigrate` ou migrer `Organization` séparément).
 
 ---
 
@@ -104,13 +110,17 @@ Méthode de vérification : présence de **table en migration** (persistance ré
 
 **Ordre imposé (chaque jalon dépend du précédent) :**
 
-### M1 — Compliance Frameworks (moteur générique) 🔴 #1 — 🟡 fondations posées, use cases pas commencés
-Dépend de : 2.2 (✅ fait le 07/07/2026, fondations saines — prêt à construire dessus).
+### M1 — Compliance Frameworks (moteur générique) ✅ fait le 07/07/2026 (branche `feat/m1-compliance-engine`)
+Dépend de : 2.2 (✅).
 - [x] Migration + domaine + repository tenant-scopé (voir §2.2).
-- [ ] Use cases : créer/lier un framework à un tenant, instancier ses contrôles, attacher des preuves, calculer le **score de conformité** et le **% d'avancement**.
-- [ ] Handlers + OpenAPI + feature frontend `compliance` (liste des référentiels, vue contrôle, dépôt de preuve, jauge de conformité).
-- [ ] Les 4 tests minimum + test cross-tenant (le test repo existe déjà, à étendre au niveau use case/handler).
-- **Acceptation :** un tenant peut suivre un référentiel de bout en bout dans l'UI. Pas encore atteint — aucune route ni écran n'existe.
+- [x] Use cases (13, `backend/internal/application/compliance/`) : frameworks (create/get/list), contrôles (create/get/list/update/delete), preuves (upload/download/list/delete — **vrai fichier**, pas juste une URL, via `backend/pkg/storage` : interface `Storage` + `LocalStorage` disque, prêt pour un driver S3 futur sans changer les call sites), calcul de progression/% de conformité.
+- [x] Handlers HTTP (`compliance_handler.go`, 13 endpoints) + routes + RBAC **granulaire** dans `main.go`/`permission.go` : 3 ressources distinctes (`ComplianceFramework`/`ComplianceControl`/`ComplianceEvidence`) au lieu d'une seule, pour qu'un Analyst avec droit "créer un contrôle" n'hérite pas du droit "créer un référentiel global" — Framework Create est de facto admin-only (Analyst/Viewer n'ont que Read), Delete sur contrôle/preuve est admin-only (intégrité de piste d'audit).
+- [x] OpenAPI (`docs/openapi.yaml`, tag `Compliance`, 13 paths + schémas) + client TypeScript **généré** (`openapi-typescript`, `npm run generate:api-types` → `src/types/openapi.generated.ts`) — satisfait réellement la règle contract-first pour ce module (Risk/Mitigation restent à rétrofiter, voir §2.4).
+- [x] Feature frontend `compliance` complète : liste des référentiels, table de contrôles avec changement de statut optimiste, jauge de conformité animée, drawer détails/preuves avec vrai widget d'upload, création de contrôle/référentiel (react-hook-form + zod), 3 états UI partout, i18n FR/EN complet, RBAC miroir côté client (bouton "créer un référentiel" caché hors admin).
+- [x] Tests : 14 tests repository + 25 tests use case (Success/NotFound/CrossTenant/Conflict/validation) + tests handler incluant `TestComplianceE2EFlow` (parcours complet admin+analyst via de vraies requêtes HTTP contre un vrai handler/repo/stockage local) et des preuves cross-tenant dédiées (contrôle et téléchargement de preuve). `go build/vet` propres, `npm run build` propre.
+- [x] Bug corrigé au passage : le doublon `reference_code`/`name+version` était vérifié uniquement en pré-check applicatif (fenêtre de concurrence) — le repository détecte maintenant `gorm.ErrDuplicatedKey` (nécessite `TranslateError: true`, activé dans `database.go`) et le traduit en conflit typé, garantie DB en plus du pré-check.
+- **Acceptation : atteinte.** Un tenant peut créer un référentiel (admin), instancier des contrôles, changer leur statut, déposer/télécharger une preuve, voir la jauge de conformité — bout en bout dans l'UI, prouvé par `TestComplianceE2EFlow`.
+- **⚠️ Vérification manuelle live incomplète :** tentative de démarrer l'app complète (Postgres + Redis + backend + frontend) le 07/07/2026 a révélé un **bug pré-existant, sans lien avec Compliance** : sur une base fraîche, `AutoMigrate` échoue (`relation "users" does not exist`) — GORM tente de créer implicitly la table `organizations` (via une association du modèle `User`) avant `users`, à cause de l'ordre de `database.DB.AutoMigrate(&domain.User{}, ...)` dans `main.go`. Backend et frontend compilent et passent tous leurs tests automatisés (voir preuves ci-dessus), mais je n'ai pas pu confirmer le parcours dans un vrai navigateur faute d'un serveur qui boot sur DB vide dans cet environnement. À corriger avant la prochaine tentative de vérification live (probablement réordonner `AutoMigrate` ou migrer `Organization`/`OrganizationMember` séparément avant `User`).
 
 ### M2 — Contenu réglementaire africain (le moat) 🔴 #1
 Dépend de : M1.
@@ -140,6 +150,7 @@ Finir le partiel §1.2.
 
 ### M7 — Polir les 3 écrans signature (qualité « parfaite »)
 - [ ] Dashboard, Risk Register, Board Report : < 100 ms perçu, palette ⌘K, états vides soignés, zéro saut de layout, dark mode, WCAG 2.1 AA.
+- [ ] **Cohérence de la navigation entre tous les modules livrés** (ajouté 07/07/2026) : chaque module (Risks, Mitigations, Compliance, Assets, …) a été construit indépendamment au fil de l'eau, avec son entrée de nav ajoutée au fil des sessions sans plan d'ensemble — ex. `Mitigations` n'a même pas d'entrée dans `Sidebar.tsx` aujourd'hui. Faire une passe dédiée sur l'ordre/l'organisation de la nav une fois tous les modules du Wave 1 livrés, pas module par module.
 - **Acceptation :** revue design dédiée ; aucune aspérité sur ces 3 écrans.
 
 > **Fin de Wave 1 = jalon majeur :** OpenRisk est un vrai GRC, déjà numéro un sur le créneau africain. C'est ici qu'on peut commencer à chercher 3 institutions pilotes (pas avant).
@@ -192,11 +203,11 @@ Finir le partiel §1.2.
 |---|---|---|
 | Socle existant | Auth/RBAC/multitenant, Risk, Mitigation, Notif, Score, Dashboard, Audit | ✅ solide |
 | **Wave 0** | Licence ✅ · schéma Compliance ✅ **corrigé 07/07** (bug cross-tenant) · AES 🟡 (MFA seulement) · README/hygiène 🟡 · CI sécu 🟡 (gosec non-bloquant, govulncheck/gitleaks absents) · build frontend ✅ **corrigé 07/07** · lint frontend 🔴 (~350 findings pré-existants) · tests frontend 🟡 (7/11 fichiers en échec, pré-existants) | 🟡 en cours, **pas vert** |
-| **Wave 1** | Compliance (fondations posées, M1 use cases à faire) + contenu africain (❌) + Assets (🟡, plus avancé que prévu) + Reporting/Board (❌) + Incident (🟡, table manquante) + Offline (❌) + 3 écrans parfaits (❌) | 🟡 démarré, priorité absolue |
+| **Wave 1** | **M1 Compliance engine ✅ fait 07/07/2026** (use cases + handlers + OpenAPI + frontend + upload de preuve réel + RBAC granulaire, voir §3) + contenu africain M2 (❌, prochaine étape) + Assets (🟡, plus avancé que prévu) + Reporting/Board (❌) + Incident (🟡, table manquante) + Offline (❌) + 3 écrans parfaits (❌, + nav coherence ajoutée) | 🟡 M1 fait, priorité = M2 |
 | Wave 2 | 7 différenciateurs (moat) — **CTI Engine déjà entamé en avance de phase**, à ne pas approfondir avant M1/M2 | 🟡 entorse anti-dérive détectée |
 | Wave 3 | Plateforme + écosystème + monétisation + portail régulateur | ❌ après Wave 2 |
 
-**La phrase à garder :** aujourd'hui vous avez un excellent *Risk Register*, et les fondations de données du *Compliance engine* sont posées mais invisibles (pas d'API, pas d'UI). La priorité immédiate n'est pas une nouvelle feature : c'est (1) réparer le build frontend, (2) corriger le bug cross-tenant sur `UpdateControl`, (3) puis construire les use cases/handlers/UI de M1 par-dessus des fondations saines.
+**La phrase à garder :** OpenRisk a maintenant un vrai *Compliance engine* bout-en-bout (M1), pas seulement un excellent *Risk Register*. La priorité immédiate est **M2 — contenu réglementaire africain** : charger ISO 27001 puis COBAC/BCEAO dans le moteur M1, ce qui est le vrai avantage déloyal du produit. Vérification manuelle live encore bloquée par un bug d'amorçage pré-existant (`AutoMigrate` : `organizations` avant `users` sur DB fraîche) — à corriger avant la prochaine tentative de démo dans un vrai navigateur.
 
 ---
 
