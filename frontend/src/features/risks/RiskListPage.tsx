@@ -23,7 +23,7 @@ import { type Risk } from '../../services/riskService';
 const sortFields = ['title', 'score', 'impact', 'probability', 'status', 'created_at'] as const;
 
 export const RiskListPage = () => {
-  const { t, interpolate } = useI18n();
+  const { t } = useI18n();
   const { success, error } = useToast();
 
   const [page, setPage] = useState(1);

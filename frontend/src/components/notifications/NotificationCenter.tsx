@@ -20,7 +20,7 @@ interface Notification {
   created_at: string;
 }
 
-interface NotificationCenterProps {
+export interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
   authToken: string;

@@ -13,6 +13,8 @@ import {
   getRiskMatrix,
   classifyRisk,
   getScoringMetrics,
+} from '../api/scoreEngineService';
+import type {
   ScoringConfig,
   ComputeScoreInput,
   ComputeScoreResponse,

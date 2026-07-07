@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import './NotificationBadge.css';
 
-interface NotificationBadgeProps {
+export interface NotificationBadgeProps {
   unreadCount: number;
   onClick: () => void;
 }

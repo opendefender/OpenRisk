@@ -4,7 +4,7 @@
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
 import { useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { riskService, type Risk, type RiskQueryParams, type CreateRiskInput, type UpdateRiskInput, type BulkRiskActionInput } from '../../services/riskService';
 
 const RISK_LIST_QUERY_KEY = ['risks'];
@@ -15,7 +15,7 @@ export function useRisks(params: RiskQueryParams = {}) {
   const query = useQuery({
     queryKey: [...RISK_LIST_QUERY_KEY, params],
     queryFn: () => riskService.listRisks(params),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 1,
     refetchOnWindowFocus: false,
   });

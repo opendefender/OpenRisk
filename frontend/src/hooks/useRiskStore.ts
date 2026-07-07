@@ -25,7 +25,8 @@ export interface Risk {
   status: string;
   tags: string[];
   assets?: Asset[]; // Important pour l'association Risk-Asset
-  
+  frameworks?: string[];
+  assigned_to?: string;
   source: string; // Important pour l'étape d'intégration (THEHIVE, etc.)
   mitigations?: Mitigation[]; // Important pour le drawer de détails
   created_at?: string;
@@ -285,7 +286,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     if ((get() as any)._es) return;
     try {
       const es = new EventSource(url);
-      (set as any)((state) => state); // noop to satisfy linter
+      (set as any)((state: unknown) => state); // noop to satisfy linter
       // save reference
       (get() as any)._es = es;
       es.onmessage = (evt) => {

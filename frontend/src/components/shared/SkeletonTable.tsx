@@ -3,7 +3,7 @@
 // This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -22,7 +22,7 @@ export const SkeletonTable = ({
   columns = 6,
   className,
 }: SkeletonTableProps) => {
-  const pulseVariants = {
+  const pulseVariants: Variants = {
     animate: {
       opacity: [0.5, 1, 0.5],
       transition: {

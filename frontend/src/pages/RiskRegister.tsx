@@ -15,6 +15,7 @@ import {
   Settings2,
   Download,
   Upload,
+  X,
 } from 'lucide-react';
 import { useRiskStore, type Risk } from '../hooks/useRiskStore';
 import { useDebounce } from '../hooks/useDebounce';

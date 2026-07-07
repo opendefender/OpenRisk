@@ -5,7 +5,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Share2, Copy, CheckCircle2, Pencil, Trash2, ChevronRight } from 'lucide-react';
+import { X, Share2, Copy, CheckCircle2, Pencil, Trash2, ChevronRight, Plus } from 'lucide-react';
 import { RiskBadge, ScoreMeter, StatusDot, UserAvatar } from '../../components/shared';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
