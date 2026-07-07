@@ -137,7 +137,12 @@
     "maxFileSizeExceeded": "File size exceeds maximum limit",
     "validationError": "Validation error",
     "serverError": "Server error",
-    "networkError": "Network error"
+    "networkError": "Network error",
+    "failedToCreateFramework": "Failed to create framework",
+    "failedToCreateControl": "Failed to create control",
+    "failedToUpdateControl": "Failed to update control",
+    "failedToUploadEvidence": "Failed to upload evidence",
+    "failedToDeleteEvidence": "Failed to delete evidence"
   },
   "messages": {
     "riskCreatedSuccess": "Risk created successfully",
@@ -215,5 +220,47 @@
     "save": "Save",
     "dragHint": "Drag plans here",
     "reviewPending": "overdue"
+  },
+  "compliance": {
+    "title": "Compliance",
+    "description": "Track your compliance frameworks, control by control",
+    "frameworks": "Frameworks",
+    "createFramework": "New framework",
+    "noFrameworks": "No frameworks",
+    "noFrameworksDescription": "Create a framework to start tracking your compliance",
+    "selectFramework": "Select a framework to see its controls",
+    "controls": "Controls",
+    "addControl": "Add control",
+    "noControls": "No controls",
+    "noControlsDescription": "Add this framework's first control",
+    "referenceCode": "Code",
+    "status": {
+      "not_implemented": "Not implemented",
+      "in_progress": "In progress",
+      "implemented": "Implemented",
+      "not_applicable": "Not applicable"
+    },
+    "progress": "{percent}% compliant",
+    "tabs": {
+      "details": "Details",
+      "evidence": "Evidence"
+    },
+    "evidence": {
+      "title": "Evidence",
+      "upload": "Upload a file",
+      "description": "Description",
+      "noEvidence": "No evidence uploaded",
+      "delete": "Delete",
+      "download": "Download",
+      "uploadedBy": "Uploaded by"
+    },
+    "form": {
+      "name": "Name",
+      "version": "Version",
+      "description": "Description",
+      "referenceCode": "Reference code"
+    },
+    "closeDrawer": "Close",
+    "adminOnly": "Admin only"
   }
 }

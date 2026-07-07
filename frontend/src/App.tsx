@@ -29,6 +29,7 @@ import { EditRiskModal } from './features/risks/components/EditRiskModal';
 import { ImportRisksPage } from './features/risks/ImportRisksPage';
 import { RiskListPage } from './features/risks/RiskListPage';
 import { Mitigations } from './pages/Mitigations';
+import { Compliance } from './pages/Compliance';
 import { Assets } from './pages/Assets';
 import { Risks } from './pages/Risks';
 import { RiskManagement } from './pages/RiskManagement';
@@ -209,6 +210,7 @@ function App() {
           <Route index element={<DashboardView />} />
           <Route path="risks" element={<RiskListPage />} />
           <Route path="mitigations" element={<Mitigations />} />
+          <Route path="compliance" element={<Compliance />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="risk-management" element={<RiskManagement />} />
