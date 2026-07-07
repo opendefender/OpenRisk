@@ -47,7 +47,8 @@ Détail module par module + preuves : voir `ROADMAP.md` (source de vérité uniq
 - **Non commencé (❌)** : contenu réglementaire africain (COBAC/BCEAO/ANSSI), Offline-first, Billing/Stripe, différenciateurs Wave 2/3.
 
 ## Priorités du sprint en cours
-1. Corriger le build frontend (`npm run build` → 79 erreurs TS) — bloque le Gate 0.
-2. Corriger le bug cross-tenant `GormComplianceRepository.UpdateControl` (test `TestUpdateControl_CrossTenantFails` rouge).
+1. ~~Corriger le build frontend~~ ✅ fait le 07/07/2026 (branche `fix/frontend-build-typescript-errors`, commit `4e5b91f5`).
+2. Corriger le bug cross-tenant `GormComplianceRepository.UpdateControl` (test `TestUpdateControl_CrossTenantFails` rouge) — en cours.
 3. Puis M1 Compliance : use cases + handlers + OpenAPI + frontend par-dessus les fondations existantes.
+4. Hors scope immédiat mais à planifier : ~350 findings lint frontend (`no-explicit-any` surtout) et 7 fichiers de tests frontend en échec, tous deux pré-existants et découverts en corrigeant le build.
 
