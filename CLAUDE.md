@@ -43,12 +43,12 @@ Criticality : score ≥ 7.0 = critical · ≥ 4.0 = high · ≥ 2.0 = medium · 
 ## Ce qui est déjà implémenté
 Détail module par module + preuves : voir `ROADMAP.md` (source de vérité unique, mise à jour à chaque fin de module). Résumé :
 - **Solide (✅)** : Auth (JWT RS256, Argon2id, MFA, OAuth2/SAML2), RBAC multi-tenant, Risk Register, Mitigation, Score Engine, Notifications, Audit logging, Dashboard/Analytics, i18n FR/EN.
-- **Partiel (🟡)** : Compliance Frameworks (migration + domaine + repo faits, bug cross-tenant sur `UpdateControl` à corriger, aucun use case/handler/UI), Assets, Incident Management (table manquante d'`AutoMigrate`), Custom Fields, Marketplace, PAM Audit Trail, CTI Engine (non câblé, en avance de phase Wave 2).
+- **Partiel (🟡)** : Compliance Frameworks (migration + domaine + repo faits et sains, aucun use case/handler/UI), Assets, Incident Management (table manquante d'`AutoMigrate`), Custom Fields, Marketplace, PAM Audit Trail, CTI Engine (non câblé, en avance de phase Wave 2).
 - **Non commencé (❌)** : contenu réglementaire africain (COBAC/BCEAO/ANSSI), Offline-first, Billing/Stripe, différenciateurs Wave 2/3.
 
 ## Priorités du sprint en cours
 1. ~~Corriger le build frontend~~ ✅ fait le 07/07/2026 (branche `fix/frontend-build-typescript-errors`, commit `4e5b91f5`).
-2. Corriger le bug cross-tenant `GormComplianceRepository.UpdateControl` (test `TestUpdateControl_CrossTenantFails` rouge) — en cours.
-3. Puis M1 Compliance : use cases + handlers + OpenAPI + frontend par-dessus les fondations existantes.
+2. ~~Corriger le bug cross-tenant `GormComplianceRepository.UpdateControl`~~ ✅ fait le 07/07/2026 (branche `fix/compliance-cross-tenant-update-isolation`, commit `5a0407fc`).
+3. Prochaine étape : M1 Compliance — use cases + handlers + OpenAPI + frontend par-dessus les fondations existantes (voir `ROADMAP.md` §3, M1).
 4. Hors scope immédiat mais à planifier : ~350 findings lint frontend (`no-explicit-any` surtout) et 7 fichiers de tests frontend en échec, tous deux pré-existants et découverts en corrigeant le build.
 
