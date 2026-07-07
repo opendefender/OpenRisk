@@ -32,7 +32,8 @@ jobs:
         with:
           version: latest
           working-directory: backend
-          args: --timeout=5m --deadline=10m
+          args: --timeout=5m
+          install-mode: goinstall
 
       - name: Check go mod tidy
         run: |
