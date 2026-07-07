@@ -18,6 +18,10 @@ node_modules/
 # Infrastructure Local Data
 postgres_data/
 redis_data/
+
+# Local file storage (compliance evidence, etc. — see backend/pkg/storage)
+/backend/uploads/
+/uploads/
 legacy_v1/
 
 # Security: RSA Keys for JWT RS256

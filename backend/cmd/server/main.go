@@ -21,6 +21,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/opendefender/openrisk/internal/application/auth"
+	"github.com/opendefender/openrisk/internal/application/compliance"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
@@ -41,6 +42,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/scoring"
+	"github.com/opendefender/openrisk/pkg/storage"
 )
 
 func main() {
@@ -189,6 +191,20 @@ func main() {
 	// Initialize Score Engine (pure, stateless)
 	scoreEngine := scoring.NewEngine()
 	log.Println("Scoring: Engine initialized (pure, zero dependencies)")
+
+	// Initialize file storage (compliance evidence, etc.)
+	// STORAGE_DRIVER selects the backend; only "local" exists today. An
+	// S3-backed driver can be added later behind the same storage.Storage
+	// interface without touching any use case or handler.
+	storageLocalPath := os.Getenv("STORAGE_LOCAL_PATH")
+	if storageLocalPath == "" {
+		storageLocalPath = "./uploads"
+	}
+	fileStorage, err := storage.NewLocalStorage(storageLocalPath)
+	if err != nil {
+		log.Fatal("Storage: failed to initialize local storage: ", err)
+	}
+	log.Println("Storage: local driver initialized at", storageLocalPath)
 
 	// Initialize Score Worker (listens to Redis events)
 	zeroLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
@@ -355,7 +371,7 @@ func main() {
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
-	
+
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo)
@@ -405,7 +421,7 @@ func main() {
 	protected.Patch("/mitigations/:id", writerRole, handlers.UpdateMitigation)
 	protected.Delete("/mitigations/:id", writerRole, handlers.DeleteMitigation)
 	protected.Patch("/mitigations/:id/validate", writerRole, handlers.ValidateMitigation)
-	
+
 	// Sub-actions (checklist) for mitigations
 	protected.Post("/mitigations/:id/sub-actions", writerRole, handlers.CreateSubAction)
 	protected.Patch("/mitigations/:id/sub-actions/:aid", writerRole, handlers.UpdateSubAction)
@@ -413,9 +429,77 @@ func main() {
 	protected.Post("/mitigations/:id/sub-actions/:aid/revert", writerRole, handlers.RevertSubAction)
 	protected.Delete("/mitigations/:id/sub-actions/:aid", writerRole, handlers.DeleteSubAction)
 	protected.Patch("/mitigations/:id/reorder-subactions", writerRole, handlers.ReorderSubActions)
-	
+
 	// Scanner webhook for auto-completion (internal API key auth)
 	protected.Post("/scanner/mitigations/auto-complete", handlers.AutoCompleteMitigationSubAction)
+
+	// Compliance Frameworks (M1 — see ROADMAP.md §3)
+	complianceRepo := repository.NewGormComplianceRepository(database.DB)
+	createFrameworkUC := compliance.NewCreateFrameworkUseCase(complianceRepo)
+	getFrameworkUC := compliance.NewGetFrameworkUseCase(complianceRepo)
+	listFrameworksUC := compliance.NewListFrameworksUseCase(complianceRepo)
+	createControlUC := compliance.NewCreateControlUseCase(complianceRepo)
+	getControlUC := compliance.NewGetControlUseCase(complianceRepo)
+	listControlsUC := compliance.NewListControlsUseCase(complianceRepo)
+	updateControlUC := compliance.NewUpdateControlUseCase(complianceRepo)
+	deleteControlUC := compliance.NewDeleteControlUseCase(complianceRepo)
+	createEvidenceUC := compliance.NewCreateEvidenceUseCase(complianceRepo, fileStorage)
+	listEvidencesUC := compliance.NewListEvidencesUseCase(complianceRepo)
+	deleteEvidenceUC := compliance.NewDeleteEvidenceUseCase(complianceRepo, fileStorage)
+	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
+	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
+	complianceHandler := handlers.NewComplianceHandler(
+		createFrameworkUC, getFrameworkUC, listFrameworksUC,
+		createControlUC, getControlUC, listControlsUC, updateControlUC, deleteControlUC,
+		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
+		getProgressUC,
+	)
+
+	// Frameworks are global — Create is effectively admin-only because
+	// only the admin role's "*" wildcard grants ComplianceFramework:create
+	// (Analyst/Viewer only get Read, see permission.go). Controls/evidences
+	// are tenant-scoped and safe to grant more broadly.
+	complianceFrameworkRead := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceFramework, Action: domain.PermissionRead,
+	})
+	complianceFrameworkCreate := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceFramework, Action: domain.PermissionCreate,
+	})
+	complianceControlRead := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionRead,
+	})
+	complianceControlCreate := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionCreate,
+	})
+	complianceControlUpdate := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionUpdate,
+	})
+	complianceControlDelete := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionDelete,
+	})
+	complianceEvidenceRead := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionRead,
+	})
+	complianceEvidenceCreate := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionCreate,
+	})
+	complianceEvidenceDelete := middleware.RequirePermissions(permissionService, domain.Permission{
+		Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionDelete,
+	})
+
+	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
+	protected.Post("/compliance/frameworks", complianceFrameworkCreate, complianceHandler.CreateFramework)
+	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
+	protected.Get("/compliance/frameworks/:frameworkId/progress", complianceControlRead, complianceHandler.GetProgress)
+	protected.Get("/compliance/frameworks/:frameworkId/controls", complianceControlRead, complianceHandler.ListControls)
+	protected.Post("/compliance/frameworks/:frameworkId/controls", complianceControlCreate, complianceHandler.CreateControl)
+	protected.Get("/compliance/controls/:controlId", complianceControlRead, complianceHandler.GetControl)
+	protected.Patch("/compliance/controls/:controlId", complianceControlUpdate, complianceHandler.UpdateControl)
+	protected.Delete("/compliance/controls/:controlId", complianceControlDelete, complianceHandler.DeleteControl)
+	protected.Get("/compliance/controls/:controlId/evidences", complianceEvidenceRead, complianceHandler.ListEvidences)
+	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, complianceHandler.CreateEvidence)
+	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
+	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
 
 	api.Get("/users/me", authHandler.GetProfile)
 	api.Get("/assets", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.GetAssets)
