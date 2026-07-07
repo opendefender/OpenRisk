@@ -1,0 +1,402 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: BUSL-1.1
+// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
+// If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
+
+package repository
+
+import (
+	"context"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+// setupComplianceRepo creates an in-memory SQLite DB with compliance tables
+// and returns a ready-to-use GormComplianceRepository.
+func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+
+	// compliance_frameworks (global)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE compliance_frameworks (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			version TEXT NOT NULL DEFAULT '',
+			description TEXT,
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
+		);
+	`).Error)
+
+	// compliance_controls (tenant-scoped)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE compliance_controls (
+			id TEXT PRIMARY KEY,
+			tenant_id TEXT NOT NULL,
+			framework_id TEXT NOT NULL,
+			reference_code TEXT NOT NULL DEFAULT '',
+			name TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL DEFAULT 'not_implemented',
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
+		);
+	`).Error)
+
+	// control_evidences (tenant-scoped)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE control_evidences (
+			id TEXT PRIMARY KEY,
+			tenant_id TEXT NOT NULL,
+			control_id TEXT NOT NULL,
+			filename TEXT NOT NULL DEFAULT '',
+			url TEXT NOT NULL DEFAULT '',
+			description TEXT,
+			uploaded_by TEXT,
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
+		);
+	`).Error)
+
+	return NewGormComplianceRepository(db)
+}
+
+// =============================================================================
+// Framework Tests (global — no tenant scoping)
+// =============================================================================
+
+func TestCreateAndGetFramework(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	fw := &domain.ComplianceFramework{
+		ID:          uuid.New(),
+		Name:        "ISO 27001",
+		Version:     "2022",
+		Description: "Information security management",
+	}
+	require.NoError(t, repo.CreateFramework(ctx, fw))
+
+	got, err := repo.GetFrameworkByID(ctx, fw.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "ISO 27001", got.Name)
+	assert.Equal(t, "2022", got.Version)
+}
+
+func TestGetFrameworkByID_NotFound(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	got, err := repo.GetFrameworkByID(ctx, uuid.New())
+	require.NoError(t, err)
+	assert.Nil(t, got, "Non-existent framework should return nil, nil")
+}
+
+func TestListFrameworks(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	fws := []*domain.ComplianceFramework{
+		{ID: uuid.New(), Name: "SOC 2", Version: "2023"},
+		{ID: uuid.New(), Name: "ISO 27001", Version: "2022"},
+		{ID: uuid.New(), Name: "NIST CSF", Version: "2.0"},
+	}
+	for _, fw := range fws {
+		require.NoError(t, repo.CreateFramework(ctx, fw))
+	}
+
+	got, err := repo.ListFrameworks(ctx)
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	// Ordered by name ASC
+	assert.Equal(t, "ISO 27001", got[0].Name)
+	assert.Equal(t, "NIST CSF", got[1].Name)
+	assert.Equal(t, "SOC 2", got[2].Name)
+}
+
+// =============================================================================
+// Control Tests — Cross-tenant isolation
+// =============================================================================
+
+func TestCreateControl_RequiresTenantID(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	control := &domain.ComplianceControl{
+		ID:   uuid.New(),
+		Name: "Access Control Policy",
+		// TenantID intentionally omitted (zero value)
+	}
+	err := repo.CreateControl(ctx, control)
+	require.Error(t, err, "Creating a control without tenant_id must fail")
+	assert.Contains(t, err.Error(), "tenant_id is required")
+}
+
+func TestGetControlByID_CrossTenantReturnsNil(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	fwID := uuid.New()
+
+	// Create a framework first
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: fwID, Name: "ISO 27001", Version: "2022",
+	}))
+
+	// Create a control belonging to tenantA
+	controlID := uuid.New()
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID:          controlID,
+		TenantID:    tenantA,
+		FrameworkID: fwID,
+		Name:        "A.5.1.1 Policies for information security",
+		Status:      domain.ControlStatusNotImplemented,
+	}))
+
+	// TenantA can access it
+	got, err := repo.GetControlByID(ctx, controlID, tenantA)
+	require.NoError(t, err)
+	require.NotNil(t, got, "TenantA must see its own control")
+	assert.Equal(t, "A.5.1.1 Policies for information security", got.Name)
+
+	// TenantB CANNOT access it (cross-tenant → nil, nil = 404)
+	got, err = repo.GetControlByID(ctx, controlID, tenantB)
+	require.NoError(t, err)
+	assert.Nil(t, got, "Cross-tenant access must return nil (404), not an error or data leak")
+}
+
+func TestListControlsByFramework_TenantIsolation(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	fwID := uuid.New()
+
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: fwID, Name: "SOC 2", Version: "2023",
+	}))
+
+	// Create controls for tenantA
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: tenantA, FrameworkID: fwID,
+		Name: "CC1.1", Status: domain.ControlStatusImplemented,
+	}))
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: tenantA, FrameworkID: fwID,
+		Name: "CC1.2", Status: domain.ControlStatusInProgress,
+	}))
+
+	// Create a control for tenantB
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: tenantB, FrameworkID: fwID,
+		Name: "CC1.1-B", Status: domain.ControlStatusNotImplemented,
+	}))
+
+	// TenantA sees only its 2 controls
+	controlsA, err := repo.ListControlsByFramework(ctx, tenantA, fwID)
+	require.NoError(t, err)
+	assert.Len(t, controlsA, 2)
+
+	// TenantB sees only its 1 control
+	controlsB, err := repo.ListControlsByFramework(ctx, tenantB, fwID)
+	require.NoError(t, err)
+	assert.Len(t, controlsB, 1)
+	assert.Equal(t, "CC1.1-B", controlsB[0].Name)
+}
+
+func TestDeleteControl_CrossTenantReturnsError(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	fwID := uuid.New()
+
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: fwID, Name: "DORA", Version: "2025",
+	}))
+
+	controlID := uuid.New()
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: controlID, TenantID: tenantA, FrameworkID: fwID,
+		Name: "ICT Risk Management", Status: domain.ControlStatusInProgress,
+	}))
+
+	// TenantB trying to delete tenantA's control → "not found"
+	err := repo.DeleteControl(ctx, controlID, tenantB)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+
+	// Verify the control still exists for tenantA
+	got, err := repo.GetControlByID(ctx, controlID, tenantA)
+	require.NoError(t, err)
+	require.NotNil(t, got, "Control must still exist after cross-tenant delete attempt")
+}
+
+func TestUpdateControl_CrossTenantFails(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	fwID := uuid.New()
+
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: fwID, Name: "COBAC", Version: "2024",
+	}))
+
+	controlID := uuid.New()
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: controlID, TenantID: tenantA, FrameworkID: fwID,
+		Name: "Original Name", Status: domain.ControlStatusNotImplemented,
+	}))
+
+	// TenantB tries to update tenantA's control
+	err := repo.UpdateControl(ctx, &domain.ComplianceControl{
+		ID:       controlID,
+		TenantID: tenantB, // Wrong tenant
+		Name:     "Hijacked Name",
+		Status:   domain.ControlStatusImplemented,
+	})
+	require.Error(t, err, "Cross-tenant update must fail")
+
+	// Verify original data is untouched
+	got, err := repo.GetControlByID(ctx, controlID, tenantA)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "Original Name", got.Name)
+}
+
+// =============================================================================
+// Evidence Tests — Cross-tenant isolation
+// =============================================================================
+
+func TestCreateEvidence_RequiresTenantID(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	ev := &domain.ControlEvidence{
+		ID:       uuid.New(),
+		Filename: "audit_report.pdf",
+		// TenantID intentionally omitted
+	}
+	err := repo.CreateEvidence(ctx, ev)
+	require.Error(t, err, "Creating evidence without tenant_id must fail")
+	assert.Contains(t, err.Error(), "tenant_id is required")
+}
+
+func TestGetEvidenceByID_CrossTenantReturnsNil(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	controlID := uuid.New()
+
+	// Setup framework + control
+	fwID := uuid.New()
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: fwID, Name: "ISO 27001", Version: "2022",
+	}))
+	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+		ID: controlID, TenantID: tenantA, FrameworkID: fwID,
+		Name: "A.5.1.1", Status: domain.ControlStatusImplemented,
+	}))
+
+	// Create evidence for tenantA
+	evID := uuid.New()
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID:        evID,
+		TenantID:  tenantA,
+		ControlID: controlID,
+		Filename:  "soc2_report.pdf",
+		URL:       "https://storage.example.com/soc2_report.pdf",
+	}))
+
+	// TenantA can access it
+	got, err := repo.GetEvidenceByID(ctx, evID, tenantA)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "soc2_report.pdf", got.Filename)
+
+	// TenantB CANNOT access it
+	got, err = repo.GetEvidenceByID(ctx, evID, tenantB)
+	require.NoError(t, err)
+	assert.Nil(t, got, "Cross-tenant evidence access must return nil (404)")
+}
+
+func TestListEvidencesByControl_TenantIsolation(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	controlID := uuid.New()
+
+	// Create 2 evidences for tenantA
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID: uuid.New(), TenantID: tenantA, ControlID: controlID,
+		Filename: "report1.pdf",
+	}))
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID: uuid.New(), TenantID: tenantA, ControlID: controlID,
+		Filename: "report2.pdf",
+	}))
+
+	// Create 1 evidence for tenantB on the same controlID
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID: uuid.New(), TenantID: tenantB, ControlID: controlID,
+		Filename: "evil_report.pdf",
+	}))
+
+	// TenantA sees only its 2 evidences
+	evsA, err := repo.ListEvidencesByControl(ctx, tenantA, controlID)
+	require.NoError(t, err)
+	assert.Len(t, evsA, 2)
+
+	// TenantB sees only its 1 evidence
+	evsB, err := repo.ListEvidencesByControl(ctx, tenantB, controlID)
+	require.NoError(t, err)
+	assert.Len(t, evsB, 1)
+	assert.Equal(t, "evil_report.pdf", evsB[0].Filename)
+}
+
+func TestDeleteEvidence_CrossTenantReturnsError(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	controlID := uuid.New()
+
+	evID := uuid.New()
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID: evID, TenantID: tenantA, ControlID: controlID,
+		Filename: "confidential.pdf",
+	}))
+
+	// TenantB trying to delete tenantA's evidence → "not found"
+	err := repo.DeleteEvidence(ctx, evID, tenantB)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+
+	// Verify the evidence still exists for tenantA
+	got, err := repo.GetEvidenceByID(ctx, evID, tenantA)
+	require.NoError(t, err)
+	require.NotNil(t, got, "Evidence must still exist after cross-tenant delete attempt")
+}

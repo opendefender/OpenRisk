@@ -6,7 +6,7 @@
 >
 > **⚠️ Deux blocages critiques découverts le 07/07/2026, absents de l'audit du 26/06 :**
 > 1. ~~Build frontend cassé~~ **✅ CORRIGÉ le 07/07/2026** (branche `fix/frontend-build-typescript-errors`, commit `4e5b91f5`). `npm run build` (`tsc -b && vite build`) passait de 79 erreurs TypeScript à 0. Causes : alias `@/` non configuré (imports convertis en relatifs), imports type-only non conformes à `verbatimModuleSyntax`, prop `size` manquante sur `Button`, type `Risk` incomplet dans `useRiskStore` vs `services/riskService`, `react-query` v5 (`keepPreviousData` → `placeholderData`), `sonner` v2 (signature `toast.promise` changée), `DataTableWidget` trop rigide pour l'usage réel. Détail complet dans le message de commit. **Non corrigé dans ce passage** (hors scope, pré-existant, vérifié par `git stash`) : 7 fichiers de tests frontend en échec + ~350 findings lint (surtout `no-explicit-any`) — à traiter séparément, voir §2.4.
-> 2. **Bug d'isolation cross-tenant** dans le nouveau repository Compliance : `GormComplianceRepository.UpdateControl` utilise `.Where(...).Save(control)` — GORM ignore la clause `Where` chaînée quand la clé primaire est déjà posée sur le struct, donc **un tenant B peut écraser un contrôle du tenant A**. Test `TestUpdateControl_CrossTenantFails` (fichier non commité `gorm_compliance_repository_test.go`) rouge, comme prévu pour l'attraper. Fix : remplacer par `.Model(&domain.ComplianceControl{}).Where("id = ? AND tenant_id = ?", ...).Updates(control)`. Voir §2.2. **Toujours ouvert, prochaine étape.**
+> 2. ~~Bug d'isolation cross-tenant~~ **✅ CORRIGÉ le 07/07/2026** (branche `fix/compliance-cross-tenant-update-isolation`, commit `5a0407fc`). `GormComplianceRepository.UpdateControl` utilisait `.Where(...).Save(control)` — GORM ignore la clause `Where` chaînée quand la clé primaire est déjà posée sur le struct, donc un tenant B pouvait écraser un contrôle du tenant A. Remplacé par `.Model(&domain.ComplianceControl{}).Where("id = ? AND tenant_id = ?", ...).Select(...).Updates(control)`, le pattern GORM qui respecte réellement le `Where` sur une update. `gorm_compliance_repository_test.go` (écrit en TDD mais jamais commité) est maintenant commité ; les 15 tests du package repository passent, y compris `TestUpdateControl_CrossTenantFails`. Voir §2.2.
 
 ---
 
@@ -35,7 +35,7 @@ Méthode de vérification : présence de **table en migration** (persistance ré
 
 | Domaine | Ce qui existe | Ce qui manque (gap) |
 |---|---|---|
-| **Compliance Frameworks** | Migration `0028_create_compliance_schema` (`compliance_frameworks`/`compliance_controls`/`control_evidences`) ; domaine `compliance.go` + `compliance_repository.go` ; `GormComplianceRepository` avec tenant_id filtré sur Get/List/Delete | **Bug cross-tenant sur `UpdateControl`** (voir avertissement en tête de fichier) à corriger avant tout ; test repo écrit mais **non commité** ; **aucun** use case / handler / route OpenAPI / feature frontend — c'est encore uniquement la couche donnée |
+| **Compliance Frameworks** | Migration `0028_create_compliance_schema` (`compliance_frameworks`/`compliance_controls`/`control_evidences`) ; domaine `compliance.go` + `compliance_repository.go` ; `GormComplianceRepository` avec tenant_id filtré et **prouvé par 15 tests verts** (✅ bug cross-tenant corrigé le 07/07) | **Aucun** use case / handler / route OpenAPI / feature frontend — c'est encore uniquement la couche donnée, saine mais invisible pour un utilisateur |
 | Assets | Table dédiée `assets` (domaine `asset.go`, `OrganizationID`, relation many2many `risk_assets`, **dans `AutoMigrate()`**) ; pages frontend `pages/Assets.tsx` + `useAssetStore.ts` | Pas de `src/features/assets` dédié ; snapshots historiques ; criticité pas encore branchée sur le Score Engine |
 | Reporting / Export | `export_handler` | Rapports **officiels COBAC/BCEAO**, **Board Report**, PDF soigné ; UI dédiée |
 | Incident Management | `incident_service`/`incident_handler` font de vrais appels GORM (`Create`/`Where`/`Model`) ; pages frontend `Incidents.tsx` + `useIncidentStore.ts` | **`domain.Incident` absent de `AutoMigrate()` dans `main.go`, aucune migration `CREATE TABLE incidents`** → la table n'existe probablement pas au runtime, le service échoue en pratique malgré du code qui a l'air fini |
@@ -72,13 +72,13 @@ Méthode de vérification : présence de **table en migration** (persistance ré
 - [x] Un seul nom de licence partout (LICENSE + README).
 - [ ] Reste à vérifier : `info.license` OpenAPI, `COPYRIGHT.md`, CLA dans `CONTRIBUTING.md` — non re-contrôlés dans cette passe, à confirmer avant de cocher l'item complet.
 
-### 2.2 🟡 Fondations du schéma Compliance — EN COURS, bug bloquant à corriger
+### 2.2 ✅ Fondations du schéma Compliance — FAIT
 - [x] Migration `backend/migrations/0028_create_compliance_schema.up/down.sql` : `compliance_frameworks` (global), `compliance_controls` (tenant_id + framework_id), `control_evidences` (tenant_id + control_id), toutes avec soft-delete + index tenant-scopés.
 - [x] Entités domaine `backend/internal/domain/compliance.go` + `compliance_repository.go` (interface).
-- [x] `GormComplianceRepository` (`backend/internal/infrastructure/repository/gorm_compliance_repository.go`) : tenant_id filtré au repository sur Get/List/Delete.
-- [ ] **BUG (voir avertissement en tête de fichier) :** `UpdateControl` utilise `.Where(...).Save(control)` — GORM ignore le `Where` chaîné quand la PK est posée → écriture cross-tenant possible. Test `TestUpdateControl_CrossTenantFails` rouge. **Fix : `.Model(&domain.ComplianceControl{}).Where("id = ? AND tenant_id = ?", control.ID, control.TenantID).Updates(control)`.**
-- [ ] `gorm_compliance_repository_test.go` existe mais est **non commité** — à committer une fois le bug corrigé et la suite verte.
-- **Acceptation (pas encore atteinte) :** migration up/down réversible testée (✅ fait) ; test cross-tenant vert (❌ actuellement rouge).
+- [x] `GormComplianceRepository` (`backend/internal/infrastructure/repository/gorm_compliance_repository.go`) : tenant_id filtré au repository sur toutes les opérations (Get/List/Update/Delete).
+- [x] **Bug cross-tenant corrigé le 07/07/2026** (commit `5a0407fc`) : `UpdateControl` utilisait `.Where(...).Save(control)`, ignoré par GORM sur update quand la PK est posée. Remplacé par `.Model(...).Where(...).Select(...).Updates(control)`.
+- [x] `gorm_compliance_repository_test.go` commité — 15/15 tests du package verts, y compris `TestUpdateControl_CrossTenantFails`.
+- **Acceptation : atteinte.** Migration up/down réversible testée ; repository tenant-scopé prouvé par test cross-tenant vert. **Ce qui manque encore pour du Compliance utilisable (M1, §3) : use cases, handlers, OpenAPI, frontend — la couche donnée seule ne suffit pas.**
 
 ### 2.3 🟡 Chiffrement au repos — partiellement câblé
 - **Constat (07/07/2026) :** `pkg/crypto/aes.go` implémente `EncryptAES256GCM`/`DecryptAES256GCM` correctement (GCM réel). **Seul appelant :** `backend/internal/application/auth/mfa_usecase.go` (secrets MFA chiffrés). Aucun appel trouvé pour les credentials d'intégration ni les autres champs PII.
@@ -105,7 +105,7 @@ Méthode de vérification : présence de **table en migration** (persistance ré
 **Ordre imposé (chaque jalon dépend du précédent) :**
 
 ### M1 — Compliance Frameworks (moteur générique) 🔴 #1 — 🟡 fondations posées, use cases pas commencés
-Dépend de : 2.2 (bug cross-tenant à corriger avant de construire dessus).
+Dépend de : 2.2 (✅ fait le 07/07/2026, fondations saines — prêt à construire dessus).
 - [x] Migration + domaine + repository tenant-scopé (voir §2.2).
 - [ ] Use cases : créer/lier un framework à un tenant, instancier ses contrôles, attacher des preuves, calculer le **score de conformité** et le **% d'avancement**.
 - [ ] Handlers + OpenAPI + feature frontend `compliance` (liste des référentiels, vue contrôle, dépôt de preuve, jauge de conformité).
@@ -191,7 +191,7 @@ Finir le partiel §1.2.
 | Vague | Contenu | Statut global |
 |---|---|---|
 | Socle existant | Auth/RBAC/multitenant, Risk, Mitigation, Notif, Score, Dashboard, Audit | ✅ solide |
-| **Wave 0** | Licence ✅ · schéma Compliance 🟡 (bug cross-tenant à corriger) · AES 🟡 (MFA seulement) · README/hygiène 🟡 · CI sécu 🟡 (gosec non-bloquant, govulncheck/gitleaks absents) · build frontend ✅ **corrigé 07/07** · lint frontend 🔴 (~350 findings pré-existants) · tests frontend 🟡 (7/11 fichiers en échec, pré-existants) | 🟡 en cours, **pas vert** |
+| **Wave 0** | Licence ✅ · schéma Compliance ✅ **corrigé 07/07** (bug cross-tenant) · AES 🟡 (MFA seulement) · README/hygiène 🟡 · CI sécu 🟡 (gosec non-bloquant, govulncheck/gitleaks absents) · build frontend ✅ **corrigé 07/07** · lint frontend 🔴 (~350 findings pré-existants) · tests frontend 🟡 (7/11 fichiers en échec, pré-existants) | 🟡 en cours, **pas vert** |
 | **Wave 1** | Compliance (fondations posées, M1 use cases à faire) + contenu africain (❌) + Assets (🟡, plus avancé que prévu) + Reporting/Board (❌) + Incident (🟡, table manquante) + Offline (❌) + 3 écrans parfaits (❌) | 🟡 démarré, priorité absolue |
 | Wave 2 | 7 différenciateurs (moat) — **CTI Engine déjà entamé en avance de phase**, à ne pas approfondir avant M1/M2 | 🟡 entorse anti-dérive détectée |
 | Wave 3 | Plateforme + écosystème + monétisation + portail régulateur | ❌ après Wave 2 |
