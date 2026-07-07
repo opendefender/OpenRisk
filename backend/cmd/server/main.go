@@ -149,7 +149,9 @@ func main() {
 
 	// Initialize Permission Service for advanced access control
 	permissionService := service.NewPermissionService()
-	permissionService.InitializeDefaultRoles()
+	if err := permissionService.InitializeDefaultRoles(); err != nil {
+		log.Fatalf("Failed to initialize default permission roles: %v", err)
+	}
 
 	// Initialize Token Service for API token management
 	tokenService := service.NewTokenService()

@@ -37,8 +37,10 @@ func (po *PerformanceOptimizer) GetRisksCached(ctx context.Context, tenantID str
 	cachedData, err := po.cache.Get(ctx, cacheKey).Result()
 	if err == nil {
 		var risks []domain.Risk
-		json.Unmarshal([]byte(cachedData), &risks)
-		return risks, nil
+		if err := json.Unmarshal([]byte(cachedData), &risks); err == nil {
+			return risks, nil
+		}
+		// Corrupted cache entry - fall through and treat as a cache miss
 	}
 
 	// Cache miss - query database with optimized query
@@ -67,8 +69,10 @@ func (po *PerformanceOptimizer) GetRiskByIDOptimized(ctx context.Context, riskID
 	cachedData, err := po.cache.Get(ctx, cacheKey).Result()
 	if err == nil {
 		var risk domain.Risk
-		json.Unmarshal([]byte(cachedData), &risk)
-		return &risk, nil
+		if err := json.Unmarshal([]byte(cachedData), &risk); err == nil {
+			return &risk, nil
+		}
+		// Corrupted cache entry - fall through and treat as a cache miss
 	}
 
 	// Optimized query with specific fields
@@ -108,8 +112,10 @@ func (po *PerformanceOptimizer) GetIncidentMetricsCached(ctx context.Context, te
 	cachedData, err := po.cache.Get(ctx, cacheKey).Result()
 	if err == nil {
 		var metrics map[string]interface{}
-		json.Unmarshal([]byte(cachedData), &metrics)
-		return metrics, nil
+		if err := json.Unmarshal([]byte(cachedData), &metrics); err == nil {
+			return metrics, nil
+		}
+		// Corrupted cache entry - fall through and treat as a cache miss
 	}
 
 	// Aggregate metrics in single query

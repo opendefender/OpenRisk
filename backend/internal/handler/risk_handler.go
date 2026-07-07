@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -119,7 +120,9 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		if err := query.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
 			domainRisk.Assets = assets
 			// Save relationships (no direct score compute — publish Redis event instead)
-			database.DB.Model(&domainRisk).Association("Assets").Replace(assets)
+			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(assets); err != nil {
+				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
+			}
 		}
 	}
 
@@ -307,7 +310,9 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 			domainRisk.Score = service.ComputeRiskScore(domainRisk.Impact, domainRisk.Probability, assets)
 			
 			database.DB.Save(domainRisk)
-			database.DB.Model(&domainRisk).Association("Assets").Replace(assets)
+			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(assets); err != nil {
+				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
+			}
 		}
 	}
 

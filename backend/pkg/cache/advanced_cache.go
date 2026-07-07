@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/md5" //nolint:gosec // non-cryptographic use: only for short, deterministic cache keys
 	"encoding/hex"
+	"log"
 	"sync"
 	"time"
 )
@@ -393,7 +394,9 @@ func (cw *CacheWarmup) Start(ctx context.Context) {
 
 	// Initial warmup
 	for key, value := range cw.preload {
-		cw.cache.Set(ctx, key, value, nil)
+		if err := cw.cache.Set(ctx, key, value, nil); err != nil {
+			log.Printf("Warning: cache warmup failed for key %s: %v", key, err)
+		}
 	}
 
 	// Periodic warmup
@@ -406,7 +409,9 @@ func (cw *CacheWarmup) Start(ctx context.Context) {
 			return
 		case <-ticker.C:
 			for key, value := range cw.preload {
-				cw.cache.Set(ctx, key, value, nil)
+				if err := cw.cache.Set(ctx, key, value, nil); err != nil {
+					log.Printf("Warning: cache warmup failed for key %s: %v", key, err)
+				}
 			}
 		}
 	}

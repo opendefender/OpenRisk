@@ -6,6 +6,8 @@
 package service
 
 import (
+	"log"
+
 	"github.com/opendefender/openrisk/internal/domain"
 	"gorm.io/gorm"
 )
@@ -190,10 +192,12 @@ func (qo *QueryOptimizer) AggregateRiskStats() (map[string]interface{}, error) {
 
 	// Average score
 	var avgScore float64
-	qo.db.Model(&domain.Risk{}).
+	if err := qo.db.Model(&domain.Risk{}).
 		Select("AVG(score)").
 		Row().
-		Scan(&avgScore)
+		Scan(&avgScore); err != nil {
+		log.Printf("Warning: failed to compute average risk score: %v", err)
+	}
 	stats["avg_score"] = avgScore
 
 	// Score distribution

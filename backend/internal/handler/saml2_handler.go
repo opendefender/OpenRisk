@@ -9,6 +9,7 @@ import (
     "encoding/base64"
     "encoding/xml"
     "fmt"
+    "log"
     "os"
     "strings"
     "time"
@@ -229,7 +230,9 @@ func SAML2ACS(c *fiber.Ctx) error {
 
     // Apply group-based role mapping if configured
     if len(userInfo.Groups) > 0 {
-        applyGroupRoleMapping(user, userInfo.Groups)
+        if err := applyGroupRoleMapping(user, userInfo.Groups); err != nil {
+            log.Printf("Warning: failed to apply group role mapping for user %s: %v", user.ID, err)
+        }
     }
 
     // Generate JWT token
@@ -243,7 +246,9 @@ func SAML2ACS(c *fiber.Ctx) error {
 
     // Log successful authentication
     auditService := service.NewAuditService()
-    auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), "")
+    if err := auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), ""); err != nil {
+        log.Printf("Warning: failed to log SAML2 login for user %s: %v", user.ID, err)
+    }
 
     // Return token to frontend
     return c.JSON(fiber.Map{

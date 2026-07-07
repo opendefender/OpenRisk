@@ -213,7 +213,9 @@ func OAuth2Callback(c *fiber.Ctx) error {
 
 	// Log successful authentication
 	auditService := service.NewAuditService()
-	auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), "")
+	if err := auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), ""); err != nil {
+		fmt.Printf("Warning: failed to log OAuth2 login for user %s: %v\n", user.ID, err)
+	}
 
 	// UserResponseDTO prevents leaking password hashes (Claude.md rule #6)
 	responseUser := UserResponseDTO{

@@ -6,6 +6,8 @@
 package handler
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/service"
@@ -346,11 +348,15 @@ func (h *ScoreEngineHandler) GetScoringMetrics(c *fiber.Ctx) error {
 
 	// Calculate average score
 	var avgScore float64
-	h.db.Model(&domain.Risk{}).Select("AVG(score)").Row().Scan(&avgScore)
+	if err := h.db.Model(&domain.Risk{}).Select("AVG(score)").Row().Scan(&avgScore); err != nil {
+		log.Printf("Warning: failed to compute average risk score: %v", err)
+	}
 
 	// Calculate distribution
 	var maxScore float64
-	h.db.Model(&domain.Risk{}).Select("MAX(score)").Row().Scan(&maxScore)
+	if err := h.db.Model(&domain.Risk{}).Select("MAX(score)").Row().Scan(&maxScore); err != nil {
+		log.Printf("Warning: failed to compute max risk score: %v", err)
+	}
 
 	return c.JSON(fiber.Map{
 		"avg_score":   avgScore,
