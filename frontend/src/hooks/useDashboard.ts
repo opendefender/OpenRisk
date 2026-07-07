@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import {
+import type {
   DashboardMetrics,
   RiskTrendDataPoint,
   RiskSeverityDistribution,

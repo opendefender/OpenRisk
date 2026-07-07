@@ -20,16 +20,16 @@ import {
   Cell,
 } from 'recharts';
 import { AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
-import AnalyticsDashboardToolbar from '@/components/dashboard/AnalyticsDashboardToolbar';
-import MetricCard from '@/components/dashboard/MetricCard';
-import ChartWidget from '@/components/dashboard/ChartWidget';
-import DashboardFilter from '@/components/dashboard/DashboardFilter';
-import DataTableWidget from '@/components/dashboard/DataTableWidget';
+import AnalyticsDashboardToolbar from '../components/dashboard/AnalyticsDashboardToolbar';
+import MetricCard from '../components/dashboard/MetricCard';
+import ChartWidget from '../components/dashboard/ChartWidget';
+import DashboardFilter from '../components/dashboard/DashboardFilter';
+import DataTableWidget from '../components/dashboard/DataTableWidget';
 import {
   useCompleteDashboard,
   useDashboardPoller,
-} from '@/hooks/useDashboard';
-import { useDashboardWithWebSocket } from '@/hooks/useWebSocket';
+} from '../hooks/useDashboard';
+import { useDashboardWithWebSocket } from '../hooks/useWebSocket';
 
 const RealTimeAnalyticsDashboard: React.FC = () => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | '7d' | '30d' | '90d' | 'ytd' | 'custom'>('7d');
@@ -46,8 +46,8 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
   };
 
   // Handle filter changes
-  const handleFilterChange = (period: 'today' | '7d' | '30d' | '90d' | 'ytd' | 'custom') => {
-    setFilterPeriod(period);
+  const handleFilterChange = (period: string) => {
+    setFilterPeriod(period as typeof filterPeriod);
     // In a real app, you would fetch new data based on the period
   };
 
@@ -181,8 +181,8 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
       {/* Header with toolbar */}
       <div className="flex items-center justify-between">
         <AnalyticsDashboardToolbar
-          onRefresh={handleRefresh}
-          onExport={handleExport}
+          onRefreshClick={handleRefresh}
+          onExportClick={handleExport}
           onSettingsClick={handleSettings}
         />
         
@@ -215,7 +215,6 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
           selectedMetrics={selectedMetrics}
           onPeriodChange={handleFilterChange}
           onMetricsChange={handleMetricFilterChange}
-          onApply={() => handleRefresh()}
         />
 
         {/* KPI Cards - Row 1 */}
@@ -239,7 +238,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
             value={metrics?.trending_up_percent.toFixed(1) || '0'}
             unit="%"
             changePercent={0}
-            trend="neutral"
+            trend="stable"
             status="normal"
           />
           <MetricCard
@@ -247,7 +246,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
             value={metrics?.overdue_count.toString() || '0'}
             unit="tasks"
             changePercent={0}
-            trend="neutral"
+            trend="stable"
             status={metrics && metrics.overdue_count > 0 ? 'warning' : 'normal'}
           />
           <MetricCard
@@ -255,7 +254,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
             value={metrics?.sla_compliance_rate.toFixed(1) || '0'}
             unit="%"
             changePercent={0}
-            trend="neutral"
+            trend="stable"
             status={metrics && metrics.sla_compliance_rate > 80 ? 'normal' : 'warning'}
           />
         </div>
@@ -263,7 +262,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Risk Trends Chart */}
-          <ChartWidget title="Risk Trends (7 Days)" height="h-80">
+          <ChartWidget title="Risk Trends (7 Days)" height="large">
             {riskTrends.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={riskTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -295,7 +294,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
           </ChartWidget>
 
           {/* Severity Distribution Chart */}
-          <ChartWidget title="Risk Severity Distribution" height="h-80">
+          <ChartWidget title="Risk Severity Distribution" height="large">
             {severityChartData.some((d) => d.value > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -325,7 +324,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
         {/* Secondary Charts */}
         <div className="grid grid-cols-1 gap-6 mb-6">
           {/* Mitigation Status Chart */}
-          <ChartWidget title="Mitigation Status Overview" height="h-72">
+          <ChartWidget title="Mitigation Status Overview" height="medium">
             {mitigationChartData.some((d) => d.value > 0) ? (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={mitigationChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

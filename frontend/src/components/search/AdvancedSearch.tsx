@@ -10,8 +10,8 @@
 
 import React, { useRef } from 'react';
 import { Search, Loader, Clock, AlertCircle, Zap } from 'lucide-react';
-import { useTypeahead, useKeyboardShortcuts } from '@/hooks/useTypeahead';
-import type { TypeaheadResult } from '@/hooks/useTypeahead';
+import { useTypeahead, useKeyboardShortcuts } from '../../hooks/useTypeahead';
+import type { TypeaheadResult } from '../../hooks/useTypeahead';
 
 interface AdvancedSearchProps {
   onSelect?: (result: TypeaheadResult) => void;

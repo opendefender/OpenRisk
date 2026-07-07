@@ -143,17 +143,17 @@ export const ImportRisksPage = () => {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await promise(
-        api.post('/risks/import', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        }),
-        {
-          loading: t('messages.importStarted'),
-          success: t('messages.importCompleted'),
-          error: t('errors.failedToImportRisks'),
-        }
-      );
+      const importRequest = api.post('/risks/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
+      promise(importRequest, {
+        loading: t('messages.importStarted'),
+        success: t('messages.importCompleted'),
+        error: t('errors.failedToImportRisks'),
+      });
+
+      const response = await importRequest;
       const result: ImportResult = response.data;
       setImportResult(result);
 

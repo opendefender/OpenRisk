@@ -76,7 +76,8 @@ export function useToast() {
       messages: { loading: string; success: string; error: string },
       options?: ToastOptions
     ) => {
-      return sonnerToast.promise(promise, messages, {
+      return sonnerToast.promise(promise, {
+        ...messages,
         duration: options?.duration,
         action: options?.action,
       });

@@ -9,8 +9,8 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { searchRisks } from '@/api/risks';
-import type { Risk } from '@/hooks/useRiskStore';
+import { riskService } from '../services/riskService';
+import type { Risk } from '../services/riskService';
 
 export interface TypeaheadConfig {
   minChars?: number;
@@ -98,9 +98,9 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
     isOpen: false,
   });
 
-  const debounceTimer = useRef<NodeJS.Timeout>();
+  const debounceTimer = useRef<NodeJS.Timeout | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
-  const selectedItemRef = useRef<HTMLDivElement>(null);
+  const selectedItemRef = useRef<HTMLButtonElement>(null);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -159,12 +159,12 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
 
       try {
         // Fetch from API
-        const response = await searchRisks({
+        const response = await riskService.listRisks({
           q: query,
           limit: Math.min(maxResults * 2, 50), // Get more, then filter
         });
 
-        let results: TypeaheadResult[] = response.data.items.map(
+        let results: TypeaheadResult[] = response.items.map(
           (risk: Risk) => ({
             id: risk.id,
             title: risk.title,

@@ -12,8 +12,8 @@ import {
   getScoringConfig,
   createScoringConfig,
   updateScoringConfig,
-  ScoringConfig,
 } from '../../../api/scoreEngineService';
+import type { ScoringConfig } from '../../../api/scoreEngineService';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 

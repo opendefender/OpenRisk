@@ -25,7 +25,7 @@ interface Preferences {
   enable_desktop_notifications: boolean;
 }
 
-interface NotificationPreferencesProps {
+export interface NotificationPreferencesProps {
   authToken: string;
   onClose: () => void;
 }

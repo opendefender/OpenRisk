@@ -41,7 +41,7 @@ export default function CustomFields() {
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'TEXT' as const,
+    type: 'TEXT' as CustomField['type'],
     description: '',
     is_required: false,
     is_searchable: true,
