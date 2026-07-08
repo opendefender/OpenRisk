@@ -139,6 +139,35 @@ func GetMitigation(c *fiber.Ctx) error {
 	return c.JSON(plan)
 }
 
+// ListMitigations retrieves all mitigations for the tenant, optionally filtered by
+// status/priority/risk_id. Backs the Mitigation Kanban board's bare GET /mitigations
+// call — this route never existed before, so the Kanban page has never been able to load.
+func ListMitigations(c *fiber.Ctx) error {
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	filters := map[string]interface{}{}
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
+	}
+	if priority := c.Query("priority"); priority != "" {
+		filters["priority"] = priority
+	}
+	if riskID := c.Query("risk_id"); riskID != "" {
+		filters["risk_id"] = riskID
+	}
+
+	repo := repository.NewGormMitigationRepository(database.DB)
+	plans, err := repo.List(ctx.OrganizationID.String(), filters)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve mitigations"})
+	}
+
+	return c.JSON(fiber.Map{"items": plans, "total": len(plans)})
+}
+
 // ListMitigationsByRisk retrieves all mitigations for a risk
 func ListMitigationsByRisk(c *fiber.Ctx) error {
 	ctx := middleware.GetContext(c)

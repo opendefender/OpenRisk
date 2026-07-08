@@ -4,8 +4,8 @@
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search } from 'lucide-react';
 
 // --- Imports des Stores & Hooks ---
@@ -61,6 +61,29 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 /**
+ * Fades/slides the route content on every navigation, keyed by pathname, so
+ * switching pages never feels like an abrupt jump-cut — matches the app-wide
+ * "every route change fades ~200ms" rule (see docs/MASTER_PROMPT_V4.md, Part C).
+ */
+const AnimatedOutlet = () => {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        className="flex-1 flex flex-col min-h-0 h-full"
+      >
+        <Outlet />
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+/**
  * COMPOSANT 2: LAYOUT GLOBAL
  * Contient la Sidebar fixe et la zone de contenu dynamique.
  */
@@ -69,7 +92,7 @@ const DashboardLayout = () => (
     <Sidebar />
     <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
       <main className="flex-1 overflow-hidden relative flex flex-col">
-        <Outlet />
+        <AnimatedOutlet />
       </main>
     </div>
   </div>
