@@ -389,33 +389,21 @@ func main() {
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance)
 
+	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
+	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
+	// middleware on `protected` never populates. Using middleware.RequirePermission instead.
 	protected.Get("/risks",
-		middleware.RequirePermissions(permissionService, domain.Permission{
-			Resource: domain.PermissionResourceRisk,
-			Action:   domain.PermissionRead,
-		}),
+		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskListGET(riskHandler.GetRisks))
 	protected.Get("/risks/:id",
-		middleware.RequirePermissions(permissionService, domain.Permission{
-			Resource: domain.PermissionResourceRisk,
-			Action:   domain.PermissionRead,
-		}),
+		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
 
 	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
 	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
-	riskCreate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceRisk,
-		Action:   domain.PermissionCreate,
-	})
-	riskUpdate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceRisk,
-		Action:   domain.PermissionUpdate,
-	})
-	riskDelete := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceRisk,
-		Action:   domain.PermissionDelete,
-	})
+	riskCreate := middleware.RequirePermission("risks:create")
+	riskUpdate := middleware.RequirePermission("risks:update")
+	riskDelete := middleware.RequirePermission("risks:delete")
 	// Backward compatibility: writerRole for other RBAC-based endpoints
 	writerRole := middleware.RequireRole("admin", "analyst")
 

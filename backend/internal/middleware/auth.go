@@ -77,10 +77,18 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 			})
 		}
 
-		// Store claims in context for downstream handlers
+		// Store claims in context for downstream handlers.
+		// Both snake_case and camelCase keys are set for the same values: a number of
+		// older handlers (analytics_handler.go, enhanced_dashboard_handler.go,
+		// rbac_*_handler.go, token_handler.go) read "userID"/"tenantID" while this
+		// middleware historically only set "user_id"/"tenant_id" — every request to
+		// those handlers silently 401'd regardless of auth state. Setting both avoids
+		// having to touch every call site.
 		c.Locals("user", claims)
 		c.Locals("user_id", claims.Sub)
+		c.Locals("userID", claims.Sub)
 		c.Locals("tenant_id", claims.TenantID)
+		c.Locals("tenantID", claims.TenantID)
 		c.Locals("org_roles", claims.OrgRoles)
 		c.Locals("permissions", claims.Permissions)
 		c.Locals("feature_flags", claims.FeatureFlags)
@@ -293,10 +301,18 @@ func MFATokenMiddleware(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti
 			})
 		}
 
-		// Store claims in context for downstream handlers
+		// Store claims in context for downstream handlers.
+		// Both snake_case and camelCase keys are set for the same values: a number of
+		// older handlers (analytics_handler.go, enhanced_dashboard_handler.go,
+		// rbac_*_handler.go, token_handler.go) read "userID"/"tenantID" while this
+		// middleware historically only set "user_id"/"tenant_id" — every request to
+		// those handlers silently 401'd regardless of auth state. Setting both avoids
+		// having to touch every call site.
 		c.Locals("user", claims)
 		c.Locals("user_id", claims.Sub)
+		c.Locals("userID", claims.Sub)
 		c.Locals("tenant_id", claims.TenantID)
+		c.Locals("tenantID", claims.TenantID)
 		c.Locals("org_roles", claims.OrgRoles)
 		c.Locals("permissions", claims.Permissions)
 		c.Locals("feature_flags", claims.FeatureFlags)
