@@ -496,6 +496,63 @@ paths:
                   $ref: '#/components/schemas/Mitigation'
 
   # ==================== COMPLIANCE (M1) ====================
+  /compliance/catalogs:
+    get:
+      tags: [Compliance]
+      summary: List regulatory control catalogs available to import (M2)
+      description: >
+        Static reference data (e.g. ISO 27001:2022's 93 Annex A controls) that can be
+        bulk-imported into a tenant's own framework via POST
+        /compliance/frameworks/{frameworkId}/import-catalog. Includes catalogs that are
+        registered but not yet available (control_count: 0, available: false) so clients can
+        show them as "coming soon" — see ROADMAP.md M2 for why COBAC/BCEAO/ANSSI-CM aren't
+        modeled yet.
+      operationId: listComplianceCatalogs
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List of catalogs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComplianceCatalogSummary'
+
+  /compliance/frameworks/{frameworkId}/import-catalog:
+    post:
+      tags: [Compliance]
+      summary: Bulk-import a regulatory catalog's controls into a framework (admin only, M2)
+      description: >
+        Idempotent — controls already present (matched by reference_code) are skipped, so
+        calling this again after a catalog is extended only creates what's new.
+      operationId: importComplianceCatalog
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportCatalogInput'
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportCatalogResult'
+        '400':
+          description: Unknown catalog key, or the catalog is not yet available
+        '403':
+          description: Forbidden — only Admin can import a catalog (same tier as creating a framework)
+        '404':
+          description: Framework not found
+
   /compliance/frameworks:
     get:
       tags: [Compliance]
@@ -1296,6 +1353,12 @@ components:
           type: string
         description:
           type: string
+        source_reference:
+          type: string
+          description: >
+            Citation for where this control comes from (standard section, circular article,
+            law) — populated on catalog-imported controls, optional for ad-hoc ones.
+          example: "ISO/IEC 27001:2022, Annexe A, A.5.1"
         status:
           type: string
           enum: [not_implemented, in_progress, implemented, not_applicable]
@@ -1316,6 +1379,8 @@ components:
           type: string
         description:
           type: string
+        source_reference:
+          type: string
 
     UpdateControlInput:
       type: object
@@ -1327,9 +1392,55 @@ components:
           type: string
         description:
           type: string
+        source_reference:
+          type: string
         status:
           type: string
           enum: [not_implemented, in_progress, implemented, not_applicable]
+
+    ComplianceCatalogSummary:
+      type: object
+      description: A regulatory control catalog available (or not yet available) for import.
+      required: [key, name, available, control_count]
+      properties:
+        key:
+          type: string
+          example: iso27001-2022
+        name:
+          type: string
+          example: ISO/IEC 27001
+        version:
+          type: string
+          example: "2022"
+        description:
+          type: string
+        available:
+          type: boolean
+          description: False for placeholder catalogs with no reviewed control content yet.
+        control_count:
+          type: integer
+
+    ImportCatalogInput:
+      type: object
+      required: [catalog_key]
+      properties:
+        catalog_key:
+          type: string
+          example: iso27001-2022
+
+    ImportCatalogResult:
+      type: object
+      required: [imported, skipped, total]
+      properties:
+        imported:
+          type: integer
+          description: Controls newly created by this call.
+        skipped:
+          type: integer
+          description: Controls that already existed (matched by reference_code) and were left untouched.
+        total:
+          type: integer
+          description: Total controls in the catalog.
 
     ControlEvidence:
       type: object

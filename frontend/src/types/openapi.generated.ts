@@ -214,6 +214,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compliance/catalogs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List regulatory control catalogs available to import (M2)
+         * @description Static reference data (e.g. ISO 27001:2022's 93 Annex A controls) that can be bulk-imported into a tenant's own framework via POST /compliance/frameworks/{frameworkId}/import-catalog. Includes catalogs that are registered but not yet available (control_count: 0, available: false) so clients can show them as "coming soon" — see ROADMAP.md M2 for why COBAC/BCEAO/ANSSI-CM aren't modeled yet.
+         */
+        get: operations["listComplianceCatalogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/frameworks/{frameworkId}/import-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-import a regulatory catalog's controls into a framework (admin only, M2)
+         * @description Idempotent — controls already present (matched by reference_code) are skipped, so calling this again after a catalog is extended only creates what's new.
+         */
+        post: operations["importComplianceCatalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/frameworks": {
         parameters: {
             query?: never;
@@ -673,6 +713,11 @@ export interface components {
             reference_code: string;
             name: string;
             description?: string;
+            /**
+             * @description Citation for where this control comes from (standard section, circular article, law) — populated on catalog-imported controls, optional for ad-hoc ones.
+             * @example ISO/IEC 27001:2022, Annexe A, A.5.1
+             */
+            source_reference?: string;
             /** @enum {string} */
             status: "not_implemented" | "in_progress" | "implemented" | "not_applicable";
             /** Format: date-time */
@@ -684,14 +729,41 @@ export interface components {
             reference_code?: string;
             name: string;
             description?: string;
+            source_reference?: string;
         };
         /** @description Partial update — omitted fields are left unchanged. */
         UpdateControlInput: {
             reference_code?: string;
             name?: string;
             description?: string;
+            source_reference?: string;
             /** @enum {string} */
             status?: "not_implemented" | "in_progress" | "implemented" | "not_applicable";
+        };
+        /** @description A regulatory control catalog available (or not yet available) for import. */
+        ComplianceCatalogSummary: {
+            /** @example iso27001-2022 */
+            key: string;
+            /** @example ISO/IEC 27001 */
+            name: string;
+            /** @example 2022 */
+            version?: string;
+            description?: string;
+            /** @description False for placeholder catalogs with no reviewed control content yet. */
+            available: boolean;
+            control_count: number;
+        };
+        ImportCatalogInput: {
+            /** @example iso27001-2022 */
+            catalog_key: string;
+        };
+        ImportCatalogResult: {
+            /** @description Controls newly created by this call. */
+            imported: number;
+            /** @description Controls that already existed (matched by reference_code) and were left untouched. */
+            skipped: number;
+            /** @description Total controls in the catalog. */
+            total: number;
         };
         /** @description Tenant-scoped evidence file attached to a control. */
         ControlEvidence: {
@@ -1357,6 +1429,73 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Mitigation"][];
                 };
+            };
+        };
+    };
+    listComplianceCatalogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of catalogs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceCatalogSummary"][];
+                };
+            };
+        };
+    };
+    importComplianceCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                frameworkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportCatalogInput"];
+            };
+        };
+        responses: {
+            /** @description Import result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportCatalogResult"];
+                };
+            };
+            /** @description Unknown catalog key, or the catalog is not yet available */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — only Admin can import a catalog (same tier as creating a framework) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Framework not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

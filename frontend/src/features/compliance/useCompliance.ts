@@ -12,12 +12,22 @@ import type {
   CreateControlInput,
   CreateFrameworkInput,
   UpdateControlInput,
+  ImportCatalogInput,
 } from '../../types/compliance';
 
 const FRAMEWORKS_QUERY_KEY = ['compliance', 'frameworks'];
+const CATALOGS_QUERY_KEY = ['compliance', 'catalogs'];
 const controlsQueryKey = (frameworkId: string) => ['compliance', 'frameworks', frameworkId, 'controls'];
 const evidencesQueryKey = (controlId: string) => ['compliance', 'controls', controlId, 'evidences'];
 const progressQueryKey = (frameworkId: string) => ['compliance', 'frameworks', frameworkId, 'progress'];
+
+export function useCatalogs() {
+  return useQuery({
+    queryKey: CATALOGS_QUERY_KEY,
+    queryFn: () => complianceService.listCatalogs(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
 
 export function useFrameworks() {
   const queryClient = useQueryClient();
@@ -74,6 +84,11 @@ export function useControls(frameworkId: string | undefined) {
     onSettled: invalidate,
   });
 
+  const importCatalog = useMutation({
+    mutationFn: (payload: ImportCatalogInput) => complianceService.importCatalog(frameworkId as string, payload),
+    onSettled: invalidate,
+  });
+
   const updateControl = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UpdateControlInput }) =>
       complianceService.updateControl(id, payload),
@@ -122,8 +137,9 @@ export function useControls(frameworkId: string | undefined) {
       createControl,
       updateControl,
       deleteControl,
+      importCatalog,
     }),
-    [query, createControl, updateControl, deleteControl]
+    [query, createControl, updateControl, deleteControl, importCatalog]
   );
 }
 

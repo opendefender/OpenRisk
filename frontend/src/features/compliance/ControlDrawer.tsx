@@ -94,6 +94,14 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
             </label>
             <p className="mt-1 text-sm text-zinc-300">{control.description || '—'}</p>
           </div>
+          {control.source_reference && (
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                {t('compliance.form.sourceReference')}
+              </label>
+              <p className="mt-1 text-sm italic text-zinc-400">{control.source_reference}</p>
+            </div>
+          )}
           <div>
             <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
               {t('common.status')}

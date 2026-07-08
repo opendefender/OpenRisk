@@ -50,6 +50,7 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 		CREATE TABLE compliance_controls (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, framework_id TEXT NOT NULL,
 			reference_code TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, description TEXT,
+			source_reference TEXT NOT NULL DEFAULT '',
 			status TEXT NOT NULL DEFAULT 'not_implemented',
 			created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
@@ -96,6 +97,8 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewDeleteEvidenceUseCase(repo, store),
 		applicationcompliance.NewDownloadEvidenceUseCase(repo, store),
 		applicationcompliance.NewGetComplianceProgressUseCase(repo),
+		applicationcompliance.NewListCatalogsUseCase(),
+		applicationcompliance.NewImportCatalogUseCase(repo),
 	)
 
 	app := fiber.New()
@@ -117,6 +120,8 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 	evidenceDelete := middleware.RequirePermissions(ps, domain.Permission{Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionDelete})
 
 	api := app.Group("/api/v1")
+	api.Get("/compliance/catalogs", frameworkRead, h.ListCatalogs)
+	api.Post("/compliance/frameworks/:frameworkId/import-catalog", frameworkCreate, h.ImportCatalog)
 	api.Get("/compliance/frameworks", frameworkRead, h.ListFrameworks)
 	api.Post("/compliance/frameworks", frameworkCreate, h.CreateFramework)
 	api.Get("/compliance/frameworks/:frameworkId", frameworkRead, h.GetFramework)
@@ -391,5 +396,144 @@ func TestEvidenceDownload_CrossTenant_NotFound(t *testing.T) {
 	resp, err = appB.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, 404, resp.StatusCode)
+	resp.Body.Close()
+}
+
+// TestListCatalogs_IncludesISO27001AndPlaceholders is the automated proof of ROADMAP.md's M2
+// acceptance criterion for the catalog-listing side: ISO 27001:2022 is offered as available,
+// and the not-yet-modeled African frameworks are listed as explicit placeholders rather than
+// silently absent.
+func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
+	db := setupComplianceSchema(t)
+	store, err := storage.NewLocalStorage(t.TempDir())
+	require.NoError(t, err)
+	adminApp := buildComplianceApp(t, db, store, uuid.New(), "admin")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/compliance/catalogs", nil)
+	resp, err := adminApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	rawBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	// Assert the actual wire format, not just a struct-to-struct round trip: decoding JSON
+	// into the exact same untagged Go struct used to encode it silently hides a missing/wrong
+	// `json:` tag (Go's decoder matches field names case-insensitively as a fallback), which is
+	// exactly the bug a live browser check caught here — CatalogSummary had no json tags at all,
+	// so every catalog serialized as "Available" instead of "available" and the frontend (which
+	// only knows the openapi.yaml contract) read undefined and rendered every catalog as unavailable.
+	require.Contains(t, string(rawBody), `"available"`)
+	require.Contains(t, string(rawBody), `"control_count"`)
+
+	var catalogs []applicationcompliance.CatalogSummary
+	require.NoError(t, json.Unmarshal(rawBody, &catalogs))
+
+	byKey := map[string]applicationcompliance.CatalogSummary{}
+	for _, c := range catalogs {
+		byKey[c.Key] = c
+	}
+	require.Contains(t, byKey, "iso27001-2022")
+	require.True(t, byKey["iso27001-2022"].Available)
+	require.Equal(t, 93, byKey["iso27001-2022"].ControlCount)
+
+	for _, key := range []string{"cobac", "bceao", "anssi-cm"} {
+		require.Contains(t, byKey, key)
+		require.False(t, byKey[key].Available, "placeholder catalog %q must not be marked available", key)
+	}
+}
+
+// TestImportCatalog_AdminSuccess_AnalystForbidden is the automated proof of ROADMAP.md's M2
+// acceptance criterion: an admin can load ISO 27001:2022's full 93 controls into a framework
+// in one call instead of entering each by hand, it's idempotent, and it's gated the same as
+// framework creation (global, structural change) — an analyst cannot do it.
+func TestImportCatalog_AdminSuccess_AnalystForbidden(t *testing.T) {
+	db := setupComplianceSchema(t)
+	store, err := storage.NewLocalStorage(t.TempDir())
+	require.NoError(t, err)
+	tenantID := uuid.New()
+	adminApp := buildComplianceApp(t, db, store, tenantID, "admin")
+	analystApp := buildComplianceApp(t, db, store, tenantID, "analyst")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks",
+		mustJSON(t, map[string]string{"name": "ISO 27001", "version": "2022"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := adminApp.Test(req)
+	require.NoError(t, err)
+	var fw domain.ComplianceFramework
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&fw))
+	resp.Body.Close()
+
+	// Analyst cannot import — same permission tier as creating a framework.
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks/"+fw.ID.String()+"/import-catalog",
+		mustJSON(t, map[string]string{"catalog_key": "iso27001-2022"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = analystApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 403, resp.StatusCode)
+	resp.Body.Close()
+
+	// Admin imports the full catalog.
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks/"+fw.ID.String()+"/import-catalog",
+		mustJSON(t, map[string]string{"catalog_key": "iso27001-2022"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = adminApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	var result applicationcompliance.ImportCatalogResult
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	resp.Body.Close()
+	require.Equal(t, 93, result.Imported)
+	require.Equal(t, 0, result.Skipped)
+
+	// The controls are actually there, tenant-scoped, with a source citation each.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/compliance/frameworks/"+fw.ID.String()+"/controls", nil)
+	resp, err = adminApp.Test(req)
+	require.NoError(t, err)
+	var controls []domain.ComplianceControl
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&controls))
+	resp.Body.Close()
+	require.Len(t, controls, 93)
+	for _, c := range controls {
+		require.Equal(t, tenantID, c.TenantID)
+		require.NotEmpty(t, c.SourceReference)
+	}
+
+	// Re-importing is idempotent: everything is already there, nothing new created.
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks/"+fw.ID.String()+"/import-catalog",
+		mustJSON(t, map[string]string{"catalog_key": "iso27001-2022"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = adminApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&result))
+	resp.Body.Close()
+	require.Equal(t, 0, result.Imported)
+	require.Equal(t, 93, result.Skipped)
+}
+
+// TestImportCatalog_UnavailableCatalog_ValidationError proves a placeholder catalog (no
+// reviewed content) is rejected rather than silently importing nothing.
+func TestImportCatalog_UnavailableCatalog_ValidationError(t *testing.T) {
+	db := setupComplianceSchema(t)
+	store, err := storage.NewLocalStorage(t.TempDir())
+	require.NoError(t, err)
+	adminApp := buildComplianceApp(t, db, store, uuid.New(), "admin")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks",
+		mustJSON(t, map[string]string{"name": "COBAC"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := adminApp.Test(req)
+	require.NoError(t, err)
+	var fw domain.ComplianceFramework
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&fw))
+	resp.Body.Close()
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks/"+fw.ID.String()+"/import-catalog",
+		mustJSON(t, map[string]string{"catalog_key": "cobac"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = adminApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 400, resp.StatusCode)
 	resp.Body.Close()
 }

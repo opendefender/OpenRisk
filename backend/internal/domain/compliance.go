@@ -51,7 +51,11 @@ type ComplianceControl struct {
 	ReferenceCode string    `gorm:"size:50;not null;default:''" json:"reference_code"` // e.g. "A.5.1.1"
 	Name          string    `gorm:"size:255;not null" json:"name"`
 	Description   string    `gorm:"type:text" json:"description"`
-	Status        ControlStatus `gorm:"type:varchar(30);not null;default:'not_implemented'" json:"status"`
+	// SourceReference cites where this control comes from (e.g. "ISO/IEC 27001:2022, Annexe A, A.5.1"
+	// or a COBAC/BCEAO circular article) — required for controls imported from a regulatory catalog,
+	// optional for ad-hoc controls a tenant creates by hand.
+	SourceReference string        `gorm:"size:255;not null;default:''" json:"source_reference"`
+	Status          ControlStatus `gorm:"type:varchar(30);not null;default:'not_implemented'" json:"status"`
 
 	// Relations
 	Framework ComplianceFramework `gorm:"foreignKey:FrameworkID" json:"framework,omitempty"`
