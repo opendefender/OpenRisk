@@ -437,10 +437,16 @@ func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
 	require.True(t, byKey["iso27001-2022"].Available)
 	require.Equal(t, 93, byKey["iso27001-2022"].ControlCount)
 
-	for _, key := range []string{"cobac", "bceao", "anssi-cm"} {
+	// African regulatory frameworks are now real, available catalogs.
+	for _, key := range []string{"cobac", "bceao", "antic-cm"} {
 		require.Contains(t, byKey, key)
-		require.False(t, byKey[key].Available, "placeholder catalog %q must not be marked available", key)
+		require.True(t, byKey[key].Available, "catalog %q must be marked available", key)
+		require.Greater(t, byKey[key].ControlCount, 0, "catalog %q must carry controls", key)
 	}
+
+	// A genuine placeholder must still be present and unavailable.
+	require.Contains(t, byKey, "cm-loi-2024-017")
+	require.False(t, byKey["cm-loi-2024-017"].Available, "placeholder catalog must not be marked available")
 }
 
 // TestImportCatalog_AdminSuccess_AnalystForbidden is the automated proof of ROADMAP.md's M2
@@ -521,7 +527,7 @@ func TestImportCatalog_UnavailableCatalog_ValidationError(t *testing.T) {
 	adminApp := buildComplianceApp(t, db, store, uuid.New(), "admin")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks",
-		mustJSON(t, map[string]string{"name": "COBAC"}))
+		mustJSON(t, map[string]string{"name": "Data protection"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := adminApp.Test(req)
 	require.NoError(t, err)
@@ -529,8 +535,9 @@ func TestImportCatalog_UnavailableCatalog_ValidationError(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&fw))
 	resp.Body.Close()
 
+	// cm-loi-2024-017 is a genuine placeholder (no reviewed content) — importing it must 400.
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks/"+fw.ID.String()+"/import-catalog",
-		mustJSON(t, map[string]string{"catalog_key": "cobac"}))
+		mustJSON(t, map[string]string{"catalog_key": "cm-loi-2024-017"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err = adminApp.Test(req)
 	require.NoError(t, err)

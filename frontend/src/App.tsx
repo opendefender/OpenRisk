@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Menu, Zap } from 'lucide-react';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
@@ -85,18 +85,40 @@ const AnimatedOutlet = () => {
 
 /**
  * COMPOSANT 2: LAYOUT GLOBAL
- * Contient la Sidebar fixe et la zone de contenu dynamique.
+ * Sidebar responsive (statique ≥ lg, tiroir off-canvas < lg) + zone de contenu dynamique.
+ * Une barre supérieure mobile porte le bouton d'ouverture du tiroir ; elle disparaît sur
+ * grand écran, où la Sidebar est déjà dans le flux, de sorte que la mise en page desktop
+ * reste identique.
  */
-const DashboardLayout = () => (
-  <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-primary/30">
-    <Sidebar />
-    <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-      <main className="flex-1 overflow-hidden relative flex flex-col">
-        <AnimatedOutlet />
-      </main>
+const DashboardLayout = () => {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  return (
+    <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-primary/30">
+      <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0">
+        {/* Mobile top bar — visible only < lg. */}
+        <div className="lg:hidden h-14 shrink-0 border-b border-border bg-surface/90 backdrop-blur-md flex items-center gap-3 px-4 z-30">
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-zinc-300 hover:text-white hover:border-primary transition-colors"
+            aria-label="Open navigation menu"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+              <Zap size={13} className="text-white" fill="currentColor" />
+            </div>
+            <span className="font-bold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">OpenRisk</span>
+          </div>
+        </div>
+        <main className="flex-1 overflow-hidden relative flex flex-col">
+          <AnimatedOutlet />
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * COMPOSANT 3: VUE DASHBOARD (La page d'accueil)
@@ -114,25 +136,25 @@ const DashboardView = () => {
   return (
     <>
       {/* --- HEADER FLOTTANT (Spécifique Dashboard) --- */}
-      <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-6 z-10 sticky top-0">
-        
-        {/* Search Bar (Linear style) */}
-        <div className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-white transition-colors group">
-          <Search size={14} className="group-focus-within:text-primary transition-colors" />
-          <input 
-              type="text" 
-              placeholder="Search risks, assets..." 
-              className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-600"
+      <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between gap-3 px-4 sm:px-6 z-10 sticky top-0">
+
+        {/* Search Bar (Linear style) — grows to fill on mobile, fixed width on desktop. */}
+        <div className="flex items-center gap-2 text-zinc-500 bg-surface border border-white/5 px-3 py-1.5 rounded-md min-w-0 flex-1 sm:flex-none sm:w-64 focus-within:border-primary/50 focus-within:text-white transition-colors group">
+          <Search size={14} className="shrink-0 group-focus-within:text-primary transition-colors" />
+          <input
+              type="text"
+              placeholder="Search risks, assets..."
+              className="bg-transparent border-none outline-none text-sm w-full min-w-0 placeholder:text-zinc-600"
           />
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-zinc-500 bg-zinc-800 rounded border border-zinc-700">⌘K</kbd>
         </div>
 
         {/* Actions Droite */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
            <NotificationCenter />
-           
-           <Button onClick={() => setIsModalOpen(true)} className="shadow-lg shadow-blue-500/20">
-              <Plus size={16} className="mr-2" /> New Risk
+
+           <Button onClick={() => setIsModalOpen(true)} className="shadow-lg shadow-blue-500/20 whitespace-nowrap">
+              <Plus size={16} className="sm:mr-2" /> <span className="hidden sm:inline">New Risk</span>
            </Button>
         </div>
       </header>

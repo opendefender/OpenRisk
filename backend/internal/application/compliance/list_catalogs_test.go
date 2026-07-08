@@ -30,17 +30,24 @@ func TestListCatalogsUseCase_Success(t *testing.T) {
 	assert.True(t, iso.Available)
 	assert.Equal(t, 93, iso.ControlCount)
 
-	// Placeholders must be present but explicitly marked unavailable with no controls —
-	// the UI needs this to show them as "coming soon" instead of hiding them entirely.
-	for _, key := range []string{"cobac", "bceao", "anssi-cm"} {
-		found := false
-		for _, c := range catalogs {
-			if c.Key == key {
-				found = true
-				assert.False(t, c.Available, "placeholder catalog %q should not be marked available", key)
-				assert.Equal(t, 0, c.ControlCount)
-			}
-		}
-		assert.True(t, found, "expected placeholder catalog %q in the list", key)
+	byKey := map[string]CatalogSummary{}
+	for _, c := range catalogs {
+		byKey[c.Key] = c
 	}
+
+	// The African regulatory frameworks are now real, cited catalogs (source documents
+	// were provided) — they must be present, available, and carry controls.
+	for _, key := range []string{"cobac", "bceao", "antic-cm"} {
+		c, found := byKey[key]
+		assert.True(t, found, "expected catalog %q in the list", key)
+		assert.True(t, c.Available, "catalog %q should be available", key)
+		assert.Greater(t, c.ControlCount, 0, "catalog %q should carry controls", key)
+	}
+
+	// A genuine placeholder remains for frameworks whose source text we still lack — it
+	// must be present but explicitly unavailable so the UI can show it as "coming soon".
+	placeholder, found := byKey["cm-loi-2024-017"]
+	assert.True(t, found, "expected placeholder catalog cm-loi-2024-017 in the list")
+	assert.False(t, placeholder.Available, "placeholder catalog should not be marked available")
+	assert.Equal(t, 0, placeholder.ControlCount)
 }

@@ -120,9 +120,9 @@ func TestImportCatalogUseCase_UnavailableCatalog_Validation(t *testing.T) {
 	}
 	uc := NewImportCatalogUseCase(repo)
 
-	// cobac/bceao/anssi-cm are registered but not yet available (see pkg/compliance/catalog_placeholders.go).
+	// cm-loi-2024-017 is registered but not yet available (see pkg/compliance/catalog_placeholders.go).
 	_, err := uc.Execute(context.Background(), uuid.New(), ImportCatalogInput{
-		FrameworkID: fwID, CatalogKey: "cobac",
+		FrameworkID: fwID, CatalogKey: "cm-loi-2024-017",
 	})
 
 	require.Error(t, err)

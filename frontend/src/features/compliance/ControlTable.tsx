@@ -24,8 +24,8 @@ export const ControlTable = ({ controls, onOpenControl, onStatusChange }: Contro
   const { t } = useI18n();
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-800">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto scrollbar-thin rounded-2xl border border-zinc-800">
+      <table className="w-full min-w-[560px] text-sm">
         <thead className="bg-zinc-900/50 text-left text-xs uppercase tracking-wider text-zinc-500">
           <tr>
             <th className="px-4 py-3 font-medium">{t('compliance.referenceCode')}</th>
