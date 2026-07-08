@@ -100,6 +100,11 @@ export const RiskListPage = () => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  // Live updates are a progressive enhancement: if the SSE stream is unavailable the
+  // list still works (it refetches on every mutation). A dropped/absent stream must NOT
+  // surface as a user-facing error — doing so previously produced bursts of "server error"
+  // toasts because EventSource reconnects and each attempt fired a toast. useSSE now caps
+  // reconnects; we simply log here instead of alarming the user.
   useSSE({
     url: '/api/v1/risks/events',
     enabled: true,
@@ -109,7 +114,7 @@ export const RiskListPage = () => {
       }
     },
     onError: () => {
-      error(t('errors.serverError'));
+      if (import.meta.env.DEV) console.debug('[risks] realtime stream unavailable — falling back to on-demand refetch');
     },
   });
 
@@ -304,6 +309,8 @@ export const RiskListPage = () => {
               />
             ) : (
               <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 overflow-hidden">
+                <div className="overflow-x-auto scrollbar-thin">
+                <div className="min-w-[960px]">
                 <div className="grid grid-cols-[48px_2fr_120px_120px_180px_140px_180px_120px] gap-0 bg-zinc-900 border-b border-zinc-800 text-xs uppercase tracking-[0.18em] text-zinc-500">
                   <div className="px-4 py-3">
                     <input
@@ -377,6 +384,8 @@ export const RiskListPage = () => {
                       </div>
                     </motion.div>
                   ))}
+                </div>
+                </div>
                 </div>
               </div>
             )}

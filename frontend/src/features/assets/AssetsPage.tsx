@@ -90,8 +90,8 @@ export const AssetsPage = () => {
           action={{ label: t('assets.createAsset'), onClick: openCreateModal }}
         />
       ) : view === 'table' ? (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-left text-sm">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto scrollbar-thin shadow-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-white/5 text-zinc-400 font-medium uppercase text-xs">
               <tr>
                 <th className="px-6 py-4">{t('assets.form.name')}</th>

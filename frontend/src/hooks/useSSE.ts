@@ -38,6 +38,23 @@ export function useSSE({
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Keep the caller's callbacks in refs so `connect` never has to list them as
+  // dependencies. Passing inline callbacks (the common case) otherwise recreates
+  // `connect` on every render, which re-runs the mount effect (disconnect + reconnect)
+  // on every render — turning a single failing endpoint into a burst of reconnects and
+  // onError calls. Reading through refs decouples callback identity from the socket
+  // lifecycle. See ROADMAP.md — Risks page "server error" toast bursts.
+  const onMessageRef = useRef(onMessage);
+  const onErrorRef = useRef(onError);
+  const onConnectRef = useRef(onConnect);
+  const onDisconnectRef = useRef(onDisconnect);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onErrorRef.current = onError;
+    onConnectRef.current = onConnect;
+    onDisconnectRef.current = onDisconnect;
+  }, [onMessage, onError, onConnect, onDisconnect]);
+
   const connect = useCallback(() => {
     if (!enabled || eventSourceRef.current) return;
 
@@ -48,20 +65,20 @@ export function useSSE({
         setIsConnected(true);
         setError(null);
         reconnectAttemptsRef.current = 0;
-        onConnect?.();
+        onConnectRef.current?.();
       });
 
       eventSource.addEventListener('message', (event: Event) => {
         try {
           const data = JSON.parse((event as MessageEvent).data);
-          onMessage?.({
+          onMessageRef.current?.({
             type: 'message',
             data,
             timestamp: new Date().toISOString(),
           });
         } catch {
           // Handle non-JSON messages
-          onMessage?.({
+          onMessageRef.current?.({
             type: 'message',
             data: (event as MessageEvent).data,
             timestamp: new Date().toISOString(),
@@ -70,57 +87,29 @@ export function useSSE({
       });
 
       // Listen for specific event types (e.g., risk.updated, risk.score_updated)
-      eventSource.addEventListener('risk.created', (event: Event) => {
+      const forward = (type: string) => (event: Event) => {
         const messageEvent = event as MessageEvent;
         try {
           const data = JSON.parse(messageEvent.data);
-          onMessage?.({
-            type: 'risk.created',
-            data,
-            timestamp: new Date().toISOString(),
-          });
+          onMessageRef.current?.({ type, data, timestamp: new Date().toISOString() });
         } catch {
           console.error('Failed to parse SSE message', messageEvent.data);
         }
-      });
-
-      eventSource.addEventListener('risk.updated', (event: Event) => {
-        const messageEvent = event as MessageEvent;
-        try {
-          const data = JSON.parse(messageEvent.data);
-          onMessage?.({
-            type: 'risk.updated',
-            data,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          console.error('Failed to parse SSE message', messageEvent.data);
-        }
-      });
-
-      eventSource.addEventListener('risk.score_updated', (event: Event) => {
-        const messageEvent = event as MessageEvent;
-        try {
-          const data = JSON.parse(messageEvent.data);
-          onMessage?.({
-            type: 'risk.score_updated',
-            data,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          console.error('Failed to parse SSE message', messageEvent.data);
-        }
-      });
+      };
+      eventSource.addEventListener('risk.created', forward('risk.created'));
+      eventSource.addEventListener('risk.updated', forward('risk.updated'));
+      eventSource.addEventListener('risk.score_updated', forward('risk.score_updated'));
 
       eventSource.addEventListener('error', (event: Event) => {
         setError(event);
-        onError?.(event);
+        onErrorRef.current?.(event);
         eventSourceRef.current?.close();
         eventSourceRef.current = null;
         setIsConnected(false);
-        onDisconnect?.();
+        onDisconnectRef.current?.();
 
-        // Attempt reconnect
+        // Attempt reconnect, capped. Once the cap is hit we stop for good instead of
+        // hammering a permanently-unavailable endpoint (e.g. one that isn't deployed).
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -134,7 +123,7 @@ export function useSSE({
       console.error('Failed to connect to SSE:', err);
       setError(err instanceof Event ? err : new Event('unknown_error'));
     }
-  }, [url, enabled, onMessage, onError, onConnect, onDisconnect, reconnectInterval, maxReconnectAttempts]);
+  }, [url, enabled, reconnectInterval, maxReconnectAttempts]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -143,10 +132,11 @@ export function useSSE({
     }
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     setIsConnected(false);
-    onDisconnect?.();
-  }, [onDisconnect]);
+    onDisconnectRef.current?.();
+  }, []);
 
   const reconnect = useCallback(() => {
     reconnectAttemptsRef.current = 0;
