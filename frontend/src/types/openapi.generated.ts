@@ -417,6 +417,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get asset by ID */
+        get: operations["getAsset"];
+        put?: never;
+        post?: never;
+        /** Delete asset */
+        delete: operations["deleteAsset"];
+        options?: never;
+        head?: never;
+        /** Update asset */
+        patch: operations["updateAsset"];
+        trace?: never;
+    };
+    "/assets/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get asset history (snapshots taken before each update/delete) */
+        get: operations["getAssetHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -602,6 +638,15 @@ export interface components {
             owner?: string;
             /** @example db-prod-001 */
             external_id?: string;
+        };
+        /** @description Partial update — omitted fields are left unchanged. */
+        UpdateAssetInput: {
+            name?: string;
+            /** @enum {string} */
+            type?: "Server" | "Laptop" | "Database" | "SaaS" | "Network" | "Storage";
+            /** @enum {string} */
+            criticality?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            owner?: string;
         };
         AuthResponse: {
             /**
@@ -823,6 +868,22 @@ export interface components {
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        /** @description An asset's state captured immediately before an update or deletion. */
+        AssetSnapshot: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            asset_id?: string;
+            name?: string;
+            type?: string;
+            /** @enum {string} */
+            criticality?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            owner?: string;
+            /** @enum {string} */
+            reason?: "update" | "delete";
+            /** Format: date-time */
+            created_at?: string;
         };
         DashboardStats: {
             total_risks?: number;
@@ -1974,6 +2035,131 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asset details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Asset"];
+                };
+            };
+            /** @description Asset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asset deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Asset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAssetInput"];
+            };
+        };
+        responses: {
+            /** @description Asset updated. If criticality changed, every linked risk's score is recalculated asynchronously by the Score Engine worker. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Asset"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Asset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAssetHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asset history, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetSnapshot"][];
+                };
+            };
+            /** @description Asset not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -6,45 +6,171 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+
+	assetuc "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
-	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/infrastructure/redis"
+	"github.com/opendefender/openrisk/pkg/events"
+	"github.com/opendefender/openrisk/pkg/validation"
 )
 
-// GetAssets : Liste avec pagination optionnelle (simplifiée ici)
-func GetAssets(c *fiber.Ctx) error {
-	var assets []domain.Asset
-	// NEW: Get organization context for multi-tenancy
-	ctx := middleware.GetContext(c)
+// AssetHandler encapsulates the asset use cases (ROADMAP.md M3).
+type AssetHandler struct {
+	createAssetUC        *assetuc.CreateAssetUseCase
+	getAssetUC           *assetuc.GetAssetUseCase
+	listAssetsUC         *assetuc.ListAssetsUseCase
+	updateAssetUC        *assetuc.UpdateAssetUseCase
+	deleteAssetUC        *assetuc.DeleteAssetUseCase
+	listAssetSnapshotsUC *assetuc.ListAssetSnapshotsUseCase
+	redisClient          *redis.Client
+}
 
-	// On précharge les risques pour afficher le nombre de risques par asset
-	query := database.DB.Preload("Risks")
-	// NEW: Filter by organization_id if available
-	if ctx != nil {
-		query = query.Where("organization_id = ?", ctx.OrganizationID)
+func NewAssetHandler(
+	createAsset *assetuc.CreateAssetUseCase,
+	getAsset *assetuc.GetAssetUseCase,
+	listAssets *assetuc.ListAssetsUseCase,
+	updateAsset *assetuc.UpdateAssetUseCase,
+	deleteAsset *assetuc.DeleteAssetUseCase,
+	listAssetSnapshots *assetuc.ListAssetSnapshotsUseCase,
+	redisClient *redis.Client,
+) *AssetHandler {
+	return &AssetHandler{
+		createAssetUC:        createAsset,
+		getAssetUC:           getAsset,
+		listAssetsUC:         listAssets,
+		updateAssetUC:        updateAsset,
+		deleteAssetUC:        deleteAsset,
+		listAssetSnapshotsUC: listAssetSnapshots,
+		redisClient:          redisClient,
 	}
-	if err := query.Find(&assets).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch assets"})
+}
+
+type createAssetInput struct {
+	Name        string `json:"name" validate:"required"`
+	Type        string `json:"type"`
+	Criticality string `json:"criticality" validate:"omitempty,oneof=LOW MEDIUM HIGH CRITICAL"`
+	Owner       string `json:"owner"`
+}
+
+// CreateAsset godoc
+func (h *AssetHandler) CreateAsset(c *fiber.Ctx) error {
+	input := new(createAssetInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
+	}
+	if err := validation.GetValidator().Struct(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
+
+	assetEntity, err := h.createAssetUC.Execute(c.UserContext(), tenantID(c), assetuc.CreateAssetInput{
+		Name:        input.Name,
+		Type:        input.Type,
+		Criticality: domain.AssetCriticality(input.Criticality),
+		Owner:       input.Owner,
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(201).JSON(assetEntity)
+}
+
+// ListAssets godoc
+func (h *AssetHandler) ListAssets(c *fiber.Ctx) error {
+	assets, err := h.listAssetsUC.Execute(c.UserContext(), tenantID(c))
+	if err != nil {
+		return writeAppError(c, err)
 	}
 	return c.JSON(assets)
 }
 
-// CreateAsset : Manuel (ou via Sync)
-func CreateAsset(c *fiber.Ctx) error {
-	asset := new(domain.Asset)
-	if err := c.BodyParser(asset); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+// GetAsset godoc
+func (h *AssetHandler) GetAsset(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	assetEntity, err := h.getAssetUC.Execute(c.UserContext(), tenantID(c), id)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(assetEntity)
+}
+
+type updateAssetInput struct {
+	Name        *string `json:"name" validate:"omitempty"`
+	Type        *string `json:"type" validate:"omitempty"`
+	Criticality *string `json:"criticality" validate:"omitempty,oneof=LOW MEDIUM HIGH CRITICAL"`
+	Owner       *string `json:"owner" validate:"omitempty"`
+}
+
+// UpdateAsset godoc
+func (h *AssetHandler) UpdateAsset(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	input := new(updateAssetInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
+	}
+	if err := validation.GetValidator().Struct(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
 	}
 
-	// NEW: Get organization context for multi-tenancy
-	ctx := middleware.GetContext(c)
-	if ctx != nil {
-		asset.OrganizationID = ctx.OrganizationID
+	ucInput := assetuc.UpdateAssetInput{Name: input.Name, Type: input.Type, Owner: input.Owner}
+	if input.Criticality != nil {
+		crit := domain.AssetCriticality(*input.Criticality)
+		ucInput.Criticality = &crit
 	}
 
-	if err := database.DB.Create(asset).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create asset"})
+	result, err := h.updateAssetUC.Execute(c.UserContext(), tenantID(c), id, ucInput)
+	if err != nil {
+		return writeAppError(c, err)
 	}
-	return c.Status(201).JSON(asset)
+
+	// RULE #12 (same convention as risks): the Score Engine is never called
+	// directly from a handler. Publishing this event lets ScoreWorker
+	// recalculate every risk linked to this asset via the real Engine.
+	if result.CriticalityChanged && h.redisClient != nil {
+		event := events.AssetCriticalityChangedEvent{
+			AssetID:        result.Asset.ID.String(),
+			TenantID:       tenantID(c).String(),
+			OldCriticality: string(result.OldCriticality),
+			NewCriticality: string(result.NewCriticality),
+			ChangedBy:      userID(c).String(),
+			ChangedAt:      time.Now().UTC().Format(time.RFC3339),
+		}
+		_ = h.redisClient.Publish(c.Context(), events.AssetCriticalityChanged, event)
+	}
+
+	return c.JSON(result.Asset)
+}
+
+// DeleteAsset godoc
+func (h *AssetHandler) DeleteAsset(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	if err := h.deleteAssetUC.Execute(c.UserContext(), tenantID(c), id); err != nil {
+		return writeAppError(c, err)
+	}
+	return c.SendStatus(204)
+}
+
+// GetAssetHistory godoc
+func (h *AssetHandler) GetAssetHistory(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	history, err := h.listAssetSnapshotsUC.Execute(c.UserContext(), tenantID(c), id)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(history)
 }

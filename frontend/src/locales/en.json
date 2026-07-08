@@ -142,7 +142,10 @@
     "failedToCreateControl": "Failed to create control",
     "failedToUpdateControl": "Failed to update control",
     "failedToUploadEvidence": "Failed to upload evidence",
-    "failedToDeleteEvidence": "Failed to delete evidence"
+    "failedToDeleteEvidence": "Failed to delete evidence",
+    "failedToCreateAsset": "Failed to create asset",
+    "failedToUpdateAsset": "Failed to update asset",
+    "failedToDeleteAsset": "Failed to delete asset"
   },
   "messages": {
     "riskCreatedSuccess": "Risk created successfully",
@@ -274,6 +277,39 @@
       "empty": "No catalogs available",
       "importSuccess": "{imported} controls imported ({skipped} already present)",
       "importError": "Failed to import catalog"
+    }
+  },
+  "assets": {
+    "title": "Assets Inventory",
+    "description": "Manage infrastructure and linked risks.",
+    "createAsset": "Add asset",
+    "editAsset": "Edit asset",
+    "createSuccess": "Asset added to inventory",
+    "updateSuccess": "Asset updated",
+    "deleteSuccess": "Asset removed",
+    "confirmDelete": "Delete asset \"{name}\"? This cannot be undone.",
+    "noAssets": "No assets found",
+    "noAssetsDescription": "Add one or sync OpenAsset.",
+    "activeRisks": "Active risks",
+    "history": "History",
+    "historyTitle": "History — {name}",
+    "noHistory": "No history yet",
+    "noHistoryDescription": "Changes to this asset will appear here.",
+    "historyReason": {
+      "update": "Updated",
+      "delete": "Deleted"
+    },
+    "form": {
+      "name": "Asset name",
+      "type": "Type",
+      "criticality": "Criticality",
+      "owner": "Owner"
+    },
+    "criticality": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "CRITICAL": "Critical"
     }
   }
 }

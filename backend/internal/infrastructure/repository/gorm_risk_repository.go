@@ -243,28 +243,82 @@ func (r *GormRiskRepository) GetRiskScore(ctx context.Context, riskID uuid.UUID,
 	return score, nil
 }
 
-// GetRisksByAssetID retrieves all risks linked to an asset.
+// GetRisksByAssetID retrieves all risks linked to an asset, so the caller can
+// republish risk.updated for each of them when the asset's criticality changes.
+//
+// NOTE: this used to select "assets.criticality as asset_criticality" (a
+// string enum column like "MEDIUM") directly into RiskForScoring's
+// AssetCriticality float64 field — a scan type mismatch that would fail at
+// runtime, and it only ever considered the ONE asset whose ID was passed in,
+// discarding any other assets also linked to the same risk. Fixed by loading
+// every linked asset's criticality per affected risk and averaging their
+// domain.AssetCriticality.ScoreFactor() — consistent with how a risk's score
+// is computed everywhere else a risk has multiple assets.
 func (r *GormRiskRepository) GetRisksByAssetID(ctx context.Context, assetID uuid.UUID, tenantID uuid.UUID) ([]domain.RiskForScoring, error) {
-	var risks []domain.RiskForScoring
-
-	// Join with assets table to handle many2many relationship
-	err := r.db.WithContext(ctx).
+	var riskIDs []uuid.UUID
+	if err := r.db.WithContext(ctx).
 		Table("risks").
-		Select(
-			"risks.id,"+
-				"risks.tenant_id,"+
-				"risks.probability,"+
-				"risks.impact,"+
-				"assets.criticality as asset_criticality,"+
-				"risks.score as current_score",
-		).
 		Joins("JOIN risk_assets ON risks.id = risk_assets.risk_id").
-		Joins("JOIN assets ON risk_assets.asset_id = assets.id").
-		Where("risks.tenant_id = ? AND assets.id = ?", tenantID, assetID).
-		Scan(&risks).Error
+		Where("risks.tenant_id = ? AND risk_assets.asset_id = ?", tenantID, assetID).
+		Distinct().
+		Pluck("risks.id", &riskIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to find risks linked to asset: %w", err)
+	}
+	if len(riskIDs) == 0 {
+		return nil, nil
+	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to get risks by asset ID: %w", err)
+	type riskRow struct {
+		ID           uuid.UUID
+		TenantID     uuid.UUID
+		Probability  float64
+		Impact       float64
+		CurrentScore float64
+	}
+	var riskRows []riskRow
+	if err := r.db.WithContext(ctx).
+		Table("risks").
+		Select("id, tenant_id, probability, impact, score as current_score").
+		Where("id IN ?", riskIDs).
+		Scan(&riskRows).Error; err != nil {
+		return nil, fmt.Errorf("failed to load risks for scoring: %w", err)
+	}
+
+	type assetLinkRow struct {
+		RiskID      uuid.UUID
+		Criticality domain.AssetCriticality
+	}
+	var links []assetLinkRow
+	if err := r.db.WithContext(ctx).
+		Table("risk_assets").
+		Select("risk_assets.risk_id as risk_id, assets.criticality as criticality").
+		Joins("JOIN assets ON risk_assets.asset_id = assets.id").
+		Where("risk_assets.risk_id IN ?", riskIDs).
+		Scan(&links).Error; err != nil {
+		return nil, fmt.Errorf("failed to load linked asset criticalities: %w", err)
+	}
+
+	factorSums := make(map[uuid.UUID]float64, len(riskIDs))
+	factorCounts := make(map[uuid.UUID]int, len(riskIDs))
+	for _, link := range links {
+		factorSums[link.RiskID] += link.Criticality.ScoreFactor()
+		factorCounts[link.RiskID]++
+	}
+
+	risks := make([]domain.RiskForScoring, 0, len(riskRows))
+	for _, row := range riskRows {
+		factor := 1.0
+		if count := factorCounts[row.ID]; count > 0 {
+			factor = factorSums[row.ID] / float64(count)
+		}
+		risks = append(risks, domain.RiskForScoring{
+			ID:               row.ID,
+			TenantID:         row.TenantID,
+			Probability:      row.Probability,
+			Impact:           row.Impact,
+			AssetCriticality: factor,
+			CurrentScore:     row.CurrentScore,
+		})
 	}
 	return risks, nil
 }
