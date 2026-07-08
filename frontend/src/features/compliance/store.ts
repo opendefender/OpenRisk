@@ -11,6 +11,7 @@ interface ComplianceUIStore {
   selectedFrameworkId: string | null;
   isCreateFrameworkModalOpen: boolean;
   isCreateControlModalOpen: boolean;
+  isImportCatalogModalOpen: boolean;
   isControlDrawerOpen: boolean;
   activeControlId: string | null;
   activeDrawerTab: 'details' | 'evidence';
@@ -20,6 +21,8 @@ interface ComplianceUIStore {
   closeCreateFrameworkModal: () => void;
   openCreateControlModal: () => void;
   closeCreateControlModal: () => void;
+  openImportCatalogModal: () => void;
+  closeImportCatalogModal: () => void;
   openControlDrawer: (controlId: string) => void;
   closeControlDrawer: () => void;
   setActiveDrawerTab: (tab: ComplianceUIStore['activeDrawerTab']) => void;
@@ -29,6 +32,7 @@ export const useComplianceUIStore = create<ComplianceUIStore>((set) => ({
   selectedFrameworkId: null,
   isCreateFrameworkModalOpen: false,
   isCreateControlModalOpen: false,
+  isImportCatalogModalOpen: false,
   isControlDrawerOpen: false,
   activeControlId: null,
   activeDrawerTab: 'details',
@@ -38,6 +42,8 @@ export const useComplianceUIStore = create<ComplianceUIStore>((set) => ({
   closeCreateFrameworkModal: () => set({ isCreateFrameworkModalOpen: false }),
   openCreateControlModal: () => set({ isCreateControlModalOpen: true }),
   closeCreateControlModal: () => set({ isCreateControlModalOpen: false }),
+  openImportCatalogModal: () => set({ isImportCatalogModalOpen: true }),
+  closeImportCatalogModal: () => set({ isImportCatalogModalOpen: false }),
   openControlDrawer: (controlId) =>
     set({ isControlDrawerOpen: true, activeControlId: controlId, activeDrawerTab: 'details' }),
   closeControlDrawer: () => set({ isControlDrawerOpen: false, activeControlId: null }),

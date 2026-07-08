@@ -15,10 +15,11 @@ import (
 // UpdateControlInput is a partial update — nil fields are left unchanged,
 // mirroring internal/application/risk's UpdateRiskInput convention.
 type UpdateControlInput struct {
-	ReferenceCode *string
-	Name          *string
-	Description   *string
-	Status        *domain.ControlStatus
+	ReferenceCode   *string
+	Name            *string
+	Description     *string
+	SourceReference *string
+	Status          *domain.ControlStatus
 }
 
 var validControlStatuses = map[domain.ControlStatus]bool{
@@ -65,6 +66,9 @@ func (uc *UpdateControlUseCase) Execute(ctx context.Context, tenantID, controlID
 	}
 	if input.Description != nil {
 		control.Description = *input.Description
+	}
+	if input.SourceReference != nil {
+		control.SourceReference = *input.SourceReference
 	}
 
 	control.TenantID = tenantID // defense in depth, never let a caller move a control to another tenant

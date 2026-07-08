@@ -444,11 +444,13 @@ func main() {
 	deleteEvidenceUC := compliance.NewDeleteEvidenceUseCase(complianceRepo, fileStorage)
 	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
 	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
+	listCatalogsUC := compliance.NewListCatalogsUseCase()
+	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo)
 	complianceHandler := handlers.NewComplianceHandler(
 		createFrameworkUC, getFrameworkUC, listFrameworksUC,
 		createControlUC, getControlUC, listControlsUC, updateControlUC, deleteControlUC,
 		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
-		getProgressUC,
+		getProgressUC, listCatalogsUC, importCatalogUC,
 	)
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
@@ -468,6 +470,12 @@ func main() {
 	complianceEvidenceRead := middleware.RequirePermission("compliance:evidences:read")
 	complianceEvidenceCreate := middleware.RequirePermission("compliance:evidences:create")
 	complianceEvidenceDelete := middleware.RequirePermission("compliance:evidences:delete")
+
+	// Catalogs are static regulatory reference data (pkg/compliance) — global, read-only,
+	// same permission tier as listing frameworks. Importing one instantiates controls under
+	// a tenant's own framework, so it's gated the same as creating a framework by hand.
+	protected.Get("/compliance/catalogs", complianceFrameworkRead, complianceHandler.ListCatalogs)
+	protected.Post("/compliance/frameworks/:frameworkId/import-catalog", complianceFrameworkCreate, complianceHandler.ImportCatalog)
 
 	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
 	protected.Post("/compliance/frameworks", complianceFrameworkCreate, complianceHandler.CreateFramework)

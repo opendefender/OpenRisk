@@ -258,9 +258,22 @@
       "name": "Nom",
       "version": "Version",
       "description": "Description",
-      "referenceCode": "Code de référence"
+      "referenceCode": "Code de référence",
+      "sourceReference": "Source"
     },
     "closeDrawer": "Fermer",
-    "adminOnly": "Réservé aux administrateurs"
+    "adminOnly": "Réservé aux administrateurs",
+    "catalog": {
+      "buttonLabel": "Importer un catalogue",
+      "title": "Importer depuis un catalogue",
+      "description": "Chargez les contrôles standards d'un référentiel réglementaire en une seule étape plutôt que de les ajouter à la main.",
+      "controlCount": "{count} contrôles",
+      "comingSoon": "Bientôt disponible",
+      "comingSoonDescription": "Pas encore modélisé — en attente de documents source fiables.",
+      "import": "Importer",
+      "empty": "Aucun catalogue disponible",
+      "importSuccess": "{imported} contrôles importés ({skipped} déjà présents)",
+      "importError": "Échec de l'import du catalogue"
+    }
   }
 }

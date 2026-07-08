@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, Plus, ShieldCheck } from 'lucide-react';
+import { ClipboardList, Library, Plus, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -20,6 +20,7 @@ import { ControlTable } from './ControlTable';
 import { ControlDrawer } from './ControlDrawer';
 import { CreateFrameworkModal } from './CreateFrameworkModal';
 import { CreateControlModal } from './CreateControlModal';
+import { ImportCatalogModal } from './ImportCatalogModal';
 import type { ControlStatus } from '../../types/compliance';
 
 export const CompliancePage = () => {
@@ -36,6 +37,9 @@ export const CompliancePage = () => {
     isCreateControlModalOpen,
     openCreateControlModal,
     closeCreateControlModal,
+    isImportCatalogModalOpen,
+    openImportCatalogModal,
+    closeImportCatalogModal,
     openControlDrawer,
   } = useComplianceUIStore();
 
@@ -123,10 +127,18 @@ export const CompliancePage = () => {
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
                   {t('compliance.controls')}
                 </h2>
-                <Button variant="secondary" size="sm" onClick={openCreateControlModal} className="gap-2">
-                  <Plus size={14} />
-                  {t('compliance.addControl')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <Button variant="ghost" size="sm" onClick={openImportCatalogModal} className="gap-2">
+                      <Library size={14} />
+                      {t('compliance.catalog.buttonLabel')}
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={openCreateControlModal} className="gap-2">
+                    <Plus size={14} />
+                    {t('compliance.addControl')}
+                  </Button>
+                </div>
               </div>
 
               {controlsLoading ? (
@@ -156,6 +168,11 @@ export const CompliancePage = () => {
           <CreateControlModal
             isOpen={isCreateControlModalOpen}
             onClose={closeCreateControlModal}
+            frameworkId={selectedFrameworkId}
+          />
+          <ImportCatalogModal
+            isOpen={isImportCatalogModalOpen}
+            onClose={closeImportCatalogModal}
             frameworkId={selectedFrameworkId}
           />
           <ControlDrawer frameworkId={selectedFrameworkId} />

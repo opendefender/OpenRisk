@@ -16,10 +16,11 @@ import (
 // framework, for a given tenant. Status always starts at not_implemented —
 // changing it is a distinct, later step (see UpdateControlUseCase).
 type CreateControlInput struct {
-	FrameworkID   uuid.UUID
-	ReferenceCode string
-	Name          string
-	Description   string
+	FrameworkID     uuid.UUID
+	ReferenceCode   string
+	Name            string
+	Description     string
+	SourceReference string
 }
 
 // CreateControlUseCase handles instantiating a compliance control for a
@@ -62,13 +63,14 @@ func (uc *CreateControlUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 	}
 
 	control := &domain.ComplianceControl{
-		ID:            uuid.New(),
-		TenantID:      tenantID,
-		FrameworkID:   input.FrameworkID,
-		ReferenceCode: input.ReferenceCode,
-		Name:          input.Name,
-		Description:   input.Description,
-		Status:        domain.ControlStatusNotImplemented,
+		ID:              uuid.New(),
+		TenantID:        tenantID,
+		FrameworkID:     input.FrameworkID,
+		ReferenceCode:   input.ReferenceCode,
+		Name:            input.Name,
+		Description:     input.Description,
+		SourceReference: input.SourceReference,
+		Status:          domain.ControlStatusNotImplemented,
 	}
 
 	if err := uc.repo.CreateControl(ctx, control); err != nil {

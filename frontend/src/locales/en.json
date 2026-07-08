@@ -258,9 +258,22 @@
       "name": "Name",
       "version": "Version",
       "description": "Description",
-      "referenceCode": "Reference code"
+      "referenceCode": "Reference code",
+      "sourceReference": "Source"
     },
     "closeDrawer": "Close",
-    "adminOnly": "Admin only"
+    "adminOnly": "Admin only",
+    "catalog": {
+      "buttonLabel": "Import catalog",
+      "title": "Import from a catalog",
+      "description": "Load a regulatory framework's standard controls in one step instead of adding them by hand.",
+      "controlCount": "{count} controls",
+      "comingSoon": "Coming soon",
+      "comingSoonDescription": "Not modeled yet — pending real source documents.",
+      "import": "Import",
+      "empty": "No catalogs available",
+      "importSuccess": "{imported} controls imported ({skipped} already present)",
+      "importError": "Failed to import catalog"
+    }
   }
 }

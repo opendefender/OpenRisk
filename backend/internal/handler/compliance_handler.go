@@ -38,6 +38,8 @@ type ComplianceHandler struct {
 	deleteEvidenceUC   *compliance.DeleteEvidenceUseCase
 	downloadEvidenceUC *compliance.DownloadEvidenceUseCase
 	getProgressUC      *compliance.GetComplianceProgressUseCase
+	listCatalogsUC     *compliance.ListCatalogsUseCase
+	importCatalogUC    *compliance.ImportCatalogUseCase
 }
 
 func NewComplianceHandler(
@@ -54,6 +56,8 @@ func NewComplianceHandler(
 	deleteEvidence *compliance.DeleteEvidenceUseCase,
 	downloadEvidence *compliance.DownloadEvidenceUseCase,
 	getProgress *compliance.GetComplianceProgressUseCase,
+	listCatalogs *compliance.ListCatalogsUseCase,
+	importCatalog *compliance.ImportCatalogUseCase,
 ) *ComplianceHandler {
 	return &ComplianceHandler{
 		createFrameworkUC:  createFramework,
@@ -69,6 +73,8 @@ func NewComplianceHandler(
 		deleteEvidenceUC:   deleteEvidence,
 		downloadEvidenceUC: downloadEvidence,
 		getProgressUC:      getProgress,
+		listCatalogsUC:     listCatalogs,
+		importCatalogUC:    importCatalog,
 	}
 }
 
@@ -154,6 +160,44 @@ func (h *ComplianceHandler) GetProgress(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(progress)
+}
+
+// ListCatalogs godoc
+// Lists every registered regulatory catalog (global, not tenant-scoped) — available ones
+// (e.g. ISO 27001:2022) can be imported via ImportCatalog; unavailable ones are shown so the
+// UI can list them as "coming soon" instead of hiding them (see ROADMAP.md M2).
+func (h *ComplianceHandler) ListCatalogs(c *fiber.Ctx) error {
+	return c.JSON(h.listCatalogsUC.Execute(c.UserContext()))
+}
+
+type importCatalogInput struct {
+	CatalogKey string `json:"catalog_key" validate:"required"`
+}
+
+// ImportCatalog godoc
+// Bulk-creates this tenant's controls under the given framework from a regulatory catalog
+// (e.g. ISO 27001:2022's 93 Annex A controls), instead of requiring CreateControl calls one
+// at a time. Idempotent — safe to call again (e.g. after a catalog is extended).
+func (h *ComplianceHandler) ImportCatalog(c *fiber.Ctx) error {
+	frameworkID, err := uuid.Parse(c.Params("frameworkId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+	}
+	input := new(importCatalogInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
+	}
+	if err := validation.GetValidator().Struct(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
+
+	result, err := h.importCatalogUC.Execute(c.UserContext(), tenantID(c), compliance.ImportCatalogInput{
+		FrameworkID: frameworkID, CatalogKey: input.CatalogKey,
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(result)
 }
 
 // =============================================================================

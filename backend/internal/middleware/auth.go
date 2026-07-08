@@ -94,6 +94,15 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 		c.Locals("feature_flags", claims.FeatureFlags)
 		c.Locals("jti", claims.JTI)
 
+		// middleware.GetContext(c) is what compliance/risk/asset/mitigation/dashboard/
+		// multitenancy handlers actually read their tenant_id/user_id from (a third,
+		// separate context mechanism from the c.Locals keys above) — nothing in production
+		// ever called SetContext before this, so every one of those handlers silently fell
+		// back to uuid.Nil for the tenant, regardless of who was logged in. The nil-tenant
+		// guard in GormComplianceRepository.CreateControl is what finally surfaced this as a
+		// hard 500 instead of silently mixing every tenant's data into one Nil bucket.
+		SetContext(c, &RequestContext{UserID: claims.Sub, OrganizationID: claims.TenantID})
+
 		return c.Next()
 	}
 }
@@ -317,6 +326,15 @@ func MFATokenMiddleware(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti
 		c.Locals("permissions", claims.Permissions)
 		c.Locals("feature_flags", claims.FeatureFlags)
 		c.Locals("jti", claims.JTI)
+
+		// middleware.GetContext(c) is what compliance/risk/asset/mitigation/dashboard/
+		// multitenancy handlers actually read their tenant_id/user_id from (a third,
+		// separate context mechanism from the c.Locals keys above) — nothing in production
+		// ever called SetContext before this, so every one of those handlers silently fell
+		// back to uuid.Nil for the tenant, regardless of who was logged in. The nil-tenant
+		// guard in GormComplianceRepository.CreateControl is what finally surfaced this as a
+		// hard 500 instead of silently mixing every tenant's data into one Nil bucket.
+		SetContext(c, &RequestContext{UserID: claims.Sub, OrganizationID: claims.TenantID})
 		c.Locals("mfa_required", true) // Flag for MFA challenge
 
 		return c.Next()

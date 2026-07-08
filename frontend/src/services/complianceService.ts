@@ -12,9 +12,22 @@ import type {
   CreateFrameworkInput,
   CreateControlInput,
   UpdateControlInput,
+  ComplianceCatalogSummary,
+  ImportCatalogInput,
+  ImportCatalogResult,
 } from '../types/compliance';
 
 export const complianceService = {
+  listCatalogs: async (): Promise<ComplianceCatalogSummary[]> => {
+    const response = await api.get<ComplianceCatalogSummary[]>('/compliance/catalogs');
+    return response.data;
+  },
+
+  importCatalog: async (frameworkId: string, payload: ImportCatalogInput): Promise<ImportCatalogResult> => {
+    const response = await api.post<ImportCatalogResult>(`/compliance/frameworks/${frameworkId}/import-catalog`, payload);
+    return response.data;
+  },
+
   listFrameworks: async (): Promise<ComplianceFramework[]> => {
     const response = await api.get<ComplianceFramework[]>('/compliance/frameworks');
     return response.data;

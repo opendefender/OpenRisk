@@ -21,6 +21,10 @@ export type CreateFrameworkInput = components['schemas']['CreateFrameworkInput']
 export type CreateControlInput = components['schemas']['CreateControlInput'];
 export type UpdateControlInput = components['schemas']['UpdateControlInput'];
 
+export type ComplianceCatalogSummary = components['schemas']['ComplianceCatalogSummary'];
+export type ImportCatalogInput = components['schemas']['ImportCatalogInput'];
+export type ImportCatalogResult = components['schemas']['ImportCatalogResult'];
+
 export const CONTROL_STATUSES: ControlStatus[] = [
   'not_implemented',
   'in_progress',

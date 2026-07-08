@@ -54,6 +54,7 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			reference_code TEXT NOT NULL DEFAULT '',
 			name TEXT NOT NULL,
 			description TEXT,
+			source_reference TEXT NOT NULL DEFAULT '',
 			status TEXT NOT NULL DEFAULT 'not_implemented',
 			created_at DATETIME,
 			updated_at DATETIME,
