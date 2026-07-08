@@ -1,5 +1,16 @@
 # 🗺️ OPENRISK — ROADMAP
 
+> **Vision cible (Master Prompt).** L'utilisateur a fourni le 08/07/2026 un document de vision long
+> terme complet — voir [`docs/MASTER_PROMPT_V4.md`](docs/MASTER_PROMPT_V4.md). Il couvre 18 modules
+> (Score Engine → Plugin Marketplace) + un design system/animations + une stratégie growth. Les
+> modules 14.9–14.18 y correspondent déjà 1:1 aux différenciateurs de la Wave 2 ci-dessous (PAM Audit
+> Trail, Access Review, Data Discovery, Board Report, Digital Twin, War Room, Attack Path, Champions,
+> Offline-First, Marketplace) — ce n'est pas un nouveau plan, c'est la source dont cette roadmap est
+> déjà partiellement dérivée. Ce qui en ressort de nouveau et pas encore reflété ici : la section
+> Design System (tokens couleur/animation précis) et la stratégie Billing/Growth (17.2 + Partie C),
+> toutes deux non commencées. Avant d'implémenter un module cité dans ce document, vérifier son état
+> réel dans `ROADMAP.md` (ce fichier) plutôt que de supposer qu'il correspond à son statut narratif.
+>
 > **Source de vérité d'exécution.** Cette roadmap est fondée sur l'inspection du code réel du dépôt `opendefender/OpenRisk`. Audit initial : branche `master`, clone du 26 juin 2026. **Rafraîchi le 07/07/2026** sur la branche `fix/cti-build-conflict` par relecture directe des migrations/domaine/repos/handlers/frontend + exécution de `go build`, `go vet`, `go test`, `npm run build`. Les statuts ne reflètent PAS le README ni les anciens documents — uniquement ce qui existe dans le code, vérifié à la date ci-dessus.
 >
 > **Règle d'or.** On n'avance pas en largeur tant qu'une vague n'est pas réellement terminée (Definition of Done, §6). On ne marque jamais ✅ sans preuve (test CI vert + revue humaine). Statuts honnêtes uniquement : `✅ Fait` · `🟡 Partiel` (gaps listés) · `❌ Non commencé`.
