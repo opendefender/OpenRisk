@@ -20,6 +20,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/rs/zerolog"
 
+	assetapp "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/application/auth"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
@@ -125,6 +126,7 @@ func main() {
 		&domain.Risk{},
 		&domain.Mitigation{},
 		&domain.Asset{},
+		&domain.AssetSnapshot{},
 		&domain.RiskHistory{},
 		&domain.CustomField{},
 		&domain.CustomFieldTemplate{},
@@ -491,9 +493,34 @@ func main() {
 	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
 	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
 
+	// Assets (M3 — see ROADMAP.md §3). Previously these two routes bypassed
+	// RBAC entirely (any authenticated user, any role, could write inventory
+	// data) — now gated the same way as risks/compliance.
+	assetRepo := repository.NewGormAssetRepository(database.DB)
+	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo)
+	getAssetUC := assetapp.NewGetAssetUseCase(assetRepo)
+	listAssetsUC := assetapp.NewListAssetsUseCase(assetRepo)
+	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo)
+	deleteAssetUC := assetapp.NewDeleteAssetUseCase(assetRepo)
+	listAssetSnapshotsUC := assetapp.NewListAssetSnapshotsUseCase(assetRepo)
+	assetHandler := handlers.NewAssetHandler(
+		createAssetUC, getAssetUC, listAssetsUC, updateAssetUC, deleteAssetUC, listAssetSnapshotsUC,
+		redisClientInstance,
+	)
+
+	assetRead := middleware.RequirePermission("assets:read")
+	assetCreate := middleware.RequirePermission("assets:create")
+	assetUpdate := middleware.RequirePermission("assets:update")
+	assetDelete := middleware.RequirePermission("assets:delete")
+
+	protected.Get("/assets", assetRead, assetHandler.ListAssets)
+	protected.Post("/assets", assetCreate, assetHandler.CreateAsset)
+	protected.Get("/assets/:id", assetRead, assetHandler.GetAsset)
+	protected.Patch("/assets/:id", assetUpdate, assetHandler.UpdateAsset)
+	protected.Delete("/assets/:id", assetDelete, assetHandler.DeleteAsset)
+	protected.Get("/assets/:id/history", assetRead, assetHandler.GetAssetHistory)
+
 	api.Get("/users/me", authHandler.GetProfile)
-	api.Get("/assets", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.GetAssets)
-	api.Post("/assets", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.CreateAsset)
 	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
 	api.Get("/stats/risk-distribution", cacheableHandlers.CacheDashboardStatsGET(handlers.GetRiskDistribution))
 	api.Get("/stats/mitigation-metrics", cacheableHandlers.CacheDashboardStatsGET(handlers.GetMitigationMetrics))

@@ -17,7 +17,6 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/middleware"
-	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -111,23 +110,25 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	}
 
 	// Link Assets (fallback until AssetRepo introduced)
+	var linkedAssets []*domain.Asset
 	if len(input.AssetIDs) > 0 {
-		var assets []*domain.Asset
 		query := database.DB
 		if mwCtx != nil {
 			query = query.Where("organization_id = ?", mwCtx.OrganizationID)
 		}
-		if err := query.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
-			domainRisk.Assets = assets
+		if err := query.Where("id IN ?", input.AssetIDs).Find(&linkedAssets).Error; err == nil {
+			domainRisk.Assets = linkedAssets
 			// Save relationships (no direct score compute — publish Redis event instead)
-			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(assets); err != nil {
+			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(linkedAssets); err != nil {
 				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
 			}
 		}
 	}
 
 	// RULE #12: Score Engine is NEVER called directly from handler.
-	// Always publish Redis event → ScoreWorker listens and recalculates async.
+	// Always publish Redis event → ScoreWorker listens and recalculates async,
+	// using the real criticality of whichever assets were just linked instead
+	// of a hardcoded placeholder.
 	userID := uuid.Nil
 	if mwCtx != nil {
 		userID = mwCtx.UserID
@@ -138,7 +139,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 			TenantID:         orgID.String(),
 			Probability:      float64(domainRisk.Probability),
 			Impact:           float64(domainRisk.Impact),
-			AssetCriticality: 1.0, // Default; will be recalculated by worker
+			AssetCriticality: averageAssetCriticalityFactor(linkedAssets),
 			TriggeredBy:      userID.String(),
 		}
 		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
@@ -300,28 +301,68 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	}
 
 	if len(input.AssetIDs) > 0 {
-		var assets []*domain.Asset
+		var linkedAssets []*domain.Asset
 		query := database.DB
 		if mwCtx != nil {
 			query = query.Where("organization_id = ?", mwCtx.OrganizationID)
 		}
-		if err := query.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err == nil {
-			domainRisk.Assets = assets
-			domainRisk.Score = service.ComputeRiskScore(domainRisk.Impact, domainRisk.Probability, assets)
-			
-			database.DB.Save(domainRisk)
-			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(assets); err != nil {
+		if err := query.Where("id IN ?", input.AssetIDs).Find(&linkedAssets).Error; err == nil {
+			domainRisk.Assets = linkedAssets
+			// No direct score compute here (RULE #12) — save the association,
+			// then publish a Redis event below so the ScoreWorker recalculates
+			// via the real Score Engine, same as CreateRisk.
+			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(linkedAssets); err != nil {
 				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
 			}
 		}
 	}
 
 	var out domain.Risk
-	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", riskID).Error; err != nil {
-		return c.JSON(domainRisk)
+	hasOut := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", riskID).Error == nil
+
+	// RULE #12: Score Engine is NEVER called directly from handler.
+	// Always publish Redis event → ScoreWorker listens and recalculates async.
+	// Uses the risk's currently linked assets — freshly replaced above if this
+	// update touched asset_ids, or its pre-existing ones otherwise — so an
+	// Impact/Probability-only edit still gets a criticality-adjusted score.
+	assetsForScoring := domainRisk.Assets
+	if hasOut {
+		assetsForScoring = out.Assets
+	}
+	if h.redisClient != nil {
+		userID := uuid.Nil
+		if mwCtx != nil {
+			userID = mwCtx.UserID
+		}
+		event := events.RiskUpdatedEvent{
+			RiskID:           domainRisk.ID.String(),
+			TenantID:         orgID.String(),
+			Probability:      float64(domainRisk.Probability),
+			Impact:           float64(domainRisk.Impact),
+			AssetCriticality: averageAssetCriticalityFactor(assetsForScoring),
+			TriggeredBy:      userID.String(),
+		}
+		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
 	}
 
+	if !hasOut {
+		return c.JSON(domainRisk)
+	}
 	return c.JSON(out)
+}
+
+// averageAssetCriticalityFactor averages domain.AssetCriticality.ScoreFactor()
+// across a risk's linked assets, for the Redis event consumed by ScoreWorker.
+// Defaults to 1.0 (neutral) when a risk has no linked assets yet.
+func averageAssetCriticalityFactor(assets []*domain.Asset) float64 {
+	if len(assets) == 0 {
+		return 1.0
+	}
+	var sum float64
+	for _, a := range assets {
+		sum += a.Criticality.ScoreFactor()
+	}
+	return sum / float64(len(assets))
 }
 
 // DeleteRisk godoc

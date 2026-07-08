@@ -893,6 +893,112 @@ paths:
         '401':
           description: Unauthorized
 
+  /assets/{id}:
+    get:
+      tags:
+        - Assets
+      summary: Get asset by ID
+      operationId: getAsset
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Asset details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '404':
+          description: Asset not found
+
+    patch:
+      tags:
+        - Assets
+      summary: Update asset
+      operationId: updateAsset
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssetInput'
+      responses:
+        '200':
+          description: Asset updated. If criticality changed, every linked
+            risk's score is recalculated asynchronously by the Score Engine
+            worker.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        '400':
+          description: Invalid input
+        '404':
+          description: Asset not found
+
+    delete:
+      tags:
+        - Assets
+      summary: Delete asset
+      operationId: deleteAsset
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Asset deleted
+        '404':
+          description: Asset not found
+
+  /assets/{id}/history:
+    get:
+      tags:
+        - Assets
+      summary: Get asset history (snapshots taken before each update/delete)
+      operationId: getAssetHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Asset history, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssetSnapshot'
+        '404':
+          description: Asset not found
+
   # ==================== STATISTICS ====================
   /stats:
     get:
@@ -1156,6 +1262,22 @@ components:
         external_id:
           type: string
           example: "db-prod-001"
+
+    UpdateAssetInput:
+      type: object
+      description: Partial update — omitted fields are left unchanged.
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [Server, Laptop, Database, SaaS, Network, Storage]
+        criticality:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        owner:
+          type: string
 
     # ========== RESPONSE SCHEMAS ==========
     AuthResponse:
@@ -1522,6 +1644,32 @@ components:
           type: string
           format: date-time
         updated_at:
+          type: string
+          format: date-time
+
+    AssetSnapshot:
+      type: object
+      description: An asset's state captured immediately before an update or deletion.
+      properties:
+        id:
+          type: string
+          format: uuid
+        asset_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        criticality:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        owner:
+          type: string
+        reason:
+          type: string
+          enum: [update, delete]
+        created_at:
           type: string
           format: date-time
 

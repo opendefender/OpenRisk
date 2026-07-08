@@ -142,7 +142,10 @@
     "failedToCreateControl": "Échec de la création du contrôle",
     "failedToUpdateControl": "Échec de la mise à jour du contrôle",
     "failedToUploadEvidence": "Échec du dépôt de la preuve",
-    "failedToDeleteEvidence": "Échec de la suppression de la preuve"
+    "failedToDeleteEvidence": "Échec de la suppression de la preuve",
+    "failedToCreateAsset": "Échec de la création de l'actif",
+    "failedToUpdateAsset": "Échec de la mise à jour de l'actif",
+    "failedToDeleteAsset": "Échec de la suppression de l'actif"
   },
   "messages": {
     "riskCreatedSuccess": "Risque créé avec succès",
@@ -274,6 +277,39 @@
       "empty": "Aucun catalogue disponible",
       "importSuccess": "{imported} contrôles importés ({skipped} déjà présents)",
       "importError": "Échec de l'import du catalogue"
+    }
+  },
+  "assets": {
+    "title": "Inventaire des actifs",
+    "description": "Gérez l'infrastructure et les risques associés.",
+    "createAsset": "Ajouter un actif",
+    "editAsset": "Modifier l'actif",
+    "createSuccess": "Actif ajouté à l'inventaire",
+    "updateSuccess": "Actif mis à jour",
+    "deleteSuccess": "Actif supprimé",
+    "confirmDelete": "Supprimer l'actif \"{name}\" ? Cette action est irréversible.",
+    "noAssets": "Aucun actif trouvé",
+    "noAssetsDescription": "Ajoutez-en un ou synchronisez OpenAsset.",
+    "activeRisks": "Risques actifs",
+    "history": "Historique",
+    "historyTitle": "Historique — {name}",
+    "noHistory": "Aucun historique",
+    "noHistoryDescription": "Les modifications de cet actif apparaîtront ici.",
+    "historyReason": {
+      "update": "Mis à jour",
+      "delete": "Supprimé"
+    },
+    "form": {
+      "name": "Nom de l'actif",
+      "type": "Type",
+      "criticality": "Criticité",
+      "owner": "Propriétaire"
+    },
+    "criticality": {
+      "LOW": "Faible",
+      "MEDIUM": "Moyenne",
+      "HIGH": "Élevée",
+      "CRITICAL": "Critique"
     }
   }
 }
