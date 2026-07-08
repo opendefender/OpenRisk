@@ -45,7 +45,8 @@ func (r *GormUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 // GetByEmail retrieves a user by email
 func (r *GormUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
-	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
+	// Preload Role: the login response serializes it, and the frontend needs the role name for RBAC.
+	err := r.db.WithContext(ctx).Preload("Role").Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

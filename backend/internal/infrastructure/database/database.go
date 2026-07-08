@@ -58,6 +58,13 @@ func Connect() {
 		// sentinel errors (e.g. errors.Is(err, gorm.ErrDuplicatedKey))
 		// instead of parsing driver-specific error codes.
 		TranslateError: true,
+		// GORM's AutoMigrate topologically reorders models to satisfy FK constraints,
+		// but with 15+ interrelated domain models (some intentionally cyclic, e.g.
+		// User.DefaultOrg <-> Organization.Owner) that ordering isn't reliable and
+		// AutoMigrate can crash on a fresh DB. Referential integrity across tenants is
+		// already enforced at the application layer (tenant_id filtering on every query,
+		// see CLAUDE.md), so DB-level FK constraints aren't load-bearing here.
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 
 	if err != nil {

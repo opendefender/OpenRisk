@@ -59,12 +59,13 @@ type TokenPair struct {
 
 // TokenManager handles token operations
 type TokenManager struct {
-	db *gorm.DB
+	db      *gorm.DB
+	rsaKeys *RSAKeys
 }
 
 // NewTokenManager creates a new token manager
-func NewTokenManager(db *gorm.DB) *TokenManager {
-	return &TokenManager{db: db}
+func NewTokenManager(db *gorm.DB, rsaKeys *RSAKeys) *TokenManager {
+	return &TokenManager{db: db, rsaKeys: rsaKeys}
 }
 
 // GenerateTokenPair generates a new access and refresh token pair
@@ -101,14 +102,7 @@ func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID 
 		FeatureFlags: featureFlags,
 	}
 
-	// Load RSA keys (this should be injected, but for now we'll assume they're available)
-	// In production, this should be injected via dependency injection
-	rsaKeys := MustLoadRSAKeys(
-		"/path/to/private.pem", // This should be from config
-		"/path/to/public.pem",  // This should be from config
-	)
-
-	accessToken, err := GenerateAccessToken(rsaKeys, claims)
+	accessToken, err := GenerateAccessToken(tm.rsaKeys, claims)
 	if err != nil {
 		// Clean up the refresh token if access token generation fails
 		tm.db.WithContext(ctx).Delete(refreshToken)

@@ -62,9 +62,6 @@ func main() {
 	// Connexion Base de Données
 	database.Connect()
 
-	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
-	migrations.RunMigrations()
-
 	// =========================================================================
 	// 1.5 CACHE INITIALIZATION
 	// =========================================================================
@@ -122,6 +119,9 @@ func main() {
 	log.Println("Database: Running Auto-Migrations...")
 	if err := database.DB.AutoMigrate(
 		&domain.User{},
+		&domain.Organization{},
+		&domain.OrganizationMember{},
+		&coreauth.RefreshToken{},
 		&domain.Risk{},
 		&domain.Mitigation{},
 		&domain.Asset{},
@@ -132,14 +132,19 @@ func main() {
 		&domain.BulkOperationLog{},
 		&domain.Team{},
 		&domain.TeamMember{},
-		&domain.Connector{},
-		&domain.MarketplaceApp{},
-		&domain.ConnectorUpdate{},
-		&domain.MarketplaceLog{},
+		// domain.Connector / MarketplaceApp / ConnectorUpdate / MarketplaceLog are intentionally
+		// excluded: they carry only `json:` tags (no `gorm:` tags, no primary key), so AutoMigrate
+		// fatally errors on them ("unsupported data type"). Marketplace is a pre-existing partial
+		// module (see ROADMAP.md) — needs real GORM tagging before it can be added back here.
 		&domain.AdminAuditEvent{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
+
+	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
+	// Must run after AutoMigrate: these SQL migrations add indices/tables/FKs on top of
+	// the base tables (users, organizations, risks, ...) that AutoMigrate creates first.
+	migrations.RunMigrations()
 
 	// Création du compte Admin par défaut si la DB est vide
 	// Cela garantit que l'app est utilisable immédiatement après déploiement.
@@ -306,11 +311,14 @@ func main() {
 	}
 	notificationService := notify.NewEmailService(email.NewMockService(), emailFromAddr, appBaseURL)
 
-	// Initialize password hasher (use bcrypt in production)
-	passwordHasher := coreauth.NewSimplePasswordHasher()
+	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
+	passwordHasher := coreauth.NewArgon2idPasswordHasher()
 
-	// Initialize token manager (access/refresh JWT pairs, backed by the DB)
-	tokenManager := coreauth.NewTokenManager(database.DB)
+	// Initialize token manager (access/refresh JWT pairs, backed by the DB).
+	// internal/auth has its own RSAKeys type (distinct from pkg/auth's, used for
+	// middleware.Protected above) — load the same PEM files into that type here.
+	coreRSAKeys := coreauth.MustLoadRSAKeys(cfg.Server.RSAPrivateKeyPath, cfg.Server.RSAPublicKeyPath)
+	tokenManager := coreauth.NewTokenManager(database.DB, coreRSAKeys)
 
 	// Initialize use cases
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher)
@@ -455,37 +463,23 @@ func main() {
 		getProgressUC,
 	)
 
-	// Frameworks are global — Create is effectively admin-only because
-	// only the admin role's "*" wildcard grants ComplianceFramework:create
-	// (Analyst/Viewer only get Read, see permission.go). Controls/evidences
-	// are tenant-scoped and safe to grant more broadly.
-	complianceFrameworkRead := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceFramework, Action: domain.PermissionRead,
-	})
-	complianceFrameworkCreate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceFramework, Action: domain.PermissionCreate,
-	})
-	complianceControlRead := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionRead,
-	})
-	complianceControlCreate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionCreate,
-	})
-	complianceControlUpdate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionUpdate,
-	})
-	complianceControlDelete := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceControl, Action: domain.PermissionDelete,
-	})
-	complianceEvidenceRead := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionRead,
-	})
-	complianceEvidenceCreate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionCreate,
-	})
-	complianceEvidenceDelete := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceComplianceEvidence, Action: domain.PermissionDelete,
-	})
+	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
+	// RS256) stores the *new* multi-tenant claims in c.Locals("user")/("permissions"). The
+	// legacy middleware.RequirePermissions expects the old HMAC-era *domain.UserClaims instead,
+	// so it always failed the type assertion here ("user context not found", 401 on every
+	// request) — the granular admin/analyst/viewer split below was never actually reachable.
+	// middleware.RequirePermission (singular) is the one that matches what's really in context;
+	// domain.PermissionSet only grants "*" to root/admin org members today (no per-resource
+	// Profile rules for compliance yet), so this is admin/root-only until that's extended.
+	complianceFrameworkRead := middleware.RequirePermission("compliance:frameworks:read")
+	complianceFrameworkCreate := middleware.RequirePermission("compliance:frameworks:create")
+	complianceControlRead := middleware.RequirePermission("compliance:controls:read")
+	complianceControlCreate := middleware.RequirePermission("compliance:controls:create")
+	complianceControlUpdate := middleware.RequirePermission("compliance:controls:update")
+	complianceControlDelete := middleware.RequirePermission("compliance:controls:delete")
+	complianceEvidenceRead := middleware.RequirePermission("compliance:evidences:read")
+	complianceEvidenceCreate := middleware.RequirePermission("compliance:evidences:create")
+	complianceEvidenceDelete := middleware.RequirePermission("compliance:evidences:delete")
 
 	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
 	protected.Post("/compliance/frameworks", complianceFrameworkCreate, complianceHandler.CreateFramework)

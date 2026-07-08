@@ -39,26 +39,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isAuthenticated: !!localStorage.getItem('auth_token'),
 
   login: async (email, password) => {
+    // Backend shape: { user: domain.User, token_pair: { access_token, refresh_token, expires_in }, organization }
+    // domain.User.role is a nested Role object (or absent) — flatten to the role name this store expects.
     const { data } = await api.post('/auth/login', { email, password });
-    
-    localStorage.setItem('auth_token', data.token);
-    localStorage.setItem('auth_user', JSON.stringify(data.user));
-    localStorage.setItem('auth_expires_in', data.expires_in.toString());
-    
-    set({ 
-      token: data.token, 
-      user: data.user,
-      expiresIn: data.expires_in,
+    const user: User = { ...data.user, role: data.user.role?.name ?? '' };
+
+    localStorage.setItem('auth_token', data.token_pair.access_token);
+    localStorage.setItem('auth_refresh_token', data.token_pair.refresh_token);
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    localStorage.setItem('auth_expires_in', data.token_pair.expires_in.toString());
+
+    set({
+      token: data.token_pair.access_token,
+      user,
+      expiresIn: data.token_pair.expires_in,
       isAuthenticated: true
     });
   },
 
   logout: () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_refresh_token');
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_expires_in');
-    set({ 
-      token: null, 
+    set({
+      token: null,
       user: null,
       expiresIn: null,
       isAuthenticated: false
@@ -67,16 +72,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   refreshToken: async () => {
     try {
-      const { data } = await api.post('/auth/refresh', {});
-      
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
-      localStorage.setItem('auth_expires_in', data.expires_in.toString());
-      
-      set({ 
-        token: data.token, 
-        user: data.user,
-        expiresIn: data.expires_in
+      const refresh_token = localStorage.getItem('auth_refresh_token');
+      const { data } = await api.post('/auth/refresh', { refresh_token });
+
+      localStorage.setItem('auth_token', data.token_pair.access_token);
+      localStorage.setItem('auth_refresh_token', data.token_pair.refresh_token);
+      localStorage.setItem('auth_expires_in', data.token_pair.expires_in.toString());
+
+      set({
+        token: data.token_pair.access_token,
+        expiresIn: data.token_pair.expires_in
       });
     } catch (err) {
       // Token refresh failed, logout user
