@@ -4,19 +4,22 @@
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../../../lib/api';
-import { Loader2, AlertCircle, AlertTriangle, AlertOctagon } from 'lucide-react';
+import { AlertCircle, AlertTriangle, AlertOctagon } from 'lucide-react';
 
 interface Vulnerability {
   id: string;
   title: string;
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
-  cvssScore?: number;
-  affectedAssets?: number;
+  // Backend sends lowercase risks.criticality ("critical"|"high"|"medium"|"low"),
+  // kept optional/untyped here since API response shape shouldn't be trusted blindly.
+  severity?: string;
+  score?: number;
+  assets_affected?: number;
 }
 
-const getSeverityColor = (severity: string) => {
-  switch (severity.toLowerCase()) {
+const getSeverityColor = (severity: string | undefined) => {
+  switch ((severity ?? 'low').toLowerCase()) {
     case 'critical':
       return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30', badge: 'bg-red-500/20' };
     case 'high':
@@ -28,8 +31,8 @@ const getSeverityColor = (severity: string) => {
   }
 };
 
-const getSeverityIcon = (severity: string) => {
-  switch (severity.toLowerCase()) {
+const getSeverityIcon = (severity: string | undefined) => {
+  switch ((severity ?? 'low').toLowerCase()) {
     case 'critical':
       return AlertOctagon;
     case 'high':
@@ -66,9 +69,10 @@ export const TopVulnerabilities = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-full text-zinc-500">
-        <Loader2 className="animate-spin mr-2" size={20} />
-        Loading Vulnerabilities...
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-16 animate-pulse rounded-lg bg-white/5 border border-white/10" />
+        ))}
       </div>
     );
   }
@@ -90,8 +94,11 @@ export const TopVulnerabilities = () => {
           const Icon = getSeverityIcon(vuln.severity);
 
           return (
-            <div
+            <motion.div
               key={vuln.id}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: Math.min(index * 0.05, 0.3) }}
               className={`group p-3 rounded-lg border ${colors.border} ${colors.bg} hover:bg-white/5 transition-all duration-200 cursor-pointer transform hover:scale-102`}
             >
               <div className="flex items-start gap-3">
@@ -106,18 +113,18 @@ export const TopVulnerabilities = () => {
                   
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs font-bold px-2 py-1 rounded ${colors.badge} ${colors.text} border ${colors.border}`}>
-                      {vuln.severity}
+                      {(vuln.severity ?? 'low').toUpperCase()}
                     </span>
                     
-                    {vuln.cvssScore && (
+                    {!!vuln.score && (
                       <span className="text-xs text-zinc-400">
-                        CVSS: <span className="text-white font-bold">{vuln.cvssScore}</span>
+                        Score: <span className="text-white font-bold">{vuln.score.toFixed(1)}</span>
                       </span>
                     )}
-                    
-                    {vuln.affectedAssets && (
+
+                    {!!vuln.assets_affected && (
                       <span className="text-xs text-zinc-400">
-                        <span className="text-white font-bold">{vuln.affectedAssets}</span> assets
+                        <span className="text-white font-bold">{vuln.assets_affected}</span> assets
                       </span>
                     )}
                   </div>
@@ -127,7 +134,7 @@ export const TopVulnerabilities = () => {
                   →
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })
       ) : (

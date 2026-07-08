@@ -11,7 +11,12 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type Status = 'open' | 'in_progress' | 'mitigated' | 'accepted' | 'closed';
+// Accepts any backend status string — domain.RiskStatus alone has two overlapping
+// vocabularies in play (lowercase "open"/"in_progress"/... and uppercase
+// "DRAFT"/"ACTIVE"/...), and domain.MitigationStatus is a third ("PLANNED"/"REVIEW"/
+// "DONE"/...). A strict literal union here previously fell through with no `default`,
+// returning undefined and crashing every caller on `.bg` for any real backend value.
+type Status = string;
 
 interface StatusDotProps {
   status: Status;
@@ -21,20 +26,23 @@ interface StatusDotProps {
   withLabel?: boolean;
 }
 
-const getStatusConfig = (status: Status) => {
-  switch (status) {
-    case 'open':
-      return { bg: 'bg-red-500', label: 'Ouvert', textColor: 'text-red-400' };
-    case 'in_progress':
-      return { bg: 'bg-blue-500', label: 'En cours', textColor: 'text-blue-400' };
-    case 'mitigated':
-      return { bg: 'bg-amber-500', label: 'Atténué', textColor: 'text-amber-400' };
-    case 'accepted':
-      return { bg: 'bg-purple-500', label: 'Accepté', textColor: 'text-purple-400' };
-    case 'closed':
-      return { bg: 'bg-emerald-500', label: 'Fermé', textColor: 'text-emerald-400' };
-  }
+const STATUS_CONFIG: Record<string, { bg: string; label: string; textColor: string }> = {
+  open: { bg: 'bg-red-500', label: 'Ouvert', textColor: 'text-red-400' },
+  draft: { bg: 'bg-zinc-500', label: 'Brouillon', textColor: 'text-zinc-400' },
+  active: { bg: 'bg-red-500', label: 'Actif', textColor: 'text-red-400' },
+  in_progress: { bg: 'bg-blue-500', label: 'En cours', textColor: 'text-blue-400' },
+  planned: { bg: 'bg-blue-400', label: 'Planifié', textColor: 'text-blue-300' },
+  review: { bg: 'bg-violet-500', label: 'En revue', textColor: 'text-violet-400' },
+  mitigated: { bg: 'bg-amber-500', label: 'Atténué', textColor: 'text-amber-400' },
+  accepted: { bg: 'bg-purple-500', label: 'Accepté', textColor: 'text-purple-400' },
+  closed: { bg: 'bg-emerald-500', label: 'Fermé', textColor: 'text-emerald-400' },
+  done: { bg: 'bg-emerald-500', label: 'Terminé', textColor: 'text-emerald-400' },
+  cancelled: { bg: 'bg-zinc-500', label: 'Annulé', textColor: 'text-zinc-400' },
 };
+
+const DEFAULT_STATUS_CONFIG = { bg: 'bg-zinc-500', label: 'Inconnu', textColor: 'text-zinc-400' };
+
+const getStatusConfig = (status: Status) => STATUS_CONFIG[status?.toLowerCase()] ?? DEFAULT_STATUS_CONFIG;
 
 const getSizeClasses = (size: 'xs' | 'sm' | 'md') => {
   switch (size) {

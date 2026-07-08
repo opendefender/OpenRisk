@@ -7,6 +7,7 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
@@ -18,20 +19,29 @@ func Protected(rsaKeys *authpkg.RSAKeys, blacklistChecker func(jti string) (bool
 	return AuthMiddlewareRS256(rsaKeys, blacklistChecker)
 }
 
-// RequireRole middleware checks if user has required role(s)
+// RequireRole middleware checks if user has required role(s).
+//
+// NOTE: this used to read c.Locals("role") as a flat string — a key
+// AuthMiddlewareRS256 never sets (it sets "org_roles", a map[uuid.UUID]string,
+// instead; see auth.go). Every route guarded by RequireRole therefore returned 401
+// "No role in token" unconditionally, for every caller, regardless of their actual
+// role — this broke every mitigation/incident/risk-management write route wholesale.
+// Fixed to read "org_roles" like RoleGuard already correctly does, and to match if
+// ANY of the caller's per-organization roles is in the allowed list.
 func RequireRole(roleNames ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		role, ok := c.Locals("role").(string)
-		if !ok || role == "" {
+		orgRoles, ok := c.Locals("org_roles").(map[uuid.UUID]string)
+		if !ok || len(orgRoles) == 0 {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "No role in token",
 			})
 		}
 
-		// Check if role is in allowed list
-		for _, allowed := range roleNames {
-			if role == allowed {
-				return c.Next()
+		for _, role := range orgRoles {
+			for _, allowed := range roleNames {
+				if role == allowed {
+					return c.Next()
+				}
 			}
 		}
 

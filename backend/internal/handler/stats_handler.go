@@ -14,11 +14,14 @@ import (
 
 // --- Structures pour la Matrice des Risques ---
 
-// RiskMatrixCell représente le décompte des risques pour une cellule (Impact, Proba)
+// RiskMatrixCell représente le décompte des risques pour une cellule (Impact, Proba).
+// Impact/Probability sont des float64 (colonnes NUMERIC en DB) — un ancien bug les
+// déclarait en int, ce qui faisait échouer le Scan GORM dès qu'une valeur n'était pas
+// entière (ex: probability=0.5), donc sur quasiment toute donnée réelle.
 type RiskMatrixCell struct {
-	Impact      int `json:"impact"`
-	Probability int `json:"probability"`
-	Count       int `json:"count"`
+	Impact      float64 `json:"impact"`
+	Probability float64 `json:"probability"`
+	Count       int     `json:"count"`
 }
 
 // GetRiskMatrixData calcule et retourne les données pour la matrice 5x5.
@@ -46,8 +49,8 @@ func GetRiskMatrixData(c *fiber.Ctx) error {
 
 // TrendPoint représente un point de données pour le graphique de tendance.
 type TrendPoint struct {
-	Date  string `json:"date"`  // Format YYYY-MM-DD
-	Score int    `json:"score"` // Score global ce jour-là
+	Date  string  `json:"date"`  // Format YYYY-MM-DD
+	Score float64 `json:"score"` // Score global ce jour-là (AVG() — jamais un entier)
 }
 
 // GetGlobalRiskTrend calcule l'évolution du score de sécurité total sur 30 jours.
@@ -55,7 +58,7 @@ type TrendPoint struct {
 func GetGlobalRiskTrend(c *fiber.Ctx) error {
 	var results []struct {
 		Date  string
-		Score int
+		Score float64
 	}
 
 	tenantID := safeGetUUID(c, "tenant_id")
@@ -176,14 +179,21 @@ func GetMitigationMetrics(c *fiber.Ctx) error {
 
 // --- Structures et Handler pour les Top Vulnerabilities ---
 
+// Score/Impact/Probability are float64 — see RiskMatrixCell's comment above for why
+// declaring them as int silently breaks GORM's Scan on real (non-integer) data.
 type TopVulnerability struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Score       int    `json:"score"`
-	Impact      int    `json:"impact"`
-	Probability int    `json:"probability"`
-	Status      string `json:"status"`
-	Assets      int    `json:"assets_affected"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Score       float64 `json:"score"`
+	Impact      float64 `json:"impact"`
+	Probability float64 `json:"probability"`
+	Status      string  `json:"status"`
+	// Severity mirrors the risks.criticality column (kept in sync by ScoreWorker via
+	// the real Score Engine) — the frontend's TopVulnerabilities widget colors/labels
+	// each row from this field and used to crash on it being undefined, since this
+	// endpoint's Scan error (see above) meant it had never returned real rows before.
+	Severity string `json:"severity"`
+	Assets   int    `json:"assets_affected"`
 }
 
 // GetTopVulnerabilities retourne les risques les plus critiques
@@ -198,9 +208,9 @@ func GetTopVulnerabilities(c *fiber.Ctx) error {
 	var vulnerabilities []TopVulnerability
 
 	err := database.DB.Table("risks").
-		Select("id, title, score, impact, probability, status, COUNT(DISTINCT asset_id) as assets_affected").
+		Select("id, title, score, impact, probability, status, criticality as severity, COUNT(DISTINCT asset_id) as assets_affected").
 		Where("deleted_at IS NULL AND tenant_id = ?", tenantID).
-		Group("id, title, score, impact, probability, status").
+		Group("id, title, score, impact, probability, status, criticality").
 		Order("score DESC").
 		Limit(limit).
 		Find(&vulnerabilities).Error

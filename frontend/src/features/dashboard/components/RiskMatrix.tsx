@@ -4,8 +4,8 @@
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
 import { useEffect, useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../../../lib/api';
-import { Loader2 } from 'lucide-react';
 
 interface MatrixCellData {
     impact: number;
@@ -13,9 +13,16 @@ interface MatrixCellData {
     count: number;
 }
 
-// Fonction pour déterminer la couleur du risque 
-const getCellColor = (impact: number, probability: number, count: number) => {
-    const score = impact * probability;
+// The API returns raw impact (0.0–10.0) and probability (0.0–1.0) — CLAUDE.md's Score
+// Engine domain — not pre-bucketed 1-5 integers. Bucket them onto the 5x5 grid here
+// instead of comparing raw values directly (which would almost never match, since
+// probability is continuous and impact/probability=0 previously bucketed to nothing).
+const bucketImpact = (impact: number) => Math.min(5, Math.max(1, Math.ceil(impact / 2) || 1));
+const bucketProbability = (probability: number) => Math.min(5, Math.max(1, Math.ceil(probability / 0.2) || 1));
+
+// Fonction pour déterminer la couleur du risque (buckets 1-5 sur chaque axe)
+const getCellColor = (impactBucket: number, probabilityBucket: number, count: number) => {
+    const score = impactBucket * probabilityBucket;
     if (count === 0) return 'bg-zinc-900 border-zinc-700 hover:bg-zinc-800';
 
     if (score >= 15) return 'bg-red-700/50 border-red-600 ring-red-500/30';
@@ -35,17 +42,26 @@ export const RiskMatrix = () => {
             .finally(() => setIsLoading(false));
     }, []);
 
-    // Transformation des données en un format de carte 5x5
+    // Transformation des données en un format de carte 5x5 — agrège les cellules brutes
+    // (impact/probability continus) dans les buckets 1-5 correspondants, en sommant les
+    // counts des cellules qui tombent dans le même bucket.
     const matrixMap = useMemo(() => {
         const map = new Map<string, number>();
         data.forEach(cell => {
-            map.set(`${cell.impact}-${cell.probability}`, cell.count);
+            const key = `${bucketImpact(cell.impact)}-${bucketProbability(cell.probability)}`;
+            map.set(key, (map.get(key) ?? 0) + cell.count);
         });
         return map;
     }, [data]);
 
     if (isLoading) {
-        return <div className="flex justify-center items-center h-full text-zinc-500"><Loader2 className="animate-spin mr-2" size={20} /> Loading Matrix...</div>;
+        return (
+            <div className="grid grid-cols-5 gap-1 p-4">
+                {Array.from({ length: 25 }).map((_, i) => (
+                    <div key={i} className="h-10 animate-pulse rounded-lg bg-white/5 border border-white/10" />
+                ))}
+            </div>
+        );
     }
 
     // Le Risk Matrix est généralement représenté avec la Probabilité sur l'axe Y et l'Impact sur l'axe X.
@@ -75,9 +91,13 @@ export const RiskMatrix = () => {
                                 const colorClass = getCellColor(i, p, count);
                                 
                                 return (
-                                    <div 
-                                        key={key} 
-                                        className={`h-10 flex items-center justify-center rounded-lg text-sm font-bold transition-all duration-150 cursor-pointer 
+                                    <motion.div
+                                        key={key}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: Math.min((i + (5 - p) * 5) * 0.012, 0.3) }}
+                                        whileHover={{ scale: 1.05 }}
+                                        className={`h-10 flex items-center justify-center rounded-lg text-sm font-bold transition-colors duration-150 cursor-pointer
                                                     ${colorClass} ${count > 0 ? 'ring-2' : ''}`}
                                         title={`Risks: ${count} | Score: ${i * p}`}
                                     >
@@ -86,7 +106,7 @@ export const RiskMatrix = () => {
                                         ) : (
                                             <span className="text-zinc-700/50">-</span>
                                         )}
-                                    </div>
+                                    </motion.div>
                                 );
                             })
                         ))}

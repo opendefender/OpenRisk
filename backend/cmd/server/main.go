@@ -406,27 +406,41 @@ func main() {
 	riskCreate := middleware.RequirePermission("risks:create")
 	riskUpdate := middleware.RequirePermission("risks:update")
 	riskDelete := middleware.RequirePermission("risks:delete")
-	// Backward compatibility: writerRole for other RBAC-based endpoints
-	writerRole := middleware.RequireRole("admin", "analyst")
 
 	protected.Post("/risks", riskCreate, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
-	// Mitigation Plans (CRUD)
-	protected.Post("/risks/:id/mitigations", writerRole, handlers.CreateMitigation)
-	protected.Get("/mitigations/:id", writerRole, handlers.GetMitigation)
-	protected.Get("/risks/:id/mitigations", writerRole, handlers.ListMitigationsByRisk)
-	protected.Patch("/mitigations/:id", writerRole, handlers.UpdateMitigation)
-	protected.Delete("/mitigations/:id", writerRole, handlers.DeleteMitigation)
-	protected.Patch("/mitigations/:id/validate", writerRole, handlers.ValidateMitigation)
+
+	// Mitigation Plans (CRUD). NOTE: this whole module previously used
+	// middleware.RequireRole ("writerRole"), which reads c.Locals("role") — a flat
+	// string AuthMiddlewareRS256 never sets (it sets "org_roles", a map, instead).
+	// Every mitigation route has therefore been returning 401 "No role in token" for
+	// every request regardless of caller — the same legacy-middleware bug class
+	// already fixed for /risks and /compliance/*, just never applied here. Switched
+	// to middleware.RequirePermission to match those two modules.
+	mitigationRead := middleware.RequirePermission("mitigations:read")
+	mitigationCreate := middleware.RequirePermission("mitigations:create")
+	mitigationUpdate := middleware.RequirePermission("mitigations:update")
+	mitigationDelete := middleware.RequirePermission("mitigations:delete")
+	// Still used by Incidents/Risk-Management routes below — now fixed to read
+	// org_roles correctly (see middleware.RequireRole's doc comment).
+	writerRole := middleware.RequireRole("admin", "analyst")
+
+	protected.Get("/mitigations", mitigationRead, handlers.ListMitigations)
+	protected.Post("/risks/:id/mitigations", mitigationCreate, handlers.CreateMitigation)
+	protected.Get("/mitigations/:id", mitigationRead, handlers.GetMitigation)
+	protected.Get("/risks/:id/mitigations", mitigationRead, handlers.ListMitigationsByRisk)
+	protected.Patch("/mitigations/:id", mitigationUpdate, handlers.UpdateMitigation)
+	protected.Delete("/mitigations/:id", mitigationDelete, handlers.DeleteMitigation)
+	protected.Patch("/mitigations/:id/validate", mitigationUpdate, handlers.ValidateMitigation)
 
 	// Sub-actions (checklist) for mitigations
-	protected.Post("/mitigations/:id/sub-actions", writerRole, handlers.CreateSubAction)
-	protected.Patch("/mitigations/:id/sub-actions/:aid", writerRole, handlers.UpdateSubAction)
-	protected.Post("/mitigations/:id/sub-actions/:aid/complete", writerRole, handlers.CompleteSubAction)
-	protected.Post("/mitigations/:id/sub-actions/:aid/revert", writerRole, handlers.RevertSubAction)
-	protected.Delete("/mitigations/:id/sub-actions/:aid", writerRole, handlers.DeleteSubAction)
-	protected.Patch("/mitigations/:id/reorder-subactions", writerRole, handlers.ReorderSubActions)
+	protected.Post("/mitigations/:id/sub-actions", mitigationCreate, handlers.CreateSubAction)
+	protected.Patch("/mitigations/:id/sub-actions/:aid", mitigationUpdate, handlers.UpdateSubAction)
+	protected.Post("/mitigations/:id/sub-actions/:aid/complete", mitigationUpdate, handlers.CompleteSubAction)
+	protected.Post("/mitigations/:id/sub-actions/:aid/revert", mitigationUpdate, handlers.RevertSubAction)
+	protected.Delete("/mitigations/:id/sub-actions/:aid", mitigationDelete, handlers.DeleteSubAction)
+	protected.Patch("/mitigations/:id/reorder-subactions", mitigationUpdate, handlers.ReorderSubActions)
 
 	// Scanner webhook for auto-completion (internal API key auth)
 	protected.Post("/scanner/mitigations/auto-complete", handlers.AutoCompleteMitigationSubAction)
