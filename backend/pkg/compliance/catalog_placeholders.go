@@ -5,38 +5,25 @@
 
 package compliance
 
-// Placeholder catalogs for the African regulatory frameworks planned in ROADMAP.md M2
-// (COBAC, BCEAO, ANSSI-CM, Cameroonian law 2024/017). Registered with Available: false and
-// no Controls: this is a deliberate decision, not an oversight — modeling specific article/
-// circular citations from training-data recall risks fabricating legal references, which is
-// worse than not having the framework at all in a product real compliance officers rely on.
-// Each needs real source documents (the regulator's actual text) before any controls are
-// added here. See ROADMAP.md §3 M2.
+// Placeholder catalog(s) for frameworks that are announced but not yet modeled because we
+// don't have the regulator's actual source text. Registered with Available: false and no
+// Controls, this is a deliberate choice, not an oversight: modeling specific article
+// citations from training-data recall risks fabricating legal references, which is worse
+// than not shipping the framework at all in a product real compliance officers rely on.
+//
+// The three previously-placeholder African frameworks (COBAC, BCEAO, and the Cameroonian
+// cybersecurity law) are now real, cited catalogs — see catalog_cobac_2016.go,
+// catalog_bceao_2002.go and catalog_antic_cm_2010.go — because the source documents were
+// provided. What remains here is a framework we still lack the text for.
 
 func init() {
 	register(Catalog{
-		Key:         "cobac",
-		Name:        "COBAC",
-		Version:     "",
-		Description: "Commission Bancaire de l'Afrique Centrale — not yet modeled, pending real source documents (circulaires COBAC).",
-		Available:   false,
-		Controls:    nil,
-	})
-	register(Catalog{
-		Key:         "bceao",
-		Name:        "BCEAO",
-		Version:     "",
-		Description: "Banque Centrale des États de l'Afrique de l'Ouest — not yet modeled, pending real source documents.",
-		Available:   false,
-		Controls:    nil,
-	})
-	register(Catalog{
-		Key:     "anssi-cm",
-		Name:    "ANSSI-CM",
+		Key:     "cm-loi-2024-017",
+		Name:    "Cameroun — Protection des données personnelles",
 		Version: "",
-		// Deliberately not asserting which Cameroonian body this refers to or its full name —
-		// that's exactly the kind of unverified specific claim this placeholder exists to avoid.
-		Description: "Cameroonian cybersecurity/regulatory directives (as referenced in ROADMAP.md M2) — not yet modeled, pending real source documents and confirmation of the issuing body.",
+		// Referenced in ROADMAP.md M2 as a planned framework. Kept as a placeholder until
+		// the actual legal text is available and reviewed — same policy as before.
+		Description: "Cadre camerounais de protection des données à caractère personnel — non encore modélisé, en attente du texte source officiel.",
 		Available:   false,
 		Controls:    nil,
 	})
