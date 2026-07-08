@@ -27,6 +27,8 @@ tags:
     description: Risk management - create, read, update, delete risks
   - name: Mitigations
     description: Mitigation planning and tracking
+  - name: Compliance
+    description: Compliance frameworks, controls, and evidence (M1)
   - name: Assets
     description: Asset management
   - name: Statistics
@@ -493,6 +495,301 @@ paths:
                 items:
                   $ref: '#/components/schemas/Mitigation'
 
+  # ==================== COMPLIANCE (M1) ====================
+  /compliance/frameworks:
+    get:
+      tags: [Compliance]
+      summary: List global compliance frameworks
+      operationId: listComplianceFrameworks
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List of frameworks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComplianceFramework'
+    post:
+      tags: [Compliance]
+      summary: Create a global compliance framework (admin only)
+      operationId: createComplianceFramework
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFrameworkInput'
+      responses:
+        '201':
+          description: Framework created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceFramework'
+        '400':
+          description: Invalid input
+        '403':
+          description: Forbidden — only Admin can create a global framework
+        '409':
+          description: A framework with this name and version already exists
+
+  /compliance/frameworks/{frameworkId}:
+    get:
+      tags: [Compliance]
+      summary: Get a compliance framework
+      operationId: getComplianceFramework
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Framework
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceFramework'
+        '404':
+          description: Framework not found
+
+  /compliance/frameworks/{frameworkId}/progress:
+    get:
+      tags: [Compliance]
+      summary: Get a tenant's compliance progress for a framework
+      operationId: getComplianceProgress
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Progress summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceProgress'
+
+  /compliance/frameworks/{frameworkId}/controls:
+    get:
+      tags: [Compliance]
+      summary: List a tenant's controls for a framework
+      operationId: listComplianceControls
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: List of controls
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComplianceControl'
+    post:
+      tags: [Compliance]
+      summary: Instantiate a control for a tenant under this framework
+      operationId: createComplianceControl
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateControlInput'
+      responses:
+        '201':
+          description: Control created (status defaults to not_implemented)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceControl'
+        '400':
+          description: Invalid input
+        '404':
+          description: Framework not found
+        '409':
+          description: A control with this reference_code already exists for this tenant+framework
+
+  /compliance/controls/{controlId}:
+    get:
+      tags: [Compliance]
+      summary: Get a control
+      operationId: getComplianceControl
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Control
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceControl'
+        '404':
+          description: Control not found
+    patch:
+      tags: [Compliance]
+      summary: Update a control (notably its implementation status)
+      operationId: updateComplianceControl
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateControlInput'
+      responses:
+        '200':
+          description: Control updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceControl'
+        '400':
+          description: Invalid status value
+        '404':
+          description: Control not found
+    delete:
+      tags: [Compliance]
+      summary: Delete a control (admin only)
+      operationId: deleteComplianceControl
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Control deleted
+        '403':
+          description: Forbidden — Delete is admin-only
+        '404':
+          description: Control not found
+
+  /compliance/controls/{controlId}/evidences:
+    get:
+      tags: [Compliance]
+      summary: List evidence attached to a control
+      operationId: listComplianceEvidences
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: List of evidence
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ControlEvidence'
+    post:
+      tags: [Compliance]
+      summary: Upload a file as evidence for a control
+      operationId: createComplianceEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Evidence uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlEvidence'
+        '400':
+          description: Missing file
+        '404':
+          description: Control not found
+
+  /compliance/evidences/{evidenceId}/download:
+    get:
+      tags: [Compliance]
+      summary: Download an evidence file
+      description: |
+        The only path to evidence file content — there is no public/static
+        URL. Tenant ownership is re-verified on every call.
+      operationId: downloadComplianceEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: evidenceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Evidence not found
+
+  /compliance/evidences/{evidenceId}:
+    delete:
+      tags: [Compliance]
+      summary: Delete an evidence record and its file (admin only)
+      operationId: deleteComplianceEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: evidenceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Evidence deleted
+        '403':
+          description: Forbidden — Delete is admin-only
+        '404':
+          description: Evidence not found
+
   # ==================== ASSETS ====================
   /assets:
     get:
@@ -945,6 +1242,145 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ComplianceFramework:
+      type: object
+      description: Global reference entity (not tenant-scoped), e.g. ISO 27001, COBAC.
+      required: [id, name, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateFrameworkInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+
+    ComplianceControl:
+      type: object
+      description: Tenant-scoped control instantiated under a global framework.
+      required: [id, tenant_id, framework_id, reference_code, name, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        framework_id:
+          type: string
+          format: uuid
+        reference_code:
+          type: string
+          example: A.5.1.1
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [not_implemented, in_progress, implemented, not_applicable]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateControlInput:
+      type: object
+      required: [name]
+      properties:
+        reference_code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+
+    UpdateControlInput:
+      type: object
+      description: Partial update — omitted fields are left unchanged.
+      properties:
+        reference_code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [not_implemented, in_progress, implemented, not_applicable]
+
+    ControlEvidence:
+      type: object
+      description: Tenant-scoped evidence file attached to a control.
+      required: [id, tenant_id, control_id, filename, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        control_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        description:
+          type: string
+        uploaded_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ComplianceProgress:
+      type: object
+      description: Computed, not persisted — tallies a tenant's controls for a framework by status.
+      required: [framework_id, total, by_status, applicable, percent_complete]
+      properties:
+        framework_id:
+          type: string
+          format: uuid
+        total:
+          type: integer
+        by_status:
+          type: object
+          additionalProperties:
+            type: integer
+          example: { not_implemented: 2, in_progress: 2, implemented: 4, not_applicable: 2 }
+        applicable:
+          type: integer
+          description: total minus not_applicable
+        percent_complete:
+          type: number
+          format: float
+          description: implemented / applicable * 100 (0 if applicable is 0)
 
     Asset:
       type: object

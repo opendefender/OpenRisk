@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -33,8 +34,15 @@ func NewGormComplianceRepository(db *gorm.DB) *GormComplianceRepository {
 // =============================================================================
 
 // CreateFramework persists a new compliance framework.
+// Returns a domain.ErrConflict-typed error if (name, version) already
+// exists — the DB unique index is the authoritative guard (no TOCTOU gap),
+// use cases may still pre-check for a faster, friendlier error message.
 func (r *GormComplianceRepository) CreateFramework(ctx context.Context, framework *domain.ComplianceFramework) error {
-	return r.db.WithContext(ctx).Create(framework).Error
+	err := r.db.WithContext(ctx).Create(framework).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return domain.NewConflictError("framework", "name+version")
+	}
+	return err
 }
 
 // GetFrameworkByID retrieves a framework by ID.
@@ -68,11 +76,18 @@ func (r *GormComplianceRepository) ListFrameworks(ctx context.Context) ([]domain
 // =============================================================================
 
 // CreateControl persists a new compliance control for a tenant.
+// Returns a domain.ErrConflict-typed error if (tenant_id, framework_id,
+// reference_code) already exists — see CreateFramework's doc comment for
+// why this is checked at the DB level, not just pre-checked in Go.
 func (r *GormComplianceRepository) CreateControl(ctx context.Context, control *domain.ComplianceControl) error {
 	if control.TenantID == uuid.Nil {
 		return fmt.Errorf("tenant_id is required")
 	}
-	return r.db.WithContext(ctx).Create(control).Error
+	err := r.db.WithContext(ctx).Create(control).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return domain.NewConflictError("control", "reference_code")
+	}
+	return err
 }
 
 // GetControlByID retrieves a control by ID scoped to a tenant.

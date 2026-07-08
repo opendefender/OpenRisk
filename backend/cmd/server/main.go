@@ -21,6 +21,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/opendefender/openrisk/internal/application/auth"
+	"github.com/opendefender/openrisk/internal/application/compliance"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
@@ -41,6 +42,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/scoring"
+	"github.com/opendefender/openrisk/pkg/storage"
 )
 
 func main() {
@@ -59,9 +61,6 @@ func main() {
 
 	// Connexion Base de Données
 	database.Connect()
-
-	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
-	migrations.RunMigrations()
 
 	// =========================================================================
 	// 1.5 CACHE INITIALIZATION
@@ -120,6 +119,9 @@ func main() {
 	log.Println("Database: Running Auto-Migrations...")
 	if err := database.DB.AutoMigrate(
 		&domain.User{},
+		&domain.Organization{},
+		&domain.OrganizationMember{},
+		&coreauth.RefreshToken{},
 		&domain.Risk{},
 		&domain.Mitigation{},
 		&domain.Asset{},
@@ -130,14 +132,19 @@ func main() {
 		&domain.BulkOperationLog{},
 		&domain.Team{},
 		&domain.TeamMember{},
-		&domain.Connector{},
-		&domain.MarketplaceApp{},
-		&domain.ConnectorUpdate{},
-		&domain.MarketplaceLog{},
+		// domain.Connector / MarketplaceApp / ConnectorUpdate / MarketplaceLog are intentionally
+		// excluded: they carry only `json:` tags (no `gorm:` tags, no primary key), so AutoMigrate
+		// fatally errors on them ("unsupported data type"). Marketplace is a pre-existing partial
+		// module (see ROADMAP.md) — needs real GORM tagging before it can be added back here.
 		&domain.AdminAuditEvent{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
+
+	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
+	// Must run after AutoMigrate: these SQL migrations add indices/tables/FKs on top of
+	// the base tables (users, organizations, risks, ...) that AutoMigrate creates first.
+	migrations.RunMigrations()
 
 	// Création du compte Admin par défaut si la DB est vide
 	// Cela garantit que l'app est utilisable immédiatement après déploiement.
@@ -189,6 +196,20 @@ func main() {
 	// Initialize Score Engine (pure, stateless)
 	scoreEngine := scoring.NewEngine()
 	log.Println("Scoring: Engine initialized (pure, zero dependencies)")
+
+	// Initialize file storage (compliance evidence, etc.)
+	// STORAGE_DRIVER selects the backend; only "local" exists today. An
+	// S3-backed driver can be added later behind the same storage.Storage
+	// interface without touching any use case or handler.
+	storageLocalPath := os.Getenv("STORAGE_LOCAL_PATH")
+	if storageLocalPath == "" {
+		storageLocalPath = "./uploads"
+	}
+	fileStorage, err := storage.NewLocalStorage(storageLocalPath)
+	if err != nil {
+		log.Fatal("Storage: failed to initialize local storage: ", err)
+	}
+	log.Println("Storage: local driver initialized at", storageLocalPath)
 
 	// Initialize Score Worker (listens to Redis events)
 	zeroLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
@@ -290,11 +311,14 @@ func main() {
 	}
 	notificationService := notify.NewEmailService(email.NewMockService(), emailFromAddr, appBaseURL)
 
-	// Initialize password hasher (use bcrypt in production)
-	passwordHasher := coreauth.NewSimplePasswordHasher()
+	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
+	passwordHasher := coreauth.NewArgon2idPasswordHasher()
 
-	// Initialize token manager (access/refresh JWT pairs, backed by the DB)
-	tokenManager := coreauth.NewTokenManager(database.DB)
+	// Initialize token manager (access/refresh JWT pairs, backed by the DB).
+	// internal/auth has its own RSAKeys type (distinct from pkg/auth's, used for
+	// middleware.Protected above) — load the same PEM files into that type here.
+	coreRSAKeys := coreauth.MustLoadRSAKeys(cfg.Server.RSAPrivateKeyPath, cfg.Server.RSAPublicKeyPath)
+	tokenManager := coreauth.NewTokenManager(database.DB, coreRSAKeys)
 
 	// Initialize use cases
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher)
@@ -355,7 +379,7 @@ func main() {
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
-	
+
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo)
@@ -365,33 +389,21 @@ func main() {
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance)
 
+	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
+	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
+	// middleware on `protected` never populates. Using middleware.RequirePermission instead.
 	protected.Get("/risks",
-		middleware.RequirePermissions(permissionService, domain.Permission{
-			Resource: domain.PermissionResourceRisk,
-			Action:   domain.PermissionRead,
-		}),
+		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskListGET(riskHandler.GetRisks))
 	protected.Get("/risks/:id",
-		middleware.RequirePermissions(permissionService, domain.Permission{
-			Resource: domain.PermissionResourceRisk,
-			Action:   domain.PermissionRead,
-		}),
+		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
 
 	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
 	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
-	riskCreate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceRisk,
-		Action:   domain.PermissionCreate,
-	})
-	riskUpdate := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceRisk,
-		Action:   domain.PermissionUpdate,
-	})
-	riskDelete := middleware.RequirePermissions(permissionService, domain.Permission{
-		Resource: domain.PermissionResourceRisk,
-		Action:   domain.PermissionDelete,
-	})
+	riskCreate := middleware.RequirePermission("risks:create")
+	riskUpdate := middleware.RequirePermission("risks:update")
+	riskDelete := middleware.RequirePermission("risks:delete")
 	// Backward compatibility: writerRole for other RBAC-based endpoints
 	writerRole := middleware.RequireRole("admin", "analyst")
 
@@ -405,7 +417,7 @@ func main() {
 	protected.Patch("/mitigations/:id", writerRole, handlers.UpdateMitigation)
 	protected.Delete("/mitigations/:id", writerRole, handlers.DeleteMitigation)
 	protected.Patch("/mitigations/:id/validate", writerRole, handlers.ValidateMitigation)
-	
+
 	// Sub-actions (checklist) for mitigations
 	protected.Post("/mitigations/:id/sub-actions", writerRole, handlers.CreateSubAction)
 	protected.Patch("/mitigations/:id/sub-actions/:aid", writerRole, handlers.UpdateSubAction)
@@ -413,9 +425,63 @@ func main() {
 	protected.Post("/mitigations/:id/sub-actions/:aid/revert", writerRole, handlers.RevertSubAction)
 	protected.Delete("/mitigations/:id/sub-actions/:aid", writerRole, handlers.DeleteSubAction)
 	protected.Patch("/mitigations/:id/reorder-subactions", writerRole, handlers.ReorderSubActions)
-	
+
 	// Scanner webhook for auto-completion (internal API key auth)
 	protected.Post("/scanner/mitigations/auto-complete", handlers.AutoCompleteMitigationSubAction)
+
+	// Compliance Frameworks (M1 — see ROADMAP.md §3)
+	complianceRepo := repository.NewGormComplianceRepository(database.DB)
+	createFrameworkUC := compliance.NewCreateFrameworkUseCase(complianceRepo)
+	getFrameworkUC := compliance.NewGetFrameworkUseCase(complianceRepo)
+	listFrameworksUC := compliance.NewListFrameworksUseCase(complianceRepo)
+	createControlUC := compliance.NewCreateControlUseCase(complianceRepo)
+	getControlUC := compliance.NewGetControlUseCase(complianceRepo)
+	listControlsUC := compliance.NewListControlsUseCase(complianceRepo)
+	updateControlUC := compliance.NewUpdateControlUseCase(complianceRepo)
+	deleteControlUC := compliance.NewDeleteControlUseCase(complianceRepo)
+	createEvidenceUC := compliance.NewCreateEvidenceUseCase(complianceRepo, fileStorage)
+	listEvidencesUC := compliance.NewListEvidencesUseCase(complianceRepo)
+	deleteEvidenceUC := compliance.NewDeleteEvidenceUseCase(complianceRepo, fileStorage)
+	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
+	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
+	complianceHandler := handlers.NewComplianceHandler(
+		createFrameworkUC, getFrameworkUC, listFrameworksUC,
+		createControlUC, getControlUC, listControlsUC, updateControlUC, deleteControlUC,
+		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
+		getProgressUC,
+	)
+
+	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
+	// RS256) stores the *new* multi-tenant claims in c.Locals("user")/("permissions"). The
+	// legacy middleware.RequirePermissions expects the old HMAC-era *domain.UserClaims instead,
+	// so it always failed the type assertion here ("user context not found", 401 on every
+	// request) — the granular admin/analyst/viewer split below was never actually reachable.
+	// middleware.RequirePermission (singular) is the one that matches what's really in context;
+	// domain.PermissionSet only grants "*" to root/admin org members today (no per-resource
+	// Profile rules for compliance yet), so this is admin/root-only until that's extended.
+	complianceFrameworkRead := middleware.RequirePermission("compliance:frameworks:read")
+	complianceFrameworkCreate := middleware.RequirePermission("compliance:frameworks:create")
+	complianceControlRead := middleware.RequirePermission("compliance:controls:read")
+	complianceControlCreate := middleware.RequirePermission("compliance:controls:create")
+	complianceControlUpdate := middleware.RequirePermission("compliance:controls:update")
+	complianceControlDelete := middleware.RequirePermission("compliance:controls:delete")
+	complianceEvidenceRead := middleware.RequirePermission("compliance:evidences:read")
+	complianceEvidenceCreate := middleware.RequirePermission("compliance:evidences:create")
+	complianceEvidenceDelete := middleware.RequirePermission("compliance:evidences:delete")
+
+	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
+	protected.Post("/compliance/frameworks", complianceFrameworkCreate, complianceHandler.CreateFramework)
+	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
+	protected.Get("/compliance/frameworks/:frameworkId/progress", complianceControlRead, complianceHandler.GetProgress)
+	protected.Get("/compliance/frameworks/:frameworkId/controls", complianceControlRead, complianceHandler.ListControls)
+	protected.Post("/compliance/frameworks/:frameworkId/controls", complianceControlCreate, complianceHandler.CreateControl)
+	protected.Get("/compliance/controls/:controlId", complianceControlRead, complianceHandler.GetControl)
+	protected.Patch("/compliance/controls/:controlId", complianceControlUpdate, complianceHandler.UpdateControl)
+	protected.Delete("/compliance/controls/:controlId", complianceControlDelete, complianceHandler.DeleteControl)
+	protected.Get("/compliance/controls/:controlId/evidences", complianceEvidenceRead, complianceHandler.ListEvidences)
+	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, complianceHandler.CreateEvidence)
+	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
+	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
 
 	api.Get("/users/me", authHandler.GetProfile)
 	api.Get("/assets", middleware.Protected(rsaKeys, jtiBlacklistChecker), handlers.GetAssets)

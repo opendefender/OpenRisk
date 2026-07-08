@@ -137,7 +137,12 @@
     "maxFileSizeExceeded": "La taille du fichier dépasse la limite",
     "validationError": "Erreur de validation",
     "serverError": "Erreur serveur",
-    "networkError": "Erreur réseau"
+    "networkError": "Erreur réseau",
+    "failedToCreateFramework": "Échec de la création du référentiel",
+    "failedToCreateControl": "Échec de la création du contrôle",
+    "failedToUpdateControl": "Échec de la mise à jour du contrôle",
+    "failedToUploadEvidence": "Échec du dépôt de la preuve",
+    "failedToDeleteEvidence": "Échec de la suppression de la preuve"
   },
   "messages": {
     "riskCreatedSuccess": "Risque créé avec succès",
@@ -215,5 +220,47 @@
     "save": "Sauvegarder",
     "dragHint": "Glissez des plans ici",
     "reviewPending": "en retard"
+  },
+  "compliance": {
+    "title": "Conformité",
+    "description": "Suivez vos référentiels de conformité, contrôle par contrôle",
+    "frameworks": "Référentiels",
+    "createFramework": "Nouveau référentiel",
+    "noFrameworks": "Aucun référentiel",
+    "noFrameworksDescription": "Créez un référentiel pour commencer à suivre votre conformité",
+    "selectFramework": "Sélectionnez un référentiel pour voir ses contrôles",
+    "controls": "Contrôles",
+    "addControl": "Ajouter un contrôle",
+    "noControls": "Aucun contrôle",
+    "noControlsDescription": "Ajoutez le premier contrôle de ce référentiel",
+    "referenceCode": "Code",
+    "status": {
+      "not_implemented": "Non implémenté",
+      "in_progress": "En cours",
+      "implemented": "Implémenté",
+      "not_applicable": "Non applicable"
+    },
+    "progress": "{percent}% conforme",
+    "tabs": {
+      "details": "Détails",
+      "evidence": "Preuves"
+    },
+    "evidence": {
+      "title": "Preuves",
+      "upload": "Déposer un fichier",
+      "description": "Description",
+      "noEvidence": "Aucune preuve déposée",
+      "delete": "Supprimer",
+      "download": "Télécharger",
+      "uploadedBy": "Déposé par"
+    },
+    "form": {
+      "name": "Nom",
+      "version": "Version",
+      "description": "Description",
+      "referenceCode": "Code de référence"
+    },
+    "closeDrawer": "Fermer",
+    "adminOnly": "Réservé aux administrateurs"
   }
 }

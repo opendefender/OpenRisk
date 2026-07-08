@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	// "github.com/golang-jwt/jwt/v5"
@@ -123,6 +124,29 @@ func SeedAdminUser() {
 			IsActive: true,
 		}
 		database.DB.Create(&admin)
+
+		// The multi-tenant LoginUseCase requires a default organization + membership
+		// to authenticate (see application/auth/login.go GetUserDefaultOrganization).
+		// Mirror what the register flow does so the seeded admin can actually log in.
+		org := domain.Organization{
+			Name:     "OpenDefender",
+			Slug:     "opendefender",
+			OwnerID:  admin.ID,
+			IsActive: true,
+		}
+		database.DB.Create(&org)
+
+		admin.DefaultOrgID = &org.ID
+		database.DB.Save(&admin)
+
+		database.DB.Create(&domain.OrganizationMember{
+			OrganizationID: org.ID,
+			UserID:         admin.ID,
+			Role:           domain.RoleRoot,
+			IsActive:       true,
+			JoinedAt:       time.Now(),
+		})
+
 		// Note: admin seeded — credentials should be changed on first login
 		log.Println("Default admin user seeded (change password on first login)")
 	}
