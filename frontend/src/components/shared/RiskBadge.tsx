@@ -15,47 +15,53 @@ function cn(...inputs: ClassValue[]) {
 type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 interface RiskBadgeProps {
-  level: RiskLevel;
+  // Accept any string: the backend sends risk.level as lowercase ("medium"),
+  // while other call sites pass the uppercase RiskLevel union. We normalize
+  // below instead of trusting the caller to have the exact casing.
+  level: RiskLevel | string;
   animated?: boolean;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
-const getRiskConfig = (level: RiskLevel) => {
-  switch (level) {
-    case 'CRITICAL':
-      return {
-        bg: 'bg-red-500/20',
-        border: 'border-red-500/50',
-        text: 'text-red-400',
-        icon: AlertOctagon,
-        label: 'Critique',
-      };
-    case 'HIGH':
-      return {
-        bg: 'bg-orange-500/20',
-        border: 'border-orange-500/50',
-        text: 'text-orange-400',
-        icon: AlertTriangle,
-        label: 'Élevé',
-      };
-    case 'MEDIUM':
-      return {
-        bg: 'bg-yellow-500/20',
-        border: 'border-yellow-500/50',
-        text: 'text-yellow-400',
-        icon: AlertCircle,
-        label: 'Moyen',
-      };
-    case 'LOW':
-      return {
-        bg: 'bg-emerald-500/20',
-        border: 'border-emerald-500/50',
-        text: 'text-emerald-400',
-        icon: Info,
-        label: 'Bas',
-      };
-  }
+const RISK_CONFIGS = {
+  CRITICAL: {
+    bg: 'bg-red-500/20',
+    border: 'border-red-500/50',
+    text: 'text-red-400',
+    icon: AlertOctagon,
+    label: 'Critique',
+  },
+  HIGH: {
+    bg: 'bg-orange-500/20',
+    border: 'border-orange-500/50',
+    text: 'text-orange-400',
+    icon: AlertTriangle,
+    label: 'Élevé',
+  },
+  MEDIUM: {
+    bg: 'bg-yellow-500/20',
+    border: 'border-yellow-500/50',
+    text: 'text-yellow-400',
+    icon: AlertCircle,
+    label: 'Moyen',
+  },
+  LOW: {
+    bg: 'bg-emerald-500/20',
+    border: 'border-emerald-500/50',
+    text: 'text-emerald-400',
+    icon: Info,
+    label: 'Bas',
+  },
+} as const;
+
+// getRiskConfig normalizes any casing and always returns a valid config
+// (defaults to LOW) — an unknown level must never crash the badge, which
+// previously white-screened the whole Risk drawer when the backend sent a
+// lowercase level like "medium".
+const getRiskConfig = (level: RiskLevel | string) => {
+  const key = String(level ?? '').toUpperCase() as keyof typeof RISK_CONFIGS;
+  return RISK_CONFIGS[key] ?? RISK_CONFIGS.LOW;
 };
 
 export const RiskBadge = ({

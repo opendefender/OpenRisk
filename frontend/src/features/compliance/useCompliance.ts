@@ -8,6 +8,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { complianceService } from '../../services/complianceService';
 import type {
   ComplianceControl,
+  ComplianceFramework,
+  ComplianceCatalogSummary,
   ControlEvidence,
   CreateControlInput,
   CreateFrameworkInput,
@@ -62,6 +64,44 @@ export function useComplianceReport() {
   return useMutation({
     mutationFn: ({ frameworkId, locale }: { frameworkId: string; locale: string }) =>
       complianceService.downloadReport(frameworkId, locale),
+  });
+}
+
+// useImportCatalogAsFramework turns a regulatory catalog into its OWN selectable
+// framework: it reuses an existing framework matching the catalog's name+version
+// (so re-importing is idempotent and never duplicates), otherwise creates one,
+// then imports the catalog's controls into it. This is what makes each imported
+// catalog show up as its own entry in the rail instead of piling every catalog's
+// controls into whichever framework happened to be selected.
+export function useImportCatalogAsFramework() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (catalog: ComplianceCatalogSummary) => {
+      const frameworks =
+        queryClient.getQueryData<ComplianceFramework[]>(FRAMEWORKS_QUERY_KEY) ??
+        (await complianceService.listFrameworks());
+      const version = catalog.version ?? '';
+      let framework = frameworks.find(
+        (f) => f.name === catalog.name && (f.version ?? '') === version
+      );
+      if (!framework) {
+        framework = await complianceService.createFramework({
+          name: catalog.name,
+          version: catalog.version,
+          description: catalog.description,
+        });
+      }
+      const result = await complianceService.importCatalog(framework.id, {
+        catalog_key: catalog.key,
+      });
+      return { framework, result };
+    },
+    onSuccess: ({ framework }) => {
+      queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: controlsQueryKey(framework.id) });
+      queryClient.invalidateQueries({ queryKey: progressQueryKey(framework.id) });
+    },
   });
 }
 

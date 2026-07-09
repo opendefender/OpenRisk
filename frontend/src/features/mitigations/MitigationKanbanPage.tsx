@@ -53,17 +53,27 @@ export const MitigationKanbanPage = () => {
   const store = useMitigationStore();
   const { isDrawerOpen, selectedMitigationId, viewMode } = store;
 
+  // Stable selectors for the loader. Subscribing to the WHOLE store (const store =
+  // useMitigationStore()) and depending on it here caused an infinite fetch loop:
+  // loadMitigations called store.setMitigations(), which mutated the store, which
+  // changed the `store` reference, which recreated loadMitigations, which re-fired
+  // the mount effect below — forever ("keeps loading endlessly"). Zustand action
+  // refs (setStoreMitigations) and the initial filters object are stable, so the
+  // loader is now created once and the effect runs once.
+  const filters = useMitigationStore((s) => s.filters);
+  const setStoreMitigations = useMitigationStore((s) => s.setMitigations);
+
   // Load mitigations
   const loadMitigations = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       const response = await mitigationService.listMitigations({
-        ...store.filters,
+        ...filters,
         per_page: 100,
       });
       setMitigations(response.items);
-      store.setMitigations(response.items);
+      setStoreMitigations(response.items);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
       setError(message);
@@ -71,7 +81,7 @@ export const MitigationKanbanPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [store.filters, store]);
+  }, [filters, setStoreMitigations]);
 
   useEffect(() => {
     loadMitigations();

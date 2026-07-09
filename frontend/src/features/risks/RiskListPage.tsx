@@ -187,7 +187,10 @@ export const RiskListPage = () => {
   }, [filters]);
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    // h-full + overflow-y-auto instead of min-h-screen: the page sits inside an
+    // overflow-hidden layout main, so min-h-screen just overflowed and got clipped
+    // (no scrollbar, content jumped). This makes the page its own scroll area.
+    <div className="h-full overflow-y-auto bg-background text-white">
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
