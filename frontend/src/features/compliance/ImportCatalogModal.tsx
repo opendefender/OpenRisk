@@ -8,28 +8,32 @@ import { X, Library, Clock, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
-import { useCatalogs, useControls } from './useCompliance';
+import { useCatalogs, useImportCatalogAsFramework } from './useCompliance';
+import type { ComplianceCatalogSummary } from '../../types/compliance';
 
 interface ImportCatalogModalProps {
   isOpen: boolean;
   onClose: () => void;
-  frameworkId: string;
+  // Called with the (created or reused) framework id once a catalog is imported,
+  // so the page can select it in the rail.
+  onImported?: (frameworkId: string) => void;
 }
 
-export const ImportCatalogModal = ({ isOpen, onClose, frameworkId }: ImportCatalogModalProps) => {
+export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalogModalProps) => {
   const { t } = useI18n();
   const toast = useToast();
   const { data: catalogs, isLoading, error } = useCatalogs();
-  const { importCatalog } = useControls(frameworkId);
+  const importCatalog = useImportCatalogAsFramework();
 
-  const handleImport = async (catalogKey: string) => {
+  const handleImport = async (catalog: ComplianceCatalogSummary) => {
     try {
-      const result = await importCatalog.mutateAsync({ catalog_key: catalogKey });
+      const { framework, result } = await importCatalog.mutateAsync(catalog);
       toast.success(
         t('compliance.catalog.importSuccess')
           .replace('{imported}', String(result.imported))
           .replace('{skipped}', String(result.skipped))
       );
+      onImported?.(framework.id);
       onClose();
     } catch {
       toast.error(t('compliance.catalog.importError'));
@@ -117,10 +121,10 @@ export const ImportCatalogModal = ({ isOpen, onClose, frameworkId }: ImportCatal
                         variant="secondary"
                         size="sm"
                         disabled={!catalog.available || importCatalog.isPending}
-                        onClick={() => handleImport(catalog.key)}
+                        onClick={() => handleImport(catalog)}
                         className="shrink-0"
                       >
-                        {importCatalog.isPending && importCatalog.variables?.catalog_key === catalog.key ? (
+                        {importCatalog.isPending && importCatalog.variables?.key === catalog.key ? (
                           <Loader2 size={14} className="animate-spin" />
                         ) : (
                           t('compliance.catalog.import')

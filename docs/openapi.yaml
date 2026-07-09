@@ -633,6 +633,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/ComplianceProgress'
 
+  /compliance/frameworks/{frameworkId}/report:
+    get:
+      tags: [Compliance]
+      summary: Download an official compliance report (PDF) for a framework
+      description: >
+        Generates, in a single click, a print-ready PDF compliance report for the
+        framework: cover identity (organization, framework, date, requester), an
+        executive summary (compliance %, per-status breakdown) and a detailed,
+        paginated controls table (reference, name, status, evidence count, source
+        citation). All data is strictly tenant-scoped — the framework is global
+        but only the requesting tenant's controls and evidence appear. Suitable
+        for COBAC/BCEAO/ISO one-click statements.
+      operationId: generateComplianceReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: locale
+          in: query
+          required: false
+          description: Fixed-label language of the report. Defaults to French.
+          schema: { type: string, enum: [fr, en], default: fr }
+      responses:
+        '200':
+          description: The compliance report as a PDF attachment.
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          description: Framework not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /compliance/frameworks/{frameworkId}/controls:
     get:
       tags: [Compliance]

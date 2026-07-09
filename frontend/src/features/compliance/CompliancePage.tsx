@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, Library, Plus, ShieldCheck } from 'lucide-react';
+import { ClipboardList, FileDown, Library, Plus, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -13,7 +13,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useComplianceUIStore } from './store';
-import { useControls, useFrameworks } from './useCompliance';
+import { useComplianceReport, useControls, useFrameworks } from './useCompliance';
 import { computeComplianceProgress } from './utils';
 import { ComplianceGauge } from './ComplianceGauge';
 import { ControlTable } from './ControlTable';
@@ -24,9 +24,10 @@ import { ImportCatalogModal } from './ImportCatalogModal';
 import type { ControlStatus } from '../../types/compliance';
 
 export const CompliancePage = () => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const toast = useToast();
   const isAdmin = useAuthStore((s) => s.hasRole('admin'));
+  const report = useComplianceReport();
 
   const {
     selectedFrameworkId,
@@ -61,18 +62,39 @@ export const CompliancePage = () => {
     );
   };
 
+  const handleDownloadReport = () => {
+    if (!selectedFrameworkId) return;
+    report.mutate(
+      { frameworkId: selectedFrameworkId, locale },
+      {
+        onSuccess: () => toast.success(t('compliance.report.success')),
+        onError: () => toast.error(t('compliance.report.error')),
+      }
+    );
+  };
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    // h-full + overflow-y-auto: the page lives inside an overflow-hidden layout
+    // main, so without its own scroll container a tall controls table (e.g. 198
+    // controls) would be clipped with no way to scroll down.
+    <div className="h-full overflow-y-auto">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">{t('compliance.title')}</h1>
           <p className="text-sm text-zinc-500">{t('compliance.description')}</p>
         </div>
         {isAdmin && (
-          <Button variant="secondary" onClick={openCreateFrameworkModal} className="gap-2">
-            <Plus size={16} />
-            {t('compliance.createFramework')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={openImportCatalogModal} className="gap-2">
+              <Library size={16} />
+              {t('compliance.catalog.buttonLabel')}
+            </Button>
+            <Button variant="ghost" onClick={openCreateFrameworkModal} className="gap-2">
+              <Plus size={16} />
+              {t('compliance.createFramework')}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -92,7 +114,7 @@ export const CompliancePage = () => {
               icon={<ShieldCheck size={24} />}
               title={t('compliance.noFrameworks')}
               description={t('compliance.noFrameworksDescription')}
-              action={isAdmin ? { label: t('compliance.createFramework'), onClick: openCreateFrameworkModal } : undefined}
+              action={isAdmin ? { label: t('compliance.catalog.buttonLabel'), onClick: openImportCatalogModal } : undefined}
             />
           ) : (
             frameworks.map((framework, index) => (
@@ -128,12 +150,17 @@ export const CompliancePage = () => {
                   {t('compliance.controls')}
                 </h2>
                 <div className="flex items-center gap-2">
-                  {isAdmin && (
-                    <Button variant="ghost" size="sm" onClick={openImportCatalogModal} className="gap-2">
-                      <Library size={14} />
-                      {t('compliance.catalog.buttonLabel')}
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDownloadReport}
+                    disabled={report.isPending}
+                    className="gap-2"
+                    title={t('compliance.report.hint')}
+                  >
+                    <FileDown size={14} />
+                    {report.isPending ? t('compliance.report.generating') : t('compliance.report.buttonLabel')}
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={openCreateControlModal} className="gap-2">
                     <Plus size={14} />
                     {t('compliance.addControl')}
@@ -163,6 +190,14 @@ export const CompliancePage = () => {
       </div>
 
       <CreateFrameworkModal isOpen={isCreateFrameworkModalOpen} onClose={closeCreateFrameworkModal} />
+      {/* Catalog import is page-level: it creates/reuses its own framework, so it must
+          work even when no framework is selected (or none exist yet). On success we
+          select the imported framework so its controls show immediately. */}
+      <ImportCatalogModal
+        isOpen={isImportCatalogModalOpen}
+        onClose={closeImportCatalogModal}
+        onImported={(id) => selectFramework(id)}
+      />
       {selectedFrameworkId && (
         <>
           <CreateControlModal
@@ -170,14 +205,10 @@ export const CompliancePage = () => {
             onClose={closeCreateControlModal}
             frameworkId={selectedFrameworkId}
           />
-          <ImportCatalogModal
-            isOpen={isImportCatalogModalOpen}
-            onClose={closeImportCatalogModal}
-            frameworkId={selectedFrameworkId}
-          />
           <ControlDrawer frameworkId={selectedFrameworkId} />
         </>
       )}
+      </div>
     </div>
   );
 };

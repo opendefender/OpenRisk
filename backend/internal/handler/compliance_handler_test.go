@@ -99,6 +99,7 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewGetComplianceProgressUseCase(repo),
 		applicationcompliance.NewListCatalogsUseCase(),
 		applicationcompliance.NewImportCatalogUseCase(repo),
+		applicationcompliance.NewGenerateComplianceReportUseCase(repo, repository.NewGormOrganizationRepository(db), repository.NewGormUserRepository(db)),
 	)
 
 	app := fiber.New()

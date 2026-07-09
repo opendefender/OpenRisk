@@ -390,6 +390,66 @@ func TestListEvidencesByControl_TenantIsolation(t *testing.T) {
 	assert.Equal(t, "evil_report.pdf", evsB[0].Filename)
 }
 
+func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	frameworkID := uuid.New()
+	otherFramework := uuid.New()
+
+	// Each tenant imports its OWN control rows (per-tenant instances), so control
+	// IDs never overlap across tenants — that's why the count query scopes by
+	// BOTH the evidence tenant and the control tenant (defense in depth).
+	ctrl1 := uuid.New()  // tenantA, frameworkID — will have 2 evidences
+	ctrl2 := uuid.New()  // tenantA, frameworkID — will have 1 evidence
+	ctrl3 := uuid.New()  // tenantA, otherFramework — must NOT be counted
+	ctrl1B := uuid.New() // tenantB, frameworkID — tenantB's own control
+
+	for _, c := range []struct {
+		id, tenant, fw uuid.UUID
+	}{
+		{ctrl1, tenantA, frameworkID},
+		{ctrl2, tenantA, frameworkID},
+		{ctrl3, tenantA, otherFramework},
+		{ctrl1B, tenantB, frameworkID},
+	} {
+		require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
+			ID: c.id, TenantID: c.tenant, FrameworkID: c.fw, ReferenceCode: c.id.String()[:8], Name: "n",
+		}))
+	}
+
+	// tenantA evidence: 2 on ctrl1, 1 on ctrl2, 1 on ctrl3 (other framework)
+	for _, cid := range []uuid.UUID{ctrl1, ctrl1, ctrl2, ctrl3} {
+		require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+			ID: uuid.New(), TenantID: tenantA, ControlID: cid, Filename: "a.pdf",
+		}))
+	}
+	// A stray evidence carrying tenantB's tenant_id but pointing at tenantA's
+	// control must never inflate tenantA's counts.
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID: uuid.New(), TenantID: tenantB, ControlID: ctrl1, Filename: "evil.pdf",
+	}))
+	// tenantB's legitimate evidence on its own control.
+	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
+		ID: uuid.New(), TenantID: tenantB, ControlID: ctrl1B, Filename: "b.pdf",
+	}))
+
+	counts, err := repo.CountEvidencesByFramework(ctx, tenantA, frameworkID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, counts[ctrl1], "ctrl1 must count only tenantA's 2 evidences, not the stray tenantB one")
+	assert.Equal(t, 1, counts[ctrl2])
+	assert.Equal(t, 0, counts[ctrl3], "control from another framework must be absent")
+	assert.Len(t, counts, 2, "only tenantA controls with evidence in this framework appear")
+
+	// tenantB sees only its own control's single evidence.
+	countsB, err := repo.CountEvidencesByFramework(ctx, tenantB, frameworkID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, countsB[ctrl1B])
+	assert.Len(t, countsB, 1)
+}
+
 func TestDeleteEvidence_CrossTenantReturnsError(t *testing.T) {
 	repo := setupComplianceRepo(t)
 	ctx := context.Background()

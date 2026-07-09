@@ -277,6 +277,13 @@
       "empty": "Aucun catalogue disponible",
       "importSuccess": "{imported} contrôles importés ({skipped} déjà présents)",
       "importError": "Échec de l'import du catalogue"
+    },
+    "report": {
+      "buttonLabel": "Rapport PDF",
+      "hint": "Générer un rapport de conformité officiel (PDF) pour ce référentiel",
+      "generating": "Génération…",
+      "success": "Rapport de conformité généré",
+      "error": "Échec de la génération du rapport"
     }
   },
   "assets": {

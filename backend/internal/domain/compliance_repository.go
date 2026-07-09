@@ -66,6 +66,12 @@ type ComplianceRepository interface {
 	// ListEvidencesByControl retrieves all evidences for a (tenant, control) pair.
 	ListEvidencesByControl(ctx context.Context, tenantID uuid.UUID, controlID uuid.UUID) ([]ControlEvidence, error)
 
+	// CountEvidencesByFramework returns, for a (tenant, framework) pair, the number of
+	// evidences attached to each control, keyed by control ID. Controls with no evidence
+	// are simply absent from the map. Used by the compliance report to show, in a single
+	// query, which controls are substantiated — avoids N per-control lookups.
+	CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
+
 	// DeleteEvidence soft-deletes an evidence by ID scoped to a tenant.
 	DeleteEvidence(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error
 }
