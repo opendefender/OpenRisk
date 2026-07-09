@@ -48,6 +48,28 @@ export const complianceService = {
     return response.data;
   },
 
+  // downloadReport fetches the official compliance report (PDF) for a framework
+  // and triggers a browser download. The server sets a descriptive filename via
+  // Content-Disposition; we honor it, falling back to a sane default.
+  downloadReport: async (frameworkId: string, locale: string): Promise<void> => {
+    const response = await api.get(`/compliance/frameworks/${frameworkId}/report`, {
+      params: { locale },
+      responseType: 'blob',
+    });
+
+    let filename = 'compliance-report.pdf';
+    const disposition = response.headers?.['content-disposition'] as string | undefined;
+    const match = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    if (match?.[1]) filename = decodeURIComponent(match[1]);
+
+    const url = URL.createObjectURL(response.data as Blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
   listControls: async (frameworkId: string): Promise<ComplianceControl[]> => {
     const response = await api.get<ComplianceControl[]>(`/compliance/frameworks/${frameworkId}/controls`);
     return response.data;

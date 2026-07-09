@@ -7,6 +7,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/pkg/report"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
 
@@ -40,6 +42,7 @@ type ComplianceHandler struct {
 	getProgressUC      *compliance.GetComplianceProgressUseCase
 	listCatalogsUC     *compliance.ListCatalogsUseCase
 	importCatalogUC    *compliance.ImportCatalogUseCase
+	generateReportUC   *compliance.GenerateComplianceReportUseCase
 }
 
 func NewComplianceHandler(
@@ -58,6 +61,7 @@ func NewComplianceHandler(
 	getProgress *compliance.GetComplianceProgressUseCase,
 	listCatalogs *compliance.ListCatalogsUseCase,
 	importCatalog *compliance.ImportCatalogUseCase,
+	generateReport *compliance.GenerateComplianceReportUseCase,
 ) *ComplianceHandler {
 	return &ComplianceHandler{
 		createFrameworkUC:  createFramework,
@@ -75,6 +79,7 @@ func NewComplianceHandler(
 		getProgressUC:      getProgress,
 		listCatalogsUC:     listCatalogs,
 		importCatalogUC:    importCatalog,
+		generateReportUC:   generateReport,
 	}
 }
 
@@ -160,6 +165,67 @@ func (h *ComplianceHandler) GetProgress(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(progress)
+}
+
+// GenerateReport godoc — streams an official compliance report (PDF) for one
+// framework in a single click. Data is strictly tenant-scoped; the framework is
+// global but only the requesting tenant's controls/evidence appear. The locale
+// query param (fr|en) selects the fixed-label language, defaulting to French.
+func (h *ComplianceHandler) GenerateReport(c *fiber.Ctx) error {
+	frameworkID, err := uuid.Parse(c.Params("frameworkId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+	}
+
+	locale := report.LocaleFR
+	if c.Query("locale") == "en" {
+		locale = report.LocaleEN
+	}
+
+	data, err := h.generateReportUC.Execute(c.UserContext(), tenantID(c), frameworkID, userID(c), locale)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+
+	pdf, err := report.RenderCompliancePDF(*data)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to render report"})
+	}
+
+	filename := reportFilename(data.FrameworkName, data.FrameworkVersion)
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	return c.Send(pdf)
+}
+
+// reportFilename builds a safe, descriptive PDF filename from the framework
+// identity, e.g. "compliance-report-iso-iec-27001-2022.pdf".
+func reportFilename(name, version string) string {
+	slug := func(s string) string {
+		var b strings.Builder
+		prevDash := false
+		for _, r := range strings.ToLower(s) {
+			switch {
+			case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+				b.WriteRune(r)
+				prevDash = false
+			default:
+				if !prevDash && b.Len() > 0 {
+					b.WriteByte('-')
+					prevDash = true
+				}
+			}
+		}
+		return strings.Trim(b.String(), "-")
+	}
+	base := "compliance-report"
+	if s := slug(name); s != "" {
+		base += "-" + s
+	}
+	if s := slug(version); s != "" {
+		base += "-" + s
+	}
+	return base + ".pdf"
 }
 
 // ListCatalogs godoc

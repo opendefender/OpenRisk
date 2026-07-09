@@ -277,6 +277,13 @@
       "empty": "No catalogs available",
       "importSuccess": "{imported} controls imported ({skipped} already present)",
       "importError": "Failed to import catalog"
+    },
+    "report": {
+      "buttonLabel": "PDF report",
+      "hint": "Generate an official compliance report (PDF) for this framework",
+      "generating": "Generating…",
+      "success": "Compliance report generated",
+      "error": "Failed to generate report"
     }
   },
   "assets": {

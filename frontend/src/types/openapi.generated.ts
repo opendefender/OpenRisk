@@ -306,6 +306,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compliance/frameworks/{frameworkId}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download an official compliance report (PDF) for a framework
+         * @description Generates, in a single click, a print-ready PDF compliance report for the framework: cover identity (organization, framework, date, requester), an executive summary (compliance %, per-status breakdown) and a detailed, paginated controls table (reference, name, status, evidence count, source citation). All data is strictly tenant-scoped — the framework is global but only the requesting tenant's controls and evidence appear. Suitable for COBAC/BCEAO/ISO one-click statements.
+         */
+        get: operations["generateComplianceReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/frameworks/{frameworkId}/controls": {
         parameters: {
             query?: never;
@@ -1672,6 +1692,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ComplianceProgress"];
+                };
+            };
+        };
+    };
+    generateComplianceReport: {
+        parameters: {
+            query?: {
+                /** @description Fixed-label language of the report. Defaults to French. */
+                locale?: "fr" | "en";
+            };
+            header?: never;
+            path: {
+                frameworkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The compliance report as a PDF attachment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Framework not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

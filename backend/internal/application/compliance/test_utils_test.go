@@ -30,6 +30,7 @@ type MockComplianceRepository struct {
 	createEvidenceFunc          func(ctx context.Context, e *domain.ControlEvidence) error
 	getEvidenceByIDFunc         func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ControlEvidence, error)
 	listEvidencesByControlFunc  func(ctx context.Context, tenantID, controlID uuid.UUID) ([]domain.ControlEvidence, error)
+	countEvidencesByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
 	deleteEvidenceFunc          func(ctx context.Context, id, tenantID uuid.UUID) error
 }
 
@@ -108,6 +109,13 @@ func (m *MockComplianceRepository) ListEvidencesByControl(ctx context.Context, t
 		return m.listEvidencesByControlFunc(ctx, tenantID, controlID)
 	}
 	return []domain.ControlEvidence{}, nil
+}
+
+func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
+	if m.countEvidencesByFwFunc != nil {
+		return m.countEvidencesByFwFunc(ctx, tenantID, frameworkID)
+	}
+	return map[uuid.UUID]int{}, nil
 }
 
 func (m *MockComplianceRepository) DeleteEvidence(ctx context.Context, id, tenantID uuid.UUID) error {

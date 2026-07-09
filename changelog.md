@@ -6,7 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **M4 — Official compliance report (PDF, 1-click).** New `GET /compliance/frameworks/{id}/report?locale=fr|en`
+  streams a print-ready PDF for a framework: cover identity (organization, framework, date, requester),
+  executive summary (compliance %, per-status breakdown, progress bar) and a paginated controls table
+  (reference, name, colored status, evidence count, source citation). All data strictly tenant-scoped.
+  Pure renderer in `backend/pkg/report` (fully unit-tested, no DB/HTTP), `GenerateComplianceReportUseCase`
+  in the application layer, `CountEvidencesByFramework` repo method (single grouped query), and a
+  "PDF report" button on the Compliance page (FR/EN). Serves the COBAC/BCEAO/ISO one-click statement goal.
+
 ### Planned
+- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Multi-tenant support
 - Mobile app (React Native)
 - Slack/Teams notifications

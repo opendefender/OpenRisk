@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, Library, Plus, ShieldCheck } from 'lucide-react';
+import { ClipboardList, FileDown, Library, Plus, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -13,7 +13,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useComplianceUIStore } from './store';
-import { useControls, useFrameworks } from './useCompliance';
+import { useComplianceReport, useControls, useFrameworks } from './useCompliance';
 import { computeComplianceProgress } from './utils';
 import { ComplianceGauge } from './ComplianceGauge';
 import { ControlTable } from './ControlTable';
@@ -24,9 +24,10 @@ import { ImportCatalogModal } from './ImportCatalogModal';
 import type { ControlStatus } from '../../types/compliance';
 
 export const CompliancePage = () => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const toast = useToast();
   const isAdmin = useAuthStore((s) => s.hasRole('admin'));
+  const report = useComplianceReport();
 
   const {
     selectedFrameworkId,
@@ -58,6 +59,17 @@ export const CompliancePage = () => {
     updateControl.mutate(
       { id: controlId, payload: { status } },
       { onError: () => toast.error(t('errors.failedToUpdateControl')) }
+    );
+  };
+
+  const handleDownloadReport = () => {
+    if (!selectedFrameworkId) return;
+    report.mutate(
+      { frameworkId: selectedFrameworkId, locale },
+      {
+        onSuccess: () => toast.success(t('compliance.report.success')),
+        onError: () => toast.error(t('compliance.report.error')),
+      }
     );
   };
 
@@ -128,6 +140,17 @@ export const CompliancePage = () => {
                   {t('compliance.controls')}
                 </h2>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDownloadReport}
+                    disabled={report.isPending}
+                    className="gap-2"
+                    title={t('compliance.report.hint')}
+                  >
+                    <FileDown size={14} />
+                    {report.isPending ? t('compliance.report.generating') : t('compliance.report.buttonLabel')}
+                  </Button>
                   {isAdmin && (
                     <Button variant="ghost" size="sm" onClick={openImportCatalogModal} className="gap-2">
                       <Library size={14} />

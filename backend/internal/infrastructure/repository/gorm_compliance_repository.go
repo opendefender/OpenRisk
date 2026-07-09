@@ -201,6 +201,32 @@ func (r *GormComplianceRepository) ListEvidencesByControl(ctx context.Context, t
 	return evidences, err
 }
 
+// CountEvidencesByFramework returns evidence counts per control for a (tenant, framework)
+// pair in a single grouped query. Joins evidences to their controls so the framework and
+// tenant filters both apply; soft-deleted rows on either side are excluded.
+func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
+	type row struct {
+		ControlID uuid.UUID
+		Count     int
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&domain.ControlEvidence{}).
+		Select("control_evidences.control_id AS control_id, COUNT(*) AS count").
+		Joins("JOIN compliance_controls ON compliance_controls.id = control_evidences.control_id AND compliance_controls.deleted_at IS NULL").
+		Where("control_evidences.tenant_id = ? AND compliance_controls.framework_id = ? AND compliance_controls.tenant_id = ?", tenantID, frameworkID, tenantID).
+		Group("control_evidences.control_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to count evidences by framework: %w", err)
+	}
+	counts := make(map[uuid.UUID]int, len(rows))
+	for _, r := range rows {
+		counts[r.ControlID] = r.Count
+	}
+	return counts, nil
+}
+
 // DeleteEvidence soft-deletes an evidence by ID scoped to a tenant.
 func (r *GormComplianceRepository) DeleteEvidence(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error {
 	result := r.db.WithContext(ctx).

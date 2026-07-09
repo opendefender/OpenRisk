@@ -55,6 +55,16 @@ export function useFrameworks() {
   );
 }
 
+// useComplianceReport downloads the official compliance report (PDF) for a
+// framework. It's a mutation (a user-triggered side effect), exposing isPending
+// so the button can show a generating state.
+export function useComplianceReport() {
+  return useMutation({
+    mutationFn: ({ frameworkId, locale }: { frameworkId: string; locale: string }) =>
+      complianceService.downloadReport(frameworkId, locale),
+  });
+}
+
 export function useComplianceProgress(frameworkId: string | undefined) {
   return useQuery({
     queryKey: frameworkId ? progressQueryKey(frameworkId) : ['compliance', 'progress', 'disabled'],
