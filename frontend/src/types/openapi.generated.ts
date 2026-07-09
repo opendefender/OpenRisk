@@ -283,7 +283,11 @@ export interface paths {
         get: operations["getComplianceFramework"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a compliance framework
+         * @description Removes the framework and the calling tenant's controls under it. Admin/root-only. Note the framework row is global — deleting it removes it for every tenant (a known multi-tenant limitation; in practice each tenant imports its own frameworks).
+         */
+        delete: operations["deleteComplianceFramework"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1664,6 +1668,40 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ComplianceFramework"];
                 };
+            };
+            /** @description Framework not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteComplianceFramework: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                frameworkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Framework deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient permissions */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Framework not found */
             404: {

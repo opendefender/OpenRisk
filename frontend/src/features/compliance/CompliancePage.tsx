@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, FileDown, Library, Plus, ShieldCheck } from 'lucide-react';
+import { ClipboardList, FileDown, Library, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -44,9 +44,20 @@ export const CompliancePage = () => {
     openControlDrawer,
   } = useComplianceUIStore();
 
-  const { frameworks, isLoading: frameworksLoading, error: frameworksError } = useFrameworks();
+  const { frameworks, isLoading: frameworksLoading, error: frameworksError, deleteFramework } = useFrameworks();
   const { controls, isLoading: controlsLoading, error: controlsError, updateControl } =
     useControls(selectedFrameworkId ?? undefined);
+
+  const handleDeleteFramework = (id: string, name: string) => {
+    if (!window.confirm(t('compliance.deleteFrameworkConfirm').replace('{name}', name))) return;
+    deleteFramework.mutate(id, {
+      onSuccess: () => {
+        if (selectedFrameworkId === id) selectFramework(null);
+        toast.success(t('compliance.deleteFrameworkSuccess'));
+      },
+      onError: () => toast.error(t('compliance.deleteFrameworkError')),
+    });
+  };
 
   // Default to the first framework once the list has loaded.
   useEffect(() => {
@@ -118,21 +129,39 @@ export const CompliancePage = () => {
             />
           ) : (
             frameworks.map((framework, index) => (
-              <motion.button
+              <motion.div
                 key={framework.id}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(index * 0.03, 0.3) }}
-                onClick={() => framework.id && selectFramework(framework.id)}
-                className={`w-full rounded-xl border px-4 py-2.5 text-left text-sm transition-all ${
+                className={`group relative rounded-xl border transition-all ${
                   selectedFrameworkId === framework.id
-                    ? 'border-primary bg-primary/10 text-white'
-                    : 'border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'
                 }`}
               >
-                <div className="font-medium">{framework.name}</div>
-                {framework.version && <div className="text-xs text-zinc-500">{framework.version}</div>}
-              </motion.button>
+                <button
+                  type="button"
+                  onClick={() => framework.id && selectFramework(framework.id)}
+                  className={`w-full rounded-xl px-4 py-2.5 pr-10 text-left text-sm transition-colors ${
+                    selectedFrameworkId === framework.id ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="font-medium">{framework.name}</div>
+                  {framework.version && <div className="text-xs text-zinc-500">{framework.version}</div>}
+                </button>
+                {isAdmin && framework.id && (
+                  <button
+                    type="button"
+                    aria-label={t('compliance.deleteFramework')}
+                    title={t('compliance.deleteFramework')}
+                    onClick={() => handleDeleteFramework(framework.id as string, framework.name)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 focus:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </motion.div>
             ))
           )}
         </div>

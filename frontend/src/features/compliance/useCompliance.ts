@@ -45,6 +45,11 @@ export function useFrameworks() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY }),
   });
 
+  const deleteFramework = useMutation({
+    mutationFn: (frameworkId: string) => complianceService.deleteFramework(frameworkId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY }),
+  });
+
   return useMemo(
     () => ({
       frameworks: query.data ?? [],
@@ -52,8 +57,9 @@ export function useFrameworks() {
       error: query.error,
       refetch: query.refetch,
       createFramework,
+      deleteFramework,
     }),
-    [query, createFramework]
+    [query, createFramework, deleteFramework]
   );
 }
 

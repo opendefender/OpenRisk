@@ -162,6 +162,31 @@ func (r *GormComplianceRepository) DeleteControl(ctx context.Context, id uuid.UU
 	return nil
 }
 
+// DeleteFramework soft-deletes a framework by ID (global — no tenant filter).
+func (r *GormComplianceRepository) DeleteFramework(ctx context.Context, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ?", id).
+		Delete(&domain.ComplianceFramework{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete framework: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("framework not found")
+	}
+	return nil
+}
+
+// DeleteControlsByFramework soft-deletes all of a tenant's controls under a framework.
+func (r *GormComplianceRepository) DeleteControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND framework_id = ?", tenantID, frameworkID).
+		Delete(&domain.ComplianceControl{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to delete controls by framework: %w", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
 // =============================================================================
 // Evidences (tenant-scoped — ALWAYS filter by tenant_id)
 // =============================================================================

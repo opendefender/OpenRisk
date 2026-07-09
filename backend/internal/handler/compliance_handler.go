@@ -30,6 +30,7 @@ type ComplianceHandler struct {
 	createFrameworkUC  *compliance.CreateFrameworkUseCase
 	getFrameworkUC     *compliance.GetFrameworkUseCase
 	listFrameworksUC   *compliance.ListFrameworksUseCase
+	deleteFrameworkUC  *compliance.DeleteFrameworkUseCase
 	createControlUC    *compliance.CreateControlUseCase
 	getControlUC       *compliance.GetControlUseCase
 	listControlsUC     *compliance.ListControlsUseCase
@@ -49,6 +50,7 @@ func NewComplianceHandler(
 	createFramework *compliance.CreateFrameworkUseCase,
 	getFramework *compliance.GetFrameworkUseCase,
 	listFrameworks *compliance.ListFrameworksUseCase,
+	deleteFramework *compliance.DeleteFrameworkUseCase,
 	createControl *compliance.CreateControlUseCase,
 	getControl *compliance.GetControlUseCase,
 	listControls *compliance.ListControlsUseCase,
@@ -67,6 +69,7 @@ func NewComplianceHandler(
 		createFrameworkUC:  createFramework,
 		getFrameworkUC:     getFramework,
 		listFrameworksUC:   listFrameworks,
+		deleteFrameworkUC:  deleteFramework,
 		createControlUC:    createControl,
 		getControlUC:       getControl,
 		listControlsUC:     listControls,
@@ -152,6 +155,19 @@ func (h *ComplianceHandler) ListFrameworks(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(frameworks)
+}
+
+// DeleteFramework godoc — removes a framework and the caller's controls under it.
+// Admin/root-only (route-gated). Returns 204 on success, 404 if unknown.
+func (h *ComplianceHandler) DeleteFramework(c *fiber.Ctx) error {
+	frameworkID, err := uuid.Parse(c.Params("frameworkId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+	}
+	if err := h.deleteFrameworkUC.Execute(c.UserContext(), tenantID(c), frameworkID); err != nil {
+		return writeAppError(c, err)
+	}
+	return c.SendStatus(204)
 }
 
 // GetProgress godoc

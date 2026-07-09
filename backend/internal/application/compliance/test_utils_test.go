@@ -22,6 +22,8 @@ type MockComplianceRepository struct {
 	createFrameworkFunc         func(ctx context.Context, fw *domain.ComplianceFramework) error
 	getFrameworkByIDFunc        func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error)
 	listFrameworksFunc          func(ctx context.Context) ([]domain.ComplianceFramework, error)
+	deleteFrameworkFunc         func(ctx context.Context, id uuid.UUID) error
+	deleteControlsByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (int64, error)
 	createControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
 	getControlByIDFunc          func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error)
 	listControlsByFrameworkFunc func(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
@@ -53,6 +55,20 @@ func (m *MockComplianceRepository) ListFrameworks(ctx context.Context) ([]domain
 		return m.listFrameworksFunc(ctx)
 	}
 	return []domain.ComplianceFramework{}, nil
+}
+
+func (m *MockComplianceRepository) DeleteFramework(ctx context.Context, id uuid.UUID) error {
+	if m.deleteFrameworkFunc != nil {
+		return m.deleteFrameworkFunc(ctx, id)
+	}
+	return nil
+}
+
+func (m *MockComplianceRepository) DeleteControlsByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) (int64, error) {
+	if m.deleteControlsByFwFunc != nil {
+		return m.deleteControlsByFwFunc(ctx, tenantID, frameworkID)
+	}
+	return 0, nil
 }
 
 func (m *MockComplianceRepository) CreateControl(ctx context.Context, c *domain.ComplianceControl) error {

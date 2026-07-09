@@ -31,6 +31,15 @@ type ComplianceRepository interface {
 	// ListFrameworks returns all active (non-deleted) frameworks.
 	ListFrameworks(ctx context.Context) ([]ComplianceFramework, error)
 
+	// DeleteFramework soft-deletes a framework by ID.
+	//
+	// NOTE: frameworks are global (no tenant_id). Deleting one removes it for
+	// every tenant. The delete use case pairs this with DeleteControlsByFramework
+	// so the calling tenant's controls go away too. Multi-tenant sharing of a
+	// framework is a known limitation (see ROADMAP): today each tenant imports
+	// its own catalogs, so in practice a framework is used by a single tenant.
+	DeleteFramework(ctx context.Context, id uuid.UUID) error
+
 	// =========================================================================
 	// Controls (tenant-scoped)
 	// =========================================================================
@@ -51,6 +60,10 @@ type ComplianceRepository interface {
 
 	// DeleteControl soft-deletes a control by ID scoped to a tenant.
 	DeleteControl(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error
+
+	// DeleteControlsByFramework soft-deletes every control a tenant owns under a
+	// framework. Returns the number of controls deleted.
+	DeleteControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (int64, error)
 
 	// =========================================================================
 	// Evidences (tenant-scoped)

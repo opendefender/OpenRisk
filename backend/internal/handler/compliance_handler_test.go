@@ -87,6 +87,7 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewCreateFrameworkUseCase(repo),
 		applicationcompliance.NewGetFrameworkUseCase(repo),
 		applicationcompliance.NewListFrameworksUseCase(repo),
+		applicationcompliance.NewDeleteFrameworkUseCase(repo),
 		applicationcompliance.NewCreateControlUseCase(repo),
 		applicationcompliance.NewGetControlUseCase(repo),
 		applicationcompliance.NewListControlsUseCase(repo),
