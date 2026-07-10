@@ -38,13 +38,13 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 
 	require.NoError(t, db.Exec(`
 		CREATE TABLE compliance_frameworks (
-			id TEXT PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL DEFAULT '',
+			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, version TEXT NOT NULL DEFAULT '',
 			description TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
 	require.NoError(t, db.Exec(`
-		CREATE UNIQUE INDEX idx_compliance_frameworks_name_version
-			ON compliance_frameworks(name, version) WHERE deleted_at IS NULL;
+		CREATE UNIQUE INDEX idx_compliance_frameworks_tenant_name_version
+			ON compliance_frameworks(tenant_id, name, version) WHERE deleted_at IS NULL;
 	`).Error)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE compliance_controls (

@@ -753,10 +753,12 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
-        /** @description Global reference entity (not tenant-scoped), e.g. ISO 27001, COBAC. */
+        /** @description Tenant-scoped framework a tenant tracks, e.g. ISO 27001, COBAC. Each tenant owns its own. */
         ComplianceFramework: {
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            tenant_id: string;
             name: string;
             version: string;
             description?: string;

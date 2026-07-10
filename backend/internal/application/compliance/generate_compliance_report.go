@@ -60,7 +60,7 @@ func (uc *GenerateComplianceReportUseCase) Execute(
 	requestedBy uuid.UUID,
 	locale report.Locale,
 ) (*report.ComplianceReportData, error) {
-	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID)
+	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID, tenantID)
 	if err != nil {
 		return nil, err
 	}

@@ -43,7 +43,7 @@ func TestGenerateComplianceReport_Success(t *testing.T) {
 	c1, c2, c3, c4 := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(_ context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			assert.Equal(t, frameworkID, id)
 			return &domain.ComplianceFramework{ID: frameworkID, Name: "ISO/IEC 27001", Version: "2022"}, nil
 		},
@@ -98,7 +98,7 @@ func TestGenerateComplianceReport_Success(t *testing.T) {
 
 func TestGenerateComplianceReport_FrameworkNotFound(t *testing.T) {
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(_ context.Context, _ uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ComplianceFramework, error) {
 			return nil, nil // not found
 		},
 	}
@@ -115,7 +115,7 @@ func TestGenerateComplianceReport_FrameworkNotFound(t *testing.T) {
 // never a divide-by-zero or a nil-deref.
 func TestGenerateComplianceReport_NoControls(t *testing.T) {
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(_ context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: id, Name: "COBAC R-2016/04"}, nil
 		},
 		listControlsByFrameworkFunc: func(_ context.Context, _, _ uuid.UUID) ([]domain.ComplianceControl, error) {
@@ -136,7 +136,7 @@ func TestGenerateComplianceReport_NoControls(t *testing.T) {
 // whole report — the identity lines simply come back empty.
 func TestGenerateComplianceReport_LookupErrorsDegradeGracefully(t *testing.T) {
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(_ context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: id, Name: "BCEAO"}, nil
 		},
 	}

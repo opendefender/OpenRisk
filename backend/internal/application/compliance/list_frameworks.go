@@ -8,10 +8,11 @@ package compliance
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// ListFrameworksUseCase lists all global compliance frameworks.
+// ListFrameworksUseCase lists a tenant's compliance frameworks.
 type ListFrameworksUseCase struct {
 	repo domain.ComplianceRepository
 }
@@ -20,6 +21,6 @@ func NewListFrameworksUseCase(repo domain.ComplianceRepository) *ListFrameworksU
 	return &ListFrameworksUseCase{repo: repo}
 }
 
-func (uc *ListFrameworksUseCase) Execute(ctx context.Context) ([]domain.ComplianceFramework, error) {
-	return uc.repo.ListFrameworks(ctx)
+func (uc *ListFrameworksUseCase) Execute(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error) {
+	return uc.repo.ListFrameworks(ctx, tenantID)
 }

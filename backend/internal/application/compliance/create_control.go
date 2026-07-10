@@ -38,7 +38,7 @@ func (uc *CreateControlUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 		return nil, domain.NewValidationError("name is required")
 	}
 
-	fw, err := uc.repo.GetFrameworkByID(ctx, input.FrameworkID)
+	fw, err := uc.repo.GetFrameworkByID(ctx, input.FrameworkID, tenantID)
 	if err != nil {
 		return nil, err
 	}

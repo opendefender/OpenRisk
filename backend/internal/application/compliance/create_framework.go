@@ -12,17 +12,16 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// CreateFrameworkInput is the input for creating a global compliance
-// framework (e.g. "ISO 27001", "COBAC"). Not tenant-scoped.
+// CreateFrameworkInput is the input for creating a tenant-scoped compliance
+// framework (e.g. "ISO 27001", "COBAC").
 type CreateFrameworkInput struct {
 	Name        string
 	Version     string
 	Description string
 }
 
-// CreateFrameworkUseCase handles creation of a new global compliance
-// framework. Callers must gate this behind an admin-only permission —
-// frameworks are global, so anyone able to create one affects every tenant.
+// CreateFrameworkUseCase handles creation of a new tenant-scoped compliance
+// framework.
 type CreateFrameworkUseCase struct {
 	repo domain.ComplianceRepository
 }
@@ -31,7 +30,7 @@ func NewCreateFrameworkUseCase(repo domain.ComplianceRepository) *CreateFramewor
 	return &CreateFrameworkUseCase{repo: repo}
 }
 
-func (uc *CreateFrameworkUseCase) Execute(ctx context.Context, input CreateFrameworkInput) (*domain.ComplianceFramework, error) {
+func (uc *CreateFrameworkUseCase) Execute(ctx context.Context, tenantID uuid.UUID, input CreateFrameworkInput) (*domain.ComplianceFramework, error) {
 	if input.Name == "" {
 		return nil, domain.NewValidationError("name is required")
 	}
@@ -41,6 +40,7 @@ func (uc *CreateFrameworkUseCase) Execute(ctx context.Context, input CreateFrame
 
 	fw := &domain.ComplianceFramework{
 		ID:          uuid.New(),
+		TenantID:    tenantID,
 		Name:        input.Name,
 		Version:     input.Version,
 		Description: input.Description,

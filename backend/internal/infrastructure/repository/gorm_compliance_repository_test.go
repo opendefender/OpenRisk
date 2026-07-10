@@ -32,6 +32,7 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 	require.NoError(t, db.Exec(`
 		CREATE TABLE compliance_frameworks (
 			id TEXT PRIMARY KEY,
+			tenant_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			version TEXT NOT NULL DEFAULT '',
 			description TEXT,
@@ -41,8 +42,8 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 		);
 	`).Error)
 	require.NoError(t, db.Exec(`
-		CREATE UNIQUE INDEX idx_compliance_frameworks_name_version
-			ON compliance_frameworks(name, version) WHERE deleted_at IS NULL;
+		CREATE UNIQUE INDEX idx_compliance_frameworks_tenant_name_version
+			ON compliance_frameworks(tenant_id, name, version) WHERE deleted_at IS NULL;
 	`).Error)
 
 	// compliance_controls (tenant-scoped)
@@ -87,33 +88,46 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 }
 
 // =============================================================================
-// Framework Tests (global — no tenant scoping)
+// Framework Tests (tenant-scoped)
 // =============================================================================
 
 func TestCreateAndGetFramework(t *testing.T) {
 	repo := setupComplianceRepo(t)
 	ctx := context.Background()
+	tenantA := uuid.New()
 
 	fw := &domain.ComplianceFramework{
 		ID:          uuid.New(),
+		TenantID:    tenantA,
 		Name:        "ISO 27001",
 		Version:     "2022",
 		Description: "Information security management",
 	}
 	require.NoError(t, repo.CreateFramework(ctx, fw))
 
-	got, err := repo.GetFrameworkByID(ctx, fw.ID)
+	got, err := repo.GetFrameworkByID(ctx, fw.ID, tenantA)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "ISO 27001", got.Name)
 	assert.Equal(t, "2022", got.Version)
+
+	// Another tenant must not see it.
+	other, err := repo.GetFrameworkByID(ctx, fw.ID, uuid.New())
+	require.NoError(t, err)
+	assert.Nil(t, other, "a framework must not be visible to another tenant")
+}
+
+func TestCreateFramework_RequiresTenantID(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	err := repo.CreateFramework(context.Background(), &domain.ComplianceFramework{ID: uuid.New(), Name: "X"})
+	require.Error(t, err)
 }
 
 func TestGetFrameworkByID_NotFound(t *testing.T) {
 	repo := setupComplianceRepo(t)
 	ctx := context.Background()
 
-	got, err := repo.GetFrameworkByID(ctx, uuid.New())
+	got, err := repo.GetFrameworkByID(ctx, uuid.New(), uuid.New())
 	require.NoError(t, err)
 	assert.Nil(t, got, "Non-existent framework should return nil, nil")
 }
@@ -121,19 +135,22 @@ func TestGetFrameworkByID_NotFound(t *testing.T) {
 func TestListFrameworks(t *testing.T) {
 	repo := setupComplianceRepo(t)
 	ctx := context.Background()
+	tenantA := uuid.New()
+	tenantB := uuid.New()
 
 	fws := []*domain.ComplianceFramework{
-		{ID: uuid.New(), Name: "SOC 2", Version: "2023"},
-		{ID: uuid.New(), Name: "ISO 27001", Version: "2022"},
-		{ID: uuid.New(), Name: "NIST CSF", Version: "2.0"},
+		{ID: uuid.New(), TenantID: tenantA, Name: "SOC 2", Version: "2023"},
+		{ID: uuid.New(), TenantID: tenantA, Name: "ISO 27001", Version: "2022"},
+		{ID: uuid.New(), TenantID: tenantA, Name: "NIST CSF", Version: "2.0"},
+		{ID: uuid.New(), TenantID: tenantB, Name: "COBAC", Version: "2016"}, // other tenant's
 	}
 	for _, fw := range fws {
 		require.NoError(t, repo.CreateFramework(ctx, fw))
 	}
 
-	got, err := repo.ListFrameworks(ctx)
+	got, err := repo.ListFrameworks(ctx, tenantA)
 	require.NoError(t, err)
-	require.Len(t, got, 3)
+	require.Len(t, got, 3, "must only return tenantA's frameworks, not tenantB's")
 	// Ordered by name ASC
 	assert.Equal(t, "ISO 27001", got[0].Name)
 	assert.Equal(t, "NIST CSF", got[1].Name)
@@ -168,7 +185,7 @@ func TestGetControlByID_CrossTenantReturnsNil(t *testing.T) {
 
 	// Create a framework first
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, Name: "ISO 27001", Version: "2022",
+		ID: fwID, TenantID: uuid.New(), Name: "ISO 27001", Version: "2022",
 	}))
 
 	// Create a control belonging to tenantA
@@ -202,7 +219,7 @@ func TestListControlsByFramework_TenantIsolation(t *testing.T) {
 	fwID := uuid.New()
 
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, Name: "SOC 2", Version: "2023",
+		ID: fwID, TenantID: uuid.New(), Name: "SOC 2", Version: "2023",
 	}))
 
 	// Create controls for tenantA
@@ -242,7 +259,7 @@ func TestDeleteControl_CrossTenantReturnsError(t *testing.T) {
 	fwID := uuid.New()
 
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, Name: "DORA", Version: "2025",
+		ID: fwID, TenantID: uuid.New(), Name: "DORA", Version: "2025",
 	}))
 
 	controlID := uuid.New()
@@ -271,7 +288,7 @@ func TestUpdateControl_CrossTenantFails(t *testing.T) {
 	fwID := uuid.New()
 
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, Name: "COBAC", Version: "2024",
+		ID: fwID, TenantID: uuid.New(), Name: "COBAC", Version: "2024",
 	}))
 
 	controlID := uuid.New()
@@ -325,7 +342,7 @@ func TestGetEvidenceByID_CrossTenantReturnsNil(t *testing.T) {
 	// Setup framework + control
 	fwID := uuid.New()
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, Name: "ISO 27001", Version: "2022",
+		ID: fwID, TenantID: uuid.New(), Name: "ISO 27001", Version: "2022",
 	}))
 	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
 		ID: controlID, TenantID: tenantA, FrameworkID: fwID,
@@ -478,16 +495,23 @@ func TestDeleteEvidence_CrossTenantReturnsError(t *testing.T) {
 func TestCreateFramework_DuplicateNameVersion_Conflict(t *testing.T) {
 	repo := setupComplianceRepo(t)
 	ctx := context.Background()
+	tenantA := uuid.New()
 
+	// Uniqueness is per-tenant: same (name, version) inside the SAME tenant conflicts.
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: uuid.New(), Name: "ISO 27001", Version: "2022",
+		ID: uuid.New(), TenantID: tenantA, Name: "ISO 27001", Version: "2022",
 	}))
 
 	err := repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: uuid.New(), Name: "ISO 27001", Version: "2022",
+		ID: uuid.New(), TenantID: tenantA, Name: "ISO 27001", Version: "2022",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrConflict)
+
+	// The SAME (name, version) under a DIFFERENT tenant must NOT conflict.
+	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
+		ID: uuid.New(), TenantID: uuid.New(), Name: "ISO 27001", Version: "2022",
+	}))
 }
 
 func TestCreateControl_DuplicateReferenceCode_Conflict(t *testing.T) {
@@ -497,7 +521,7 @@ func TestCreateControl_DuplicateReferenceCode_Conflict(t *testing.T) {
 	tenantA := uuid.New()
 	fwID := uuid.New()
 	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, Name: "ISO 27001", Version: "2022",
+		ID: fwID, TenantID: uuid.New(), Name: "ISO 27001", Version: "2022",
 	}))
 	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
 		ID: uuid.New(), TenantID: tenantA, FrameworkID: fwID,

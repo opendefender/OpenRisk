@@ -18,27 +18,24 @@ import (
 // never in the handler. If a resource belongs to another tenant → return nil (not found).
 type ComplianceRepository interface {
 	// =========================================================================
-	// Frameworks (global — no tenant_id filtering)
+	// Frameworks (tenant-scoped — ALWAYS filter by tenant_id)
 	// =========================================================================
 
-	// CreateFramework persists a new compliance framework.
+	// CreateFramework persists a new compliance framework. framework.TenantID
+	// MUST be set by the caller.
 	CreateFramework(ctx context.Context, framework *ComplianceFramework) error
 
-	// GetFrameworkByID retrieves a framework by ID.
-	// Returns (nil, nil) if not found.
-	GetFrameworkByID(ctx context.Context, id uuid.UUID) (*ComplianceFramework, error)
+	// GetFrameworkByID retrieves a framework by ID scoped to a tenant.
+	// Returns (nil, nil) if not found or it belongs to another tenant.
+	GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*ComplianceFramework, error)
 
-	// ListFrameworks returns all active (non-deleted) frameworks.
-	ListFrameworks(ctx context.Context) ([]ComplianceFramework, error)
+	// ListFrameworks returns a tenant's active (non-deleted) frameworks.
+	ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]ComplianceFramework, error)
 
-	// DeleteFramework soft-deletes a framework by ID.
-	//
-	// NOTE: frameworks are global (no tenant_id). Deleting one removes it for
-	// every tenant. The delete use case pairs this with DeleteControlsByFramework
-	// so the calling tenant's controls go away too. Multi-tenant sharing of a
-	// framework is a known limitation (see ROADMAP): today each tenant imports
-	// its own catalogs, so in practice a framework is used by a single tenant.
-	DeleteFramework(ctx context.Context, id uuid.UUID) error
+	// DeleteFramework soft-deletes a framework by ID scoped to a tenant — a
+	// tenant can only delete its own. The delete use case pairs this with
+	// DeleteControlsByFramework so the tenant's controls go away too.
+	DeleteFramework(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error
 
 	// =========================================================================
 	// Controls (tenant-scoped)

@@ -12,7 +12,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// GetFrameworkUseCase retrieves a single global compliance framework.
+// GetFrameworkUseCase retrieves a single tenant-scoped compliance framework.
 type GetFrameworkUseCase struct {
 	repo domain.ComplianceRepository
 }
@@ -21,8 +21,8 @@ func NewGetFrameworkUseCase(repo domain.ComplianceRepository) *GetFrameworkUseCa
 	return &GetFrameworkUseCase{repo: repo}
 }
 
-func (uc *GetFrameworkUseCase) Execute(ctx context.Context, frameworkID uuid.UUID) (*domain.ComplianceFramework, error) {
-	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID)
+func (uc *GetFrameworkUseCase) Execute(ctx context.Context, tenantID, frameworkID uuid.UUID) (*domain.ComplianceFramework, error) {
+	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID, tenantID)
 	if err != nil {
 		return nil, err
 	}

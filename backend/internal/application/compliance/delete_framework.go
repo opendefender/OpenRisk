@@ -27,7 +27,7 @@ func NewDeleteFrameworkUseCase(repo domain.ComplianceRepository) *DeleteFramewor
 }
 
 func (uc *DeleteFrameworkUseCase) Execute(ctx context.Context, tenantID, frameworkID uuid.UUID) error {
-	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID)
+	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID, tenantID)
 	if err != nil {
 		return err
 	}
@@ -39,5 +39,5 @@ func (uc *DeleteFrameworkUseCase) Execute(ctx context.Context, tenantID, framewo
 	if _, err := uc.repo.DeleteControlsByFramework(ctx, tenantID, frameworkID); err != nil {
 		return err
 	}
-	return uc.repo.DeleteFramework(ctx, frameworkID)
+	return uc.repo.DeleteFramework(ctx, frameworkID, tenantID)
 }

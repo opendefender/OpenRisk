@@ -126,7 +126,7 @@ func (h *ComplianceHandler) CreateFramework(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
 	}
 
-	fw, err := h.createFrameworkUC.Execute(c.UserContext(), compliance.CreateFrameworkInput{
+	fw, err := h.createFrameworkUC.Execute(c.UserContext(), tenantID(c), compliance.CreateFrameworkInput{
 		Name: input.Name, Version: input.Version, Description: input.Description,
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func (h *ComplianceHandler) GetFramework(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
 	}
-	fw, err := h.getFrameworkUC.Execute(c.UserContext(), id)
+	fw, err := h.getFrameworkUC.Execute(c.UserContext(), tenantID(c), id)
 	if err != nil {
 		return writeAppError(c, err)
 	}
@@ -150,7 +150,7 @@ func (h *ComplianceHandler) GetFramework(c *fiber.Ctx) error {
 
 // ListFrameworks godoc
 func (h *ComplianceHandler) ListFrameworks(c *fiber.Ctx) error {
-	frameworks, err := h.listFrameworksUC.Execute(c.UserContext())
+	frameworks, err := h.listFrameworksUC.Execute(c.UserContext(), tenantID(c))
 	if err != nil {
 		return writeAppError(c, err)
 	}

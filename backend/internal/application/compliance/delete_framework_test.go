@@ -22,7 +22,7 @@ func TestDeleteFramework_Success_CascadesTenantControls(t *testing.T) {
 
 	var deletedControlsFor, deletedFramework uuid.UUID
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(_ context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: id, Name: "ISO 27001"}, nil
 		},
 		deleteControlsByFwFunc: func(_ context.Context, tid, fid uuid.UUID) (int64, error) {
@@ -30,7 +30,7 @@ func TestDeleteFramework_Success_CascadesTenantControls(t *testing.T) {
 			deletedControlsFor = fid
 			return 3, nil
 		},
-		deleteFrameworkFunc: func(_ context.Context, id uuid.UUID) error {
+		deleteFrameworkFunc: func(_ context.Context, id, tenantID uuid.UUID) error {
 			deletedFramework = id
 			return nil
 		},
@@ -46,10 +46,10 @@ func TestDeleteFramework_Success_CascadesTenantControls(t *testing.T) {
 
 func TestDeleteFramework_NotFound(t *testing.T) {
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(_ context.Context, _ uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ComplianceFramework, error) {
 			return nil, nil
 		},
-		deleteFrameworkFunc: func(_ context.Context, _ uuid.UUID) error {
+		deleteFrameworkFunc: func(_ context.Context, _, _ uuid.UUID) error {
 			t.Fatal("must not attempt to delete a framework that does not exist")
 			return nil
 		},

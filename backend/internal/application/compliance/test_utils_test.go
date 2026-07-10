@@ -20,9 +20,9 @@ import (
 // MockRiskRepository pattern (function fields, nil-safe defaults).
 type MockComplianceRepository struct {
 	createFrameworkFunc         func(ctx context.Context, fw *domain.ComplianceFramework) error
-	getFrameworkByIDFunc        func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error)
-	listFrameworksFunc          func(ctx context.Context) ([]domain.ComplianceFramework, error)
-	deleteFrameworkFunc         func(ctx context.Context, id uuid.UUID) error
+	getFrameworkByIDFunc        func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
+	listFrameworksFunc          func(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
+	deleteFrameworkFunc         func(ctx context.Context, id, tenantID uuid.UUID) error
 	deleteControlsByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (int64, error)
 	createControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
 	getControlByIDFunc          func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error)
@@ -43,23 +43,23 @@ func (m *MockComplianceRepository) CreateFramework(ctx context.Context, fw *doma
 	return nil
 }
 
-func (m *MockComplianceRepository) GetFrameworkByID(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+func (m *MockComplianceRepository) GetFrameworkByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 	if m.getFrameworkByIDFunc != nil {
-		return m.getFrameworkByIDFunc(ctx, id)
+		return m.getFrameworkByIDFunc(ctx, id, tenantID)
 	}
 	return nil, nil
 }
 
-func (m *MockComplianceRepository) ListFrameworks(ctx context.Context) ([]domain.ComplianceFramework, error) {
+func (m *MockComplianceRepository) ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error) {
 	if m.listFrameworksFunc != nil {
-		return m.listFrameworksFunc(ctx)
+		return m.listFrameworksFunc(ctx, tenantID)
 	}
 	return []domain.ComplianceFramework{}, nil
 }
 
-func (m *MockComplianceRepository) DeleteFramework(ctx context.Context, id uuid.UUID) error {
+func (m *MockComplianceRepository) DeleteFramework(ctx context.Context, id, tenantID uuid.UUID) error {
 	if m.deleteFrameworkFunc != nil {
-		return m.deleteFrameworkFunc(ctx, id)
+		return m.deleteFrameworkFunc(ctx, id, tenantID)
 	}
 	return nil
 }

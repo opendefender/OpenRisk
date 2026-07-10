@@ -1483,10 +1483,13 @@ components:
 
     ComplianceFramework:
       type: object
-      description: Global reference entity (not tenant-scoped), e.g. ISO 27001, COBAC.
-      required: [id, name, version, created_at, updated_at]
+      description: Tenant-scoped framework a tenant tracks, e.g. ISO 27001, COBAC. Each tenant owns its own.
+      required: [id, tenant_id, name, version, created_at, updated_at]
       properties:
         id:
+          type: string
+          format: uuid
+        tenant_id:
           type: string
           format: uuid
         name:
