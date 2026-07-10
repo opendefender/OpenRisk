@@ -39,6 +39,7 @@ import Analytics from './pages/Analytics';
 import { Incidents } from './pages/Incidents';
 import { ThreatMap } from './pages/ThreatMap';
 import { Reports } from './pages/Reports';
+import { BoardReportPage } from './features/reports/BoardReportPage';
 import Marketplace from './pages/Marketplace';
 import PermissionAnalyticsPage from './pages/PermissionAnalytics';
 import CustomFields from './pages/CustomFields';
@@ -263,6 +264,7 @@ function App() {
           <Route path="incidents" element={<Incidents />} />
           <Route path="threat-map" element={<ThreatMap />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="reports/board" element={<BoardReportPage />} />
           <Route path="marketplace" element={<Marketplace />} />
           <Route path="custom-fields" element={<CustomFields />} />
           <Route path="bulk-operations" element={<BulkOperations />} />

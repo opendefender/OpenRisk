@@ -202,6 +202,36 @@ func (r *GormRiskRepository) Count(ctx context.Context, tenantID uuid.UUID) (int
 	return count, err
 }
 
+// CountRisksByCriticality returns, for a tenant, the number of active (non-deleted)
+// risks grouped by criticality level, keyed by the lowercased level
+// ("critical"/"high"/"medium"/"low"). Levels absent from the register are simply
+// absent from the map. criticality is normalized with LOWER() because the column
+// carries two historical vocabularies (low/high and LOW/HIGH) — see CLAUDE.md.
+//
+// This backs the board report's risk posture; it is a concrete-type method (not on
+// the domain.RiskRepository port) so existing mocks of that interface stay valid.
+func (r *GormRiskRepository) CountRisksByCriticality(ctx context.Context, tenantID uuid.UUID) (map[string]int, error) {
+	type row struct {
+		Criticality string
+		Count       int
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&domain.Risk{}).
+		Select("LOWER(criticality) AS criticality, COUNT(*) AS count").
+		Where("tenant_id = ?", tenantID).
+		Group("LOWER(criticality)").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]int, len(rows))
+	for _, rr := range rows {
+		out[rr.Criticality] = rr.Count
+	}
+	return out, nil
+}
+
 // =============================================================================
 // Scoring Operations (called by Score Engine worker)
 // =============================================================================

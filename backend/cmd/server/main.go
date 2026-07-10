@@ -22,6 +22,7 @@ import (
 
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/application/auth"
+	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -39,6 +40,7 @@ import (
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
 	"github.com/opendefender/openrisk/internal/service"
+	"github.com/opendefender/openrisk/pkg/ai"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/notify"
@@ -139,6 +141,9 @@ func main() {
 		// fatally errors on them ("unsupported data type"). Marketplace is a pre-existing partial
 		// module (see ROADMAP.md) — needs real GORM tagging before it can be added back here.
 		&domain.AdminAuditEvent{},
+		// M4 (second half) — monthly board-of-directors report (draft → approved),
+		// with a per-tenant posture snapshot and an editable AI/template narrative.
+		&domain.BoardReport{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -514,6 +519,50 @@ func main() {
 	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, complianceHandler.CreateEvidence)
 	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
 	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
+
+	// =========================================================================
+	// Board Report (M4, second half — see ROADMAP.md §3 M4).
+	// Monthly, non-technical board-of-directors report: aggregates the tenant's
+	// risk/compliance posture, estimates financial exposure in FCFA, and asks an
+	// AI advisor to write the narrative. The LLM is best-effort: when
+	// ANTHROPIC_API_KEY is set a ClaudeAdvisor (claude-opus-4-8) writes the prose;
+	// otherwise (or on any API error) a deterministic TemplateAdvisor does, so the
+	// feature works out of the box with no key. Human-in-the-loop: reports are
+	// generated as drafts, editable, and must be approved before diffusion.
+	// =========================================================================
+	boardRepo := repository.NewGormBoardReportRepository(database.DB)
+	boardAdvisor := ai.NewAdvisor(os.Getenv("ANTHROPIC_API_KEY"), os.Getenv("ANTHROPIC_MODEL"))
+	if _, isTemplate := boardAdvisor.(*ai.TemplateAdvisor); isTemplate {
+		log.Println("Board Report: no ANTHROPIC_API_KEY set — using deterministic template advisor")
+	} else {
+		log.Printf("Board Report: Claude advisor enabled (%s)", boardAdvisor.Name())
+	}
+	generateBoardUC := board.NewGenerateBoardReportUseCase(
+		boardRepo, riskRepo, complianceRepo, orgRepo, boardAdvisor, board.DefaultExposureModel(),
+	)
+	getBoardUC := board.NewGetBoardReportUseCase(boardRepo)
+	listBoardUC := board.NewListBoardReportsUseCase(boardRepo)
+	updateBoardUC := board.NewUpdateBoardReportUseCase(boardRepo)
+	approveBoardUC := board.NewApproveBoardReportUseCase(boardRepo)
+	deleteBoardUC := board.NewDeleteBoardReportUseCase(boardRepo)
+	boardHandler := handlers.NewBoardReportHandler(
+		generateBoardUC, getBoardUC, listBoardUC, updateBoardUC, approveBoardUC, deleteBoardUC, userRepo,
+	)
+
+	// admin/root-only today (same permission model as compliance — see the note above).
+	boardRead := middleware.RequirePermission("reports:board:read")
+	boardCreate := middleware.RequirePermission("reports:board:create")
+	boardUpdate := middleware.RequirePermission("reports:board:update")
+	boardApprove := middleware.RequirePermission("reports:board:approve")
+	boardDelete := middleware.RequirePermission("reports:board:delete")
+
+	protected.Get("/reports/board", boardRead, boardHandler.List)
+	protected.Post("/reports/board", boardCreate, boardHandler.Generate)
+	protected.Get("/reports/board/:reportId", boardRead, boardHandler.Get)
+	protected.Patch("/reports/board/:reportId", boardUpdate, boardHandler.Update)
+	protected.Post("/reports/board/:reportId/approve", boardApprove, boardHandler.Approve)
+	protected.Delete("/reports/board/:reportId", boardDelete, boardHandler.Delete)
+	protected.Get("/reports/board/:reportId/pdf", boardRead, boardHandler.DownloadPDF)
 
 	// Assets (M3 — see ROADMAP.md §3). Previously these two routes bypassed
 	// RBAC entirely (any authenticated user, any role, could write inventory
