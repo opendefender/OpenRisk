@@ -146,10 +146,13 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 40 }}
             transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
-            className="fixed inset-x-0 top-1/2 z-50 mx-auto w-full max-w-2xl -translate-y-1/2 transform px-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950/95 p-6 shadow-2xl shadow-black/40">
-              <div className="flex items-center justify-between gap-4 mb-6">
+            {/* Bounded height + scrollable body so a tall form never pushes the header
+                or the submit button off-screen (the modal used to be vertically centered
+                with no max-height, hiding its own actions). Header and footer stay pinned. */}
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/40">
+              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-6 py-5">
                 <div>
                   <h2 className="text-2xl font-semibold">{t('risks.createRisk')}</h2>
                   <p className="text-sm text-zinc-500">Créez un risque avec score en temps réel.</p>
@@ -159,7 +162,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+                <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
                 <Input
                   label={t('risks.riskName')}
                   {...register('title')}
@@ -298,7 +302,9 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   disabled={isSubmitting}
                 />
 
-                <div className="flex flex-wrap gap-3 justify-end">
+                </div>
+
+                <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-zinc-800 bg-zinc-950/95 px-6 py-4">
                   <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
                   <Button type="submit" variant="secondary" isLoading={isSubmitting} className="gap-2">
                     <Zap size={16} /> {t('common.save')}

@@ -21,7 +21,7 @@ func TestImportCatalogUseCase_Success(t *testing.T) {
 	created := []domain.ComplianceControl{}
 
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: fwID, Name: "ISO 27001", Version: "2022"}, nil
 		},
 		createControlFunc: func(ctx context.Context, c *domain.ComplianceControl) error {
@@ -54,7 +54,7 @@ func TestImportCatalogUseCase_Idempotent_SkipsExisting(t *testing.T) {
 	tenantID := uuid.New()
 
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: fwID}, nil
 		},
 		listControlsByFrameworkFunc: func(ctx context.Context, tid, frameworkID uuid.UUID) ([]domain.ComplianceControl, error) {
@@ -97,7 +97,7 @@ func TestImportCatalogUseCase_FrameworkNotFound(t *testing.T) {
 func TestImportCatalogUseCase_UnknownCatalog_Validation(t *testing.T) {
 	fwID := uuid.New()
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: fwID}, nil
 		},
 	}
@@ -114,7 +114,7 @@ func TestImportCatalogUseCase_UnknownCatalog_Validation(t *testing.T) {
 func TestImportCatalogUseCase_UnavailableCatalog_Validation(t *testing.T) {
 	fwID := uuid.New()
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: fwID}, nil
 		},
 	}

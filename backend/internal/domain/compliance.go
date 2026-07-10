@@ -22,10 +22,15 @@ const (
 	ControlStatusNotApplicable  ControlStatus = "not_applicable"
 )
 
-// ComplianceFramework is a global reference entity (not tenant-scoped).
-// Examples: ISO 27001, SOC 2, NIST CSF, DORA, COBAC, BCEAO.
+// ComplianceFramework is a tenant-scoped entity: each tenant owns its own
+// frameworks. Examples: ISO 27001, SOC 2, NIST CSF, DORA, COBAC, BCEAO.
+//
+// Two tenants can each hold their own "ISO 27001 / 2022" instance, and deleting
+// one tenant's framework never touches another's. Uniqueness of (name, version)
+// is enforced PER TENANT (partial unique index, migration 0030), not globally.
 type ComplianceFramework struct {
 	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	TenantID    uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
 	Name        string    `gorm:"size:255;not null" json:"name"`
 	Version     string    `gorm:"size:50;not null;default:''" json:"version"`
 	Description string    `gorm:"type:text" json:"description"`

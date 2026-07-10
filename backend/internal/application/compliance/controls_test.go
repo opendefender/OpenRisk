@@ -19,7 +19,7 @@ func TestCreateControlUseCase_Success(t *testing.T) {
 	tenantID := uuid.New()
 	fwID := uuid.New()
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: fwID, Name: "ISO 27001"}, nil
 		},
 	}
@@ -47,7 +47,7 @@ func TestCreateControlUseCase_MissingName_Validation(t *testing.T) {
 
 func TestCreateControlUseCase_FrameworkNotFound(t *testing.T) {
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return nil, nil
 		},
 	}
@@ -63,7 +63,7 @@ func TestCreateControlUseCase_DuplicateReferenceCode_Conflict(t *testing.T) {
 	tenantID := uuid.New()
 	fwID := uuid.New()
 	repo := &MockComplianceRepository{
-		getFrameworkByIDFunc: func(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+		getFrameworkByIDFunc: func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 			return &domain.ComplianceFramework{ID: fwID}, nil
 		},
 		listControlsByFrameworkFunc: func(ctx context.Context, tid, fid uuid.UUID) ([]domain.ComplianceControl, error) {

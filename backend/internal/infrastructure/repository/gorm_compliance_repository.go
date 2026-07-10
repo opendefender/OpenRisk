@@ -38,6 +38,9 @@ func NewGormComplianceRepository(db *gorm.DB) *GormComplianceRepository {
 // exists — the DB unique index is the authoritative guard (no TOCTOU gap),
 // use cases may still pre-check for a faster, friendlier error message.
 func (r *GormComplianceRepository) CreateFramework(ctx context.Context, framework *domain.ComplianceFramework) error {
+	if framework.TenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
 	err := r.db.WithContext(ctx).Create(framework).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return domain.NewConflictError("framework", "name+version")
@@ -45,12 +48,12 @@ func (r *GormComplianceRepository) CreateFramework(ctx context.Context, framewor
 	return err
 }
 
-// GetFrameworkByID retrieves a framework by ID.
-// Returns (nil, nil) if not found.
-func (r *GormComplianceRepository) GetFrameworkByID(ctx context.Context, id uuid.UUID) (*domain.ComplianceFramework, error) {
+// GetFrameworkByID retrieves a framework by ID scoped to a tenant.
+// Returns (nil, nil) if not found or it belongs to another tenant.
+func (r *GormComplianceRepository) GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
 	var fw domain.ComplianceFramework
 	err := r.db.WithContext(ctx).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		First(&fw).Error
 
 	if err != nil {
@@ -62,10 +65,11 @@ func (r *GormComplianceRepository) GetFrameworkByID(ctx context.Context, id uuid
 	return &fw, nil
 }
 
-// ListFrameworks returns all active (non-deleted) frameworks.
-func (r *GormComplianceRepository) ListFrameworks(ctx context.Context) ([]domain.ComplianceFramework, error) {
+// ListFrameworks returns a tenant's active (non-deleted) frameworks.
+func (r *GormComplianceRepository) ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error) {
 	var frameworks []domain.ComplianceFramework
 	err := r.db.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
 		Order("name ASC").
 		Find(&frameworks).Error
 	return frameworks, err
@@ -160,6 +164,31 @@ func (r *GormComplianceRepository) DeleteControl(ctx context.Context, id uuid.UU
 		return fmt.Errorf("control not found")
 	}
 	return nil
+}
+
+// DeleteFramework soft-deletes a framework by ID scoped to a tenant.
+func (r *GormComplianceRepository) DeleteFramework(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Delete(&domain.ComplianceFramework{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete framework: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("framework not found")
+	}
+	return nil
+}
+
+// DeleteControlsByFramework soft-deletes all of a tenant's controls under a framework.
+func (r *GormComplianceRepository) DeleteControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND framework_id = ?", tenantID, frameworkID).
+		Delete(&domain.ComplianceControl{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to delete controls by framework: %w", result.Error)
+	}
+	return result.RowsAffected, nil
 }
 
 // =============================================================================

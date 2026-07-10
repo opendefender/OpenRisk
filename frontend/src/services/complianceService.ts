@@ -43,6 +43,10 @@ export const complianceService = {
     return response.data;
   },
 
+  deleteFramework: async (frameworkId: string): Promise<void> => {
+    await api.delete(`/compliance/frameworks/${frameworkId}`);
+  },
+
   getProgress: async (frameworkId: string): Promise<ComplianceProgress> => {
     const response = await api.get<ComplianceProgress>(`/compliance/frameworks/${frameworkId}/progress`);
     return response.data;
