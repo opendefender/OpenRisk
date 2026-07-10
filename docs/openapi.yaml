@@ -906,6 +906,147 @@ paths:
         '404':
           description: Evidence not found
 
+  # ==================== BOARD REPORT (M4) ====================
+  /reports/board:
+    get:
+      tags: [BoardReport]
+      summary: List a tenant's board reports (most recent first)
+      operationId: listBoardReports
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The tenant's board reports.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BoardReport' }
+    post:
+      tags: [BoardReport]
+      summary: Generate a monthly board report (draft)
+      description: >
+        Aggregates the tenant's risk register (by criticality) and compliance
+        posture (per framework), estimates the annual financial exposure in FCFA,
+        and asks the configured AI advisor to write a non-technical narrative for
+        the board of directors. When ANTHROPIC_API_KEY is set a Claude advisor
+        (claude-opus-4-8) writes the prose; otherwise, or on any API error, a
+        deterministic template writes it (GeneratedByModel records which). The
+        report is created as an editable DRAFT (human-in-the-loop) and must be
+        approved before diffusion.
+      operationId: generateBoardReport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateBoardReportInput' }
+      responses:
+        '201':
+          description: The generated draft report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardReport' }
+
+  /reports/board/{reportId}:
+    get:
+      tags: [BoardReport]
+      summary: Get a board report (JSON)
+      operationId: getBoardReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The board report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardReport' }
+        '404':
+          description: Report not found.
+    patch:
+      tags: [BoardReport]
+      summary: Edit a draft board report's narrative
+      description: Only DRAFT reports are editable; an approved report is frozen (returns 400/validation).
+      operationId: updateBoardReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBoardReportInput' }
+      responses:
+        '200':
+          description: The updated report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardReport' }
+        '404':
+          description: Report not found.
+    delete:
+      tags: [BoardReport]
+      summary: Delete a board report
+      operationId: deleteBoardReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Report deleted.
+        '404':
+          description: Report not found.
+
+  /reports/board/{reportId}/approve:
+    post:
+      tags: [BoardReport]
+      summary: Approve a draft board report (human-in-the-loop)
+      description: Marks the report approved, recording the approver and timestamp. Idempotent.
+      operationId: approveBoardReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The approved report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardReport' }
+        '404':
+          description: Report not found.
+
+  /reports/board/{reportId}/pdf:
+    get:
+      tags: [BoardReport]
+      summary: Download a board report as a polished PDF
+      operationId: downloadBoardReportPDF
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The board report as a PDF attachment.
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          description: Report not found.
+
   # ==================== ASSETS ====================
   /assets:
     get:
@@ -1676,6 +1817,76 @@ components:
           type: number
           format: float
           description: implemented / applicable * 100 (0 if applicable is 0)
+
+    FrameworkSnapshot:
+      type: object
+      description: Per-framework advancement frozen into a board report at generation time.
+      properties:
+        name: { type: string }
+        version: { type: string }
+        total: { type: integer }
+        applicable: { type: integer, description: total minus not_applicable }
+        implemented: { type: integer }
+        percent_complete: { type: number, format: float }
+
+    BoardReport:
+      type: object
+      description: >
+        A tenant-scoped monthly board-of-directors report. Snapshots the risk and
+        compliance posture at generation time plus an editable, non-technical
+        narrative. Lifecycle: draft -> approved (human-in-the-loop).
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        title: { type: string }
+        organization_name: { type: string, description: Organization display name snapshotted at generation time }
+        period_label: { type: string, example: "Juillet 2026" }
+        locale: { type: string, enum: [fr, en] }
+        status: { type: string, enum: [draft, approved] }
+        risks_critical: { type: integer }
+        risks_high: { type: integer }
+        risks_medium: { type: integer }
+        risks_low: { type: integer }
+        risks_total: { type: integer }
+        financial_exposure_fcfa: { type: integer, format: int64, description: Estimated annual exposure in FCFA (order-of-magnitude model) }
+        overall_compliance_percent: { type: number, format: float }
+        frameworks_snapshot:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/FrameworkSnapshot' }
+        executive_summary: { type: string }
+        risk_commentary: { type: string }
+        compliance_commentary: { type: string }
+        financial_commentary: { type: string }
+        recommendations:
+          type: array
+          items: { type: string }
+        generated_by_model: { type: string, description: '"claude-opus-4-8" or "template" (provenance)' }
+        created_by: { type: string, format: uuid }
+        approved_by: { type: string, format: uuid, nullable: true }
+        approved_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GenerateBoardReportInput:
+      type: object
+      description: Both fields optional — empty period defaults to the current month, empty locale to French.
+      properties:
+        period_label: { type: string, example: "Juillet 2026" }
+        locale: { type: string, enum: [fr, en], default: fr }
+
+    UpdateBoardReportInput:
+      type: object
+      description: Partial narrative edits for a DRAFT report. Any omitted field is left unchanged.
+      properties:
+        title: { type: string }
+        executive_summary: { type: string }
+        risk_commentary: { type: string }
+        compliance_commentary: { type: string }
+        financial_commentary: { type: string }
+        recommendations:
+          type: array
+          items: { type: string }
 
     Asset:
       type: object

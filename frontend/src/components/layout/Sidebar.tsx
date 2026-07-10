@@ -19,6 +19,7 @@ const menuItems = [
   { icon: Activity, label: 'Incidents', path: '/incidents' },
   { icon: Map, label: 'Threat Map', path: '/threat-map' },
   { icon: FileText, label: 'Reports', path: '/reports' },
+  { icon: Sparkles, label: 'Board Report', path: '/reports/board' },
   { icon: Store, label: 'Marketplace', path: '/marketplace' },
   { icon: Sliders, label: 'Custom Fields', path: '/custom-fields' },
   { icon: ZapIcon, label: 'Bulk Ops', path: '/bulk-operations' },

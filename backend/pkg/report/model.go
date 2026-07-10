@@ -78,3 +78,47 @@ type ReportControlRow struct {
 	SourceReference string
 	EvidenceCount   int
 }
+
+// BoardReportData is the fully-assembled, render-ready input for a monthly
+// board-of-directors report. Amounts are passed pre-formatted (FinancialExposureLabel)
+// so pkg/report stays free of any currency/formatting dependency on pkg/ai.
+type BoardReportData struct {
+	Locale Locale
+
+	// Cover / identity
+	OrganizationName string
+	Title            string
+	PeriodLabel      string
+	GeneratedAt      time.Time
+	GeneratedBy      string // author display name or email
+	GeneratedByModel string // "claude-opus-4-8" or "template" — provenance
+	Status           string // "draft" | "approved"
+	ApprovedBy       string
+	ApprovedAt       *time.Time
+
+	// Posture snapshot
+	RisksCritical          int
+	RisksHigh              int
+	RisksMedium            int
+	RisksLow               int
+	RisksTotal             int
+	FinancialExposureLabel string // pre-formatted, e.g. "175 000 000 FCFA"
+	OverallCompliancePercent float64
+	Frameworks             []BoardFrameworkRow
+
+	// Narrative (already reviewed by a human)
+	ExecutiveSummary     string
+	RiskCommentary       string
+	ComplianceCommentary string
+	FinancialCommentary  string
+	Recommendations      []string
+}
+
+// BoardFrameworkRow is one line of the compliance-by-framework table.
+type BoardFrameworkRow struct {
+	Name            string
+	Version         string
+	PercentComplete float64
+	Implemented     int
+	Applicable      int
+}
