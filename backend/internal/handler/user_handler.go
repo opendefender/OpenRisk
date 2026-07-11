@@ -159,29 +159,28 @@ func GetUsers(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Check if user is admin
-	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if user.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view users"})
-	}
+	// Authorization is enforced by the RequireRole("admin") route guard (now root-aware).
+	// The previous in-handler re-check dereferenced user.Role.Name, which panics for
+	// RBAC-managed users whose legacy Role FK is nil (e.g. the seeded root admin) — that
+	// nil-pointer dereference was the source of the 500 on GET /users.
 
 	var users []domain.User
 	if err := database.DB.Preload("Role").Find(&users).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve users"})
 	}
 
-	var response []UserResponseDTO
+	response := make([]UserResponseDTO, 0, len(users))
 	for _, u := range users {
+		roleName := ""
+		if u.Role != nil { // nil for RBAC-managed users — never dereference blindly
+			roleName = u.Role.Name
+		}
 		dto := UserResponseDTO{
 			ID:        u.ID.String(),
 			Email:     u.Email,
 			Username:  u.Username,
 			FullName:  u.FullName,
-			Role:      u.Role.Name,
+			Role:      roleName,
 			IsActive:  u.IsActive,
 			CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		}
