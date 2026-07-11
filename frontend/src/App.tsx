@@ -19,10 +19,6 @@ import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
 // --- Imports des Pages & Features ---
 import { AuthScreen } from './features/auth/AuthScreen';
 import { SettingsScreen } from './features/settings/SettingsScreen';
-import { Users } from './pages/Users';
-import { RoleManagement } from './pages/RoleManagement';
-import { TenantManagement } from './pages/TenantManagement';
-import AuditLogs from './pages/AuditLogs';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { ImportRisksPage } from './features/risks/ImportRisksPage';
 import { RiskRegisterPage } from './features/risks/RiskRegisterPage';
@@ -38,13 +34,7 @@ import { InfrastructurePage } from './features/infrastructure/InfrastructurePage
 import { SimulationsPage } from './features/simulations/SimulationsPage';
 import { ReportsScreen } from './features/reports/ReportsScreen';
 import { AiAdvisor } from './features/ai/AiAdvisor';
-import { RiskManagement } from './pages/RiskManagement';
-import { TokenManagement } from './pages/TokenManagement';
 import { BoardReportPage } from './features/reports/BoardReportPage';
-import Marketplace from './pages/Marketplace';
-import PermissionAnalyticsPage from './pages/PermissionAnalytics';
-import CustomFields from './pages/CustomFields';
-import BulkOperations from './pages/BulkOperations';
 import RiskTimeline from './pages/RiskTimeline';
 
 /**
@@ -138,28 +128,32 @@ function App() {
           <Route path="compliance" element={<ComplianceScreen />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
-          <Route path="risk-management" element={<RiskManagement />} />
           <Route path="analytics" element={<AnalyticsCiso />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="incidents" element={<WarRoom />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="simulations" element={<SimulationsPage />} />
+          <Route path="assets" element={<InventoryPage />} />
           <Route path="assets/universe" element={<AssetUniverse />} />
           <Route path="reports" element={<ReportsScreen />} />
           <Route path="reports/board" element={<BoardReportPage />} />
-          <Route path="marketplace" element={<Marketplace />} />
-          <Route path="custom-fields" element={<CustomFields />} />
-          <Route path="bulk-operations" element={<BulkOperations />} />
-          <Route path="settings" element={<SettingsScreen />} />
-          <Route path="users" element={<Users />} />
-          <Route path="roles" element={<RoleManagement />} />
-          <Route path="tenants" element={<TenantManagement />} />
-          <Route path="audit-logs" element={<AuditLogs />} />
-          <Route path="analytics/permissions" element={<PermissionAnalyticsPage />} />
-          <Route path="tokens" element={<TokenManagement />} />
-          <Route path="assets" element={<InventoryPage />} />
           <Route path="recommendations" element={<AiAdvisor />} />
+          <Route path="settings" element={<SettingsScreen />} />
+
+          {/* Admin features consolidated into Settings — old routes redirect there
+              so existing deep links keep working. Risk-management / bulk-ops fold
+              into the Risk Register (which now carries the bulk action bar). */}
+          <Route path="users" element={<Navigate to="/settings" replace />} />
+          <Route path="roles" element={<Navigate to="/settings" replace />} />
+          <Route path="tenants" element={<Navigate to="/settings" replace />} />
+          <Route path="audit-logs" element={<Navigate to="/settings" replace />} />
+          <Route path="tokens" element={<Navigate to="/settings" replace />} />
+          <Route path="marketplace" element={<Navigate to="/settings" replace />} />
+          <Route path="custom-fields" element={<Navigate to="/settings" replace />} />
+          <Route path="analytics/permissions" element={<Navigate to="/settings" replace />} />
+          <Route path="risk-management" element={<Navigate to="/risks" replace />} />
+          <Route path="bulk-operations" element={<Navigate to="/risks" replace />} />
         </Route>
 
         {/* Redirection par défaut */}
