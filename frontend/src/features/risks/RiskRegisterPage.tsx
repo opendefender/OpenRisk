@@ -1,37 +1,68 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: BUSL-1.1
 //
-// Risk Register (OpenRisk.dc.html §6.3): criticality chips, dense table with
-// multi-select + floating bulk bar, and a right-side detail drawer with
-// Details / Score / Mitigations tabs. Fixture-driven to match the handoff.
+// Risk Register (OpenRisk.dc.html §6.3) — wired to the real /risks store. Criticality
+// chips, dense table with multi-select + floating bulk bar (real bulk delete), and a
+// right-side detail drawer with Details / Score / Mitigations tabs. Loading skeleton
+// and an empty state when the tenant has no risks yet.
 
-import { useMemo, useState } from 'react';
-import { Filter, Server, Plus, X, MoreHorizontal, FileText, Settings, ShieldCheck, Clock } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Settings, ShieldCheck, ShieldAlert, Clock } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Chip, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
-  type RiskStatus,
+  SkeletonRows, EmptyState,
 } from '../../shared/ui';
-import { scoreColor, critColor } from '../../shared/riskColors';
-import { RISKS, ALL_MITIGATIONS, type FxRisk } from '../../shared/fixtures';
+import { scoreColor } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
+import { useRiskStore } from '../../hooks/useRiskStore';
+import { mapRisk, type UiRisk } from './riskMap';
 
 type Tab = 'all' | 'critical' | 'high' | 'review';
 
 export function RiskRegisterPage() {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
+  const navigate = useNavigate();
+  const risks = useRiskStore((s) => s.risks);
+  const total = useRiskStore((s) => s.total);
+  const isLoading = useRiskStore((s) => s.isLoading);
+  const fetchRisks = useRiskStore((s) => s.fetchRisks);
+  const deleteRisk = useRiskStore((s) => s.deleteRisk);
+
   const [tab, setTab] = useState<Tab>('all');
   const [sel, setSel] = useState<string[]>([]);
-  const [drawer, setDrawer] = useState<string | null>(null);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const critCount = RISKS.filter((r) => r.crit === 'critical').length;
-  const highCount = RISKS.filter((r) => r.crit === 'high').length;
+  useEffect(() => { fetchRisks().catch(() => {}); }, [fetchRisks]);
+
+  const ui: UiRisk[] = useMemo(() => risks.map((r) => mapRisk(r, lang)), [risks, lang]);
+  const critCount = ui.filter((r) => r.crit === 'critical').length;
+  const highCount = ui.filter((r) => r.crit === 'high').length;
   const filtered = useMemo(
-    () => RISKS.filter((r) => (tab === 'all' ? true : tab === 'critical' ? r.crit === 'critical' : tab === 'high' ? r.crit === 'high' : r.status === 'open')),
-    [tab]
+    () => ui.filter((r) => (tab === 'all' ? true : tab === 'critical' ? r.crit === 'critical' : tab === 'high' ? r.crit === 'high' : r.status === 'open')),
+    [ui, tab]
   );
+  const drawer = drawerId ? ui.find((r) => r.id === drawerId) ?? null : null;
+
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const bulkDelete = async () => {
+    if (!sel.length) return;
+    setBusy(true);
+    try {
+      await Promise.all(sel.map((id) => deleteRisk(id)));
+      toast.success(lang === 'fr' ? `${sel.length} risque(s) supprimé(s)` : `${sel.length} risk(s) deleted`);
+      setSel([]);
+    } catch {
+      toast.error(lang === 'fr' ? 'Suppression échouée' : 'Delete failed');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const th = (t: string, w?: string) => (
     <th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]" style={{ width: w }}>{t}</th>
@@ -41,12 +72,12 @@ export function RiskRegisterPage() {
     <PageFrame wide>
       <PageHeader
         title={L.riskTitle}
-        count={`${RISKS.length} ${lang === 'fr' ? 'risques' : 'risks'}`}
+        count={`${total} ${lang === 'fr' ? 'risques' : 'risks'}`}
         actions={
           <>
             <Btn label={L.filters} icon={Filter} />
-            <Btn label={L.importCsv} icon={Server} />
-            <Btn label={L.newRisk} icon={Plus} primary onClick={() => setDrawer('new')} />
+            <Btn label={L.importCsv} icon={Upload} onClick={() => navigate('/risks/import')} />
+            <Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />
           </>
         }
       />
@@ -59,90 +90,78 @@ export function RiskRegisterPage() {
       </div>
 
       <Card style={{ padding: '8px 8px 4px', overflow: 'hidden' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse" style={{ minWidth: 820 }}>
-            <thead style={{ borderBottom: '1px solid var(--border)' }}>
-              <tr>
-                {th('', '34px')}{th(L.col_name)}{th(L.col_score)}{th(L.col_crit)}{th(L.col_status)}{th(L.col_fw)}{th(L.col_owner)}{th(L.col_mod)}{th('')}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => {
-                const checked = sel.includes(r.id);
-                return (
-                  <tr
-                    key={r.id}
-                    onClick={() => setDrawer(r.id)}
-                    className="cursor-pointer transition-colors hover:bg-hover"
-                  >
-                    <td className="px-3 py-[13px]" onClick={(e) => { e.stopPropagation(); toggle(r.id); }}>
-                      <div
-                        className="w-[17px] h-[17px] rounded-[5px] flex items-center justify-center"
-                        style={{ border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border-strong)'}`, background: checked ? 'var(--accent)' : 'transparent' }}
-                      >
-                        {checked && (
-                          <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-[13px]">
-                      <div className="text-[13.5px] font-medium text-ink max-w-[340px] truncate">{r.name}</div>
-                      <div className="mono text-[11px] text-ink-muted mt-0.5">{r.id} · {r.asset}</div>
-                    </td>
-                    <td className="px-3 py-[13px]"><span className="mono text-[15px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span></td>
-                    <td className="px-3 py-[13px]"><CritBadge crit={r.crit} /></td>
-                    <td className="px-3 py-[13px]"><StatusPill status={r.status} /></td>
-                    <td className="px-3 py-[13px]"><FwBadge fw={r.fw} /></td>
-                    <td className="px-3 py-[13px]"><Avatar initials={r.owner} title={r.ownerName} /></td>
-                    <td className="px-3 py-[13px] text-[12px] text-ink-soft whitespace-nowrap">{r.mod}</td>
-                    <td className="px-3 py-[13px]" onClick={(e) => e.stopPropagation()}>
-                      <button className="w-7 h-7 rounded-[7px] flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"><MoreHorizontal size={17} /></button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {isLoading && ui.length === 0 ? (
+          <SkeletonRows rows={6} />
+        ) : ui.length === 0 ? (
+          <EmptyState
+            icon={ShieldAlert}
+            title={lang === 'fr' ? 'Aucun risque pour le moment' : 'No risks yet'}
+            sub={lang === 'fr' ? 'Créez votre premier risque pour commencer à cartographier votre exposition.' : 'Create your first risk to start mapping your exposure.'}
+            cta={<Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" style={{ minWidth: 820 }}>
+              <thead style={{ borderBottom: '1px solid var(--border)' }}>
+                <tr>
+                  {th('', '34px')}{th(L.col_name)}{th(L.col_score)}{th(L.col_crit)}{th(L.col_status)}{th(L.col_fw)}{th(L.col_owner)}{th(L.col_mod)}{th('')}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r) => {
+                  const checked = sel.includes(r.id);
+                  return (
+                    <tr key={r.id} onClick={() => setDrawerId(r.id)} className="cursor-pointer transition-colors hover:bg-hover">
+                      <td className="px-3 py-[13px]" onClick={(e) => { e.stopPropagation(); toggle(r.id); }}>
+                        <div className="w-[17px] h-[17px] rounded-[5px] flex items-center justify-center" style={{ border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border-strong)'}`, background: checked ? 'var(--accent)' : 'transparent' }}>
+                          {checked && <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-[13px]">
+                        <div className="text-[13.5px] font-medium text-ink max-w-[340px] truncate">{r.name}</div>
+                        <div className="mono text-[11px] text-ink-muted mt-0.5">#{r.id.slice(0, 8)} · {r.asset}</div>
+                      </td>
+                      <td className="px-3 py-[13px]"><span className="mono text-[15px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span></td>
+                      <td className="px-3 py-[13px]"><CritBadge crit={r.crit} /></td>
+                      <td className="px-3 py-[13px]"><StatusPill status={r.status} /></td>
+                      <td className="px-3 py-[13px]">{r.fw !== '—' ? <FwBadge fw={r.fw} /> : <span className="text-ink-muted text-[12px]">—</span>}</td>
+                      <td className="px-3 py-[13px]">{r.owner !== '—' ? <Avatar initials={r.owner} title={r.ownerName} /> : <span className="text-ink-muted text-[12px]">—</span>}</td>
+                      <td className="px-3 py-[13px] text-[12px] text-ink-soft whitespace-nowrap">{r.mod}</td>
+                      <td className="px-3 py-[13px]" onClick={(e) => e.stopPropagation()}>
+                        <button className="w-7 h-7 rounded-[7px] flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"><MoreHorizontal size={17} /></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       {sel.length > 0 && (
-        <div
-          className="fixed bottom-6 z-[60] glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3.5"
-          style={{ left: 'calc(50% + 100px)', transform: 'translateX(-50%)', animation: 'or-fadeup .2s ease' }}
-        >
-          <span className="text-[13px] font-semibold text-ink">
-            {sel.length} {lang === 'fr' ? `sélectionné${sel.length > 1 ? 's' : ''}` : 'selected'}
-          </span>
+        <div className="fixed bottom-6 z-[60] glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3.5" style={{ left: 'calc(50% + 100px)', transform: 'translateX(-50%)', animation: 'or-fadeup .2s ease' }}>
+          <span className="text-[13px] font-semibold text-ink">{sel.length} {lang === 'fr' ? `sélectionné${sel.length > 1 ? 's' : ''}` : 'selected'}</span>
           <span className="w-px h-5" style={{ background: 'var(--border-strong)' }} />
           <Btn label={L.exportCsv} icon={FileText} />
-          <button onClick={() => setSel([])} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold" style={{ background: 'color-mix(in srgb,var(--critical) 14%,transparent)', color: 'var(--critical)' }}>{L.del}</button>
+          <button onClick={bulkDelete} disabled={busy} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold disabled:opacity-60" style={{ background: 'color-mix(in srgb,var(--critical) 14%,transparent)', color: 'var(--critical)' }}>{L.del}</button>
         </div>
       )}
 
-      {drawer && <RiskDrawer id={drawer} onClose={() => setDrawer(null)} />}
+      {drawer && <RiskDrawer r={drawer} onClose={() => setDrawerId(null)} />}
     </PageFrame>
   );
 }
 
 /* ---------------- drawer ---------------- */
 
-const NEW_RISK: FxRisk = {
-  id: 'RSK-NEW', name: 'Nouveau risque', crit: 'medium', score: 5.0, prob: 0.5, impact: 6.0, ac: 1.0,
-  asset: '—', fw: 'ISO27001', status: 'open', ownerName: 'Amir Diallo', owner: 'AD', mod: 'à l’instant', desc: 'Décrivez le risque…',
-};
-
-function RiskDrawer({ id, onClose }: { id: string; onClose: () => void }) {
+function RiskDrawer({ r, onClose }: { r: UiRisk; onClose: () => void }) {
   const L = useUIStrings();
   const [tab, setTab] = useState<'details' | 'score' | 'miti' | 'timeline' | 'cti' | 'ai'>('details');
-  const r = id === 'new' ? NEW_RISK : RISKS.find((x) => x.id === id);
-  if (!r) return null;
-
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details], ['score', L.tab_score], ['miti', L.tab_miti],
     ['timeline', L.tab_timeline], ['cti', L.tab_cti], ['ai', L.tab_ai],
   ];
-
   return (
     <div className="fixed inset-0 z-[70] flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }} onClick={onClose}>
       <div
@@ -153,14 +172,14 @@ function RiskDrawer({ id, onClose }: { id: string; onClose: () => void }) {
         <div className="px-[22px] pt-5 pb-3.5">
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-1">
-              <div className="mono text-[11px] text-ink-muted mb-[5px]">{r.id}</div>
+              <div className="mono text-[11px] text-ink-muted mb-[5px]">#{r.id.slice(0, 8)}</div>
               <div className="disp text-[18px] font-bold text-ink leading-snug">{r.name}</div>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}><X size={18} /></button>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <CritBadge crit={r.crit} />
-            <StatusPill status={r.status as RiskStatus} />
+            <StatusPill status={r.status} />
             <span className="mono text-[13px] font-bold ml-auto" style={{ color: scoreColor(r.score) }}>Score {r.score.toFixed(1)}</span>
           </div>
           <div className="flex gap-2 mt-3.5">
@@ -172,14 +191,7 @@ function RiskDrawer({ id, onClose }: { id: string; onClose: () => void }) {
 
         <div className="flex gap-0.5 px-[22px] overflow-x-auto" style={{ borderBottom: '1px solid var(--border)' }}>
           {tabDef.map(([k, lbl]) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              className="px-3 py-[11px] text-[13px] whitespace-nowrap"
-              style={{ color: tab === k ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: tab === k ? 600 : 500, borderBottom: `2px solid ${tab === k ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}
-            >
-              {lbl}
-            </button>
+            <button key={k} onClick={() => setTab(k)} className="px-3 py-[11px] text-[13px] whitespace-nowrap" style={{ color: tab === k ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: tab === k ? 600 : 500, borderBottom: `2px solid ${tab === k ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>{lbl}</button>
           ))}
         </div>
 
@@ -187,16 +199,14 @@ function RiskDrawer({ id, onClose }: { id: string; onClose: () => void }) {
           {tab === 'details' && <DrawerDetails r={r} onCreateMiti={() => setTab('miti')} />}
           {tab === 'score' && <DrawerScore r={r} />}
           {tab === 'miti' && <DrawerMiti r={r} />}
-          {(tab === 'timeline' || tab === 'cti' || tab === 'ai') && (
-            <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>
-          )}
+          {(tab === 'timeline' || tab === 'cti' || tab === 'ai') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
         </div>
       </div>
     </div>
   );
 }
 
-function DrawerDetails({ r, onCreateMiti }: { r: FxRisk; onCreateMiti: () => void }) {
+function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const field = (lbl: string, val: string) => (
@@ -221,11 +231,11 @@ function DrawerDetails({ r, onCreateMiti }: { r: FxRisk; onCreateMiti: () => voi
   );
 }
 
-function DrawerScore({ r }: { r: FxRisk }) {
+function DrawerScore({ r }: { r: UiRisk }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const gauge = (val: number, max: number, lbl: string, col: string) => {
-    const pct = val / max, cx = 52, cy = 52, rr = 42;
+    const pct = Math.max(0, Math.min(1, val / max)), cx = 52, cy = 52, rr = 42;
     const track = arcPath(cx, cy, rr, -130, 130);
     const prog = arcPath(cx, cy, rr, -130, -130 + 260 * pct);
     return (
@@ -261,10 +271,10 @@ function DrawerScore({ r }: { r: FxRisk }) {
   );
 }
 
-function DrawerMiti({ r }: { r: FxRisk }) {
+function DrawerMiti({ r }: { r: UiRisk }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
-  const linked = ALL_MITIGATIONS.filter((x) => x.risk === r.id);
+  const linked = r.raw.mitigations ?? [];
   if (!linked.length) {
     return (
       <div className="py-10 px-[22px] text-center">
@@ -279,17 +289,14 @@ function DrawerMiti({ r }: { r: FxRisk }) {
         <div key={x.id} className="p-3.5 rounded-[12px] mb-2.5" style={{ border: '1px solid var(--border)' }}>
           <div className="text-[13.5px] font-medium text-ink mb-2.5">{x.title}</div>
           <div className="h-[5px] rounded-[5px] overflow-hidden mb-2" style={{ background: 'var(--bg-hover)' }}>
-            <div className="h-full rounded-[5px]" style={{ width: `${x.progress}%`, background: 'var(--low)' }} />
+            <div className="h-full rounded-[5px]" style={{ width: `${x.progress ?? 0}%`, background: 'var(--low)' }} />
           </div>
           <div className="flex items-center justify-between text-[11.5px] text-ink-muted">
-            <span>{x.progress}%</span>
-            <span className="inline-flex items-center gap-1"><Clock size={12} /> {x.deadline}</span>
+            <span>{x.progress ?? 0}%</span>
+            <span className="inline-flex items-center gap-1"><Clock size={12} /> {x.status}</span>
           </div>
         </div>
       ))}
     </div>
   );
 }
-
-/* keep critColor referenced for tree-shaking parity */
-void critColor;

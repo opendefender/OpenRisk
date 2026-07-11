@@ -9,13 +9,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, ArrowUp, ArrowDown, FileText, Zap,
+  ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
+import { useDashboardStats } from './useStats';
 
 /* ---------------- helpers ---------------- */
 
@@ -54,8 +55,6 @@ const Card = ({ children, className = '', style }: { children: React.ReactNode; 
   </div>
 );
 
-/* ---------------- fixtures (fallback / design parity) ---------------- */
-
 interface RecentRisk {
   id: string;
   name: string;
@@ -64,14 +63,6 @@ interface RecentRisk {
   meta: string;
   fw: string;
 }
-
-const FIXTURE_RECENT: RecentRisk[] = [
-  { id: 'RSK-1042', name: 'Exposition RDP non filtrée sur serveur de paie', crit: 'critical', score: 9.2, meta: 'srv-paie-01', fw: 'ISO27001' },
-  { id: 'RSK-1039', name: 'Absence de MFA sur comptes administrateurs cloud', crit: 'critical', score: 8.6, meta: 'aws-prod', fw: 'SOC2' },
-  { id: 'RSK-1031', name: 'Chiffrement TLS obsolète sur passerelle bancaire', crit: 'high', score: 6.8, meta: 'gw-bank-02', fw: 'BCEAO' },
-  { id: 'RSK-1024', name: 'Sauvegardes non testées depuis 90 jours', crit: 'high', score: 6.2, meta: 'backup-nas', fw: 'ISO27001' },
-  { id: 'RSK-1018', name: 'Dépendances npm vulnérables (CVE-2024-4032)', crit: 'medium', score: 4.4, meta: 'portail-client', fw: 'NIST' },
-];
 
 /* ---------------- page ---------------- */
 
@@ -84,29 +75,24 @@ export const DashboardPage = () => {
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
 
   useEffect(() => {
-    // Best-effort refresh; the widgets degrade to fixtures if this fails/empties.
     fetchRisks?.().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasReal = risks.length > 0;
-
   const critOf = (r: (typeof risks)[number]): Criticality =>
     (r.level?.toLowerCase() as Criticality) || scoreToCriticality(r.score);
 
-  const kpis = useMemo(() => {
-    if (!hasReal) return { total: 247, critical: 12, mitig: 34, resolved: 18 };
-    return {
-      total: total || risks.length,
-      critical: risks.filter((r) => critOf(r) === 'critical').length,
-      mitig: risks.filter((r) => (r.mitigations?.length ?? 0) > 0 || /progress/i.test(r.status)).length,
-      resolved: risks.filter((r) => /mitigat|resolv|closed|done|accept/i.test(r.status)).length,
-    };
+  const { stats } = useDashboardStats();
+  const sev = stats?.risks_by_severity ?? {};
+  const kpis = useMemo(() => ({
+    total: stats?.total_risks ?? (total || risks.length),
+    critical: (sev.CRITICAL ?? sev.critical) ?? risks.filter((r) => critOf(r) === 'critical').length,
+    mitig: risks.filter((r) => (r.mitigations?.length ?? 0) > 0 || /progress|active/i.test(r.status)).length,
+    resolved: stats?.mitigated_risks ?? risks.filter((r) => /mitigat|resolv|closed|done|accept/i.test(r.status)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasReal, risks, total]);
+  }), [stats, risks, total]);
 
   const recent: RecentRisk[] = useMemo(() => {
-    if (!hasReal) return FIXTURE_RECENT;
     return risks.slice(0, 5).map((r) => ({
       id: r.id.length > 10 ? `#${r.id.slice(0, 8)}` : r.id,
       name: r.title,
@@ -116,7 +102,7 @@ export const DashboardPage = () => {
       fw: r.frameworks?.[0] ?? r.tags?.[0] ?? '—',
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasReal, risks]);
+  }, [risks]);
 
   const fmt = (n: number) => Math.round(n).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US');
 
@@ -141,7 +127,7 @@ export const DashboardPage = () => {
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
-          <ScoreHero score={72} onDetails={() => navigate('/risks')} />
+          <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} onDetails={() => navigate('/risks')} />
           <KpiGrid values={kpis} fmt={fmt} onOpen={() => navigate('/risks')} />
         </div>
 
@@ -182,12 +168,7 @@ function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void 
           <div className="text-[12px] text-ink-muted mt-0.5">/ 100</div>
         </div>
       </div>
-      <div className="flex items-center justify-center gap-2 pt-1 pb-1.5">
-        <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold px-2 py-[3px] rounded-[7px]" style={{ color: 'var(--low)', background: softFill('var(--low)', 12) }}>
-          <ArrowUp size={13} /> +3 pts
-        </span>
-        <span className="text-[12px] text-ink-muted">{L.since7}</span>
-      </div>
+      <div className="pt-1 pb-1.5" />
       <button
         onClick={onDetails}
         className="mx-[22px] mb-5 mt-2 h-[34px] rounded-[9px] text-[12.5px] font-semibold text-ink hover:bg-hover transition-colors"
@@ -208,11 +189,12 @@ function KpiGrid({
   onOpen: () => void;
 }) {
   const L = useUIStrings();
-  const data: { label: string; val: number; delta: string; up: boolean; danger?: boolean; icon: LucideIcon; col: string }[] = [
-    { label: L.kpiTotal, val: values.total, delta: '-4%', up: false, icon: ShieldAlert, col: 'var(--accent)' },
-    { label: L.kpiCrit, val: values.critical, delta: '+2', up: true, danger: true, icon: AlertTriangle, col: 'var(--critical)' },
-    { label: L.kpiMiti, val: values.mitig, delta: '+6', up: true, icon: ShieldCheck, col: 'var(--high)' },
-    { label: L.kpiResolved, val: values.resolved, delta: '+18', up: true, icon: CheckCircle2, col: 'var(--low)' },
+  // No fake deltas: real period-over-period trend needs history the API doesn't expose yet.
+  const data: { label: string; val: number; icon: LucideIcon; col: string }[] = [
+    { label: L.kpiTotal, val: values.total, icon: ShieldAlert, col: 'var(--accent)' },
+    { label: L.kpiCrit, val: values.critical, icon: AlertTriangle, col: 'var(--critical)' },
+    { label: L.kpiMiti, val: values.mitig, icon: ShieldCheck, col: 'var(--high)' },
+    { label: L.kpiResolved, val: values.resolved, icon: CheckCircle2, col: 'var(--low)' },
   ];
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-4">
@@ -224,23 +206,18 @@ function KpiGrid({
 }
 
 function KpiCard({
-  label, val, delta, up, danger, icon: Icon, col, fmt, onClick,
+  label, val, icon: Icon, col, fmt, onClick,
 }: {
-  label: string; val: number; delta: string; up: boolean; danger?: boolean; icon: LucideIcon; col: string;
+  label: string; val: number; icon: LucideIcon; col: string;
   fmt: (n: number) => string; onClick: () => void;
 }) {
   const shown = Math.round(useCountUp(val));
-  const deltaColor = danger ? 'var(--critical)' : 'var(--low)';
   return (
     <button onClick={onClick} className="or-card text-left p-[18px] hover:bg-hover transition-colors">
-      <div className="flex items-center justify-between mb-3.5">
+      <div className="flex items-center mb-3.5">
         <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center" style={{ color: col, background: softFill(col, 14) }}>
           <Icon size={18} strokeWidth={1.75} />
         </div>
-        <span className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold" style={{ color: deltaColor }}>
-          {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-          {delta}
-        </span>
       </div>
       <div className="disp mono text-[32px] font-bold text-ink leading-none">{fmt(shown)}</div>
       <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>
@@ -374,6 +351,9 @@ function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: ()
     <Card style={{ padding: '18px 14px' }}>
       <div className="text-[14px] font-semibold text-ink mb-2 px-2">{L.recentTitle}</div>
       <div>
+        {risks.length === 0 && (
+          <div className="px-2 py-8 text-center text-[13px] text-ink-muted">{L.notifEmpty}</div>
+        )}
         {risks.map((r) => (
           <button
             key={r.id}

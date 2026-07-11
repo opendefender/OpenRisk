@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Clock } from 'lucide-react';
+import { Clock, AlertTriangle } from 'lucide-react';
 import { critColor, scoreColor, softFill, type Criticality } from './riskColors';
 import { useUIStrings } from './uiStrings';
 
@@ -241,6 +241,71 @@ export function RingGauge({ value, size = 128, color, thickness, children }: { v
       </svg>
       {children && <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>}
     </div>
+  );
+}
+
+/* ---------------- loading / empty / error states (dc.html §8) ---------------- */
+
+/** Shimmer skeleton block. Never a full-page spinner. */
+export function Skeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      className={`rounded-lg ${className}`}
+      style={{
+        background: 'linear-gradient(90deg,var(--bg-hover) 25%,var(--bg-elevated) 37%,var(--bg-hover) 63%)',
+        backgroundSize: '400px 100%',
+        animation: 'or-shimmer 1.4s infinite linear',
+        ...style,
+      }}
+    />
+  );
+}
+
+/** A stack of shimmer rows for table/list loading. */
+export function SkeletonRows({ rows = 5, height = 44 }: { rows?: number; height?: number }) {
+  return (
+    <div className="flex flex-col gap-2 p-2">
+      {Array.from({ length: rows }).map((_, i) => <Skeleton key={i} style={{ height }} />)}
+    </div>
+  );
+}
+
+export function EmptyState({
+  icon: Icon, title, sub, cta,
+}: {
+  icon: LucideIcon; title: string; sub?: string; cta?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-16 px-6" style={{ animation: 'or-fadein .3s ease' }}>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+        <Icon size={30} strokeWidth={1.6} />
+      </div>
+      <div className="text-[15px] font-semibold text-ink mb-1.5">{title}</div>
+      {sub && <div className="text-[13px] text-ink-soft max-w-sm mb-5">{sub}</div>}
+      {cta}
+    </div>
+  );
+}
+
+export function ErrorState({ title, sub, onRetry, retryLabel }: { title: string; sub?: string; onRetry?: () => void; retryLabel?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: softFill('var(--critical)', 12), color: 'var(--critical)' }}>
+        <AlertTriangle size={28} strokeWidth={1.7} />
+      </div>
+      <div className="text-[15px] font-semibold text-ink mb-1.5">{title}</div>
+      {sub && <div className="text-[13px] text-ink-soft max-w-sm mb-5">{sub}</div>}
+      {onRetry && <Btn label={retryLabel ?? 'Retry'} onClick={onRetry} />}
+    </div>
+  );
+}
+
+/** Small honest badge for design-language screens not yet backed by live data. */
+export function PreviewBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[.06em] px-2 py-[3px] rounded-full" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}>
+      {label}
+    </span>
   );
 }
 
