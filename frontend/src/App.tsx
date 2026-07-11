@@ -17,27 +17,29 @@ import { CommandPalette } from './components/layout/CommandPalette';
 import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
 
 // --- Imports des Pages & Features ---
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
+import { AuthScreen } from './features/auth/AuthScreen';
+import { SettingsScreen } from './features/settings/SettingsScreen';
 import { Users } from './pages/Users';
 import { RoleManagement } from './pages/RoleManagement';
 import { TenantManagement } from './pages/TenantManagement';
-import { Settings } from './pages/Settings';
 import AuditLogs from './pages/AuditLogs';
-import ComingSoon from './pages/ComingSoon';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { ImportRisksPage } from './features/risks/ImportRisksPage';
-import { RiskListPage } from './features/risks/RiskListPage';
-import { Mitigations } from './pages/Mitigations';
-import { Compliance } from './pages/Compliance';
-import { Assets } from './pages/Assets';
+import { RiskRegisterPage } from './features/risks/RiskRegisterPage';
+import { MitigationsBoard } from './features/mitigations/MitigationsBoard';
+import { ComplianceScreen } from './features/compliance/ComplianceScreen';
+import { InventoryPage } from './features/assets/InventoryPage';
+import { AssetUniverse } from './features/universe/AssetUniverse';
+import { AnalyticsCiso } from './features/analytics/AnalyticsCiso';
+import { LeaderboardPage } from './features/gamification/LeaderboardPage';
+import { WarRoom } from './features/incidents/WarRoom';
+import { ThreatIntel } from './features/cti/ThreatIntel';
+import { InfrastructurePage } from './features/infrastructure/InfrastructurePage';
+import { SimulationsPage } from './features/simulations/SimulationsPage';
+import { ReportsScreen } from './features/reports/ReportsScreen';
+import { AiAdvisor } from './features/ai/AiAdvisor';
 import { RiskManagement } from './pages/RiskManagement';
 import { TokenManagement } from './pages/TokenManagement';
-import { Recommendations } from './pages/Recommendations';
-import Analytics from './pages/Analytics';
-import { Incidents } from './pages/Incidents';
-import { ThreatMap } from './pages/ThreatMap';
-import { Reports } from './pages/Reports';
 import { BoardReportPage } from './features/reports/BoardReportPage';
 import Marketplace from './pages/Marketplace';
 import PermissionAnalyticsPage from './pages/PermissionAnalytics';
@@ -119,8 +121,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Routes Publiques */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<AuthScreen initialView="login" />} />
+        <Route path="/register" element={<AuthScreen initialView="register" />} />
 
         {/* Routes Protégées (Layout Global) */}
         <Route
@@ -131,35 +133,33 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
-          <Route path="risks" element={<RiskListPage />} />
-          <Route path="mitigations" element={<Mitigations />} />
-          <Route path="compliance" element={<Compliance />} />
+          <Route path="risks" element={<RiskRegisterPage />} />
+          <Route path="mitigations" element={<MitigationsBoard />} />
+          <Route path="compliance" element={<ComplianceScreen />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="risk-management" element={<RiskManagement />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="incidents" element={<Incidents />} />
-          <Route path="threat-map" element={<ThreatMap />} />
-          <Route path="reports" element={<Reports />} />
+          <Route path="analytics" element={<AnalyticsCiso />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+          <Route path="incidents" element={<WarRoom />} />
+          <Route path="infrastructure" element={<InfrastructurePage />} />
+          <Route path="threat-map" element={<ThreatIntel />} />
+          <Route path="simulations" element={<SimulationsPage />} />
+          <Route path="assets/universe" element={<AssetUniverse />} />
+          <Route path="reports" element={<ReportsScreen />} />
           <Route path="reports/board" element={<BoardReportPage />} />
           <Route path="marketplace" element={<Marketplace />} />
           <Route path="custom-fields" element={<CustomFields />} />
           <Route path="bulk-operations" element={<BulkOperations />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="settings" element={<SettingsScreen />} />
           <Route path="users" element={<Users />} />
           <Route path="roles" element={<RoleManagement />} />
           <Route path="tenants" element={<TenantManagement />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="analytics/permissions" element={<PermissionAnalyticsPage />} />
           <Route path="tokens" element={<TokenManagement />} />
-          <Route path="assets" element={<Assets />} />
-          <Route path="recommendations" element={<Recommendations />} />
-
-          {/* Design-language screens without a backend yet — graceful placeholder. */}
-          <Route path="leaderboard" element={<ComingSoon />} />
-          <Route path="infrastructure" element={<ComingSoon />} />
-          <Route path="simulations" element={<ComingSoon />} />
-          <Route path="assets/universe" element={<ComingSoon />} />
+          <Route path="assets" element={<InventoryPage />} />
+          <Route path="recommendations" element={<AiAdvisor />} />
         </Route>
 
         {/* Redirection par défaut */}
