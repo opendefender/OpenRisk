@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Atom, Server, Grid3x3, LayoutDashboard, Filter, Plus, Minus, Globe, Database, Cloud, Laptop, X, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
-import { CritBadge, softFill } from '../../shared/ui';
+import { CritBadge, softFill, PreviewBadge } from '../../shared/ui';
 import { scoreColor, critColor } from '../../shared/riskColors';
 import { UNI_NODES, UNI_LINKS, type UniNode } from '../../shared/fixtures';
 import { useNavigate } from 'react-router-dom';
@@ -211,6 +211,7 @@ export function AssetUniverse() {
           <span className="disp text-[14px] font-semibold text-ink whitespace-nowrap">{L.uniTitle}</span>
           <span className="w-px h-[18px] shrink-0" style={{ background: 'var(--border-strong)' }} />
           <span className="text-[12px] text-ink-soft whitespace-nowrap hidden sm:inline">{UNI_NODES.length} {L.uniAssets} · {UNI_LINKS.length} {L.uniLinks}</span>
+          <span className="hidden md:inline"><PreviewBadge label={L.soon === 'Coming soon' ? 'Preview' : 'Aperçu'} /></span>
         </div>
         <div className="flex gap-[3px] mx-auto p-[3px] rounded-[10px]" style={{ background: 'var(--bg-hover)' }}>
           {views.map(([k, lbl, Icon]) => (

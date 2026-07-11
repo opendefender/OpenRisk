@@ -60,7 +60,7 @@ export const PageFrame = ({ children, wide }: { children: React.ReactNode; wide?
   </div>
 );
 
-export function PageHeader({ title, count, actions }: { title: string; count?: string | null; actions?: React.ReactNode }) {
+export function PageHeader({ title, count, actions, badge }: { title: string; count?: string | null; actions?: React.ReactNode; badge?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between flex-wrap gap-3 mb-[18px]">
       <div className="flex items-center gap-3">
@@ -70,6 +70,7 @@ export function PageHeader({ title, count, actions }: { title: string; count?: s
             {count}
           </span>
         )}
+        {badge}
       </div>
       {actions && <div className="flex items-center gap-2.5 flex-wrap">{actions}</div>}
     </div>

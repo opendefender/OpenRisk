@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
-import { PageFrame, PageHeader, Chip, Card, Avatar } from '../../shared/ui';
+import { PageFrame, PageHeader, Chip, Card, Avatar, PreviewBadge } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 
@@ -38,6 +38,7 @@ export function LeaderboardPage() {
     <PageFrame wide>
       <PageHeader
         title={L.lbTitle}
+        badge={<PreviewBadge label={tr('Aperçu', 'Preview')} />}
         actions={
           <>
             <Chip label={L.lbWeek} active={period === 'week'} onClick={() => setPeriod('week')} />

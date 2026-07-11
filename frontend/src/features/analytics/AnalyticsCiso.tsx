@@ -5,7 +5,7 @@
 // (risks by framework) and a conic-gradient donut (distribution by criticality).
 
 import { FileText, ArrowUp, ArrowDown } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card } from '../../shared/ui';
+import { PageFrame, PageHeader, Btn, Card, PreviewBadge } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useNavigate } from 'react-router-dom';
@@ -37,7 +37,7 @@ export function AnalyticsCiso() {
 
   return (
     <PageFrame>
-      <PageHeader title={L.n_analytics} actions={<Btn label={L.genReport} icon={FileText} primary onClick={() => navigate('/reports')} />} />
+      <PageHeader title={L.n_analytics} badge={<PreviewBadge label={tr('Aperçu', 'Preview')} />} actions={<Btn label={L.genReport} icon={FileText} primary onClick={() => navigate('/reports')} />} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {kpis.map(([val, label, delta, up]) => (
           <Card key={label} style={{ padding: '16px 18px' }}>

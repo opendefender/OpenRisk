@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Plus, Sparkles, Cpu, ChevronRight } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card, RingGauge } from '../../shared/ui';
+import { PageFrame, PageHeader, Btn, Card, RingGauge, PreviewBadge } from '../../shared/ui';
 import { scoreColor, critColor, softFill, type Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
@@ -39,7 +39,7 @@ export function SimulationsPage() {
   return (
     <>
       <PageFrame>
-        <PageHeader title={L.simTitle} actions={<Btn label={L.simNew} icon={Plus} primary onClick={run} />} />
+        <PageHeader title={L.simTitle} badge={<PreviewBadge label={tr('Aperçu', 'Preview')} />} actions={<Btn label={L.simNew} icon={Plus} primary onClick={run} />} />
         <div className="text-[13.5px] text-ink-soft -mt-2 mb-5">{L.simSub}</div>
 
         {/* hero */}

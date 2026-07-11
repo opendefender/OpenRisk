@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Check, Plus, Send, AlertTriangle } from 'lucide-react';
-import { Avatar } from '../../shared/ui';
+import { Avatar, PreviewBadge } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 
@@ -73,6 +73,7 @@ export function WarRoom() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--critical)', animation: 'or-pulsedot 1.4s infinite' }} />{tr('En cours', 'Active')}
             </span>
             <span className="mono text-[12px] text-ink-muted">INC-2026-014</span>
+            <PreviewBadge label={tr('Aperçu', 'Preview')} />
           </div>
           <div className="disp text-[19px] font-bold text-ink">{tr('Exfiltration suspectée · serveur de paie', 'Suspected exfiltration · payroll server')}</div>
         </div>

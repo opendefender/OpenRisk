@@ -6,7 +6,7 @@
 
 import { Atom } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { PageFrame, PageHeader, Btn, Card } from '../../shared/ui';
+import { PageFrame, PageHeader, Btn, Card, PreviewBadge } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 
@@ -37,7 +37,7 @@ export function InfrastructurePage() {
 
   return (
     <PageFrame>
-      <PageHeader title={L.n_infra} actions={<Btn label={tr('Vue Univers', 'Universe view')} icon={Atom} onClick={() => navigate('/assets/universe')} />} />
+      <PageHeader title={L.n_infra} badge={<PreviewBadge label={tr('Aperçu', 'Preview')} />} actions={<Btn label={tr('Vue Univers', 'Universe view')} icon={Atom} onClick={() => navigate('/assets/universe')} />} />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         {envs.map(([name, count, health, col]) => (
           <Card key={name} style={{ padding: '18px 20px' }}>

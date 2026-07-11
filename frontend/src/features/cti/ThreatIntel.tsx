@@ -5,7 +5,7 @@
 // (CVSS score chip, title/asset, date, status pill).
 
 import { Globe } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card } from '../../shared/ui';
+import { PageFrame, PageHeader, Btn, Card, PreviewBadge } from '../../shared/ui';
 import { critColor, type Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
@@ -34,7 +34,7 @@ export function ThreatIntel() {
 
   return (
     <PageFrame>
-      <PageHeader title={L.n_cti} actions={<Btn label={tr('Synchroniser', 'Sync feed')} icon={Globe} />} />
+      <PageHeader title={L.n_cti} badge={<PreviewBadge label={tr('Aperçu', 'Preview')} />} actions={<Btn label={tr('Synchroniser', 'Sync feed')} icon={Globe} />} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {stats.map(([v, lbl, col]) => (
           <Card key={lbl} style={{ padding: '16px 18px' }}>
