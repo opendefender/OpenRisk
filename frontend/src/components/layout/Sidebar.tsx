@@ -3,59 +3,112 @@
 // This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldAlert, ShieldCheck, Activity, Map, FileText, Settings, ChevronLeft, ChevronRight, Zap, Server, Sparkles, Users, Clock, Key, BarChart3, Store, Shield, Building2, PieChart, AlertCircle, Sliders, Zap as ZapIcon, Wrench, X } from 'lucide-react';
-import { cn } from '../ui/Button';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Overview', path: '/'},
-  { icon: ShieldAlert, label: 'Risks', path: '/risks' },
-  { icon: AlertCircle, label: 'Risk Management', path: '/risk-management' },
-  { icon: Wrench, label: 'Mitigations', path: '/mitigations' },
-  { icon: ShieldCheck, label: 'Compliance', path: '/compliance' },
-  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
-  { icon: Activity, label: 'Incidents', path: '/incidents' },
-  { icon: Map, label: 'Threat Map', path: '/threat-map' },
-  { icon: FileText, label: 'Reports', path: '/reports' },
-  { icon: Sparkles, label: 'Board Report', path: '/reports/board' },
-  { icon: Store, label: 'Marketplace', path: '/marketplace' },
-  { icon: Sliders, label: 'Custom Fields', path: '/custom-fields' },
-  { icon: ZapIcon, label: 'Bulk Ops', path: '/bulk-operations' },
-  { icon: Settings, label: 'Settings', path: '/settings'},
-  { icon: Users, label: 'Users', path: '/users'},
-  { icon: Shield, label: 'Roles', path: '/roles'},
-  { icon: Building2, label: 'Tenants', path: '/tenants'},
-  { icon: PieChart, label: 'Permissions', path: '/analytics/permissions'},
-  { icon: Clock, label: 'Audit Logs', path: '/audit-logs'},
-  { icon: Key, label: 'API Tokens', path: '/tokens'},
-  { icon: Server,  label: 'Assets', path: '/assets' },
-  { icon: Sparkles, label: 'Intelligence', path: '/recommendations' },
-];
+import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Shield } from 'lucide-react';
+import { cn } from '../ui/Button';
+import { useUIStore } from '../../store/uiStore';
+import { useUIStrings } from '../../shared/uiStrings';
+import { useAuthStore } from '../../hooks/useAuthStore';
+import { NAV_GROUPS, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
 
 interface SidebarProps {
-  /** Whether the off-canvas drawer is open on mobile (< lg). Ignored on desktop, where the
+  /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
    *  sidebar is always in the layout flow. */
   mobileOpen?: boolean;
-  /** Called when the mobile drawer should close (backdrop click, close button, navigation). */
   onMobileClose?: () => void;
 }
 
-export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+function initials(name?: string, fallback = 'AD'): string {
+  if (!name?.trim()) return fallback;
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || fallback;
+}
 
-  // Close the mobile drawer whenever the route changes so a tap-through never leaves it open.
+export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
+  const collapsed = useUIStore((s) => s.sidebarCollapsed);
+  const toggleCollapse = useUIStore((s) => s.toggleSidebar);
+  const L = useUIStrings();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const user = useAuthStore((s) => s.user);
+
+  // Close the mobile drawer whenever the route changes.
   useEffect(() => {
     onMobileClose?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [pathname]);
+
+  // Longest-prefix match so /assets/universe highlights Universe, not Inventory.
+  const activeKey = useMemo(() => {
+    let best = '';
+    let bestLen = -1;
+    for (const it of ALL_NAV_ITEMS) {
+      const p = it.path;
+      const match = p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
+      if (match && p.length > bestLen) {
+        best = it.key;
+        bestLen = p.length;
+      }
+    }
+    return best;
+  }, [pathname]);
+
+  // Security posture footer (fixture; the Dashboard hero is the source of truth).
+  const score = 72;
+  const scoreColor = score >= 70 ? 'var(--low)' : score >= 45 ? 'var(--high)' : 'var(--critical)';
+
+  const navItem = (item: NavItem) => {
+    const active = item.key === activeKey;
+    const Icon = item.icon;
+    return (
+      <button
+        key={item.key}
+        onClick={() => navigate(item.path)}
+        title={L[item.labelKey]}
+        className={cn(
+          'w-full flex items-center gap-[11px] px-[11px] py-2 rounded-[9px] relative mb-0.5 transition-colors',
+          active ? 'bg-accent-soft' : 'hover:bg-hover'
+        )}
+      >
+        <span
+          className="flex shrink-0"
+          style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }}
+        >
+          <Icon size={19} strokeWidth={1.75} />
+        </span>
+        {!collapsed && (
+          <span
+            className="text-[13px] whitespace-nowrap flex-1 text-left"
+            style={{
+              fontWeight: active ? 600 : 500,
+              color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+            }}
+          >
+            {L[item.labelKey]}
+          </span>
+        )}
+        {item.badge &&
+          (collapsed ? (
+            <span
+              className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+              style={{ background: item.badge.color ?? 'var(--critical)' }}
+            />
+          ) : (
+            <span
+              className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-white"
+              style={{ background: item.badge.color ?? 'var(--critical)' }}
+            >
+              {item.badge.text}
+            </span>
+          ))}
+      </button>
+    );
+  };
 
   return (
     <>
-      {/* Backdrop — mobile only, behind the drawer. */}
+      {/* Backdrop — mobile only. */}
       {mobileOpen && (
         <div
           onClick={onMobileClose}
@@ -65,87 +118,147 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       )}
 
       <aside
+        style={{ background: 'var(--bg-secondary)', transition: 'width .25s ease' }}
         className={cn(
-          'h-screen bg-surface border-r border-border flex flex-col z-50 transition-all duration-300 ease-in-out',
-          // Desktop: part of the flex layout, collapsible width.
+          'h-screen border-r border-border flex flex-col z-50',
           'lg:static lg:shrink-0 lg:translate-x-0',
-          isCollapsed ? 'lg:w-20' : 'lg:w-[260px]',
-          // Mobile: fixed off-canvas drawer, slides in from the left.
-          'fixed inset-y-0 left-0 w-[260px] max-w-[82vw]',
-          mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+          collapsed ? 'lg:w-[66px]' : 'lg:w-[248px]',
+          'fixed inset-y-0 left-0 w-[248px] max-w-[82vw]',
+          mobileOpen ? 'translate-x-0 shadow-card-lg' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Logo Area */}
-        <div className="p-6 flex items-center gap-3 overflow-hidden whitespace-nowrap">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 shadow-glow">
-            <Zap size={18} className="text-white" fill="currentColor" />
-          </div>
-          <motion.span
-            animate={{ opacity: isCollapsed ? 0 : 1 }}
-            className="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent lg:inline"
-          >
-            OpenRisk
-          </motion.span>
-
-          {/* Close button — mobile only. */}
-          <button
-            onClick={onMobileClose}
-            className="lg:hidden ml-auto text-zinc-400 hover:text-white"
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1 scrollbar-thin">
-          {menuItems.map((item) => {
-            const isActive = item.path === location.pathname;
-            return (
-              <button
-                key={item.label}
-                onClick={() => item.path && navigate(item.path)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
-                )}
+        <div className="flex flex-col h-full">
+          {/* Logo + org switcher */}
+          <div className="px-[14px] pt-4 pb-2.5">
+            <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
+              <div
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
+                  boxShadow: '0 2px 10px var(--accent-glow)',
+                }}
               >
-                <item.icon size={20} className={cn('shrink-0', isActive && 'text-primary drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]')} />
+                <Shield size={18} strokeWidth={1.9} className="text-white" />
+              </div>
+              {!collapsed && (
+                <span className="disp text-[17px] font-bold tracking-tight text-ink">OpenRisk</span>
+              )}
+            </div>
 
-                {/* Label hides only when collapsed on desktop; always shown in the mobile drawer. */}
-                <span className={cn('font-medium text-sm', isCollapsed && 'lg:hidden')}>{item.label}</span>
-
-                {/* Active Indicator */}
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-                )}
+            {!collapsed && (
+              <button
+                onClick={() => navigate('/settings')}
+                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
+              >
+                <div
+                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  BA
+                </div>
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
+                    Banque Atlantique
+                  </div>
+                  <div className="text-[10.5px] text-ink-soft">{L.enterprise}</div>
+                </div>
+                <ChevronsUpDown size={13} className="text-ink-muted shrink-0" />
               </button>
-            );
-          })}
-        </nav>
-
-        {/* Collapse Button — desktop only. */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex absolute -right-3 top-10 w-6 h-6 bg-zinc-900 border border-border rounded-full items-center justify-center text-zinc-400 hover:text-white hover:border-primary transition-colors z-20 shadow-lg"
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-
-        {/* User Profile (Bottom) */}
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
-              JD
-            </div>
-            <div className={cn('overflow-hidden', isCollapsed && 'lg:hidden')}>
-              <p className="text-sm font-medium text-white truncate">John Doe</p>
-              <p className="text-xs text-zinc-500 truncate">CISO Admin</p>
-            </div>
+            )}
           </div>
+
+          {/* Quick action */}
+          <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
+                onMobileClose?.();
+              }}
+              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white transition-[filter] hover:brightness-110"
+              style={{
+                background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
+                boxShadow: '0 3px 12px var(--accent-glow)',
+              }}
+              title={L.newRisk}
+            >
+              <Plus size={16} strokeWidth={2.2} />
+              {!collapsed && <span>{L.newRisk}</span>}
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.groupKey} className="mb-4">
+                {!collapsed && (
+                  <div className="text-[10px] tracking-[0.09em] uppercase text-ink-muted font-semibold px-3 pb-[7px]">
+                    {L[group.groupKey]}
+                  </div>
+                )}
+                {group.items.map(navItem)}
+              </div>
+            ))}
+          </nav>
+
+          {/* Security score footer */}
+          {!collapsed && (
+            <div className="px-[14px] py-3 border-t border-border">
+              <div className="flex items-center justify-between mb-[7px]">
+                <span className="text-[10.5px] text-ink-soft font-medium">{L.globalScore}</span>
+                <span className="mono text-[12px] font-semibold" style={{ color: scoreColor }}>
+                  {score}/100
+                </span>
+              </div>
+              <div className="h-[5px] rounded-[5px] overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
+                <div
+                  className="h-full rounded-[5px]"
+                  style={{
+                    width: `${score}%`,
+                    background: `linear-gradient(90deg,var(--accent),${scoreColor})`,
+                    transition: 'width .8s cubic-bezier(.2,.8,.2,1)',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* User + collapse */}
+          <div className={cn('flex items-center gap-2.5 px-[14px] py-3 border-t border-border', collapsed && 'justify-center px-2')}>
+            <div
+              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+              style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
+            >
+              {initials(user?.full_name)}
+            </div>
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-semibold leading-tight text-ink truncate">
+                    {user?.full_name || 'Amir Diallo'}
+                  </div>
+                  <div className="text-[10.5px] text-ink-soft truncate">{user?.role || L.ciso}</div>
+                </div>
+                <button
+                  onClick={toggleCollapse}
+                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors shrink-0"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose size={16} strokeWidth={1.7} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Expand affordance when collapsed (desktop) */}
+          {collapsed && (
+            <button
+              onClick={toggleCollapse}
+              className="hidden lg:flex mx-auto mb-3 w-[26px] h-[26px] rounded-[7px] items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+              aria-label="Expand sidebar"
+            >
+              <PanelLeftOpen size={16} strokeWidth={1.7} />
+            </button>
+          )}
         </div>
       </aside>
     </>

@@ -6,8 +6,9 @@
 import { useCallback } from 'react';
 import frLocale from '../locales/fr.json';
 import enLocale from '../locales/en.json';
+import { useUIStore, type Lang } from '../store/uiStore';
 
-type Locale = 'fr' | 'en';
+type Locale = Lang;
 
 interface UseI18nReturn {
   t: (key: string, defaultValue?: string) => string;
@@ -15,47 +16,41 @@ interface UseI18nReturn {
   setLocale: (locale: Locale) => void;
 }
 
-let currentLocale: Locale = (localStorage.getItem('locale') as Locale) || 'en';
-
 const locales: Record<Locale, Record<string, any>> = {
   fr: frLocale,
   en: enLocale,
 };
 
 /**
- * Simple i18n hook for translations
- * Supports nested keys like "risks.title"
+ * Simple i18n hook for translations. Language now lives in the central UI store
+ * (see store/uiStore.ts), so the header FR/EN toggle re-renders every consumer
+ * reactively. Supports nested keys like "risks.title".
  */
 export function useI18n(): UseI18nReturn {
+  // Subscribe to the store so components re-render when the language changes.
+  const locale = useUIStore((s) => s.lang);
+  const setLang = useUIStore((s) => s.setLang);
+
   const getNestedValue = useCallback((obj: any, path: string): string => {
     const keys = path.split('.');
     let value = obj;
-
     for (const key of keys) {
       value = value?.[key];
-      if (value === undefined) return path; // Return key if not found
+      if (value === undefined) return path;
     }
-
     return value ?? path;
   }, []);
 
   const t = useCallback(
     (key: string, defaultValue?: string): string => {
-      const locale = locales[currentLocale];
-      const translation = getNestedValue(locale, key);
+      const dict = locales[locale];
+      const translation = getNestedValue(dict, key);
       return translation || defaultValue || key;
     },
-    [getNestedValue]
+    [getNestedValue, locale]
   );
 
-  const setLocale = useCallback((locale: Locale) => {
-    currentLocale = locale;
-    localStorage.setItem('locale', locale);
-    // Trigger a re-render by dispatching a custom event
-    window.dispatchEvent(new CustomEvent('locale-change', { detail: { locale } }));
-  }, []);
-
-  return { t, locale: currentLocale, setLocale };
+  return { t, locale, setLocale: setLang };
 }
 
 /**

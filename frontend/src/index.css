@@ -1,74 +1,283 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Copyright (c) 2026 OpenDefender Contributors
+   SPDX-License-Identifier: BUSL-1.1 */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   OpenRisk design tokens — dc.html handoff (§11)
+   Driven by data-theme (dark|light) + data-variant (azure|iris)
+   set on <html> by the UI store. Everything reads CSS variables
+   so the whole app swaps theme/accent with zero per-component work.
+   ============================================================ */
+:root,
+:root[data-theme='dark'] {
+  /* dark neutrals (default) */
+  --bg-app: #08090d;
+  --bg-primary: #0c0d12;
+  --bg-secondary: #101117;
+  --bg-elevated: #15161e;
+  --bg-hover: #1b1c26;
+  --glass: rgba(18, 19, 26, 0.72);
+  --glass-strong: rgba(14, 15, 21, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --border: #22232e;
+  --border-strong: #2e2f3c;
+  --text-primary: #f4f4f7;
+  --text-secondary: #9a9aa6;
+  --text-muted: #65656f;
+  /* semantic (identical in both themes) */
+  --critical: #ff453a;
+  --high: #ff9f0a;
+  --medium: #ffd426;
+  --low: #30d158;
+  --info: #64d2ff;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg-app: #eeeef1;
+  --bg-primary: #ffffff;
+  --bg-secondary: #fbfbfd;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f2f2f5;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(0, 0, 0, 0.07);
+  --border: #e6e6ec;
+  --border-strong: #d4d4dc;
+  --text-primary: #161618;
+  --text-secondary: #65656d;
+  --text-muted: #9a9aa2;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 6px 22px rgba(20, 20, 40, 0.09);
+  --shadow-lg: 0 16px 48px rgba(20, 20, 40, 0.14);
+  color-scheme: light;
+}
+
+/* accent — azure (default) */
+:root,
+:root[data-variant='azure'] {
+  --accent: #0a84ff;
+  --accent-hover: #0060df;
+  --accent-2: #64d2ff;
+  --accent-soft: rgba(10, 132, 255, 0.14);
+  --accent-line: rgba(10, 132, 255, 0.32);
+  --accent-glow: rgba(10, 132, 255, 0.5);
+  --font-display: 'Inter';
+}
+
+/* accent — iris */
+:root[data-variant='iris'] {
+  --accent: #7c6cff;
+  --accent-hover: #6455e8;
+  --accent-2: #b692ff;
+  --accent-soft: rgba(124, 108, 255, 0.16);
+  --accent-line: rgba(124, 108, 255, 0.34);
+  --accent-glow: rgba(124, 108, 255, 0.5);
+  --font-display: 'DM Sans';
+}
+
 @layer base {
-  body {
-    @apply bg-gradient-to-br from-background via-background to-blue-950/10 text-white font-sans antialiased;
-  }
-
-  /* Glassmorphism Effect */
-  .glass {
-    @apply rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl shadow-2xl;
-  }
-
-  /* Neon Glow Effect */
-  .glow-effect {
-    @apply animate-glow-pulse;
-  }
-
-  /* Smooth scroll */
   html {
     scroll-behavior: smooth;
   }
+  body {
+    background: var(--bg-app);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-  /* Custom scrollbar */
+  /* display + mono helpers (match dc.html .disp / .mono) */
+  .disp {
+    font-family: var(--font-display), 'Inter', sans-serif;
+  }
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+  }
+
+  /* scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
   }
-
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background: transparent;
   }
-
   ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-700 rounded-full hover:bg-zinc-600 transition-colors;
+    background: var(--border-strong);
+    border-radius: 9px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+    background-clip: padding-box;
+  }
+}
+
+/* ============ keyframes (dc.html §11) ============ */
+@keyframes or-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+@keyframes or-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--critical);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(255, 69, 58, 0);
+  }
+}
+@keyframes or-pulsedot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.35);
+  }
+}
+@keyframes or-fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes or-fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes or-slidein {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes or-scalein {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes or-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes or-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+@keyframes or-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
 @layer components {
-  /* Widget with glassmorphic effect */
-  .widget-glass {
-    @apply rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl shadow-2xl hover:border-white/20 transition-all duration-300;
+  /* Floating / glass surfaces — header, palette, drawers, panels, notifications.
+     Never use glass on solid content cards (they stay opaque). */
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--glass-border);
+  }
+  .glass-strong {
+    background: var(--glass-strong);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid var(--glass-border);
   }
 
-  /* Neon text glow */
-  .text-neon {
-    @apply text-white animate-neon-glow;
+  /* Solid content card (opaque). */
+  .or-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
   }
 
-  /* Gradient text */
-  .gradient-text {
-    @apply bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent;
+  /* Shimmer skeleton (no full-page spinners). */
+  .or-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--bg-hover) 25%,
+      var(--bg-secondary) 37%,
+      var(--bg-hover) 63%
+    );
+    background-size: 800px 100%;
+    animation: or-shimmer 1.4s infinite linear;
+    border-radius: 8px;
   }
 
-  /* Severity badge colors */
+  /* Severity badge helpers (kept for existing call sites, retinted to tokens). */
   .badge-critical {
-    @apply bg-red-500/20 text-red-400 border border-red-500/30;
+    color: var(--critical);
+    background: color-mix(in srgb, var(--critical) 15%, transparent);
   }
-
   .badge-high {
-    @apply bg-orange-500/20 text-orange-400 border border-orange-500/30;
+    color: var(--high);
+    background: color-mix(in srgb, var(--high) 15%, transparent);
   }
-
   .badge-medium {
-    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+    color: var(--medium);
+    background: color-mix(in srgb, var(--medium) 15%, transparent);
   }
-
   .badge-low {
-    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+    color: var(--low);
+    background: color-mix(in srgb, var(--low) 15%, transparent);
   }
 }

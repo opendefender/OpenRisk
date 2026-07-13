@@ -38,6 +38,13 @@ func RequireRole(roleNames ...string) fiber.Handler {
 		}
 
 		for _, role := range orgRoles {
+			// "root" is the platform superuser (the seeded admin's role) — it
+			// satisfies every role gate. Without this, root users get 403 on
+			// admin-only routes (RequireRole("admin")) even though they outrank
+			// admin, which silently broke Users/RBAC/Audit-log/Tenant management.
+			if role == "root" {
+				return c.Next()
+			}
 			for _, allowed := range roleNames {
 				if role == allowed {
 					return c.Next()

@@ -1,0 +1,143 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: BUSL-1.1
+//
+// Flat FR/EN dictionary for the redesigned app shell + screens, ported verbatim
+// from the OpenRisk design handoff (OpenRisk.dc.html §10). Kept separate from the
+// nested locales/*.json so the new design language can grow without disturbing the
+// existing feature translations. Consume via useUIStrings().
+
+import { useUIStore, type Lang } from '../store/uiStore';
+
+const fr = {
+  brandShort: 'OpenRisk', enterprise: 'Enterprise', ciso: 'RSSI', newRisk: 'Nouveau risque',
+  search: 'Rechercher…', globalScore: 'Score de sécurité', navigate: 'naviguer', open: 'ouvrir',
+  close: 'fermer', cmdkPlaceholder: 'Rechercher risques, actifs, actions…',
+  g_overview: 'Aperçu', g_security: 'Sécurité', g_intel: 'Conformité & Intel', g_assets: 'Actifs',
+  g_report: 'Reporting & IA', g_admin: 'Admin',
+  n_dashboard: 'Tableau de bord', n_analytics: 'Analytics CISO', n_risks: 'Registre des risques',
+  n_mitigations: 'Mitigations', n_incidents: 'War Room', n_infra: 'Infrastructure',
+  n_compliance: 'Conformité', n_cti: 'Threat Intel', n_assets: 'Inventaire', n_universe: 'Asset Universe',
+  n_reports: 'Rapports', n_ai: 'IA Advisor', n_settings: 'Paramètres', n_superadmin: 'Super Admin',
+  n_simulations: 'Simulations', n_leaderboard: 'Classement',
+  notifTitle: 'Notifications', notifAll: 'Tout marquer comme lu', notifEmpty: 'Vous êtes à jour',
+  notifViewAll: 'Voir toutes les notifications',
+  simTitle: 'Simulations — Risk Digital Twin', simSub: 'Simulez une compromission avant qu’elle n’arrive',
+  simNew: 'Nouvelle simulation', simRun: 'Lancer', simLast: 'Dernière simulation', simImpact: 'Impact propagé',
+  simAffected: 'actifs affectés', simSuggested: 'Scénarios suggérés par l’IA', simHistory: 'Historique',
+  simRunning: 'Propagation en cours…', simVector: 'Vecteur', simTrigger: 'Point de départ',
+  simBlast: 'Rayon de compromission',
+  lbTitle: 'Classement des Champions', lbSub: 'Les collaborateurs qui réduisent le plus le risque',
+  lbWeek: 'Cette semaine', lbMonth: 'Ce mois', lbAll: 'Tout le temps', lbYou: 'Votre position',
+  lbNext: 'pts pour dépasser', lbPoints: 'points', lbStreak: 'jours',
+  greeting: 'Bonjour Amir', dashSub: 'Voici l’état de vos risques aujourd’hui',
+  genReport: 'Générer un rapport', viewDetails: 'Voir détails', since7: 'depuis 7 jours',
+  kpiTotal: 'Risques totaux', kpiCrit: 'Critiques', kpiMiti: 'En mitigation', kpiResolved: 'Résolus ce mois',
+  heatTitle: 'Matrice probabilité × impact', impact: 'Impact', proba: 'Probabilité',
+  trendTitle: 'Tendance des risques', recentTitle: 'Activité récente', warTitle: 'Incident en cours',
+  warJoin: 'Rejoindre la War Room',
+  critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible',
+  st_open: 'Ouvert', st_progress: 'En cours', st_mitigated: 'Mitigé', st_accepted: 'Accepté',
+  table: 'Table', heatmap: 'Heatmap', kanban: 'Kanban',
+  riskTitle: 'Registre des risques', all: 'Tous', pendingReview: 'À revoir', importCsv: 'Importer',
+  exportCsv: 'Exporter', filters: 'Filtres',
+  col_name: 'Risque', col_score: 'Score', col_crit: 'Criticité', col_status: 'Statut',
+  col_fw: 'Framework', col_owner: 'Assigné', col_mod: 'Modifié',
+  edit: 'Éditer', duplicate: 'Dupliquer', share: 'Partager', exportPdf: 'Exporter PDF', del: 'Supprimer',
+  createMiti: 'Créer une mitigation',
+  tab_details: 'Détails', tab_score: 'Score', tab_miti: 'Mitigations', tab_timeline: 'Timeline',
+  tab_cti: 'CTI', tab_ai: 'IA Advisor',
+  mitiTitle: 'Mitigations', col_todo: 'À faire', col_doing: 'En cours', col_review: 'En révision',
+  col_done: 'Terminé', overdue: 'En retard', addPlan: 'Ajouter un plan',
+  uniTitle: 'Asset Universe', uniAssets: 'actifs', uniLinks: 'liens', uniReset: 'Recentrer',
+  uniExport: 'Exporter PNG', viewFull: 'Voir la fiche complète', aggScore: 'Score de risque agrégé',
+  connections: 'Connexions', lastScan: 'Dernier scan', createRiskFor: 'Créer un risque pour cet actif',
+  v_universe: 'Univers', v_topology: 'Topologie', v_bubbles: 'Bulles', v_hierarchy: 'Hiérarchie',
+  setTitle: 'Paramètres', s_general: 'Général', s_members: 'Membres', s_rbac: 'RBAC',
+  s_integrations: 'Intégrations', s_notif: 'Notifications', s_security: 'Sécurité', s_billing: 'Facturation',
+  s_danger: 'Danger zone',
+  invite: 'Inviter un membre', member: 'Membre', role: 'Rôle', status: 'Statut', active: 'Actif',
+  pending: 'En attente', revoke: 'Révoquer',
+  welcome: 'Bienvenue sur OpenRisk', welcomeSub: 'Connectez-vous pour gérer vos risques',
+  email: 'Adresse email', password: 'Mot de passe', rememberMe: 'Rester connecté', signin: 'Se connecter',
+  orSep: 'ou', noAccount: 'Pas encore de compte ?', createAccount: 'Créer un compte gratuit',
+  forgot: 'Mot de passe oublié ?', mfaTitle: 'Vérification en deux étapes',
+  mfaSub: 'Entrez le code à 6 chiffres de votre application', resend: 'Renvoyer le code',
+  backupCode: 'Utiliser un code de secours', verify: 'Vérifier',
+  authQuote: '« La sécurité n’est pas un produit, mais un processus. »',
+  registerTitle: 'Créer votre compte', registerSub: 'Essai Pro 14 jours · Aucune carte bancaire',
+  firstName: 'Prénom', lastName: 'Nom', haveAccount: 'Déjà un compte ?', signinLink: 'Se connecter',
+  soon: 'Bientôt disponible', soonSub: 'Ce module fait partie de la feuille de route OpenRisk.',
+};
+
+const en: typeof fr = {
+  brandShort: 'OpenRisk', enterprise: 'Enterprise', ciso: 'CISO', newRisk: 'New risk',
+  search: 'Search…', globalScore: 'Security score', navigate: 'navigate', open: 'open',
+  close: 'close', cmdkPlaceholder: 'Search risks, assets, actions…',
+  g_overview: 'Overview', g_security: 'Security', g_intel: 'Compliance & Intel', g_assets: 'Assets',
+  g_report: 'Reporting & AI', g_admin: 'Admin',
+  n_dashboard: 'Dashboard', n_analytics: 'CISO Analytics', n_risks: 'Risk Register',
+  n_mitigations: 'Mitigations', n_incidents: 'War Room', n_infra: 'Infrastructure',
+  n_compliance: 'Compliance', n_cti: 'Threat Intel', n_assets: 'Inventory', n_universe: 'Asset Universe',
+  n_reports: 'Reports', n_ai: 'AI Advisor', n_settings: 'Settings', n_superadmin: 'Super Admin',
+  n_simulations: 'Simulations', n_leaderboard: 'Leaderboard',
+  notifTitle: 'Notifications', notifAll: 'Mark all as read', notifEmpty: 'You are all caught up',
+  notifViewAll: 'View all notifications',
+  simTitle: 'Simulations — Risk Digital Twin', simSub: 'Simulate a compromise before it happens',
+  simNew: 'New simulation', simRun: 'Run', simLast: 'Latest simulation', simImpact: 'Propagated impact',
+  simAffected: 'affected assets', simSuggested: 'AI-suggested scenarios', simHistory: 'History',
+  simRunning: 'Propagating…', simVector: 'Vector', simTrigger: 'Entry point', simBlast: 'Blast radius',
+  lbTitle: 'Risk Champions Leaderboard', lbSub: 'The people reducing the most risk',
+  lbWeek: 'This week', lbMonth: 'This month', lbAll: 'All time', lbYou: 'Your position',
+  lbNext: 'pts to overtake', lbPoints: 'points', lbStreak: 'day streak',
+  greeting: 'Hello Amir', dashSub: 'Here is the state of your risks today',
+  genReport: 'Generate report', viewDetails: 'View details', since7: 'over 7 days',
+  kpiTotal: 'Total risks', kpiCrit: 'Critical', kpiMiti: 'In mitigation', kpiResolved: 'Resolved this month',
+  heatTitle: 'Probability × impact matrix', impact: 'Impact', proba: 'Probability',
+  trendTitle: 'Risk trend', recentTitle: 'Recent activity', warTitle: 'Active incident',
+  warJoin: 'Join the War Room',
+  critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low',
+  st_open: 'Open', st_progress: 'In progress', st_mitigated: 'Mitigated', st_accepted: 'Accepted',
+  table: 'Table', heatmap: 'Heatmap', kanban: 'Kanban',
+  riskTitle: 'Risk Register', all: 'All', pendingReview: 'To review', importCsv: 'Import',
+  exportCsv: 'Export', filters: 'Filters',
+  col_name: 'Risk', col_score: 'Score', col_crit: 'Criticality', col_status: 'Status',
+  col_fw: 'Framework', col_owner: 'Owner', col_mod: 'Modified',
+  edit: 'Edit', duplicate: 'Duplicate', share: 'Share', exportPdf: 'Export PDF', del: 'Delete',
+  createMiti: 'Create mitigation',
+  tab_details: 'Details', tab_score: 'Score', tab_miti: 'Mitigations', tab_timeline: 'Timeline',
+  tab_cti: 'CTI', tab_ai: 'AI Advisor',
+  mitiTitle: 'Mitigations', col_todo: 'To do', col_doing: 'In progress', col_review: 'In review',
+  col_done: 'Done', overdue: 'Overdue', addPlan: 'Add plan',
+  uniTitle: 'Asset Universe', uniAssets: 'assets', uniLinks: 'links', uniReset: 'Recenter',
+  uniExport: 'Export PNG', viewFull: 'View full record', aggScore: 'Aggregated risk score',
+  connections: 'Connections', lastScan: 'Last scan', createRiskFor: 'Create a risk for this asset',
+  v_universe: 'Universe', v_topology: 'Topology', v_bubbles: 'Bubbles', v_hierarchy: 'Hierarchy',
+  setTitle: 'Settings', s_general: 'General', s_members: 'Members', s_rbac: 'RBAC',
+  s_integrations: 'Integrations', s_notif: 'Notifications', s_security: 'Security', s_billing: 'Billing',
+  s_danger: 'Danger zone',
+  invite: 'Invite member', member: 'Member', role: 'Role', status: 'Status', active: 'Active',
+  pending: 'Pending', revoke: 'Revoke',
+  welcome: 'Welcome to OpenRisk', welcomeSub: 'Sign in to manage your risks',
+  email: 'Email address', password: 'Password', rememberMe: 'Remember me', signin: 'Sign in',
+  orSep: 'or', noAccount: 'No account yet?', createAccount: 'Create a free account',
+  forgot: 'Forgot password?', mfaTitle: 'Two-step verification',
+  mfaSub: 'Enter the 6-digit code from your app', resend: 'Resend code',
+  backupCode: 'Use a backup code', verify: 'Verify',
+  authQuote: '“Security is not a product, but a process.”',
+  registerTitle: 'Create your account', registerSub: '14-day Pro trial · No credit card',
+  firstName: 'First name', lastName: 'Last name', haveAccount: 'Already have an account?',
+  signinLink: 'Sign in',
+  soon: 'Coming soon', soonSub: 'This module is part of the OpenRisk roadmap.',
+};
+
+export type UIStrings = typeof fr;
+
+export function uiStrings(lang: Lang): UIStrings {
+  return lang === 'fr' ? fr : en;
+}
+
+/** Reactive accessor — re-renders when the header FR/EN toggle flips the store. */
+export function useUIStrings(): UIStrings {
+  const lang = useUIStore((s) => s.lang);
+  return uiStrings(lang);
+}
