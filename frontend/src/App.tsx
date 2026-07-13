@@ -30,6 +30,7 @@ import { AssetUniverse } from './features/universe/AssetUniverse';
 import { AnalyticsCiso } from './features/analytics/AnalyticsCiso';
 import { LeaderboardPage } from './features/gamification/LeaderboardPage';
 import { WarRoom } from './features/incidents/WarRoom';
+import { IncidentsScreen } from './features/incidents/IncidentsScreen';
 import { ThreatIntel } from './features/cti/ThreatIntel';
 import { InfrastructurePage } from './features/infrastructure/InfrastructurePage';
 import { SimulationsPage } from './features/simulations/SimulationsPage';
@@ -132,7 +133,8 @@ function App() {
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="analytics" element={<AnalyticsCiso />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
-          <Route path="incidents" element={<WarRoom />} />
+          <Route path="incidents" element={<IncidentsScreen />} />
+          <Route path="incidents/war-room" element={<WarRoom />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="simulations" element={<SimulationsPage />} />
