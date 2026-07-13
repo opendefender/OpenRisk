@@ -134,7 +134,7 @@ function App() {
           <Route path="analytics" element={<AnalyticsCiso />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="incidents" element={<IncidentsScreen />} />
-          <Route path="incidents/war-room" element={<WarRoom />} />
+          <Route path="incidents/:id/war-room" element={<WarRoom />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="simulations" element={<SimulationsPage />} />

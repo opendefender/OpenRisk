@@ -3,35 +3,23 @@
 //
 // Incidents register (routed at /incidents) — the real, backend-wired incident
 // hub: KPI header (from /incidents/stats), status filter chips, a table with
-// inline status change + delete, and a create dialog. The fixture-only War Room
-// console lives at /incidents/war-room (Preview) and is linked from the header.
+// inline status change + row click to open the detail/edit drawer, CSV export,
+// and a create dialog. The fixture War Room console lives at
+// /incidents/:id/war-room (Preview) and is reachable per-incident.
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Siren, Plus, Trash2, Radio, ShieldAlert, CheckCircle2, Activity, X, Loader2 } from 'lucide-react';
+import { Siren, Plus, Trash2, Radio, ShieldAlert, CheckCircle2, Activity, X, Loader2, Download } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState, softFill } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { relTime } from '../risks/riskMap';
 import { useIncidents, useIncidentStats } from './useIncidents';
+import { IncidentDrawer } from './IncidentDrawer';
+import { SEV, STATUS, STATUSES, SEVERITIES, TYPES, sevMeta, statusMeta } from './incidentMeta';
+import { exportIncidentsCsv } from './incidentService';
 import type { Incident, IncidentSeverity, IncidentStatus, CreateIncidentInput } from './incidentService';
-
-const SEV: Record<IncidentSeverity, { color: string; fr: string; en: string }> = {
-  critical: { color: 'var(--critical)', fr: 'Critique', en: 'Critical' },
-  high: { color: 'var(--high)', fr: 'Élevée', en: 'High' },
-  medium: { color: 'var(--medium)', fr: 'Moyenne', en: 'Medium' },
-  low: { color: 'var(--low)', fr: 'Faible', en: 'Low' },
-};
-const STATUS: Record<IncidentStatus, { color: string; fr: string; en: string }> = {
-  open: { color: 'var(--critical)', fr: 'Ouvert', en: 'Open' },
-  in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
-  resolved: { color: 'var(--low)', fr: 'Résolu', en: 'Resolved' },
-  closed: { color: 'var(--text-muted)', fr: 'Clos', en: 'Closed' },
-};
-const STATUSES: IncidentStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
-const SEVERITIES: IncidentSeverity[] = ['critical', 'high', 'medium', 'low'];
-const TYPES = ['breach', 'attack', 'vulnerability', 'data_loss', 'phishing', 'malware', 'other'];
 
 export function IncidentsScreen() {
   const lang = useUIStore((s) => s.lang);
@@ -43,11 +31,11 @@ export function IncidentsScreen() {
 
   const [filter, setFilter] = useState<'' | IncidentStatus>('');
   const [showCreate, setShowCreate] = useState(false);
+  const [selected, setSelected] = useState<Incident | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const { data: stats } = useIncidentStats();
-  const { incidents, isLoading, updateIncident, deleteIncident } = useIncidents(
-    filter ? { status: filter } : {}
-  );
+  const { incidents, isLoading, updateIncident, deleteIncident } = useIncidents(filter ? { status: filter } : {});
 
   const setStatus = (inc: Incident, status: IncidentStatus) => {
     if (status === inc.status) return;
@@ -60,6 +48,24 @@ export function IncidentsScreen() {
   const remove = (inc: Incident) => {
     if (!window.confirm(tr(`Supprimer l’incident « ${inc.title} » ?`, `Delete incident "${inc.title}"?`))) return;
     deleteIncident.mutate(inc.id, { onError: () => toast.error(tr('Suppression échouée', 'Delete failed')) });
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const n = await exportIncidentsCsv(filter ? { status: filter } : {});
+      toast.success(tr(`${n} incident(s) exporté(s)`, `${n} incident(s) exported`));
+    } catch {
+      toast.error(tr('Export échoué', 'Export failed'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const openWarRoom = () => {
+    const target = incidents.find((i) => i.status === 'open' || i.status === 'in_progress') ?? incidents[0];
+    if (!target) { toast.message(tr('Aucun incident à ouvrir', 'No incident to open')); return; }
+    navigate(`/incidents/${target.id}/war-room`);
   };
 
   const kpis = [
@@ -76,7 +82,8 @@ export function IncidentsScreen() {
         count={stats ? `${stats.open_incidents} ${tr('ouverts', 'open')}` : undefined}
         actions={
           <>
-            <Btn label={tr('War Room', 'War Room')} icon={Activity} onClick={() => navigate('/incidents/war-room')} />
+            <Btn label={exporting ? tr('Export…', 'Exporting…') : tr('Exporter', 'Export')} icon={Download} onClick={exportCsv} />
+            <Btn label={tr('War Room', 'War Room')} icon={Activity} onClick={openWarRoom} />
             {canWrite && <Btn label={tr('Nouvel incident', 'New incident')} icon={Plus} primary onClick={() => setShowCreate(true)} />}
           </>
         }
@@ -84,8 +91,8 @@ export function IncidentsScreen() {
 
       {/* KPI header */}
       <div className="grid gap-3.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-        {kpis.map((k) => (
-          <Card key={k.label} style={{ padding: '16px 18px' }}>
+        {kpis.map((k, i) => (
+          <Card key={k.label} style={{ padding: '16px 18px', animation: 'or-fadeup .4s ease both', animationDelay: `${i * 0.05}s` }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[11px] flex items-center justify-center shrink-0" style={{ background: softFill(k.color, 14), color: k.color }}>
                 <k.icon size={19} strokeWidth={1.9} />
@@ -128,28 +135,33 @@ export function IncidentsScreen() {
                 </tr>
               </thead>
               <tbody>
-                {incidents.map((inc) => (
-                  <tr key={inc.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                {incidents.map((inc, i) => (
+                  <tr
+                    key={inc.id}
+                    onClick={() => setSelected(inc)}
+                    className="cursor-pointer transition-colors hover:bg-hover"
+                    style={{ borderBottom: '1px solid var(--border)', animation: 'or-fadeup .3s ease both', animationDelay: `${Math.min(i * 0.025, 0.4)}s` }}
+                  >
                     <td className="px-3 py-3">
                       <div className="text-[13.5px] font-medium text-ink">{inc.title}</div>
                       {inc.description && <div className="text-[12px] text-ink-muted mt-0.5 max-w-[420px] leading-snug truncate">{inc.description}</div>}
                     </td>
                     <td className="px-3 py-3 align-top"><span className="text-[12px] text-ink-soft capitalize">{inc.incident_type?.replace('_', ' ') || '—'}</span></td>
                     <td className="px-3 py-3 align-top">
-                      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: SEV[inc.severity]?.color, background: softFill(SEV[inc.severity]?.color ?? 'var(--text-muted)', 15) }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: SEV[inc.severity]?.color }} />
-                        {tr(SEV[inc.severity]?.fr ?? inc.severity, SEV[inc.severity]?.en ?? inc.severity)}
+                      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: sevMeta(inc.severity).color, background: softFill(sevMeta(inc.severity).color, 15) }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: sevMeta(inc.severity).color }} />
+                        {tr(sevMeta(inc.severity).fr, sevMeta(inc.severity).en)}
                       </span>
                     </td>
-                    <td className="px-3 py-3 align-top">
+                    <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
                       <div className="relative inline-flex items-center">
-                        <span className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none" style={{ background: STATUS[inc.status]?.color }} />
+                        <span className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none" style={{ background: statusMeta(inc.status).color }} />
                         <select
                           value={inc.status}
                           disabled={!canWrite}
                           onChange={(e) => setStatus(inc, e.target.value as IncidentStatus)}
                           className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 outline-none disabled:opacity-70"
-                          style={{ color: STATUS[inc.status]?.color, background: `color-mix(in srgb,${STATUS[inc.status]?.color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${STATUS[inc.status]?.color} 30%,transparent)`, cursor: canWrite ? 'pointer' : 'not-allowed' }}
+                          style={{ color: statusMeta(inc.status).color, background: `color-mix(in srgb,${statusMeta(inc.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${statusMeta(inc.status).color} 30%,transparent)`, cursor: canWrite ? 'pointer' : 'not-allowed' }}
                         >
                           {STATUSES.map((s) => (
                             <option key={s} value={s} style={{ color: 'var(--text-primary)', background: 'var(--bg-elevated)' }}>{tr(STATUS[s].fr, STATUS[s].en)}</option>
@@ -161,7 +173,7 @@ export function IncidentsScreen() {
                       <div className="text-[12.5px] text-ink-soft">{relTime(inc.created_at, lang)}</div>
                       {inc.reported_by && <div className="text-[11.5px] text-ink-muted">{inc.reported_by}</div>}
                     </td>
-                    <td className="px-3 py-3 align-top text-right">
+                    <td className="px-3 py-3 align-top text-right" onClick={(e) => e.stopPropagation()}>
                       {canWrite && (
                         <button onClick={() => remove(inc)} className="w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors hover:bg-hover" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')} aria-label={tr('Supprimer', 'Delete')}>
                           <Trash2 size={14} />
@@ -177,6 +189,7 @@ export function IncidentsScreen() {
       </Card>
 
       {showCreate && <CreateIncidentModal onClose={() => setShowCreate(false)} />}
+      {selected && <IncidentDrawer incident={selected} canWrite={canWrite} onClose={() => setSelected(null)} />}
     </PageFrame>
   );
 }

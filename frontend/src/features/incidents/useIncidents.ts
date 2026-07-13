@@ -23,6 +23,22 @@ export function useIncidentStats() {
   });
 }
 
+export function useIncident(id: number | undefined) {
+  return useQuery({
+    queryKey: [...INCIDENTS_KEY, 'detail', id],
+    queryFn: () => incidentService.get(id as number),
+    enabled: !!id,
+  });
+}
+
+export function useIncidentTimeline(id: number | undefined) {
+  return useQuery({
+    queryKey: [...INCIDENTS_KEY, 'timeline', id],
+    queryFn: () => incidentService.timeline(id as number),
+    enabled: !!id,
+  });
+}
+
 export function useIncidents(params: IncidentListParams = {}) {
   const queryClient = useQueryClient();
 

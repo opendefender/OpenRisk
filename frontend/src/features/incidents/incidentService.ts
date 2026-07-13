@@ -85,6 +85,11 @@ export const incidentService = {
     return response.data;
   },
 
+  get: async (id: number): Promise<Incident> => {
+    const response = await api.get<Incident>(`/incidents/${id}`);
+    return response.data;
+  },
+
   stats: async (): Promise<IncidentStats> => {
     const response = await api.get<IncidentStats>('/incidents/stats');
     return response.data;
@@ -109,3 +114,39 @@ export const incidentService = {
     return response.data;
   },
 };
+
+// exportIncidentsCsv fetches the (filtered) incident register and triggers a
+// browser CSV download. Built client-side — there is no server CSV endpoint —
+// mirroring the risk-register export UX on the Reports screen.
+export async function exportIncidentsCsv(params: IncidentListParams = {}): Promise<number> {
+  const { incidents } = await incidentService.list({ ...params, limit: 1000 });
+  const rows = incidents ?? [];
+  const cols: [string, (i: Incident) => string | number | null | undefined][] = [
+    ['id', (i) => i.id],
+    ['title', (i) => i.title],
+    ['type', (i) => i.incident_type],
+    ['severity', (i) => i.severity],
+    ['status', (i) => i.status],
+    ['source', (i) => i.source],
+    ['reported_by', (i) => i.reported_by],
+    ['assigned_to', (i) => i.assigned_to],
+    ['resolution', (i) => i.resolution],
+    ['created_at', (i) => i.created_at],
+    ['resolved_at', (i) => i.resolved_at],
+  ];
+  const esc = (v: unknown) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = cols.map((c) => c[0]).join(',');
+  const body = rows.map((r) => cols.map((c) => esc(c[1](r))).join(',')).join('\n');
+  const csv = `${header}\n${body}`;
+
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `incidents-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  return rows.length;
+}
