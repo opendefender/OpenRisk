@@ -8,12 +8,14 @@
 import { useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Download, ClipboardCheck, Paperclip, Upload, Trash2, X, FileText } from 'lucide-react';
+import { ArrowLeft, Download, ClipboardCheck, Paperclip, Upload, Trash2, X, FileText, Plus } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { useControls, useComplianceReport, useEvidences } from './useCompliance';
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
+import { CreateControlDialog } from './ComplianceModals';
 import { relTime } from '../risks/riskMap';
 import { CONTROL_STATUSES, type ControlStatus, type ComplianceControl } from '../../types/compliance';
 
@@ -35,25 +37,74 @@ export function FrameworkDetail() {
   const { data: fws = [] } = useComplianceOverview();
   const fwIndex = fws.findIndex((f) => f.id === frameworkId);
   const fw = fwIndex >= 0 ? fws[fwIndex] : undefined;
-  const { controls, isLoading, updateControl } = useControls(frameworkId);
+  const { controls, isLoading, updateControl, deleteControl } = useControls(frameworkId);
   const report = useComplianceReport();
   const [filter, setFilter] = useState<'all' | ControlStatus>('all');
   const [evidenceControl, setEvidenceControl] = useState<ComplianceControl | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canCreate = hasPermission('compliance:controls:create');
+  const canDelete = hasPermission('compliance:controls:delete');
+  const canUpdate = hasPermission('compliance:controls:update');
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const ct of controls) c[ct.status ?? 'not_implemented'] = (c[ct.status ?? 'not_implemented'] ?? 0) + 1;
     return c;
   }, [controls]);
+
+  // Live progress derived from the loaded controls (not the overview snapshot) so
+  // the header gauge tracks status changes optimistically, in real time. Falls
+  // back to the overview figures until the control list has loaded.
+  const loaded = controls.length > 0 || !isLoading;
+  const total = loaded ? controls.length : fw?.total ?? 0;
+  const implementedCount = counts.implemented ?? 0;
+  const applicable = total - (counts.not_applicable ?? 0);
+  const pct = loaded ? (applicable > 0 ? Math.round((implementedCount / applicable) * 100) : 0) : fw?.pct ?? 0;
+  const passed = loaded ? implementedCount : fw?.passed ?? 0;
+
   const filtered = filter === 'all' ? controls : controls.filter((c) => c.status === filter);
   const col = fw ? frameworkColorFor(fw.name, fwIndex) : 'var(--accent)';
 
+  const evidenceRequiredMsg = tr(
+    'Ajoutez au moins une preuve avant de marquer ce contrôle « Implémenté ».',
+    'Add at least one piece of evidence before marking this control as Implemented.'
+  );
+
   const setStatus = (c: ComplianceControl, status: ControlStatus) => {
     if (status === c.status) return;
+    // Strict compliance rule (mirrored server-side): a control needs at least one
+    // proof before it can be marked implemented. Guide the user to attach one.
+    if (status === 'implemented' && (c.evidence_count ?? 0) === 0) {
+      toast.error(evidenceRequiredMsg);
+      setEvidenceControl(c);
+      return;
+    }
     updateControl.mutate(
       { id: c.id as string, payload: { status } },
-      { onError: () => toast.error(tr('Mise à jour échouée', 'Update failed')) }
+      {
+        onError: (err) => {
+          const code = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+          if (code === 'evidence_required') {
+            toast.error(evidenceRequiredMsg);
+            setEvidenceControl(c);
+          } else {
+            toast.error(tr('Mise à jour échouée', 'Update failed'));
+          }
+        },
+      }
     );
+  };
+
+  const removeControl = (c: ComplianceControl) => {
+    if (!window.confirm(tr(
+      `Supprimer le contrôle « ${c.reference_code || c.name} » ?`,
+      `Delete control "${c.reference_code || c.name}"?`
+    ))) return;
+    deleteControl.mutate(c.id as string, {
+      onError: () => toast.error(tr('Suppression échouée', 'Delete failed')),
+    });
   };
 
   const downloadReport = () => {
@@ -75,15 +126,20 @@ export function FrameworkDetail() {
 
       <PageHeader
         title={fw?.name ?? tr('Référentiel', 'Framework')}
-        count={fw ? `${fw.passed}/${fw.total} ${tr('contrôles', 'controls')}` : undefined}
-        actions={<Btn label={L.exportPdf} icon={Download} primary onClick={downloadReport} />}
+        count={`${passed}/${total} ${tr('contrôles', 'controls')}`}
+        actions={
+          <>
+            {canCreate && <Btn label={tr('Contrôle', 'Control')} icon={Plus} onClick={() => setShowCreate(true)} />}
+            <Btn label={L.exportPdf} icon={Download} primary onClick={downloadReport} />
+          </>
+        }
       />
 
       {fw && (
         <Card style={{ padding: '18px 22px', marginBottom: 16 }}>
           <div className="flex items-center gap-5 flex-wrap">
-            <RingGauge value={fw.pct} size={84} color={col} thickness={8}>
-              <span className="mono text-[18px] font-bold text-ink">{fw.pct}%</span>
+            <RingGauge value={pct} size={84} color={col} thickness={8}>
+              <span className="mono text-[18px] font-bold text-ink">{pct}%</span>
             </RingGauge>
             <div className="flex-1 min-w-[200px]">
               <div className="text-[13px] text-ink-soft mb-2">{fw.description || `${fw.name} · ${fw.version ?? ''}`}</div>
@@ -120,6 +176,7 @@ export function FrameworkDetail() {
                   {[tr('Réf.', 'Ref.'), tr('Contrôle', 'Control'), tr('Source', 'Source'), tr('Statut', 'Status'), tr('Preuves', 'Evidence')].map((t) => (
                     <th key={t} className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>
                   ))}
+                  {canDelete && <th className="px-3 pb-[11px]" aria-label={tr('Actions', 'Actions')} />}
                 </tr>
               </thead>
               <tbody>
@@ -136,9 +193,10 @@ export function FrameworkDetail() {
                         <span className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none" style={{ background: meta(c.status).color }} />
                         <select
                           value={c.status}
+                          disabled={!canUpdate}
                           onChange={(e) => setStatus(c, e.target.value as ControlStatus)}
-                          className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 cursor-pointer outline-none"
-                          style={{ color: meta(c.status).color, background: `color-mix(in srgb,${meta(c.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${meta(c.status).color} 30%,transparent)` }}
+                          className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                          style={{ color: meta(c.status).color, background: `color-mix(in srgb,${meta(c.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${meta(c.status).color} 30%,transparent)`, cursor: canUpdate ? 'pointer' : 'not-allowed' }}
                         >
                           {CONTROL_STATUSES.map((s) => (
                             <option key={s} value={s} style={{ color: 'var(--text-primary)', background: 'var(--bg-elevated)' }}>{tr(meta(s).fr, meta(s).en)}</option>
@@ -147,14 +205,21 @@ export function FrameworkDetail() {
                       </div>
                     </td>
                     <td className="px-3 py-3 align-top">
-                      <button
-                        onClick={() => setEvidenceControl(c)}
-                        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-accent transition-colors px-2.5 py-1.5 rounded-lg hover:bg-hover"
-                        title={tr('Preuves', 'Evidence')}
-                      >
-                        <Paperclip size={14} /> {tr('Preuves', 'Evidence')}
-                      </button>
+                      <EvidenceButton count={c.evidence_count ?? 0} onClick={() => setEvidenceControl(c)} />
                     </td>
+                    {canDelete && (
+                      <td className="px-3 py-3 align-top text-right">
+                        <button
+                          onClick={() => removeControl(c)}
+                          className="w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors hover:bg-hover"
+                          style={{ color: 'var(--critical)' }}
+                          title={tr('Supprimer le contrôle', 'Delete control')}
+                          aria-label={tr('Supprimer le contrôle', 'Delete control')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -166,7 +231,38 @@ export function FrameworkDetail() {
       {evidenceControl && (
         <EvidenceDrawer control={evidenceControl} onClose={() => setEvidenceControl(null)} />
       )}
+      {showCreate && frameworkId && (
+        <CreateControlDialog frameworkId={frameworkId} onClose={() => setShowCreate(false)} />
+      )}
     </PageFrame>
+  );
+}
+
+/* ---------------- evidence button ---------------- */
+// A clearly clickable chip so users read it as an action, not a static label:
+// filled + accent-coloured with a count when proofs exist, a dashed "add" cue
+// when the control has none (which is also the state that blocks "implemented").
+function EvidenceButton({ count, onClick }: { count: number; onClick: () => void }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const has = count > 0;
+  const label = has
+    ? `${count} ${tr(count > 1 ? 'preuves' : 'preuve', count > 1 ? 'proofs' : 'proof')}`
+    : tr('Ajouter', 'Add');
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[12px] font-semibold transition-all hover:brightness-110"
+      style={
+        has
+          ? { border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'var(--accent-soft)', color: 'var(--accent)' }
+          : { border: '1px dashed var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }
+      }
+      title={tr('Gérer les preuves', 'Manage evidence')}
+    >
+      <Paperclip size={13} strokeWidth={1.9} />
+      {label}
+    </button>
   );
 }
 

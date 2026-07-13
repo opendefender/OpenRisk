@@ -53,6 +53,16 @@ func (uc *UpdateControlUseCase) Execute(ctx context.Context, tenantID, controlID
 		if !validControlStatuses[*input.Status] {
 			return nil, domain.NewValidationError("invalid status: " + string(*input.Status))
 		}
+		// Strict compliance rule: a control cannot be marked "implemented" without
+		// at least one piece of evidence to substantiate it. GetControlByID
+		// preloads (non-deleted) Evidences, so no extra query is needed. Only
+		// enforced on the transition INTO implemented, so re-saving an already
+		// implemented control (e.g. editing its name) is never blocked.
+		if *input.Status == domain.ControlStatusImplemented &&
+			control.Status != domain.ControlStatusImplemented &&
+			len(control.Evidences) == 0 {
+			return nil, domain.NewValidationError("evidence_required")
+		}
 		control.Status = *input.Status
 	}
 	if input.ReferenceCode != nil {

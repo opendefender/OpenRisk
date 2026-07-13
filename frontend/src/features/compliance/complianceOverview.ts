@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { OVERVIEW_QUERY_KEY } from './useCompliance';
 
 interface RawFramework { id: string; name: string; version: string; description?: string }
 interface RawProgress { Total: number; Applicable: number; PercentComplete: number; ByStatus?: Record<string, number> }
@@ -27,7 +28,7 @@ export function frameworkColorFor(name: string, index: number): string {
 
 export function useComplianceOverview() {
   return useQuery({
-    queryKey: ['compliance', 'overview'],
+    queryKey: OVERVIEW_QUERY_KEY,
     queryFn: async (): Promise<FrameworkWithProgress[]> => {
       const { data: fws } = await api.get<RawFramework[]>('/compliance/frameworks');
       return Promise.all(

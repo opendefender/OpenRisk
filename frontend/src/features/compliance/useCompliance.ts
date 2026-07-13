@@ -19,6 +19,10 @@ import type {
 
 const FRAMEWORKS_QUERY_KEY = ['compliance', 'frameworks'];
 const CATALOGS_QUERY_KEY = ['compliance', 'catalogs'];
+// Shared with complianceOverview.ts's useComplianceOverview — the combined
+// frameworks+progress query that feeds the Compliance grid and the framework
+// detail header. Kept here so mutations can invalidate it in one place.
+export const OVERVIEW_QUERY_KEY = ['compliance', 'overview'];
 const controlsQueryKey = (frameworkId: string) => ['compliance', 'frameworks', frameworkId, 'controls'];
 const evidencesQueryKey = (controlId: string) => ['compliance', 'controls', controlId, 'evidences'];
 const progressQueryKey = (frameworkId: string) => ['compliance', 'frameworks', frameworkId, 'progress'];
@@ -40,14 +44,19 @@ export function useFrameworks() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const invalidateFrameworkLists = () => {
+    queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
+  };
+
   const createFramework = useMutation({
     mutationFn: (payload: CreateFrameworkInput) => complianceService.createFramework(payload),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY }),
+    onSettled: invalidateFrameworkLists,
   });
 
   const deleteFramework = useMutation({
     mutationFn: (frameworkId: string) => complianceService.deleteFramework(frameworkId),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY }),
+    onSettled: invalidateFrameworkLists,
   });
 
   return useMemo(
@@ -107,6 +116,7 @@ export function useImportCatalogAsFramework() {
       queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: controlsQueryKey(framework.id) });
       queryClient.invalidateQueries({ queryKey: progressQueryKey(framework.id) });
+      queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
     },
   });
 }
@@ -133,6 +143,10 @@ export function useControls(frameworkId: string | undefined) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey });
     if (frameworkId) queryClient.invalidateQueries({ queryKey: progressQueryKey(frameworkId) });
+    // The Compliance grid + framework-detail header gauge read from the combined
+    // ['compliance','overview'] query, not from these per-framework keys — invalidate
+    // it too so progress reflects a status change in real time (not on next reload).
+    queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
   };
 
   const createControl = useMutation({
@@ -209,10 +223,20 @@ export function useEvidences(controlId: string | undefined) {
     enabled: !!controlId,
   });
 
+  // Adding/removing evidence changes a control's evidence_count, which the
+  // controls table badges and which gates the "implemented" transition. Refresh
+  // the evidence list AND the per-framework controls + combined overview so the
+  // badge and the strict-mode lock update the moment a proof is attached.
+  const invalidateAfterEvidenceChange = () => {
+    queryClient.invalidateQueries({ queryKey });
+    queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
+  };
+
   const createEvidence = useMutation({
     mutationFn: ({ file, description }: { file: File; description?: string }) =>
       complianceService.createEvidence(controlId as string, file, description),
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: invalidateAfterEvidenceChange,
   });
 
   const deleteEvidence = useMutation({
@@ -231,7 +255,7 @@ export function useEvidences(controlId: string | undefined) {
     onError: (_err, _id, context) => {
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: invalidateAfterEvidenceChange,
   });
 
   const downloadEvidence = useMutation({

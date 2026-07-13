@@ -22,5 +22,20 @@ func NewListControlsUseCase(repo domain.ComplianceRepository) *ListControlsUseCa
 }
 
 func (uc *ListControlsUseCase) Execute(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error) {
-	return uc.repo.ListControlsByFramework(ctx, tenantID, frameworkID)
+	controls, err := uc.repo.ListControlsByFramework(ctx, tenantID, frameworkID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attach each control's evidence count in a single grouped query (no N+1),
+	// so the UI can badge substantiated controls and gate the "implemented"
+	// status transition on the presence of at least one proof.
+	counts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, frameworkID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range controls {
+		controls[i].EvidenceCount = counts[controls[i].ID]
+	}
+	return controls, nil
 }

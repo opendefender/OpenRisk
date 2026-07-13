@@ -1687,6 +1687,12 @@ components:
         status:
           type: string
           enum: [not_implemented, in_progress, implemented, not_applicable]
+        evidence_count:
+          type: integer
+          description: >
+            Computed count of the control's active evidences. Returned by the
+            list/get endpoints so the UI can badge substantiated controls and
+            enforce the "no implemented status without a proof" rule.
         created_at:
           type: string
           format: date-time

@@ -423,6 +423,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a tenant's board reports (most recent first) */
+        get: operations["listBoardReports"];
+        put?: never;
+        /**
+         * Generate a monthly board report (draft)
+         * @description Aggregates the tenant's risk register (by criticality) and compliance posture (per framework), estimates the annual financial exposure in FCFA, and asks the configured AI advisor to write a non-technical narrative for the board of directors. When ANTHROPIC_API_KEY is set a Claude advisor (claude-opus-4-8) writes the prose; otherwise, or on any API error, a deterministic template writes it (GeneratedByModel records which). The report is created as an editable DRAFT (human-in-the-loop) and must be approved before diffusion.
+         */
+        post: operations["generateBoardReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/board/{reportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a board report (JSON) */
+        get: operations["getBoardReport"];
+        put?: never;
+        post?: never;
+        /** Delete a board report */
+        delete: operations["deleteBoardReport"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a draft board report's narrative
+         * @description Only DRAFT reports are editable; an approved report is frozen (returns 400/validation).
+         */
+        patch: operations["updateBoardReport"];
+        trace?: never;
+    };
+    "/reports/board/{reportId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a draft board report (human-in-the-loop)
+         * @description Marks the report approved, recording the approver and timestamp. Idempotent.
+         */
+        post: operations["approveBoardReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/board/{reportId}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a board report as a polished PDF */
+        get: operations["downloadBoardReportPDF"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assets": {
         parameters: {
             query?: never;
@@ -791,6 +871,8 @@ export interface components {
             source_reference?: string;
             /** @enum {string} */
             status: "not_implemented" | "in_progress" | "implemented" | "not_applicable";
+            /** @description Computed count of the control's active evidences. Returned by the list/get endpoints so the UI can badge substantiated controls and enforce the "no implemented status without a proof" rule. */
+            evidence_count?: number;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -876,6 +958,82 @@ export interface components {
              * @description implemented / applicable * 100 (0 if applicable is 0)
              */
             percent_complete: number;
+        };
+        /** @description Per-framework advancement frozen into a board report at generation time. */
+        FrameworkSnapshot: {
+            name?: string;
+            version?: string;
+            total?: number;
+            /** @description total minus not_applicable */
+            applicable?: number;
+            implemented?: number;
+            /** Format: float */
+            percent_complete?: number;
+        };
+        /** @description A tenant-scoped monthly board-of-directors report. Snapshots the risk and compliance posture at generation time plus an editable, non-technical narrative. Lifecycle: draft -> approved (human-in-the-loop). */
+        BoardReport: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            tenant_id?: string;
+            title?: string;
+            /** @description Organization display name snapshotted at generation time */
+            organization_name?: string;
+            /** @example Juillet 2026 */
+            period_label?: string;
+            /** @enum {string} */
+            locale?: "fr" | "en";
+            /** @enum {string} */
+            status?: "draft" | "approved";
+            risks_critical?: number;
+            risks_high?: number;
+            risks_medium?: number;
+            risks_low?: number;
+            risks_total?: number;
+            /**
+             * Format: int64
+             * @description Estimated annual exposure in FCFA (order-of-magnitude model)
+             */
+            financial_exposure_fcfa?: number;
+            /** Format: float */
+            overall_compliance_percent?: number;
+            frameworks_snapshot?: components["schemas"]["FrameworkSnapshot"][] | null;
+            executive_summary?: string;
+            risk_commentary?: string;
+            compliance_commentary?: string;
+            financial_commentary?: string;
+            recommendations?: string[];
+            /** @description "claude-opus-4-8" or "template" (provenance) */
+            generated_by_model?: string;
+            /** Format: uuid */
+            created_by?: string;
+            /** Format: uuid */
+            approved_by?: string | null;
+            /** Format: date-time */
+            approved_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        /** @description Both fields optional — empty period defaults to the current month, empty locale to French. */
+        GenerateBoardReportInput: {
+            /** @example Juillet 2026 */
+            period_label?: string;
+            /**
+             * @default fr
+             * @enum {string}
+             */
+            locale: "fr" | "en";
+        };
+        /** @description Partial narrative edits for a DRAFT report. Any omitted field is left unchanged. */
+        UpdateBoardReportInput: {
+            title?: string;
+            executive_summary?: string;
+            risk_commentary?: string;
+            compliance_commentary?: string;
+            financial_commentary?: string;
+            recommendations?: string[];
         };
         Asset: {
             /** Format: uuid */
@@ -2063,6 +2221,197 @@ export interface operations {
                 content?: never;
             };
             /** @description Evidence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listBoardReports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's board reports. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardReport"][];
+                };
+            };
+        };
+    };
+    generateBoardReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GenerateBoardReportInput"];
+            };
+        };
+        responses: {
+            /** @description The generated draft report. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardReport"];
+                };
+            };
+        };
+    };
+    getBoardReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The board report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardReport"];
+                };
+            };
+            /** @description Report not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteBoardReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Report not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateBoardReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBoardReportInput"];
+            };
+        };
+        responses: {
+            /** @description The updated report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardReport"];
+                };
+            };
+            /** @description Report not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    approveBoardReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The approved report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardReport"];
+                };
+            };
+            /** @description Report not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downloadBoardReportPDF: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The board report as a PDF attachment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Report not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
