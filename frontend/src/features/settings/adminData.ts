@@ -90,11 +90,19 @@ export function useCustomFields() {
   return { fields: query.data ?? [], isLoading: query.isLoading, isError: query.isError };
 }
 
-/* ---------------- Roles / Organizations / Audit (may be un-migrated) ---------------- */
+/* ---------------- Roles / Organizations / Audit ---------------- */
+export interface RbacRole {
+  id: string;
+  name: string;
+  description?: string;
+  level: number;
+  is_predefined?: boolean;
+  is_active?: boolean;
+}
 export function useRoles() {
   const query = useQuery({
     queryKey: ['admin', 'roles'],
-    queryFn: async () => (await api.get<{ roles?: unknown[] }>('/rbac/roles')).data?.roles ?? [],
+    queryFn: async () => (await api.get<{ roles?: RbacRole[] }>('/rbac/roles')).data?.roles ?? [],
     retry: false,
   });
   return { roles: query.data ?? [], isLoading: query.isLoading, isError: query.isError };
@@ -113,8 +121,8 @@ export function useAuditLogs() {
   const query = useQuery({
     queryKey: ['admin', 'audit'],
     queryFn: async () => {
-      const d = (await api.get<AuditEntry[] | { items?: AuditEntry[]; logs?: AuditEntry[] }>('/audit-logs')).data;
-      return Array.isArray(d) ? d : d.items ?? d.logs ?? [];
+      const d = (await api.get<AuditEntry[] | { items?: AuditEntry[]; logs?: AuditEntry[]; data?: AuditEntry[] }>('/audit-logs')).data;
+      return Array.isArray(d) ? d : d.items ?? d.logs ?? d.data ?? [];
     },
     retry: false,
   });

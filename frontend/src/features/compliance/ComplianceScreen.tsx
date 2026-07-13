@@ -5,7 +5,7 @@
 // per-framework progress. Posture hero (aggregate radial + copy + CTAs) and a grid
 // of framework cards; clicking a card downloads its official PDF report.
 
-import { FileText, AlertTriangle, Download, ClipboardCheck } from 'lucide-react';
+import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
@@ -78,23 +78,34 @@ export function ComplianceScreen() {
               const col = frameworkColorFor(f.name, i);
               return (
                 <Card key={f.id} style={{ padding: 18 }}>
-                  <div className="flex items-center gap-3.5 mb-3.5">
+                  <button onClick={() => navigate(`/compliance/${f.id}`)} className="w-full flex items-center gap-3.5 mb-3.5 text-left group">
                     <RingGauge value={f.pct} size={56} color={col} thickness={6}>
                       <span className="mono text-[13px] font-bold text-ink">{f.pct}</span>
                     </RingGauge>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-semibold text-ink truncate" title={f.name}>{f.name}</div>
+                      <div className="text-[14px] font-semibold text-ink truncate group-hover:text-accent transition-colors" title={f.name}>{f.name}</div>
                       <div className="text-[12px] text-ink-soft mt-0.5">{f.passed} / {f.total} {tr('contrôles', 'controls')}</div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => download(f)}
-                    disabled={report.isPending}
-                    className="w-full h-8 rounded-[9px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors disabled:opacity-60"
-                    style={{ border: '1px solid var(--border-strong)' }}
-                  >
-                    <Download size={14} /> {L.exportPdf}
+                    <ChevronRight size={16} className="text-ink-muted shrink-0 group-hover:text-accent transition-colors" />
                   </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/compliance/${f.id}`)}
+                      className="flex-1 h-8 rounded-[9px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
+                      style={{ border: '1px solid var(--border-strong)' }}
+                    >
+                      {tr('Voir les contrôles', 'View controls')}
+                    </button>
+                    <button
+                      onClick={() => download(f)}
+                      disabled={report.isPending}
+                      className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors disabled:opacity-60"
+                      style={{ border: '1px solid var(--border-strong)' }}
+                      title={L.exportPdf}
+                    >
+                      <Download size={14} />
+                    </button>
+                  </div>
                 </Card>
               );
             })}

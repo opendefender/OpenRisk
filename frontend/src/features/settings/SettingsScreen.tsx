@@ -305,10 +305,8 @@ function OrgsTab({ tr }: { tr: Tr }) {
 }
 
 function RbacTab({ tr }: { tr: Tr }) {
-  const { roles, isError } = useRoles();
-  const live = !isError && roles.length > 0;
-  // The RBAC roles endpoint isn't provisioned in this schema; fall back to the
-  // standard role matrix so the screen still communicates the model honestly.
+  const { roles, isLoading } = useRoles();
+  const levelColor = (lvl: number) => (lvl >= 9 ? 'var(--accent)' : lvl >= 6 ? 'var(--high)' : lvl >= 3 ? 'var(--info)' : 'var(--text-muted)');
   const perms = [tr('Voir les risques', 'View risks'), tr('Créer / éditer', 'Create / edit'), tr('Supprimer', 'Delete'), tr('Gérer les membres', 'Manage members'), tr('Facturation', 'Billing')];
   const stdRoles: [string, number[]][] = [['Admin', [1, 1, 1, 1, 1]], ['Analyste', [1, 1, 1, 0, 0]], ['Lecteur', [1, 0, 0, 0, 0]]];
   const Dot = ({ on }: { on: boolean }) => on
@@ -320,9 +318,33 @@ function RbacTab({ tr }: { tr: Tr }) {
         <div className="text-[15px] font-semibold text-ink">{tr('Rôles & permissions', 'Roles & permissions')}</div>
         <Btn label={tr('Créer un rôle', 'Create role')} icon={Plus} primary onClick={() => toast(tr('Éditeur de rôles — bientôt', 'Role editor — coming soon'))} />
       </div>
-      {!live && (
-        <div className="text-[12px] text-ink-muted mb-3">{tr('Aperçu — matrice de rôles standard (l’éditeur RBAC complet arrive avec la migration des rôles).', 'Preview — standard role matrix (the full RBAC editor ships with the roles migration).')}</div>
-      )}
+
+      {/* real roles from /rbac/roles */}
+      <Card style={{ padding: 8, marginBottom: 16 }}>
+        {isLoading ? (
+          <SkeletonRows rows={4} />
+        ) : roles.length === 0 ? (
+          <EmptyState icon={Lock} title={tr('Aucun rôle', 'No roles')} />
+        ) : (
+          <div className="flex flex-col gap-1.5 p-1.5">
+            {roles.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]" style={{ border: '1px solid var(--border)' }}>
+                <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: `color-mix(in srgb,${levelColor(r.level)} 14%,transparent)`, color: levelColor(r.level) }}><Lock size={16} /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13.5px] font-semibold text-ink">{r.name}</span>
+                    {r.is_predefined && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-[.04em]" style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}>{tr('système', 'system')}</span>}
+                  </div>
+                  <div className="text-[12px] text-ink-muted truncate">{r.description}</div>
+                </div>
+                <span className="text-[11.5px] font-semibold px-2 py-[3px] rounded-full shrink-0" style={{ color: levelColor(r.level), background: `color-mix(in srgb,${levelColor(r.level)} 14%,transparent)` }}>{tr('Niveau', 'Level')} {r.level}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <div className="text-[12px] font-semibold text-ink-soft mb-2 px-1">{tr('Matrice de permissions', 'Permission matrix')}</div>
       <Card style={{ padding: '10px 16px', overflow: 'hidden' }}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: 460 }}>

@@ -24,6 +24,7 @@ import { ImportRisksPage } from './features/risks/ImportRisksPage';
 import { RiskRegisterPage } from './features/risks/RiskRegisterPage';
 import { MitigationsBoard } from './features/mitigations/MitigationsBoard';
 import { ComplianceScreen } from './features/compliance/ComplianceScreen';
+import { FrameworkDetail } from './features/compliance/FrameworkDetail';
 import { InventoryPage } from './features/assets/InventoryPage';
 import { AssetUniverse } from './features/universe/AssetUniverse';
 import { AnalyticsCiso } from './features/analytics/AnalyticsCiso';
@@ -126,6 +127,7 @@ function App() {
           <Route path="risks" element={<RiskRegisterPage />} />
           <Route path="mitigations" element={<MitigationsBoard />} />
           <Route path="compliance" element={<ComplianceScreen />} />
+          <Route path="compliance/:frameworkId" element={<FrameworkDetail />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="analytics" element={<AnalyticsCiso />} />
