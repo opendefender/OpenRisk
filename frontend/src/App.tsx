@@ -9,12 +9,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
+import { useRiskStore } from './hooks/useRiskStore';
 
 // --- App shell ---
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 import { CommandPalette } from './components/layout/CommandPalette';
-import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
+// The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
+// The older features/risks/components/CreateRiskModal embedded ScoreEngineVisualizer,
+// which white-screened the whole app on a null risk_stats/matrix response.
+import { CreateRiskModal } from './features/risks/CreateRiskModal';
 
 // --- Imports des Pages & Features ---
 import { AuthScreen } from './features/auth/AuthScreen';
@@ -100,7 +104,11 @@ const DashboardLayout = () => {
 
       {/* Global shell overlays */}
       <CommandPalette />
-      <CreateRiskModal isOpen={newRiskOpen} onClose={() => setNewRiskOpen(false)} />
+      <CreateRiskModal
+        isOpen={newRiskOpen}
+        onClose={() => setNewRiskOpen(false)}
+        onCreated={() => { void useRiskStore.getState().fetchRisks(); }}
+      />
     </div>
   );
 };

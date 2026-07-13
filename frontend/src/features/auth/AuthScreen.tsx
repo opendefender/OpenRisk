@@ -5,12 +5,14 @@
 // quote on the left, Login / Register / MFA forms on the right. The Login form is
 // wired to the real auth store; Register/MFA are the design flow.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Shield, Eye, EyeOff, Lock } from 'lucide-react';
+import { Eye, EyeOff, Lock, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
+import { OpenRiskLogo } from '../../shared/Logo';
 
 type View = 'login' | 'register' | 'mfa';
 
@@ -18,24 +20,64 @@ const ORBIT_NODES: [string, number, number][] = [
   ['#ff453a', 20, 40], ['#ff9f0a', 210, 70], ['#30d158', 40, 200], ['#64d2ff', 200, 190], ['#7c6cff', 120, 10],
 ];
 
+// Real, attributed quotes on cybersecurity, risk and science — rotated on the
+// login hero to keep the sign-in screen alive without inventing anything.
+const QUOTES: [string, string][] = [
+  ['Security is a process, not a product.', 'Bruce Schneier'],
+  ['The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards.', 'Gene Spafford'],
+  ['Amateurs hack systems, professionals hack people.', 'Bruce Schneier'],
+  ['There are two types of companies: those that have been hacked, and those that don’t yet know they have been hacked.', 'John Chambers'],
+  ['It takes 20 years to build a reputation and a few minutes of cyber-incident to ruin it.', 'Stéphane Nappo'],
+  ['Complexity is the worst enemy of security.', 'Bruce Schneier'],
+  ['Given enough eyeballs, all bugs are shallow.', 'Linus’s Law — Eric S. Raymond'],
+  ['In God we trust. All others must bring data.', 'W. Edwards Deming'],
+  ['Risk comes from not knowing what you’re doing.', 'Warren Buffett'],
+  ['An ounce of prevention is worth a pound of cure.', 'Benjamin Franklin'],
+  ['The measure of intelligence is the ability to change.', 'Albert Einstein'],
+  ['What we anticipate seldom occurs; what we least expect generally happens.', 'Benjamin Disraeli'],
+];
+
 export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
   const [view, setView] = useState<View>(initialView);
   const L = useUIStrings();
+  const theme = useUIStore((s) => s.theme);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
+
+  const [qi, setQi] = useState(() => Math.floor(Math.random() * QUOTES.length));
+  const [qShow, setQShow] = useState(true);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setQShow(false);
+      setTimeout(() => { setQi((i) => (i + 1) % QUOTES.length); setQShow(true); }, 350);
+    }, 7000);
+    return () => clearInterval(t);
+  }, []);
+  const [quote, author] = QUOTES[qi];
 
   return (
-    <div className="flex w-full" style={{ height: '100vh' }}>
+    <div className="flex w-full relative" style={{ height: '100vh' }}>
+      {/* Theme toggle — available before sign-in */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-5 right-5 z-10 w-10 h-10 rounded-[11px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
+        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+        title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
       {/* left */}
       <div className="relative overflow-hidden flex-col justify-between p-11 hidden md:flex" style={{ flex: '0 0 45%', background: 'linear-gradient(150deg,#0a0b12,#111225)' }}>
         <div className="absolute rounded-full" style={{ top: '-15%', right: '-10%', width: 420, height: 420, background: 'radial-gradient(circle,var(--accent-glow),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
         <div className="absolute rounded-full" style={{ bottom: '0%', left: '-15%', width: 380, height: 380, background: 'radial-gradient(circle,rgba(124,108,255,.4),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
         <div className="flex items-center gap-2.5 relative">
-          <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 3px 14px var(--accent-glow)' }}><Shield size={20} className="text-white" /></div>
+          <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 3px 14px var(--accent-glow)' }}><OpenRiskLogo size={20} /></div>
           <span className="disp text-[19px] font-bold text-white">OpenRisk</span>
         </div>
         <div className="relative flex-1 flex items-center justify-center">
           <div className="relative" style={{ width: 260, height: 260 }}>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 6px 30px var(--accent-glow)' }}><Shield size={30} className="text-white" /></div>
+              <div className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 6px 30px var(--accent-glow)' }}><OpenRiskLogo size={30} /></div>
             </div>
             {[0, 1, 2].map((i) => (
               <div key={i} className="absolute inset-0 rounded-full" style={{ border: '1px solid rgba(255,255,255,.12)', transform: `scale(${0.55 + i * 0.22})` }} />
@@ -45,9 +87,11 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
             ))}
           </div>
         </div>
-        <div className="relative">
-          <div className="text-[17px] font-medium text-white leading-relaxed" style={{ letterSpacing: '-.01em' }}>{L.authQuote}</div>
-          <div className="text-[13px] mt-2.5" style={{ color: 'rgba(255,255,255,.5)' }}>— Bruce Schneier</div>
+        <div className="relative" style={{ minHeight: 96 }}>
+          <div style={{ opacity: qShow ? 1 : 0, transform: qShow ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity .35s ease, transform .35s ease' }}>
+            <div className="text-[17px] font-medium text-white leading-relaxed" style={{ letterSpacing: '-.01em' }}>“{quote}”</div>
+            <div className="text-[13px] mt-2.5" style={{ color: 'rgba(255,255,255,.5)' }}>— {author}</div>
+          </div>
         </div>
       </div>
 

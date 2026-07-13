@@ -21,6 +21,9 @@ export interface UiMiti {
   crit: Criticality;
   overdue: boolean;
   column: Column;
+  /** Raw ISO dates for the Gantt view (may be undefined). */
+  startISO?: string;
+  dueISO?: string;
 }
 
 const COL: Record<string, Column> = { TODO: 'todo', IN_PROGRESS: 'progress', REVIEW: 'review', DONE: 'done' };
@@ -33,7 +36,7 @@ function fmtDate(iso?: string): string {
 }
 
 export function mapMitigation(m: Mitigation): UiMiti {
-  const mm = m as Mitigation & { assignee?: string; risk_title?: string };
+  const mm = m as Mitigation & { assignee?: string; risk_title?: string; created_at?: string };
   const column = COL[m.status] ?? 'todo';
   const overdue = column !== 'done' && !!m.due_date && new Date(m.due_date).getTime() < Date.now();
   return {
@@ -46,6 +49,8 @@ export function mapMitigation(m: Mitigation): UiMiti {
     crit: CRIT[(m.priority ?? 'low').toLowerCase()] ?? 'low',
     overdue,
     column,
+    startISO: mm.created_at,
+    dueISO: m.due_date,
   };
 }
 

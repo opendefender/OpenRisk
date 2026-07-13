@@ -5,11 +5,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Shield, Settings, LogOut } from 'lucide-react';
+import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { OpenRiskLogo } from '../../shared/Logo';
 import { NAV_GROUPS, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
 
 interface SidebarProps {
@@ -142,13 +143,13 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="px-[14px] pt-4 pb-2.5">
             <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
               <div
-                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0"
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-white"
                 style={{
                   background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
                   boxShadow: '0 2px 10px var(--accent-glow)',
                 }}
               >
-                <Shield size={18} strokeWidth={1.9} className="text-white" />
+                <OpenRiskLogo size={18} />
               </div>
               {!collapsed && (
                 <span className="disp text-[17px] font-bold tracking-tight text-ink">OpenRisk</span>

@@ -29,9 +29,11 @@ interface CreateMitigationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated?: (m: Mitigation) => void;
+  /** When set, the created mitigation is linked to this risk (used from the Risk drawer). */
+  riskId?: string;
 }
 
-export const CreateMitigationModal = ({ isOpen, onClose, onCreated }: CreateMitigationModalProps) => {
+export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: CreateMitigationModalProps) => {
   const { t } = useI18n();
 
   const {
@@ -60,12 +62,15 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated }: CreateMiti
 
   const onSubmit = async (values: CreateMitigationForm) => {
     try {
+      // Backend requires risk_id + due_date; default due_date to +30 days when the
+      // user leaves it blank so a plan can always be created from the risk drawer.
       const payload = {
         title: values.title,
         description: values.description,
-        due_date: values.due_date || undefined,
+        due_date: values.due_date || new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
         priority: values.priority || 'medium',
         source: 'manual',
+        ...(riskId ? { risk_id: riskId } : {}),
       } as any;
 
       const created = await mitigationService.createMitigation(payload);
