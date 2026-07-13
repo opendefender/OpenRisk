@@ -97,11 +97,15 @@ func (RolePermission) TableName() string {
 
 // UserTenant represents the many-to-many relationship between users and tenants
 type UserTenant struct {
-	UserID    uuid.UUID `gorm:"type:uuid;primaryKey" json:"user_id"`
-	TenantID  uuid.UUID `gorm:"type:uuid;primaryKey;index" json:"tenant_id"`
-	RoleID    uuid.UUID `gorm:"type:uuid;not null;index" json:"role_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	UserID   uuid.UUID `gorm:"type:uuid;primaryKey" json:"user_id"`
+	TenantID uuid.UUID `gorm:"type:uuid;primaryKey;index" json:"tenant_id"`
+	RoleID   uuid.UUID `gorm:"type:uuid;not null;index" json:"role_id"`
+	// Role association (RoleID → roles.id) so handlers can Preload("Role"); without
+	// this field GORM errors ("unsupported relations: Role"), which was the 500 on
+	// GET /rbac/tenants (GetUserTenants preloads it).
+	Role      *RoleEnhanced `gorm:"foreignKey:RoleID;references:ID" json:"role,omitempty"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
 // TableName specifies the table name for UserTenant

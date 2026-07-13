@@ -66,8 +66,10 @@ func (rs *RoleService) GetRole(ctx context.Context, roleID uuid.UUID) (*domain.R
 // GetRoleByName retrieves a role by name within a tenant
 func (rs *RoleService) GetRoleByName(ctx context.Context, tenantID uuid.UUID, name string) (*domain.RoleEnhanced, error) {
 	var role domain.RoleEnhanced
+	// No Preload("Permissions") — RoleEnhanced has no such association; preloading it
+	// errored every call, so InitializeDefaultRoles kept re-creating roles and the RBAC
+	// seed's adminRole lookup always came back nil (user_tenants never got seeded).
 	err := rs.db.WithContext(ctx).
-		Preload("Permissions").
 		Where("(tenant_id = ? OR is_predefined = true) AND name = ? AND deleted_at IS NULL", tenantID, name).
 		First(&role).Error
 
@@ -308,9 +310,11 @@ func (rs *RoleService) ListRoles(ctx context.Context, tenantID uuid.UUID, limit 
 		return nil, 0, err
 	}
 
-	// Fetch paginated results
+	// Fetch paginated results. (No Preload("Permissions"): RoleEnhanced has no such
+	// GORM association — role→permission goes through the role_permissions join table,
+	// queried separately by GetRolePermissions. Preloading a non-existent relation
+	// errored the whole query, which was the 500 on GET /rbac/roles.)
 	err := rs.db.WithContext(ctx).
-		Preload("Permissions").
 		Where("(tenant_id = ? OR is_predefined = true) AND deleted_at IS NULL", tenantID).
 		Order("level DESC, name ASC").
 		Limit(limit).

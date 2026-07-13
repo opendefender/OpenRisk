@@ -144,6 +144,16 @@ func main() {
 		// M4 (second half) — monthly board-of-directors report (draft → approved),
 		// with a per-tenant posture snapshot and an editable AI/template narrative.
 		&domain.BoardReport{},
+		// RBAC + audit + multi-tenant tables. These back the Settings admin tabs
+		// (Roles / Organizations / Audit log). RoleEnhanced maps onto the existing
+		// "roles" table and only ADDS columns (tenant_id/level/is_predefined/...);
+		// it never drops the legacy Role columns. Seeded by SeedRBAC() below.
+		&domain.PermissionDB{},
+		&domain.RoleEnhanced{},
+		&domain.RolePermission{},
+		&domain.Tenant{},
+		&domain.UserTenant{},
+		&domain.AuditLog{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -156,6 +166,10 @@ func main() {
 	// Création du compte Admin par défaut si la DB est vide
 	// Cela garantit que l'app est utilisable immédiatement après déploiement.
 	handlers.SeedAdminUser()
+
+	// Provision RBAC / tenant / audit tables (permissions, predefined roles, a Tenant
+	// per Organization, UserTenant per membership) so the Settings admin tabs are live.
+	handlers.SeedRBAC()
 
 	// =========================================================================
 	// 3. SECURITY SERVICES INITIALIZATION
