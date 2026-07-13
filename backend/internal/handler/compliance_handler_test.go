@@ -200,13 +200,14 @@ func TestComplianceE2EFlow(t *testing.T) {
 	resp.Body.Close()
 	require.Equal(t, domain.ControlStatusNotImplemented, control.Status)
 
-	// 3. Analyst changes the control's status.
+	// 3. The strict compliance rule blocks marking the control "implemented"
+	//    while it has no evidence to substantiate it.
 	req = httptest.NewRequest(http.MethodPatch, "/api/v1/compliance/controls/"+control.ID.String(),
 		mustJSON(t, map[string]string{"status": "implemented"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err = analystApp.Test(req)
 	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode)
+	require.Equal(t, 400, resp.StatusCode, "implemented must be blocked until at least one evidence exists")
 	resp.Body.Close()
 
 	// 4. Analyst uploads evidence (real multipart file).
@@ -217,6 +218,15 @@ func TestComplianceE2EFlow(t *testing.T) {
 	require.Equal(t, 201, resp.StatusCode)
 	var evidence domain.ControlEvidence
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&evidence))
+	resp.Body.Close()
+
+	// 5. Now that a proof is attached, the control can be marked "implemented".
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/compliance/controls/"+control.ID.String(),
+		mustJSON(t, map[string]string{"status": "implemented"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = analystApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
 	resp.Body.Close()
 
 	// 5. Analyst downloads it back and gets the exact bytes.

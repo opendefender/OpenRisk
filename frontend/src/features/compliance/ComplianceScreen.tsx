@@ -3,16 +3,20 @@
 //
 // Compliance (OpenRisk.dc.html §6.10) — wired to real /compliance/frameworks +
 // per-framework progress. Posture hero (aggregate radial + copy + CTAs) and a grid
-// of framework cards; clicking a card downloads its official PDF report.
+// of framework cards; clicking a card opens its controls. Admins can add a blank
+// framework, import one from the regulatory catalog, or delete one.
 
-import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight, Plus, Library, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { useComplianceOverview, frameworkColorFor, type FrameworkWithProgress } from './complianceOverview';
-import { useComplianceReport } from './useCompliance';
+import { useComplianceReport, useFrameworks } from './useCompliance';
+import { CreateFrameworkDialog, ImportFrameworkDialog } from './ComplianceModals';
 
 export function ComplianceScreen() {
   const L = useUIStrings();
@@ -21,6 +25,13 @@ export function ComplianceScreen() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { data: fws = [], isLoading } = useComplianceOverview();
   const report = useComplianceReport();
+  const { deleteFramework } = useFrameworks();
+
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canCreate = hasPermission('compliance:frameworks:create');
+  const canDelete = hasPermission('compliance:frameworks:delete');
+
+  const [modal, setModal] = useState<null | 'create' | 'import'>(null);
 
   const overall = fws.length ? Math.round(fws.reduce((a, f) => a + f.pct, 0) / fws.length) : 0;
   const totalControls = fws.reduce((a, f) => a + f.total, 0);
@@ -35,9 +46,28 @@ export function ComplianceScreen() {
     });
   };
 
+  const remove = (f: FrameworkWithProgress) => {
+    if (!window.confirm(tr(
+      `Supprimer « ${f.name} » et tous ses contrôles ? Cette action est irréversible.`,
+      `Delete "${f.name}" and all its controls? This cannot be undone.`
+    ))) return;
+    toast.promise(deleteFramework.mutateAsync(f.id), {
+      loading: tr('Suppression…', 'Deleting…'),
+      success: tr('Référentiel supprimé', 'Framework deleted'),
+      error: tr('Suppression échouée', 'Delete failed'),
+    });
+  };
+
+  const headerActions = canCreate ? (
+    <>
+      <Btn label={tr('Importer', 'Import')} icon={Library} primary onClick={() => setModal('import')} />
+      <Btn label={tr('Nouveau', 'New')} icon={Plus} onClick={() => setModal('create')} />
+    </>
+  ) : undefined;
+
   return (
     <PageFrame>
-      <PageHeader title={L.n_compliance} />
+      <PageHeader title={L.n_compliance} actions={headerActions} />
 
       {isLoading ? (
         <Card style={{ padding: 8 }}><SkeletonRows rows={4} height={64} /></Card>
@@ -46,7 +76,13 @@ export function ComplianceScreen() {
           <EmptyState
             icon={ClipboardCheck}
             title={tr('Aucun référentiel', 'No frameworks yet')}
-            sub={tr('Importez un référentiel (ISO 27001, SOC 2, BCEAO…) pour suivre votre conformité.', 'Import a framework (ISO 27001, SOC 2, BCEAO…) to track your compliance.')}
+            sub={tr('Importez un référentiel (ISO 27001, SOC 2, BCEAO…) ou créez le vôtre pour suivre votre conformité.', 'Import a framework (ISO 27001, SOC 2, BCEAO…) or create your own to track compliance.')}
+            cta={canCreate ? (
+              <div className="flex gap-2.5">
+                <Btn label={tr('Importer un référentiel', 'Import a framework')} icon={Library} primary onClick={() => setModal('import')} />
+                <Btn label={tr('Créer', 'Create')} icon={Plus} onClick={() => setModal('create')} />
+              </div>
+            ) : undefined}
           />
         </Card>
       ) : (
@@ -105,12 +141,29 @@ export function ComplianceScreen() {
                     >
                       <Download size={14} />
                     </button>
+                    {canDelete && (
+                      <button
+                        onClick={() => remove(f)}
+                        className="h-8 px-3 rounded-[9px] inline-flex items-center justify-center transition-colors hover:brightness-110"
+                        style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', background: 'color-mix(in srgb,var(--critical) 10%,transparent)', color: 'var(--critical)' }}
+                        title={tr('Supprimer le référentiel', 'Delete framework')}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </Card>
               );
             })}
           </div>
         </>
+      )}
+
+      {modal === 'create' && (
+        <CreateFrameworkDialog onClose={() => setModal(null)} onCreated={(id) => navigate(`/compliance/${id}`)} />
+      )}
+      {modal === 'import' && (
+        <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/${id}`)} />
       )}
     </PageFrame>
   );

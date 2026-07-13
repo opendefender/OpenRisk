@@ -106,7 +106,11 @@ func TestUpdateControlUseCase_Success(t *testing.T) {
 	var saved *domain.ComplianceControl
 	repo := &MockComplianceRepository{
 		getControlByIDFunc: func(ctx context.Context, id, tid uuid.UUID) (*domain.ComplianceControl, error) {
-			return &domain.ComplianceControl{ID: controlID, TenantID: tenantID, Status: domain.ControlStatusNotImplemented}, nil
+			// One evidence present → the strict "implemented needs a proof" rule is satisfied.
+			return &domain.ComplianceControl{
+				ID: controlID, TenantID: tenantID, Status: domain.ControlStatusNotImplemented,
+				Evidences: []domain.ControlEvidence{{ID: uuid.New(), TenantID: tenantID, ControlID: controlID}},
+			}, nil
 		},
 		updateControlFunc: func(ctx context.Context, c *domain.ComplianceControl) error {
 			saved = c
@@ -122,6 +126,95 @@ func TestUpdateControlUseCase_Success(t *testing.T) {
 	assert.Equal(t, domain.ControlStatusImplemented, control.Status)
 	require.NotNil(t, saved)
 	assert.Equal(t, tenantID, saved.TenantID)
+}
+
+// A control with no evidence cannot transition to "implemented" — the strict
+// compliance rule mirrored client-side in FrameworkDetail.tsx.
+func TestUpdateControlUseCase_ImplementedWithoutEvidence_Blocked(t *testing.T) {
+	tenantID := uuid.New()
+	controlID := uuid.New()
+	updateCalled := false
+	repo := &MockComplianceRepository{
+		getControlByIDFunc: func(ctx context.Context, id, tid uuid.UUID) (*domain.ComplianceControl, error) {
+			return &domain.ComplianceControl{ID: controlID, TenantID: tenantID, Status: domain.ControlStatusInProgress}, nil
+		},
+		updateControlFunc: func(ctx context.Context, c *domain.ComplianceControl) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	uc := NewUpdateControlUseCase(repo)
+
+	implemented := domain.ControlStatusImplemented
+	_, err := uc.Execute(context.Background(), tenantID, controlID, UpdateControlInput{Status: &implemented})
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
+	assert.False(t, updateCalled, "the control must not be persisted when the evidence rule fails")
+}
+
+// Statuses other than "implemented" never require evidence.
+func TestUpdateControlUseCase_InProgressWithoutEvidence_Allowed(t *testing.T) {
+	tenantID := uuid.New()
+	controlID := uuid.New()
+	repo := &MockComplianceRepository{
+		getControlByIDFunc: func(ctx context.Context, id, tid uuid.UUID) (*domain.ComplianceControl, error) {
+			return &domain.ComplianceControl{ID: controlID, TenantID: tenantID, Status: domain.ControlStatusNotImplemented}, nil
+		},
+	}
+	uc := NewUpdateControlUseCase(repo)
+
+	inProgress := domain.ControlStatusInProgress
+	control, err := uc.Execute(context.Background(), tenantID, controlID, UpdateControlInput{Status: &inProgress})
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.ControlStatusInProgress, control.Status)
+}
+
+// Editing a control that is ALREADY implemented (e.g. renaming it) must not be
+// blocked even if it has no evidence — the rule only guards the transition in.
+func TestUpdateControlUseCase_AlreadyImplemented_NotReblocked(t *testing.T) {
+	tenantID := uuid.New()
+	controlID := uuid.New()
+	repo := &MockComplianceRepository{
+		getControlByIDFunc: func(ctx context.Context, id, tid uuid.UUID) (*domain.ComplianceControl, error) {
+			return &domain.ComplianceControl{ID: controlID, TenantID: tenantID, Status: domain.ControlStatusImplemented}, nil
+		},
+	}
+	uc := NewUpdateControlUseCase(repo)
+
+	newName := "renamed"
+	implemented := domain.ControlStatusImplemented
+	_, err := uc.Execute(context.Background(), tenantID, controlID, UpdateControlInput{Name: &newName, Status: &implemented})
+
+	require.NoError(t, err)
+}
+
+// ListControls attaches each control's evidence count from a single grouped query.
+func TestListControlsUseCase_AttachesEvidenceCount(t *testing.T) {
+	tenantID := uuid.New()
+	fwID := uuid.New()
+	c1 := uuid.New()
+	c2 := uuid.New()
+	repo := &MockComplianceRepository{
+		listControlsByFrameworkFunc: func(ctx context.Context, tid, fid uuid.UUID) ([]domain.ComplianceControl, error) {
+			return []domain.ComplianceControl{
+				{ID: c1, TenantID: tenantID, FrameworkID: fwID},
+				{ID: c2, TenantID: tenantID, FrameworkID: fwID},
+			}, nil
+		},
+		countEvidencesByFwFunc: func(ctx context.Context, tid, fid uuid.UUID) (map[uuid.UUID]int, error) {
+			return map[uuid.UUID]int{c1: 3}, nil // c2 absent → 0
+		},
+	}
+	uc := NewListControlsUseCase(repo)
+
+	controls, err := uc.Execute(context.Background(), tenantID, fwID)
+
+	require.NoError(t, err)
+	require.Len(t, controls, 2)
+	assert.Equal(t, 3, controls[0].EvidenceCount)
+	assert.Equal(t, 0, controls[1].EvidenceCount, "controls with no evidence report a zero count")
 }
 
 func TestUpdateControlUseCase_InvalidStatus_Validation(t *testing.T) {

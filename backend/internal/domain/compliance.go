@@ -66,6 +66,12 @@ type ComplianceControl struct {
 	Framework ComplianceFramework `gorm:"foreignKey:FrameworkID" json:"framework,omitempty"`
 	Evidences []ControlEvidence   `gorm:"foreignKey:ControlID" json:"evidences,omitempty"`
 
+	// EvidenceCount is a computed, non-persisted count of the control's active
+	// evidences (gorm:"-": never a column). Populated by the list/get use cases so
+	// the UI can show an evidence badge and enforce the "no implemented without a
+	// proof" rule client-side without loading every evidence file.
+	EvidenceCount int `gorm:"-" json:"evidence_count"`
+
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
