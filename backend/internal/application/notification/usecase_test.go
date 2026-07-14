@@ -15,6 +15,7 @@ import (
 )
 
 type mockRepo struct {
+	createFn           func(n *domain.Notification) error
 	getNotificationsFn func(userID, tenantID uuid.UUID, limit, offset int) ([]*domain.Notification, error)
 	getUnreadCountFn   func(userID, tenantID uuid.UUID) (int64, error)
 	markReadFn         func(notificationID, userID, tenantID uuid.UUID) error
@@ -24,6 +25,12 @@ type mockRepo struct {
 	updatePrefsFn      func(userID, tenantID uuid.UUID, updates map[string]interface{}) error
 }
 
+func (m *mockRepo) CreateNotification(n *domain.Notification) error {
+	if m.createFn != nil {
+		return m.createFn(n)
+	}
+	return nil
+}
 func (m *mockRepo) GetUserNotifications(userID, tenantID uuid.UUID, limit, offset int) ([]*domain.Notification, error) {
 	return m.getNotificationsFn(userID, tenantID, limit, offset)
 }

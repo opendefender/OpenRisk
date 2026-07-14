@@ -18,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
@@ -168,6 +169,13 @@ func main() {
 		&domain.ScanConfig{},
 		&domain.ScannerAgent{},
 		&domain.ScanJob{},
+		// Notifications — the in-app centre + delivery preferences. Previously
+		// missing from AutoMigrate, so every /notifications route errored on a
+		// non-existent table (and the scan-completion in-app notification had
+		// nowhere to land). Metadata is jsonb; it stays NULL unless a producer
+		// sets it (a bare map[string]interface{} has no driver.Valuer).
+		&domain.Notification{},
+		&domain.NotificationPreference{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -344,7 +352,10 @@ func main() {
 	if appBaseURL == "" {
 		appBaseURL = "http://localhost:5173"
 	}
-	notificationService := notify.NewEmailService(email.NewMockService(), emailFromAddr, appBaseURL)
+	// Email transport (mock in dev; swap for SMTP in prod). Kept as a var so the
+	// scan-notification sink below can also send through it.
+	emailTransport := email.NewMockService()
+	notificationService := notify.NewEmailService(emailTransport, emailFromAddr, appBaseURL)
 
 	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
 	passwordHasher := coreauth.NewArgon2idPasswordHasher()
@@ -892,7 +903,21 @@ func main() {
 	scanRegistry.Register(scanpkg.NewAgentScanner())
 
 	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
-	scanNotifier := scanpkg.NewRedisNotifier(redisClientInstance, nil) // SSE now; in-app sink TODO
+	// In-app + e-mail sink: a completed scan raises a durable in-app notification
+	// for the user who triggered it and (best-effort) e-mails them. Failures never
+	// block the scan. A Nil user (e.g. a failed cloud scan) is skipped.
+	scanInApp := func(ctx context.Context, tenantID, userID uuid.UUID, title, message string) {
+		if userID == uuid.Nil {
+			return
+		}
+		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil {
+			zeroLogger.Warn().Err(err).Msg("scanner: could not create in-app notification")
+		}
+		if user, err := userRepo.GetByID(ctx, userID); err == nil && user != nil && user.Email != "" {
+			_ = emailTransport.SendEmail(ctx, user.Email, title, message)
+		}
+	}
+	scanNotifier := scanpkg.NewRedisNotifier(redisClientInstance, scanInApp)
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 	scanLock := scanpkg.NewScanLock(redisClientInstance)
 

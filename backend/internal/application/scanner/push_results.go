@@ -80,12 +80,13 @@ func (uc *PushResultsUseCase) Execute(ctx context.Context, in PushResultsInput) 
 	}
 
 	meta := scanpkg.PreviewMeta{
-		JobID:     job.ID,
-		ConfigID:  job.ConfigID,
-		TenantID:  tenantID,
-		Provider:  job.Provider,
-		AgentID:   &in.Agent.ID,
-		AgentName: in.Agent.Name,
+		JobID:       job.ID,
+		ConfigID:    job.ConfigID,
+		TenantID:    tenantID,
+		Provider:    job.Provider,
+		AgentID:     &in.Agent.ID,
+		AgentName:   in.Agent.Name,
+		TriggeredBy: job.TriggeredBy,
 	}
 	preview, err := uc.pipeline.Ingest(ctx, meta, in.Assets, in.Findings, in.Errors)
 	if err != nil {

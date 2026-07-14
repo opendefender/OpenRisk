@@ -163,10 +163,11 @@ func (uc *TriggerScanUseCase) runCloudJob(cfg *domain.ScanConfig, job *domain.Sc
 		Options:     nil,
 	}
 	meta := scanpkg.PreviewMeta{
-		JobID:    job.ID,
-		ConfigID: cfg.ID,
-		TenantID: cfg.TenantID,
-		Provider: cfg.Provider,
+		JobID:       job.ID,
+		ConfigID:    cfg.ID,
+		TenantID:    cfg.TenantID,
+		Provider:    cfg.Provider,
+		TriggeredBy: job.TriggeredBy,
 	}
 
 	preview, err := uc.pipeline.Run(ctx, runtime, meta)

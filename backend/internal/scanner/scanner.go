@@ -152,6 +152,9 @@ type ScanPreview struct {
 	Provider  domain.ScannerProvider `json:"provider"`
 	AgentID   *uuid.UUID             `json:"agent_id,omitempty"`
 	AgentName string                 `json:"agent_name,omitempty"`
+	// TriggeredBy is the user who launched the scan — used to target the
+	// completion notification (in-app + email).
+	TriggeredBy uuid.UUID `json:"triggered_by,omitempty"`
 
 	Assets      []AssetDiscovery   `json:"assets"`
 	Findings    []FindingDiscovery `json:"findings"`

@@ -61,10 +61,12 @@ type Notifier interface {
 }
 
 // InAppSink is the optional hook the RedisNotifier calls to also raise a durable
-// in-app notification (and, downstream, an e-mail). It is deliberately tiny so
-// the scanner package doesn't depend on the notification use case directly — the
-// wiring in main.go adapts domain.Notification to it.
-type InAppSink func(ctx context.Context, tenantID uuid.UUID, title, message string)
+// in-app notification (and, downstream, an e-mail) for the user who triggered the
+// scan. It is deliberately tiny so the scanner package doesn't depend on the
+// notification use case directly — the wiring in main.go adapts it to a
+// domain.Notification + e-mail. A Nil userID means "no specific recipient" and
+// the sink may skip.
+type InAppSink func(ctx context.Context, tenantID, userID uuid.UUID, title, message string)
 
 // RedisNotifier publishes ScanEvents on the tenant's SSE channel and, when an
 // InAppSink is provided, also raises an in-app notification. SSE is the live
@@ -98,7 +100,7 @@ func (n *RedisNotifier) ScanCompleted(ctx context.Context, p *ScanPreview) {
 		if p.AgentName != "" {
 			src = fmt.Sprintf("Agent %s", p.AgentName)
 		}
-		n.inApp(ctx, p.TenantID, "Scan complete — review pending",
+		n.inApp(ctx, p.TenantID, p.TriggeredBy, "Scan complete — review pending",
 			fmt.Sprintf("%s found %d assets and %d findings. Review and import from the Scan Preview (expires in 48h).",
 				src, len(p.Assets), len(p.Findings)))
 	}
@@ -118,7 +120,9 @@ func (n *RedisNotifier) ScanFailed(ctx context.Context, tenantID, jobID, configI
 		Error:     reason,
 	})
 	if n.inApp != nil {
-		n.inApp(ctx, tenantID, "Scan failed", reason)
+		// Recipient is not known at this layer for failures; broadcast to the
+		// tenant with a Nil user — the sink decides how to fan out.
+		n.inApp(ctx, tenantID, uuid.Nil, "Scan failed", reason)
 	}
 }
 

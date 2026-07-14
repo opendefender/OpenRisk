@@ -19,12 +19,13 @@ import (
 
 // PreviewMeta is the identity of a scan run, attached to the preview it produces.
 type PreviewMeta struct {
-	JobID     uuid.UUID
-	ConfigID  uuid.UUID
-	TenantID  uuid.UUID
-	Provider  domain.ScannerProvider
-	AgentID   *uuid.UUID
-	AgentName string
+	JobID       uuid.UUID
+	ConfigID    uuid.UUID
+	TenantID    uuid.UUID
+	Provider    domain.ScannerProvider
+	AgentID     *uuid.UUID
+	AgentName   string
+	TriggeredBy uuid.UUID
 }
 
 // Pipeline turns raw discoveries into a stored preview:
@@ -117,6 +118,7 @@ func (p *Pipeline) finalize(ctx context.Context, meta PreviewMeta, assets []Asse
 		Provider:    meta.Provider,
 		AgentID:     meta.AgentID,
 		AgentName:   meta.AgentName,
+		TriggeredBy: meta.TriggeredBy,
 		Assets:      assets,
 		Findings:    findings,
 		Mitigations: mitigations,
