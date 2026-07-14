@@ -22,6 +22,7 @@ type handlerMockRepo struct {
 	preferences   *domain.NotificationPreference
 }
 
+func (m *handlerMockRepo) CreateNotification(_ *domain.Notification) error { return nil }
 func (m *handlerMockRepo) GetUserNotifications(userID, tenantID uuid.UUID, limit, offset int) ([]*domain.Notification, error) {
 	return m.notifications, nil
 }

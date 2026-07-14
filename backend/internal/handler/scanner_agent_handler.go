@@ -126,11 +126,57 @@ func (h *ScannerHandler) AgentStream(c *fiber.Ctx) error {
 
 	tenantID := agent.TenantID
 	agentCopy := *agent
+	preamble := h.queuedJobFrames(c.UserContext(), agent)
 	h.streamChannel(c, scanpkg.AgentJobChannel(tenantID), func() {
 		// On disconnect, mark offline. Detached context (the request is gone).
 		_ = h.heartbeat.Execute(context.Background(), &agentCopy, domain.AgentOffline)
-	})
+	}, preamble)
 	return nil
+}
+
+// queuedJobFrames returns the tenant's still-queued agent jobs as pre-serialised
+// SSE dispatch payloads. Delivered as the stream preamble so a job never gets
+// lost to a reconnect gap. Cloud jobs are excluded (they never go to agents).
+func (h *ScannerHandler) queuedJobFrames(ctx context.Context, agent *domain.ScannerAgent) []string {
+	jobs, err := h.jobRepo.ListByStatus(ctx, agent.TenantID, domain.ScanQueued)
+	if err != nil {
+		return nil
+	}
+	frames := make([]string, 0, len(jobs))
+	for _, j := range jobs {
+		if !j.Provider.IsAgentBased() {
+			continue
+		}
+		payload, err := json.Marshal(scanpkg.AgentJobDispatch{
+			Type:     "scan.job",
+			JobID:    j.ID,
+			ConfigID: j.ConfigID,
+			TenantID: j.TenantID,
+			Provider: string(j.Provider),
+			Targets:  j.Targets,
+		})
+		if err == nil {
+			frames = append(frames, string(payload))
+		}
+	}
+	return frames
+}
+
+// AgentHeartbeat POST /scanner/agent/heartbeat — keeps the Agent marked online
+// between scans (the SSE connect only refreshes liveness once). Scoped token.
+func (h *ScannerHandler) AgentHeartbeat(c *fiber.Ctx) error {
+	agent, ok := h.authenticateAgent(c, scanpkg.ScopeStream)
+	if !ok {
+		return nil
+	}
+	status := domain.AgentOnline
+	if s := c.Query("status"); s == string(domain.AgentScanning) {
+		status = domain.AgentScanning
+	}
+	if err := h.heartbeat.Execute(c.UserContext(), agent, status); err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(fiber.Map{"ok": true})
 }
 
 // --- Push ------------------------------------------------------------------

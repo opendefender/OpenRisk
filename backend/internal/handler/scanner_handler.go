@@ -41,6 +41,7 @@ type ScannerHandler struct {
 	ignorePreview *scanapp.IgnorePreviewUseCase
 
 	agentRepo domain.ScannerAgentRepository
+	jobRepo   domain.ScanJobRepository
 	cipher    *scanapp.CredentialCipher
 	rsaKeys   *authpkg.RSAKeys
 	blacklist func(jti string) (bool, error)
@@ -64,6 +65,7 @@ func NewScannerHandler(
 	importPreview *scanapp.ImportPreviewUseCase,
 	ignorePreview *scanapp.IgnorePreviewUseCase,
 	agentRepo domain.ScannerAgentRepository,
+	jobRepo domain.ScanJobRepository,
 	cipher *scanapp.CredentialCipher,
 	rsaKeys *authpkg.RSAKeys,
 	blacklist func(jti string) (bool, error),
@@ -74,7 +76,7 @@ func NewScannerHandler(
 		deleteConfig: deleteConfig, trigger: trigger, listAgents: listAgents,
 		revokeAgent: revokeAgent, register: register, push: push, heartbeat: heartbeat,
 		listJobs: listJobs, getPreview: getPreview, importPreview: importPreview,
-		ignorePreview: ignorePreview, agentRepo: agentRepo, cipher: cipher,
+		ignorePreview: ignorePreview, agentRepo: agentRepo, jobRepo: jobRepo, cipher: cipher,
 		rsaKeys: rsaKeys, blacklist: blacklist, redis: redisClient,
 	}
 }
@@ -286,14 +288,17 @@ func (h *ScannerHandler) StreamScanEvents(c *fiber.Ctx) error {
 	if tid == uuid.Nil {
 		return c.Status(401).JSON(fiber.Map{"error": "missing tenant"})
 	}
-	h.streamChannel(c, scanpkg.SSEChannel(tid), nil)
+	h.streamChannel(c, scanpkg.SSEChannel(tid), nil, nil)
 	return nil
 }
 
 // streamChannel is the shared SSE loop: it subscribes to a Redis channel and
 // relays each message as an SSE `data:` frame, with a keepalive comment every
-// 20s. onClose (if set) runs when the client disconnects.
-func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose func()) {
+// 20s. `preamble` frames (already-JSON payloads) are written right after the
+// connection opens — used to replay queued agent jobs so a job published during
+// a reconnect gap is never lost. onClose (if set) runs when the client
+// disconnects.
+func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose func(), preamble []string) {
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
 	c.Set("Connection", "keep-alive")
@@ -314,6 +319,14 @@ func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose fun
 		fmt.Fprint(w, ": connected\n\n")
 		if err := w.Flush(); err != nil {
 			return
+		}
+		// Replay any queued jobs first (covers a job published during a reconnect
+		// gap — Redis pub/sub is fire-and-forget).
+		for _, frame := range preamble {
+			fmt.Fprintf(w, "data: %s\n\n", frame)
+			if err := w.Flush(); err != nil {
+				return
+			}
 		}
 		ticker := time.NewTicker(20 * time.Second)
 		defer ticker.Stop()
