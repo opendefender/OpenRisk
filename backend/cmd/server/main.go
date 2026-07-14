@@ -42,6 +42,7 @@ import (
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
+	"github.com/opendefender/openrisk/internal/scanner/collectors"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/ai"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
@@ -891,14 +892,13 @@ func main() {
 		log.Fatalf("Scanner: credential cipher init failed: %v", cipherErr)
 	}
 
-	// Provider registry. Cloud collectors are nil here: the scanners validate
-	// credentials and integrate with the pipeline, but live SDK enumeration is a
-	// documented follow-up — a scan against an unconfigured provider produces an
-	// honest empty preview with the reason attached, never a fabricated result.
+	// Provider registry. Cloud scanners run real SDK collectors (aws-sdk-go-v2,
+	// Azure Resource Graph, GCP Compute) — credentials are decrypted only at scan
+	// time. Agent/nmap providers validate here but execute on the on-prem Agent.
 	scanRegistry := scanpkg.NewRegistry()
-	scanRegistry.Register(scanpkg.NewAWSScanner(nil))
-	scanRegistry.Register(scanpkg.NewAzureScanner(nil))
-	scanRegistry.Register(scanpkg.NewGCPScanner(nil))
+	scanRegistry.Register(scanpkg.NewAWSScanner(collectors.NewAWS()))
+	scanRegistry.Register(scanpkg.NewAzureScanner(collectors.NewAzure()))
+	scanRegistry.Register(scanpkg.NewGCPScanner(collectors.NewGCP()))
 	scanRegistry.Register(scanpkg.NewNmapScanner())
 	scanRegistry.Register(scanpkg.NewAgentScanner())
 
