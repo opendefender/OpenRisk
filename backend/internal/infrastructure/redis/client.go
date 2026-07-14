@@ -77,6 +77,19 @@ func (c *Client) Set(ctx context.Context, key string, value string, ttl time.Dur
 	return nil
 }
 
+// SetNX pose une clé seulement si elle n'existe pas (atomic, avec TTL).
+// Retourne true si la clé a été posée (verrou acquis), false si elle existait
+// déjà. Base des verrous distribués du scanner (1 scan actif par config, claim
+// de job par un seul agent).
+func (c *Client) SetNX(ctx context.Context, key, value string, ttl time.Duration) (bool, error) {
+	cmd := c.redis.SetNX(ctx, key, value, ttl)
+	ok, err := cmd.Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to setnx key %s: %w", key, err)
+	}
+	return ok, nil
+}
+
 // Get récupère une valeur par clé.
 func (c *Client) Get(ctx context.Context, key string) (string, error) {
 	cmd := c.redis.Get(ctx, key)

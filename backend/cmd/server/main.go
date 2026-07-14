@@ -26,6 +26,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
+	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -39,6 +40,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
+	scanpkg "github.com/opendefender/openrisk/internal/scanner"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/ai"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
@@ -160,6 +162,12 @@ func main() {
 		&domain.Incident{},
 		&domain.IncidentTimeline{},
 		&domain.IncidentAction{},
+		// Scanner engine — tenant-scoped scan configs, on-prem Agents, and scan
+		// jobs. The pipeline never writes Assets/Risks itself: results land in a
+		// Redis preview (48h TTL) and the user imports/ignores from there.
+		&domain.ScanConfig{},
+		&domain.ScannerAgent{},
+		&domain.ScanJob{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -395,6 +403,18 @@ func main() {
 	api.Get("/auth/saml2/login", handlers.SAML2InitiateLogin)
 	api.Post("/auth/saml2/acs", handlers.SAML2ACS)
 	api.Get("/auth/saml2/metadata", handlers.SAMLMetadata)
+
+	// Scanner AGENT endpoints (register/stream/push) are mounted on `app` HERE —
+	// deliberately BEFORE the /api/v1 user-token middleware below — so they are
+	// NOT wrapped by middleware.Protected or the marketplace's RequireRole (both
+	// mounted at the /api/v1 prefix, which /api/v1/scanner/... would otherwise
+	// inherit). Agents authenticate with their own scoped tokens (+ HMAC on push)
+	// inside the handlers. scannerHandler is assigned in §5.6; these closures
+	// capture it and run only at request time, by which point it is set.
+	var scannerHandler *handlers.ScannerHandler
+	app.Post("/api/v1/scanner/agents/register", func(c *fiber.Ctx) error { return scannerHandler.RegisterAgent(c) })
+	app.Get("/api/v1/scanner/agent/stream", func(c *fiber.Ctx) error { return scannerHandler.AgentStream(c) })
+	app.Post("/api/v1/scanner/agent/push", func(c *fiber.Ctx) error { return scannerHandler.AgentPush(c) })
 
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
@@ -838,6 +858,95 @@ func main() {
 	rbacTenants.Delete("/:tenant_id", rbacTenantHandler.DeleteTenant)                 // Delete (owner only)
 	rbacTenants.Get("/:tenant_id/users", adminRole, rbacTenantHandler.GetTenantUsers) // List users
 	rbacTenants.Get("/:tenant_id/stats", rbacTenantHandler.GetTenantStats)            // Get stats
+
+	// =========================================================================
+	// 5.6 SCANNER ENGINE (cloud SDK scans + on-prem Agent, Redis preview)
+	//
+	// The pipeline NEVER writes Assets/Risks — every scan lands in a Redis preview
+	// (48h TTL) and the user imports/ignores from the Scan Preview page. Cloud
+	// scans run in-process (credentials AES-256-GCM, decrypted only at scan time);
+	// nmap/osquery only ever run on the on-prem Agent, which pushes results back
+	// over an RS256 (scoped "scanner") + HMAC-signed channel.
+	// =========================================================================
+
+	// Credential cipher (AES-256-GCM) for cloud creds + per-agent push secrets.
+	scannerKeyRaw := os.Getenv("SCANNER_CREDENTIAL_KEY")
+	if scannerKeyRaw == "" {
+		scannerKeyRaw = "openrisk-dev-scanner-credential-key-change-me"
+		log.Println("Warning: SCANNER_CREDENTIAL_KEY not set — using an insecure dev key. Set a strong key in production.")
+	}
+	scannerCipher, cipherErr := scanapp.NewCredentialCipher([]byte(scannerKeyRaw))
+	if cipherErr != nil {
+		log.Fatalf("Scanner: credential cipher init failed: %v", cipherErr)
+	}
+
+	// Provider registry. Cloud collectors are nil here: the scanners validate
+	// credentials and integrate with the pipeline, but live SDK enumeration is a
+	// documented follow-up — a scan against an unconfigured provider produces an
+	// honest empty preview with the reason attached, never a fabricated result.
+	scanRegistry := scanpkg.NewRegistry()
+	scanRegistry.Register(scanpkg.NewAWSScanner(nil))
+	scanRegistry.Register(scanpkg.NewAzureScanner(nil))
+	scanRegistry.Register(scanpkg.NewGCPScanner(nil))
+	scanRegistry.Register(scanpkg.NewNmapScanner())
+	scanRegistry.Register(scanpkg.NewAgentScanner())
+
+	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
+	scanNotifier := scanpkg.NewRedisNotifier(redisClientInstance, nil) // SSE now; in-app sink TODO
+	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
+	scanLock := scanpkg.NewScanLock(redisClientInstance)
+
+	scanConfigRepo := repository.NewGormScanConfigRepository(database.DB)
+	scanAgentRepo := repository.NewGormScannerAgentRepository(database.DB)
+	scanJobRepo := repository.NewGormScanJobRepository(database.DB)
+
+	createScanConfigUC := scanapp.NewCreateScanConfigUseCase(scanConfigRepo, scanRegistry, scannerCipher)
+	listScanConfigsUC := scanapp.NewListScanConfigsUseCase(scanConfigRepo)
+	getScanConfigUC := scanapp.NewGetScanConfigUseCase(scanConfigRepo)
+	deleteScanConfigUC := scanapp.NewDeleteScanConfigUseCase(scanConfigRepo)
+	triggerScanUC := scanapp.NewTriggerScanUseCase(
+		scanConfigRepo, scanJobRepo, scanLock, scanRegistry, scanPipeline, scannerCipher, redisClientInstance, zeroLogger,
+	)
+	listAgentsUC := scanapp.NewListAgentsUseCase(scanAgentRepo)
+	revokeAgentUC := scanapp.NewRevokeAgentUseCase(scanAgentRepo, redisClientInstance)
+	registerAgentUC := scanapp.NewRegisterAgentUseCase(scanAgentRepo, rsaKeys, scannerCipher)
+	pushResultsUC := scanapp.NewPushResultsUseCase(scanAgentRepo, scanJobRepo, scanLock, scanPipeline)
+	heartbeatAgentUC := scanapp.NewHeartbeatAgentUseCase(scanAgentRepo)
+	listScanJobsUC := scanapp.NewListScanJobsUseCase(scanJobRepo)
+	getScanPreviewUC := scanapp.NewGetScanPreviewUseCase(scanPreview)
+	importPreviewUC := scanapp.NewImportPreviewUseCase(scanPreview, assetRepo)
+	ignorePreviewUC := scanapp.NewIgnorePreviewUseCase(scanPreview)
+
+	scannerHandler = handlers.NewScannerHandler(
+		createScanConfigUC, listScanConfigsUC, getScanConfigUC, deleteScanConfigUC, triggerScanUC,
+		listAgentsUC, revokeAgentUC, registerAgentUC, pushResultsUC, heartbeatAgentUC,
+		listScanJobsUC, getScanPreviewUC, importPreviewUC, ignorePreviewUC,
+		scanAgentRepo, scannerCipher, rsaKeys, jtiBlacklistChecker, redisClientInstance,
+	)
+
+	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
+	scannerRead := middleware.RequirePermission("scanner:read")
+	scannerCreate := middleware.RequirePermission("scanner:create")
+	scannerDelete := middleware.RequirePermission("scanner:delete")
+	scannerScan := middleware.RequirePermission("scanner:scan")
+	scannerImport := middleware.RequirePermission("scanner:import")
+
+	protected.Get("/scanner/configs", scannerRead, scannerHandler.ListScanConfigs)
+	protected.Post("/scanner/configs", scannerCreate, scannerHandler.CreateScanConfig)
+	protected.Delete("/scanner/configs/:id", scannerDelete, scannerHandler.DeleteScanConfig)
+	protected.Post("/scanner/configs/:id/scan", scannerScan, scannerHandler.TriggerScan)
+	protected.Post("/scanner/configs/:id/registration-token", scannerCreate, scannerHandler.IssueRegistrationToken)
+	protected.Get("/scanner/agents", scannerRead, scannerHandler.ListAgents)
+	protected.Delete("/scanner/agents/:id", scannerDelete, scannerHandler.RevokeAgent)
+	protected.Get("/scanner/jobs", scannerRead, scannerHandler.ListScanJobs)
+	protected.Get("/scanner/jobs/:id/preview", scannerRead, scannerHandler.GetScanPreview)
+	protected.Post("/scanner/jobs/:id/import", scannerImport, scannerHandler.ImportPreview)
+	protected.Post("/scanner/jobs/:id/ignore", scannerImport, scannerHandler.IgnorePreview)
+	protected.Get("/scanner/events", scannerRead, scannerHandler.StreamScanEvents)
+
+	// The agent-facing routes (register/stream/push) were mounted earlier on `app`
+	// (before the /api/v1 user middleware) — see the note above `var scannerHandler`.
+	log.Println("Scanner: engine wired (cloud validate + agent register/stream/push, Redis preview)")
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
