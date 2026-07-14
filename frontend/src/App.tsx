@@ -37,6 +37,7 @@ import { WarRoom } from './features/incidents/WarRoom';
 import { IncidentsScreen } from './features/incidents/IncidentsScreen';
 import { ThreatIntel } from './features/cti/ThreatIntel';
 import { InfrastructurePage } from './features/infrastructure/InfrastructurePage';
+import { ScanPreviewPage } from './features/infrastructure/ScanPreviewPage';
 import { SimulationsPage } from './features/simulations/SimulationsPage';
 import { ReportsScreen } from './features/reports/ReportsScreen';
 import { AiAdvisor } from './features/ai/AiAdvisor';
@@ -144,6 +145,7 @@ function App() {
           <Route path="incidents" element={<IncidentsScreen />} />
           <Route path="incidents/:id/war-room" element={<WarRoom />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
+          <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="simulations" element={<SimulationsPage />} />
           <Route path="assets" element={<InventoryPage />} />
