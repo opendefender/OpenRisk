@@ -12,6 +12,7 @@ import { PageFrame, PageHeader, Card } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { riskService } from '../../services/riskService';
+import { exportIncidentsCsv } from '../incidents/incidentService';
 
 export function ReportsScreen() {
   const L = useUIStrings();
@@ -34,11 +35,20 @@ export function ReportsScreen() {
     }
   };
 
+  const exportIncidents = async () => {
+    try {
+      const n = await exportIncidentsCsv();
+      toast.success(tr(`${n} incident(s) exporté(s)`, `${n} incident(s) exported`));
+    } catch {
+      toast.error(tr('Export échoué', 'Export failed'));
+    }
+  };
+
   const tpls: [string, string, LucideIcon, () => void][] = [
     [tr('Synthèse exécutive', 'Executive summary'), tr('Vue d’ensemble de la posture pour le COMEX', 'Posture overview for the executive committee'), TrendingUp, () => navigate('/analytics')],
     [tr('Rapport Conseil', 'Board report'), tr('Reporting trimestriel de gouvernance', 'Quarterly governance reporting'), FileText, () => navigate('/reports/board')],
     [tr('Conformité', 'Compliance'), tr('Rapport PDF détaillé par référentiel', 'Detailed PDF report per framework'), ClipboardCheck, () => navigate('/compliance')],
-    [tr('Post-mortem d’incident', 'Incident post-mortem'), tr('Chronologie et actions correctives', 'Timeline and corrective actions'), Siren, () => navigate('/incidents')],
+    [tr('Registre d’incidents', 'Incident register'), tr('Tous les incidents en CSV', 'All incidents as CSV'), Siren, exportIncidents],
     [tr('Export du registre', 'Register export'), tr('Tous les risques en CSV', 'All risks as CSV'), ShieldAlert, exportRegister],
     [tr('Rapport Asset Universe', 'Asset Universe report'), tr('Cartographie et chemins d’attaque', 'Topology and attack paths'), Atom, () => navigate('/assets/universe')],
   ];
@@ -52,8 +62,8 @@ export function ReportsScreen() {
     <PageFrame>
       <PageHeader title={L.n_reports} />
       <div className="grid gap-4 mb-7" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
-        {tpls.map(([title, desc, Icon, run]) => (
-          <Card key={title} style={{ padding: 20 }}>
+        {tpls.map(([title, desc, Icon, run], i) => (
+          <Card key={title} style={{ padding: 20, animation: 'or-fadeup .4s ease both', animationDelay: `${i * 0.04}s` }}>
             <div className="w-[42px] h-[42px] rounded-xl flex items-center justify-center mb-3.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon size={21} /></div>
             <div className="text-[14.5px] font-semibold text-ink mb-1.5">{title}</div>
             <div className="text-[12.5px] text-ink-soft leading-relaxed mb-4" style={{ minHeight: 36 }}>{desc}</div>

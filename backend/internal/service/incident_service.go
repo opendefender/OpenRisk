@@ -71,8 +71,11 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 // GetIncident retrieves an incident by ID
 func (s *IncidentService) GetIncident(tenantID string, incidentID uint) (*domain.Incident, error) {
 	var incident domain.Incident
+	// NOTE: no Preload("Risk") — domain.Incident has no Risk association (it only
+	// carries a RiskID), and risks use uuid PKs while RiskID is *uint, so the two
+	// can't be joined. Eager-loading a non-existent relation errors, which is why
+	// this endpoint used to 500. RiskID is returned as-is.
 	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
-		Preload("Risk").
 		First(&incident).Error; err != nil {
 		return nil, fmt.Errorf("incident not found: %w", err)
 	}
@@ -111,8 +114,7 @@ func (s *IncidentService) ListIncidents(tenantID string, query domain.IncidentQu
 	if err := q.Order("created_at DESC").
 		Limit(query.Limit).
 		Offset(query.Offset).
-		Preload("Risk").
-		Find(&incidents).Error; err != nil {
+		Find(&incidents).Error; err != nil { // no Preload("Risk") — see GetIncident
 		return nil, 0, fmt.Errorf("failed to list incidents: %w", err)
 	}
 

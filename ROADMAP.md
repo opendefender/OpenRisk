@@ -31,10 +31,11 @@ fausses sur `SetContext`, sur l'architecture réelle des Assets, et sur toute la
   Dashboard/Analytics, Notifications, Reporting PDF + Board Report IA. Restent partiels : Auth
   au-delà du login (MFA/OAuth/SAML/refresh non prouvés), CTI (non câblé), Scanner (absent),
   IA Advisor complet (seule la fondation `pkg/ai` existe), SSE (pas de hub dédié).
-- **Fonctionnalités avancées (Module 14.1–14.18)** : **2 partielles, 1 faite, 15 ❌.** Fait : 14.12
-  Executive Board Report. Partiels : Incident (14.1), Custom Fields (14.8), PAM Audit Trail (14.9),
+- **Fonctionnalités avancées (Module 14.1–14.18)** : **1 partielle, 2 faites, 15 ❌.** Faits : 14.12
+  Executive Board Report ; **14.1 Incident Management** (base — registre live + War Room sur incident réel,
+  fait le 13/07/2026). Partiels : Custom Fields (14.8), PAM Audit Trail (14.9),
   Champions/Gamification (14.16), Plugin Marketplace (14.18). Tout le reste (Vendor, Policy, Trust
-  Center, CRQ, BCP, Training, Access Review, Data Discovery, Digital Twin, War Room, Attack Path,
+  Center, CRQ, BCP, Training, Access Review, Data Discovery, Digital Twin, Attack Path,
   Offline) est **non commencé** — c'est là que se trouve le **moat** vs Vanta/Drata.
 - **Transversaux (15–17)** : Sécurité/Observabilité partiels, i18n fait, Billing/Super-Admin/
   Onboarding/Feature-Flags-gérables ❌.
@@ -67,14 +68,14 @@ il n'est pas encore la plateforme différenciante du Master Prompt V5 (Wave 2/3)
 | **9. Notifications** | ✅ (cœur) | `pkg/notify`, `notification_service`, `notification_handler`, centre de notifs frontend. | Canaux **Email (Resend/SMTP), Slack, Webhook signé** non prouvés live. Webhooks sortants à vérifier. |
 | **10. IA Advisor** | 🟡 | **Fondation `pkg/ai` créée** (10/07, 1er vrai client LLM du repo : interface `Advisor`, `ClaudeAdvisor` sur `anthropics/anthropic-sdk-go` modèle `claude-opus-4-8`, `TemplateAdvisor` fallback). `ai_risk_predictor_service`, `recommendation_service`. | Les use cases V5 (analyze/mitigations/deduplicate/prioritize/narrative/executive-summary), l'`AIAdvisorTab` dans le RiskDrawer, le streaming, le cache/rate-limit IA : **non faits** (stubs sans provider). Chemin `ClaudeAdvisor` non prouvé live (pas de clé). |
 | **11. Reporting & Export** | 🟡 | `pkg/report` (PDF `fpdf`, **conformité + Board Report ✅**), export CSV risques (`export_risks.go`), `export_handler`. | Pas de `pkg/export` async (jobs Redis, XLSX `excelize`, MinIO/S3, TTL). **Templates officiels COBAC/BCEAO/ISO/PCI ❌.** `ReportsPage.tsx` = maquette non câblée. |
-| **12. Compliance Frameworks** | ✅ (moteur) / 🟡 (couverture) | Moteur M1 vérifié live ; ISO 27001:2022 (93 contrôles) + **BCEAO (35) + ANTIC-CM (25) + COBAC (45)** cités article par article ; frameworks **tenant-scoped** (migration 0030). | ~20 frameworks V5 manquants (NIST, SOC2, DORA, NIS2, PCI, HIPAA, GDPR JSON…). **Cross-mapping ❌**, gap-analysis partiel. 1 placeholder (`cm-loi-2024-017`). |
+| **12. Compliance Frameworks** | ✅ (moteur) / 🟡 (couverture) | Moteur M1 vérifié live ; ISO 27001:2022 (93 contrôles) + **BCEAO (35) + ANTIC-CM (25) + COBAC (45)** cités article par article ; frameworks **tenant-scoped** (migration 0030). **Gestion complète sur les écrans redessinés (13/07)** : créer/importer/supprimer référentiel + contrôle (RBAC), preuve en chip cliquable, **progression temps réel**, **seuil de preuve obligatoire (mode strict, back+front)**. | ~20 frameworks V5 manquants (NIST, SOC2, DORA, NIS2, PCI, HIPAA, GDPR JSON…). **Cross-mapping ❌**, gap-analysis partiel. 1 placeholder (`cm-loi-2024-017`). |
 | **13. Asset Management** | ✅ (backend) / 🟡 (frontend killer) | M3 : Clean Architecture rétrofitée, snapshots historiques, criticité→Score Engine. `features/assets`. | **AssetUniversePage (D3 force-directed, 5 vues)** = la killer-feature V5, non implémentée (liste/drawer classiques seulement). Matching CVE via CPE dépend du CTI/Scanner. |
 
 ### 1.2 Fonctionnalités avancées — Module 14.1 à 14.18 (le **moat** vs Vanta/Drata)
 
 | Module V5 | Statut | Preuves / absence | Note |
-|---|---|---|---|
-| **14.1 Incident Management** | 🟡 | `domain/incident.go`, `incident_service`, `incident_handler`, `Incidents.tsx`. | **Table `incidents` HORS `AutoMigrate`** → non fonctionnel de bout en bout. |
+|---|---|---|---| 
+| **14.1 Incident Management** | ✅ (base) | **Rendu fonctionnel + prouvé live le 13/07/2026** (branche `feat/ui-redesign-dc-html`). Tables ajoutées à `AutoMigrate` ; 3 bugs corrigés (`Preload("Risk")` inexistant, param `:id`/`:incidentId`) ; **registre d'incidents live** (`features/incidents/` : stats KPI, filtres, table, drawer détail/édition, création, statut inline, export CSV) ; **War Room câblée sur un incident réel** (`/incidents/:id/war-room` : en-tête + chronologie réels, durée live/figée, clôture persistée) ; tests handler sqlite (E2E + cross-tenant). | `RiskID *uint` ↔ risques uuid → `LinkRisk`/incidents-par-risque cassés (non exposés) ; roster/tasks/chat War Room = fixtures (pas de backend collaboration) ; service non retrofit Clean Architecture. |
 | **14.2 Vendor Risk Management** | ❌ | Aucun package vendor. | Questionnaires publics, auto-scoring, rappels J-7/J-3/J-1. |
 | **14.3 Policy Management** | ❌ | Aucun package policies. | Éditeur Markdown, versioning, acknowledgments. |
 | **14.4 Trust Center Public** | ❌ | Aucun package trustcenter. | Page publique `trust.openrisk.io/{slug}`. |
@@ -191,7 +192,11 @@ Aucune n'est mergée dans `master`. **Demander avant tout merge/PR.**
    plupart des « real-time » des autres modules restent des maquettes.
 3. **`created_by` réel sur `CreateRisk`** + implémenter `/analytics/security-score` & `/analytics/assets/statistics`
    (widgets en repli gracieux aujourd'hui).
-4. **Incident Management (14.1)** : ajouter la table à `AutoMigrate` → premier module avancé *fonctionnel*.
+4. ~~**Incident Management (14.1)** : ajouter la table à `AutoMigrate` → premier module avancé *fonctionnel*.~~
+   ✅ **fait le 13/07/2026** (branche `feat/ui-redesign-dc-html`) — tables migrées + 3 bugs corrigés + registre live
+   (drawer détail/édition, statut inline, export CSV) + War Room câblée sur incident réel (chronologie + clôture).
+   **Reste (dette legacy) :** `RiskID *uint` ↔ risques uuid (LinkRisk cassé), collaboration War Room = fixtures,
+   pas de retrofit Clean Architecture du service.
 
 **Bloc B — Différenciateurs à fort levier (le moat V5, faible dépendance infra)**
 5. **IA Advisor complet (Module 10)** : réutiliser `pkg/ai` (déjà branché sur Claude) pour analyze/mitigations/

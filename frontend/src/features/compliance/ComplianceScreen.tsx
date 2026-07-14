@@ -113,7 +113,7 @@ export function ComplianceScreen() {
             {fws.map((f, i) => {
               const col = frameworkColorFor(f.name, i);
               return (
-                <Card key={f.id} style={{ padding: 18 }}>
+                <Card key={f.id} style={{ padding: 18, animation: 'or-fadeup .4s ease both', animationDelay: `${Math.min(i * 0.04, 0.3)}s` }}>
                   <button onClick={() => navigate(`/compliance/${f.id}`)} className="w-full flex items-center gap-3.5 mb-3.5 text-left group">
                     <RingGauge value={f.pct} size={56} color={col} thickness={6}>
                       <span className="mono text-[13px] font-bold text-ink">{f.pct}</span>

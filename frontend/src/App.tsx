@@ -9,12 +9,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
+import { useRiskStore } from './hooks/useRiskStore';
 
 // --- App shell ---
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 import { CommandPalette } from './components/layout/CommandPalette';
-import { CreateRiskModal } from './features/risks/components/CreateRiskModal';
+// The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
+// The older features/risks/components/CreateRiskModal embedded ScoreEngineVisualizer,
+// which white-screened the whole app on a null risk_stats/matrix response.
+import { CreateRiskModal } from './features/risks/CreateRiskModal';
 
 // --- Imports des Pages & Features ---
 import { AuthScreen } from './features/auth/AuthScreen';
@@ -30,6 +34,7 @@ import { AssetUniverse } from './features/universe/AssetUniverse';
 import { AnalyticsCiso } from './features/analytics/AnalyticsCiso';
 import { LeaderboardPage } from './features/gamification/LeaderboardPage';
 import { WarRoom } from './features/incidents/WarRoom';
+import { IncidentsScreen } from './features/incidents/IncidentsScreen';
 import { ThreatIntel } from './features/cti/ThreatIntel';
 import { InfrastructurePage } from './features/infrastructure/InfrastructurePage';
 import { SimulationsPage } from './features/simulations/SimulationsPage';
@@ -99,7 +104,11 @@ const DashboardLayout = () => {
 
       {/* Global shell overlays */}
       <CommandPalette />
-      <CreateRiskModal isOpen={newRiskOpen} onClose={() => setNewRiskOpen(false)} />
+      <CreateRiskModal
+        isOpen={newRiskOpen}
+        onClose={() => setNewRiskOpen(false)}
+        onCreated={() => { void useRiskStore.getState().fetchRisks(); }}
+      />
     </div>
   );
 };
@@ -132,7 +141,8 @@ function App() {
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="analytics" element={<AnalyticsCiso />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
-          <Route path="incidents" element={<WarRoom />} />
+          <Route path="incidents" element={<IncidentsScreen />} />
+          <Route path="incidents/:id/war-room" element={<WarRoom />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="simulations" element={<SimulationsPage />} />

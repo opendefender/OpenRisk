@@ -195,7 +195,7 @@ export const ScoreEngineVisualizer = ({
       )}
 
       {/* Risk Matrix */}
-      {matrix && (
+      {matrix && matrix.matrix && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -226,7 +226,7 @@ export const ScoreEngineVisualizer = ({
       )}
 
       {/* Statistics */}
-      {metrics && (
+      {metrics && metrics.risk_stats && metrics.risk_stats.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

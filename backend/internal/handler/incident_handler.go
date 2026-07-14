@@ -53,7 +53,7 @@ func (h *IncidentHandler) CreateIncident(c *fiber.Ctx) error {
 // GetIncident retrieves an incident by ID
 // GET /incidents/:incidentId
 func (h *IncidentHandler) GetIncident(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -110,7 +110,7 @@ func (h *IncidentHandler) ListIncidents(c *fiber.Ctx) error {
 // UpdateIncident updates an incident
 // PUT /incidents/:incidentId
 func (h *IncidentHandler) UpdateIncident(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -140,7 +140,7 @@ func (h *IncidentHandler) UpdateIncident(c *fiber.Ctx) error {
 // DeleteIncident deletes an incident
 // DELETE /incidents/:incidentId
 func (h *IncidentHandler) DeleteIncident(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -161,7 +161,7 @@ func (h *IncidentHandler) DeleteIncident(c *fiber.Ctx) error {
 // GetIncidentTimeline retrieves incident timeline
 // GET /incidents/:incidentId/timeline
 func (h *IncidentHandler) GetIncidentTimeline(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -181,7 +181,7 @@ func (h *IncidentHandler) GetIncidentTimeline(c *fiber.Ctx) error {
 // LinkRisk links incident to a risk
 // POST /incidents/:incidentId/link-risk/:riskId
 func (h *IncidentHandler) LinkRisk(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -209,7 +209,7 @@ func (h *IncidentHandler) LinkRisk(c *fiber.Ctx) error {
 // CreateIncidentAction creates a mitigation action
 // POST /incidents/:incidentId/actions
 func (h *IncidentHandler) CreateIncidentAction(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -243,7 +243,7 @@ func (h *IncidentHandler) CreateIncidentAction(c *fiber.Ctx) error {
 // GetIncidentActions retrieves incident actions
 // GET /incidents/:incidentId/actions
 func (h *IncidentHandler) GetIncidentActions(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("incidentId"), 10, 32)
+	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid incident ID",
@@ -302,9 +302,9 @@ func (h *IncidentHandler) GetIncidentStats(c *fiber.Ctx) error {
 }
 
 // GetIncidentsForRisk retrieves incidents for a specific risk
-// GET /risks/:riskId/incidents
+// GET /risks/:id/incidents
 func (h *IncidentHandler) GetIncidentsForRisk(c *fiber.Ctx) error {
-	riskID, err := strconv.ParseUint(c.Params("riskId"), 10, 32)
+	riskID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid risk ID",

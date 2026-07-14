@@ -3,13 +3,14 @@
 // This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Shield } from 'lucide-react';
+import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { OpenRiskLogo } from '../../shared/Logo';
 import { NAV_GROUPS, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
 
 interface SidebarProps {
@@ -29,9 +30,19 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleCollapse = useUIStore((s) => s.toggleSidebar);
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    setMenuOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -132,13 +143,13 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="px-[14px] pt-4 pb-2.5">
             <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
               <div
-                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0"
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-white"
                 style={{
                   background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
                   boxShadow: '0 2px 10px var(--accent-glow)',
                 }}
               >
-                <Shield size={18} strokeWidth={1.9} className="text-white" />
+                <OpenRiskLogo size={18} />
               </div>
               {!collapsed && (
                 <span className="disp text-[17px] font-bold tracking-tight text-ink">OpenRisk</span>
@@ -222,22 +233,59 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             </div>
           )}
 
-          {/* User + collapse */}
-          <div className={cn('flex items-center gap-2.5 px-[14px] py-3 border-t border-border', collapsed && 'justify-center px-2')}>
-            <div
-              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-              style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
-            >
-              {initials(user?.full_name)}
-            </div>
-            {!collapsed && (
+          {/* User menu (account · settings · logout) + collapse */}
+          <div className="relative px-[14px] py-3 border-t border-border">
+            {menuOpen && (
               <>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-semibold leading-tight text-ink truncate">
-                    {user?.full_name || 'Amir Diallo'}
+                <div className="fixed inset-0 z-[59]" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+                <div
+                  className="absolute left-[14px] right-[14px] z-[60] rounded-[12px] overflow-hidden shadow-card-lg"
+                  style={{ bottom: 'calc(100% - 6px)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}
+                >
+                  <div className="px-3 py-2.5 border-b border-border">
+                    <div className="text-[12.5px] font-semibold text-ink truncate">{user?.full_name || user?.username || 'Admin'}</div>
+                    <div className="text-[11px] text-ink-muted truncate">{user?.email}</div>
                   </div>
-                  <div className="text-[10.5px] text-ink-soft truncate">{user?.role || L.ciso}</div>
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate('/settings'); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
+                  >
+                    <Settings size={16} strokeWidth={1.8} /> {tr('Paramètres', 'Settings')}
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium hover:bg-hover transition-colors"
+                    style={{ color: 'var(--critical)' }}
+                  >
+                    <LogOut size={16} strokeWidth={1.8} /> {tr('Se déconnecter', 'Log out')}
+                  </button>
                 </div>
+              </>
+            )}
+
+            <div className={cn('flex items-center gap-2.5', collapsed && 'justify-center')}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                title={tr('Compte', 'Account')}
+                aria-label={tr('Menu du compte', 'Account menu')}
+                className={cn('flex items-center gap-2.5 min-w-0 rounded-[9px] py-1 pr-1.5 hover:bg-hover transition-colors', collapsed ? 'px-1' : 'flex-1 pl-1')}
+              >
+                <div
+                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                  style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
+                >
+                  {initials(user?.full_name)}
+                </div>
+                {!collapsed && (
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="text-[12px] font-semibold leading-tight text-ink truncate">
+                      {user?.full_name || user?.username || 'Admin'}
+                    </div>
+                    <div className="text-[10.5px] text-ink-soft truncate">{user?.role || L.ciso}</div>
+                  </div>
+                )}
+              </button>
+              {!collapsed && (
                 <button
                   onClick={toggleCollapse}
                   className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors shrink-0"
@@ -245,8 +293,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 >
                   <PanelLeftClose size={16} strokeWidth={1.7} />
                 </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Expand affordance when collapsed (desktop) */}

@@ -38,10 +38,15 @@ export const mitigationService = {
   },
 
   /**
-   * Create a new mitigation
+   * Create a new mitigation. The backend route is risk-scoped
+   * (POST /risks/:id/mitigations) — posting to /mitigations returns 405 — and it
+   * expects an RFC3339 due_date, so we lift risk_id into the path and normalize
+   * the date here.
    */
   createMitigation: async (payload: CreateMitigationInput): Promise<Mitigation> => {
-    const response = await api.post<Mitigation>('/mitigations', payload);
+    const { risk_id, due_date, ...rest } = payload;
+    const body = { ...rest, due_date: due_date ? new Date(due_date).toISOString() : undefined };
+    const response = await api.post<Mitigation>(`/risks/${risk_id}/mitigations`, body);
     return response.data;
   },
 

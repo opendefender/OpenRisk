@@ -154,6 +154,12 @@ func main() {
 		&domain.Tenant{},
 		&domain.UserTenant{},
 		&domain.AuditLog{},
+		// M5 (Incident Management) — the incident register + its timeline and
+		// mitigation actions. Previously missing here, so every /incidents route
+		// 500'd on a non-existent table; War Room stayed a fixture-only preview.
+		&domain.Incident{},
+		&domain.IncidentTimeline{},
+		&domain.IncidentAction{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}

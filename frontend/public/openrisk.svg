@@ -1,0 +1,13 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OpenRisk">
+  <defs>
+    <linearGradient id="or-g" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c6cff"/>
+      <stop offset="1" stop-color="#64d2ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="24" height="24" rx="6" fill="url(#or-g)"/>
+  <path fill="#fff" fill-rule="evenodd" clip-rule="evenodd"
+    d="M12 4 L18 6.25 V11 C18 15 15.3 17.4 12 19 C8.7 17.4 6 15 6 11 V6.25 Z
+       M9 12 a3 3 0 1 1 6 0 a3 3 0 1 1 -6 0 Z
+       M11 12 a1 1 0 1 1 2 0 a1 1 0 1 1 -2 0 Z"/>
+</svg>

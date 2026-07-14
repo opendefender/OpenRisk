@@ -42,7 +42,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', badge: { text: '12' } },
       { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', badge: { text: '3', color: 'var(--high)' } },
-      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', badge: { text: '1', color: 'var(--critical)' } },
+      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents' },
       { key: 'infrastructure', labelKey: 'n_infra', icon: Server, path: '/infrastructure', soon: true },
     ],
   },

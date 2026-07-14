@@ -4,6 +4,7 @@
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
 import { useState, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload,
@@ -13,6 +14,7 @@ import {
   FileText,
   FileSpreadsheet,
   Download,
+  ArrowLeft,
   X,
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
@@ -185,6 +187,9 @@ export const ImportRisksPage = () => {
     <div className="max-w-5xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
+        <Link to="/risks" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 hover:text-white transition-colors mb-3">
+          <ArrowLeft size={15} /> {t('risks.title')}
+        </Link>
         <h1 className="text-3xl font-bold text-white mb-2">{t('risks.import')}</h1>
         <p className="text-zinc-400">{t('risks.dragDropHint')}</p>
       </div>
