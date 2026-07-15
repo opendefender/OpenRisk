@@ -1,7 +1,10 @@
 # backend/Dockerfile
 # Multi-stage build pour des images finales légères (Qualité Industrielle)
 # 1. Build stage
-FROM golang:1.25.4-alpine AS builder
+# Float to the latest 1.25.x patch so the built binary's stdlib picks up Go
+# security fixes (Trivy flags stdlib CVEs pinned to an exact patch, e.g. the
+# crypto/tls + net/url advisories fixed across 1.25.5–1.25.11).
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
