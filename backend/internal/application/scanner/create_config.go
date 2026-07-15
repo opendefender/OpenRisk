@@ -8,6 +8,7 @@ package scanner
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -26,6 +27,8 @@ type CreateScanConfigInput struct {
 	Targets     []string          // agent/nmap only
 	AgentIDs    []uuid.UUID       // agent/nmap only
 	Options     map[string]any
+	// ScheduleMinutes > 0 makes the scan recurring (0 = manual only).
+	ScheduleMinutes int
 }
 
 // CreateScanConfigUseCase validates and persists a ScanConfig for a tenant.
@@ -96,7 +99,12 @@ func (uc *CreateScanConfigUseCase) Execute(ctx context.Context, tenantID, create
 		Targets:              in.Targets,
 		AgentIDs:             agentIDs,
 		Options:              optionsJSON,
+		ScheduleMinutes:      in.ScheduleMinutes,
 		CreatedBy:            createdBy,
+	}
+	if in.ScheduleMinutes > 0 {
+		next := time.Now().Add(time.Duration(in.ScheduleMinutes) * time.Minute)
+		cfg.NextRunAt = &next
 	}
 	if err := uc.repo.Create(ctx, cfg); err != nil {
 		return nil, domain.NewInternalError(err.Error())

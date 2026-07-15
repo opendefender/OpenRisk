@@ -84,13 +84,14 @@ func NewScannerHandler(
 // --- Scan configs ----------------------------------------------------------
 
 type createScanConfigInput struct {
-	Name        string            `json:"name" validate:"required"`
-	Provider    string            `json:"provider" validate:"required,oneof=aws azure gcp nmap agent"`
-	Credentials map[string]string `json:"credentials"`
-	Regions     []string          `json:"regions"`
-	Targets     []string          `json:"targets"`
-	AgentIDs    []string          `json:"agent_ids"`
-	Options     map[string]any    `json:"options"`
+	Name            string            `json:"name" validate:"required"`
+	Provider        string            `json:"provider" validate:"required,oneof=aws azure gcp nmap agent"`
+	Credentials     map[string]string `json:"credentials"`
+	Regions         []string          `json:"regions"`
+	Targets         []string          `json:"targets"`
+	AgentIDs        []string          `json:"agent_ids"`
+	Options         map[string]any    `json:"options"`
+	ScheduleMinutes int               `json:"schedule_minutes" validate:"omitempty,min=0"`
 }
 
 // CreateScanConfig POST /scanner/configs
@@ -109,13 +110,14 @@ func (h *ScannerHandler) CreateScanConfig(c *fiber.Ctx) error {
 		}
 	}
 	cfg, err := h.createConfig.Execute(c.UserContext(), tenantID(c), userID(c), scanapp.CreateScanConfigInput{
-		Name:        in.Name,
-		Provider:    domain.ScannerProvider(in.Provider),
-		Credentials: in.Credentials,
-		Regions:     in.Regions,
-		Targets:     in.Targets,
-		AgentIDs:    agentIDs,
-		Options:     in.Options,
+		Name:            in.Name,
+		Provider:        domain.ScannerProvider(in.Provider),
+		Credentials:     in.Credentials,
+		Regions:         in.Regions,
+		Targets:         in.Targets,
+		AgentIDs:        agentIDs,
+		Options:         in.Options,
+		ScheduleMinutes: in.ScheduleMinutes,
 	})
 	if err != nil {
 		return writeAppError(c, err)

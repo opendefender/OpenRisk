@@ -105,6 +105,13 @@ type ScanConfig struct {
 	// migration.
 	Options datatypes.JSON `gorm:"type:jsonb" json:"options,omitempty"`
 
+	// Recurring schedule. ScheduleMinutes = 0 means manual-only; > 0 makes the
+	// ScanScheduler trigger this config every N minutes. NextRunAt is when it is
+	// next due; LastRunAt is the last scheduled trigger.
+	ScheduleMinutes int        `gorm:"default:0" json:"schedule_minutes"`
+	LastRunAt       *time.Time `json:"last_run_at,omitempty"`
+	NextRunAt       *time.Time `gorm:"index" json:"next_run_at,omitempty"`
+
 	CreatedBy uuid.UUID      `gorm:"type:uuid;index" json:"created_by"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -235,6 +242,12 @@ type ScanConfigRepository interface {
 	List(ctx context.Context, tenantID uuid.UUID) ([]ScanConfig, error)
 	Update(ctx context.Context, cfg *ScanConfig) error
 	Delete(ctx context.Context, id, tenantID uuid.UUID) error
+	// ListDueScheduled returns enabled recurring configs whose NextRunAt is due
+	// (or unset). It is intentionally NOT tenant-scoped: the ScanScheduler worker
+	// runs across all tenants and re-derives the tenant from each config.
+	ListDueScheduled(ctx context.Context, now time.Time) ([]ScanConfig, error)
+	// UpdateNextRun advances a config's schedule bookkeeping after a run.
+	UpdateNextRun(ctx context.Context, id, tenantID uuid.UUID, lastRun, nextRun time.Time) error
 }
 
 // ScannerAgentRepository persists registered agents.

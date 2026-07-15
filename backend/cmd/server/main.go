@@ -944,6 +944,9 @@ func main() {
 	triggerScanUC := scanapp.NewTriggerScanUseCase(
 		scanConfigRepo, scanJobRepo, scanLock, scanRegistry, scanPipeline, scannerCipher, redisClientInstance, zeroLogger,
 	)
+	// Recurring scans: a background scheduler triggers due configs every minute.
+	scanScheduler := workers.NewScanScheduler(scanConfigRepo, triggerScanUC, zeroLogger)
+	go scanScheduler.Start(context.Background())
 	listAgentsUC := scanapp.NewListAgentsUseCase(scanAgentRepo)
 	revokeAgentUC := scanapp.NewRevokeAgentUseCase(scanAgentRepo, redisClientInstance)
 	registerAgentUC := scanapp.NewRegisterAgentUseCase(scanAgentRepo, rsaKeys, scannerCipher)

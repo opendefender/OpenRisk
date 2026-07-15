@@ -49,6 +49,7 @@ export function ScanConfigDrawer({
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [regions, setRegions] = useState('');
   const [targets, setTargets] = useState('');
+  const [scheduleMin, setScheduleMin] = useState(0);
 
   if (!open) return null;
 
@@ -56,7 +57,7 @@ export function ScanConfigDrawer({
 
   const submit = async () => {
     if (!name.trim()) return toast.error(tr('Un nom est requis', 'A name is required'));
-    const input: CreateScanConfigInput = { name: name.trim(), provider };
+    const input: CreateScanConfigInput = { name: name.trim(), provider, schedule_minutes: scheduleMin };
     if (isCloud) {
       const cleaned: Record<string, string> = {};
       for (const [k, v] of Object.entries(creds)) if (v.trim()) cleaned[k] = v.trim();
@@ -133,6 +134,15 @@ export function ScanConfigDrawer({
               </div>
             </>
           )}
+
+          <Field label={tr('Fréquence automatique', 'Automatic schedule')}>
+            <select value={scheduleMin} onChange={(e) => setScheduleMin(Number(e.target.value))} style={inputStyle}>
+              <option value={0}>{tr('Manuel uniquement', 'Manual only')}</option>
+              <option value={60}>{tr('Toutes les heures', 'Hourly')}</option>
+              <option value={1440}>{tr('Quotidien', 'Daily')}</option>
+              <option value={10080}>{tr('Hebdomadaire', 'Weekly')}</option>
+            </select>
+          </Field>
         </div>
 
         {/* footer */}

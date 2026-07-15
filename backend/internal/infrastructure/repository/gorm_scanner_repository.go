@@ -8,6 +8,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -68,13 +69,35 @@ func (r *GormScanConfigRepository) Update(ctx context.Context, cfg *domain.ScanC
 	result := r.db.WithContext(ctx).
 		Model(&domain.ScanConfig{}).
 		Where("id = ? AND tenant_id = ?", cfg.ID, cfg.TenantID).
-		Select("name", "enabled", "encrypted_credentials", "regions", "targets", "agent_ids", "options").
+		Select("name", "enabled", "encrypted_credentials", "regions", "targets", "agent_ids", "options", "schedule_minutes", "next_run_at").
 		Updates(cfg)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update scan config: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("scan config not found")
+	}
+	return nil
+}
+
+// ListDueScheduled returns enabled recurring configs due to run. NOT
+// tenant-scoped by design — the scheduler worker runs globally.
+func (r *GormScanConfigRepository) ListDueScheduled(ctx context.Context, now time.Time) ([]domain.ScanConfig, error) {
+	var cfgs []domain.ScanConfig
+	err := r.db.WithContext(ctx).
+		Where("enabled = ? AND schedule_minutes > 0 AND (next_run_at IS NULL OR next_run_at <= ?)", true, now).
+		Find(&cfgs).Error
+	return cfgs, err
+}
+
+// UpdateNextRun advances a config's schedule bookkeeping (tenant-scoped).
+func (r *GormScanConfigRepository) UpdateNextRun(ctx context.Context, id, tenantID uuid.UUID, lastRun, nextRun time.Time) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScanConfig{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Updates(map[string]interface{}{"last_run_at": lastRun, "next_run_at": nextRun})
+	if result.Error != nil {
+		return fmt.Errorf("failed to update next run: %w", result.Error)
 	}
 	return nil
 }

@@ -89,6 +89,16 @@ export function criticalityFromFactor(f: number): AssetCriticality {
   return 'LOW';
 }
 
+export function scheduleLabel(minutes: number, lang: 'fr' | 'en'): string {
+  switch (minutes) {
+    case 60: return lang === 'fr' ? 'Horaire' : 'Hourly';
+    case 1440: return lang === 'fr' ? 'Quotidien' : 'Daily';
+    case 10080: return lang === 'fr' ? 'Hebdo' : 'Weekly';
+    case 0: return lang === 'fr' ? 'Manuel' : 'Manual';
+    default: return lang === 'fr' ? `${minutes} min` : `${minutes} min`;
+  }
+}
+
 export function timeAgo(iso: string | null | undefined, lang: 'fr' | 'en'): string {
   if (!iso) return '—';
   const then = new Date(iso).getTime();

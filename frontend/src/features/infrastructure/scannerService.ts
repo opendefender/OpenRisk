@@ -20,6 +20,9 @@ export interface ScanConfig {
   regions: string[] | null;
   targets: string[] | null;
   agent_ids: string[] | null;
+  schedule_minutes: number; // 0 = manual only
+  next_run_at?: string | null;
+  last_run_at?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -128,6 +131,7 @@ export interface CreateScanConfigInput {
   targets?: string[];
   agent_ids?: string[];
   options?: Record<string, unknown>;
+  schedule_minutes?: number;
 }
 
 export interface RegistrationTokenResponse {

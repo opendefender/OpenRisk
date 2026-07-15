@@ -103,6 +103,12 @@ func (m *mockConfigRepo) Delete(c context.Context, id, t uuid.UUID) error {
 	}
 	return nil
 }
+func (m *mockConfigRepo) ListDueScheduled(context.Context, time.Time) ([]domain.ScanConfig, error) {
+	return nil, nil
+}
+func (m *mockConfigRepo) UpdateNextRun(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) error {
+	return nil
+}
 
 type mockJobRepo struct {
 	createFunc      func(context.Context, *domain.ScanJob) error

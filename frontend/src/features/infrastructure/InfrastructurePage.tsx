@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Play, Trash2, Radar, ChevronRight, Server, DownloadCloud,
-  ShieldOff, Boxes, Bug, Loader2,
+  ShieldOff, Boxes, Bug, Loader2, Clock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageFrame, PageHeader, Btn, Card, Skeleton, EmptyState, ErrorState } from '../../shared/ui';
@@ -20,7 +20,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { ScanConfigDrawer } from './ScanConfigDrawer';
 import { AgentDeployModal } from './AgentDeployModal';
 import { useScanConfigs, useScannerAgents, useScanJobs } from './useScanner';
-import { PROVIDERS, jobStatusColor, agentStatusColor, timeAgo } from './scannerMeta';
+import { PROVIDERS, jobStatusColor, agentStatusColor, timeAgo, scheduleLabel } from './scannerMeta';
 import type { ScanConfig, ScannerProvider, CreateScanConfigInput } from './scannerService';
 
 export function InfrastructurePage() {
@@ -143,6 +143,11 @@ export function InfrastructurePage() {
                           {onPrem ? (c.targets?.join(', ') || tr('aucune cible', 'no targets')) : (c.regions?.length ? c.regions.join(', ') : tr('toutes régions', 'all regions'))}
                         </div>
                       </div>
+                      {c.schedule_minutes > 0 && (
+                        <span title={c.next_run_at ? `${tr('Prochain', 'Next')}: ${new Date(c.next_run_at).toLocaleString()}` : ''} className="text-[11px] font-semibold px-2 py-[3px] rounded-md shrink-0 inline-flex items-center gap-1" style={{ color: 'var(--info)', background: 'color-mix(in srgb,var(--info) 12%,transparent)' }}>
+                          <Clock size={11} /> {scheduleLabel(c.schedule_minutes, lang)}
+                        </span>
+                      )}
                       <span className="text-[11px] font-semibold px-2 py-[3px] rounded-md shrink-0" style={{ color: m.color, background: `color-mix(in srgb,${m.color} 13%,transparent)` }}>{m.short}</span>
                       {canWrite && (
                         <div className="flex items-center gap-1.5 shrink-0">
