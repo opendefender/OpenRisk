@@ -11,7 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Drawer } from '../../components/ui/Drawer';
 import { useI18n } from '../../hooks/useI18n';
-import type { Risk } from '../../services/riskService';
+import { riskService, type Risk } from '../../services/riskService';
 
 interface RiskDrawerProps {
   risk: Risk | null;
@@ -100,6 +100,10 @@ export const RiskDrawer = ({ risk, isOpen, onClose, onDelete, onDuplicate, onAcc
   const [localSLE, setLocalSLE] = useState('');
   const [localARO, setLocalARO] = useState('');
   const [savingCRQ, setSavingCRQ] = useState(false);
+  const [reviewInterval, setReviewInterval] = useState(0);
+  const [nextReview, setNextReview] = useState<string | null>(null);
+  const [lastReviewed, setLastReviewed] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   useEffect(() => {
     if (!risk) return;
@@ -111,7 +115,30 @@ export const RiskDrawer = ({ risk, isOpen, onClose, onDelete, onDuplicate, onAcc
     setAcceptReason('');
     setLocalSLE(risk.sle_xaf != null ? String(risk.sle_xaf) : '');
     setLocalARO(risk.aro != null ? String(risk.aro) : '');
+    setReviewInterval(risk.review_interval_days ?? 0);
+    setNextReview(risk.next_review_at ?? null);
+    setLastReviewed(risk.last_reviewed_at ?? null);
   }, [risk]);
+
+  const reviewOverdue = nextReview != null && new Date(nextReview).getTime() < Date.now();
+
+  const handleSaveInterval = async (days: number) => {
+    if (!risk) return;
+    setReviewInterval(days);
+    await onUpdate(risk.id, { review_interval_days: days });
+  };
+
+  const handleMarkReviewed = async () => {
+    if (!risk) return;
+    setReviewing(true);
+    try {
+      const updated = await riskService.markReviewed(risk.id);
+      setNextReview(updated.next_review_at ?? null);
+      setLastReviewed(updated.last_reviewed_at ?? null);
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   const fmtXAF = (v?: number) => (v == null ? '—' : `${Math.round(v).toLocaleString('fr-FR')} FCFA`);
   const fmtUSD = (v?: number) => (v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
@@ -267,6 +294,37 @@ export const RiskDrawer = ({ risk, isOpen, onClose, onDelete, onDuplicate, onAcc
                       <div className="text-3xl font-bold text-white">{score}</div>
                       <div className="text-xs text-zinc-500">P × I × A</div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Review cadence */}
+                <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Cadence de revue</label>
+                    {reviewOverdue && (
+                      <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ color: '#f87171', background: 'rgba(248,113,113,0.12)' }}>
+                        En retard
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={reviewInterval}
+                      onChange={(e) => handleSaveInterval(Number(e.target.value))}
+                      className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                      <option value={0}>Manuel</option>
+                      <option value={7}>Hebdomadaire</option>
+                      <option value={30}>Mensuel</option>
+                      <option value={90}>Trimestriel</option>
+                    </select>
+                    <Button onClick={handleMarkReviewed} variant="secondary" isLoading={reviewing} className="gap-2">
+                      <CheckCircle2 size={16} /> Marquer revu
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs text-zinc-500">
+                    <div>Prochaine : <span className="text-zinc-300">{nextReview ? new Date(nextReview).toLocaleDateString() : '—'}</span></div>
+                    <div>Dernière : <span className="text-zinc-300">{lastReviewed ? new Date(lastReviewed).toLocaleDateString() : '—'}</span></div>
                   </div>
                 </div>
               </div>

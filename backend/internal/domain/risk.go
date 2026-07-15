@@ -146,6 +146,13 @@ type Risk struct {
 	ALEUSD   float64 `gorm:"-" json:"ale_usd"`   // annual loss expectancy (USD)
 	ALEBasis string  `gorm:"-" json:"ale_basis"` // "explicit" | "reference"
 
+	// Review cadence — automated risk-review reminders. ReviewIntervalDays = 0
+	// disables it; NextReviewAt is when the owner is next nudged; LastReviewedAt is
+	// the last time the risk was marked reviewed.
+	ReviewIntervalDays int        `gorm:"default:0" json:"review_interval_days"`
+	NextReviewAt       *time.Time `gorm:"index" json:"next_review_at,omitempty"`
+	LastReviewedAt     *time.Time `json:"last_reviewed_at,omitempty"`
+
 	// Source Tracking
 	Source      RiskSource `gorm:"type:varchar(20);default:'manual';index" json:"source"` // manual|cti_auto|scan_auto|import|vendor|ai
 	SourceCVEID *string    `gorm:"index" json:"source_cve_id"`                            // CVE identifier if from CTI

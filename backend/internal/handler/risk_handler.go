@@ -29,6 +29,7 @@ type RiskHandler struct {
 	listRisksUseCase  *risk.ListRisksUseCase
 	updateRiskUseCase *risk.UpdateRiskUseCase
 	deleteRiskUseCase *risk.DeleteRiskUseCase
+	markReviewedUC    *risk.MarkRiskReviewedUseCase
 	redisClient       *redis.Client
 	crq               *crq.Quantifier // Cyber Risk Quantification (XAF + USD)
 }
@@ -39,6 +40,7 @@ func NewRiskHandler(
 	listRisks *risk.ListRisksUseCase,
 	updateRisk *risk.UpdateRiskUseCase,
 	deleteRisk *risk.DeleteRiskUseCase,
+	markReviewed *risk.MarkRiskReviewedUseCase,
 	redisClient *redis.Client,
 	quantifier *crq.Quantifier,
 ) *RiskHandler {
@@ -48,9 +50,30 @@ func NewRiskHandler(
 		listRisksUseCase:  listRisks,
 		updateRiskUseCase: updateRisk,
 		deleteRiskUseCase: deleteRisk,
+		markReviewedUC:    markReviewed,
 		redisClient:       redisClient,
 		crq:               quantifier,
 	}
+}
+
+// MarkReviewed POST /risks/:id/review — records a review now and reschedules the
+// next one from the risk's cadence.
+func (h *RiskHandler) MarkReviewed(c *fiber.Ctx) error {
+	riskID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+	mwCtx := middleware.GetContext(c)
+	orgID := uuid.Nil
+	if mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	r, err := h.markReviewedUC.Execute(c.UserContext(), orgID, riskID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	h.quantify(r)
+	return c.JSON(r)
 }
 
 // quantify fills a risk's computed CRQ fields (ALE in XAF + USD, basis) from its
@@ -92,6 +115,8 @@ type UpdateRiskInput struct {
 	// CRQ monetary inputs (XAF). Pointers → nil means "leave unchanged".
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
+	// Review cadence in days (0 disables).
+	ReviewIntervalDays *int `json:"review_interval_days" validate:"omitempty,min=0"`
 }
 
 // CreateRisk godoc
@@ -300,14 +325,15 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	}
 
 	ucInput := risk.UpdateRiskInput{
-		Title:       &input.Title,
-		Description: &input.Description,
-		Impact:      &input.Impact,
-		Probability: &input.Probability,
-		Tags:        input.Tags,
-		Frameworks:  input.Frameworks,
-		SLEXAF:      input.SLEXAF,
-		ARO:         input.ARO,
+		Title:              &input.Title,
+		Description:        &input.Description,
+		Impact:             &input.Impact,
+		Probability:        &input.Probability,
+		Tags:               input.Tags,
+		Frameworks:         input.Frameworks,
+		SLEXAF:             input.SLEXAF,
+		ARO:                input.ARO,
+		ReviewIntervalDays: input.ReviewIntervalDays,
 	}
 
 	if input.Title == "" {

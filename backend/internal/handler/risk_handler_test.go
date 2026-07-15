@@ -154,6 +154,7 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 		applicationrisk.NewListRisksUseCase(riskRepo),
 		applicationrisk.NewUpdateRiskUseCase(riskRepo),
 		applicationrisk.NewDeleteRiskUseCase(riskRepo),
+		applicationrisk.NewMarkRiskReviewedUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
 	)

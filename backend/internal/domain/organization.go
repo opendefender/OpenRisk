@@ -35,18 +35,18 @@ const (
 
 // Organization represents a tenant/organization in the multi-tenant system
 type Organization struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name      string         `gorm:"not null" json:"name"`
-	Slug      string         `gorm:"uniqueIndex;not null" json:"slug"`
-	LogoURL   string         `json:"logo_url,omitempty"`
-	Industry  string         `json:"industry,omitempty"`
-	Size      OrgSize        `json:"size,omitempty"`
-	Plan      OrgPlan        `gorm:"default:'starter'" json:"plan"`
-	OwnerID   uuid.UUID      `gorm:"index" json:"owner_id"`
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name     string    `gorm:"not null" json:"name"`
+	Slug     string    `gorm:"uniqueIndex;not null" json:"slug"`
+	LogoURL  string    `json:"logo_url,omitempty"`
+	Industry string    `json:"industry,omitempty"`
+	Size     OrgSize   `json:"size,omitempty"`
+	Plan     OrgPlan   `gorm:"default:'starter'" json:"plan"`
+	OwnerID  uuid.UUID `gorm:"index" json:"owner_id"`
 	// constraint:- : registration creates the Organization row with a placeholder OwnerID
 	// before the owning User row exists (see application/auth/register.go), and this is also
 	// the other half of a circular belongsTo with User.DefaultOrg — no DB-level FK either side.
-	Owner *User `gorm:"foreignKey:OwnerID;constraint:-" json:"owner,omitempty"`
+	Owner     *User          `gorm:"foreignKey:OwnerID;constraint:-" json:"owner,omitempty"`
 	IsActive  bool           `gorm:"default:true;index" json:"is_active"`
 	Settings  datatypes.JSON `gorm:"type:jsonb;default:'{}'" json:"settings"`
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`

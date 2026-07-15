@@ -8,6 +8,7 @@ package risk
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -27,6 +28,8 @@ type UpdateRiskInput struct {
 	// CRQ monetary inputs (XAF). Pointers so a partial update can set or clear them.
 	SLEXAF *float64
 	ARO    *float64
+	// Review cadence (days). 0 disables; >0 (re)initialises NextReviewAt when unset.
+	ReviewIntervalDays *int
 }
 
 // UpdateRiskUseCase handles updating an existing risk.
@@ -94,6 +97,20 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 			return nil, domain.NewValidationError("annualized rate of occurrence (aro) cannot be negative")
 		}
 		risk.ARO = input.ARO
+	}
+	if input.ReviewIntervalDays != nil {
+		if *input.ReviewIntervalDays < 0 {
+			return nil, domain.NewValidationError("review_interval_days cannot be negative")
+		}
+		risk.ReviewIntervalDays = *input.ReviewIntervalDays
+		// Enabling a cadence with no scheduled review yet → schedule the first one.
+		if risk.ReviewIntervalDays > 0 && risk.NextReviewAt == nil {
+			next := time.Now().Add(time.Duration(risk.ReviewIntervalDays) * 24 * time.Hour)
+			risk.NextReviewAt = &next
+		}
+		if risk.ReviewIntervalDays == 0 {
+			risk.NextReviewAt = nil
+		}
 	}
 
 	// 3. Recompute score

@@ -458,7 +458,8 @@ func main() {
 		}
 	}
 	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance, riskQuantifier)
+	markReviewedUseCase := risk.NewMarkRiskReviewedUseCase(riskRepo)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, redisClientInstance, riskQuantifier)
 
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
@@ -478,6 +479,7 @@ func main() {
 
 	protected.Post("/risks", riskCreate, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
+	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
 
 	// Mitigation Plans (CRUD). NOTE: this whole module previously used
@@ -930,6 +932,21 @@ func main() {
 		}
 	}
 	scanNotifier := scanpkg.NewRedisNotifier(redisClientInstance, scanInApp)
+
+	// Risk review cadence: a background worker nudges each risk's owner (in-app +
+	// e-mail) when a review is due, keeping the register "updated regularly".
+	riskReviewRepo := repository.NewGormRiskReviewRepository(database.DB)
+	riskReviewWorker := workers.NewRiskReviewWorker(riskReviewRepo, func(ctx context.Context, tenantID, ownerID, riskID uuid.UUID, riskTitle string) {
+		subject := "Revue de risque requise"
+		message := "Le risque « " + riskTitle + " » est dû pour revue."
+		if err := notificationUseCase.NotifyInApp(ownerID, tenantID, domain.NotificationTypeRiskReview, subject, message, &riskID, "risk"); err != nil {
+			zeroLogger.Warn().Err(err).Msg("risk review: in-app notification failed")
+		}
+		if user, uerr := userRepo.GetByID(ctx, ownerID); uerr == nil && user != nil && user.Email != "" {
+			_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+		}
+	}, zeroLogger)
+	go riskReviewWorker.Start(context.Background())
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 	scanLock := scanpkg.NewScanLock(redisClientInstance)
 

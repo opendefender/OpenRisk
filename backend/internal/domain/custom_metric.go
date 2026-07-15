@@ -16,20 +16,20 @@ import (
 
 // CustomMetric represents a user-defined metric
 type CustomMetric struct {
-	ID          uint               `gorm:"primaryKey" json:"id"`
-	TenantID    string             `gorm:"index" json:"tenant_id"`
-	Name        string             `gorm:"index" json:"name"`
-	Description string             `json:"description"`
-	MetricType  string             `json:"metric_type"` // count, average, sum, percentage
-	Formula     string             `json:"formula"`     // SQL/expression
-	DataSource  string             `json:"data_source"` // risks, mitigations, assets, custom
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	TenantID    string         `gorm:"index" json:"tenant_id"`
+	Name        string         `gorm:"index" json:"name"`
+	Description string         `json:"description"`
+	MetricType  string         `json:"metric_type"` // count, average, sum, percentage
+	Formula     string         `json:"formula"`     // SQL/expression
+	DataSource  string         `json:"data_source"` // risks, mitigations, assets, custom
 	Filters     datatypes.JSON `gorm:"type:jsonb" json:"filters"`
-	Aggregation string             `json:"aggregation"` // daily, weekly, monthly, yearly
-	IsActive    bool               `gorm:"default:true" json:"is_active"`
-	CreatedBy   string             `json:"created_by"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt     `gorm:"index" json:"deleted_at,omitempty"`
+	Aggregation string         `json:"aggregation"` // daily, weekly, monthly, yearly
+	IsActive    bool           `gorm:"default:true" json:"is_active"`
+	CreatedBy   string         `json:"created_by"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 // MetricValue represents a value for a custom metric

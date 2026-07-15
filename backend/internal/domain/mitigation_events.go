@@ -16,9 +16,9 @@ type MitigationProgressChanged struct {
 
 // MitigationCompleted event - published when plan is validated to done (manually or via auto-completion of all subactions)
 type MitigationCompleted struct {
-	PlanID  uuid.UUID `json:"plan_id"`
-	RiskID  uuid.UUID `json:"risk_id"`
-	Source  string    `json:"source"` // "manual" | "scanner" | "ai"
+	PlanID uuid.UUID `json:"plan_id"`
+	RiskID uuid.UUID `json:"risk_id"`
+	Source string    `json:"source"` // "manual" | "scanner" | "ai"
 }
 
 // MitigationAutoCompleted event - published when scanner auto-completes a subaction
