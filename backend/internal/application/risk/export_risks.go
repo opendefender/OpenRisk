@@ -39,22 +39,22 @@ func NewExportRisksUseCase(riskRepo domain.RiskRepository) *ExportRisksUseCase {
 
 // ExportItem represents a single risk in export format
 type ExportItem struct {
-	ID             uuid.UUID  `json:"id"`
-	Name           string     `json:"name"`
-	Description    string     `json:"description"`
-	Status         string     `json:"status"`
-	Probability    float64    `json:"probability"`
-	Impact         float64    `json:"impact"`
-	Score          float64    `json:"score"`
-	Criticality    string     `json:"criticality"`
-	Tags           []string   `json:"tags"`
-	Frameworks     []string   `json:"frameworks"`
-	AssignedTo     *string    `json:"assigned_to,omitempty"`
-	ReviewerID     *string    `json:"reviewer_id,omitempty"`
-	Source         string     `json:"source"`
-	CreatedBy      uuid.UUID  `json:"created_by"`
-	CreatedAt      time.Time  `json:"created_at"`
-	LastModified   time.Time  `json:"last_modified"`
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	Status       string    `json:"status"`
+	Probability  float64   `json:"probability"`
+	Impact       float64   `json:"impact"`
+	Score        float64   `json:"score"`
+	Criticality  string    `json:"criticality"`
+	Tags         []string  `json:"tags"`
+	Frameworks   []string  `json:"frameworks"`
+	AssignedTo   *string   `json:"assigned_to,omitempty"`
+	ReviewerID   *string   `json:"reviewer_id,omitempty"`
+	Source       string    `json:"source"`
+	CreatedBy    uuid.UUID `json:"created_by"`
+	CreatedAt    time.Time `json:"created_at"`
+	LastModified time.Time `json:"last_modified"`
 }
 
 // Execute exports risks in the requested format
@@ -78,17 +78,17 @@ func (uc *ExportRisksUseCase) Execute(
 		items[i] = ExportItem{
 			ID:           risk.ID,
 			Name:         risk.Name,
-			Description: risk.Description,
-			Status:      string(risk.Status),
-			Probability: risk.Probability,
-			Impact:      risk.Impact,
-			Score:       risk.Score,
-			Criticality: string(risk.Criticality),
-			Tags:        risk.Tags,
-			Frameworks:  risk.Frameworks,
-			Source:      string(risk.Source),
-			CreatedBy:   risk.CreatedBy,
-			CreatedAt:   risk.CreatedAt,
+			Description:  risk.Description,
+			Status:       string(risk.Status),
+			Probability:  risk.Probability,
+			Impact:       risk.Impact,
+			Score:        risk.Score,
+			Criticality:  string(risk.Criticality),
+			Tags:         risk.Tags,
+			Frameworks:   risk.Frameworks,
+			Source:       string(risk.Source),
+			CreatedBy:    risk.CreatedBy,
+			CreatedAt:    risk.CreatedAt,
 			LastModified: risk.UpdatedAt,
 		}
 

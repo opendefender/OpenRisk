@@ -40,11 +40,11 @@ type ImportRiskItem struct {
 
 // ImportResult represents the outcome of an import operation
 type ImportResult struct {
-	Total      int                     `json:"total"`
-	Succeeded  int                     `json:"succeeded"`
-	Failed     int                     `json:"failed"`
-	Created    []uuid.UUID             `json:"created"`
-	Errors     []ImportError           `json:"errors"`
+	Total      int                      `json:"total"`
+	Succeeded  int                      `json:"succeeded"`
+	Failed     int                      `json:"failed"`
+	Created    []uuid.UUID              `json:"created"`
+	Errors     []ImportError            `json:"errors"`
 	Duplicates []ImportDuplicateWarning `json:"duplicates"`
 }
 
@@ -56,10 +56,10 @@ type ImportError struct {
 
 // ImportDuplicateWarning represents a duplicate detected during import
 type ImportDuplicateWarning struct {
-	Row         int       `json:"row"`
-	Name        string    `json:"name"`
-	ExistingID  uuid.UUID `json:"existing_id"`
-	Action      string    `json:"action"` // "skipped" or "overwritten"
+	Row        int       `json:"row"`
+	Name       string    `json:"name"`
+	ExistingID uuid.UUID `json:"existing_id"`
+	Action     string    `json:"action"` // "skipped" or "overwritten"
 }
 
 // ImportRisksUseCase handles importing risks from file
@@ -129,14 +129,14 @@ func (uc *ImportRisksUseCase) Execute(
 			OrganizationID: tenantID,
 			Name:           item.Name,
 			Title:          item.Name,
-			Description:   item.Description,
-			Probability:   item.Probability,
-			Impact:        item.Impact,
-			Status:        domain.RiskOpen,
+			Description:    item.Description,
+			Probability:    item.Probability,
+			Impact:         item.Impact,
+			Status:         domain.RiskOpen,
 			Tags:           item.Tags,
-			Frameworks:    item.Frameworks,
-			CreatedBy:     importedBy,
-			Source:        domain.SourceImport,
+			Frameworks:     item.Frameworks,
+			CreatedBy:      importedBy,
+			Source:         domain.SourceImport,
 		}
 
 		// Parse asset ID if provided

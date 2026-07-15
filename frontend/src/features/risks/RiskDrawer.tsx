@@ -97,6 +97,9 @@ export const RiskDrawer = ({ risk, isOpen, onClose, onDelete, onDuplicate, onAcc
   const [assetCriticality, setAssetCriticality] = useState(1.5);
   const [acceptReason, setAcceptReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [localSLE, setLocalSLE] = useState('');
+  const [localARO, setLocalARO] = useState('');
+  const [savingCRQ, setSavingCRQ] = useState(false);
 
   useEffect(() => {
     if (!risk) return;
@@ -106,7 +109,25 @@ export const RiskDrawer = ({ risk, isOpen, onClose, onDelete, onDuplicate, onAcc
     setLocalProbability(risk.probability);
     setAssetCriticality(risk.assets?.[0]?.criticality === 'CRITICAL' ? 3 : risk.assets?.[0]?.criticality === 'HIGH' ? 2 : risk.assets?.[0]?.criticality === 'MEDIUM' ? 1.5 : 1) ;
     setAcceptReason('');
+    setLocalSLE(risk.sle_xaf != null ? String(risk.sle_xaf) : '');
+    setLocalARO(risk.aro != null ? String(risk.aro) : '');
   }, [risk]);
+
+  const fmtXAF = (v?: number) => (v == null ? '—' : `${Math.round(v).toLocaleString('fr-FR')} FCFA`);
+  const fmtUSD = (v?: number) => (v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+
+  const handleSaveCRQ = async () => {
+    if (!risk) return;
+    setSavingCRQ(true);
+    try {
+      await onUpdate(risk.id, {
+        sle_xaf: localSLE.trim() === '' ? null : Number(localSLE),
+        aro: localARO.trim() === '' ? null : Number(localARO),
+      });
+    } finally {
+      setSavingCRQ(false);
+    }
+  };
 
   const score = useMemo(() => {
     const normalizedImpact = Math.min(10, Math.max(0, localImpact));
@@ -409,13 +430,53 @@ export const RiskDrawer = ({ risk, isOpen, onClose, onDelete, onDuplicate, onAcc
           {activeTab === 'financial' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Analyse financière</h3>
-                <div className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-4">
-                  <div className="grid gap-3">
-                    <div className="flex justify-between text-sm text-zinc-400"><span>Valeur de l'actif</span><span>€120,000</span></div>
-                    <div className="flex justify-between text-sm text-zinc-400"><span>Perte potentielle</span><span>€24,000</span></div>
-                    <div className="flex justify-between text-sm text-zinc-400"><span>Exposition CRQ</span><span>€18,000</span></div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Quantification du risque (CRQ)</h3>
+                  <p className="text-sm text-zinc-500">Perte annuelle attendue (ALE = SLE × ARO) en FCFA et USD.</p>
+                </div>
+
+                {/* Computed ALE */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-3xl border border-primary/30 bg-primary/5 p-4">
+                    <p className="text-[11px] uppercase tracking-widest text-zinc-500">ALE (FCFA)</p>
+                    <p className="text-2xl font-bold text-white mt-1">{fmtXAF(risk.ale_xaf)}</p>
                   </div>
+                  <div className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-4">
+                    <p className="text-[11px] uppercase tracking-widest text-zinc-500">ALE (USD)</p>
+                    <p className="text-2xl font-bold text-white mt-1">{fmtUSD(risk.ale_usd)}</p>
+                  </div>
+                </div>
+                <div className="text-xs text-zinc-500">
+                  Base :{' '}
+                  {risk.ale_basis === 'explicit'
+                    ? 'saisie explicite (SLE × ARO)'
+                    : 'valeur de référence par criticité (aucune saisie)'}
+                </div>
+
+                {/* Inputs */}
+                <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <DynamicField
+                      label="SLE — Perte par sinistre (FCFA)"
+                      value={localSLE}
+                      type="number"
+                      onChange={setLocalSLE}
+                      description="Coût d'une seule occurrence"
+                    />
+                    <DynamicField
+                      label="ARO — Fréquence annuelle"
+                      value={localARO}
+                      type="number"
+                      onChange={setLocalARO}
+                      description="Ex. 0.5 = tous les 2 ans"
+                    />
+                  </div>
+                  <Button onClick={handleSaveCRQ} variant="secondary" isLoading={savingCRQ} className="w-full gap-2">
+                    <CheckCircle2 size={16} /> Recalculer l'exposition
+                  </Button>
+                  <p className="text-[11px] text-zinc-500">
+                    Laissez vides pour utiliser la valeur de référence par criticité.
+                  </p>
                 </div>
               </div>
             </motion.div>

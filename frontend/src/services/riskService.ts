@@ -27,6 +27,12 @@ export interface Risk {
   source?: string;
   mitigations?: Mitigation[];
   residual_risk?: number;
+  // Cyber Risk Quantification (CRQ). Inputs in XAF; ALE returned in XAF + USD.
+  sle_xaf?: number | null;
+  aro?: number | null;
+  ale_xaf?: number;
+  ale_usd?: number;
+  ale_basis?: 'explicit' | 'reference';
 }
 
 export interface Asset {

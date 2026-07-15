@@ -17,31 +17,31 @@ import (
 type BulkActionType string
 
 const (
-	BulkActionChangeStatus   BulkActionType = "change_status"
-	BulkActionAssignTo       BulkActionType = "assign_to"
-	BulkActionAddTags        BulkActionType = "add_tags"
-	BulkActionRemoveTags     BulkActionType = "remove_tags"
-	BulkActionDeleteRisks    BulkActionType = "delete"
+	BulkActionChangeStatus BulkActionType = "change_status"
+	BulkActionAssignTo     BulkActionType = "assign_to"
+	BulkActionAddTags      BulkActionType = "add_tags"
+	BulkActionRemoveTags   BulkActionType = "remove_tags"
+	BulkActionDeleteRisks  BulkActionType = "delete"
 )
 
 // BulkActionRequest represents a bulk operation on multiple risks
 type BulkActionRequest struct {
-	Type   BulkActionType `json:"type"`
+	Type    BulkActionType `json:"type"`
 	RiskIDs []uuid.UUID    `json:"risk_ids"` // Max 100 items
 	// Action-specific parameters
-	Status      *domain.RiskStatus `json:"status,omitempty"`      // For change_status
-	AssignToID  *uuid.UUID         `json:"assign_to_id,omitempty"` // For assign_to
-	Tags        []string           `json:"tags,omitempty"`         // For add_tags/remove_tags
-	Justification string            `json:"justification,omitempty"` // For accept/delete operations
+	Status        *domain.RiskStatus `json:"status,omitempty"`        // For change_status
+	AssignToID    *uuid.UUID         `json:"assign_to_id,omitempty"`  // For assign_to
+	Tags          []string           `json:"tags,omitempty"`          // For add_tags/remove_tags
+	Justification string             `json:"justification,omitempty"` // For accept/delete operations
 }
 
 // BulkActionResult represents the outcome of a bulk operation
 type BulkActionResult struct {
-	Success      int                            `json:"success"`       // Count of successful operations
-	Failed       int                            `json:"failed"`        // Count of failed operations
-	Total        int                            `json:"total"`         // Total attempted
-	Errors       []BulkActionError              `json:"errors"`        // Details of failures
-	UpdatedRisks []uuid.UUID                    `json:"updated_risks"` // IDs of successfully updated risks
+	Success      int               `json:"success"`       // Count of successful operations
+	Failed       int               `json:"failed"`        // Count of failed operations
+	Total        int               `json:"total"`         // Total attempted
+	Errors       []BulkActionError `json:"errors"`        // Details of failures
+	UpdatedRisks []uuid.UUID       `json:"updated_risks"` // IDs of successfully updated risks
 }
 
 // BulkActionError represents a single error in bulk operation

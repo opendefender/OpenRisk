@@ -17,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/pkg/crq"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -29,6 +30,7 @@ type RiskHandler struct {
 	updateRiskUseCase *risk.UpdateRiskUseCase
 	deleteRiskUseCase *risk.DeleteRiskUseCase
 	redisClient       *redis.Client
+	crq               *crq.Quantifier // Cyber Risk Quantification (XAF + USD)
 }
 
 func NewRiskHandler(
@@ -38,6 +40,7 @@ func NewRiskHandler(
 	updateRisk *risk.UpdateRiskUseCase,
 	deleteRisk *risk.DeleteRiskUseCase,
 	redisClient *redis.Client,
+	quantifier *crq.Quantifier,
 ) *RiskHandler {
 	return &RiskHandler{
 		createRiskUseCase: createRisk,
@@ -46,18 +49,34 @@ func NewRiskHandler(
 		updateRiskUseCase: updateRisk,
 		deleteRiskUseCase: deleteRisk,
 		redisClient:       redisClient,
+		crq:               quantifier,
 	}
+}
+
+// quantify fills a risk's computed CRQ fields (ALE in XAF + USD, basis) from its
+// SLE/ARO (or the reference model). Safe on nil.
+func (h *RiskHandler) quantify(r *domain.Risk) {
+	if r == nil || h.crq == nil {
+		return
+	}
+	q := h.crq.Quantify(r.SLEXAF, r.ARO, string(r.Criticality))
+	r.ALEXAF = q.ALE.XAF
+	r.ALEUSD = q.ALE.USD
+	r.ALEBasis = string(q.Basis)
 }
 
 // CreateRiskInput : DTO pour séparer la logique API de la logique DB
 type CreateRiskInput struct {
 	Title       string   `json:"title" validate:"required"`
 	Description string   `json:"description"`
-	Impact      float64  `json:"impact" validate:"required,min=0,max=10"` // ERD numeric(5,1) — bounds [0,10]
+	Impact      float64  `json:"impact" validate:"required,min=0,max=10"`     // ERD numeric(5,1) — bounds [0,10]
 	Probability float64  `json:"probability" validate:"required,min=0,max=1"` // ERD numeric(5,3) — bounds [0,1]
 	Tags        []string `json:"tags"`
 	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
 	Frameworks  []string `json:"frameworks"`
+	// CRQ monetary inputs (XAF). Optional.
+	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
+	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
 }
 
 // UpdateRiskInput : DTO pour la mise à jour partielle
@@ -70,6 +89,9 @@ type UpdateRiskInput struct {
 	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
 	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
 	Frameworks  []string `json:"frameworks" validate:"omitempty,dive,required"`
+	// CRQ monetary inputs (XAF). Pointers → nil means "leave unchanged".
+	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
+	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
 }
 
 // CreateRisk godoc
@@ -102,6 +124,8 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Probability: input.Probability,
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
+		SLEXAF:      input.SLEXAF,
+		ARO:         input.ARO,
 	}
 
 	domainRisk, err := h.createRiskUseCase.Execute(stdCtx, orgID, ucInput)
@@ -147,9 +171,11 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 
 	var out domain.Risk
 	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", domainRisk.ID).Error; err != nil {
+		h.quantify(domainRisk)
 		return c.Status(201).JSON(domainRisk)
 	}
 
+	h.quantify(&out)
 	return c.Status(201).JSON(out)
 }
 
@@ -222,6 +248,9 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch risks", "details": err.Error()})
 	}
 
+	for i := range result.Data {
+		h.quantify(&result.Data[i])
+	}
 	return c.JSON(fiber.Map{"items": result.Data, "total": result.Total})
 }
 
@@ -244,6 +273,7 @@ func (h *RiskHandler) GetRisk(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Risk not found", "details": err.Error()})
 	}
 
+	h.quantify(domainRisk)
 	return c.JSON(domainRisk)
 }
 
@@ -276,6 +306,8 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		Probability: &input.Probability,
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
+		SLEXAF:      input.SLEXAF,
+		ARO:         input.ARO,
 	}
 
 	if input.Title == "" {
@@ -346,8 +378,10 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	}
 
 	if !hasOut {
+		h.quantify(domainRisk)
 		return c.JSON(domainRisk)
 	}
+	h.quantify(&out)
 	return c.JSON(out)
 }
 

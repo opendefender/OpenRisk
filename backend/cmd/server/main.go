@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -47,6 +48,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/ai"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
+	"github.com/opendefender/openrisk/pkg/crq"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/scoring"
 	"github.com/opendefender/openrisk/pkg/storage"
@@ -447,7 +449,16 @@ func main() {
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance)
+	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
+	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
+	xafPerUSD := crq.DefaultXAFPerUSD
+	if v := os.Getenv("XAF_USD_RATE"); v != "" {
+		if parsed, perr := strconv.ParseFloat(v, 64); perr == nil && parsed > 0 {
+			xafPerUSD = parsed
+		}
+	}
+	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance, riskQuantifier)
 
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256

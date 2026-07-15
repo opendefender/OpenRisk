@@ -38,33 +38,33 @@ func (uc *DuplicateRiskUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 
 	// 2. Create copy with new ID and updated metadata
 	newRisk := &domain.Risk{
-		ID:             uuid.New(),
-		TenantID:       sourceRisk.TenantID,
-		OrganizationID: sourceRisk.OrganizationID,
-		Name:           sourceRisk.Name + " (Copy)",
-		Title:          sourceRisk.Title + " (Copy)",
-		Description:   sourceRisk.Description,
-		Probability:   sourceRisk.Probability,
-		Impact:        sourceRisk.Impact,
-		Score:         0, // Will be recalculated by Score Engine
-		Criticality:   sourceRisk.Criticality,
+		ID:                uuid.New(),
+		TenantID:          sourceRisk.TenantID,
+		OrganizationID:    sourceRisk.OrganizationID,
+		Name:              sourceRisk.Name + " (Copy)",
+		Title:             sourceRisk.Title + " (Copy)",
+		Description:       sourceRisk.Description,
+		Probability:       sourceRisk.Probability,
+		Impact:            sourceRisk.Impact,
+		Score:             0, // Will be recalculated by Score Engine
+		Criticality:       sourceRisk.Criticality,
 		ImpactLegacy:      sourceRisk.ImpactLegacy,
 		ProbabilityLegacy: sourceRisk.ProbabilityLegacy,
-		Status:         domain.RiskOpen, // Reset to "open"
-		Level:          sourceRisk.Level,
-		CreatedBy:      duplicatedBy,
-		AssignedTo:     sourceRisk.AssignedTo, // Copy assignment
-		ReviewerID:     sourceRisk.ReviewerID,
-		Owner:          sourceRisk.Owner,
-		AssetID:        sourceRisk.AssetID,
-		Tags:           sourceRisk.Tags,
-		Frameworks:     sourceRisk.Frameworks,
-		ControlIDs:     sourceRisk.ControlIDs,
-		TreatmentPlan: sourceRisk.TreatmentPlan,
-		ResidualRisk:   sourceRisk.ResidualRisk,
-		Source:         "manual", // Mark as manually created (not auto-generated)
-		SourceCVEID:    sourceRisk.SourceCVEID,
-		CustomFields:   sourceRisk.CustomFields,
+		Status:            domain.RiskOpen, // Reset to "open"
+		Level:             sourceRisk.Level,
+		CreatedBy:         duplicatedBy,
+		AssignedTo:        sourceRisk.AssignedTo, // Copy assignment
+		ReviewerID:        sourceRisk.ReviewerID,
+		Owner:             sourceRisk.Owner,
+		AssetID:           sourceRisk.AssetID,
+		Tags:              sourceRisk.Tags,
+		Frameworks:        sourceRisk.Frameworks,
+		ControlIDs:        sourceRisk.ControlIDs,
+		TreatmentPlan:     sourceRisk.TreatmentPlan,
+		ResidualRisk:      sourceRisk.ResidualRisk,
+		Source:            "manual", // Mark as manually created (not auto-generated)
+		SourceCVEID:       sourceRisk.SourceCVEID,
+		CustomFields:      sourceRisk.CustomFields,
 	}
 
 	// 3. Persist new risk
