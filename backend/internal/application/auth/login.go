@@ -13,20 +13,25 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
 // LoginInput represents the input for user login
 type LoginInput struct {
-	Email    string
-	Password string
+	Email             string
+	Password          string
 	DeviceFingerprint string // For security tracking
 }
 
-// LoginOutput represents the output of successful login
+// LoginOutput represents the output of successful login.
+// When MFARequired is true, no full session is issued: TokenPair is nil and the
+// caller must complete /auth/mfa/challenge with MFAToken to obtain the real pair.
 type LoginOutput struct {
 	User         *domain.User
 	TokenPair    *auth.TokenPair
 	Organization *domain.Organization
+	MFARequired  bool
+	MFAToken     string
 }
 
 // LoginUseCase handles user authentication
@@ -34,6 +39,7 @@ type LoginUseCase struct {
 	userRepo       UserRepository
 	tokenManager   *auth.TokenManager
 	passwordHasher auth.PasswordHasher
+	mfaRepo        repository.MFARepository // optional; when set, verified MFA is enforced
 }
 
 // NewLoginUseCase creates a new login use case
@@ -43,6 +49,14 @@ func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager, p
 		tokenManager:   tokenManager,
 		passwordHasher: passwordHasher,
 	}
+}
+
+// WithMFA enables MFA enforcement: if the authenticating user has a verified MFA
+// secret, login stops short of a full token pair and returns an MFA_REQUIRED
+// challenge token instead.
+func (uc *LoginUseCase) WithMFA(mfaRepo repository.MFARepository) *LoginUseCase {
+	uc.mfaRepo = mfaRepo
+	return uc
 }
 
 // Execute performs user login
@@ -94,6 +108,28 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	if member != nil {
 		orgRoles[org.ID] = string(member.Role)
 		permissions = member.GetPermissionSet().GetAllPermissions()
+	}
+
+	// L4 — MFA enforcement. If the user has a verified MFA secret, do NOT issue a
+	// full session yet: hand back a short-lived MFA_REQUIRED token that only
+	// /auth/mfa/challenge accepts. The real pair is minted after code validation.
+	if uc.mfaRepo != nil {
+		mfaSecret, mErr := uc.mfaRepo.GetMFASecret(ctx, user.ID, org.ID)
+		if mErr != nil {
+			return nil, fmt.Errorf("failed to check MFA status: %w", mErr)
+		}
+		if mfaSecret != nil && mfaSecret.IsVerified {
+			mfaToken, tErr := uc.tokenManager.GenerateMFAChallengeToken(user.ID, org.ID)
+			if tErr != nil {
+				return nil, fmt.Errorf("failed to issue MFA challenge: %w", tErr)
+			}
+			return &LoginOutput{
+				User:         user,
+				Organization: org,
+				MFARequired:  true,
+				MFAToken:     mfaToken,
+			}, nil
+		}
 	}
 
 	// Generate token pair

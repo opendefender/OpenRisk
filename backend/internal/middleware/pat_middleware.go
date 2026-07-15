@@ -14,56 +14,114 @@ import (
 	"github.com/opendefender/openrisk/internal/auth"
 )
 
-// PATMiddleware validates Personal Access Tokens
-// Must be used after AuthMiddlewareRS256 for JWT tokens
-func PATMiddleware(patService *auth.PersonalAccessTokenService) fiber.Handler {
+// PATMiddleware authenticates Personal Access Tokens (L5) and is designed to run
+// BEFORE the RS256 JWT middleware, alongside it:
+//
+//   - If the bearer credential is a PAT ("<prefix>_<secret>", no dots) and valid,
+//     it populates the SAME request context a JWT login would (user_id, tenant_id,
+//     org_roles, permissions, RequestContext) — but with permissions narrowed to
+//     the PAT's scopes — then continues.
+//   - For anything that is not a valid PAT (a JWT, a malformed value, or no header),
+//     it is a NO-OP: it calls Next() and lets AuthMiddlewareRS256 authenticate (or
+//     reject) the request. It never 401s a JWT.
+//
+// The JWT middleware, in turn, skips when a PAT has already authenticated the
+// request (c.Locals("is_pat") == true), so the two coexist cleanly.
+func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.SessionResolver) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Skip if already authenticated via JWT
+		// Already authenticated (defensive) — don't double-process.
 		if c.Locals("user_id") != nil {
 			return c.Next()
 		}
 
-		// Extract token from Authorization header
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "UNAUTHORIZED",
-				"message": "Missing authorization header",
-			})
+			return c.Next() // no credential → let the JWT middleware decide
 		}
-
-		// Parse "Bearer <token>"
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "UNAUTHORIZED",
-				"message": "Invalid authorization header format",
-			})
+			return c.Next()
+		}
+		raw := parts[1]
+
+		// A JWT is dot-delimited base64url; a PAT is "<8-hex>_<hex>" with no dots.
+		// Only attempt PAT validation on the PAT shape so we never eat a JWT.
+		if !looksLikePAT(raw) {
+			return c.Next()
 		}
 
-		tokenValue := parts[1]
-
-		// Validate PAT
-		token, err := patService.ValidateToken(c.Context(), tokenValue)
+		pat, err := patService.ValidateToken(c.UserContext(), raw)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "TOKEN_INVALID",
-				"message": "Invalid or expired personal access token",
-			})
+			// Shaped like a PAT but invalid/expired/unknown — fall through so the
+			// JWT middleware produces the canonical 401.
+			return c.Next()
 		}
 
-		// Store token info in context
-		c.Locals("user_id", token.UserID)
-		c.Locals("token_id", token.ID)
-		c.Locals("token_scopes", token.Scopes)
-		c.Locals("is_pat", true)
+		// PAT is valid — resolve the owning user's tenant + permissions so the token
+		// carries a real tenant context (without this, every tenant-scoped handler
+		// would fall back to uuid.Nil).
+		if resolve == nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"code": "PAT_MISCONFIGURED", "message": "PAT resolver not configured"})
+		}
+		sc, err := resolve(c.UserContext(), pat.UserID)
+		if err != nil || sc == nil || sc.TenantID == uuid.Nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"code": "UNAUTHORIZED", "message": "token owner has no organization"})
+		}
 
-		// For PAT, we need to determine tenant context
-		// This should be set by the handler or a subsequent middleware
-		// For now, we'll assume single-tenant or handler sets it
+		// Respect PAT scopes: the effective permission set is the INTERSECTION of the
+		// owner's permissions and the PAT scopes — a PAT can never exceed its owner,
+		// and never exceed its scopes. We take each scope the owner is actually
+		// entitled to (so an owner with "*" keeps exactly the scoped permissions,
+		// while a limited owner cannot widen their PAT beyond what they hold).
+		scopes := patService.GetScopes(pat)
+		effective := make([]string, 0, len(scopes))
+		for _, scope := range scopes {
+			if permsGrant(sc.Permissions, scope) {
+				effective = append(effective, scope)
+			}
+		}
+
+		c.Locals("user_id", pat.UserID)
+		c.Locals("userID", pat.UserID)
+		c.Locals("tenant_id", sc.TenantID)
+		c.Locals("tenantID", sc.TenantID)
+		c.Locals("org_roles", sc.OrgRoles)
+		c.Locals("permissions", effective)
+		c.Locals("feature_flags", sc.FeatureFlags)
+		c.Locals("token_id", pat.ID)
+		c.Locals("token_scopes", scopes)
+		c.Locals("is_pat", true)
+		SetContext(c, &RequestContext{UserID: pat.UserID, OrganizationID: sc.TenantID})
 
 		return c.Next()
 	}
+}
+
+// permsGrant reports whether a permission list grants `required`, honoring the
+// "*" admin wildcard and "resource:*" scoped wildcards (same semantics as the
+// hasPermission helper used by the RBAC middleware).
+func permsGrant(perms []string, required string) bool {
+	for _, p := range perms {
+		if p == required || p == "*" {
+			return true
+		}
+		if strings.HasSuffix(p, ":*") {
+			if strings.HasPrefix(required, strings.TrimSuffix(p, "*")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// looksLikePAT reports whether a bearer value has the PAT shape "<8-hex>_<secret>"
+// and is therefore not a JWT (which is always dot-delimited).
+func looksLikePAT(raw string) bool {
+	if strings.Contains(raw, ".") {
+		return false
+	}
+	parts := strings.Split(raw, "_")
+	return len(parts) == 2 && len(parts[0]) == 8
 }
 
 // RequireTokenScope checks if PAT has required scope
@@ -97,26 +155,14 @@ func RequireTokenScope(requiredScopes ...string) fiber.Handler {
 			for _, scope := range scopes {
 				if scope == required || scope == "*" {
 					hasRequiredScope = true
-					break
 				}
-				// Support wildcards
-				if strings.HasSuffix(scope, ":*") {
-					resourceWildcard := scope[:len(scope)-1]
-					if len(required) > len(resourceWildcard) && required[:len(resourceWildcard)] == resourceWildcard {
-						hasRequiredScope = true
-						break
-					}
-				}
-			}
-			if hasRequiredScope {
-				break
 			}
 		}
 
 		if !hasRequiredScope {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"code":    "FORBIDDEN",
-				"message": "Token does not have required scope",
+				"message": "Token lacks required scope",
 			})
 		}
 

@@ -93,7 +93,10 @@ func (s *PersonalAccessTokenService) CreateToken(ctx context.Context, userID uui
 		return nil, "", fmt.Errorf("failed to save token: %w", err)
 	}
 
-	return pat, token, nil
+	// Return the GitHub-style "<prefix>_<secret>" value. ValidateToken splits on
+	// "_" and requires an 8-char prefix; previously CreateToken returned the bare
+	// secret with no prefix, so every token this service minted failed validation.
+	return pat, tokenPrefix + "_" + token, nil
 }
 
 // ValidateToken validates a token and returns the PAT if valid
@@ -136,6 +139,18 @@ func (s *PersonalAccessTokenService) ValidateToken(ctx context.Context, token st
 	}
 
 	return pat, nil
+}
+
+// GetScopes returns the token's granted scopes (empty slice if none/undecodable).
+func (s *PersonalAccessTokenService) GetScopes(pat *domain.PersonalAccessToken) []string {
+	var scopes []string
+	if len(pat.Scopes) == 0 {
+		return scopes
+	}
+	if err := json.Unmarshal(pat.Scopes, &scopes); err != nil {
+		return nil
+	}
+	return scopes
 }
 
 // HasScope checks if the token has a specific scope (supports wildcards)

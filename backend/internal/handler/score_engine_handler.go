@@ -29,12 +29,12 @@ func NewScoreEngineHandler(db *gorm.DB, service *service.ScoreEngineService) *Sc
 
 // CreateScoringConfigInput représente la structure pour créer une configuration
 type CreateScoringConfigInput struct {
-	Name                  string                             `json:"name" validate:"required"`
-	Description           string                             `json:"description"`
-	BaseFormula           string                             `json:"base_formula" validate:"required"`
-	WeightingFactors      map[string]float64                 `json:"weighting_factors"`
-	RiskMatrixThresholds  map[string]int                     `json:"risk_matrix_thresholds" validate:"required"`
-	AssetCriticalityMult  map[string]float64                 `json:"asset_criticality_mult"`
+	Name                 string             `json:"name" validate:"required"`
+	Description          string             `json:"description"`
+	BaseFormula          string             `json:"base_formula" validate:"required"`
+	WeightingFactors     map[string]float64 `json:"weighting_factors"`
+	RiskMatrixThresholds map[string]int     `json:"risk_matrix_thresholds" validate:"required"`
+	AssetCriticalityMult map[string]float64 `json:"asset_criticality_mult"`
 }
 
 // GetScoringConfigs godoc
@@ -188,12 +188,12 @@ func (h *ScoreEngineHandler) UpdateScoringConfig(c *fiber.Ctx) error {
 
 // ComputeRiskScoreInput représente les données pour calculer un score
 type ComputeRiskScoreInput struct {
-	Impact        int      `json:"impact" validate:"required,min=1,max=5"`
-	Probability   int      `json:"probability" validate:"required,min=1,max=5"`
-	AssetIDs      []string `json:"asset_ids"`
-	ConfigID      string   `json:"config_id"`
-	ApplyTrend    bool     `json:"apply_trend"`
-	TrendFactor   float64  `json:"trend_factor"`
+	Impact      int      `json:"impact" validate:"required,min=1,max=5"`
+	Probability int      `json:"probability" validate:"required,min=1,max=5"`
+	AssetIDs    []string `json:"asset_ids"`
+	ConfigID    string   `json:"config_id"`
+	ApplyTrend  bool     `json:"apply_trend"`
+	TrendFactor float64  `json:"trend_factor"`
 }
 
 // ComputeRiskScore godoc
@@ -246,13 +246,13 @@ func (h *ScoreEngineHandler) ComputeRiskScore(c *fiber.Ctx) error {
 	riskLevel := h.service.ClassifyRiskLevel(finalScore, config)
 
 	return c.JSON(fiber.Map{
-		"base_score":   baseScore,
-		"final_score":  finalScore,
-		"risk_level":   riskLevel,
-		"impact":       input.Impact,
-		"probability":  input.Probability,
-		"config_id":    config.ID,
-		"asset_count":  len(assets),
+		"base_score":  baseScore,
+		"final_score": finalScore,
+		"risk_level":  riskLevel,
+		"impact":      input.Impact,
+		"probability": input.Probability,
+		"config_id":   config.ID,
+		"asset_count": len(assets),
 	})
 }
 
@@ -359,11 +359,11 @@ func (h *ScoreEngineHandler) GetScoringMetrics(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"avg_score":   avgScore,
-		"max_score":   maxScore,
-		"risk_stats":  stats,
-		"formula":     config.BaseFormula,
-		"thresholds":  config.RiskMatrixThresholds,
+		"avg_score":  avgScore,
+		"max_score":  maxScore,
+		"risk_stats": stats,
+		"formula":    config.BaseFormula,
+		"thresholds": config.RiskMatrixThresholds,
 	})
 }
 

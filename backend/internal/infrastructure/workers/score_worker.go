@@ -38,10 +38,10 @@ import (
 //  5. Retry: si erreur DB → retry 3× avec backoff 100ms/500ms/2s
 //     Si toujours en échec → logger l'erreur + continuer (ne pas panic)
 type ScoreWorker struct {
-	redis   *redisclient.Client
-	engine  scoring.Engine
+	redis    *redisclient.Client
+	engine   scoring.Engine
 	riskRepo RiskRepository
-	logger  zerolog.Logger
+	logger   zerolog.Logger
 }
 
 // RiskRepository est l'interface minimale requise par le worker.

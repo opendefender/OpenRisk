@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

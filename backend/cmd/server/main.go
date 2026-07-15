@@ -7,6 +7,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -131,6 +133,14 @@ func main() {
 		&domain.Organization{},
 		&domain.OrganizationMember{},
 		&coreauth.RefreshToken{},
+		// L2/L4/L5/L7 auth tables. Previously absent from AutoMigrate, so the whole
+		// feature set (MFA setup/challenge, PAT auth, SSO account linking, and the
+		// full-fidelity auth audit trail) errored on non-existent tables.
+		&domain.MFASecret{},
+		&domain.MFABackupCode{},
+		&domain.PersonalAccessToken{},
+		&domain.OAuthProvider{},
+		&domain.AuthAuditLog{},
 		&domain.Risk{},
 		&domain.Mitigation{},
 		&domain.Asset{},
@@ -364,16 +374,67 @@ func main() {
 	passwordHasher := coreauth.NewArgon2idPasswordHasher()
 
 	// Initialize token manager (access/refresh JWT pairs, backed by the DB).
-	// internal/auth has its own RSAKeys type (distinct from pkg/auth's, used for
-	// middleware.Protected above) — load the same PEM files into that type here.
-	coreRSAKeys := coreauth.MustLoadRSAKeys(cfg.Server.RSAPrivateKeyPath, cfg.Server.RSAPublicKeyPath)
-	tokenManager := coreauth.NewTokenManager(database.DB, coreRSAKeys)
+	// There is now a SINGLE RSA key set + JWT implementation (pkg/auth): the exact
+	// same `rsaKeys` used by middleware.Protected is handed to the TokenManager, so
+	// every token is signed and validated by one implementation.
+	tokenManager := coreauth.NewTokenManager(database.DB, rsaKeys)
 
-	// Initialize use cases
-	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher)
+	// One session resolver, shared by refresh + OAuth2/SAML, re-derives the user's
+	// tenant + org roles + permissions from the DB at mint time. This guarantees
+	// (a) OAuth/SAML sessions are identical to password login, and (b) refresh
+	// preserves — and freshens — permissions instead of dropping them.
+	resolveSession := func(ctx context.Context, uid uuid.UUID) (*coreauth.SessionClaims, error) {
+		org, err := userRepo.GetUserDefaultOrganization(ctx, uid)
+		if err != nil {
+			return nil, err
+		}
+		if org == nil {
+			return nil, fmt.Errorf("user has no organization")
+		}
+		sc := &coreauth.SessionClaims{TenantID: org.ID, OrgRoles: map[uuid.UUID]string{}}
+		member, err := userRepo.GetOrganizationMember(ctx, uid, org.ID)
+		if err != nil {
+			return nil, err
+		}
+		if member != nil {
+			sc.OrgRoles[org.ID] = string(member.Role)
+			sc.Permissions = member.GetPermissionSet().GetAllPermissions()
+		}
+		return sc, nil
+	}
+	tokenManager.SetSessionResolver(resolveSession)
+
+	// L5 — Personal Access Tokens. DB-backed service (survives restarts, scoped),
+	// its auth middleware, and a management handler. The same resolveSession gives a
+	// PAT the owner's tenant + permissions (narrowed to the token's scopes).
+	patService := coreauth.NewPersonalAccessTokenService(repository.NewGormPersonalAccessTokenRepository(database.DB))
+
+	// L7 — full-fidelity auth audit trail (auth_audit_logs: IP, UA, geo, device
+	// fingerprint, timestamp). Shared by the clean auth handler, MFA, and SSO.
+	authAudit := coreauth.NewAuditService(repository.NewGormAuthAuditLogRepository(database.DB))
+
+	// MFA (L4). AES-256 key for the encrypted TOTP secret at rest.
+	mfaRepo := repository.NewGormMFARepository(database.DB)
+	mfaKeyRaw := os.Getenv("MFA_ENCRYPTION_KEY")
+	if mfaKeyRaw == "" {
+		mfaKeyRaw = "openrisk-dev-mfa-encryption-key-change-me"
+		log.Println("Warning: MFA_ENCRYPTION_KEY not set — using an insecure dev key. Set a strong 32-byte key in production.")
+	}
+	mfaKey := sha256.Sum256([]byte(mfaKeyRaw)) // 32 bytes for AES-256-GCM
+
+	// Initialize use cases. Login enforces MFA when the user has a verified secret.
+	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).WithMFA(mfaRepo)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher)
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
+
+	// MFA use cases + handler.
+	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])
+	verifyMFAUseCase := auth.NewVerifyMFAUseCase(mfaRepo, *userRepo, mfaKey[:])
+	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, passwordHasher)
+	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])
+	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit)
+	patHandler := authhandler.NewPATHandler(patService, authAudit)
 
 	// Initialize Clean Architecture auth handler
 	cleanAuthHandler := authhandler.NewHandler(
@@ -382,13 +443,18 @@ func main() {
 		refreshUseCase,
 		logoutUseCase,
 		passwordHasher,
+		authAudit,
 	)
 
 	// Initialize legacy auth handler (for backward compatibility)
 	authHandler := handlers.NewAuthHandler()
 
-	// Initialize OAuth2 and SAML2 configurations
+	// Initialize OAuth2 and SAML2 configurations. Hand SSO the SAME token manager +
+	// audit service so OAuth/SAML issue RS256 access+refresh pairs identical to
+	// password login (previously they minted HS256 tokens the RS256 middleware
+	// rejected) and are audited with the full field set.
 	handlers.InitializeOAuth2()
+	handlers.SetSSOTokenManager(tokenManager, authAudit, userRepo, orgRepo)
 
 	// --- Routes Publiques ---
 	api.Get("/health", func(c *fiber.Ctx) error {
@@ -418,6 +484,13 @@ func main() {
 	api.Post("/auth/saml2/acs", handlers.SAML2ACS)
 	api.Get("/auth/saml2/metadata", handlers.SAMLMetadata)
 
+	// --- MFA challenge (L4, second login leg) ---
+	// Reached with the short-lived MFA_REQUIRED token from /auth/login. Registered
+	// on `api` BEFORE the Protected group: MFATokenMiddleware validates the special
+	// token itself and rejects full/absent tokens. On a valid code the handler
+	// mints the real access+refresh pair.
+	api.Post("/auth/mfa/challenge", middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
+
 	// Scanner AGENT endpoints (register/stream/push) are mounted on `app` HERE —
 	// deliberately BEFORE the /api/v1 user-token middleware below — so they are
 	// NOT wrapped by middleware.Protected or the marketplace's RequireRole (both
@@ -433,7 +506,21 @@ func main() {
 
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
+	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
+	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
+	// JWT middleware skips when a PAT already authenticated the request.
+	api.Use(middleware.PATMiddleware(patService, resolveSession))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
+
+	// --- MFA enrollment (L4) — full session required ---
+	protected.Post("/auth/mfa/setup", mfaHandler.Setup)
+	protected.Post("/auth/mfa/verify", mfaHandler.Verify)
+	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+
+	// --- Personal Access Tokens (L5) management — full session required ---
+	protected.Post("/auth/pat", patHandler.Create)
+	protected.Get("/auth/pat", patHandler.List)
+	protected.Delete("/auth/pat/:id", patHandler.Revoke)
 
 	// Current user profile endpoint
 	api.Get("/auth/me", middleware.Protected(rsaKeys, jtiBlacklistChecker), cleanAuthHandler.Me)

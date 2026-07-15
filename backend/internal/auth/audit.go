@@ -59,27 +59,61 @@ func (s *AuditService) LogEvent(ctx context.Context, userID *uuid.UUID, tenantID
 	return s.repo.Create(ctx, log)
 }
 
-// LogFromFiberContext logs an event from a Fiber context
-func (s *AuditService) LogFromFiberContext(c *fiber.Ctx, action AuditAction, success bool, failureReason *string) error {
-	// Extract user ID from context if available
-	var userID *uuid.UUID
-	if uid, err := uuid.Parse(c.Locals("user_id").(string)); err == nil {
-		userID = &uid
-	}
-
-	// Extract tenant ID from context if available
-	var tenantID *uuid.UUID
-	if tid, err := uuid.Parse(c.Locals("tenant_id").(string)); err == nil {
-		tenantID = &tid
-	}
-
+// LogFiber records an authentication event from a Fiber context, capturing the
+// full L7 field set: IP, User-Agent, geo country, device fingerprint, timestamp.
+// userID/tenantID are passed explicitly because most auth events (login, refresh,
+// OAuth/SAML callbacks) fire BEFORE any auth middleware populates the context.
+func (s *AuditService) LogFiber(c *fiber.Ctx, userID, tenantID *uuid.UUID, action AuditAction, success bool, failureReason *string) error {
 	ip := c.IP()
+	if xff := c.Get("X-Forwarded-For"); xff != "" {
+		ip = xff
+	}
 	userAgent := c.Get("User-Agent")
-	deviceFingerprint := c.Get("X-Device-Fingerprint")
+
 	var deviceFP *string
-	if deviceFingerprint != "" {
-		deviceFP = &deviceFingerprint
+	if fp := c.Get("X-Device-Fingerprint"); fp != "" {
+		deviceFP = &fp
 	}
 
-	return s.LogEvent(c.Context(), userID, tenantID, action, success, failureReason, ip, userAgent, nil, deviceFP)
+	geo := geoCountryFromCtx(c)
+
+	return s.LogEvent(c.Context(), userID, tenantID, action, success, failureReason, ip, userAgent, geo, deviceFP)
+}
+
+// LogFromFiberContext logs an event, reading user/tenant from the request context
+// (for events that fire AFTER auth middleware, e.g. logout).
+func (s *AuditService) LogFromFiberContext(c *fiber.Ctx, action AuditAction, success bool, failureReason *string) error {
+	var userID *uuid.UUID
+	if v, ok := c.Locals("user_id").(uuid.UUID); ok && v != uuid.Nil {
+		userID = &v
+	} else if s, ok := c.Locals("user_id").(string); ok {
+		if uid, err := uuid.Parse(s); err == nil {
+			userID = &uid
+		}
+	}
+
+	var tenantID *uuid.UUID
+	if v, ok := c.Locals("tenant_id").(uuid.UUID); ok && v != uuid.Nil {
+		tenantID = &v
+	} else if s, ok := c.Locals("tenant_id").(string); ok {
+		if tid, err := uuid.Parse(s); err == nil {
+			tenantID = &tid
+		}
+	}
+
+	return s.LogFiber(c, userID, tenantID, action, success, failureReason)
+}
+
+// geoCountryFromCtx best-effort extracts an ISO-3166 country code from common
+// CDN/proxy headers (Cloudflare, standard reverse proxies). Returns nil when the
+// deployment has no geo-aware edge in front of it — the column stays honestly NULL
+// rather than being faked.
+func geoCountryFromCtx(c *fiber.Ctx) *string {
+	for _, h := range []string{"CF-IPCountry", "X-Geo-Country", "X-Country-Code", "X-AppEngine-Country"} {
+		if v := c.Get(h); v != "" && v != "XX" {
+			cc := v
+			return &cc
+		}
+	}
+	return nil
 }

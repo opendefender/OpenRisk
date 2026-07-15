@@ -81,17 +81,20 @@ func (OrganizationRole) TableName() string {
 
 // AuthAuditLog represents an audit log entry for authentication events
 type AuthAuditLog struct {
-	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID            *uuid.UUID `gorm:"type:uuid;index" json:"user_id,omitempty"`
-	TenantID          *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id,omitempty"`
-	Action            string     `gorm:"not null;index" json:"action"` // login | refresh | logout | mfa_setup | switch_org | pat_create ...
-	IP                string     `gorm:"type:varchar(45)" json:"ip"`   // IPv4/IPv6
-	UserAgent         string     `gorm:"type:text" json:"user_agent"`
-	GeoCountry        *string    `gorm:"type:varchar(2)" json:"geo_country,omitempty"`
-	Success           bool       `gorm:"default:true;index" json:"success"`
-	FailureReason     *string    `gorm:"type:text" json:"failure_reason,omitempty"`
-	DeviceFingerprint *string    `gorm:"type:varchar(255)" json:"device_fingerprint,omitempty"`
-	CreatedAt         time.Time  `gorm:"autoCreateTime;index" json:"created_at"`
+	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID     *uuid.UUID `gorm:"type:uuid;index" json:"user_id,omitempty"`
+	TenantID   *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id,omitempty"`
+	Action     string     `gorm:"not null;index" json:"action"` // login | refresh | logout | mfa_setup | switch_org | pat_create ...
+	IP         string     `gorm:"type:varchar(45)" json:"ip"`   // IPv4/IPv6
+	UserAgent  string     `gorm:"type:text" json:"user_agent"`
+	GeoCountry *string    `gorm:"type:varchar(2)" json:"geo_country,omitempty"`
+	// No `default:true`: with a default, GORM omits the zero value (false) from the
+	// INSERT and the DB default silently records FAILED auth events as successes.
+	// Without it GORM always writes the real value, so failures are audited as failures.
+	Success           bool      `gorm:"index" json:"success"`
+	FailureReason     *string   `gorm:"type:text" json:"failure_reason,omitempty"`
+	DeviceFingerprint *string   `gorm:"type:varchar(255)" json:"device_fingerprint,omitempty"`
+	CreatedAt         time.Time `gorm:"autoCreateTime;index" json:"created_at"`
 }
 
 // TableName specifies the table name
