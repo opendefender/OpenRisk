@@ -138,8 +138,10 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 
 	mwCtx := middleware.GetContext(c)
 	orgID := uuid.Nil
+	createdBy := uuid.Nil
 	if mwCtx != nil {
 		orgID = mwCtx.OrganizationID
+		createdBy = mwCtx.UserID
 	}
 
 	ucInput := risk.CreateRiskInput{
@@ -149,6 +151,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Probability: input.Probability,
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
+		CreatedBy:   createdBy,
 		SLEXAF:      input.SLEXAF,
 		ARO:         input.ARO,
 	}
@@ -178,10 +181,6 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	// Always publish Redis event → ScoreWorker listens and recalculates async,
 	// using the real criticality of whichever assets were just linked instead
 	// of a hardcoded placeholder.
-	userID := uuid.Nil
-	if mwCtx != nil {
-		userID = mwCtx.UserID
-	}
 	if h.redisClient != nil {
 		event := events.RiskUpdatedEvent{
 			RiskID:           domainRisk.ID.String(),
@@ -189,7 +188,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 			Probability:      float64(domainRisk.Probability),
 			Impact:           float64(domainRisk.Impact),
 			AssetCriticality: averageAssetCriticalityFactor(linkedAssets),
-			TriggeredBy:      userID.String(),
+			TriggeredBy:      createdBy.String(),
 		}
 		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
 	}
