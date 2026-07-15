@@ -15,16 +15,19 @@ import (
 
 // CreateRiskInput represents the input for creating a risk.
 type CreateRiskInput struct {
-	Title        string
-	Description  string
-	Impact       float64 // ERD numeric(5,1) — bounds [0,10]
-	Probability  float64 // ERD numeric(5,3) — bounds [0,1]
-	Status       domain.RiskStatus
-	Tags         []string
-	Frameworks   []string
-	Owner        string
-	Source       string // parsed into domain.RiskSource in Execute()
-	ExternalID   string
+	Title       string
+	Description string
+	Impact      float64 // ERD numeric(5,1) — bounds [0,10]
+	Probability float64 // ERD numeric(5,3) — bounds [0,1]
+	Status      domain.RiskStatus
+	Tags        []string
+	Frameworks  []string
+	Owner       string
+	Source      string // parsed into domain.RiskSource in Execute()
+	ExternalID  string
+	CreatedBy   uuid.UUID // the authenticated user creating the risk
+	SLEXAF      *float64  // CRQ: single loss expectancy (XAF), optional
+	ARO         *float64  // CRQ: annualized rate of occurrence, optional
 }
 
 // CreateRiskUseCase handles the creation of a new risk.
@@ -69,6 +72,9 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		ExternalID:     input.ExternalID,
 		TenantID:       orgID,
 		OrganizationID: orgID,
+		CreatedBy:      input.CreatedBy,
+		SLEXAF:         input.SLEXAF,
+		ARO:            input.ARO,
 	}
 
 	// Set status (default to DRAFT)

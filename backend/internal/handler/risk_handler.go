@@ -17,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/pkg/crq"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -28,7 +29,9 @@ type RiskHandler struct {
 	listRisksUseCase  *risk.ListRisksUseCase
 	updateRiskUseCase *risk.UpdateRiskUseCase
 	deleteRiskUseCase *risk.DeleteRiskUseCase
+	markReviewedUC    *risk.MarkRiskReviewedUseCase
 	redisClient       *redis.Client
+	crq               *crq.Quantifier // Cyber Risk Quantification (XAF + USD)
 }
 
 func NewRiskHandler(
@@ -37,7 +40,9 @@ func NewRiskHandler(
 	listRisks *risk.ListRisksUseCase,
 	updateRisk *risk.UpdateRiskUseCase,
 	deleteRisk *risk.DeleteRiskUseCase,
+	markReviewed *risk.MarkRiskReviewedUseCase,
 	redisClient *redis.Client,
+	quantifier *crq.Quantifier,
 ) *RiskHandler {
 	return &RiskHandler{
 		createRiskUseCase: createRisk,
@@ -45,19 +50,56 @@ func NewRiskHandler(
 		listRisksUseCase:  listRisks,
 		updateRiskUseCase: updateRisk,
 		deleteRiskUseCase: deleteRisk,
+		markReviewedUC:    markReviewed,
 		redisClient:       redisClient,
+		crq:               quantifier,
 	}
+}
+
+// MarkReviewed POST /risks/:id/review — records a review now and reschedules the
+// next one from the risk's cadence.
+func (h *RiskHandler) MarkReviewed(c *fiber.Ctx) error {
+	riskID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+	mwCtx := middleware.GetContext(c)
+	orgID := uuid.Nil
+	if mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	r, err := h.markReviewedUC.Execute(c.UserContext(), orgID, riskID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	h.quantify(r)
+	return c.JSON(r)
+}
+
+// quantify fills a risk's computed CRQ fields (ALE in XAF + USD, basis) from its
+// SLE/ARO (or the reference model). Safe on nil.
+func (h *RiskHandler) quantify(r *domain.Risk) {
+	if r == nil || h.crq == nil {
+		return
+	}
+	q := h.crq.Quantify(r.SLEXAF, r.ARO, string(r.Criticality))
+	r.ALEXAF = q.ALE.XAF
+	r.ALEUSD = q.ALE.USD
+	r.ALEBasis = string(q.Basis)
 }
 
 // CreateRiskInput : DTO pour séparer la logique API de la logique DB
 type CreateRiskInput struct {
 	Title       string   `json:"title" validate:"required"`
 	Description string   `json:"description"`
-	Impact      float64  `json:"impact" validate:"required,min=0,max=10"` // ERD numeric(5,1) — bounds [0,10]
+	Impact      float64  `json:"impact" validate:"required,min=0,max=10"`     // ERD numeric(5,1) — bounds [0,10]
 	Probability float64  `json:"probability" validate:"required,min=0,max=1"` // ERD numeric(5,3) — bounds [0,1]
 	Tags        []string `json:"tags"`
 	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
 	Frameworks  []string `json:"frameworks"`
+	// CRQ monetary inputs (XAF). Optional.
+	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
+	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
 }
 
 // UpdateRiskInput : DTO pour la mise à jour partielle
@@ -70,6 +112,11 @@ type UpdateRiskInput struct {
 	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
 	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
 	Frameworks  []string `json:"frameworks" validate:"omitempty,dive,required"`
+	// CRQ monetary inputs (XAF). Pointers → nil means "leave unchanged".
+	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
+	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
+	// Review cadence in days (0 disables).
+	ReviewIntervalDays *int `json:"review_interval_days" validate:"omitempty,min=0"`
 }
 
 // CreateRisk godoc
@@ -91,8 +138,10 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 
 	mwCtx := middleware.GetContext(c)
 	orgID := uuid.Nil
+	createdBy := uuid.Nil
 	if mwCtx != nil {
 		orgID = mwCtx.OrganizationID
+		createdBy = mwCtx.UserID
 	}
 
 	ucInput := risk.CreateRiskInput{
@@ -102,6 +151,9 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Probability: input.Probability,
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
+		CreatedBy:   createdBy,
+		SLEXAF:      input.SLEXAF,
+		ARO:         input.ARO,
 	}
 
 	domainRisk, err := h.createRiskUseCase.Execute(stdCtx, orgID, ucInput)
@@ -129,10 +181,6 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	// Always publish Redis event → ScoreWorker listens and recalculates async,
 	// using the real criticality of whichever assets were just linked instead
 	// of a hardcoded placeholder.
-	userID := uuid.Nil
-	if mwCtx != nil {
-		userID = mwCtx.UserID
-	}
 	if h.redisClient != nil {
 		event := events.RiskUpdatedEvent{
 			RiskID:           domainRisk.ID.String(),
@@ -140,16 +188,18 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 			Probability:      float64(domainRisk.Probability),
 			Impact:           float64(domainRisk.Impact),
 			AssetCriticality: averageAssetCriticalityFactor(linkedAssets),
-			TriggeredBy:      userID.String(),
+			TriggeredBy:      createdBy.String(),
 		}
 		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
 	}
 
 	var out domain.Risk
 	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", domainRisk.ID).Error; err != nil {
+		h.quantify(domainRisk)
 		return c.Status(201).JSON(domainRisk)
 	}
 
+	h.quantify(&out)
 	return c.Status(201).JSON(out)
 }
 
@@ -222,6 +272,9 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch risks", "details": err.Error()})
 	}
 
+	for i := range result.Data {
+		h.quantify(&result.Data[i])
+	}
 	return c.JSON(fiber.Map{"items": result.Data, "total": result.Total})
 }
 
@@ -244,6 +297,7 @@ func (h *RiskHandler) GetRisk(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Risk not found", "details": err.Error()})
 	}
 
+	h.quantify(domainRisk)
 	return c.JSON(domainRisk)
 }
 
@@ -270,12 +324,15 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	}
 
 	ucInput := risk.UpdateRiskInput{
-		Title:       &input.Title,
-		Description: &input.Description,
-		Impact:      &input.Impact,
-		Probability: &input.Probability,
-		Tags:        input.Tags,
-		Frameworks:  input.Frameworks,
+		Title:              &input.Title,
+		Description:        &input.Description,
+		Impact:             &input.Impact,
+		Probability:        &input.Probability,
+		Tags:               input.Tags,
+		Frameworks:         input.Frameworks,
+		SLEXAF:             input.SLEXAF,
+		ARO:                input.ARO,
+		ReviewIntervalDays: input.ReviewIntervalDays,
 	}
 
 	if input.Title == "" {
@@ -346,8 +403,10 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	}
 
 	if !hasOut {
+		h.quantify(domainRisk)
 		return c.JSON(domainRisk)
 	}
+	h.quantify(&out)
 	return c.JSON(out)
 }
 

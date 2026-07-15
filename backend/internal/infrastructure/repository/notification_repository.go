@@ -21,6 +21,11 @@ func NewNotificationRepository(db *gorm.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
+// CreateNotification persists a new notification row.
+func (r *NotificationRepository) CreateNotification(n *domain.Notification) error {
+	return r.db.Create(n).Error
+}
+
 func (r *NotificationRepository) GetUserNotifications(userID, tenantID uuid.UUID, limit, offset int) ([]*domain.Notification, error) {
 	var notifications []*domain.Notification
 	err := r.db.Where("user_id = ? AND tenant_id = ?", userID, tenantID).

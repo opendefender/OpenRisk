@@ -27,6 +27,16 @@ export interface Risk {
   source?: string;
   mitigations?: Mitigation[];
   residual_risk?: number;
+  // Cyber Risk Quantification (CRQ). Inputs in XAF; ALE returned in XAF + USD.
+  sle_xaf?: number | null;
+  aro?: number | null;
+  ale_xaf?: number;
+  ale_usd?: number;
+  ale_basis?: 'explicit' | 'reference';
+  // Review cadence.
+  review_interval_days?: number;
+  next_review_at?: string | null;
+  last_reviewed_at?: string | null;
 }
 
 export interface Asset {
@@ -91,6 +101,9 @@ export interface UpdateRiskInput {
   tags?: string[];
   asset_ids?: string[];
   status?: RiskStatus;
+  sle_xaf?: number | null;
+  aro?: number | null;
+  review_interval_days?: number;
 }
 
 export interface BulkRiskActionInput {
@@ -126,6 +139,11 @@ export const riskService = {
 
   deleteRisk: async (id: string): Promise<void> => {
     await api.delete(`/risks/${id}`);
+  },
+
+  markReviewed: async (id: string): Promise<Risk> => {
+    const response = await api.post<Risk>(`/risks/${id}/review`, {});
+    return response.data;
   },
 
   acceptRisk: async (id: string, justification: string): Promise<Risk> => {

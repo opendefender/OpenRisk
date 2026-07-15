@@ -101,7 +101,7 @@ type RiskQuery struct {
 	Source        []string   // Filter by source (manual|cti_auto|scan_auto|etc.)
 	MinScore      *float64   // Score range (new system: 0.0-30.0)
 	MaxScore      *float64
-	TreatmentPlan []string   // accept|mitigate|transfer|avoid
+	TreatmentPlan []string // accept|mitigate|transfer|avoid
 
 	// Pagination
 	Page  int // 1-indexed, validated in Sanitize()
@@ -185,16 +185,16 @@ func (q *RiskQuery) Sanitize() {
 
 	// Whitelist sortable fields to prevent SQL injection
 	allowed := map[string]bool{
-		"created_at":   true,
-		"updated_at":   true,
-		"name":         true,
-		"title":        true,
-		"score":        true,
-		"criticality":  true,
-		"status":       true,
-		"impact":       true,
-		"probability":  true,
-		"assigned_to":  true,
+		"created_at":  true,
+		"updated_at":  true,
+		"name":        true,
+		"title":       true,
+		"score":       true,
+		"criticality": true,
+		"status":      true,
+		"impact":      true,
+		"probability": true,
+		"assigned_to": true,
 	}
 	if !allowed[q.SortBy] {
 		q.SortBy = "created_at"

@@ -37,11 +37,11 @@ type BoardReport struct {
 	ID       uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
 
-	Title            string       `gorm:"size:255;not null;default:''" json:"title"`
-	OrganizationName string       `gorm:"size:255;not null;default:''" json:"organization_name"` // snapshot at generation time
-	PeriodLabel      string       `gorm:"size:100;not null;default:''" json:"period_label"`      // e.g. "Juillet 2026"
-	Locale      string            `gorm:"size:5;not null;default:'fr'" json:"locale"`       // fr | en
-	Status      BoardReportStatus `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"`
+	Title            string            `gorm:"size:255;not null;default:''" json:"title"`
+	OrganizationName string            `gorm:"size:255;not null;default:''" json:"organization_name"` // snapshot at generation time
+	PeriodLabel      string            `gorm:"size:100;not null;default:''" json:"period_label"`      // e.g. "Juillet 2026"
+	Locale           string            `gorm:"size:5;not null;default:'fr'" json:"locale"`            // fr | en
+	Status           BoardReportStatus `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"`
 
 	// --- Posture snapshot (frozen at generation time) ---
 	RisksCritical            int     `gorm:"not null;default:0" json:"risks_critical"`

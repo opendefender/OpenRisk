@@ -19,10 +19,11 @@ import (
 	"gorm.io/gorm"
 
 	applicationrisk "github.com/opendefender/openrisk/internal/application/risk"
-	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
-	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/pkg/crq"
 )
 
 // Test-only lightweight structs to avoid DB-specific defaults (used with sqlite in-memory)
@@ -79,15 +80,15 @@ type AssetT struct {
 func (AssetT) TableName() string { return "assets" }
 
 type RiskHistoryT struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
-	RiskID    uuid.UUID
-	Score     float64
-	Impact    int
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey"`
+	RiskID      uuid.UUID
+	Score       float64
+	Impact      int
 	Probability int
-	Status    string
-	ChangedBy string
-	ChangeType string
-	CreatedAt time.Time
+	Status      string
+	ChangedBy   string
+	ChangeType  string
+	CreatedAt   time.Time
 }
 
 func (RiskHistoryT) TableName() string { return "risk_histories" }
@@ -153,7 +154,9 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 		applicationrisk.NewListRisksUseCase(riskRepo),
 		applicationrisk.NewUpdateRiskUseCase(riskRepo),
 		applicationrisk.NewDeleteRiskUseCase(riskRepo),
+		applicationrisk.NewMarkRiskReviewedUseCase(riskRepo),
 		nil,
+		crq.NewQuantifier(0, crq.Reference{}),
 	)
 	api.Post("/risks", handler.CreateRisk)
 	api.Get("/risks/:id", handler.GetRisk)

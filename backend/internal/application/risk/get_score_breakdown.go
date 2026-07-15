@@ -10,8 +10,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	pkgscoring "github.com/opendefender/openrisk/pkg/scoring"
 	"github.com/opendefender/openrisk/internal/domain"
+	pkgscoring "github.com/opendefender/openrisk/pkg/scoring"
 )
 
 // GetScoreBreakdownUseCase retrieves detailed score calculation for a risk

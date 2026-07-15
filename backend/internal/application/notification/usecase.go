@@ -19,6 +19,7 @@ var (
 
 // Repository defines persistence operations required by notification use cases.
 type Repository interface {
+	CreateNotification(n *domain.Notification) error
 	GetUserNotifications(userID, tenantID uuid.UUID, limit, offset int) ([]*domain.Notification, error)
 	GetUnreadCount(userID, tenantID uuid.UUID) (int64, error)
 	MarkNotificationAsRead(notificationID, userID, tenantID uuid.UUID) error
@@ -34,6 +35,28 @@ type UseCase struct {
 
 func NewUseCase(repo Repository) *UseCase {
 	return &UseCase{repo: repo}
+}
+
+// NotifyInApp persists an in-app notification for a user. Best-effort creation
+// point used by cross-cutting producers (e.g. the scan engine). A Nil user or
+// tenant is rejected so we never create an orphan notification.
+func (uc *UseCase) NotifyInApp(userID, tenantID uuid.UUID, notifType domain.NotificationType, subject, message string, resourceID *uuid.UUID, resourceType string) error {
+	if userID == uuid.Nil || tenantID == uuid.Nil {
+		return ErrValidation
+	}
+	n := &domain.Notification{
+		ID:           uuid.New(),
+		UserID:       userID,
+		TenantID:     tenantID,
+		Type:         notifType,
+		Channel:      domain.NotificationChannelInApp,
+		Status:       domain.NotificationStatusSent, // unread until read
+		Subject:      subject,
+		Message:      message,
+		ResourceID:   resourceID,
+		ResourceType: resourceType,
+	}
+	return uc.repo.CreateNotification(n)
 }
 
 func (uc *UseCase) GetNotifications(userID, tenantID uuid.UUID, limit, offset int) ([]*domain.Notification, error) {

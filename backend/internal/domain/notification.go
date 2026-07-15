@@ -20,6 +20,8 @@ const (
 	NotificationTypeActionAssigned     NotificationType = "action_assigned"
 	NotificationTypeRiskUpdate         NotificationType = "risk_update"
 	NotificationTypeRiskResolved       NotificationType = "risk_resolved"
+	NotificationTypeScanComplete       NotificationType = "scan_complete"
+	NotificationTypeRiskReview         NotificationType = "risk_review"
 )
 
 // NotificationChannel defines the channel through which to send notification

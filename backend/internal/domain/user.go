@@ -42,12 +42,12 @@ type User struct {
 	LastLogin  *time.Time `json:"last_login,omitempty"`
 
 	// RBAC Extensions (Phase 5 Priority #5)
-	TenantID     *uuid.UUID   `gorm:"type:uuid;index" json:"tenant_id,omitempty"` // NULL for system-wide users
-	DefaultOrgID *uuid.UUID   `gorm:"type:uuid;index" json:"default_org_id,omitempty"`
+	TenantID     *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id,omitempty"` // NULL for system-wide users
+	DefaultOrgID *uuid.UUID `gorm:"type:uuid;index" json:"default_org_id,omitempty"`
 	// constraint:- : Organization is migrated after User (it FKs back to users.owner_id via Organization.Owner),
 	// so this reverse belongsTo must not force GORM to auto-create/FK organizations while migrating User first.
-	DefaultOrg *Organization `gorm:"foreignKey:DefaultOrgID;constraint:-" json:"default_org,omitempty"`
-	CreatedByID  *uuid.UUID   `gorm:"type:uuid;index" json:"created_by_id,omitempty"`
+	DefaultOrg  *Organization `gorm:"foreignKey:DefaultOrgID;constraint:-" json:"default_org,omitempty"`
+	CreatedByID *uuid.UUID    `gorm:"type:uuid;index" json:"created_by_id,omitempty"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

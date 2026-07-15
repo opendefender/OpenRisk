@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
@@ -26,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
+	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -39,10 +42,13 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
+	scanpkg "github.com/opendefender/openrisk/internal/scanner"
+	"github.com/opendefender/openrisk/internal/scanner/collectors"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/ai"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
+	"github.com/opendefender/openrisk/pkg/crq"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/scoring"
 	"github.com/opendefender/openrisk/pkg/storage"
@@ -160,6 +166,19 @@ func main() {
 		&domain.Incident{},
 		&domain.IncidentTimeline{},
 		&domain.IncidentAction{},
+		// Scanner engine — tenant-scoped scan configs, on-prem Agents, and scan
+		// jobs. The pipeline never writes Assets/Risks itself: results land in a
+		// Redis preview (48h TTL) and the user imports/ignores from there.
+		&domain.ScanConfig{},
+		&domain.ScannerAgent{},
+		&domain.ScanJob{},
+		// Notifications — the in-app centre + delivery preferences. Previously
+		// missing from AutoMigrate, so every /notifications route errored on a
+		// non-existent table (and the scan-completion in-app notification had
+		// nowhere to land). Metadata is jsonb; it stays NULL unless a producer
+		// sets it (a bare map[string]interface{} has no driver.Valuer).
+		&domain.Notification{},
+		&domain.NotificationPreference{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -336,7 +355,10 @@ func main() {
 	if appBaseURL == "" {
 		appBaseURL = "http://localhost:5173"
 	}
-	notificationService := notify.NewEmailService(email.NewMockService(), emailFromAddr, appBaseURL)
+	// Email transport (mock in dev; swap for SMTP in prod). Kept as a var so the
+	// scan-notification sink below can also send through it.
+	emailTransport := email.NewMockService()
+	notificationService := notify.NewEmailService(emailTransport, emailFromAddr, appBaseURL)
 
 	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
 	passwordHasher := coreauth.NewArgon2idPasswordHasher()
@@ -396,6 +418,19 @@ func main() {
 	api.Post("/auth/saml2/acs", handlers.SAML2ACS)
 	api.Get("/auth/saml2/metadata", handlers.SAMLMetadata)
 
+	// Scanner AGENT endpoints (register/stream/push) are mounted on `app` HERE —
+	// deliberately BEFORE the /api/v1 user-token middleware below — so they are
+	// NOT wrapped by middleware.Protected or the marketplace's RequireRole (both
+	// mounted at the /api/v1 prefix, which /api/v1/scanner/... would otherwise
+	// inherit). Agents authenticate with their own scoped tokens (+ HMAC on push)
+	// inside the handlers. scannerHandler is assigned in §5.6; these closures
+	// capture it and run only at request time, by which point it is set.
+	var scannerHandler *handlers.ScannerHandler
+	app.Post("/api/v1/scanner/agents/register", func(c *fiber.Ctx) error { return scannerHandler.RegisterAgent(c) })
+	app.Get("/api/v1/scanner/agent/stream", func(c *fiber.Ctx) error { return scannerHandler.AgentStream(c) })
+	app.Post("/api/v1/scanner/agent/push", func(c *fiber.Ctx) error { return scannerHandler.AgentPush(c) })
+	app.Post("/api/v1/scanner/agent/heartbeat", func(c *fiber.Ctx) error { return scannerHandler.AgentHeartbeat(c) })
+
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
@@ -414,7 +449,17 @@ func main() {
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, redisClientInstance)
+	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
+	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
+	xafPerUSD := crq.DefaultXAFPerUSD
+	if v := os.Getenv("XAF_USD_RATE"); v != "" {
+		if parsed, perr := strconv.ParseFloat(v, 64); perr == nil && parsed > 0 {
+			xafPerUSD = parsed
+		}
+	}
+	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
+	markReviewedUseCase := risk.NewMarkRiskReviewedUseCase(riskRepo)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, redisClientInstance, riskQuantifier)
 
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
@@ -434,6 +479,7 @@ func main() {
 
 	protected.Post("/risks", riskCreate, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
+	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
 
 	// Mitigation Plans (CRUD). NOTE: this whole module previously used
@@ -838,6 +884,126 @@ func main() {
 	rbacTenants.Delete("/:tenant_id", rbacTenantHandler.DeleteTenant)                 // Delete (owner only)
 	rbacTenants.Get("/:tenant_id/users", adminRole, rbacTenantHandler.GetTenantUsers) // List users
 	rbacTenants.Get("/:tenant_id/stats", rbacTenantHandler.GetTenantStats)            // Get stats
+
+	// =========================================================================
+	// 5.6 SCANNER ENGINE (cloud SDK scans + on-prem Agent, Redis preview)
+	//
+	// The pipeline NEVER writes Assets/Risks — every scan lands in a Redis preview
+	// (48h TTL) and the user imports/ignores from the Scan Preview page. Cloud
+	// scans run in-process (credentials AES-256-GCM, decrypted only at scan time);
+	// nmap/osquery only ever run on the on-prem Agent, which pushes results back
+	// over an RS256 (scoped "scanner") + HMAC-signed channel.
+	// =========================================================================
+
+	// Credential cipher (AES-256-GCM) for cloud creds + per-agent push secrets.
+	scannerKeyRaw := os.Getenv("SCANNER_CREDENTIAL_KEY")
+	if scannerKeyRaw == "" {
+		scannerKeyRaw = "openrisk-dev-scanner-credential-key-change-me"
+		log.Println("Warning: SCANNER_CREDENTIAL_KEY not set — using an insecure dev key. Set a strong key in production.")
+	}
+	scannerCipher, cipherErr := scanapp.NewCredentialCipher([]byte(scannerKeyRaw))
+	if cipherErr != nil {
+		log.Fatalf("Scanner: credential cipher init failed: %v", cipherErr)
+	}
+
+	// Provider registry. Cloud scanners run real SDK collectors (aws-sdk-go-v2,
+	// Azure Resource Graph, GCP Compute) — credentials are decrypted only at scan
+	// time. Agent/nmap providers validate here but execute on the on-prem Agent.
+	scanRegistry := scanpkg.NewRegistry()
+	scanRegistry.Register(scanpkg.NewAWSScanner(collectors.NewAWS()))
+	scanRegistry.Register(scanpkg.NewAzureScanner(collectors.NewAzure()))
+	scanRegistry.Register(scanpkg.NewGCPScanner(collectors.NewGCP()))
+	scanRegistry.Register(scanpkg.NewNmapScanner())
+	scanRegistry.Register(scanpkg.NewAgentScanner())
+
+	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
+	// In-app + e-mail sink: a completed scan raises a durable in-app notification
+	// for the user who triggered it and (best-effort) e-mails them. Failures never
+	// block the scan. A Nil user (e.g. a failed cloud scan) is skipped.
+	scanInApp := func(ctx context.Context, tenantID, userID uuid.UUID, title, message string) {
+		if userID == uuid.Nil {
+			return
+		}
+		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil {
+			zeroLogger.Warn().Err(err).Msg("scanner: could not create in-app notification")
+		}
+		if user, err := userRepo.GetByID(ctx, userID); err == nil && user != nil && user.Email != "" {
+			_ = emailTransport.SendEmail(ctx, user.Email, title, message)
+		}
+	}
+	scanNotifier := scanpkg.NewRedisNotifier(redisClientInstance, scanInApp)
+
+	// Risk review cadence: a background worker nudges each risk's owner (in-app +
+	// e-mail) when a review is due, keeping the register "updated regularly".
+	riskReviewRepo := repository.NewGormRiskReviewRepository(database.DB)
+	riskReviewWorker := workers.NewRiskReviewWorker(riskReviewRepo, func(ctx context.Context, tenantID, ownerID, riskID uuid.UUID, riskTitle string) {
+		subject := "Revue de risque requise"
+		message := "Le risque « " + riskTitle + " » est dû pour revue."
+		if err := notificationUseCase.NotifyInApp(ownerID, tenantID, domain.NotificationTypeRiskReview, subject, message, &riskID, "risk"); err != nil {
+			zeroLogger.Warn().Err(err).Msg("risk review: in-app notification failed")
+		}
+		if user, uerr := userRepo.GetByID(ctx, ownerID); uerr == nil && user != nil && user.Email != "" {
+			_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+		}
+	}, zeroLogger)
+	go riskReviewWorker.Start(context.Background())
+	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
+	scanLock := scanpkg.NewScanLock(redisClientInstance)
+
+	scanConfigRepo := repository.NewGormScanConfigRepository(database.DB)
+	scanAgentRepo := repository.NewGormScannerAgentRepository(database.DB)
+	scanJobRepo := repository.NewGormScanJobRepository(database.DB)
+
+	createScanConfigUC := scanapp.NewCreateScanConfigUseCase(scanConfigRepo, scanRegistry, scannerCipher)
+	listScanConfigsUC := scanapp.NewListScanConfigsUseCase(scanConfigRepo)
+	getScanConfigUC := scanapp.NewGetScanConfigUseCase(scanConfigRepo)
+	deleteScanConfigUC := scanapp.NewDeleteScanConfigUseCase(scanConfigRepo)
+	triggerScanUC := scanapp.NewTriggerScanUseCase(
+		scanConfigRepo, scanJobRepo, scanLock, scanRegistry, scanPipeline, scannerCipher, redisClientInstance, zeroLogger,
+	)
+	// Recurring scans: a background scheduler triggers due configs every minute.
+	scanScheduler := workers.NewScanScheduler(scanConfigRepo, triggerScanUC, zeroLogger)
+	go scanScheduler.Start(context.Background())
+	listAgentsUC := scanapp.NewListAgentsUseCase(scanAgentRepo)
+	revokeAgentUC := scanapp.NewRevokeAgentUseCase(scanAgentRepo, redisClientInstance)
+	registerAgentUC := scanapp.NewRegisterAgentUseCase(scanAgentRepo, rsaKeys, scannerCipher)
+	pushResultsUC := scanapp.NewPushResultsUseCase(scanAgentRepo, scanJobRepo, scanLock, scanPipeline)
+	heartbeatAgentUC := scanapp.NewHeartbeatAgentUseCase(scanAgentRepo)
+	listScanJobsUC := scanapp.NewListScanJobsUseCase(scanJobRepo)
+	getScanPreviewUC := scanapp.NewGetScanPreviewUseCase(scanPreview)
+	importPreviewUC := scanapp.NewImportPreviewUseCase(scanPreview, assetRepo)
+	ignorePreviewUC := scanapp.NewIgnorePreviewUseCase(scanPreview)
+
+	scannerHandler = handlers.NewScannerHandler(
+		createScanConfigUC, listScanConfigsUC, getScanConfigUC, deleteScanConfigUC, triggerScanUC,
+		listAgentsUC, revokeAgentUC, registerAgentUC, pushResultsUC, heartbeatAgentUC,
+		listScanJobsUC, getScanPreviewUC, importPreviewUC, ignorePreviewUC,
+		scanAgentRepo, scanJobRepo, scannerCipher, rsaKeys, jtiBlacklistChecker, redisClientInstance,
+	)
+
+	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
+	scannerRead := middleware.RequirePermission("scanner:read")
+	scannerCreate := middleware.RequirePermission("scanner:create")
+	scannerDelete := middleware.RequirePermission("scanner:delete")
+	scannerScan := middleware.RequirePermission("scanner:scan")
+	scannerImport := middleware.RequirePermission("scanner:import")
+
+	protected.Get("/scanner/configs", scannerRead, scannerHandler.ListScanConfigs)
+	protected.Post("/scanner/configs", scannerCreate, scannerHandler.CreateScanConfig)
+	protected.Delete("/scanner/configs/:id", scannerDelete, scannerHandler.DeleteScanConfig)
+	protected.Post("/scanner/configs/:id/scan", scannerScan, scannerHandler.TriggerScan)
+	protected.Post("/scanner/configs/:id/registration-token", scannerCreate, scannerHandler.IssueRegistrationToken)
+	protected.Get("/scanner/agents", scannerRead, scannerHandler.ListAgents)
+	protected.Delete("/scanner/agents/:id", scannerDelete, scannerHandler.RevokeAgent)
+	protected.Get("/scanner/jobs", scannerRead, scannerHandler.ListScanJobs)
+	protected.Get("/scanner/jobs/:id/preview", scannerRead, scannerHandler.GetScanPreview)
+	protected.Post("/scanner/jobs/:id/import", scannerImport, scannerHandler.ImportPreview)
+	protected.Post("/scanner/jobs/:id/ignore", scannerImport, scannerHandler.IgnorePreview)
+	protected.Get("/scanner/events", scannerRead, scannerHandler.StreamScanEvents)
+
+	// The agent-facing routes (register/stream/push) were mounted earlier on `app`
+	// (before the /api/v1 user middleware) — see the note above `var scannerHandler`.
+	log.Println("Scanner: engine wired (cloud validate + agent register/stream/push, Redis preview)")
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
