@@ -84,6 +84,9 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		risk.Status = domain.StatusDraft
 	}
 
+	// A newly created risk enters the lifecycle at "Identifier" (ISO 31000).
+	risk.LifecyclePhase = domain.PhaseIdentified
+
 	// 3. Compute score (Claude.md formula: P × I, score engine can override later)
 	risk.Score = risk.Impact * risk.Probability
 

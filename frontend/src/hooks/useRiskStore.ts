@@ -15,6 +15,9 @@ export interface Mitigation {
   assignee?: string;
 }
 
+// The six ISO 31000 lifecycle phases surfaced in the register's "Cycle de vie" stepper.
+export type RiskPhase = 'identified' | 'analyzed' | 'evaluated' | 'treated' | 'monitored' | 'closed';
+
 export interface Risk {
   id: string;
   title: string;
@@ -30,7 +33,16 @@ export interface Risk {
   source: string; // Important pour l'étape d'intégration (THEHIVE, etc.)
   mitigations?: Mitigation[]; // Important pour le drawer de détails
   created_at?: string;
+  updated_at?: string;
   level?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  // ISO 31000 lifecycle phase (orthogonal to status).
+  lifecycle_phase?: RiskPhase;
+  // Cyber Risk Quantification (CRQ). Inputs in XAF; ALE returned in XAF + USD.
+  sle_xaf?: number | null;
+  aro?: number | null;
+  ale_xaf?: number;
+  ale_usd?: number;
+  ale_basis?: 'explicit' | 'reference';
 }
 
 interface RiskFetchParams {
@@ -94,6 +106,7 @@ interface RiskStore {
   fetchRisks: (params?: RiskFetchParams & { page?: number; limit?: number }) => Promise<void>;
   createRisk: (payload: any) => Promise<void>;
   updateRisk: (id: string, payload: any) => Promise<void>;
+  transitionPhase: (id: string, phase: RiskPhase, note?: string) => Promise<Risk>;
   deleteRisk: (id: string) => Promise<void>;
 }
 
@@ -187,6 +200,21 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       throw err;
     } finally {
       set({ isLoading: false });
+    }
+  },
+  transitionPhase: async (id, phase, note) => {
+    const prev = get().risks.find((r) => r.id === id);
+    // Optimistic: reflect the new phase immediately in the register.
+    set((state) => ({ risks: state.risks.map((r) => (r.id === id ? { ...r, lifecycle_phase: phase } : r)) }));
+    try {
+      const response = await api.post(`/risks/${id}/transition`, { phase, note });
+      const updated = response.data as Risk;
+      set((state) => ({ risks: state.risks.map((r) => (r.id === id ? updated : r)) }));
+      return updated;
+    } catch (err) {
+      if (prev) set((state) => ({ risks: state.risks.map((r) => (r.id === id ? prev : r)) }));
+      console.error('Failed to transition risk phase', err);
+      throw err;
     }
   },
   deleteRisk: async (id) => {

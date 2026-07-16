@@ -47,6 +47,75 @@ const (
 	RiskCriticalityCritical CriticalityLevel = "CRITICAL"
 )
 
+// RiskPhase represents the ISO 31000 risk-management lifecycle stage of a risk.
+// This is ORTHOGONAL to RiskStatus: Status is the resolution state
+// (open/mitigated/accepted/…) while Phase is where the risk sits in the
+// managed lifecycle "Identifier → Analyser → Évaluer → Traiter → Surveiller →
+// Clôturer". Surfaced live on the real Risk entity (register + drawer stepper).
+type RiskPhase string
+
+const (
+	PhaseIdentified RiskPhase = "identified" // Identifier — risk logged, context captured
+	PhaseAnalyzed   RiskPhase = "analyzed"   // Analyser — probability/impact/causes assessed
+	PhaseEvaluated  RiskPhase = "evaluated"  // Évaluer — prioritised vs risk appetite
+	PhaseTreated    RiskPhase = "treated"    // Traiter — treatment plan chosen/underway
+	PhaseMonitored  RiskPhase = "monitored"  // Surveiller — under continuous review
+	PhaseClosed     RiskPhase = "closed"     // Clôturer — resolved / no longer relevant
+)
+
+// riskPhaseOrder is the canonical forward ordering of the lifecycle. Index is
+// used to validate transitions (see CanTransitionTo).
+var riskPhaseOrder = []RiskPhase{
+	PhaseIdentified, PhaseAnalyzed, PhaseEvaluated, PhaseTreated, PhaseMonitored, PhaseClosed,
+}
+
+// phaseIndex returns the position of a phase in riskPhaseOrder, or -1 if unknown.
+func phaseIndex(p RiskPhase) int {
+	for i, phase := range riskPhaseOrder {
+		if phase == p {
+			return i
+		}
+	}
+	return -1
+}
+
+// ParseRiskPhase validates and converts a string into a RiskPhase. An empty
+// string defaults to PhaseIdentified (a freshly created risk is "identified").
+func ParseRiskPhase(s string) (RiskPhase, error) {
+	if s == "" {
+		return PhaseIdentified, nil
+	}
+	if phaseIndex(RiskPhase(s)) >= 0 {
+		return RiskPhase(s), nil
+	}
+	return "", NewValidationError(fmt.Sprintf("invalid risk lifecycle phase: %q", s))
+}
+
+// CanTransitionTo reports whether a risk may move from its current phase to
+// the target. The lifecycle is pragmatic rather than rigid: you may advance
+// one step, step back one step (re-open a phase), or jump straight to
+// "closed" (early closure from any phase). A no-op (same phase) is rejected so
+// the caller surfaces a clear validation error instead of a silent write.
+func (p RiskPhase) CanTransitionTo(target RiskPhase) bool {
+	from, to := phaseIndex(p), phaseIndex(target)
+	if from < 0 || to < 0 {
+		return false
+	}
+	if from == to {
+		return false
+	}
+	if target == PhaseClosed {
+		return true // early closure allowed from anywhere
+	}
+	// Re-opening from closed is allowed back to any earlier phase.
+	if p == PhaseClosed {
+		return true
+	}
+	// Otherwise move at most one step in either direction.
+	diff := to - from
+	return diff == 1 || diff == -1
+}
+
 // RiskTreatment represents the chosen treatment strategy
 type RiskTreatment string
 
@@ -115,6 +184,11 @@ type Risk struct {
 	// Lifecycle Management
 	Status RiskStatus `gorm:"type:varchar(20);default:'open';index" json:"status"` // open|in_progress|mitigated|accepted|closed
 	Level  string     `gorm:"size:20;default:'medium';index" json:"level"`         // Legacy: CRITICAL|HIGH|MEDIUM|LOW
+
+	// ISO 31000 lifecycle phase (orthogonal to Status). Drives the register
+	// "Cycle de vie" stepper: Identifier → Analyser → Évaluer → Traiter →
+	// Surveiller → Clôturer. Defaults to 'identified' on creation.
+	LifecyclePhase RiskPhase `gorm:"type:varchar(20);default:'identified';index" json:"lifecycle_phase"`
 
 	// Ownership & Assignment
 	CreatedBy  uuid.UUID  `gorm:"type:uuid;not null;index" json:"created_by"`

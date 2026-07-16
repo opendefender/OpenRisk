@@ -5,7 +5,7 @@
 // drawer render. Normalizes the two live status vocabularies (DRAFT/ACTIVE/… and
 // open/in_progress/…) and the criticality/level fields into the design's tokens.
 
-import type { Risk } from '../../hooks/useRiskStore';
+import type { Risk, RiskPhase } from '../../hooks/useRiskStore';
 import type { Criticality } from '../../shared/riskColors';
 import { scoreToCriticality } from '../../shared/riskColors';
 import type { RiskStatus } from '../../shared/ui';
@@ -22,6 +22,7 @@ export interface UiRisk {
   asset: string;
   fw: string;
   status: RiskStatus;
+  phase: RiskPhase;
   owner: string;
   ownerName: string;
   mod: string;
@@ -88,6 +89,7 @@ export function mapRisk(r: Risk, lang: 'fr' | 'en'): UiRisk {
     asset: r.assets?.[0]?.name ?? '—',
     fw: r.frameworks?.[0] ?? r.tags?.[0] ?? '—',
     status: toRiskStatus(r.status),
+    phase: (r.lifecycle_phase ?? 'identified'),
     owner: initialsOf(ownerName),
     ownerName: ownerName || '—',
     mod: relTime(rr.updated_at ?? r.created_at, lang),

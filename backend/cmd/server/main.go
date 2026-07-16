@@ -562,7 +562,8 @@ func main() {
 	}
 	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
 	markReviewedUseCase := risk.NewMarkRiskReviewedUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, redisClientInstance, riskQuantifier)
+	transitionPhaseUseCase := risk.NewTransitionPhaseUseCase(riskRepo)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionPhaseUseCase, redisClientInstance, riskQuantifier)
 
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
@@ -583,6 +584,8 @@ func main() {
 	protected.Post("/risks", riskCreate, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
+	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
+	protected.Post("/risks/:id/transition", riskUpdate, riskHandler.TransitionPhase)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
 
 	// Mitigation Plans (CRUD). NOTE: this whole module previously used

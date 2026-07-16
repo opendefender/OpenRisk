@@ -155,12 +155,14 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 		applicationrisk.NewUpdateRiskUseCase(riskRepo),
 		applicationrisk.NewDeleteRiskUseCase(riskRepo),
 		applicationrisk.NewMarkRiskReviewedUseCase(riskRepo),
+		applicationrisk.NewTransitionPhaseUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
 	)
 	api.Post("/risks", handler.CreateRisk)
 	api.Get("/risks/:id", handler.GetRisk)
 	api.Patch("/risks/:id", handler.UpdateRisk)
+	api.Post("/risks/:id/transition", handler.TransitionPhase)
 	api.Delete("/risks/:id", handler.DeleteRisk)
 
 	return app
