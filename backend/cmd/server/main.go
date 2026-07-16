@@ -875,20 +875,11 @@ func main() {
 	incidentsGroup.Put("/:id/actions/:actionId", writerRole, incidentHandler.UpdateIncidentAction)
 	protected.Get("/risks/:id/incidents", incidentHandler.GetIncidentsForRisk)
 
-	// --- Risk Management Lifecycle (Protected routes) ---
-	riskMgmtService := service.NewRiskManagementService(database.DB)
-	riskMgmtHandler := handlers.NewRiskManagementHandler(riskMgmtService)
-	riskMgmtGroup := protected.Group("/risk-management")
-	riskMgmtGroup.Post("/identify", writerRole, riskMgmtHandler.IdentifyRisk)
-	riskMgmtGroup.Post("/analyze", writerRole, riskMgmtHandler.AnalyzeRisk)
-	riskMgmtGroup.Post("/evaluate", writerRole, riskMgmtHandler.EvaluateRisk)
-	riskMgmtGroup.Post("/treatment-plans", writerRole, riskMgmtHandler.CreateTreatmentPlan)
-	riskMgmtGroup.Post("/treatment-plans/:id/actions", writerRole, riskMgmtHandler.AddTreatmentAction)
-	riskMgmtGroup.Post("/monitoring-reviews", writerRole, riskMgmtHandler.CreateMonitoringReview)
-	riskMgmtGroup.Post("/decisions", writerRole, riskMgmtHandler.RecordDecision)
-	riskMgmtGroup.Post("/decisions/:id/approve", writerRole, riskMgmtHandler.ApproveDecision)
-	riskMgmtGroup.Post("/audit-reports", riskMgmtHandler.GenerateAuditReport)
-	riskMgmtGroup.Get("/risks/:id/lifecycle-status", riskMgmtHandler.GetRiskLifecycleStatus)
+	// NOTE: the legacy /risk-management/* lifecycle subsystem (service +
+	// handler + duplicate RiskRegister/TreatmentPlan/… models) was removed. Its
+	// tables were never in AutoMigrate (every route 500'd) and its queries were
+	// not tenant-scoped (cross-tenant leak). The ISO 31000 lifecycle now lives on
+	// the real Risk entity: POST /risks/:id/transition (see riskHandler above).
 
 	// --- Notifications (Protected routes) ---
 	notificationRepo := repository.NewNotificationRepository(database.DB)
