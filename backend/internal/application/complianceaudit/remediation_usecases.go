@@ -152,7 +152,7 @@ func (uc *UpdateRemediationUseCase) Execute(ctx context.Context, tenantID, id uu
 		return nil, err
 	}
 	if plan == nil {
-		return nil, domain.ErrNotFound
+		return nil, domain.NewNotFoundError("remediation plan", id)
 	}
 
 	if in.Title != nil {

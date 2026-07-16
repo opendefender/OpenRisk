@@ -80,7 +80,7 @@ func (uc *GetGapAnalysisUseCase) Execute(ctx context.Context, tenantID uuid.UUID
 			return nil, err
 		}
 		if fw == nil {
-			return nil, domain.ErrNotFound
+			return nil, domain.NewNotFoundError("framework", frameworkID)
 		}
 		frameworks = []domain.ComplianceFramework{*fw}
 	} else {

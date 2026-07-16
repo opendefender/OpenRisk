@@ -93,7 +93,7 @@ func (uc *GetAuditUseCase) Execute(ctx context.Context, tenantID, id uuid.UUID) 
 		return nil, err
 	}
 	if audit == nil {
-		return nil, domain.ErrNotFound
+		return nil, domain.NewNotFoundError("audit", id)
 	}
 	return audit, nil
 }
@@ -128,7 +128,7 @@ func (uc *UpdateAuditUseCase) Execute(ctx context.Context, tenantID, id uuid.UUI
 		return nil, err
 	}
 	if audit == nil {
-		return nil, domain.ErrNotFound
+		return nil, domain.NewNotFoundError("audit", id)
 	}
 
 	if in.Title != nil {

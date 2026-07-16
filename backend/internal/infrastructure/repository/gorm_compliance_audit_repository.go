@@ -84,7 +84,7 @@ func (r *GormComplianceAuditRepository) UpdateAudit(ctx context.Context, a *doma
 		return fmt.Errorf("failed to update audit: %w", res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
+		return domain.NewNotFoundError("audit", a.ID)
 	}
 	return nil
 }
@@ -97,7 +97,7 @@ func (r *GormComplianceAuditRepository) DeleteAudit(ctx context.Context, id, ten
 		return fmt.Errorf("failed to delete audit: %w", res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
+		return domain.NewNotFoundError("audit", id)
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func (r *GormComplianceAuditRepository) UpdateRemediation(ctx context.Context, r
 		return fmt.Errorf("failed to update remediation plan: %w", res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
+		return domain.NewNotFoundError("remediation plan", rp.ID)
 	}
 	return nil
 }
@@ -180,7 +180,7 @@ func (r *GormComplianceAuditRepository) DeleteRemediation(ctx context.Context, i
 		return fmt.Errorf("failed to delete remediation plan: %w", res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
+		return domain.NewNotFoundError("remediation plan", id)
 	}
 	return nil
 }
