@@ -30,6 +30,7 @@ type RiskHandler struct {
 	updateRiskUseCase *risk.UpdateRiskUseCase
 	deleteRiskUseCase *risk.DeleteRiskUseCase
 	markReviewedUC    *risk.MarkRiskReviewedUseCase
+	transitionPhaseUC *risk.TransitionPhaseUseCase
 	redisClient       *redis.Client
 	crq               *crq.Quantifier // Cyber Risk Quantification (XAF + USD)
 }
@@ -41,6 +42,7 @@ func NewRiskHandler(
 	updateRisk *risk.UpdateRiskUseCase,
 	deleteRisk *risk.DeleteRiskUseCase,
 	markReviewed *risk.MarkRiskReviewedUseCase,
+	transitionPhase *risk.TransitionPhaseUseCase,
 	redisClient *redis.Client,
 	quantifier *crq.Quantifier,
 ) *RiskHandler {
@@ -51,6 +53,7 @@ func NewRiskHandler(
 		updateRiskUseCase: updateRisk,
 		deleteRiskUseCase: deleteRisk,
 		markReviewedUC:    markReviewed,
+		transitionPhaseUC: transitionPhase,
 		redisClient:       redisClient,
 		crq:               quantifier,
 	}
@@ -72,6 +75,49 @@ func (h *RiskHandler) MarkReviewed(c *fiber.Ctx) error {
 	if err != nil {
 		return writeAppError(c, err)
 	}
+	h.quantify(r)
+	return c.JSON(r)
+}
+
+// TransitionPhaseInput is the body for POST /risks/:id/transition.
+type TransitionPhaseInput struct {
+	Phase string `json:"phase" validate:"required"`
+	Note  string `json:"note" validate:"omitempty,max=1000"`
+}
+
+// TransitionPhase POST /risks/:id/transition — advances a risk through the
+// ISO 31000 lifecycle (Identifier → Analyser → Évaluer → Traiter → Surveiller →
+// Clôturer). Tenant-scoped, guarded by risks:update, audited.
+func (h *RiskHandler) TransitionPhase(c *fiber.Ctx) error {
+	riskID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+
+	input := new(TransitionPhaseInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	if err := validation.GetValidator().Struct(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
+
+	mwCtx := middleware.GetContext(c)
+	orgID := uuid.Nil
+	actorID := uuid.Nil
+	if mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+		actorID = mwCtx.UserID
+	}
+
+	r, err := h.transitionPhaseUC.Execute(c.UserContext(), orgID, riskID, risk.TransitionPhaseInput{
+		Phase: domain.RiskPhase(input.Phase),
+		Note:  input.Note,
+	}, actorID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+
 	h.quantify(r)
 	return c.JSON(r)
 }

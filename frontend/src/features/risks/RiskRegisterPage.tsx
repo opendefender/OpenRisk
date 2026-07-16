@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid } from 'lucide-react';
+import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Chip, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
   SkeletonRows, EmptyState, softFill,
@@ -19,7 +19,8 @@ import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
-import { useRiskStore } from '../../hooks/useRiskStore';
+import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { mapRisk, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
@@ -356,9 +357,12 @@ function RowMenu({ onView, onEdit, onExport, onDelete, onClose }: { onView: () =
 /* ---------------- drawer ---------------- */
 function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk; onClose: () => void; onEdit: () => void; onExport: () => void; onCreateMiti: () => void }) {
   const L = useUIStrings();
-  const [tab, setTab] = useState<'details' | 'score' | 'miti' | 'timeline' | 'cti' | 'ai'>('details');
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const [tab, setTab] = useState<'details' | 'lifecycle' | 'score' | 'financial' | 'miti' | 'timeline' | 'cti' | 'ai'>('details');
   const tabDef: [typeof tab, string][] = [
-    ['details', L.tab_details], ['score', L.tab_score], ['miti', L.tab_miti],
+    ['details', L.tab_details], ['lifecycle', tr('Cycle de vie', 'Lifecycle')], ['score', L.tab_score],
+    ['financial', tr('Financier', 'Financial')], ['miti', L.tab_miti],
     ['timeline', L.tab_timeline], ['cti', L.tab_cti], ['ai', L.tab_ai],
   ];
   return (
@@ -379,6 +383,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
           <div className="flex items-center gap-2.5 flex-wrap">
             <CritBadge crit={r.crit} />
             <StatusPill status={r.status} />
+            <PhasePill phase={r.phase} lang={lang} />
             <span className="mono text-[13px] font-bold ml-auto" style={{ color: scoreColor(r.score) }}>Score {r.score.toFixed(1)}</span>
           </div>
           <div className="flex gap-2 mt-3.5">
@@ -395,7 +400,9 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
 
         <div className="flex-1 overflow-y-auto">
           {tab === 'details' && <DrawerDetails r={r} onCreateMiti={onCreateMiti} />}
+          {tab === 'lifecycle' && <DrawerLifecycle r={r} />}
           {tab === 'score' && <DrawerScore r={r} />}
+          {tab === 'financial' && <DrawerFinancial r={r} />}
           {tab === 'miti' && <DrawerMiti r={r} onCreateMiti={onCreateMiti} />}
           {(tab === 'timeline' || tab === 'cti' || tab === 'ai') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
         </div>
@@ -465,6 +472,207 @@ function DrawerScore({ r }: { r: UiRisk }) {
         </div>
         <div className="text-[12px] text-ink-muted mt-2">{lang === 'fr' ? 'Probabilité × Impact × Criticité de l’actif' : 'Probability × Impact × Asset criticality'}</div>
       </div>
+    </div>
+  );
+}
+
+/* ---------------- lifecycle (ISO 31000) ---------------- */
+const PHASE_ORDER: RiskPhase[] = ['identified', 'analyzed', 'evaluated', 'treated', 'monitored', 'closed'];
+const PHASE_LABELS: Record<RiskPhase, [string, string]> = {
+  identified: ['Identifier', 'Identify'],
+  analyzed: ['Analyser', 'Analyze'],
+  evaluated: ['Évaluer', 'Evaluate'],
+  treated: ['Traiter', 'Treat'],
+  monitored: ['Surveiller', 'Monitor'],
+  closed: ['Clôturer', 'Close'],
+};
+function phaseLabel(p: RiskPhase, lang: 'fr' | 'en') { return PHASE_LABELS[p][lang === 'fr' ? 0 : 1]; }
+function phaseIdx(p: RiskPhase) { return PHASE_ORDER.indexOf(p); }
+// Mirrors domain.RiskPhase.CanTransitionTo on the backend (±1 step, →closed from
+// anywhere, or reopen from closed). The backend is the source of truth; this only
+// decides which buttons to show.
+function canTransition(from: RiskPhase, to: RiskPhase): boolean {
+  const f = phaseIdx(from), t = phaseIdx(to);
+  if (f < 0 || t < 0 || f === t) return false;
+  if (to === 'closed') return true;
+  if (from === 'closed') return true;
+  return Math.abs(t - f) === 1;
+}
+
+function PhasePill({ phase, lang }: { phase: RiskPhase; lang: 'fr' | 'en' }) {
+  const closed = phase === 'closed';
+  const col = closed ? 'var(--text-secondary)' : 'var(--accent)';
+  return (
+    <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11.5px] font-semibold" style={{ color: col, background: 'color-mix(in srgb,var(--accent) 12%,transparent)' }}>
+      <RouteIcon size={12} /> {phaseLabel(phase, lang)}
+    </span>
+  );
+}
+
+function DrawerLifecycle({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const transitionPhase = useRiskStore((s) => s.transitionPhase);
+  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const current = r.phase;
+  const curIdx = phaseIdx(current);
+
+  const go = async (to: RiskPhase) => {
+    setBusy(true);
+    try {
+      await transitionPhase(r.id, to, note.trim() || undefined);
+      toast.success(tr(`Phase : ${phaseLabel(to, lang)}`, `Phase: ${phaseLabel(to, lang)}`));
+      setNote('');
+    } catch {
+      toast.error(tr('Transition refusée', 'Transition rejected'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const prev = curIdx > 0 ? PHASE_ORDER[curIdx - 1] : null;
+  const next = curIdx < PHASE_ORDER.length - 1 ? PHASE_ORDER[curIdx + 1] : null;
+
+  return (
+    <div className="px-[22px] py-5">
+      <div className="text-[13px] text-ink-soft mb-4">{tr('Cycle de vie du risque — ISO 31000. La phase est indépendante du statut.', 'Risk lifecycle — ISO 31000. Phase is independent of status.')}</div>
+
+      {/* Vertical stepper */}
+      <div className="relative pl-1">
+        {PHASE_ORDER.map((p, i) => {
+          const done = curIdx > i || current === 'closed' && i < 5;
+          const isCurrent = p === current;
+          const dotBg = isCurrent ? 'var(--accent)' : done ? 'var(--low)' : 'var(--bg-hover)';
+          const dotFg = isCurrent || done ? '#fff' : 'var(--text-muted)';
+          return (
+            <div key={p} className="flex items-start gap-3 pb-1">
+              <div className="flex flex-col items-center">
+                <div className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[12px] font-bold shrink-0" style={{ background: dotBg, color: dotFg, boxShadow: isCurrent ? '0 0 0 4px color-mix(in srgb,var(--accent) 20%,transparent)' : 'none' }}>
+                  {done ? <Check size={14} /> : i + 1}
+                </div>
+                {i < PHASE_ORDER.length - 1 && <div className="w-[2px] h-6" style={{ background: curIdx > i ? 'var(--low)' : 'var(--border)' }} />}
+              </div>
+              <div className="pt-0.5">
+                <div className="text-[13.5px] font-semibold" style={{ color: isCurrent ? 'var(--accent)' : 'var(--text-primary)' }}>{phaseLabel(p, lang)}</div>
+                {isCurrent && <div className="text-[11.5px] text-ink-muted">{tr('Phase actuelle', 'Current phase')}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Actions */}
+      {canUpdate ? (
+        <div className="mt-5 rounded-[12px] p-3.5" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
+          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">{tr('Note (optionnelle)', 'Note (optional)')}</div>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder={tr('Justification de la transition…', 'Transition rationale…')}
+            className="w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none mb-3"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+          />
+          <div className="flex flex-wrap gap-2">
+            {prev && canTransition(current, prev) && (
+              <button disabled={busy} onClick={() => go(prev)} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
+                <ArrowLeft size={14} /> {phaseLabel(prev, lang)}
+              </button>
+            )}
+            {next && canTransition(current, next) && (
+              <button disabled={busy} onClick={() => go(next)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+                {phaseLabel(next, lang)} <ArrowRight size={14} />
+              </button>
+            )}
+            {current !== 'closed' && (
+              <button disabled={busy} onClick={() => go('closed')} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
+                <Check size={14} /> {tr('Clôturer', 'Close')}
+              </button>
+            )}
+            {current === 'closed' && (
+              <button disabled={busy} onClick={() => go('monitored')} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
+                <RotateCcw size={14} /> {tr('Rouvrir', 'Reopen')}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 text-[12.5px] text-ink-muted">{tr('Lecture seule — permission « risks:update » requise pour faire évoluer la phase.', 'Read-only — the “risks:update” permission is required to advance the phase.')}</div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- financial (CRQ) ---------------- */
+function DrawerFinancial({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const updateRisk = useRiskStore((s) => s.updateRisk);
+  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  const raw = r.raw;
+  const [sle, setSle] = useState(raw.sle_xaf != null ? String(raw.sle_xaf) : '');
+  const [aro, setAro] = useState(raw.aro != null ? String(raw.aro) : '');
+  const [busy, setBusy] = useState(false);
+
+  const fmtXAF = (v?: number) => (v == null ? '—' : `${Math.round(v).toLocaleString('fr-FR')} FCFA`);
+  const fmtUSD = (v?: number) => (v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await updateRisk(r.id, {
+        sle_xaf: sle.trim() === '' ? null : Number(sle),
+        aro: aro.trim() === '' ? null : Number(aro),
+      });
+      toast.success(tr('Exposition recalculée', 'Exposure recalculated'));
+    } catch {
+      toast.error(tr('Échec du recalcul', 'Recalculation failed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="px-[22px] py-5">
+      <div className="text-[13px] text-ink-soft mb-4">{tr('Quantification (CRQ) — perte annuelle attendue ALE = SLE × ARO.', 'Quantification (CRQ) — annual loss expectancy ALE = SLE × ARO.')}</div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="rounded-[12px] p-4" style={{ border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'color-mix(in srgb,var(--accent) 6%,transparent)' }}>
+          <div className="text-[10.5px] uppercase tracking-[.06em] text-ink-muted">ALE (FCFA)</div>
+          <div className="mono text-[20px] font-bold text-ink mt-1">{fmtXAF(raw.ale_xaf)}</div>
+        </div>
+        <div className="rounded-[12px] p-4" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
+          <div className="text-[10.5px] uppercase tracking-[.06em] text-ink-muted">ALE (USD)</div>
+          <div className="mono text-[20px] font-bold text-ink mt-1">{fmtUSD(raw.ale_usd)}</div>
+        </div>
+      </div>
+      <div className="text-[11.5px] text-ink-muted mb-4">
+        {tr('Base : ', 'Basis: ')}
+        {raw.ale_basis === 'explicit'
+          ? tr('saisie explicite (SLE × ARO)', 'explicit input (SLE × ARO)')
+          : tr('valeur de référence par criticité', 'reference value by criticality')}
+      </div>
+
+      {canUpdate && (
+        <div className="rounded-[12px] p-3.5" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{tr('SLE — Perte / sinistre (FCFA)', 'SLE — Loss / event (FCFA)')}</span>
+              <input value={sle} onChange={(e) => setSle(e.target.value)} type="number" className="mt-1.5 w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{tr('ARO — Fréquence / an', 'ARO — Frequency / yr')}</span>
+              <input value={aro} onChange={(e) => setAro(e.target.value)} type="number" step="0.1" className="mt-1.5 w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} />
+            </label>
+          </div>
+          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+            <Coins size={16} /> {tr('Recalculer l’exposition', 'Recalculate exposure')}
+          </button>
+          <div className="text-[11px] text-ink-muted mt-2">{tr('Laissez vides pour utiliser la valeur de référence par criticité.', 'Leave empty to use the reference value by criticality.')}</div>
+        </div>
+      )}
     </div>
   );
 }
