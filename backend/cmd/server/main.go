@@ -643,6 +643,7 @@ func main() {
 	deleteEvidenceUC := compliance.NewDeleteEvidenceUseCase(complianceRepo, fileStorage)
 	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
 	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
+	getGapAnalysisUC := compliance.NewGetGapAnalysisUseCase(complianceRepo)
 	listCatalogsUC := compliance.NewListCatalogsUseCase()
 	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo)
 	// M4 — official compliance report (PDF). Reuses userRepo/orgRepo (declared
@@ -653,6 +654,7 @@ func main() {
 		createControlUC, getControlUC, listControlsUC, updateControlUC, deleteControlUC,
 		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
 		getProgressUC, listCatalogsUC, importCatalogUC, generateReportUC,
+		getGapAnalysisUC,
 	)
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
@@ -685,6 +687,9 @@ func main() {
 	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
 	protected.Delete("/compliance/frameworks/:frameworkId", complianceFrameworkDelete, complianceHandler.DeleteFramework)
 	protected.Get("/compliance/frameworks/:frameworkId/progress", complianceControlRead, complianceHandler.GetProgress)
+	// Gap analysis ("analyse d'écarts") — every unsatisfied control across the
+	// tenant's frameworks (optional ?framework_id= scopes to one).
+	protected.Get("/compliance/gap-analysis", complianceControlRead, complianceHandler.GetGapAnalysis)
 	// Official compliance report (PDF, 1-click) — reads a tenant's controls/evidence, same tier as reading them.
 	protected.Get("/compliance/frameworks/:frameworkId/report", complianceControlRead, complianceHandler.GenerateReport)
 	protected.Get("/compliance/frameworks/:frameworkId/controls", complianceControlRead, complianceHandler.ListControls)

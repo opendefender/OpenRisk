@@ -44,6 +44,7 @@ type ComplianceHandler struct {
 	listCatalogsUC     *compliance.ListCatalogsUseCase
 	importCatalogUC    *compliance.ImportCatalogUseCase
 	generateReportUC   *compliance.GenerateComplianceReportUseCase
+	getGapAnalysisUC   *compliance.GetGapAnalysisUseCase
 }
 
 func NewComplianceHandler(
@@ -64,6 +65,7 @@ func NewComplianceHandler(
 	listCatalogs *compliance.ListCatalogsUseCase,
 	importCatalog *compliance.ImportCatalogUseCase,
 	generateReport *compliance.GenerateComplianceReportUseCase,
+	getGapAnalysis *compliance.GetGapAnalysisUseCase,
 ) *ComplianceHandler {
 	return &ComplianceHandler{
 		createFrameworkUC:  createFramework,
@@ -83,6 +85,7 @@ func NewComplianceHandler(
 		listCatalogsUC:     listCatalogs,
 		importCatalogUC:    importCatalog,
 		generateReportUC:   generateReport,
+		getGapAnalysisUC:   getGapAnalysis,
 	}
 }
 
@@ -181,6 +184,26 @@ func (h *ComplianceHandler) GetProgress(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(progress)
+}
+
+// GetGapAnalysis godoc — the "analyse d'écarts" endpoint. Returns every
+// unsatisfied control (not implemented / in progress) across the tenant's
+// frameworks, with per-framework and overall roll-ups. An optional
+// ?framework_id=<uuid> query param scopes the analysis to a single framework.
+func (h *ComplianceHandler) GetGapAnalysis(c *fiber.Ctx) error {
+	frameworkID := uuid.Nil
+	if raw := c.Query("framework_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+		}
+		frameworkID = id
+	}
+	analysis, err := h.getGapAnalysisUC.Execute(c.UserContext(), tenantID(c), frameworkID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(analysis)
 }
 
 // GenerateReport godoc — streams an official compliance report (PDF) for one

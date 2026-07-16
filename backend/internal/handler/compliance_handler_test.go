@@ -101,6 +101,7 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewListCatalogsUseCase(),
 		applicationcompliance.NewImportCatalogUseCase(repo),
 		applicationcompliance.NewGenerateComplianceReportUseCase(repo, repository.NewGormOrganizationRepository(db), repository.NewGormUserRepository(db)),
+		applicationcompliance.NewGetGapAnalysisUseCase(repo),
 	)
 
 	app := fiber.New()
@@ -128,6 +129,7 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 	api.Post("/compliance/frameworks", frameworkCreate, h.CreateFramework)
 	api.Get("/compliance/frameworks/:frameworkId", frameworkRead, h.GetFramework)
 	api.Get("/compliance/frameworks/:frameworkId/progress", controlRead, h.GetProgress)
+	api.Get("/compliance/gap-analysis", controlRead, h.GetGapAnalysis)
 	api.Get("/compliance/frameworks/:frameworkId/controls", controlRead, h.ListControls)
 	api.Post("/compliance/frameworks/:frameworkId/controls", controlCreate, h.CreateControl)
 	api.Get("/compliance/controls/:controlId", controlRead, h.GetControl)
