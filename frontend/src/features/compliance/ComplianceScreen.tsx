@@ -103,7 +103,7 @@ export function ComplianceScreen() {
                 </div>
                 <div className="flex gap-2.5 flex-wrap">
                   <Btn label={L.genReport} icon={FileText} primary onClick={() => navigate('/reports')} />
-                  <Btn label={tr('Voir les écarts', 'View gaps')} icon={AlertTriangle} />
+                  <Btn label={tr('Voir les écarts', 'View gaps')} icon={AlertTriangle} onClick={() => navigate('/compliance/gap-analysis')} />
                 </div>
               </div>
             </div>

@@ -121,6 +121,17 @@ export function useImportCatalogAsFramework() {
   });
 }
 
+// useGapAnalysis fetches the tenant's open compliance gaps (all frameworks, or a
+// single one). Shares the ['compliance','overview'] invalidation family so a
+// status change on a control refreshes the gap list too.
+export function useGapAnalysis(frameworkId?: string) {
+  return useQuery({
+    queryKey: ['compliance', 'gap-analysis', frameworkId ?? 'all'],
+    queryFn: () => complianceService.getGapAnalysis(frameworkId),
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useComplianceProgress(frameworkId: string | undefined) {
   return useQuery({
     queryKey: frameworkId ? progressQueryKey(frameworkId) : ['compliance', 'progress', 'disabled'],

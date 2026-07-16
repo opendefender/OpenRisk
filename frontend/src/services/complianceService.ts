@@ -15,6 +15,7 @@ import type {
   ComplianceCatalogSummary,
   ImportCatalogInput,
   ImportCatalogResult,
+  GapAnalysis,
 } from '../types/compliance';
 
 export const complianceService = {
@@ -72,6 +73,16 @@ export const complianceService = {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  },
+
+  // getGapAnalysis returns every unsatisfied control across the tenant's
+  // frameworks (or a single framework when frameworkId is provided), with
+  // per-framework roll-ups. Backs the "Analyse d'écarts" screen.
+  getGapAnalysis: async (frameworkId?: string): Promise<GapAnalysis> => {
+    const response = await api.get<GapAnalysis>('/compliance/gap-analysis', {
+      params: frameworkId ? { framework_id: frameworkId } : undefined,
+    });
+    return response.data;
   },
 
   listControls: async (frameworkId: string): Promise<ComplianceControl[]> => {

@@ -31,3 +31,39 @@ export const CONTROL_STATUSES: ControlStatus[] = [
   'implemented',
   'not_applicable',
 ];
+
+// --- Gap analysis ("analyse d'écarts") --------------------------------------
+// Hand-written to match backend/internal/application/compliance/gap_analysis.go.
+// Not yet in the generated OpenAPI types (follow-up: add the GapAnalysis schema
+// to docs/openapi.yaml and regenerate). Fully typed — no `any`.
+export interface GapControl {
+  control_id: string;
+  framework_id: string;
+  framework_name: string;
+  reference_code: string;
+  name: string;
+  description: string;
+  status: ControlStatus;
+  source_reference: string;
+  evidence_count: number;
+}
+
+export interface FrameworkGapSummary {
+  framework_id: string;
+  framework_name: string;
+  version: string;
+  total: number;
+  implemented: number;
+  in_progress: number;
+  not_implemented: number;
+  not_applicable: number;
+  gaps: number;
+  percent_complete: number;
+}
+
+export interface GapAnalysis {
+  total_controls: number;
+  total_gaps: number;
+  frameworks: FrameworkGapSummary[];
+  gaps: GapControl[];
+}
