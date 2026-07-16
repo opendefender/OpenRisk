@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Atom, Plus, ChevronRight, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, type LucideIcon } from 'lucide-react';
+import { Atom, Plus, ChevronRight, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, type LucideIcon } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, CritBadge, SkeletonRows, EmptyState } from '../../shared/ui';
 import { critColor, scoreColor, softFill, scoreToCriticality, type Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -15,11 +15,13 @@ import { useUIStore } from '../../store/uiStore';
 import { useAssets } from './useAssets';
 import { CreateAssetModal } from './CreateAssetModal';
 import { EditAssetModal } from './EditAssetModal';
+import { AssetHistoryDrawer } from './AssetHistoryDrawer';
 import { relTime } from '../risks/riskMap';
 import type { Asset } from '../../types/asset';
 
 const TYPE_ICON: Record<string, LucideIcon> = {
-  Server: Server, Laptop: Laptop, Database: Database, SaaS: Cloud, Network: Globe, Storage: HardDrive,
+  Server: Server, Application: AppWindow, Cloud: Cloud, Database: Database, SaaS: Cloud,
+  Storage: HardDrive, Network: Globe, Laptop: Laptop, Data: Database, User: Users, Supplier: Building2,
 };
 
 export function InventoryPage() {
@@ -31,6 +33,7 @@ export function InventoryPage() {
   const [type, setType] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Asset | undefined>(undefined);
+  const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
 
   const types = useMemo(() => [...new Set(assets.map((a) => a.type).filter(Boolean) as string[])], [assets]);
   const rows = assets.filter((a) => !type || a.type === type);
@@ -114,7 +117,12 @@ export function InventoryPage() {
       </Card>
 
       <CreateAssetModal isOpen={creating} onClose={() => setCreating(false)} />
-      <EditAssetModal asset={editing} onClose={() => setEditing(undefined)} />
+      <EditAssetModal
+        asset={editing}
+        onClose={() => setEditing(undefined)}
+        onShowHistory={(id) => { setEditing(undefined); setHistoryAssetId(id); }}
+      />
+      <AssetHistoryDrawer assetId={historyAssetId} onClose={() => setHistoryAssetId(null)} />
     </PageFrame>
   );
 }

@@ -4,7 +4,14 @@
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
 import { api } from '../lib/api';
-import type { Asset, AssetSnapshot, CreateAssetInput, UpdateAssetInput } from '../types/asset';
+import type {
+  Asset,
+  AssetDependency,
+  AssetSnapshot,
+  CreateAssetDependencyInput,
+  CreateAssetInput,
+  UpdateAssetInput,
+} from '../types/asset';
 
 export const assetService = {
   listAssets: async (): Promise<Asset[]> => {
@@ -34,5 +41,20 @@ export const assetService = {
   getAssetHistory: async (id: string): Promise<AssetSnapshot[]> => {
     const response = await api.get<AssetSnapshot[]>(`/assets/${id}/history`);
     return response.data;
+  },
+
+  // --- Dependency graph (cartographie des dépendances) ---
+  listDependencies: async (): Promise<AssetDependency[]> => {
+    const response = await api.get<AssetDependency[]>('/asset-dependencies');
+    return response.data;
+  },
+
+  createDependency: async (payload: CreateAssetDependencyInput): Promise<AssetDependency> => {
+    const response = await api.post<AssetDependency>('/asset-dependencies', payload);
+    return response.data;
+  },
+
+  deleteDependency: async (id: string): Promise<void> => {
+    await api.delete(`/asset-dependencies/${id}`);
   },
 };

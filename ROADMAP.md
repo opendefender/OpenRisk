@@ -69,7 +69,7 @@ il n'est pas encore la plateforme différenciante du Master Prompt V5 (Wave 2/3)
 | **10. IA Advisor** | 🟡 | **Fondation `pkg/ai` créée** (10/07, 1er vrai client LLM du repo : interface `Advisor`, `ClaudeAdvisor` sur `anthropics/anthropic-sdk-go` modèle `claude-opus-4-8`, `TemplateAdvisor` fallback). `ai_risk_predictor_service`, `recommendation_service`. | Les use cases V5 (analyze/mitigations/deduplicate/prioritize/narrative/executive-summary), l'`AIAdvisorTab` dans le RiskDrawer, le streaming, le cache/rate-limit IA : **non faits** (stubs sans provider). Chemin `ClaudeAdvisor` non prouvé live (pas de clé). |
 | **11. Reporting & Export** | 🟡 | `pkg/report` (PDF `fpdf`, **conformité + Board Report ✅**), export CSV risques (`export_risks.go`), `export_handler`. | Pas de `pkg/export` async (jobs Redis, XLSX `excelize`, MinIO/S3, TTL). **Templates officiels COBAC/BCEAO/ISO/PCI ❌.** `ReportsPage.tsx` = maquette non câblée. |
 | **12. Compliance Frameworks** | ✅ (moteur) / 🟡 (couverture) | Moteur M1 vérifié live ; ISO 27001:2022 (93 contrôles) + **BCEAO (35) + ANTIC-CM (25) + COBAC (45)** cités article par article ; frameworks **tenant-scoped** (migration 0030). **Gestion complète sur les écrans redessinés (13/07)** : créer/importer/supprimer référentiel + contrôle (RBAC), preuve en chip cliquable, **progression temps réel**, **seuil de preuve obligatoire (mode strict, back+front)**. | ~20 frameworks V5 manquants (NIST, SOC2, DORA, NIS2, PCI, HIPAA, GDPR JSON…). **Cross-mapping ❌**, gap-analysis partiel. 1 placeholder (`cm-loi-2024-017`). |
-| **13. Asset Management** | ✅ (backend) / 🟡 (frontend killer) | M3 : Clean Architecture rétrofitée, snapshots historiques, criticité→Score Engine. `features/assets`. | **AssetUniversePage (D3 force-directed, 5 vues)** = la killer-feature V5, non implémentée (liste/drawer classiques seulement). Matching CVE via CPE dépend du CTI/Scanner. |
+| **13. Asset Management** | ✅ (inventaire + criticité + **dépendances** + historique, prouvé live 16/07) | M3 : Clean Architecture rétrofitée, snapshots historiques, criticité→Score Engine. `features/assets`. **Gestion centralisée complète (16/07, branche `feat/asset-dependency-mapping`)** : (1) **inventaire** étendu à la taxonomie GRC (Server/Application/Cloud/Database/SaaS/Storage/Network/Laptop/**Data/User/Supplier**) — icônes + chips de filtre ; (2) **classification par criticité** (déjà là, → Score Engine) ; (3) **cartographie des dépendances entre actifs** — nouveau modèle `AssetDependency` (arête dirigée tenant-scoped, 8 types de relation), repo+use cases (Create/List/Delete, gardes self-ref/doublon/cross-tenant, cascade à la suppression d'actif), handler `/asset-dependencies`, OpenAPI, `Asset Universe` **rebranché sur données réelles** (fixtures supprimées) avec éditeur de dépendances (ajout/retrait) dans le panneau ; (4) **historique des modifications** enfin exposé dans l'UI live (bouton « Historique » sur la modale d'édition → `AssetHistoryDrawer`). Preuves live : graph 7 actifs · 7 liens rendu, inventaire 11 types, endpoints 201/409/404/204, cascade + snapshot vérifiés. | Les 4 autres vues Universe (topology/bubbles/hierarchy) restent « coming soon ». Matching CVE via CPE dépend du CTI/Scanner (déjà câblé, item 21). |
 
 ### 1.2 Fonctionnalités avancées — Module 14.1 à 14.18 (le **moat** vs Vanta/Drata)
 
@@ -143,6 +143,40 @@ garantit code de référence + citation source uniques. 1 placeholder subsiste (
 Clean Architecture rétrofitée (le handler existant touchait `database.DB` sans use case ni RBAC),
 snapshots historiques, criticité enfin branchée sur le Score Engine via le flux Redis
 `asset.criticality_changed` (bug de scan varchar→float64 dans `GetRisksByAssetID` corrigé au passage).
+
+### M3+ — Gestion centralisée des actifs : dépendances + taxonomie + historique UI ✅ (16/07/2026, branche `feat/asset-dependency-mapping`)
+Réponse à la demande explicite « inventaire complet (serveurs/applications/cloud/données/utilisateurs/fournisseurs) +
+classification par criticité + **cartographie des dépendances** + historique des modifications ». État avant : 1 & 2 & 4
+existaient côté backend mais (a) la taxonomie ne couvrait pas données/utilisateurs/fournisseurs, (b) l'historique
+n'était **atteignable depuis aucun écran live** (le `AssetHistoryDrawer` ne vivait que dans l'orphelin `AssetsPage`),
+(c) la **cartographie des dépendances n'existait pas** : l'`Asset Universe` était un canvas **piloté par des fixtures**
+(`UNI_NODES`/`UNI_LINKS`) badgé « Aperçu », sans aucun modèle backend d'arêtes.
+- **(1) Cartographie des dépendances (le vrai manque).** Nouveau `domain.AssetDependency` — arête **dirigée**
+  `SourceAsset → TargetAsset`, tenant-scoped, `DependencyType` (8 relations : depends_on / runs_on / connects_to /
+  hosted_by / stores_data_in / authenticates_via / backs_up_to / managed_by), dans `AutoMigrate`. Port
+  `AssetDependencyRepository` + impl Gorm (isolation tenant sur chaque query, `Exists` anti-doublon, `DeleteByAsset`
+  pour le cascade). Use cases (1 fichier chacun) : `Create` (valide que **les deux** actifs existent dans le tenant —
+  double garde cross-tenant —, refuse l'auto-référence et le doublon), `List` (graphe complet du tenant), `Delete`.
+  Handler + routes `GET/POST /asset-dependencies`, `DELETE /asset-dependencies/:id` (montées **en sœurs** de `/assets`
+  pour que « dependencies » ne soit jamais parsé comme UUID). `DeleteAssetUseCase.WithDependencyRepository(...)` prune
+  les arêtes à la suppression d'un actif (option, garde le constructeur 1-arg et ses tests). OpenAPI + types régénérés.
+- **(2) Inventaire — taxonomie étendue.** `ASSET_TYPES` (front) + enums OpenAPI (`Asset`/Create/Update) passent à
+  **Server, Application, Cloud, Database, SaaS, Storage, Network, Laptop, Data, User, Supplier** — couvre les 6
+  catégories demandées. Icônes + chips de filtre par type mis à jour (InventoryPage + panneau Universe).
+- **(3) Historique enfin exposé.** Bouton « Historique » ajouté à `EditAssetModal` → ouvre le `AssetHistoryDrawer`
+  (endpoint `/assets/:id/history` inchangé, déjà prouvé en M3) depuis l'`InventoryPage` live.
+- **(4) `Asset Universe` rebranché sur le réel.** Fixtures supprimées ; nœuds = `/assets`, arêtes =
+  `/asset-dependencies` ; physique in-house conservée (répulsion/ressorts/gravité/amortissement, 160 warm-up) ;
+  panneau latéral = **éditeur de dépendances** (liste entrantes/sortantes + ajout `cible × relation` + retrait),
+  gardé par `assets:update` ; états loading/empty honnêtes.
+- **Tests** : use cases (Success/Defaults/SelfRef/TargetNotFound/CrossTenant/Duplicate + List/Delete Success/NotFound/
+  CrossTenant) + repo Gorm sqlite (isolation tenant, Exists, GetByID cross-tenant=nil, DeleteByAsset, ListByAsset
+  bidirectionnel). `go build`/`vet`/tests verts ; `tsc -b`/`vite build` verts.
+- **Preuves live (16/07, Postgres:5434 + Redis, admin@opendefender.io)** : create dep 201, list 200, self-ref 400,
+  doublon 409, cible absente 404, type invalide 400, `GET /assets/:id` **non masqué** par la route sœur (200),
+  cascade (delete actif → arêtes = `[]`), PATCH actif → snapshot d'historique créé. **Frontend (Chrome headless,
+  1600×940)** : `Asset Universe` rend **7 actifs · 7 liens** (graphe force-directed, couleurs par criticité, hub
+  web-01) ; `Inventaire` affiche les 11 types avec icônes/badges corrects (User/Cloud/Storage/Supplier…).
 
 ### M4 — Reporting officiel + Board Report ✅ (09–10/07/2026, branche `feat/m4-compliance-report-pdf`)
 - **Rapport de conformité officiel (PDF, 1 clic)** — vérifié live 09/07. `GET /compliance/frameworks/{id}/report?locale=fr|en`

@@ -17,10 +17,21 @@ import (
 // asset's last known state remains visible in its history even after removal.
 type DeleteAssetUseCase struct {
 	repo domain.AssetRepository
+	// deps is optional. When set, deleting an asset also prunes every
+	// dependency edge touching it, so the cartography never shows dangling
+	// links to a removed asset. Wired via WithDependencyRepository so the
+	// original 1-arg constructor (and its tests) keep working unchanged.
+	deps domain.AssetDependencyRepository
 }
 
 func NewDeleteAssetUseCase(repo domain.AssetRepository) *DeleteAssetUseCase {
 	return &DeleteAssetUseCase{repo: repo}
+}
+
+// WithDependencyRepository enables dependency-edge cascade on delete.
+func (uc *DeleteAssetUseCase) WithDependencyRepository(deps domain.AssetDependencyRepository) *DeleteAssetUseCase {
+	uc.deps = deps
+	return uc
 }
 
 func (uc *DeleteAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, assetID uuid.UUID) error {
@@ -44,6 +55,12 @@ func (uc *DeleteAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, a
 	}
 	if err := uc.repo.CreateSnapshot(ctx, snapshot); err != nil {
 		return domain.NewInternalError(err.Error())
+	}
+
+	if uc.deps != nil {
+		if err := uc.deps.DeleteByAsset(ctx, assetID, tenantID); err != nil {
+			return domain.NewInternalError(err.Error())
+		}
 	}
 
 	if err := uc.repo.Delete(ctx, assetID, tenantID); err != nil {

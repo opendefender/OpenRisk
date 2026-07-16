@@ -1199,6 +1199,75 @@ paths:
         '404':
           description: Asset not found
 
+  # ==================== ASSET DEPENDENCIES ====================
+  /asset-dependencies:
+    get:
+      tags:
+        - Assets
+      summary: List the tenant's asset dependency graph (every directed edge)
+      operationId: listAssetDependencies
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All dependency edges for the tenant
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssetDependency'
+        '401':
+          description: Unauthorized
+
+    post:
+      tags:
+        - Assets
+      summary: Add a directed dependency edge (source depends on target)
+      operationId: createAssetDependency
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssetDependencyInput'
+      responses:
+        '201':
+          description: Dependency created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetDependency'
+        '400':
+          description: Invalid input (self-reference, unknown type, ...)
+        '404':
+          description: Source or target asset not found in this tenant
+        '409':
+          description: Identical edge already exists
+
+  /asset-dependencies/{id}:
+    delete:
+      tags:
+        - Assets
+      summary: Delete a dependency edge
+      operationId: deleteAssetDependency
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Dependency deleted
+        '404':
+          description: Dependency not found
+
   # ==================== STATISTICS ====================
   /stats:
     get:
@@ -1450,7 +1519,7 @@ components:
           example: "Production Database Server"
         type:
           type: string
-          enum: [Server, Laptop, Database, SaaS, Network, Storage]
+          enum: [Server, Application, Cloud, Database, SaaS, Storage, Network, Laptop, Data, User, Supplier]
           example: Database
         criticality:
           type: string
@@ -1472,7 +1541,7 @@ components:
           minLength: 1
         type:
           type: string
-          enum: [Server, Laptop, Database, SaaS, Network, Storage]
+          enum: [Server, Application, Cloud, Database, SaaS, Storage, Network, Laptop, Data, User, Supplier]
         criticality:
           type: string
           enum: [LOW, MEDIUM, HIGH, CRITICAL]
@@ -1904,7 +1973,7 @@ components:
           type: string
         type:
           type: string
-          enum: [Server, Laptop, Database, SaaS, Network, Storage]
+          enum: [Server, Application, Cloud, Database, SaaS, Storage, Network, Laptop, Data, User, Supplier]
         criticality:
           type: string
           enum: [LOW, MEDIUM, HIGH, CRITICAL]
@@ -1951,6 +2020,55 @@ components:
         created_at:
           type: string
           format: date-time
+
+    AssetDependency:
+      type: object
+      description: >-
+        A directed edge in the tenant's asset dependency graph:
+        source_asset depends on target_asset (read "source <type> target").
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        source_asset_id:
+          type: string
+          format: uuid
+        target_asset_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [depends_on, runs_on, connects_to, hosted_by, stores_data_in, authenticates_via, backs_up_to, managed_by]
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateAssetDependencyInput:
+      type: object
+      required:
+        - source_asset_id
+        - target_asset_id
+      properties:
+        source_asset_id:
+          type: string
+          format: uuid
+        target_asset_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [depends_on, runs_on, connects_to, hosted_by, stores_data_in, authenticates_via, backs_up_to, managed_by]
+          default: depends_on
+        description:
+          type: string
 
     DashboardStats:
       type: object
