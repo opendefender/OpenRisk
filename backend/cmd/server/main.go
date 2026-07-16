@@ -149,6 +149,9 @@ func main() {
 		&domain.Mitigation{},
 		&domain.Asset{},
 		&domain.AssetSnapshot{},
+		// Directed edges of the asset dependency graph ("cartographie des
+		// dépendances"). Tenant-scoped; both endpoints reference assets.
+		&domain.AssetDependency{},
 		&domain.RiskHistory{},
 		&domain.CustomField{},
 		&domain.CustomFieldTemplate{},
@@ -734,15 +737,25 @@ func main() {
 	// RBAC entirely (any authenticated user, any role, could write inventory
 	// data) — now gated the same way as risks/compliance.
 	assetRepo := repository.NewGormAssetRepository(database.DB)
+	assetDepRepo := repository.NewGormAssetDependencyRepository(database.DB)
 	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo)
 	getAssetUC := assetapp.NewGetAssetUseCase(assetRepo)
 	listAssetsUC := assetapp.NewListAssetsUseCase(assetRepo)
 	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo)
-	deleteAssetUC := assetapp.NewDeleteAssetUseCase(assetRepo)
+	// Deleting an asset also prunes its dependency edges (no dangling links).
+	deleteAssetUC := assetapp.NewDeleteAssetUseCase(assetRepo).WithDependencyRepository(assetDepRepo)
 	listAssetSnapshotsUC := assetapp.NewListAssetSnapshotsUseCase(assetRepo)
 	assetHandler := handlers.NewAssetHandler(
 		createAssetUC, getAssetUC, listAssetsUC, updateAssetUC, deleteAssetUC, listAssetSnapshotsUC,
 		redisClientInstance,
+	)
+
+	// Asset dependency graph (cartography). Both endpoints must belong to the
+	// tenant; edges cascade-delete when either asset is removed.
+	assetDepHandler := handlers.NewAssetDependencyHandler(
+		assetapp.NewListAssetDependenciesUseCase(assetDepRepo),
+		assetapp.NewCreateAssetDependencyUseCase(assetDepRepo, assetRepo),
+		assetapp.NewDeleteAssetDependencyUseCase(assetDepRepo),
 	)
 
 	assetRead := middleware.RequirePermission("assets:read")
@@ -752,6 +765,12 @@ func main() {
 
 	protected.Get("/assets", assetRead, assetHandler.ListAssets)
 	protected.Post("/assets", assetCreate, assetHandler.CreateAsset)
+	// NB: register the static /asset-dependencies resource as a sibling of
+	// /assets (not /assets/:id/...) so "dependencies" is never parsed as an
+	// asset UUID.
+	protected.Get("/asset-dependencies", assetRead, assetDepHandler.ListAssetDependencies)
+	protected.Post("/asset-dependencies", assetUpdate, assetDepHandler.CreateAssetDependency)
+	protected.Delete("/asset-dependencies/:id", assetUpdate, assetDepHandler.DeleteAssetDependency)
 	protected.Get("/assets/:id", assetRead, assetHandler.GetAsset)
 	protected.Patch("/assets/:id", assetUpdate, assetHandler.UpdateAsset)
 	protected.Delete("/assets/:id", assetDelete, assetHandler.DeleteAsset)

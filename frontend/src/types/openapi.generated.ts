@@ -557,6 +557,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the tenant's asset dependency graph (every directed edge) */
+        get: operations["listAssetDependencies"];
+        put?: never;
+        /** Add a directed dependency edge (source depends on target) */
+        post: operations["createAssetDependency"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-dependencies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a dependency edge */
+        delete: operations["deleteAssetDependency"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -732,7 +767,7 @@ export interface components {
              * @example Database
              * @enum {string}
              */
-            type?: "Server" | "Laptop" | "Database" | "SaaS" | "Network" | "Storage";
+            type?: "Server" | "Application" | "Cloud" | "Database" | "SaaS" | "Storage" | "Network" | "Laptop" | "Data" | "User" | "Supplier";
             /**
              * @example CRITICAL
              * @enum {string}
@@ -747,7 +782,7 @@ export interface components {
         UpdateAssetInput: {
             name?: string;
             /** @enum {string} */
-            type?: "Server" | "Laptop" | "Database" | "SaaS" | "Network" | "Storage";
+            type?: "Server" | "Application" | "Cloud" | "Database" | "SaaS" | "Storage" | "Network" | "Laptop" | "Data" | "User" | "Supplier";
             /** @enum {string} */
             criticality?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             owner?: string;
@@ -1040,7 +1075,7 @@ export interface components {
             id?: string;
             name?: string;
             /** @enum {string} */
-            type?: "Server" | "Laptop" | "Database" | "SaaS" | "Network" | "Storage";
+            type?: "Server" | "Application" | "Cloud" | "Database" | "SaaS" | "Storage" | "Network" | "Laptop" | "Data" | "User" | "Supplier";
             /** @enum {string} */
             criticality?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             owner?: string;
@@ -1068,6 +1103,36 @@ export interface components {
             reason?: "update" | "delete";
             /** Format: date-time */
             created_at?: string;
+        };
+        /** @description A directed edge in the tenant's asset dependency graph: source_asset depends on target_asset (read "source <type> target"). */
+        AssetDependency: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            tenant_id?: string;
+            /** Format: uuid */
+            source_asset_id?: string;
+            /** Format: uuid */
+            target_asset_id?: string;
+            /** @enum {string} */
+            type?: "depends_on" | "runs_on" | "connects_to" | "hosted_by" | "stores_data_in" | "authenticates_via" | "backs_up_to" | "managed_by";
+            description?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CreateAssetDependencyInput: {
+            /** Format: uuid */
+            source_asset_id: string;
+            /** Format: uuid */
+            target_asset_id: string;
+            /**
+             * @default depends_on
+             * @enum {string}
+             */
+            type: "depends_on" | "runs_on" | "connects_to" | "hosted_by" | "stores_data_in" | "authenticates_via" | "backs_up_to" | "managed_by";
+            description?: string;
         };
         DashboardStats: {
             total_risks?: number;
@@ -2602,6 +2667,105 @@ export interface operations {
                 };
             };
             /** @description Asset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listAssetDependencies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All dependency edges for the tenant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetDependency"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createAssetDependency: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAssetDependencyInput"];
+            };
+        };
+        responses: {
+            /** @description Dependency created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetDependency"];
+                };
+            };
+            /** @description Invalid input (self-reference, unknown type, ...) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Source or target asset not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Identical edge already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteAssetDependency: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dependency deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dependency not found */
             404: {
                 headers: {
                     [name: string]: unknown;

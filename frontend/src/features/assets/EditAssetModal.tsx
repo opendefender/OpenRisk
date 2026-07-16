@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Server } from 'lucide-react';
+import { X, Server, History } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
@@ -27,9 +27,12 @@ type FormValues = z.infer<typeof schema>;
 interface EditAssetModalProps {
   asset: Asset | undefined;
   onClose: () => void;
+  // Opens the asset's change-history drawer (snapshots taken before each
+  // update/delete). Optional so callers that don't surface history can omit it.
+  onShowHistory?: (assetId: string) => void;
 }
 
-export const EditAssetModal = ({ asset, onClose }: EditAssetModalProps) => {
+export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModalProps) => {
   const { t } = useI18n();
   const toast = useToast();
   const { updateAsset } = useAssets();
@@ -95,13 +98,26 @@ export const EditAssetModal = ({ asset, onClose }: EditAssetModalProps) => {
                   </div>
                   <h2 className="text-xl font-semibold">{t('assets.editAsset')}</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  <X size={20} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {onShowHistory && asset?.id && (
+                    <button
+                      type="button"
+                      onClick={() => onShowHistory(asset.id as string)}
+                      className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+                      title={t('assets.history')}
+                    >
+                      <History size={16} />
+                      <span className="hidden sm:inline">{t('assets.history')}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">

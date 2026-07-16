@@ -73,3 +73,64 @@ func (m *MockAssetRepository) ListSnapshots(ctx context.Context, assetID, tenant
 	}
 	return []domain.AssetSnapshot{}, nil
 }
+
+// MockAssetDependencyRepository is a hand-rolled mock implementing
+// domain.AssetDependencyRepository (same function-field pattern as above).
+type MockAssetDependencyRepository struct {
+	createFunc        func(ctx context.Context, d *domain.AssetDependency) error
+	getByIDFunc       func(ctx context.Context, id, tenantID uuid.UUID) (*domain.AssetDependency, error)
+	listByTenantFunc  func(ctx context.Context, tenantID uuid.UUID) ([]domain.AssetDependency, error)
+	listByAssetFunc   func(ctx context.Context, assetID, tenantID uuid.UUID) ([]domain.AssetDependency, error)
+	existsFunc        func(ctx context.Context, tenantID, src, tgt uuid.UUID, t domain.DependencyType) (bool, error)
+	deleteFunc        func(ctx context.Context, id, tenantID uuid.UUID) error
+	deleteByAssetFunc func(ctx context.Context, assetID, tenantID uuid.UUID) error
+}
+
+func (m *MockAssetDependencyRepository) Create(ctx context.Context, d *domain.AssetDependency) error {
+	if m.createFunc != nil {
+		return m.createFunc(ctx, d)
+	}
+	return nil
+}
+
+func (m *MockAssetDependencyRepository) GetByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.AssetDependency, error) {
+	if m.getByIDFunc != nil {
+		return m.getByIDFunc(ctx, id, tenantID)
+	}
+	return nil, nil
+}
+
+func (m *MockAssetDependencyRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID) ([]domain.AssetDependency, error) {
+	if m.listByTenantFunc != nil {
+		return m.listByTenantFunc(ctx, tenantID)
+	}
+	return []domain.AssetDependency{}, nil
+}
+
+func (m *MockAssetDependencyRepository) ListByAsset(ctx context.Context, assetID, tenantID uuid.UUID) ([]domain.AssetDependency, error) {
+	if m.listByAssetFunc != nil {
+		return m.listByAssetFunc(ctx, assetID, tenantID)
+	}
+	return []domain.AssetDependency{}, nil
+}
+
+func (m *MockAssetDependencyRepository) Exists(ctx context.Context, tenantID, src, tgt uuid.UUID, t domain.DependencyType) (bool, error) {
+	if m.existsFunc != nil {
+		return m.existsFunc(ctx, tenantID, src, tgt, t)
+	}
+	return false, nil
+}
+
+func (m *MockAssetDependencyRepository) Delete(ctx context.Context, id, tenantID uuid.UUID) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, id, tenantID)
+	}
+	return nil
+}
+
+func (m *MockAssetDependencyRepository) DeleteByAsset(ctx context.Context, assetID, tenantID uuid.UUID) error {
+	if m.deleteByAssetFunc != nil {
+		return m.deleteByAssetFunc(ctx, assetID, tenantID)
+	}
+	return nil
+}

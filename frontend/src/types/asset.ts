@@ -14,5 +14,38 @@ export type AssetSnapshot = components['schemas']['AssetSnapshot'];
 export type CreateAssetInput = components['schemas']['CreateAssetInput'];
 export type UpdateAssetInput = components['schemas']['UpdateAssetInput'];
 
+export type AssetDependency = components['schemas']['AssetDependency'];
+export type CreateAssetDependencyInput = components['schemas']['CreateAssetDependencyInput'];
+export type DependencyType = NonNullable<AssetDependency['type']>;
+
 export const ASSET_CRITICALITIES: AssetCriticality[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-export const ASSET_TYPES = ['Server', 'Laptop', 'Database', 'SaaS', 'Network', 'Storage'] as const;
+
+// Canonical inventory taxonomy — covers the categories a GRC inventory must
+// classify: servers, applications, cloud, data, users, suppliers (plus the
+// finer-grained legacy types). Scanner-imported assets may carry other free
+// strings; the UI falls back to a generic icon for those.
+export const ASSET_TYPES = [
+  'Server',
+  'Application',
+  'Cloud',
+  'Database',
+  'SaaS',
+  'Storage',
+  'Network',
+  'Laptop',
+  'Data',
+  'User',
+  'Supplier',
+] as const;
+
+// Relationship vocabulary for the dependency cartography. Order = display order.
+export const DEPENDENCY_TYPES: DependencyType[] = [
+  'depends_on',
+  'runs_on',
+  'connects_to',
+  'hosted_by',
+  'stores_data_in',
+  'authenticates_via',
+  'backs_up_to',
+  'managed_by',
+];
