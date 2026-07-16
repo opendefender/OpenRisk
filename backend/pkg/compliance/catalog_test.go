@@ -67,6 +67,14 @@ func TestExpectedControlCounts(t *testing.T) {
 		"pci-dss-4.0":    12, // 12 core requirements
 		"hipaa-security": 22, // Administrative(9)+Physical(4)+Technical(5)+Organizational(2)+Docs(2)
 		"soc2-tsc":       51, // Common Criteria(33)+A(3)+C(2)+PI(5)+P(8)
+		// International frameworks added for the "5. Conformité" spec — full target list.
+		"iso27005-2022":  19, // Process clauses 5,6,7,8,9,10 activities
+		"iso31000-2018":  22, // 8 principles + 6 framework components + 8 process activities
+		"nist-800-53-r5": 20, // 20 control families (AC…SR)
+		"gdpr-2016-679":  22, // key operational articles (principles, rights, security, DPO, transfers)
+		"dora-2022-2554": 19, // 5 pillars — key articles
+		"nis2-2022-2555": 12, // governance + the 10 art.21 measures + notification
+		"sox-2002":       10, // 6 statutory sections + 4 ITGC domains
 	}
 	for key, want := range cases {
 		t.Run(key, func(t *testing.T) {
