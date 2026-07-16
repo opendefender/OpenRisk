@@ -16,6 +16,13 @@ import type {
   ImportCatalogInput,
   ImportCatalogResult,
   GapAnalysis,
+  ComplianceAudit,
+  CreateAuditInput,
+  UpdateAuditInput,
+  RemediationPlan,
+  CreateRemediationInput,
+  UpdateRemediationInput,
+  RemediationFilter,
 } from '../types/compliance';
 
 export const complianceService = {
@@ -136,5 +143,43 @@ export const complianceService = {
 
   deleteEvidence: async (evidenceId: string): Promise<void> => {
     await api.delete(`/compliance/evidences/${evidenceId}`);
+  },
+
+  // --- Audits ---------------------------------------------------------------
+  listAudits: async (): Promise<ComplianceAudit[]> => {
+    const response = await api.get<ComplianceAudit[]>('/compliance/audits');
+    return response.data;
+  },
+  createAudit: async (payload: CreateAuditInput): Promise<ComplianceAudit> => {
+    const response = await api.post<ComplianceAudit>('/compliance/audits', payload);
+    return response.data;
+  },
+  getAudit: async (id: string): Promise<ComplianceAudit> => {
+    const response = await api.get<ComplianceAudit>(`/compliance/audits/${id}`);
+    return response.data;
+  },
+  updateAudit: async (id: string, payload: UpdateAuditInput): Promise<ComplianceAudit> => {
+    const response = await api.patch<ComplianceAudit>(`/compliance/audits/${id}`, payload);
+    return response.data;
+  },
+  deleteAudit: async (id: string): Promise<void> => {
+    await api.delete(`/compliance/audits/${id}`);
+  },
+
+  // --- Remediation plans ----------------------------------------------------
+  listRemediations: async (filter?: RemediationFilter): Promise<RemediationPlan[]> => {
+    const response = await api.get<RemediationPlan[]>('/compliance/remediations', { params: filter });
+    return response.data;
+  },
+  createRemediation: async (payload: CreateRemediationInput): Promise<RemediationPlan> => {
+    const response = await api.post<RemediationPlan>('/compliance/remediations', payload);
+    return response.data;
+  },
+  updateRemediation: async (id: string, payload: UpdateRemediationInput): Promise<RemediationPlan> => {
+    const response = await api.patch<RemediationPlan>(`/compliance/remediations/${id}`, payload);
+    return response.data;
+  },
+  deleteRemediation: async (id: string): Promise<void> => {
+    await api.delete(`/compliance/remediations/${id}`);
   },
 };

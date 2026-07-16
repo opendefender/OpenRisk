@@ -7,11 +7,13 @@
 // lands here.
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ChevronRight, ShieldCheck, FileText, Filter } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ShieldCheck, FileText, Filter, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { useGapAnalysis } from './useCompliance';
+import { CreateRemediationDialog } from './AuditRemediationModals';
 import type { ControlStatus, GapControl } from '../../types/compliance';
 
 const STATUS_META: Record<string, { color: string; fr: string; en: string }> = {
@@ -24,7 +26,10 @@ export function GapAnalysisPage() {
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { data, isLoading, error, refetch } = useGapAnalysis();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canRemediate = hasPermission('compliance:remediations:write');
   const [fwFilter, setFwFilter] = useState<string>('all');
+  const [remediate, setRemediate] = useState<GapControl | null>(null);
 
   const meta = (s?: string) => STATUS_META[s ?? 'not_implemented'] ?? STATUS_META.not_implemented;
 
@@ -145,6 +150,16 @@ export function GapAnalysisPage() {
                             <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} />
                             {lang === 'fr' ? m.fr : m.en}
                           </span>
+                          {canRemediate && (
+                            <button
+                              onClick={() => setRemediate(g)}
+                              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[8px] text-[11.5px] font-semibold text-ink-soft hover:text-ink transition-colors"
+                              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+                              title={tr('Créer un plan de remédiation', 'Create a remediation plan')}
+                            >
+                              <Wrench size={12} /> {tr('Remédier', 'Remediate')}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -154,6 +169,14 @@ export function GapAnalysisPage() {
             ))}
           </div>
         </>
+      )}
+
+      {remediate && (
+        <CreateRemediationDialog
+          onClose={() => setRemediate(null)}
+          controlId={remediate.control_id}
+          controlLabel={`${remediate.reference_code} — ${remediate.name}`}
+        />
       )}
     </PageFrame>
   );

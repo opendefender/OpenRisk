@@ -67,3 +67,101 @@ export interface GapAnalysis {
   frameworks: FrameworkGapSummary[];
   gaps: GapControl[];
 }
+
+// --- Audits ("Audits") -------------------------------------------------------
+// Matches backend/internal/domain/compliance_audit.go. Hand-written; follow-up:
+// add to docs/openapi.yaml.
+export type AuditType = 'internal' | 'external' | 'certification' | 'surveillance';
+export type AuditStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface ComplianceAudit {
+  id: string;
+  tenant_id: string;
+  title: string;
+  framework_id: string | null;
+  type: AuditType;
+  status: AuditStatus;
+  auditor: string;
+  scope: string;
+  summary: string;
+  compliance_score: number;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  completed_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAuditInput {
+  title: string;
+  framework_id?: string;
+  type?: AuditType;
+  auditor?: string;
+  scope?: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
+}
+
+export interface UpdateAuditInput {
+  title?: string;
+  framework_id?: string;
+  type?: AuditType;
+  status?: AuditStatus;
+  auditor?: string;
+  scope?: string;
+  summary?: string;
+  compliance_score?: number;
+  scheduled_start?: string;
+  scheduled_end?: string;
+}
+
+// --- Remediation plans ("Plans de remédiation") ------------------------------
+export type RemediationPriority = 'low' | 'medium' | 'high' | 'critical';
+export type RemediationStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface RemediationPlan {
+  id: string;
+  tenant_id: string;
+  title: string;
+  description: string;
+  control_id: string | null;
+  framework_id: string | null;
+  audit_id: string | null;
+  priority: RemediationPriority;
+  status: RemediationStatus;
+  assigned_to: string | null;
+  due_date: string | null;
+  completed_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  control_code?: string;
+  control_name?: string;
+}
+
+export interface CreateRemediationInput {
+  title: string;
+  description?: string;
+  control_id?: string;
+  audit_id?: string;
+  priority?: RemediationPriority;
+  assigned_to?: string;
+  due_date?: string;
+}
+
+export interface UpdateRemediationInput {
+  title?: string;
+  description?: string;
+  priority?: RemediationPriority;
+  status?: RemediationStatus;
+  assigned_to?: string;
+  due_date?: string;
+}
+
+export interface RemediationFilter {
+  control_id?: string;
+  framework_id?: string;
+  audit_id?: string;
+  status?: RemediationStatus;
+}

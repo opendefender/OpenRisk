@@ -7,7 +7,7 @@
 // framework, import one from the regulatory catalog, or delete one.
 
 import { useState } from 'react';
-import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight, Plus, Library, Trash2 } from 'lucide-react';
+import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight, Plus, Library, Trash2, CalendarClock, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
@@ -68,6 +68,13 @@ export function ComplianceScreen() {
   return (
     <PageFrame>
       <PageHeader title={L.n_compliance} actions={headerActions} />
+
+      {/* Compliance hub nav — the module's sub-areas beyond frameworks. */}
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <HubLink icon={AlertTriangle} label={tr("Analyse d'écarts", 'Gap analysis')} onClick={() => navigate('/compliance/gap-analysis')} />
+        <HubLink icon={CalendarClock} label={tr('Audits', 'Audits')} onClick={() => navigate('/compliance/audits')} />
+        <HubLink icon={Wrench} label={tr('Plans de remédiation', 'Remediation plans')} onClick={() => navigate('/compliance/remediations')} />
+      </div>
 
       {isLoading ? (
         <Card style={{ padding: 8 }}><SkeletonRows rows={4} height={64} /></Card>
@@ -166,5 +173,18 @@ export function ComplianceScreen() {
         <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/${id}`)} />
       )}
     </PageFrame>
+  );
+}
+
+function HubLink({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ size?: number }>; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2 h-8 px-3 rounded-[10px] text-[12.5px] font-semibold text-ink-soft hover:text-ink transition-colors"
+      style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+    >
+      <Icon size={14} />
+      {label}
+    </button>
   );
 }

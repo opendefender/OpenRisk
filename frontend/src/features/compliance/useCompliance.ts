@@ -15,6 +15,11 @@ import type {
   CreateFrameworkInput,
   UpdateControlInput,
   ImportCatalogInput,
+  CreateAuditInput,
+  UpdateAuditInput,
+  CreateRemediationInput,
+  UpdateRemediationInput,
+  RemediationFilter,
 } from '../../types/compliance';
 
 const FRAMEWORKS_QUERY_KEY = ['compliance', 'frameworks'];
@@ -130,6 +135,61 @@ export function useGapAnalysis(frameworkId?: string) {
     queryFn: () => complianceService.getGapAnalysis(frameworkId),
     staleTime: 1000 * 30,
   });
+}
+
+// --- Audits ------------------------------------------------------------------
+const AUDITS_QUERY_KEY = ['compliance', 'audits'];
+
+export function useAudits() {
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: AUDITS_QUERY_KEY, queryFn: () => complianceService.listAudits() });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: AUDITS_QUERY_KEY });
+
+  const createAudit = useMutation({
+    mutationFn: (payload: CreateAuditInput) => complianceService.createAudit(payload),
+    onSettled: invalidate,
+  });
+  const updateAudit = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateAuditInput }) => complianceService.updateAudit(id, payload),
+    onSettled: invalidate,
+  });
+  const deleteAudit = useMutation({
+    mutationFn: (id: string) => complianceService.deleteAudit(id),
+    onSettled: invalidate,
+  });
+
+  return useMemo(
+    () => ({ audits: query.data ?? [], isLoading: query.isLoading, error: query.error, refetch: query.refetch, createAudit, updateAudit, deleteAudit }),
+    [query, createAudit, updateAudit, deleteAudit]
+  );
+}
+
+// --- Remediation plans -------------------------------------------------------
+const remediationsQueryKey = (filter?: RemediationFilter) => ['compliance', 'remediations', filter ?? {}];
+
+export function useRemediations(filter?: RemediationFilter) {
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: remediationsQueryKey(filter), queryFn: () => complianceService.listRemediations(filter) });
+  // Invalidate every remediation list (any filter) after a mutation.
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['compliance', 'remediations'] });
+
+  const createRemediation = useMutation({
+    mutationFn: (payload: CreateRemediationInput) => complianceService.createRemediation(payload),
+    onSettled: invalidate,
+  });
+  const updateRemediation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateRemediationInput }) => complianceService.updateRemediation(id, payload),
+    onSettled: invalidate,
+  });
+  const deleteRemediation = useMutation({
+    mutationFn: (id: string) => complianceService.deleteRemediation(id),
+    onSettled: invalidate,
+  });
+
+  return useMemo(
+    () => ({ remediations: query.data ?? [], isLoading: query.isLoading, error: query.error, refetch: query.refetch, createRemediation, updateRemediation, deleteRemediation }),
+    [query, createRemediation, updateRemediation, deleteRemediation]
+  );
 }
 
 export function useComplianceProgress(frameworkId: string | undefined) {
