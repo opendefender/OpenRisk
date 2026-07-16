@@ -46,14 +46,14 @@ type MITREData struct {
 //
 // After each successful NVD sync, MatchCVEsToAllTenantAssets() is invoked.
 type SyncWorker struct {
-	repo       Repository
-	client     *ExternalClient
-	matcher    Matcher
-	logger     zerolog.Logger
-	mitreData  *MITREData
-	nvdTick    time.Duration
-	cisaTick   time.Duration
-	stopCh     chan struct{}
+	repo      Repository
+	client    *ExternalClient
+	matcher   Matcher
+	logger    zerolog.Logger
+	mitreData *MITREData
+	nvdTick   time.Duration
+	cisaTick  time.Duration
+	stopCh    chan struct{}
 }
 
 // NewSyncWorker creates a new CTI sync worker.
@@ -263,19 +263,16 @@ func (w *SyncWorker) runCISASync(ctx context.Context) {
 // ====================================================================
 
 func (w *SyncWorker) loadMITREData() {
-	// Determine path relative to this source file
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		w.logger.Warn().Msg("could not determine MITRE data path, skipping enrichment")
-		return
+	// Prefer the data compiled into the binary (works from any CWD). Fall back to
+	// reading the source-tree file only if the embed is somehow empty.
+	data := embeddedMITREData
+	if len(data) == 0 {
+		if _, filename, _, ok := runtime.Caller(0); ok {
+			data, _ = os.ReadFile(filepath.Join(filepath.Dir(filename), "data", "mitre_attack.json"))
+		}
 	}
-	dataPath := filepath.Join(filepath.Dir(filename), "data", "mitre_attack.json")
-
-	data, err := os.ReadFile(dataPath)
-	if err != nil {
-		w.logger.Warn().
-			Str("path", dataPath).
-			Msg("MITRE ATT&CK data file not found, enrichment disabled")
+	if len(data) == 0 {
+		w.logger.Warn().Msg("MITRE ATT&CK data unavailable, enrichment disabled")
 		return
 	}
 
@@ -290,7 +287,7 @@ func (w *SyncWorker) loadMITREData() {
 	w.mitreData = &mitreData
 	w.logger.Info().
 		Int("mappings", len(mitreData.Mappings)).
-		Msg("MITRE ATT&CK data loaded")
+		Msg("MITRE ATT&CK data loaded (embedded)")
 }
 
 func (w *SyncWorker) enrichWithMITRE(vulns []CTIVulnerability) {

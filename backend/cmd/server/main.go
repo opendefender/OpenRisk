@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/auth"
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
+	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
@@ -36,11 +37,13 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
+	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/email"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
@@ -51,6 +54,7 @@ import (
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/crq"
+	"github.com/opendefender/openrisk/pkg/cti"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/scoring"
 	"github.com/opendefender/openrisk/pkg/storage"
@@ -182,6 +186,9 @@ func main() {
 		&domain.ScanConfig{},
 		&domain.ScannerAgent{},
 		&domain.ScanJob{},
+		// CTI / Intel Threat — vulnerabilities pulled from NVD + CISA KEV, enriched
+		// with MITRE ATT&CK. Matched against asset CPEs to auto-create risks.
+		&cti.CTIVulnerability{},
 		// Notifications — the in-app centre + delivery preferences. Previously
 		// missing from AutoMigrate, so every /notifications route errored on a
 		// non-existent table (and the scan-completion in-app notification had
@@ -503,6 +510,12 @@ func main() {
 	app.Get("/api/v1/scanner/agent/stream", func(c *fiber.Ctx) error { return scannerHandler.AgentStream(c) })
 	app.Post("/api/v1/scanner/agent/push", func(c *fiber.Ctx) error { return scannerHandler.AgentPush(c) })
 	app.Post("/api/v1/scanner/agent/heartbeat", func(c *fiber.Ctx) error { return scannerHandler.AgentHeartbeat(c) })
+
+	// Mitigation SSE stream — mounted here (before the /api/v1 user middleware) so it
+	// escapes the JWT gate: native EventSource can't send a Bearer header, so the
+	// token is validated from ?token= inside the handler. Assigned in §5.7.
+	var mitigationEventsHandler *handlers.MitigationEventsHandler
+	app.Get("/api/v1/mitigations/events", func(c *fiber.Ctx) error { return mitigationEventsHandler.Stream(c) })
 
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
@@ -1035,6 +1048,20 @@ func main() {
 	}, zeroLogger)
 	go riskReviewWorker.Start(context.Background())
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
+
+	// Remediation auto-detection: after a scan, a finding (CVE) that is no longer
+	// detected auto-completes the matching mitigation sub-action on the linked risk
+	// (CompletedSource=scanner, CompletedBy=nil, AutoDetectedAt=now) and publishes
+	// mitigation.auto_completed for the SSE stream. Manual complete/revert stay available.
+	ctiSubActionRepo := repository.NewGormMitigationSubActionRepository(database.DB)
+	ctiMitigationRepo := repository.NewGormMitigationRepository(database.DB)
+	autoCompleteUC := appmitigation.NewAutoCompleteSubActionUseCase(ctiSubActionRepo, ctiMitigationRepo)
+	mitigationDetector := scanmitigation.NewDetector(database.DB, autoCompleteUC, ctiSubActionRepo, redisClientInstance, zeroLogger)
+	scanPipeline = scanPipeline.WithMitigationDetector(mitigationDetector)
+
+	// Assign the forward-declared SSE handler (route registered earlier on `app`,
+	// before the /api/v1 JWT middleware).
+	mitigationEventsHandler = handlers.NewMitigationEventsHandler(redisClientInstance, rsaKeys, jtiBlacklistChecker)
 	scanLock := scanpkg.NewScanLock(redisClientInstance)
 
 	scanConfigRepo := repository.NewGormScanConfigRepository(database.DB)
@@ -1091,6 +1118,38 @@ func main() {
 	// The agent-facing routes (register/stream/push) were mounted earlier on `app`
 	// (before the /api/v1 user middleware) — see the note above `var scannerHandler`.
 	log.Println("Scanner: engine wired (cloud validate + agent register/stream/push, Redis preview)")
+
+	// =========================================================================
+	// 5.7 CTI / INTEL THREAT ENGINE (NVD + CISA KEV + MITRE ATT&CK)
+	// =========================================================================
+	// Feeds are ingested into the global cti_vulnerabilities table, enriched with
+	// embedded MITRE ATT&CK data, then matched against each tenant's asset CPEs to
+	// auto-create risks (Source=cti_auto). NVD hourly, CISA KEV every 6h.
+	ctiRepo := repository.NewGormCTIRepository(database.DB)
+	ctiClient := cti.NewExternalClient(nil, os.Getenv("NVD_API_KEY"))
+	ctiService := cti.NewService(ctiRepo, ctiClient)
+	ctiRiskCreator := ctimatch.NewAutoRiskCreator(database.DB)
+	ctiMatcher := ctimatch.NewTenantSweepMatcher(database.DB, ctiRepo, ctiRiskCreator)
+	ctiSyncWorker := cti.NewSyncWorker(ctiRepo, ctiClient, ctiMatcher, zeroLogger)
+	ctiHandler := handlers.NewCTIHandler(ctiService, ctiSyncWorker, ctiMatcher, database.DB)
+
+	ctiRead := middleware.RequirePermission("risks:read")
+	ctiAdmin := middleware.RequireRole("admin", "root")
+	protected.Get("/cti/vulnerabilities", ctiRead, ctiHandler.List)
+	protected.Get("/cti/vulnerabilities/:cve", ctiRead, ctiHandler.Get)
+	protected.Get("/cti/stats", ctiRead, ctiHandler.Stats)
+	protected.Post("/cti/sync", ctiAdmin, ctiHandler.Sync)
+	protected.Post("/cti/match", ctiAdmin, ctiHandler.Match)
+
+	// The periodic sync worker (NVD 1h / CISA 6h + post-sync matching) runs in
+	// production. In dev it stays off by default to avoid hitting the feeds on every
+	// restart — the manual POST /cti/sync + /cti/match endpoints are always live.
+	if os.Getenv("CTI_SYNC_ENABLED") == "true" {
+		go ctiSyncWorker.Start(context.Background())
+		log.Println("CTI: sync worker started (NVD hourly, CISA KEV 6h, post-sync matching)")
+	} else {
+		log.Println("CTI: engine wired (periodic sync disabled — set CTI_SYNC_ENABLED=true; manual /cti/sync + /cti/match live)")
+	}
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)

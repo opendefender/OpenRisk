@@ -36,6 +36,7 @@ func setupAssetRepo(t *testing.T) *GormAssetRepository {
 			owner TEXT,
 			source TEXT NOT NULL DEFAULT 'MANUAL',
 			external_id TEXT,
+			cpes TEXT,
 			created_at DATETIME,
 			updated_at DATETIME,
 			deleted_at DATETIME

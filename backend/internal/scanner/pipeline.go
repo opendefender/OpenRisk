@@ -37,11 +37,20 @@ type PreviewMeta struct {
 // drives a registered Scanner); agent pushes call Ingest with already-collected
 // discoveries. Both converge on finalize().
 type Pipeline struct {
-	registry *Registry
-	preview  *PreviewStore
-	notifier Notifier
-	logger   zerolog.Logger
-	now      func() time.Time
+	registry   *Registry
+	preview    *PreviewStore
+	notifier   Notifier
+	autoDetect MitigationAutoDetector
+	logger     zerolog.Logger
+	now        func() time.Time
+}
+
+// MitigationAutoDetector is an optional seam: after a scan, findings that were
+// present in the previous scan but are GONE now (remediated) are handed here so a
+// linked risk's mitigation sub-action can be auto-completed. Kept as an interface
+// so the scanner package stays free of DB/repository dependencies.
+type MitigationAutoDetector interface {
+	OnRemediated(ctx context.Context, tenantID, scanJobID uuid.UUID, remediated []AutoMitigation)
 }
 
 func NewPipeline(reg *Registry, preview *PreviewStore, notifier Notifier, logger zerolog.Logger) *Pipeline {
@@ -55,6 +64,12 @@ func NewPipeline(reg *Registry, preview *PreviewStore, notifier Notifier, logger
 		logger:   logger,
 		now:      time.Now,
 	}
+}
+
+// WithMitigationDetector wires the remediation auto-detector (optional).
+func (p *Pipeline) WithMitigationDetector(d MitigationAutoDetector) *Pipeline {
+	p.autoDetect = d
+	return p
 }
 
 // Run validates the config, resolves the provider's Scanner, drains its three
@@ -134,6 +149,13 @@ func (p *Pipeline) finalize(ctx context.Context, meta PreviewMeta, assets []Asse
 
 	// Notify (SSE + in-app). Best-effort, never blocks the caller's result.
 	p.notifier.ScanCompleted(ctx, preview)
+
+	// Remediation auto-detection: a finding that disappeared since the last scan
+	// (patched CVE, closed port, removed service) may satisfy a mitigation
+	// sub-action on a linked risk. Best-effort, never blocks the scan.
+	if p.autoDetect != nil && len(mitigations) > 0 {
+		p.autoDetect.OnRemediated(ctx, meta.TenantID, meta.JobID, mitigations)
+	}
 
 	p.logger.Info().
 		Str("tenant_id", meta.TenantID.String()).
