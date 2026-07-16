@@ -154,6 +154,9 @@ func main() {
 		// Directed edges of the asset dependency graph ("cartographie des
 		// dépendances"). Tenant-scoped; both endpoints reference assets.
 		&domain.AssetDependency{},
+		// Cross-framework control crosswalks ("cross-mapping entre référentiels").
+		// Tenant-scoped undirected links between two compliance controls.
+		&domain.ControlMapping{},
 		&domain.RiskHistory{},
 		&domain.CustomField{},
 		&domain.CustomFieldTemplate{},
@@ -649,6 +652,10 @@ func main() {
 	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
 	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
 	getGapAnalysisUC := compliance.NewGetGapAnalysisUseCase(complianceRepo)
+	controlMappingRepo := repository.NewGormControlMappingRepository(database.DB)
+	createMappingUC := compliance.NewCreateControlMappingUseCase(controlMappingRepo, complianceRepo)
+	listMappingsUC := compliance.NewListControlMappingsUseCase(controlMappingRepo, complianceRepo)
+	deleteMappingUC := compliance.NewDeleteControlMappingUseCase(controlMappingRepo)
 	listCatalogsUC := compliance.NewListCatalogsUseCase()
 	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo)
 	// M4 — official compliance report (PDF). Reuses userRepo/orgRepo (declared
@@ -660,6 +667,7 @@ func main() {
 		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
 		getProgressUC, listCatalogsUC, importCatalogUC, generateReportUC,
 		getGapAnalysisUC,
+		createMappingUC, listMappingsUC, deleteMappingUC,
 	)
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
@@ -695,6 +703,11 @@ func main() {
 	// Gap analysis ("analyse d'écarts") — every unsatisfied control across the
 	// tenant's frameworks (optional ?framework_id= scopes to one).
 	protected.Get("/compliance/gap-analysis", complianceControlRead, complianceHandler.GetGapAnalysis)
+	// Cross-framework control mappings ("cross-mapping entre référentiels"). Static
+	// path — no :param collision with /compliance/controls/:controlId.
+	protected.Get("/compliance/control-mappings", complianceControlRead, complianceHandler.ListControlMappings)
+	protected.Post("/compliance/control-mappings", complianceControlUpdate, complianceHandler.CreateControlMapping)
+	protected.Delete("/compliance/control-mappings/:mappingId", complianceControlUpdate, complianceHandler.DeleteControlMapping)
 	// Official compliance report (PDF, 1-click) — reads a tenant's controls/evidence, same tier as reading them.
 	protected.Get("/compliance/frameworks/:frameworkId/report", complianceControlRead, complianceHandler.GenerateReport)
 	protected.Get("/compliance/frameworks/:frameworkId/controls", complianceControlRead, complianceHandler.ListControls)

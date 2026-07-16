@@ -165,3 +165,34 @@ export interface RemediationFilter {
   audit_id?: string;
   status?: RemediationStatus;
 }
+
+// --- Cross-framework control mappings ---------------------------------------
+export type MappingRelation = 'equivalent' | 'partial' | 'related';
+
+export interface ControlMapping {
+  id: string;
+  tenant_id: string;
+  source_control_id: string;
+  target_control_id: string;
+  relation: MappingRelation;
+  note: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed, enriched server-side.
+  source_code?: string;
+  source_name?: string;
+  source_framework_id?: string;
+  source_framework_name?: string;
+  target_code?: string;
+  target_name?: string;
+  target_framework_id?: string;
+  target_framework_name?: string;
+}
+
+export interface CreateControlMappingInput {
+  source_control_id: string;
+  target_control_id: string;
+  relation?: MappingRelation;
+  note?: string;
+}

@@ -20,6 +20,7 @@ import type {
   CreateRemediationInput,
   UpdateRemediationInput,
   RemediationFilter,
+  CreateControlMappingInput,
 } from '../../types/compliance';
 
 const FRAMEWORKS_QUERY_KEY = ['compliance', 'frameworks'];
@@ -349,5 +350,31 @@ export function useEvidences(controlId: string | undefined) {
       downloadEvidence,
     }),
     [query, createEvidence, deleteEvidence, downloadEvidence]
+  );
+}
+
+// useControlMappings — the tenant's cross-framework crosswalks for one control
+// (both directions). Powers the "Correspondances" section of the control drawer.
+export function useControlMappings(controlId: string | undefined) {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: ['compliance', 'control-mappings', controlId ?? 'none'],
+    queryFn: () => complianceService.listControlMappings(controlId),
+    enabled: !!controlId,
+  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['compliance', 'control-mappings'] });
+
+  const create = useMutation({
+    mutationFn: (payload: CreateControlMappingInput) => complianceService.createControlMapping(payload),
+    onSettled: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => complianceService.deleteControlMapping(id),
+    onSettled: invalidate,
+  });
+
+  return useMemo(
+    () => ({ mappings: query.data ?? [], isLoading: query.isLoading, error: query.error, create, remove }),
+    [query, create, remove]
   );
 }

@@ -23,6 +23,8 @@ import type {
   CreateRemediationInput,
   UpdateRemediationInput,
   RemediationFilter,
+  ControlMapping,
+  CreateControlMappingInput,
 } from '../types/compliance';
 
 export const complianceService = {
@@ -187,5 +189,20 @@ export const complianceService = {
   },
   deleteRemediation: async (id: string): Promise<void> => {
     await api.delete(`/compliance/remediations/${id}`);
+  },
+
+  // --- Cross-framework control mappings -------------------------------------
+  listControlMappings: async (controlId?: string): Promise<ControlMapping[]> => {
+    const response = await api.get<ControlMapping[]>('/compliance/control-mappings', {
+      params: controlId ? { control_id: controlId } : undefined,
+    });
+    return response.data;
+  },
+  createControlMapping: async (payload: CreateControlMappingInput): Promise<ControlMapping> => {
+    const response = await api.post<ControlMapping>('/compliance/control-mappings', payload);
+    return response.data;
+  },
+  deleteControlMapping: async (id: string): Promise<void> => {
+    await api.delete(`/compliance/control-mappings/${id}`);
   },
 };

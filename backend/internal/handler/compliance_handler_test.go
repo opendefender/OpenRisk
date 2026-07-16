@@ -67,6 +67,14 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 			uploaded_by TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE control_mappings (
+			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
+			source_control_id TEXT NOT NULL, target_control_id TEXT NOT NULL,
+			relation TEXT NOT NULL DEFAULT 'equivalent', note TEXT, created_by TEXT,
+			created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
+		);
+	`).Error)
 
 	return db
 }
@@ -83,6 +91,7 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 	require.NoError(t, ps.InitializeDefaultRoles())
 
 	repo := repository.NewGormComplianceRepository(db)
+	mappingRepo := repository.NewGormControlMappingRepository(db)
 	h := NewComplianceHandler(
 		applicationcompliance.NewCreateFrameworkUseCase(repo),
 		applicationcompliance.NewGetFrameworkUseCase(repo),
@@ -102,6 +111,9 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewImportCatalogUseCase(repo),
 		applicationcompliance.NewGenerateComplianceReportUseCase(repo, repository.NewGormOrganizationRepository(db), repository.NewGormUserRepository(db)),
 		applicationcompliance.NewGetGapAnalysisUseCase(repo),
+		applicationcompliance.NewCreateControlMappingUseCase(mappingRepo, repo),
+		applicationcompliance.NewListControlMappingsUseCase(mappingRepo, repo),
+		applicationcompliance.NewDeleteControlMappingUseCase(mappingRepo),
 	)
 
 	app := fiber.New()
