@@ -289,9 +289,9 @@ func (h *NotificationHandler) TestNotification(c *fiber.Ctx) error {
 	// Note: In production, actually send the test notification
 	// For now, just return success
 	return c.JSON(fiber.Map{
-		"message": "test notification would be sent",
-		"channel": req.Channel,
-		"user_id": userID,
+		"message":   "test notification would be sent",
+		"channel":   req.Channel,
+		"user_id":   userID,
 		"tenant_id": tenantID,
 	})
 }

@@ -17,15 +17,15 @@ import (
 
 // Mock MFA Repository
 type MockMFARepository struct {
-	secrets   map[string]*domain.MFASecret
-	codes     map[string][]*domain.MFABackupCode
+	secrets        map[string]*domain.MFASecret
+	codes          map[string][]*domain.MFABackupCode
 	oauthProviders map[string]*domain.OAuthProvider
 }
 
 func NewMockMFARepository() *MockMFARepository {
 	return &MockMFARepository{
-		secrets:   make(map[string]*domain.MFASecret),
-		codes:     make(map[string][]*domain.MFABackupCode),
+		secrets:        make(map[string]*domain.MFASecret),
+		codes:          make(map[string][]*domain.MFABackupCode),
 		oauthProviders: make(map[string]*domain.OAuthProvider),
 	}
 }
@@ -139,8 +139,8 @@ func (m *MockMFARepository) DeleteOAuthProvider(ctx context.Context, providerID,
 func TestSetupMFA_Success(t *testing.T) {
 	ctx := context.Background()
 	mfaRepo := NewMockMFARepository()
-	encKey := []byte("32-byte-key-for-aes-256-gcm____")
-	
+	encKey := []byte("32-byte-key-for-aes-256-gcm_____")
+
 	useCase := NewSetupMFAUseCase(mfaRepo, encKey)
 
 	userID := uuid.New()
@@ -165,8 +165,8 @@ func TestSetupMFA_Success(t *testing.T) {
 func TestSetupMFA_InvalidInput(t *testing.T) {
 	ctx := context.Background()
 	mfaRepo := NewMockMFARepository()
-	encKey := []byte("32-byte-key-for-aes-256-gcm____")
-	
+	encKey := []byte("32-byte-key-for-aes-256-gcm_____")
+
 	useCase := NewSetupMFAUseCase(mfaRepo, encKey)
 
 	tests := []struct {

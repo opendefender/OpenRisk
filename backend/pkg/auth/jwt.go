@@ -49,9 +49,17 @@ func (c *Claims) HasPermission(required string) bool {
 	return false
 }
 
-// GenerateAccessToken génère un JWT signé RS256, durée 15 minutes.
-// Retourne (tokenString, jti, error).
-// Le JTI est un UUID v4 unique par token.
+// TokenTypeAccess is the default (empty) type carried by a full access token.
+// TokenTypeMFARequired marks the short-lived token issued between a successful
+// password check and MFA challenge completion — it grants no permissions and is
+// only accepted by MFATokenMiddleware.
+const (
+	TokenTypeAccess      = ""
+	TokenTypeMFARequired = "MFA_REQUIRED"
+)
+
+// GenerateAccessToken génère un JWT d'accès signé RS256 (Type standard, vide).
+// Retourne (tokenString, jti, error). Le JTI est un UUID v4 unique par token.
 // Ne jamais logger le token, même tronqué.
 func GenerateAccessToken(
 	rsaKeys *RSAKeys,
@@ -59,6 +67,20 @@ func GenerateAccessToken(
 	orgRoles map[uuid.UUID]string,
 	permissions, featureFlags []string,
 	duration time.Duration,
+) (string, string, error) {
+	return GenerateTypedToken(rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, duration, TokenTypeAccess)
+}
+
+// GenerateTypedToken is the single low-level RS256 token minter. Every token in
+// the system (access + MFA-challenge) is produced here so signing, claims shape
+// and JTI generation have exactly one implementation.
+func GenerateTypedToken(
+	rsaKeys *RSAKeys,
+	userID, tenantID uuid.UUID,
+	orgRoles map[uuid.UUID]string,
+	permissions, featureFlags []string,
+	duration time.Duration,
+	tokenType string,
 ) (string, string, error) {
 	if rsaKeys == nil || rsaKeys.PrivateKey == nil {
 		return "", "", errors.New("RSA private key not initialized")
@@ -81,6 +103,7 @@ func GenerateAccessToken(
 		Permissions:  permissions,
 		FeatureFlags: featureFlags,
 		JTI:          jti,
+		Type:         tokenType,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

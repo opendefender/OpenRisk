@@ -18,8 +18,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/service"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
@@ -202,42 +202,10 @@ func OAuth2Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate JWT token
-	authService := service.NewAuthService(os.Getenv("JWT_SECRET"), 24*time.Hour)
-	jwtToken, err := authService.GenerateToken(user)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to generate token",
-		})
-	}
-
-	// Log successful authentication
-	auditService := service.NewAuditService()
-	if err := auditService.LogLogin(user.ID, domain.ResultSuccess, c.IP(), c.Get("User-Agent"), ""); err != nil {
-		fmt.Printf("Warning: failed to log OAuth2 login for user %s: %v\n", user.ID, err)
-	}
-
-	// UserResponseDTO prevents leaking password hashes (Claude.md rule #6)
-	responseUser := UserResponseDTO{
-		ID:        user.ID.String(),
-		Email:     user.Email,
-		Username:  user.Username,
-		FullName:  user.FullName,
-		Role:      user.Role.Name,
-		IsActive:  user.IsActive,
-		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-	if user.LastLogin != nil {
-		lastLoginStr := user.LastLogin.Format("2006-01-02T15:04:05Z")
-		responseUser.LastLogin = &lastLoginStr
-	}
-
-	// Return token to frontend
-	return c.JSON(fiber.Map{
-		"token":    jwtToken,
-		"user":     responseUser,
-		"provider": provider,
-	})
+	// Issue an RS256 access+refresh pair via the SAME TokenManager as password
+	// login (previously this minted an HS256 token that the RS256 middleware
+	// rejected on every protected route). Onboarding + audit happen inside.
+	return issueSSOSession(c, user, provider)
 }
 
 // getOAuth2UserInfo fetches user information from OAuth2 provider

@@ -11,14 +11,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/redis/go-redis/v9"
 )
 
 // MitigationEventWorker listens to mitigation events and triggers score recalculation
 type MitigationEventWorker struct {
-	redisClient  *redis.Client
-	riskRepo     domain.RiskRepository
+	redisClient *redis.Client
+	riskRepo    domain.RiskRepository
 }
 
 func NewMitigationEventWorker(redisClient *redis.Client, riskRepo domain.RiskRepository) *MitigationEventWorker {
@@ -30,7 +30,7 @@ func NewMitigationEventWorker(redisClient *redis.Client, riskRepo domain.RiskRep
 
 // Start begins listening to mitigation events
 func (w *MitigationEventWorker) Start(ctx context.Context) error {
-	pubsub := w.redisClient.Subscribe(ctx, 
+	pubsub := w.redisClient.Subscribe(ctx,
 		"mitigation.progress_changed",
 		"mitigation.completed",
 		"mitigation.auto_completed",

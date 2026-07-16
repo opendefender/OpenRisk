@@ -7,6 +7,7 @@ package auth
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -19,6 +20,7 @@ type Handler struct {
 	refreshUseCase  *auth.RefreshTokenUseCase
 	logoutUseCase   *auth.LogoutUseCase
 	passwordHasher  auth.PasswordHasher
+	audit           *coreauth.AuditService // L7: full-fidelity auth audit trail (optional)
 }
 
 // NewHandler creates a new auth handler
@@ -28,6 +30,7 @@ func NewHandler(
 	refreshUseCase *auth.RefreshTokenUseCase,
 	logoutUseCase *auth.LogoutUseCase,
 	passwordHasher auth.PasswordHasher,
+	audit *coreauth.AuditService,
 ) *Handler {
 	return &Handler{
 		loginUseCase:    loginUseCase,
@@ -35,7 +38,16 @@ func NewHandler(
 		refreshUseCase:  refreshUseCase,
 		logoutUseCase:   logoutUseCase,
 		passwordHasher:  passwordHasher,
+		audit:           audit,
 	}
+}
+
+// logAudit records an auth event when an audit service is wired (nil-safe).
+func (h *Handler) logAudit(c *fiber.Ctx, userID, tenantID *uuid.UUID, action coreauth.AuditAction, success bool, failureReason *string) {
+	if h.audit == nil {
+		return
+	}
+	_ = h.audit.LogFiber(c, userID, tenantID, action, success, failureReason)
 }
 
 // LoginRequest represents the login request body
@@ -78,6 +90,11 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	// Device fingerprint may arrive in the body or (more naturally) as a header.
+	if req.DeviceFingerprint == "" {
+		req.DeviceFingerprint = c.Get("X-Device-Fingerprint")
+	}
+
 	result, err := h.loginUseCase.Execute(c.UserContext(), auth.LoginInput{
 		Email:             req.Email,
 		Password:          req.Password,
@@ -85,10 +102,33 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
+		reason := "authentication failed"
+		h.logAudit(c, nil, nil, coreauth.AuditActionLogin, false, &reason)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Authentication failed",
 		})
 	}
+
+	// L4 — MFA gate: password verified but a second factor is required. No session
+	// is issued; the client must POST /auth/mfa/challenge with the mfa_token.
+	if result.MFARequired {
+		var tenantID *uuid.UUID
+		if result.Organization != nil {
+			tenantID = &result.Organization.ID
+		}
+		h.logAudit(c, &result.User.ID, tenantID, coreauth.AuditActionLogin, true, strptr("mfa_required"))
+		return c.JSON(fiber.Map{
+			"mfa_required": true,
+			"mfa_token":    result.MFAToken,
+			"user_id":      result.User.ID,
+		})
+	}
+
+	var tenantID *uuid.UUID
+	if result.Organization != nil {
+		tenantID = &result.Organization.ID
+	}
+	h.logAudit(c, &result.User.ID, tenantID, coreauth.AuditActionLogin, true, nil)
 
 	return c.JSON(LoginResponse{
 		User:         result.User,
@@ -96,6 +136,8 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		Organization: result.Organization,
 	})
 }
+
+func strptr(s string) *string { return &s }
 
 // RegisterRequest represents the registration request body
 type RegisterRequest struct {
@@ -195,17 +237,24 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 		})
 	}
 
+	if req.DeviceFingerprint == "" {
+		req.DeviceFingerprint = c.Get("X-Device-Fingerprint")
+	}
+
 	result, err := h.refreshUseCase.Execute(c.UserContext(), auth.RefreshTokenInput{
 		RefreshToken:      req.RefreshToken,
 		DeviceFingerprint: req.DeviceFingerprint,
 	})
 
 	if err != nil {
+		reason := "token refresh failed"
+		h.logAudit(c, nil, nil, coreauth.AuditActionRefresh, false, &reason)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Token refresh failed",
 		})
 	}
 
+	h.logAudit(c, nil, nil, coreauth.AuditActionRefresh, true, nil)
 	return c.JSON(RefreshTokenResponse{
 		TokenPair: result.TokenPair,
 	})
@@ -240,11 +289,14 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
+		reason := "logout failed"
+		h.logAudit(c, nil, nil, coreauth.AuditActionLogout, false, &reason)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Logout failed",
 		})
 	}
 
+	h.logAudit(c, nil, nil, coreauth.AuditActionLogout, true, nil)
 	return c.JSON(fiber.Map{
 		"message": "Logged out successfully",
 	})

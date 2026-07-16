@@ -25,6 +25,14 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 			return c.Next()
 		}
 
+		// Already authenticated by an upstream PAT middleware (L5). PATs and JWTs
+		// coexist: PATMiddleware runs first and authenticates PAT-shaped bearers;
+		// this JWT middleware then handles everything else and must not re-validate
+		// (and reject) a request a PAT already authorized.
+		if c.Locals("is_pat") == true {
+			return c.Next()
+		}
+
 		// Extract token from Authorization header
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {

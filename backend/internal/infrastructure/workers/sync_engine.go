@@ -182,8 +182,8 @@ func (e *SyncEngine) syncIncidents(ctx context.Context) error {
 	}
 
 	e.logInfo("Incidents fetched from provider", map[string]interface{}{
-		"incident_count":   len(incidents),
-		"organization_id":  e.OrganizationID,
+		"incident_count":  len(incidents),
+		"organization_id": e.OrganizationID,
 	})
 
 	// Process each incident

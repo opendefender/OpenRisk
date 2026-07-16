@@ -14,8 +14,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	// "github.com/golang-jwt/jwt/v5"
 	"github.com/opendefender/openrisk/internal/auth"
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
 )

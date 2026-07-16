@@ -292,10 +292,10 @@ func AutoCompleteMitigationSubAction(c *fiber.Ctx) error {
 	}
 
 	payload := struct {
-		TenantID    string `json:"tenant_id"`
-		SubActionID string `json:"sub_action_id"`
+		TenantID     string `json:"tenant_id"`
+		SubActionID  string `json:"sub_action_id"`
 		ScannerJobID string `json:"scanner_job_id"`
-		Evidence    string `json:"evidence"`
+		Evidence     string `json:"evidence"`
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {

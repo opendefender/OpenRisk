@@ -102,14 +102,14 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 
 	// Create user
 	user := &domain.User{
-		Email:          input.Email,
-		Username:       input.Username,
-		Password:       hashedPassword,
-		FullName:       input.FullName,
-		DefaultOrgID:   &org.ID,
-		IsActive:       true,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		Email:        input.Email,
+		Username:     input.Username,
+		Password:     hashedPassword,
+		FullName:     input.FullName,
+		DefaultOrgID: &org.ID,
+		IsActive:     true,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	if err := uc.userRepo.Create(ctx, user); err != nil {

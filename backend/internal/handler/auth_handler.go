@@ -49,9 +49,9 @@ type UserDTO struct {
 }
 
 type AuthHandler struct {
-	authService     *service.AuthService
-	auditService    *service.AuditService
-	passwordHasher  auth.PasswordHasher
+	authService    *service.AuthService
+	auditService   *service.AuditService
+	passwordHasher auth.PasswordHasher
 }
 
 func NewAuthHandler() *AuthHandler {

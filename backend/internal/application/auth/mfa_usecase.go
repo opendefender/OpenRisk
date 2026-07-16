@@ -27,15 +27,15 @@ type SetupMFAInput struct {
 
 // SetupMFAOutput represents MFA setup response
 type SetupMFAOutput struct {
-	Secret      string   `json:"secret"` // Base32-encoded TOTP secret
-	QRCode      string   `json:"qr_code"` // Base64-encoded JPEG
+	Secret      string   `json:"secret"`       // Base32-encoded TOTP secret
+	QRCode      string   `json:"qr_code"`      // Base64-encoded JPEG
 	BackupCodes []string `json:"backup_codes"` // 8 backup codes
 }
 
 // SetupMFAUseCase handles MFA setup
 type SetupMFAUseCase struct {
-	mfaRepo   repository.MFARepository
-	encKey    []byte // 32-byte AES-256 key
+	mfaRepo repository.MFARepository
+	encKey  []byte // 32-byte AES-256 key
 }
 
 // NewSetupMFAUseCase creates a new setup MFA use case
@@ -132,15 +132,15 @@ type VerifyMFAInput struct {
 
 // VerifyMFAOutput represents MFA verification response
 type VerifyMFAOutput struct {
-	Verified  bool   `json:"verified"`
-	Message   string `json:"message"`
+	Verified bool   `json:"verified"`
+	Message  string `json:"message"`
 }
 
 // VerifyMFAUseCase handles MFA verification (activates MFA)
 type VerifyMFAUseCase struct {
-	mfaRepo   repository.MFARepository
-	userRepo  repository.GormUserRepository
-	encKey    []byte
+	mfaRepo  repository.MFARepository
+	userRepo repository.GormUserRepository
+	encKey   []byte
 }
 
 // NewVerifyMFAUseCase creates a new verify MFA use case
@@ -253,8 +253,8 @@ type ChallengeMFAInput struct {
 
 // ChallengeMFAOutput represents MFA challenge response
 type ChallengeMFAOutput struct {
-	Verified  bool   `json:"verified"`
-	Message   string `json:"message"`
+	Verified bool   `json:"verified"`
+	Message  string `json:"message"`
 }
 
 // ChallengeMFAUseCase handles MFA challenge during login

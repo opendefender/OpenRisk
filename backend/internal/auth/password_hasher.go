@@ -16,21 +16,21 @@ import (
 // Argon2idPasswordHasher implements PasswordHasher with Argon2id (OWASP recommended)
 type Argon2idPasswordHasher struct {
 	// Argon2id parameters (OWASP recommended values)
-	time      uint32 // Number of iterations
-	memory    uint32 // Memory usage in KiB (64 MB)
-	threads   uint8  // Number of parallel threads
-	keyLen    uint32 // Key length in bytes
-	saltLen   uint32 // Salt length in bytes
+	time    uint32 // Number of iterations
+	memory  uint32 // Memory usage in KiB (64 MB)
+	threads uint8  // Number of parallel threads
+	keyLen  uint32 // Key length in bytes
+	saltLen uint32 // Salt length in bytes
 }
 
 // NewArgon2idPasswordHasher creates a new Argon2id password hasher with OWASP recommended parameters
 func NewArgon2idPasswordHasher() *Argon2idPasswordHasher {
 	return &Argon2idPasswordHasher{
-		time:    2,      // OWASP: 2 iterations
-		memory:  65536,  // OWASP: 64 MB
-		threads: 4,      // OWASP: 4 parallel threads
-		keyLen:  32,     // 32 bytes (256 bits)
-		saltLen: 16,     // 16 bytes (128 bits) - standard for security
+		time:    2,     // OWASP: 2 iterations
+		memory:  65536, // OWASP: 64 MB
+		threads: 4,     // OWASP: 4 parallel threads
+		keyLen:  32,    // 32 bytes (256 bits)
+		saltLen: 16,    // 16 bytes (128 bits) - standard for security
 	}
 }
 
