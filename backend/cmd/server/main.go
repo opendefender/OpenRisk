@@ -32,6 +32,7 @@ import (
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
+	vulnapp "github.com/opendefender/openrisk/internal/application/vulnerability"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -192,6 +193,10 @@ func main() {
 		// CTI / Intel Threat — vulnerabilities pulled from NVD + CISA KEV, enriched
 		// with MITRE ATT&CK. Matched against asset CPEs to auto-create risks.
 		&cti.CTIVulnerability{},
+		// Vulnerability Management (Module 3) — the tenant-scoped vulnerability
+		// register: findings normalised from Nessus/OpenVAS/Qualys/Defender/
+		// Inspector/Azure Defender/CrowdStrike and risk-based prioritised.
+		&domain.Vulnerability{},
 		// Notifications — the in-app centre + delivery preferences. Previously
 		// missing from AutoMigrate, so every /notifications route errored on a
 		// non-existent table (and the scan-completion in-app notification had
@@ -778,6 +783,32 @@ func main() {
 	protected.Patch("/assets/:id", assetUpdate, assetHandler.UpdateAsset)
 	protected.Delete("/assets/:id", assetDelete, assetHandler.DeleteAsset)
 	protected.Get("/assets/:id/history", assetRead, assetHandler.GetAssetHistory)
+
+	// --- Vulnerability Management (Module 3) — integrations + risk-based
+	// prioritisation. Findings from Nessus/OpenVAS/Qualys/Defender/Inspector/
+	// Azure Defender/CrowdStrike are normalised (internal/vulnscan), scored by
+	// pkg/vulnprio (CVSS + exploitability + business criticality + affected
+	// assets) and upserted into a tenant-scoped register.
+	vulnRepo := repository.NewGormVulnerabilityRepository(database.DB)
+	vulnHandler := handlers.NewVulnerabilityHandler(
+		vulnapp.NewIngestUseCase(vulnRepo, assetRepo),
+		vulnapp.NewListUseCase(vulnRepo),
+		vulnapp.NewGetUseCase(vulnRepo),
+		vulnapp.NewUpdateStatusUseCase(vulnRepo),
+		vulnapp.NewDeleteUseCase(vulnRepo),
+		vulnapp.NewStatsUseCase(vulnRepo),
+	)
+	vulnRead := middleware.RequirePermission("vulnerabilities:read")
+	vulnWrite := middleware.RequirePermission("vulnerabilities:update")
+	vulnDelete := middleware.RequirePermission("vulnerabilities:delete")
+	// Static resources first so they are never parsed as /:id.
+	protected.Get("/vulnerability-connectors", vulnRead, vulnHandler.ListConnectors)
+	protected.Get("/vulnerabilities/stats", vulnRead, vulnHandler.Stats)
+	protected.Post("/vulnerabilities/ingest", vulnWrite, vulnHandler.Ingest)
+	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
+	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
+	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
+	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
 
 	api.Get("/users/me", authHandler.GetProfile)
 	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))

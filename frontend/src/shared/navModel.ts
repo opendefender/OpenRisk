@@ -8,7 +8,7 @@
 
 import {
   LayoutDashboard, TrendingUp, Trophy, ShieldAlert, ShieldCheck, Siren, Server,
-  ClipboardCheck, Globe, Cpu, Database, Atom, FileText, Sparkles, Settings,
+  ClipboardCheck, Globe, Cpu, Database, Atom, FileText, Sparkles, Settings, Bug,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -41,6 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_security',
     items: [
       { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', badge: { text: '12' } },
+      { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities' },
       { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', badge: { text: '3', color: 'var(--high)' } },
       { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents' },
       { key: 'infrastructure', labelKey: 'n_infra', icon: Server, path: '/infrastructure', soon: true },
