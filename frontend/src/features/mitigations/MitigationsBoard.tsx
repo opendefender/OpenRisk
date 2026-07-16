@@ -14,6 +14,7 @@ import { critColor } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useMitigations, type Column, type UiMiti } from './useMitigations';
+import { useMitigationEvents } from './useMitigationEvents';
 
 type View = 'kanban' | 'table' | 'gantt';
 
@@ -24,6 +25,10 @@ export function MitigationsBoard() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { columns, items, isLoading } = useMitigations();
   const [view, setView] = useState<View>('kanban');
+
+  // Live scanner-driven auto-completions push over SSE → refresh the board so the
+  // "Auto-detected" badge appears without a manual reload.
+  useMitigationEvents();
 
   const cols: [Column, string, string][] = [
     ['todo', L.col_todo, 'var(--text-muted)'],

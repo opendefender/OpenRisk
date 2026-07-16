@@ -57,10 +57,10 @@ func NewExternalClient(httpClient HTTPDoer, nvdAPIKey string) *ExternalClient {
 
 // NVD API response structures (minimal, only what we need)
 type nvdResponse struct {
-	ResultsPerPage  int             `json:"resultsPerPage"`
-	StartIndex      int             `json:"startIndex"`
-	TotalResults    int             `json:"totalResults"`
-	Vulnerabilities []nvdVulnEntry  `json:"vulnerabilities"`
+	ResultsPerPage  int            `json:"resultsPerPage"`
+	StartIndex      int            `json:"startIndex"`
+	TotalResults    int            `json:"totalResults"`
+	Vulnerabilities []nvdVulnEntry `json:"vulnerabilities"`
 }
 
 type nvdVulnEntry struct {
@@ -68,13 +68,13 @@ type nvdVulnEntry struct {
 }
 
 type nvdCVE struct {
-	ID               string          `json:"id"`
-	Published        string          `json:"published"`
-	LastModified     string          `json:"lastModified"`
-	Descriptions     []nvdLangString `json:"descriptions"`
-	Metrics          nvdMetrics      `json:"metrics"`
-	Configurations   []nvdConfig     `json:"configurations"`
-	References       []nvdReference  `json:"references"`
+	ID             string          `json:"id"`
+	Published      string          `json:"published"`
+	LastModified   string          `json:"lastModified"`
+	Descriptions   []nvdLangString `json:"descriptions"`
+	Metrics        nvdMetrics      `json:"metrics"`
+	Configurations []nvdConfig     `json:"configurations"`
+	References     []nvdReference  `json:"references"`
 }
 
 type nvdLangString struct {
@@ -227,24 +227,24 @@ func (c *ExternalClient) nvdHeaders() map[string]string {
 
 // CISA KEV response structures
 type cisaKEVResponse struct {
-	Title           string          `json:"title"`
-	CatalogVersion  string          `json:"catalogVersion"`
-	DateReleased    string          `json:"dateReleased"`
-	Count           int             `json:"count"`
-	Vulnerabilities []cisaKEVEntry  `json:"vulnerabilities"`
+	Title           string         `json:"title"`
+	CatalogVersion  string         `json:"catalogVersion"`
+	DateReleased    string         `json:"dateReleased"`
+	Count           int            `json:"count"`
+	Vulnerabilities []cisaKEVEntry `json:"vulnerabilities"`
 }
 
 type cisaKEVEntry struct {
-	CVEID              string `json:"cveID"`
-	VendorProject      string `json:"vendorProject"`
-	Product            string `json:"product"`
-	VulnerabilityName  string `json:"vulnerabilityName"`
-	DateAdded          string `json:"dateAdded"`
-	ShortDescription   string `json:"shortDescription"`
-	RequiredAction     string `json:"requiredAction"`
-	DueDate            string `json:"dueDate"`
-	KnownRansomware    string `json:"knownRansomwareCampaignUse"`
-	Notes              string `json:"notes"`
+	CVEID             string `json:"cveID"`
+	VendorProject     string `json:"vendorProject"`
+	Product           string `json:"product"`
+	VulnerabilityName string `json:"vulnerabilityName"`
+	DateAdded         string `json:"dateAdded"`
+	ShortDescription  string `json:"shortDescription"`
+	RequiredAction    string `json:"requiredAction"`
+	DueDate           string `json:"dueDate"`
+	KnownRansomware   string `json:"knownRansomwareCampaignUse"`
+	Notes             string `json:"notes"`
 }
 
 // FetchCISAKEV fetches the CISA Known Exploited Vulnerabilities catalog.

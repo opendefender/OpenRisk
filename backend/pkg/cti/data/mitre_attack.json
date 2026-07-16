@@ -1,0 +1,22 @@
+{
+  "mappings": [
+    { "cve_id": "CVE-2021-44228", "techniques": ["T1190", "T1059"], "tactics": ["TA0001", "TA0002"] },
+    { "cve_id": "CVE-2021-45046", "techniques": ["T1190", "T1059"], "tactics": ["TA0001", "TA0002"] },
+    { "cve_id": "CVE-2021-34527", "techniques": ["T1068"], "tactics": ["TA0004"] },
+    { "cve_id": "CVE-2021-1675", "techniques": ["T1068"], "tactics": ["TA0004"] },
+    { "cve_id": "CVE-2014-0160", "techniques": ["T1040", "T1552"], "tactics": ["TA0006"] },
+    { "cve_id": "CVE-2017-0144", "techniques": ["T1210"], "tactics": ["TA0008"] },
+    { "cve_id": "CVE-2017-0143", "techniques": ["T1210"], "tactics": ["TA0008"] },
+    { "cve_id": "CVE-2019-0708", "techniques": ["T1210"], "tactics": ["TA0008"] },
+    { "cve_id": "CVE-2020-1472", "techniques": ["T1068"], "tactics": ["TA0004"] },
+    { "cve_id": "CVE-2019-19781", "techniques": ["T1190"], "tactics": ["TA0001"] },
+    { "cve_id": "CVE-2020-0796", "techniques": ["T1210"], "tactics": ["TA0008"] },
+    { "cve_id": "CVE-2018-13379", "techniques": ["T1190", "T1552"], "tactics": ["TA0001", "TA0006"] },
+    { "cve_id": "CVE-2021-26855", "techniques": ["T1190"], "tactics": ["TA0001"] },
+    { "cve_id": "CVE-2021-34473", "techniques": ["T1190"], "tactics": ["TA0001"] },
+    { "cve_id": "CVE-2022-1388", "techniques": ["T1190"], "tactics": ["TA0001"] },
+    { "cve_id": "CVE-2023-34362", "techniques": ["T1190", "T1505"], "tactics": ["TA0001", "TA0003"] },
+    { "cve_id": "CVE-2023-27997", "techniques": ["T1190"], "tactics": ["TA0001"] },
+    { "cve_id": "CVE-2024-3400", "techniques": ["T1190", "T1059"], "tactics": ["TA0001", "TA0002"] }
+  ]
+}

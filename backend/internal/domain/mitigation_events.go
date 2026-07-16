@@ -23,6 +23,7 @@ type MitigationCompleted struct {
 
 // MitigationAutoCompleted event - published when scanner auto-completes a subaction
 type MitigationAutoCompleted struct {
+	TenantID     uuid.UUID `json:"tenant_id"` // for per-tenant SSE fan-out filtering
 	PlanID       uuid.UUID `json:"plan_id"`
 	SubActionID  uuid.UUID `json:"sub_action_id"`
 	ScannerJobID string    `json:"scanner_job_id"` // Reference to the scan run

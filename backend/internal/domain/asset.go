@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -54,6 +55,12 @@ type Asset struct {
 
 	Source     string `gorm:"default:'MANUAL'" json:"source"` // MANUAL ou OPENASSET
 	ExternalID string `json:"external_id"`
+
+	// CPEs (Common Platform Enumeration) identify the software/hardware running on
+	// this asset. Populated by the Infrastructure Scanner on import (and editable
+	// manually); CTI matching intersects these against cti_vulnerabilities.affected_cpe
+	// to auto-create risks for exposed CVEs.
+	CPEs pq.StringArray `gorm:"column:cpes;type:text[]" json:"cpes"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
