@@ -33,132 +33,29 @@ export const CONTROL_STATUSES: ControlStatus[] = [
 ];
 
 // --- Gap analysis ("analyse d'écarts") --------------------------------------
-// Hand-written to match backend/internal/application/compliance/gap_analysis.go.
-// Not yet in the generated OpenAPI types (follow-up: add the GapAnalysis schema
-// to docs/openapi.yaml and regenerate). Fully typed — no `any`.
-export interface GapControl {
-  control_id: string;
-  framework_id: string;
-  framework_name: string;
-  reference_code: string;
-  name: string;
-  description: string;
-  status: ControlStatus;
-  source_reference: string;
-  evidence_count: number;
-}
-
-export interface FrameworkGapSummary {
-  framework_id: string;
-  framework_name: string;
-  version: string;
-  total: number;
-  implemented: number;
-  in_progress: number;
-  not_implemented: number;
-  not_applicable: number;
-  gaps: number;
-  percent_complete: number;
-}
-
-export interface GapAnalysis {
-  total_controls: number;
-  total_gaps: number;
-  frameworks: FrameworkGapSummary[];
-  gaps: GapControl[];
-}
+// Contract-first aliases (see the header note) — the GapAnalysis/Audit/
+// Remediation/ControlMapping schemas now live in docs/openapi.yaml and are
+// regenerated into openapi.generated.ts. Enum aliases are derived from the
+// generated object schemas so there is a single source of truth.
+export type GapControl = components['schemas']['GapControl'];
+export type FrameworkGapSummary = components['schemas']['FrameworkGapSummary'];
+export type GapAnalysis = components['schemas']['GapAnalysis'];
 
 // --- Audits ("Audits") -------------------------------------------------------
-// Matches backend/internal/domain/compliance_audit.go. Hand-written; follow-up:
-// add to docs/openapi.yaml.
-export type AuditType = 'internal' | 'external' | 'certification' | 'surveillance';
-export type AuditStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
-
-export interface ComplianceAudit {
-  id: string;
-  tenant_id: string;
-  title: string;
-  framework_id: string | null;
-  type: AuditType;
-  status: AuditStatus;
-  auditor: string;
-  scope: string;
-  summary: string;
-  compliance_score: number;
-  scheduled_start: string | null;
-  scheduled_end: string | null;
-  completed_at: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateAuditInput {
-  title: string;
-  framework_id?: string;
-  type?: AuditType;
-  auditor?: string;
-  scope?: string;
-  scheduled_start?: string;
-  scheduled_end?: string;
-}
-
-export interface UpdateAuditInput {
-  title?: string;
-  framework_id?: string;
-  type?: AuditType;
-  status?: AuditStatus;
-  auditor?: string;
-  scope?: string;
-  summary?: string;
-  compliance_score?: number;
-  scheduled_start?: string;
-  scheduled_end?: string;
-}
+export type ComplianceAudit = components['schemas']['ComplianceAudit'];
+export type CreateAuditInput = components['schemas']['CreateAuditInput'];
+export type UpdateAuditInput = components['schemas']['UpdateAuditInput'];
+export type AuditType = NonNullable<ComplianceAudit['type']>;
+export type AuditStatus = NonNullable<ComplianceAudit['status']>;
 
 // --- Remediation plans ("Plans de remédiation") ------------------------------
-export type RemediationPriority = 'low' | 'medium' | 'high' | 'critical';
-export type RemediationStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+export type RemediationPlan = components['schemas']['RemediationPlan'];
+export type CreateRemediationInput = components['schemas']['CreateRemediationInput'];
+export type UpdateRemediationInput = components['schemas']['UpdateRemediationInput'];
+export type RemediationPriority = NonNullable<RemediationPlan['priority']>;
+export type RemediationStatus = NonNullable<RemediationPlan['status']>;
 
-export interface RemediationPlan {
-  id: string;
-  tenant_id: string;
-  title: string;
-  description: string;
-  control_id: string | null;
-  framework_id: string | null;
-  audit_id: string | null;
-  priority: RemediationPriority;
-  status: RemediationStatus;
-  assigned_to: string | null;
-  due_date: string | null;
-  completed_at: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  control_code?: string;
-  control_name?: string;
-}
-
-export interface CreateRemediationInput {
-  title: string;
-  description?: string;
-  control_id?: string;
-  audit_id?: string;
-  priority?: RemediationPriority;
-  assigned_to?: string;
-  due_date?: string;
-}
-
-export interface UpdateRemediationInput {
-  title?: string;
-  description?: string;
-  priority?: RemediationPriority;
-  status?: RemediationStatus;
-  assigned_to?: string;
-  due_date?: string;
-}
-
+// Query filter — not a request/response body, so it stays hand-written.
 export interface RemediationFilter {
   control_id?: string;
   framework_id?: string;
@@ -167,32 +64,6 @@ export interface RemediationFilter {
 }
 
 // --- Cross-framework control mappings ---------------------------------------
-export type MappingRelation = 'equivalent' | 'partial' | 'related';
-
-export interface ControlMapping {
-  id: string;
-  tenant_id: string;
-  source_control_id: string;
-  target_control_id: string;
-  relation: MappingRelation;
-  note: string;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  // Computed, enriched server-side.
-  source_code?: string;
-  source_name?: string;
-  source_framework_id?: string;
-  source_framework_name?: string;
-  target_code?: string;
-  target_name?: string;
-  target_framework_id?: string;
-  target_framework_name?: string;
-}
-
-export interface CreateControlMappingInput {
-  source_control_id: string;
-  target_control_id: string;
-  relation?: MappingRelation;
-  note?: string;
-}
+export type ControlMapping = components['schemas']['ControlMapping'];
+export type CreateControlMappingInput = components['schemas']['CreateControlMappingInput'];
+export type MappingRelation = NonNullable<ControlMapping['relation']>;
