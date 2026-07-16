@@ -165,6 +165,12 @@ export const complianceService = {
   deleteAudit: async (id: string): Promise<void> => {
     await api.delete(`/compliance/audits/${id}`);
   },
+  // generateRemediations opens a remediation plan for every open gap under the
+  // audit's framework, in one click. Idempotent (skips gaps already covered).
+  generateRemediations: async (auditId: string): Promise<{ created: number; skipped: number; plans: RemediationPlan[] }> => {
+    const response = await api.post<{ created: number; skipped: number; plans: RemediationPlan[] }>(`/compliance/audits/${auditId}/generate-remediations`);
+    return response.data;
+  },
 
   // --- Remediation plans ----------------------------------------------------
   listRemediations: async (filter?: RemediationFilter): Promise<RemediationPlan[]> => {

@@ -6,7 +6,9 @@
 // its lifecycle (planned → in progress → completed), and keep the history.
 
 import { useMemo, useState } from 'react';
-import { CalendarClock, Plus, Trash2 } from 'lucide-react';
+import { CalendarClock, Plus, Trash2, Wand2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -30,11 +32,13 @@ const STATUS_ORDER: AuditStatus[] = ['planned', 'in_progress', 'completed', 'can
 
 export function AuditsPage() {
   const lang = useUIStore((s) => s.lang);
+  const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { audits, isLoading, error, refetch, updateAudit, deleteAudit } = useAudits();
+  const { audits, isLoading, error, refetch, updateAudit, deleteAudit, generateRemediations } = useAudits();
   const { frameworks } = useFrameworks();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canWrite = hasPermission('compliance:audits:write');
+  const canRemediate = hasPermission('compliance:remediations:write');
 
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<'all' | AuditStatus>('all');
@@ -57,6 +61,21 @@ export function AuditsPage() {
     if (window.confirm(tr(`Supprimer l’audit « ${a.title} » ?`, `Delete audit "${a.title}"?`))) {
       deleteAudit.mutate(a.id);
     }
+  };
+  const genRemediations = (a: ComplianceAudit) => {
+    if (!a.framework_id) {
+      toast.error(tr('Cet audit couvre le programme entier — rattachez-le à un référentiel.', 'This audit is program-wide — scope it to a framework.'));
+      return;
+    }
+    toast.promise(generateRemediations.mutateAsync(a.id), {
+      loading: tr('Génération des plans…', 'Generating plans…'),
+      success: (r) => {
+        const msg = tr(`${r.created} plan(s) créé(s), ${r.skipped} déjà couvert(s)`, `${r.created} plan(s) created, ${r.skipped} already covered`);
+        if (r.created > 0) setTimeout(() => navigate('/compliance/remediations'), 600);
+        return msg;
+      },
+      error: tr('Génération échouée', 'Generation failed'),
+    });
   };
 
   return (
@@ -129,12 +148,19 @@ export function AuditsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        {canWrite && (
-                          <button onClick={() => remove(a)} className="w-8 h-8 rounded-[8px] inline-flex items-center justify-center transition-colors hover:brightness-110" style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}>
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {canRemediate && a.framework_id && (
+                            <button onClick={() => genRemediations(a)} disabled={generateRemediations.isPending} className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink transition-colors disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} title={tr('Générer les plans de remédiation pour les écarts', 'Generate remediation plans for the gaps')}>
+                              <Wand2 size={13} /> {tr('Remédier', 'Remediate')}
+                            </button>
+                          )}
+                          {canWrite && (
+                            <button onClick={() => remove(a)} className="w-8 h-8 rounded-[8px] inline-flex items-center justify-center transition-colors hover:brightness-110" style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

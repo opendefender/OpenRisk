@@ -29,6 +29,8 @@ type ComplianceAuditHandler struct {
 	listRemediations  *complianceaudit.ListRemediationsUseCase
 	updateRemediation *complianceaudit.UpdateRemediationUseCase
 	deleteRemediation *complianceaudit.DeleteRemediationUseCase
+
+	generateRemediations *complianceaudit.GenerateRemediationsFromAuditUseCase
 }
 
 func NewComplianceAuditHandler(
@@ -41,12 +43,14 @@ func NewComplianceAuditHandler(
 	listRemediations *complianceaudit.ListRemediationsUseCase,
 	updateRemediation *complianceaudit.UpdateRemediationUseCase,
 	deleteRemediation *complianceaudit.DeleteRemediationUseCase,
+	generateRemediations *complianceaudit.GenerateRemediationsFromAuditUseCase,
 ) *ComplianceAuditHandler {
 	return &ComplianceAuditHandler{
 		createAudit: createAudit, listAudits: listAudits, getAudit: getAudit,
 		updateAudit: updateAudit, deleteAudit: deleteAudit,
 		createRemediation: createRemediation, listRemediations: listRemediations,
 		updateRemediation: updateRemediation, deleteRemediation: deleteRemediation,
+		generateRemediations: generateRemediations,
 	}
 }
 
@@ -216,6 +220,21 @@ func (h *ComplianceAuditHandler) DeleteAudit(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.SendStatus(204)
+}
+
+// GenerateRemediations POST /compliance/audits/:id/generate-remediations —
+// opens a remediation plan for every open gap under the audit's framework, in one
+// click. Idempotent: gaps that already have an active plan are skipped.
+func (h *ComplianceAuditHandler) GenerateRemediations(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid audit id"})
+	}
+	res, err := h.generateRemediations.Execute(c.UserContext(), tenantID(c), id, userID(c))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(201).JSON(res)
 }
 
 // =============================================================================

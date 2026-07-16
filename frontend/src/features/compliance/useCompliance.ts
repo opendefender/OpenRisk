@@ -157,10 +157,15 @@ export function useAudits() {
     mutationFn: (id: string) => complianceService.deleteAudit(id),
     onSettled: invalidate,
   });
+  const generateRemediations = useMutation({
+    mutationFn: (auditId: string) => complianceService.generateRemediations(auditId),
+    // A generated batch shows up under the remediation lists.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['compliance', 'remediations'] }),
+  });
 
   return useMemo(
-    () => ({ audits: query.data ?? [], isLoading: query.isLoading, error: query.error, refetch: query.refetch, createAudit, updateAudit, deleteAudit }),
-    [query, createAudit, updateAudit, deleteAudit]
+    () => ({ audits: query.data ?? [], isLoading: query.isLoading, error: query.error, refetch: query.refetch, createAudit, updateAudit, deleteAudit, generateRemediations }),
+    [query, createAudit, updateAudit, deleteAudit, generateRemediations]
   );
 }
 

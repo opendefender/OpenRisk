@@ -723,6 +723,7 @@ func main() {
 		complianceaudit.NewListRemediationsUseCase(complianceAuditRepo, complianceRepo),
 		complianceaudit.NewUpdateRemediationUseCase(complianceAuditRepo),
 		complianceaudit.NewDeleteRemediationUseCase(complianceAuditRepo),
+		complianceaudit.NewGenerateRemediationsFromAuditUseCase(complianceAuditRepo, complianceAuditRepo, complianceRepo),
 	)
 	complianceAuditRead := middleware.RequirePermission("compliance:audits:read")
 	complianceAuditWrite := middleware.RequirePermission("compliance:audits:write")
@@ -736,6 +737,8 @@ func main() {
 	protected.Get("/compliance/audits/:id", complianceAuditRead, complianceAuditHandler.GetAudit)
 	protected.Patch("/compliance/audits/:id", complianceAuditWrite, complianceAuditHandler.UpdateAudit)
 	protected.Delete("/compliance/audits/:id", complianceAuditWrite, complianceAuditHandler.DeleteAudit)
+	// One-click: open a remediation plan for every open gap under the audit's framework.
+	protected.Post("/compliance/audits/:id/generate-remediations", complianceRemediationWrite, complianceAuditHandler.GenerateRemediations)
 
 	protected.Get("/compliance/remediations", complianceRemediationRead, complianceAuditHandler.ListRemediations)
 	protected.Post("/compliance/remediations", complianceRemediationWrite, complianceAuditHandler.CreateRemediation)
