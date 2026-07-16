@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/auth"
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
+	"github.com/opendefender/openrisk/internal/application/complianceaudit"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -204,6 +205,10 @@ func main() {
 		// sets it (a bare map[string]interface{} has no driver.Valuer).
 		&domain.Notification{},
 		&domain.NotificationPreference{},
+		// Compliance audits ("Audits" — plan/execute/history) and remediation
+		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
+		&domain.ComplianceAudit{},
+		&domain.RemediationPlan{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -701,6 +706,41 @@ func main() {
 	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, complianceHandler.CreateEvidence)
 	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
 	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
+
+	// -------------------------------------------------------------------------
+	// Compliance audits ("Audits") + remediation plans ("Plans de remédiation").
+	// One Gorm repo backs both aggregates. New permission strings — admin/root
+	// hold "*" so they're granted; a future Profile rule can open them per-role.
+	// -------------------------------------------------------------------------
+	complianceAuditRepo := repository.NewGormComplianceAuditRepository(database.DB)
+	complianceAuditHandler := handlers.NewComplianceAuditHandler(
+		complianceaudit.NewCreateAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewListAuditsUseCase(complianceAuditRepo),
+		complianceaudit.NewGetAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewUpdateAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewDeleteAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewCreateRemediationUseCase(complianceAuditRepo, complianceRepo),
+		complianceaudit.NewListRemediationsUseCase(complianceAuditRepo, complianceRepo),
+		complianceaudit.NewUpdateRemediationUseCase(complianceAuditRepo),
+		complianceaudit.NewDeleteRemediationUseCase(complianceAuditRepo),
+	)
+	complianceAuditRead := middleware.RequirePermission("compliance:audits:read")
+	complianceAuditWrite := middleware.RequirePermission("compliance:audits:write")
+	complianceRemediationRead := middleware.RequirePermission("compliance:remediations:read")
+	complianceRemediationWrite := middleware.RequirePermission("compliance:remediations:write")
+
+	// Static paths — registered as siblings of /compliance/frameworks etc.; no
+	// dynamic :segment under /compliance would greedily catch "audits"/"remediations".
+	protected.Get("/compliance/audits", complianceAuditRead, complianceAuditHandler.ListAudits)
+	protected.Post("/compliance/audits", complianceAuditWrite, complianceAuditHandler.CreateAudit)
+	protected.Get("/compliance/audits/:id", complianceAuditRead, complianceAuditHandler.GetAudit)
+	protected.Patch("/compliance/audits/:id", complianceAuditWrite, complianceAuditHandler.UpdateAudit)
+	protected.Delete("/compliance/audits/:id", complianceAuditWrite, complianceAuditHandler.DeleteAudit)
+
+	protected.Get("/compliance/remediations", complianceRemediationRead, complianceAuditHandler.ListRemediations)
+	protected.Post("/compliance/remediations", complianceRemediationWrite, complianceAuditHandler.CreateRemediation)
+	protected.Patch("/compliance/remediations/:id", complianceRemediationWrite, complianceAuditHandler.UpdateRemediation)
+	protected.Delete("/compliance/remediations/:id", complianceRemediationWrite, complianceAuditHandler.DeleteRemediation)
 
 	// =========================================================================
 	// Board Report (M4, second half — see ROADMAP.md §3 M4).
