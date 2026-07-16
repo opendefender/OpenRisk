@@ -26,6 +26,7 @@ import { SettingsScreen } from './features/settings/SettingsScreen';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { ImportRisksPage } from './features/risks/ImportRisksPage';
 import { RiskRegisterPage } from './features/risks/RiskRegisterPage';
+import { VulnerabilitiesPage } from './features/vulnerabilities/VulnerabilitiesPage';
 import { MitigationsBoard } from './features/mitigations/MitigationsBoard';
 import { ComplianceScreen } from './features/compliance/ComplianceScreen';
 import { FrameworkDetail } from './features/compliance/FrameworkDetail';
@@ -135,6 +136,7 @@ function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="risks" element={<RiskRegisterPage />} />
+          <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
           <Route path="mitigations" element={<MitigationsBoard />} />
           <Route path="compliance" element={<ComplianceScreen />} />
           <Route path="compliance/:frameworkId" element={<FrameworkDetail />} />
