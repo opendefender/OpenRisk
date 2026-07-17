@@ -57,6 +57,30 @@ func TestISO27001_2022_HasExpectedControlCount(t *testing.T) {
 	}
 }
 
+// TestExpectedControlCounts locks the size of each new international catalog so a
+// truncation (a dropped control block) is caught in CI rather than shipping a
+// silently-incomplete framework. Counts are the framework's own public structure.
+func TestExpectedControlCounts(t *testing.T) {
+	cases := map[string]int{
+		"nist-csf-2.0":   22, // 6 Functions → 22 Categories
+		"cis-v8":         18, // 18 Critical Security Controls
+		"pci-dss-4.0":    12, // 12 core requirements
+		"hipaa-security": 22, // Administrative(9)+Physical(4)+Technical(5)+Organizational(2)+Docs(2)
+		"soc2-tsc":       51, // Common Criteria(33)+A(3)+C(2)+PI(5)+P(8)
+	}
+	for key, want := range cases {
+		t.Run(key, func(t *testing.T) {
+			cat, ok := Get(key)
+			if !ok {
+				t.Fatalf("catalog %q not registered", key)
+			}
+			if got := len(cat.Controls); got != want {
+				t.Errorf("expected %d controls in %q, got %d", want, key, got)
+			}
+		})
+	}
+}
+
 func TestGet_UnknownKey(t *testing.T) {
 	if _, ok := Get("does-not-exist"); ok {
 		t.Error("expected ok=false for an unregistered catalog key")
