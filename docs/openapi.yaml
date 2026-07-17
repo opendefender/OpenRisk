@@ -314,6 +314,97 @@ paths:
         '404':
           description: Risk not found
 
+  /risks/{id}/financial:
+    get:
+      tags:
+        - Financial Quantification
+      summary: Full financial assessment for one risk
+      description: >
+        Returns the complete Cyber Risk Quantification for a risk (spec §9):
+        SLE (explicit/composed/reference), downtime cost, worst/average loss,
+        ALE (XAF+USD), remediation cost, residual ALE and ROSI.
+      operationId: getRiskFinancial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Financial assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialAssessment'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+  /risks/{id}/simulate:
+    post:
+      tags:
+        - Financial Quantification
+      summary: What-if investment simulation (non-persisting)
+      description: >
+        Recomputes the financial assessment with the supplied overrides layered
+        on the risk's stored drivers, WITHOUT persisting anything. Powers the
+        CISO/CFO investment-scenario simulator.
+      operationId: simulateRiskFinancial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulateFinancialInput'
+      responses:
+        '200':
+          description: Simulated financial assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialAssessment'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+  /analytics/financial:
+    get:
+      tags:
+        - Financial Quantification
+      summary: Tenant-wide financial posture (CFO/CISO dashboard)
+      description: >
+        Portfolio ALE (current, worst-case, residual), remediation budget,
+        portfolio ROSI, breakdown by criticality and the top financial exposures.
+      operationId: getFinancialSummary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Financial summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialSummary'
+        '401':
+          description: Unauthorized
+
   /mitigations/{mitigationId}:
     patch:
       tags:
@@ -1625,6 +1716,131 @@ components:
       description: JWT Bearer token. Obtain via /auth/login
 
   schemas:
+    # ========== FINANCIAL QUANTIFICATION (spec §9) ==========
+    Money:
+      type: object
+      description: An amount in both currencies (XAF canonical, USD derived).
+      required: [xaf, usd]
+      properties:
+        xaf:
+          type: number
+        usd:
+          type: number
+    FinancialAssessment:
+      type: object
+      description: Full monetary view of a single risk (pkg/crq).
+      required:
+        - sle
+        - sle_average
+        - sle_worst
+        - downtime_cost
+        - sle_basis
+        - aro
+        - ale
+        - ale_average
+        - ale_worst
+        - ale_basis
+        - remediation_cost
+        - mitigation_effectiveness
+        - ale_after
+        - risk_reduction
+        - rosi
+        - rosi_computable
+      properties:
+        sle: { $ref: '#/components/schemas/Money' }
+        sle_average: { $ref: '#/components/schemas/Money' }
+        sle_worst: { $ref: '#/components/schemas/Money' }
+        downtime_cost: { $ref: '#/components/schemas/Money' }
+        sle_basis:
+          type: string
+          enum: [explicit, composed, reference]
+        aro:
+          type: number
+        ale: { $ref: '#/components/schemas/Money' }
+        ale_average: { $ref: '#/components/schemas/Money' }
+        ale_worst: { $ref: '#/components/schemas/Money' }
+        ale_basis:
+          type: string
+          enum: [explicit, reference]
+        remediation_cost: { $ref: '#/components/schemas/Money' }
+        mitigation_effectiveness:
+          type: number
+          description: "[0,1] share of ALE removed by the control"
+        ale_after: { $ref: '#/components/schemas/Money' }
+        risk_reduction: { $ref: '#/components/schemas/Money' }
+        rosi:
+          type: number
+          description: "Return on Security Investment ratio (e.g. 1.5 = +150%)"
+        rosi_computable:
+          type: boolean
+          description: false when remediation cost <= 0 (ratio undefined)
+    SimulateFinancialInput:
+      type: object
+      description: Per-field overrides for a what-if scenario (all optional).
+      properties:
+        sle_xaf: { type: number, minimum: 0 }
+        aro: { type: number, minimum: 0 }
+        downtime_hours: { type: number, minimum: 0 }
+        hourly_downtime_cost_xaf: { type: number, minimum: 0 }
+        data_loss_cost_xaf: { type: number, minimum: 0 }
+        fines_xaf: { type: number, minimum: 0 }
+        other_direct_cost_xaf: { type: number, minimum: 0 }
+        remediation_cost_xaf: { type: number, minimum: 0 }
+        mitigation_effectiveness: { type: number, minimum: 0, maximum: 1 }
+    CriticalityBucket:
+      type: object
+      required: [criticality, count, ale]
+      properties:
+        criticality: { type: string }
+        count: { type: integer }
+        ale: { $ref: '#/components/schemas/Money' }
+    TopRiskFinancial:
+      type: object
+      required: [id, title, criticality, ale, ale_worst, rosi, rosi_computable]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        criticality: { type: string }
+        ale: { $ref: '#/components/schemas/Money' }
+        ale_worst: { $ref: '#/components/schemas/Money' }
+        rosi: { type: number }
+        rosi_computable: { type: boolean }
+    FinancialSummary:
+      type: object
+      description: Tenant-wide financial posture for the CFO/CISO dashboard.
+      required:
+        - currency
+        - xaf_per_usd
+        - total_risks
+        - quantified_risks
+        - total_ale
+        - total_ale_worst
+        - total_ale_after
+        - total_risk_reduction
+        - total_remediation
+        - portfolio_rosi
+        - portfolio_rosi_computable
+        - by_criticality
+        - top_risks
+      properties:
+        currency: { type: string }
+        xaf_per_usd: { type: number }
+        total_risks: { type: integer }
+        quantified_risks: { type: integer }
+        total_ale: { $ref: '#/components/schemas/Money' }
+        total_ale_worst: { $ref: '#/components/schemas/Money' }
+        total_ale_after: { $ref: '#/components/schemas/Money' }
+        total_risk_reduction: { $ref: '#/components/schemas/Money' }
+        total_remediation: { $ref: '#/components/schemas/Money' }
+        portfolio_rosi: { type: number }
+        portfolio_rosi_computable: { type: boolean }
+        by_criticality:
+          type: array
+          items: { $ref: '#/components/schemas/CriticalityBucket' }
+        top_risks:
+          type: array
+          items: { $ref: '#/components/schemas/TopRiskFinancial' }
+
     # ========== INPUT SCHEMAS ==========
     LoginInput:
       type: object
