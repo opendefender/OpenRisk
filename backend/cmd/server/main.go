@@ -1126,6 +1126,7 @@ func main() {
 	// Each runs in-process in the SaaS worker via its official SDK/REST collector.
 	scanRegistry.Register(scanpkg.NewGitHubScanner(collectors.NewGitHub()))
 	scanRegistry.Register(scanpkg.NewGitLabScanner(collectors.NewGitLab()))
+	scanRegistry.Register(scanpkg.NewActiveDirectoryScanner(collectors.NewActiveDirectory()))
 
 	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
