@@ -538,6 +538,13 @@ func main() {
 	var mitigationEventsHandler *handlers.MitigationEventsHandler
 	app.Get("/api/v1/mitigations/events", func(c *fiber.Ctx) error { return mitigationEventsHandler.Stream(c) })
 
+	// Vulnerability scanner webhook — external tools (Nessus/Qualys/Defender/…) POST
+	// findings here authenticated by the integration's opaque webhook token (NOT a
+	// user JWT). Mounted on `app` BEFORE the /api/v1 JWT gate for the same reason as
+	// the scanner agent endpoints. Assigned in the vulnerability section below.
+	var vulnWebhookHandler *handlers.VulnWebhookHandler
+	app.Post("/api/v1/vulnerabilities/webhook/:source", func(c *fiber.Ctx) error { return vulnWebhookHandler.Ingest(c) })
+
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
 	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
@@ -858,8 +865,9 @@ func main() {
 	// pkg/vulnprio (CVSS + exploitability + business criticality + affected
 	// assets) and upserted into a tenant-scoped register.
 	vulnRepo := repository.NewGormVulnerabilityRepository(database.DB)
+	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo)
 	vulnHandler := handlers.NewVulnerabilityHandler(
-		vulnapp.NewIngestUseCase(vulnRepo, assetRepo),
+		vulnIngestUC,
 		vulnapp.NewListUseCase(vulnRepo),
 		vulnapp.NewGetUseCase(vulnRepo),
 		vulnapp.NewUpdateStatusUseCase(vulnRepo),
@@ -892,6 +900,8 @@ func main() {
 		vulnapp.NewGetTicketingUseCase(vulnIntegRepo),
 		vulnapp.NewDeleteTicketingUseCase(vulnIntegRepo),
 	)
+	// Assign the forward-declared webhook handler (route mounted before the JWT gate).
+	vulnWebhookHandler = handlers.NewVulnWebhookHandler(vulnIntegRepo, vulnIngestUC)
 
 	// Static resources first so they are never parsed as /:id.
 	protected.Get("/vulnerability-connectors", vulnRead, vulnHandler.ListConnectors)
