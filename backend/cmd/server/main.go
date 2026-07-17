@@ -1125,6 +1125,7 @@ func main() {
 	// Auto-discovery API providers (spec "6. Découverte automatique des actifs").
 	// Each runs in-process in the SaaS worker via its official SDK/REST collector.
 	scanRegistry.Register(scanpkg.NewGitHubScanner(collectors.NewGitHub()))
+	scanRegistry.Register(scanpkg.NewGitLabScanner(collectors.NewGitLab()))
 
 	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
