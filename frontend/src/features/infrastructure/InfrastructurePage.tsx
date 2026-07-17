@@ -49,6 +49,13 @@ export function InfrastructurePage() {
     { provider: 'aws', title: 'Amazon Web Services' },
     { provider: 'azure', title: 'Microsoft Azure' },
     { provider: 'gcp', title: 'Google Cloud' },
+    { provider: 'kubernetes', title: 'Kubernetes' },
+    { provider: 'docker', title: 'Docker' },
+    { provider: 'vmware', title: 'VMware vCenter' },
+    { provider: 'active_directory', title: 'Active Directory' },
+    { provider: 'm365', title: 'Microsoft 365' },
+    { provider: 'github', title: 'GitHub' },
+    { provider: 'gitlab', title: 'GitLab' },
     { provider: 'nmap', title: tr('Sur site (Agent)', 'On-Premise (Agent)') },
   ];
   const countFor = (p: ScannerProvider) =>

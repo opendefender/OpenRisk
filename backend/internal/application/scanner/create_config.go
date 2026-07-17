@@ -50,7 +50,7 @@ func (uc *CreateScanConfigUseCase) Execute(ctx context.Context, tenantID, create
 		return nil, domain.NewValidationError("name is required")
 	}
 	if !in.Provider.Valid() {
-		return nil, domain.NewValidationError("invalid provider (expected aws|azure|gcp|nmap|agent)")
+		return nil, domain.NewValidationError("invalid provider (expected aws|azure|gcp|nmap|agent|kubernetes|docker|vmware|active_directory|m365|github|gitlab)")
 	}
 
 	// Validate via the provider's Scanner (cred presence for cloud, target scope

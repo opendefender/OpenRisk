@@ -85,7 +85,7 @@ func NewScannerHandler(
 
 type createScanConfigInput struct {
 	Name            string            `json:"name" validate:"required"`
-	Provider        string            `json:"provider" validate:"required,oneof=aws azure gcp nmap agent"`
+	Provider        string            `json:"provider" validate:"required,oneof=aws azure gcp nmap agent kubernetes docker vmware active_directory m365 github gitlab"`
 	Credentials     map[string]string `json:"credentials"`
 	Regions         []string          `json:"regions"`
 	Targets         []string          `json:"targets"`

@@ -7,11 +7,13 @@ package scanner
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"gorm.io/datatypes"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
@@ -160,7 +162,7 @@ func (uc *TriggerScanUseCase) runCloudJob(cfg *domain.ScanConfig, job *domain.Sc
 		Provider:    cfg.Provider,
 		Credentials: creds,
 		Regions:     cfg.Regions,
-		Options:     nil,
+		Options:     decodeOptions(cfg.Options),
 	}
 	meta := scanpkg.PreviewMeta{
 		JobID:       job.ID,
@@ -198,6 +200,21 @@ func (uc *TriggerScanUseCase) failJob(ctx context.Context, job *domain.ScanJob, 
 	if err := uc.jobRepo.Update(ctx, job); err != nil {
 		uc.logger.Error().Err(err).Msg("scanner: could not persist failed job")
 	}
+}
+
+// decodeOptions unmarshals a config's JSONB Options bag into a map for the
+// runtime ScanConfig. A nil/empty/invalid bag yields nil (options are always
+// optional). This lets API providers read non-secret scoping options (e.g. a
+// namespace or org filter) that aren't part of the encrypted credentials.
+func decodeOptions(raw datatypes.JSON) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil
+	}
+	return out
 }
 
 // previewJobKey mirrors scanner.previewKey (unexported) so the job can point at

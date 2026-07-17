@@ -7,7 +7,10 @@
 
 import { api } from '../../lib/api';
 
-export type ScannerProvider = 'aws' | 'azure' | 'gcp' | 'nmap' | 'agent';
+export type ScannerProvider =
+  | 'aws' | 'azure' | 'gcp' | 'nmap' | 'agent'
+  // Auto-discovery API providers (spec "6. Découverte automatique des actifs").
+  | 'kubernetes' | 'docker' | 'vmware' | 'active_directory' | 'm365' | 'github' | 'gitlab';
 export type AgentStatus = 'online' | 'offline' | 'scanning' | 'error' | 'revoked';
 export type ScanJobStatus = 'queued' | 'claimed' | 'running' | 'completed' | 'failed' | 'timeout';
 
