@@ -28,6 +28,15 @@ type UpdateRiskInput struct {
 	// CRQ monetary inputs (XAF). Pointers so a partial update can set or clear them.
 	SLEXAF *float64
 	ARO    *float64
+	// Full financial-quantification drivers (spec §9). Pointers → nil leaves the
+	// stored value unchanged; a supplied value (incl. 0) overwrites it.
+	DowntimeHours           *float64
+	HourlyDowntimeCostXAF   *float64
+	DataLossCostXAF         *float64
+	FinesXAF                *float64
+	OtherDirectCostXAF      *float64
+	RemediationCostXAF      *float64
+	MitigationEffectiveness *float64 // [0,1]
 	// Review cadence (days). 0 disables; >0 (re)initialises NextReviewAt when unset.
 	ReviewIntervalDays *int
 }
@@ -97,6 +106,43 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 			return nil, domain.NewValidationError("annualized rate of occurrence (aro) cannot be negative")
 		}
 		risk.ARO = input.ARO
+	}
+	// Financial-quantification drivers. Reject negatives; effectiveness ∈ [0,1].
+	for label, p := range map[string]*float64{
+		"downtime_hours":           input.DowntimeHours,
+		"hourly_downtime_cost_xaf": input.HourlyDowntimeCostXAF,
+		"data_loss_cost_xaf":       input.DataLossCostXAF,
+		"fines_xaf":                input.FinesXAF,
+		"other_direct_cost_xaf":    input.OtherDirectCostXAF,
+		"remediation_cost_xaf":     input.RemediationCostXAF,
+	} {
+		if p != nil && *p < 0 {
+			return nil, domain.NewValidationError(label + " cannot be negative")
+		}
+	}
+	if input.MitigationEffectiveness != nil && (*input.MitigationEffectiveness < 0 || *input.MitigationEffectiveness > 1) {
+		return nil, domain.NewValidationError("mitigation_effectiveness must be between 0 and 1")
+	}
+	if input.DowntimeHours != nil {
+		risk.DowntimeHours = input.DowntimeHours
+	}
+	if input.HourlyDowntimeCostXAF != nil {
+		risk.HourlyDowntimeCostXAF = input.HourlyDowntimeCostXAF
+	}
+	if input.DataLossCostXAF != nil {
+		risk.DataLossCostXAF = input.DataLossCostXAF
+	}
+	if input.FinesXAF != nil {
+		risk.FinesXAF = input.FinesXAF
+	}
+	if input.OtherDirectCostXAF != nil {
+		risk.OtherDirectCostXAF = input.OtherDirectCostXAF
+	}
+	if input.RemediationCostXAF != nil {
+		risk.RemediationCostXAF = input.RemediationCostXAF
+	}
+	if input.MitigationEffectiveness != nil {
+		risk.MitigationEffectiveness = input.MitigationEffectiveness
 	}
 	if input.ReviewIntervalDays != nil {
 		if *input.ReviewIntervalDays < 0 {

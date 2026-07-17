@@ -28,6 +28,14 @@ type CreateRiskInput struct {
 	CreatedBy   uuid.UUID // the authenticated user creating the risk
 	SLEXAF      *float64  // CRQ: single loss expectancy (XAF), optional
 	ARO         *float64  // CRQ: annualized rate of occurrence, optional
+	// Full financial-quantification drivers (spec §9). All optional XAF amounts.
+	DowntimeHours           *float64
+	HourlyDowntimeCostXAF   *float64
+	DataLossCostXAF         *float64
+	FinesXAF                *float64
+	OtherDirectCostXAF      *float64
+	RemediationCostXAF      *float64
+	MitigationEffectiveness *float64 // [0,1]
 }
 
 // CreateRiskUseCase handles the creation of a new risk.
@@ -75,6 +83,14 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		CreatedBy:      input.CreatedBy,
 		SLEXAF:         input.SLEXAF,
 		ARO:            input.ARO,
+
+		DowntimeHours:           input.DowntimeHours,
+		HourlyDowntimeCostXAF:   input.HourlyDowntimeCostXAF,
+		DataLossCostXAF:         input.DataLossCostXAF,
+		FinesXAF:                input.FinesXAF,
+		OtherDirectCostXAF:      input.OtherDirectCostXAF,
+		RemediationCostXAF:      input.RemediationCostXAF,
+		MitigationEffectiveness: input.MitigationEffectiveness,
 	}
 
 	// Set status (default to DRAFT)
@@ -110,6 +126,9 @@ func (uc *CreateRiskUseCase) validate(input CreateRiskInput) error {
 	}
 	if input.Probability < 0 || input.Probability > 1 {
 		return domain.NewValidationError("probability must be between 0 and 1")
+	}
+	if input.MitigationEffectiveness != nil && (*input.MitigationEffectiveness < 0 || *input.MitigationEffectiveness > 1) {
+		return domain.NewValidationError("mitigation_effectiveness must be between 0 and 1")
 	}
 	return nil
 }

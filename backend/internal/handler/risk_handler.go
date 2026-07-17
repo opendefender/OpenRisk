@@ -146,6 +146,14 @@ type CreateRiskInput struct {
 	// CRQ monetary inputs (XAF). Optional.
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
+	// Full financial-quantification drivers (spec §9). All optional XAF amounts.
+	DowntimeHours           *float64 `json:"downtime_hours" validate:"omitempty,min=0"`
+	HourlyDowntimeCostXAF   *float64 `json:"hourly_downtime_cost_xaf" validate:"omitempty,min=0"`
+	DataLossCostXAF         *float64 `json:"data_loss_cost_xaf" validate:"omitempty,min=0"`
+	FinesXAF                *float64 `json:"fines_xaf" validate:"omitempty,min=0"`
+	OtherDirectCostXAF      *float64 `json:"other_direct_cost_xaf" validate:"omitempty,min=0"`
+	RemediationCostXAF      *float64 `json:"remediation_cost_xaf" validate:"omitempty,min=0"`
+	MitigationEffectiveness *float64 `json:"mitigation_effectiveness" validate:"omitempty,min=0,max=1"`
 }
 
 // UpdateRiskInput : DTO pour la mise à jour partielle
@@ -161,6 +169,14 @@ type UpdateRiskInput struct {
 	// CRQ monetary inputs (XAF). Pointers → nil means "leave unchanged".
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
+	// Full financial-quantification drivers (spec §9). nil → leave unchanged.
+	DowntimeHours           *float64 `json:"downtime_hours" validate:"omitempty,min=0"`
+	HourlyDowntimeCostXAF   *float64 `json:"hourly_downtime_cost_xaf" validate:"omitempty,min=0"`
+	DataLossCostXAF         *float64 `json:"data_loss_cost_xaf" validate:"omitempty,min=0"`
+	FinesXAF                *float64 `json:"fines_xaf" validate:"omitempty,min=0"`
+	OtherDirectCostXAF      *float64 `json:"other_direct_cost_xaf" validate:"omitempty,min=0"`
+	RemediationCostXAF      *float64 `json:"remediation_cost_xaf" validate:"omitempty,min=0"`
+	MitigationEffectiveness *float64 `json:"mitigation_effectiveness" validate:"omitempty,min=0,max=1"`
 	// Review cadence in days (0 disables).
 	ReviewIntervalDays *int `json:"review_interval_days" validate:"omitempty,min=0"`
 }
@@ -200,6 +216,14 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		CreatedBy:   createdBy,
 		SLEXAF:      input.SLEXAF,
 		ARO:         input.ARO,
+
+		DowntimeHours:           input.DowntimeHours,
+		HourlyDowntimeCostXAF:   input.HourlyDowntimeCostXAF,
+		DataLossCostXAF:         input.DataLossCostXAF,
+		FinesXAF:                input.FinesXAF,
+		OtherDirectCostXAF:      input.OtherDirectCostXAF,
+		RemediationCostXAF:      input.RemediationCostXAF,
+		MitigationEffectiveness: input.MitigationEffectiveness,
 	}
 
 	domainRisk, err := h.createRiskUseCase.Execute(stdCtx, orgID, ucInput)
@@ -379,6 +403,14 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		SLEXAF:             input.SLEXAF,
 		ARO:                input.ARO,
 		ReviewIntervalDays: input.ReviewIntervalDays,
+
+		DowntimeHours:           input.DowntimeHours,
+		HourlyDowntimeCostXAF:   input.HourlyDowntimeCostXAF,
+		DataLossCostXAF:         input.DataLossCostXAF,
+		FinesXAF:                input.FinesXAF,
+		OtherDirectCostXAF:      input.OtherDirectCostXAF,
+		RemediationCostXAF:      input.RemediationCostXAF,
+		MitigationEffectiveness: input.MitigationEffectiveness,
 	}
 
 	if input.Title == "" {
