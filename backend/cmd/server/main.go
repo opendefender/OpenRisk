@@ -1128,6 +1128,7 @@ func main() {
 	scanRegistry.Register(scanpkg.NewGitLabScanner(collectors.NewGitLab()))
 	scanRegistry.Register(scanpkg.NewActiveDirectoryScanner(collectors.NewActiveDirectory()))
 	scanRegistry.Register(scanpkg.NewM365Scanner(collectors.NewM365()))
+	scanRegistry.Register(scanpkg.NewDockerScanner(collectors.NewDocker()))
 
 	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
