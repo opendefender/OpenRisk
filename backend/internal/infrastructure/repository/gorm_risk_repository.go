@@ -232,6 +232,25 @@ func (r *GormRiskRepository) CountRisksByCriticality(ctx context.Context, tenant
 	return out, nil
 }
 
+// ListRisksForFinancial returns, for a tenant, the lightweight subset of every
+// active (non-deleted) risk needed to run the CRQ financial model in aggregate:
+// identity, criticality and all monetary drivers. Selecting a narrow column set
+// keeps this cheap even on a large register. Like CountRisksByCriticality it is a
+// concrete-type method (not on the domain.RiskRepository port) so existing mocks
+// stay valid; the financial-summary use case depends on a narrow port instead.
+func (r *GormRiskRepository) ListRisksForFinancial(ctx context.Context, tenantID uuid.UUID) ([]domain.Risk, error) {
+	var risks []domain.Risk
+	err := r.db.WithContext(ctx).
+		Model(&domain.Risk{}).
+		Select("id, title, name, criticality, sle_xaf, aro, downtime_hours, hourly_downtime_cost_xaf, data_loss_cost_xaf, fines_xaf, other_direct_cost_xaf, remediation_cost_xaf, mitigation_effectiveness").
+		Where("tenant_id = ?", tenantID).
+		Find(&risks).Error
+	if err != nil {
+		return nil, err
+	}
+	return risks, nil
+}
+
 // =============================================================================
 // Scoring Operations (called by Score Engine worker)
 // =============================================================================
