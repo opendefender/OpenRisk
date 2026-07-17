@@ -1130,6 +1130,7 @@ func main() {
 	scanRegistry.Register(scanpkg.NewM365Scanner(collectors.NewM365()))
 	scanRegistry.Register(scanpkg.NewDockerScanner(collectors.NewDocker()))
 	scanRegistry.Register(scanpkg.NewVMwareScanner(collectors.NewVMware()))
+	scanRegistry.Register(scanpkg.NewKubernetesScanner(collectors.NewKubernetes()))
 
 	scanPreview := scanpkg.NewPreviewStore(redisClientInstance)
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
