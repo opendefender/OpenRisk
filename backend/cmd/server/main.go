@@ -201,6 +201,11 @@ func main() {
 		// register: findings normalised from Nessus/OpenVAS/Qualys/Defender/
 		// Inspector/Azure Defender/CrowdStrike and risk-based prioritised.
 		&domain.Vulnerability{},
+		// Vulnerability integrations — per-source connector config (encrypted API
+		// credentials, live-pull schedule, inbound webhook token, automation
+		// toggles) + tenant ITSM/ticketing config for auto-ticketing.
+		&domain.VulnIntegration{},
+		&domain.VulnTicketingConfig{},
 		// Notifications — the in-app centre + delivery preferences. Previously
 		// missing from AutoMigrate, so every /notifications route errored on a
 		// non-existent table (and the scan-completion in-app notification had
