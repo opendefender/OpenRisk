@@ -46,6 +46,7 @@ import (
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
@@ -869,7 +870,9 @@ func main() {
 	// before prioritisation. A stateless repo instance on the shared DB — the CTI
 	// handler wires its own later.
 	vulnCTIEnricher := vulnapp.NewCTIRepoEnricher(repository.NewGormCTIRepository(database.DB))
-	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo).WithCTIEnricher(vulnCTIEnricher)
+	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo).
+		WithCTIEnricher(vulnCTIEnricher).
+		WithRiskProposer(vulnrisk.NewRiskCreator(database.DB))
 	vulnHandler := handlers.NewVulnerabilityHandler(
 		vulnIngestUC,
 		vulnapp.NewListUseCase(vulnRepo),

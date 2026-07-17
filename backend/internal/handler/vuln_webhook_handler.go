@@ -73,8 +73,9 @@ func (h *VulnWebhookHandler) Ingest(c *fiber.Ctx) error {
 	}
 
 	res, err := h.ingest.Execute(c.UserContext(), integ.TenantID, vulnapp.IngestInput{
-		Source:   integ.Source,
-		Findings: findings,
+		Source:         integ.Source,
+		Findings:       findings,
+		AutoCreateRisk: integ.AutoCreateRisk,
 	})
 	if err != nil {
 		return writeAppError(c, err)
