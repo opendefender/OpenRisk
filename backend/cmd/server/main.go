@@ -813,7 +813,9 @@ func main() {
 	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo)
 	// Deleting an asset also prunes its dependency edges (no dangling links).
 	deleteAssetUC := assetapp.NewDeleteAssetUseCase(assetRepo).WithDependencyRepository(assetDepRepo)
-	listAssetSnapshotsUC := assetapp.NewListAssetSnapshotsUseCase(assetRepo)
+	// Resolve each history snapshot's changed_by UUID to an email so the
+	// inventory's history view shows "qui a modifié" as a human name, not a UUID.
+	listAssetSnapshotsUC := assetapp.NewListAssetSnapshotsUseCase(assetRepo).WithUserLookup(userRepo)
 	assetHandler := handlers.NewAssetHandler(
 		createAssetUC, getAssetUC, listAssetsUC, updateAssetUC, deleteAssetUC, listAssetSnapshotsUC,
 		redisClientInstance,

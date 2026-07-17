@@ -127,7 +127,7 @@ func (h *AssetHandler) UpdateAsset(c *fiber.Ctx) error {
 		ucInput.Criticality = &crit
 	}
 
-	result, err := h.updateAssetUC.Execute(c.UserContext(), tenantID(c), id, ucInput)
+	result, err := h.updateAssetUC.Execute(c.UserContext(), tenantID(c), id, userID(c), ucInput)
 	if err != nil {
 		return writeAppError(c, err)
 	}
@@ -156,7 +156,7 @@ func (h *AssetHandler) DeleteAsset(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid asset id"})
 	}
-	if err := h.deleteAssetUC.Execute(c.UserContext(), tenantID(c), id); err != nil {
+	if err := h.deleteAssetUC.Execute(c.UserContext(), tenantID(c), id, userID(c)); err != nil {
 		return writeAppError(c, err)
 	}
 	return c.SendStatus(204)
