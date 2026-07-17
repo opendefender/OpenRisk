@@ -898,6 +898,12 @@ func main() {
 		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	// Auto-ticketing: the opener composes the tenant ITSM config + Jira/ServiceNow
+	// providers (pkg/ticketing). Wired into ingest (auto-open for P1/KEV) and into
+	// the manual "Open ticket" use case. Mutating vulnIngestUC here still affects the
+	// already-built handlers — they hold the same *IngestUseCase pointer.
+	vulnTicketOpener := vulnapp.NewConfigTicketOpener(vulnIntegRepo, vulnIntegCipher)
+	vulnIngestUC.WithTicketOpener(vulnTicketOpener)
 	vulnLivePullUC := vulnapp.NewTriggerLivePullUseCase(vulnIntegRepo, vulnIntegCipher, vulnapp.LivePullAdapter{}, vulnIngestUC)
 	vulnIntegHandler := handlers.NewVulnIntegrationHandler(
 		vulnapp.NewSaveIntegrationUseCase(vulnIntegRepo, vulnIntegCipher),
@@ -908,6 +914,7 @@ func main() {
 		vulnapp.NewSaveTicketingUseCase(vulnIntegRepo, vulnIntegCipher),
 		vulnapp.NewGetTicketingUseCase(vulnIntegRepo),
 		vulnapp.NewDeleteTicketingUseCase(vulnIntegRepo),
+		vulnapp.NewCreateTicketUseCase(vulnRepo, vulnTicketOpener),
 	)
 	// Assign the forward-declared webhook handler (route mounted before the JWT gate).
 	vulnWebhookHandler = handlers.NewVulnWebhookHandler(vulnIntegRepo, vulnIngestUC)
@@ -928,6 +935,7 @@ func main() {
 	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
 	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
+	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
 
 	api.Get("/users/me", authHandler.GetProfile)

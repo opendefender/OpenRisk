@@ -24,6 +24,7 @@ type VulnIntegrationHandler struct {
 	saveTicket   *vulnapp.SaveTicketingUseCase
 	getTicket    *vulnapp.GetTicketingUseCase
 	deleteTicket *vulnapp.DeleteTicketingUseCase
+	createTicket *vulnapp.CreateTicketUseCase
 }
 
 func NewVulnIntegrationHandler(
@@ -35,10 +36,12 @@ func NewVulnIntegrationHandler(
 	saveTicket *vulnapp.SaveTicketingUseCase,
 	getTicket *vulnapp.GetTicketingUseCase,
 	deleteTicket *vulnapp.DeleteTicketingUseCase,
+	createTicket *vulnapp.CreateTicketUseCase,
 ) *VulnIntegrationHandler {
 	return &VulnIntegrationHandler{
 		save: save, list: list, get: get, del: del, pull: pull,
 		saveTicket: saveTicket, getTicket: getTicket, deleteTicket: deleteTicket,
+		createTicket: createTicket,
 	}
 }
 
@@ -191,4 +194,17 @@ func (h *VulnIntegrationHandler) DeleteTicketing(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.SendStatus(204)
+}
+
+// CreateTicket POST /vulnerabilities/:id/ticket — open an ITSM ticket for a vuln.
+func (h *VulnIntegrationHandler) CreateTicket(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid uuid"})
+	}
+	v, err := h.createTicket.Execute(c.UserContext(), h.tenant(c), id)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(201).JSON(v)
 }
