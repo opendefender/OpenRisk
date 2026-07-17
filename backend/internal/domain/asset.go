@@ -85,6 +85,12 @@ func (a *Asset) BeforeSave(tx *gorm.DB) error {
 // immediately before an update or deletion is applied. This is what powers
 // the asset inventory's history view (ROADMAP.md M3): "what did this asset
 // look like, and when did its criticality change".
+//
+// Traceability ("qui a modifié quoi, et quand"): the snapshot records the
+// prior state (the *quoi*, diffable against the current asset), CreatedAt (the
+// *quand*), and ChangedBy — the user who performed the update/delete that
+// superseded this state (the *qui*). ChangedBy may be uuid.Nil for rows written
+// before this field existed or for non-interactive/system changes.
 type AssetSnapshot struct {
 	ID          uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	TenantID    uuid.UUID        `gorm:"type:uuid;not null;index" json:"tenant_id"`
@@ -95,6 +101,14 @@ type AssetSnapshot struct {
 	Owner       string           `json:"owner"`
 	// Reason describes why the snapshot was taken: "update" or "delete".
 	Reason string `gorm:"size:20;not null;default:'update'" json:"reason"`
+	// ChangedBy is the ID of the user who caused this snapshot to be taken
+	// (i.e. who performed the change). Persisted; nullable for legacy/system rows.
+	ChangedBy uuid.UUID `gorm:"type:uuid;index" json:"changed_by"`
+	// ChangedByEmail is a computed, denormalized display label resolved from
+	// ChangedBy on the read path (ListSnapshots). NOT persisted (gorm:"-") — it
+	// is populated best-effort so the history UI can show a human name instead
+	// of a raw UUID. Empty when the actor is unknown or cannot be resolved.
+	ChangedByEmail string `gorm:"-" json:"changed_by_email,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 }
