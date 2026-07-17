@@ -891,11 +891,13 @@ func main() {
 		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	vulnLivePullUC := vulnapp.NewTriggerLivePullUseCase(vulnIntegRepo, vulnIntegCipher, vulnapp.LivePullAdapter{}, vulnIngestUC)
 	vulnIntegHandler := handlers.NewVulnIntegrationHandler(
 		vulnapp.NewSaveIntegrationUseCase(vulnIntegRepo, vulnIntegCipher),
 		vulnapp.NewListIntegrationsUseCase(vulnIntegRepo),
 		vulnapp.NewGetIntegrationUseCase(vulnIntegRepo),
 		vulnapp.NewDeleteIntegrationUseCase(vulnIntegRepo),
+		vulnLivePullUC,
 		vulnapp.NewSaveTicketingUseCase(vulnIntegRepo, vulnIntegCipher),
 		vulnapp.NewGetTicketingUseCase(vulnIntegRepo),
 		vulnapp.NewDeleteTicketingUseCase(vulnIntegRepo),
@@ -911,6 +913,7 @@ func main() {
 	protected.Get("/vulnerabilities/integrations", vulnRead, vulnIntegHandler.ListIntegrations)
 	protected.Post("/vulnerabilities/integrations", vulnWrite, vulnIntegHandler.SaveIntegration)
 	protected.Get("/vulnerabilities/integrations/:id", vulnRead, vulnIntegHandler.GetIntegration)
+	protected.Post("/vulnerabilities/integrations/:id/pull", vulnWrite, vulnIntegHandler.TriggerPull)
 	protected.Delete("/vulnerabilities/integrations/:id", vulnDelete, vulnIntegHandler.DeleteIntegration)
 	protected.Get("/vulnerabilities/ticketing", vulnRead, vulnIntegHandler.GetTicketing)
 	protected.Put("/vulnerabilities/ticketing", vulnWrite, vulnIntegHandler.SaveTicketing)
@@ -1312,6 +1315,18 @@ func main() {
 		log.Println("CTI: sync worker started (NVD hourly, CISA KEV 6h, post-sync matching)")
 	} else {
 		log.Println("CTI: engine wired (periodic sync disabled — set CTI_SYNC_ENABLED=true; manual /cti/sync + /cti/match live)")
+	}
+
+	// Vulnerability live-pull scheduler — polls due integrations (schedule_minutes)
+	// on the same pipeline as the manual "Pull now" button. Off by default in dev;
+	// enable with VULN_LIVEPULL_ENABLED=true. Manual POST /vulnerabilities/
+	// integrations/:id/pull is always live.
+	if os.Getenv("VULN_LIVEPULL_ENABLED") == "true" {
+		vulnPullScheduler := vulnapp.NewLivePullScheduler(vulnIntegRepo, vulnLivePullUC, time.Minute)
+		go vulnPullScheduler.Run(context.Background())
+		log.Println("Vuln: live-pull scheduler started (due integrations polled every minute)")
+	} else {
+		log.Println("Vuln: live-pull scheduler wired (disabled — set VULN_LIVEPULL_ENABLED=true; manual pull live)")
 	}
 
 	// =========================================================================

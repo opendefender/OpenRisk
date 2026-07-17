@@ -20,6 +20,7 @@ type VulnIntegrationHandler struct {
 	list         *vulnapp.ListIntegrationsUseCase
 	get          *vulnapp.GetIntegrationUseCase
 	del          *vulnapp.DeleteIntegrationUseCase
+	pull         *vulnapp.TriggerLivePullUseCase
 	saveTicket   *vulnapp.SaveTicketingUseCase
 	getTicket    *vulnapp.GetTicketingUseCase
 	deleteTicket *vulnapp.DeleteTicketingUseCase
@@ -30,12 +31,13 @@ func NewVulnIntegrationHandler(
 	list *vulnapp.ListIntegrationsUseCase,
 	get *vulnapp.GetIntegrationUseCase,
 	del *vulnapp.DeleteIntegrationUseCase,
+	pull *vulnapp.TriggerLivePullUseCase,
 	saveTicket *vulnapp.SaveTicketingUseCase,
 	getTicket *vulnapp.GetTicketingUseCase,
 	deleteTicket *vulnapp.DeleteTicketingUseCase,
 ) *VulnIntegrationHandler {
 	return &VulnIntegrationHandler{
-		save: save, list: list, get: get, del: del,
+		save: save, list: list, get: get, del: del, pull: pull,
 		saveTicket: saveTicket, getTicket: getTicket, deleteTicket: deleteTicket,
 	}
 }
@@ -126,6 +128,19 @@ func (h *VulnIntegrationHandler) DeleteIntegration(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.SendStatus(204)
+}
+
+// TriggerPull POST /vulnerabilities/integrations/:id/pull — run a live API pull now.
+func (h *VulnIntegrationHandler) TriggerPull(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid uuid"})
+	}
+	res, err := h.pull.Execute(c.UserContext(), h.tenant(c), id)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(res)
 }
 
 // ---- Ticketing config -----------------------------------------------------
