@@ -869,10 +869,42 @@ func main() {
 	vulnRead := middleware.RequirePermission("vulnerabilities:read")
 	vulnWrite := middleware.RequirePermission("vulnerabilities:update")
 	vulnDelete := middleware.RequirePermission("vulnerabilities:delete")
+
+	// Connector + ticketing configuration. Credentials are AES-256-GCM encrypted
+	// with the same key family as the scanner (SCANNER_CREDENTIAL_KEY) and are
+	// never returned to the API. A tenant can wire the 7 external tools, an inbound
+	// webhook token, and its ITSM (Jira/ServiceNow) here.
+	vulnIntegKeyRaw := os.Getenv("SCANNER_CREDENTIAL_KEY")
+	if vulnIntegKeyRaw == "" {
+		vulnIntegKeyRaw = "openrisk-dev-scanner-credential-key-change-me"
+	}
+	vulnIntegCipher, vulnIntegCipherErr := scanapp.NewCredentialCipher([]byte(vulnIntegKeyRaw))
+	if vulnIntegCipherErr != nil {
+		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
+	}
+	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	vulnIntegHandler := handlers.NewVulnIntegrationHandler(
+		vulnapp.NewSaveIntegrationUseCase(vulnIntegRepo, vulnIntegCipher),
+		vulnapp.NewListIntegrationsUseCase(vulnIntegRepo),
+		vulnapp.NewGetIntegrationUseCase(vulnIntegRepo),
+		vulnapp.NewDeleteIntegrationUseCase(vulnIntegRepo),
+		vulnapp.NewSaveTicketingUseCase(vulnIntegRepo, vulnIntegCipher),
+		vulnapp.NewGetTicketingUseCase(vulnIntegRepo),
+		vulnapp.NewDeleteTicketingUseCase(vulnIntegRepo),
+	)
+
 	// Static resources first so they are never parsed as /:id.
 	protected.Get("/vulnerability-connectors", vulnRead, vulnHandler.ListConnectors)
 	protected.Get("/vulnerabilities/stats", vulnRead, vulnHandler.Stats)
 	protected.Post("/vulnerabilities/ingest", vulnWrite, vulnHandler.Ingest)
+	// Integration + ticketing config (static prefixes before /vulnerabilities/:id).
+	protected.Get("/vulnerabilities/integrations", vulnRead, vulnIntegHandler.ListIntegrations)
+	protected.Post("/vulnerabilities/integrations", vulnWrite, vulnIntegHandler.SaveIntegration)
+	protected.Get("/vulnerabilities/integrations/:id", vulnRead, vulnIntegHandler.GetIntegration)
+	protected.Delete("/vulnerabilities/integrations/:id", vulnDelete, vulnIntegHandler.DeleteIntegration)
+	protected.Get("/vulnerabilities/ticketing", vulnRead, vulnIntegHandler.GetTicketing)
+	protected.Put("/vulnerabilities/ticketing", vulnWrite, vulnIntegHandler.SaveTicketing)
+	protected.Delete("/vulnerabilities/ticketing", vulnDelete, vulnIntegHandler.DeleteTicketing)
 	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
 	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
