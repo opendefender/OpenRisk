@@ -1435,7 +1435,7 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
-        /** @description An asset's state captured immediately before an update or deletion. */
+        /** @description An asset's state captured immediately before an update or deletion. Answers "qui a modifié quoi, et quand": the prior field values (quoi), created_at (quand) and changed_by / changed_by_email (qui). */
         AssetSnapshot: {
             /** Format: uuid */
             id?: string;
@@ -1448,6 +1448,13 @@ export interface components {
             owner?: string;
             /** @enum {string} */
             reason?: "update" | "delete";
+            /**
+             * Format: uuid
+             * @description ID of the user who performed the change that superseded this state. All-zero UUID when the actor is unknown (legacy rows) or a non-interactive/system change.
+             */
+            changed_by?: string;
+            /** @description Computed display label for changed_by (resolved on read). Absent when the actor is unknown or could not be resolved. */
+            changed_by_email?: string;
             /** Format: date-time */
             created_at?: string;
         };
