@@ -15,6 +15,16 @@ import type {
   ComplianceCatalogSummary,
   ImportCatalogInput,
   ImportCatalogResult,
+  GapAnalysis,
+  ComplianceAudit,
+  CreateAuditInput,
+  UpdateAuditInput,
+  RemediationPlan,
+  CreateRemediationInput,
+  UpdateRemediationInput,
+  RemediationFilter,
+  ControlMapping,
+  CreateControlMappingInput,
 } from '../types/compliance';
 
 export const complianceService = {
@@ -74,6 +84,16 @@ export const complianceService = {
     URL.revokeObjectURL(url);
   },
 
+  // getGapAnalysis returns every unsatisfied control across the tenant's
+  // frameworks (or a single framework when frameworkId is provided), with
+  // per-framework roll-ups. Backs the "Analyse d'écarts" screen.
+  getGapAnalysis: async (frameworkId?: string): Promise<GapAnalysis> => {
+    const response = await api.get<GapAnalysis>('/compliance/gap-analysis', {
+      params: frameworkId ? { framework_id: frameworkId } : undefined,
+    });
+    return response.data;
+  },
+
   listControls: async (frameworkId: string): Promise<ComplianceControl[]> => {
     const response = await api.get<ComplianceControl[]>(`/compliance/frameworks/${frameworkId}/controls`);
     return response.data;
@@ -125,5 +145,64 @@ export const complianceService = {
 
   deleteEvidence: async (evidenceId: string): Promise<void> => {
     await api.delete(`/compliance/evidences/${evidenceId}`);
+  },
+
+  // --- Audits ---------------------------------------------------------------
+  listAudits: async (): Promise<ComplianceAudit[]> => {
+    const response = await api.get<ComplianceAudit[]>('/compliance/audits');
+    return response.data;
+  },
+  createAudit: async (payload: CreateAuditInput): Promise<ComplianceAudit> => {
+    const response = await api.post<ComplianceAudit>('/compliance/audits', payload);
+    return response.data;
+  },
+  getAudit: async (id: string): Promise<ComplianceAudit> => {
+    const response = await api.get<ComplianceAudit>(`/compliance/audits/${id}`);
+    return response.data;
+  },
+  updateAudit: async (id: string, payload: UpdateAuditInput): Promise<ComplianceAudit> => {
+    const response = await api.patch<ComplianceAudit>(`/compliance/audits/${id}`, payload);
+    return response.data;
+  },
+  deleteAudit: async (id: string): Promise<void> => {
+    await api.delete(`/compliance/audits/${id}`);
+  },
+  // generateRemediations opens a remediation plan for every open gap under the
+  // audit's framework, in one click. Idempotent (skips gaps already covered).
+  generateRemediations: async (auditId: string): Promise<{ created: number; skipped: number; plans: RemediationPlan[] }> => {
+    const response = await api.post<{ created: number; skipped: number; plans: RemediationPlan[] }>(`/compliance/audits/${auditId}/generate-remediations`);
+    return response.data;
+  },
+
+  // --- Remediation plans ----------------------------------------------------
+  listRemediations: async (filter?: RemediationFilter): Promise<RemediationPlan[]> => {
+    const response = await api.get<RemediationPlan[]>('/compliance/remediations', { params: filter });
+    return response.data;
+  },
+  createRemediation: async (payload: CreateRemediationInput): Promise<RemediationPlan> => {
+    const response = await api.post<RemediationPlan>('/compliance/remediations', payload);
+    return response.data;
+  },
+  updateRemediation: async (id: string, payload: UpdateRemediationInput): Promise<RemediationPlan> => {
+    const response = await api.patch<RemediationPlan>(`/compliance/remediations/${id}`, payload);
+    return response.data;
+  },
+  deleteRemediation: async (id: string): Promise<void> => {
+    await api.delete(`/compliance/remediations/${id}`);
+  },
+
+  // --- Cross-framework control mappings -------------------------------------
+  listControlMappings: async (controlId?: string): Promise<ControlMapping[]> => {
+    const response = await api.get<ControlMapping[]>('/compliance/control-mappings', {
+      params: controlId ? { control_id: controlId } : undefined,
+    });
+    return response.data;
+  },
+  createControlMapping: async (payload: CreateControlMappingInput): Promise<ControlMapping> => {
+    const response = await api.post<ControlMapping>('/compliance/control-mappings', payload);
+    return response.data;
+  },
+  deleteControlMapping: async (id: string): Promise<void> => {
+    await api.delete(`/compliance/control-mappings/${id}`);
   },
 };

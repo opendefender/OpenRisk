@@ -31,3 +31,39 @@ export const CONTROL_STATUSES: ControlStatus[] = [
   'implemented',
   'not_applicable',
 ];
+
+// --- Gap analysis ("analyse d'écarts") --------------------------------------
+// Contract-first aliases (see the header note) — the GapAnalysis/Audit/
+// Remediation/ControlMapping schemas now live in docs/openapi.yaml and are
+// regenerated into openapi.generated.ts. Enum aliases are derived from the
+// generated object schemas so there is a single source of truth.
+export type GapControl = components['schemas']['GapControl'];
+export type FrameworkGapSummary = components['schemas']['FrameworkGapSummary'];
+export type GapAnalysis = components['schemas']['GapAnalysis'];
+
+// --- Audits ("Audits") -------------------------------------------------------
+export type ComplianceAudit = components['schemas']['ComplianceAudit'];
+export type CreateAuditInput = components['schemas']['CreateAuditInput'];
+export type UpdateAuditInput = components['schemas']['UpdateAuditInput'];
+export type AuditType = NonNullable<ComplianceAudit['type']>;
+export type AuditStatus = NonNullable<ComplianceAudit['status']>;
+
+// --- Remediation plans ("Plans de remédiation") ------------------------------
+export type RemediationPlan = components['schemas']['RemediationPlan'];
+export type CreateRemediationInput = components['schemas']['CreateRemediationInput'];
+export type UpdateRemediationInput = components['schemas']['UpdateRemediationInput'];
+export type RemediationPriority = NonNullable<RemediationPlan['priority']>;
+export type RemediationStatus = NonNullable<RemediationPlan['status']>;
+
+// Query filter — not a request/response body, so it stays hand-written.
+export interface RemediationFilter {
+  control_id?: string;
+  framework_id?: string;
+  audit_id?: string;
+  status?: RemediationStatus;
+}
+
+// --- Cross-framework control mappings ---------------------------------------
+export type ControlMapping = components['schemas']['ControlMapping'];
+export type CreateControlMappingInput = components['schemas']['CreateControlMappingInput'];
+export type MappingRelation = NonNullable<ControlMapping['relation']>;

@@ -30,7 +30,7 @@ function errMsg(err: unknown, fallback: string): string {
   return e?.response?.data?.error || fallback;
 }
 
-function ModalShell({
+export function ModalShell({
   title,
   icon,
   onClose,
@@ -85,10 +85,10 @@ function ModalShell({
   );
 }
 
-function Field({
-  label, value, onChange, placeholder, required, error, autoFocus,
+export function Field({
+  label, value, onChange, placeholder, required, error, autoFocus, type,
 }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean; error?: string; autoFocus?: boolean;
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean; error?: string; autoFocus?: boolean; type?: string;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -97,6 +97,7 @@ function Field({
       </span>
       <input
         value={value}
+        type={type ?? 'text'}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -108,7 +109,32 @@ function Field({
   );
 }
 
-function TextArea({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+// SelectField mirrors Field's styling for a native <select>.
+export function SelectField({
+  label, value, onChange, options, required,
+}: {
+  label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; required?: boolean;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
+        {label} {required && <span style={{ color: 'var(--critical)' }}>*</span>}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-10 px-3 rounded-[10px] text-[13px] text-ink outline-none focus:border-accent transition-colors"
+        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export function TextArea({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{label}</span>
@@ -124,7 +150,7 @@ function TextArea({ label, value, onChange, placeholder }: { label: string; valu
   );
 }
 
-function FooterButtons({ onCancel, submitLabel, pending }: { onCancel: () => void; submitLabel: string; pending: boolean }) {
+export function FooterButtons({ onCancel, submitLabel, pending }: { onCancel: () => void; submitLabel: string; pending: boolean }) {
   const tr = useTr();
   return (
     <>

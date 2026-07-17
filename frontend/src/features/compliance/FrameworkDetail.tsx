@@ -16,6 +16,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useControls, useComplianceReport, useEvidences } from './useCompliance';
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
 import { CreateControlDialog } from './ComplianceModals';
+import { ControlMappingsSection } from './ControlMappingsSection';
 import { relTime } from '../risks/riskMap';
 import { CONTROL_STATUSES, type ControlStatus, type ComplianceControl } from '../../types/compliance';
 
@@ -344,6 +345,9 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
               ))}
             </div>
           )}
+
+          {/* Cross-framework mappings ("cross-mapping entre référentiels") */}
+          <ControlMappingsSection control={control} />
         </div>
       </div>
     </div>

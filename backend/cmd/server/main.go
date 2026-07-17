@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/auth"
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
+	"github.com/opendefender/openrisk/internal/application/complianceaudit"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -153,6 +154,9 @@ func main() {
 		// Directed edges of the asset dependency graph ("cartographie des
 		// dépendances"). Tenant-scoped; both endpoints reference assets.
 		&domain.AssetDependency{},
+		// Cross-framework control crosswalks ("cross-mapping entre référentiels").
+		// Tenant-scoped undirected links between two compliance controls.
+		&domain.ControlMapping{},
 		&domain.RiskHistory{},
 		&domain.CustomField{},
 		&domain.CustomFieldTemplate{},
@@ -204,6 +208,10 @@ func main() {
 		// sets it (a bare map[string]interface{} has no driver.Valuer).
 		&domain.Notification{},
 		&domain.NotificationPreference{},
+		// Compliance audits ("Audits" — plan/execute/history) and remediation
+		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
+		&domain.ComplianceAudit{},
+		&domain.RemediationPlan{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -643,6 +651,11 @@ func main() {
 	deleteEvidenceUC := compliance.NewDeleteEvidenceUseCase(complianceRepo, fileStorage)
 	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
 	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
+	getGapAnalysisUC := compliance.NewGetGapAnalysisUseCase(complianceRepo)
+	controlMappingRepo := repository.NewGormControlMappingRepository(database.DB)
+	createMappingUC := compliance.NewCreateControlMappingUseCase(controlMappingRepo, complianceRepo)
+	listMappingsUC := compliance.NewListControlMappingsUseCase(controlMappingRepo, complianceRepo)
+	deleteMappingUC := compliance.NewDeleteControlMappingUseCase(controlMappingRepo)
 	listCatalogsUC := compliance.NewListCatalogsUseCase()
 	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo)
 	// M4 — official compliance report (PDF). Reuses userRepo/orgRepo (declared
@@ -653,6 +666,8 @@ func main() {
 		createControlUC, getControlUC, listControlsUC, updateControlUC, deleteControlUC,
 		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
 		getProgressUC, listCatalogsUC, importCatalogUC, generateReportUC,
+		getGapAnalysisUC,
+		createMappingUC, listMappingsUC, deleteMappingUC,
 	)
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
@@ -685,6 +700,14 @@ func main() {
 	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
 	protected.Delete("/compliance/frameworks/:frameworkId", complianceFrameworkDelete, complianceHandler.DeleteFramework)
 	protected.Get("/compliance/frameworks/:frameworkId/progress", complianceControlRead, complianceHandler.GetProgress)
+	// Gap analysis ("analyse d'écarts") — every unsatisfied control across the
+	// tenant's frameworks (optional ?framework_id= scopes to one).
+	protected.Get("/compliance/gap-analysis", complianceControlRead, complianceHandler.GetGapAnalysis)
+	// Cross-framework control mappings ("cross-mapping entre référentiels"). Static
+	// path — no :param collision with /compliance/controls/:controlId.
+	protected.Get("/compliance/control-mappings", complianceControlRead, complianceHandler.ListControlMappings)
+	protected.Post("/compliance/control-mappings", complianceControlUpdate, complianceHandler.CreateControlMapping)
+	protected.Delete("/compliance/control-mappings/:mappingId", complianceControlUpdate, complianceHandler.DeleteControlMapping)
 	// Official compliance report (PDF, 1-click) — reads a tenant's controls/evidence, same tier as reading them.
 	protected.Get("/compliance/frameworks/:frameworkId/report", complianceControlRead, complianceHandler.GenerateReport)
 	protected.Get("/compliance/frameworks/:frameworkId/controls", complianceControlRead, complianceHandler.ListControls)
@@ -696,6 +719,44 @@ func main() {
 	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, complianceHandler.CreateEvidence)
 	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
 	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
+
+	// -------------------------------------------------------------------------
+	// Compliance audits ("Audits") + remediation plans ("Plans de remédiation").
+	// One Gorm repo backs both aggregates. New permission strings — admin/root
+	// hold "*" so they're granted; a future Profile rule can open them per-role.
+	// -------------------------------------------------------------------------
+	complianceAuditRepo := repository.NewGormComplianceAuditRepository(database.DB)
+	complianceAuditHandler := handlers.NewComplianceAuditHandler(
+		complianceaudit.NewCreateAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewListAuditsUseCase(complianceAuditRepo),
+		complianceaudit.NewGetAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewUpdateAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewDeleteAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewCreateRemediationUseCase(complianceAuditRepo, complianceRepo),
+		complianceaudit.NewListRemediationsUseCase(complianceAuditRepo, complianceRepo),
+		complianceaudit.NewUpdateRemediationUseCase(complianceAuditRepo),
+		complianceaudit.NewDeleteRemediationUseCase(complianceAuditRepo),
+		complianceaudit.NewGenerateRemediationsFromAuditUseCase(complianceAuditRepo, complianceAuditRepo, complianceRepo),
+	)
+	complianceAuditRead := middleware.RequirePermission("compliance:audits:read")
+	complianceAuditWrite := middleware.RequirePermission("compliance:audits:write")
+	complianceRemediationRead := middleware.RequirePermission("compliance:remediations:read")
+	complianceRemediationWrite := middleware.RequirePermission("compliance:remediations:write")
+
+	// Static paths — registered as siblings of /compliance/frameworks etc.; no
+	// dynamic :segment under /compliance would greedily catch "audits"/"remediations".
+	protected.Get("/compliance/audits", complianceAuditRead, complianceAuditHandler.ListAudits)
+	protected.Post("/compliance/audits", complianceAuditWrite, complianceAuditHandler.CreateAudit)
+	protected.Get("/compliance/audits/:id", complianceAuditRead, complianceAuditHandler.GetAudit)
+	protected.Patch("/compliance/audits/:id", complianceAuditWrite, complianceAuditHandler.UpdateAudit)
+	protected.Delete("/compliance/audits/:id", complianceAuditWrite, complianceAuditHandler.DeleteAudit)
+	// One-click: open a remediation plan for every open gap under the audit's framework.
+	protected.Post("/compliance/audits/:id/generate-remediations", complianceRemediationWrite, complianceAuditHandler.GenerateRemediations)
+
+	protected.Get("/compliance/remediations", complianceRemediationRead, complianceAuditHandler.ListRemediations)
+	protected.Post("/compliance/remediations", complianceRemediationWrite, complianceAuditHandler.CreateRemediation)
+	protected.Patch("/compliance/remediations/:id", complianceRemediationWrite, complianceAuditHandler.UpdateRemediation)
+	protected.Delete("/compliance/remediations/:id", complianceRemediationWrite, complianceAuditHandler.DeleteRemediation)
 
 	// =========================================================================
 	// Board Report (M4, second half — see ROADMAP.md §3 M4).

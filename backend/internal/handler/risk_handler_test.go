@@ -105,22 +105,47 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 	if err := db.AutoMigrate(&UserT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
+	// Hand-written (AutoMigrate can't build this model on sqlite: gen_random_uuid()
+	// default + pq array columns). Kept in sync with domain.Risk — every column the
+	// repository INSERT/RETURNING touches must exist, else the insert 400s. This
+	// had drifted (missing tenant_id + ~15 newer columns), which was the real cause
+	// of the long-standing TestRiskCRUDFlow failure.
 	if err := db.Exec(`CREATE TABLE IF NOT EXISTS risks (
 		id TEXT PRIMARY KEY,
+		tenant_id TEXT,
+		organization_id TEXT,
+		name TEXT,
 		title TEXT NOT NULL,
 		description TEXT,
-		impact INTEGER,
-		probability INTEGER,
+		probability REAL,
+		impact REAL,
 		score REAL,
+		criticality TEXT,
+		impact_legacy INTEGER,
+		probability_legacy INTEGER,
 		status TEXT,
-		tags TEXT,
-		owner TEXT,
-		source TEXT,
-		external_id TEXT,
 		level TEXT,
+		lifecycle_phase TEXT,
+		created_by TEXT,
+		assigned_to TEXT,
+		reviewer_id TEXT,
+		owner TEXT,
+		asset_id TEXT,
+		treatment_plan TEXT,
+		residual_risk REAL,
+		last_mitigated_at DATETIME,
+		slexaf REAL,
+		aro REAL,
+		review_interval_days INTEGER,
+		next_review_at DATETIME,
+		last_reviewed_at DATETIME,
+		source TEXT,
+		source_cve_id TEXT,
+		external_id TEXT,
 		custom_fields TEXT,
+		tags TEXT,
 		frameworks TEXT,
-		organization_id TEXT,
+		control_ids TEXT,
 		created_at DATETIME,
 		updated_at DATETIME,
 		deleted_at DATETIME
@@ -176,7 +201,9 @@ func TestRiskCRUDFlow(t *testing.T) {
 		"title":       "Test Risk",
 		"description": "desc",
 		"impact":      3,
-		"probability": 4,
+		// Probability is on the Score Engine's 0.0–1.0 scale (validated min=0,max=1);
+		// the old 1–5 value here (4) always failed validation → the pre-existing 400.
+		"probability": 0.4,
 	}
 	b, _ := json.Marshal(payload)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
@@ -231,7 +258,7 @@ func TestCreateValidationFail(t *testing.T) {
 	app := setupAppWithDB(t)
 
 	// Missing required title
-	payload := map[string]interface{}{"impact": 3, "probability": 4}
+	payload := map[string]interface{}{"impact": 3, "probability": 0.4}
 	b, _ := json.Marshal(payload)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")

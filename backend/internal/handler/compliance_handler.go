@@ -44,6 +44,11 @@ type ComplianceHandler struct {
 	listCatalogsUC     *compliance.ListCatalogsUseCase
 	importCatalogUC    *compliance.ImportCatalogUseCase
 	generateReportUC   *compliance.GenerateComplianceReportUseCase
+	getGapAnalysisUC   *compliance.GetGapAnalysisUseCase
+
+	createMappingUC *compliance.CreateControlMappingUseCase
+	listMappingsUC  *compliance.ListControlMappingsUseCase
+	deleteMappingUC *compliance.DeleteControlMappingUseCase
 }
 
 func NewComplianceHandler(
@@ -64,6 +69,10 @@ func NewComplianceHandler(
 	listCatalogs *compliance.ListCatalogsUseCase,
 	importCatalog *compliance.ImportCatalogUseCase,
 	generateReport *compliance.GenerateComplianceReportUseCase,
+	getGapAnalysis *compliance.GetGapAnalysisUseCase,
+	createMapping *compliance.CreateControlMappingUseCase,
+	listMappings *compliance.ListControlMappingsUseCase,
+	deleteMapping *compliance.DeleteControlMappingUseCase,
 ) *ComplianceHandler {
 	return &ComplianceHandler{
 		createFrameworkUC:  createFramework,
@@ -83,6 +92,10 @@ func NewComplianceHandler(
 		listCatalogsUC:     listCatalogs,
 		importCatalogUC:    importCatalog,
 		generateReportUC:   generateReport,
+		getGapAnalysisUC:   getGapAnalysis,
+		createMappingUC:    createMapping,
+		listMappingsUC:     listMappings,
+		deleteMappingUC:    deleteMapping,
 	}
 }
 
@@ -181,6 +194,94 @@ func (h *ComplianceHandler) GetProgress(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(progress)
+}
+
+// GetGapAnalysis godoc — the "analyse d'écarts" endpoint. Returns every
+// unsatisfied control (not implemented / in progress) across the tenant's
+// frameworks, with per-framework and overall roll-ups. An optional
+// ?framework_id=<uuid> query param scopes the analysis to a single framework.
+func (h *ComplianceHandler) GetGapAnalysis(c *fiber.Ctx) error {
+	frameworkID := uuid.Nil
+	if raw := c.Query("framework_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+		}
+		frameworkID = id
+	}
+	analysis, err := h.getGapAnalysisUC.Execute(c.UserContext(), tenantID(c), frameworkID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(analysis)
+}
+
+// =============================================================================
+// Cross-framework control mappings ("cross-mapping entre référentiels")
+// =============================================================================
+
+// ListControlMappings GET /compliance/control-mappings[?control_id=] — the
+// tenant's crosswalks, optionally scoped to one control.
+func (h *ComplianceHandler) ListControlMappings(c *fiber.Ctx) error {
+	var controlID *uuid.UUID
+	if raw := c.Query("control_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid control id"})
+		}
+		controlID = &id
+	}
+	mappings, err := h.listMappingsUC.Execute(c.UserContext(), tenantID(c), controlID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(mappings)
+}
+
+type createMappingInput struct {
+	SourceControlID string `json:"source_control_id" validate:"required"`
+	TargetControlID string `json:"target_control_id" validate:"required"`
+	Relation        string `json:"relation"`
+	Note            string `json:"note"`
+}
+
+// CreateControlMapping POST /compliance/control-mappings — link two controls
+// (normally across frameworks).
+func (h *ComplianceHandler) CreateControlMapping(c *fiber.Ctx) error {
+	input := new(createMappingInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
+	}
+	src, err := uuid.Parse(input.SourceControlID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid source control id"})
+	}
+	tgt, err := uuid.Parse(input.TargetControlID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid target control id"})
+	}
+	m, err := h.createMappingUC.Execute(c.UserContext(), tenantID(c), userID(c), compliance.CreateControlMappingInput{
+		SourceControlID: src,
+		TargetControlID: tgt,
+		Relation:        input.Relation,
+		Note:            input.Note,
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(201).JSON(m)
+}
+
+// DeleteControlMapping DELETE /compliance/control-mappings/:mappingId
+func (h *ComplianceHandler) DeleteControlMapping(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("mappingId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid mapping id"})
+	}
+	if err := h.deleteMappingUC.Execute(c.UserContext(), tenantID(c), id); err != nil {
+		return writeAppError(c, err)
+	}
+	return c.SendStatus(204)
 }
 
 // GenerateReport godoc — streams an official compliance report (PDF) for one

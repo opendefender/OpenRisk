@@ -906,6 +906,262 @@ paths:
         '404':
           description: Evidence not found
 
+  # ==================== GAP ANALYSIS / AUDITS / REMEDIATION / MAPPINGS ====================
+  /compliance/gap-analysis:
+    get:
+      tags: [Compliance]
+      summary: Analyse d'écarts — every unsatisfied control across the tenant's frameworks
+      operationId: getGapAnalysis
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: framework_id
+          in: query
+          required: false
+          description: Scope the analysis to a single framework.
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Gap analysis (roll-ups + open gaps).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GapAnalysis' }
+
+  /compliance/control-mappings:
+    get:
+      tags: [Compliance]
+      summary: List cross-framework control mappings
+      operationId: listControlMappings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: control_id
+          in: query
+          required: false
+          description: Scope to mappings touching this control (as source or target).
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The tenant's control mappings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ControlMapping' }
+    post:
+      tags: [Compliance]
+      summary: Link two controls across frameworks
+      operationId: createControlMapping
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateControlMappingInput' }
+      responses:
+        '201':
+          description: Mapping created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ControlMapping' }
+        '400':
+          description: Validation error (self-link, unknown control, bad relation).
+        '409':
+          description: A mapping between these controls already exists.
+
+  /compliance/control-mappings/{mappingId}:
+    delete:
+      tags: [Compliance]
+      summary: Delete a control mapping
+      operationId: deleteControlMapping
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: mappingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Mapping deleted }
+        '404': { description: Mapping not found }
+
+  /compliance/audits:
+    get:
+      tags: [Compliance]
+      summary: List a tenant's compliance audits
+      operationId: listComplianceAudits
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The tenant's audits.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ComplianceAudit' }
+    post:
+      tags: [Compliance]
+      summary: Plan a compliance audit
+      operationId: createComplianceAudit
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAuditInput' }
+      responses:
+        '201':
+          description: Audit created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComplianceAudit' }
+        '400': { description: Validation error }
+
+  /compliance/audits/{id}:
+    get:
+      tags: [Compliance]
+      summary: Get a compliance audit
+      operationId: getComplianceAudit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The audit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComplianceAudit' }
+        '404': { description: Audit not found }
+    patch:
+      tags: [Compliance]
+      summary: Update a compliance audit (status, dates, summary…)
+      operationId: updateComplianceAudit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAuditInput' }
+      responses:
+        '200':
+          description: The updated audit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComplianceAudit' }
+        '404': { description: Audit not found }
+    delete:
+      tags: [Compliance]
+      summary: Delete a compliance audit
+      operationId: deleteComplianceAudit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Audit deleted }
+        '404': { description: Audit not found }
+
+  /compliance/audits/{id}/generate-remediations:
+    post:
+      tags: [Compliance]
+      summary: Auto-generate remediation plans for the gaps under an audit's framework
+      operationId: generateRemediationsFromAudit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Remediation plans created (idempotent — skips gaps already covered).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenerateRemediationsResult' }
+        '400': { description: Audit is program-wide (no framework) }
+        '404': { description: Audit not found }
+
+  /compliance/remediations:
+    get:
+      tags: [Compliance]
+      summary: List a tenant's remediation plans
+      operationId: listRemediations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: control_id, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: framework_id, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: audit_id, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [open, in_progress, completed, cancelled] } }
+      responses:
+        '200':
+          description: The tenant's remediation plans.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RemediationPlan' }
+    post:
+      tags: [Compliance]
+      summary: Create a remediation plan
+      operationId: createRemediation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRemediationInput' }
+      responses:
+        '201':
+          description: Remediation plan created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemediationPlan' }
+        '400': { description: Validation error }
+
+  /compliance/remediations/{id}:
+    patch:
+      tags: [Compliance]
+      summary: Update a remediation plan (status, assignee, due date…)
+      operationId: updateRemediation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRemediationInput' }
+      responses:
+        '200':
+          description: The updated remediation plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemediationPlan' }
+        '404': { description: Remediation plan not found }
+    delete:
+      tags: [Compliance]
+      summary: Delete a remediation plan
+      operationId: deleteRemediation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Remediation plan deleted }
+        '404': { description: Remediation plan not found }
+
   # ==================== BOARD REPORT (M4) ====================
   /reports/board:
     get:
@@ -1892,6 +2148,188 @@ components:
           type: number
           format: float
           description: implemented / applicable * 100 (0 if applicable is 0)
+
+    GapControl:
+      type: object
+      description: One unsatisfied control (neither implemented nor not_applicable).
+      required: [control_id, framework_id, framework_name, reference_code, name, description, status, source_reference, evidence_count]
+      properties:
+        control_id: { type: string, format: uuid }
+        framework_id: { type: string, format: uuid }
+        framework_name: { type: string }
+        reference_code: { type: string }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [not_implemented, in_progress, implemented, not_applicable] }
+        source_reference: { type: string }
+        evidence_count: { type: integer }
+
+    FrameworkGapSummary:
+      type: object
+      description: Per-framework gap roll-up.
+      required: [framework_id, framework_name, version, total, implemented, in_progress, not_implemented, not_applicable, gaps, percent_complete]
+      properties:
+        framework_id: { type: string, format: uuid }
+        framework_name: { type: string }
+        version: { type: string }
+        total: { type: integer }
+        implemented: { type: integer }
+        in_progress: { type: integer }
+        not_implemented: { type: integer }
+        not_applicable: { type: integer }
+        gaps: { type: integer }
+        percent_complete: { type: number, format: float }
+
+    GapAnalysis:
+      type: object
+      description: >
+        Computed, not persisted — every open compliance gap across a tenant's
+        frameworks (or one framework), with per-framework and overall roll-ups.
+      required: [total_controls, total_gaps, frameworks, gaps]
+      properties:
+        total_controls: { type: integer }
+        total_gaps: { type: integer }
+        frameworks:
+          type: array
+          items: { $ref: '#/components/schemas/FrameworkGapSummary' }
+        gaps:
+          type: array
+          items: { $ref: '#/components/schemas/GapControl' }
+
+    ComplianceAudit:
+      type: object
+      description: A tenant-scoped compliance audit (planning, execution, history).
+      required: [id, tenant_id, framework_id, title, type, status, auditor, scope, summary, compliance_score, scheduled_start, scheduled_end, completed_at, created_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        framework_id: { type: string, format: uuid, nullable: true, description: null for a program-wide audit }
+        title: { type: string }
+        type: { type: string, enum: [internal, external, certification, surveillance] }
+        status: { type: string, enum: [planned, in_progress, completed, cancelled] }
+        auditor: { type: string }
+        scope: { type: string }
+        summary: { type: string }
+        compliance_score: { type: number, format: float, description: compliance % snapshotted when the audit completes }
+        scheduled_start: { type: string, format: date-time, nullable: true }
+        scheduled_end: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        created_by: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateAuditInput:
+      type: object
+      required: [title, type]
+      properties:
+        title: { type: string }
+        type: { type: string, enum: [internal, external, certification, surveillance] }
+        framework_id: { type: string, format: uuid }
+        auditor: { type: string }
+        scope: { type: string }
+        scheduled_start: { type: string, format: date-time }
+        scheduled_end: { type: string, format: date-time }
+
+    UpdateAuditInput:
+      type: object
+      properties:
+        title: { type: string }
+        type: { type: string, enum: [internal, external, certification, surveillance] }
+        status: { type: string, enum: [planned, in_progress, completed, cancelled] }
+        auditor: { type: string }
+        scope: { type: string }
+        summary: { type: string }
+        compliance_score: { type: number, format: float }
+        scheduled_start: { type: string, format: date-time }
+        scheduled_end: { type: string, format: date-time }
+
+    RemediationPlan:
+      type: object
+      description: A remediation action to close a compliance gap, linked to a control/audit.
+      required: [id, tenant_id, title, description, control_id, framework_id, audit_id, priority, status, assigned_to, due_date, completed_at, created_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        control_id: { type: string, format: uuid, nullable: true }
+        framework_id: { type: string, format: uuid, nullable: true }
+        audit_id: { type: string, format: uuid, nullable: true }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        status: { type: string, enum: [open, in_progress, completed, cancelled] }
+        assigned_to: { type: string, format: uuid, nullable: true }
+        due_date: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        created_by: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        control_code: { type: string }
+        control_name: { type: string }
+
+    CreateRemediationInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        control_id: { type: string, format: uuid }
+        audit_id: { type: string, format: uuid }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        assigned_to: { type: string, format: uuid }
+        due_date: { type: string, format: date-time }
+
+    UpdateRemediationInput:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        status: { type: string, enum: [open, in_progress, completed, cancelled] }
+        assigned_to: { type: string, format: uuid }
+        due_date: { type: string, format: date-time }
+
+    GenerateRemediationsResult:
+      type: object
+      description: Result of auto-generating remediation plans from a completed audit.
+      required: [created, skipped, plans]
+      properties:
+        created: { type: integer }
+        skipped: { type: integer }
+        plans:
+          type: array
+          items: { $ref: '#/components/schemas/RemediationPlan' }
+
+    ControlMapping:
+      type: object
+      description: A tenant-scoped, undirected crosswalk between two controls across frameworks.
+      required: [id, tenant_id, source_control_id, target_control_id, relation, note, created_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        source_control_id: { type: string, format: uuid }
+        target_control_id: { type: string, format: uuid }
+        relation: { type: string, enum: [equivalent, partial, related] }
+        note: { type: string }
+        created_by: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        source_code: { type: string }
+        source_name: { type: string }
+        source_framework_id: { type: string }
+        source_framework_name: { type: string }
+        target_code: { type: string }
+        target_name: { type: string }
+        target_framework_id: { type: string }
+        target_framework_name: { type: string }
+
+    CreateControlMappingInput:
+      type: object
+      required: [source_control_id, target_control_id]
+      properties:
+        source_control_id: { type: string, format: uuid }
+        target_control_id: { type: string, format: uuid }
+        relation: { type: string, enum: [equivalent, partial, related] }
+        note: { type: string }
 
     FrameworkSnapshot:
       type: object

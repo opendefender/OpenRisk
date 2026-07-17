@@ -423,6 +423,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compliance/gap-analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analyse d'écarts — every unsatisfied control across the tenant's frameworks */
+        get: operations["getGapAnalysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/control-mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List cross-framework control mappings */
+        get: operations["listControlMappings"];
+        put?: never;
+        /** Link two controls across frameworks */
+        post: operations["createControlMapping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/control-mappings/{mappingId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a control mapping */
+        delete: operations["deleteControlMapping"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/audits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a tenant's compliance audits */
+        get: operations["listComplianceAudits"];
+        put?: never;
+        /** Plan a compliance audit */
+        post: operations["createComplianceAudit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/audits/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a compliance audit */
+        get: operations["getComplianceAudit"];
+        put?: never;
+        post?: never;
+        /** Delete a compliance audit */
+        delete: operations["deleteComplianceAudit"];
+        options?: never;
+        head?: never;
+        /** Update a compliance audit (status, dates, summary…) */
+        patch: operations["updateComplianceAudit"];
+        trace?: never;
+    };
+    "/compliance/audits/{id}/generate-remediations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Auto-generate remediation plans for the gaps under an audit's framework */
+        post: operations["generateRemediationsFromAudit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/remediations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a tenant's remediation plans */
+        get: operations["listRemediations"];
+        put?: never;
+        /** Create a remediation plan */
+        post: operations["createRemediation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/remediations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a remediation plan */
+        delete: operations["deleteRemediation"];
+        options?: never;
+        head?: never;
+        /** Update a remediation plan (status, assignee, due date…) */
+        patch: operations["updateRemediation"];
+        trace?: never;
+    };
     "/reports/board": {
         parameters: {
             query?: never;
@@ -993,6 +1135,211 @@ export interface components {
              * @description implemented / applicable * 100 (0 if applicable is 0)
              */
             percent_complete: number;
+        };
+        /** @description One unsatisfied control (neither implemented nor not_applicable). */
+        GapControl: {
+            /** Format: uuid */
+            control_id: string;
+            /** Format: uuid */
+            framework_id: string;
+            framework_name: string;
+            reference_code: string;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            status: "not_implemented" | "in_progress" | "implemented" | "not_applicable";
+            source_reference: string;
+            evidence_count: number;
+        };
+        /** @description Per-framework gap roll-up. */
+        FrameworkGapSummary: {
+            /** Format: uuid */
+            framework_id: string;
+            framework_name: string;
+            version: string;
+            total: number;
+            implemented: number;
+            in_progress: number;
+            not_implemented: number;
+            not_applicable: number;
+            gaps: number;
+            /** Format: float */
+            percent_complete: number;
+        };
+        /** @description Computed, not persisted — every open compliance gap across a tenant's frameworks (or one framework), with per-framework and overall roll-ups. */
+        GapAnalysis: {
+            total_controls: number;
+            total_gaps: number;
+            frameworks: components["schemas"]["FrameworkGapSummary"][];
+            gaps: components["schemas"]["GapControl"][];
+        };
+        /** @description A tenant-scoped compliance audit (planning, execution, history). */
+        ComplianceAudit: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenant_id: string;
+            /**
+             * Format: uuid
+             * @description null for a program-wide audit
+             */
+            framework_id: string | null;
+            title: string;
+            /** @enum {string} */
+            type: "internal" | "external" | "certification" | "surveillance";
+            /** @enum {string} */
+            status: "planned" | "in_progress" | "completed" | "cancelled";
+            auditor: string;
+            scope: string;
+            summary: string;
+            /**
+             * Format: float
+             * @description compliance % snapshotted when the audit completes
+             */
+            compliance_score: number;
+            /** Format: date-time */
+            scheduled_start: string | null;
+            /** Format: date-time */
+            scheduled_end: string | null;
+            /** Format: date-time */
+            completed_at: string | null;
+            /** Format: uuid */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CreateAuditInput: {
+            title: string;
+            /** @enum {string} */
+            type: "internal" | "external" | "certification" | "surveillance";
+            /** Format: uuid */
+            framework_id?: string;
+            auditor?: string;
+            scope?: string;
+            /** Format: date-time */
+            scheduled_start?: string;
+            /** Format: date-time */
+            scheduled_end?: string;
+        };
+        UpdateAuditInput: {
+            title?: string;
+            /** @enum {string} */
+            type?: "internal" | "external" | "certification" | "surveillance";
+            /** @enum {string} */
+            status?: "planned" | "in_progress" | "completed" | "cancelled";
+            auditor?: string;
+            scope?: string;
+            summary?: string;
+            /** Format: float */
+            compliance_score?: number;
+            /** Format: date-time */
+            scheduled_start?: string;
+            /** Format: date-time */
+            scheduled_end?: string;
+        };
+        /** @description A remediation action to close a compliance gap, linked to a control/audit. */
+        RemediationPlan: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenant_id: string;
+            title: string;
+            description: string;
+            /** Format: uuid */
+            control_id: string | null;
+            /** Format: uuid */
+            framework_id: string | null;
+            /** Format: uuid */
+            audit_id: string | null;
+            /** @enum {string} */
+            priority: "low" | "medium" | "high" | "critical";
+            /** @enum {string} */
+            status: "open" | "in_progress" | "completed" | "cancelled";
+            /** Format: uuid */
+            assigned_to: string | null;
+            /** Format: date-time */
+            due_date: string | null;
+            /** Format: date-time */
+            completed_at: string | null;
+            /** Format: uuid */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            control_code?: string;
+            control_name?: string;
+        };
+        CreateRemediationInput: {
+            title: string;
+            description?: string;
+            /** Format: uuid */
+            control_id?: string;
+            /** Format: uuid */
+            audit_id?: string;
+            /** @enum {string} */
+            priority?: "low" | "medium" | "high" | "critical";
+            /** Format: uuid */
+            assigned_to?: string;
+            /** Format: date-time */
+            due_date?: string;
+        };
+        UpdateRemediationInput: {
+            title?: string;
+            description?: string;
+            /** @enum {string} */
+            priority?: "low" | "medium" | "high" | "critical";
+            /** @enum {string} */
+            status?: "open" | "in_progress" | "completed" | "cancelled";
+            /** Format: uuid */
+            assigned_to?: string;
+            /** Format: date-time */
+            due_date?: string;
+        };
+        /** @description Result of auto-generating remediation plans from a completed audit. */
+        GenerateRemediationsResult: {
+            created: number;
+            skipped: number;
+            plans: components["schemas"]["RemediationPlan"][];
+        };
+        /** @description A tenant-scoped, undirected crosswalk between two controls across frameworks. */
+        ControlMapping: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenant_id: string;
+            /** Format: uuid */
+            source_control_id: string;
+            /** Format: uuid */
+            target_control_id: string;
+            /** @enum {string} */
+            relation: "equivalent" | "partial" | "related";
+            note: string;
+            /** Format: uuid */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            source_code?: string;
+            source_name?: string;
+            source_framework_id?: string;
+            source_framework_name?: string;
+            target_code?: string;
+            target_name?: string;
+            target_framework_id?: string;
+            target_framework_name?: string;
+        };
+        CreateControlMappingInput: {
+            /** Format: uuid */
+            source_control_id: string;
+            /** Format: uuid */
+            target_control_id: string;
+            /** @enum {string} */
+            relation?: "equivalent" | "partial" | "related";
+            note?: string;
         };
         /** @description Per-framework advancement frozen into a board report at generation time. */
         FrameworkSnapshot: {
@@ -2286,6 +2633,409 @@ export interface operations {
                 content?: never;
             };
             /** @description Evidence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getGapAnalysis: {
+        parameters: {
+            query?: {
+                /** @description Scope the analysis to a single framework. */
+                framework_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Gap analysis (roll-ups + open gaps). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapAnalysis"];
+                };
+            };
+        };
+    };
+    listControlMappings: {
+        parameters: {
+            query?: {
+                /** @description Scope to mappings touching this control (as source or target). */
+                control_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's control mappings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlMapping"][];
+                };
+            };
+        };
+    };
+    createControlMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateControlMappingInput"];
+            };
+        };
+        responses: {
+            /** @description Mapping created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlMapping"];
+                };
+            };
+            /** @description Validation error (self-link, unknown control, bad relation). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A mapping between these controls already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteControlMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mappingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mapping deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Mapping not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listComplianceAudits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's audits. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceAudit"][];
+                };
+            };
+        };
+    };
+    createComplianceAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAuditInput"];
+            };
+        };
+        responses: {
+            /** @description Audit created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceAudit"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getComplianceAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The audit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceAudit"];
+                };
+            };
+            /** @description Audit not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteComplianceAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Audit not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateComplianceAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAuditInput"];
+            };
+        };
+        responses: {
+            /** @description The updated audit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceAudit"];
+                };
+            };
+            /** @description Audit not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    generateRemediationsFromAudit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Remediation plans created (idempotent — skips gaps already covered). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateRemediationsResult"];
+                };
+            };
+            /** @description Audit is program-wide (no framework) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Audit not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listRemediations: {
+        parameters: {
+            query?: {
+                control_id?: string;
+                framework_id?: string;
+                audit_id?: string;
+                status?: "open" | "in_progress" | "completed" | "cancelled";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's remediation plans. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemediationPlan"][];
+                };
+            };
+        };
+    };
+    createRemediation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRemediationInput"];
+            };
+        };
+        responses: {
+            /** @description Remediation plan created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemediationPlan"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteRemediation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Remediation plan deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Remediation plan not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateRemediation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRemediationInput"];
+            };
+        };
+        responses: {
+            /** @description The updated remediation plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemediationPlan"];
+                };
+            };
+            /** @description Remediation plan not found */
             404: {
                 headers: {
                     [name: string]: unknown;
