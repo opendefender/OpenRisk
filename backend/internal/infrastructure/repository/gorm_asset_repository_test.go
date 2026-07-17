@@ -61,6 +61,7 @@ func setupAssetRepo(t *testing.T) *GormAssetRepository {
 			criticality TEXT,
 			owner TEXT,
 			reason TEXT NOT NULL DEFAULT 'update',
+			changed_by TEXT,
 			created_at DATETIME
 		);
 	`).Error)
@@ -204,13 +205,14 @@ func TestAssetRepository_SnapshotLifecycle(t *testing.T) {
 	tenantID := uuid.New()
 	assetID := uuid.New()
 
+	editor := uuid.New()
 	require.NoError(t, repo.CreateSnapshot(ctx, &domain.AssetSnapshot{
 		ID: uuid.New(), TenantID: tenantID, AssetID: assetID,
 		Name: "Server", Criticality: domain.CriticalityLow, Reason: "update",
 	}))
 	require.NoError(t, repo.CreateSnapshot(ctx, &domain.AssetSnapshot{
 		ID: uuid.New(), TenantID: tenantID, AssetID: assetID,
-		Name: "Server", Criticality: domain.CriticalityHigh, Reason: "update",
+		Name: "Server", Criticality: domain.CriticalityHigh, Reason: "update", ChangedBy: editor,
 	}))
 
 	history, err := repo.ListSnapshots(ctx, assetID, tenantID)
@@ -218,6 +220,8 @@ func TestAssetRepository_SnapshotLifecycle(t *testing.T) {
 	require.Len(t, history, 2)
 	// newest first
 	assert.Equal(t, domain.CriticalityHigh, history[0].Criticality)
+	// the "who" (changed_by) round-trips through the store
+	assert.Equal(t, editor, history[0].ChangedBy)
 }
 
 func TestAssetRepository_ListSnapshots_CrossTenantEmpty(t *testing.T) {

@@ -36,8 +36,9 @@ func TestUpdateAsset_Success_CriticalityChanged(t *testing.T) {
 	}
 	uc := NewUpdateAssetUseCase(repo)
 	newCriticality := domain.CriticalityCritical
+	changedBy := uuid.New()
 
-	result, err := uc.Execute(context.Background(), tenantID, assetID, UpdateAssetInput{Criticality: &newCriticality})
+	result, err := uc.Execute(context.Background(), tenantID, assetID, changedBy, UpdateAssetInput{Criticality: &newCriticality})
 
 	require.NoError(t, err)
 	assert.True(t, result.CriticalityChanged)
@@ -46,6 +47,7 @@ func TestUpdateAsset_Success_CriticalityChanged(t *testing.T) {
 	require.NotNil(t, snapshotTaken, "must snapshot the pre-update state")
 	assert.Equal(t, domain.CriticalityLow, snapshotTaken.Criticality, "snapshot must capture the OLD value")
 	assert.Equal(t, "update", snapshotTaken.Reason)
+	assert.Equal(t, changedBy, snapshotTaken.ChangedBy, "snapshot must record WHO made the change")
 	require.NotNil(t, updated)
 	assert.Equal(t, domain.CriticalityCritical, updated.Criticality)
 }
@@ -61,7 +63,7 @@ func TestUpdateAsset_NoCriticalityChange(t *testing.T) {
 	uc := NewUpdateAssetUseCase(repo)
 	name := "Renamed Server"
 
-	result, err := uc.Execute(context.Background(), tenantID, assetID, UpdateAssetInput{Name: &name})
+	result, err := uc.Execute(context.Background(), tenantID, assetID, uuid.New(), UpdateAssetInput{Name: &name})
 
 	require.NoError(t, err)
 	assert.False(t, result.CriticalityChanged)
@@ -76,7 +78,7 @@ func TestUpdateAsset_NotFound(t *testing.T) {
 	}
 	uc := NewUpdateAssetUseCase(repo)
 
-	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), UpdateAssetInput{})
+	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New(), UpdateAssetInput{})
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrNotFound)
@@ -91,7 +93,7 @@ func TestUpdateAsset_CrossTenantReturnsNotFound(t *testing.T) {
 	uc := NewUpdateAssetUseCase(repo)
 	name := "Hijacked"
 
-	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), UpdateAssetInput{Name: &name})
+	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New(), UpdateAssetInput{Name: &name})
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrNotFound)
@@ -106,7 +108,7 @@ func TestUpdateAsset_EmptyNameRejected(t *testing.T) {
 	uc := NewUpdateAssetUseCase(repo)
 	empty := ""
 
-	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), UpdateAssetInput{Name: &empty})
+	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New(), UpdateAssetInput{Name: &empty})
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrValidation)
