@@ -133,8 +133,16 @@ func (q *Quantifier) Assess(in FinancialInputs, criticality string) FinancialAss
 		aleXAF = round2(sleXAF * aro)
 		aleBasis = BasisExplicit
 	}
-	aleWorst := round2(worst * aro)
-	aleAvg := round2(avg * aro)
+	// Annualized worst/average loss preserve the single-event loss-band ratio
+	// applied to ALE. For explicit/composed risks this equals worst×ARO /
+	// avg×ARO; for reference-only risks (no ARO) it keeps a sensible envelope
+	// around the reference ALE instead of collapsing to 0.
+	aleWorst := aleXAF
+	aleAvg := aleXAF
+	if sleXAF > 0 {
+		aleWorst = round2(aleXAF * worst / sleXAF)
+		aleAvg = round2(aleXAF * avg / sleXAF)
+	}
 
 	// 5. Treatment / investment → residual ALE, benefit, ROSI.
 	eff := clamp01(in.MitigationEffectiveness)
