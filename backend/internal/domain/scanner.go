@@ -32,6 +32,7 @@ const (
 	AssetTypeIdentity    AssetType = "Identity"
 	AssetTypeWorkstation AssetType = "Workstation"
 	AssetTypeSaaS        AssetType = "SaaS"
+	AssetTypeRepository  AssetType = "Repository" // source-code repo (GitHub/GitLab)
 	AssetTypeUnknown     AssetType = "Unknown"
 )
 
@@ -49,6 +50,18 @@ const (
 	ProviderGCP   ScannerProvider = "gcp"
 	ProviderNmap  ScannerProvider = "nmap"
 	ProviderAgent ScannerProvider = "agent"
+
+	// Auto-discovery API providers (Master Prompt V5 "6. Découverte automatique
+	// des actifs"). Like the cloud providers these run INSIDE the SaaS worker
+	// through an official SDK/REST collector — they are NOT agent-based. Each
+	// carries its endpoint + secrets in the AES-256-GCM-encrypted credentials.
+	ProviderKubernetes      ScannerProvider = "kubernetes"       // containers/workloads via the Kubernetes API
+	ProviderDocker          ScannerProvider = "docker"           // containers/images via the Docker Engine API
+	ProviderVMware          ScannerProvider = "vmware"           // VMs via vCenter (govmomi)
+	ProviderActiveDirectory ScannerProvider = "active_directory" // computers/users via LDAP
+	ProviderM365            ScannerProvider = "m365"             // users/devices via Microsoft Graph
+	ProviderGitHub          ScannerProvider = "github"           // repositories via the GitHub API
+	ProviderGitLab          ScannerProvider = "gitlab"           // projects via the GitLab API
 )
 
 // IsAgentBased reports whether the provider is executed by an on-prem Agent
@@ -57,15 +70,28 @@ func (p ScannerProvider) IsAgentBased() bool {
 	return p == ProviderNmap || p == ProviderAgent
 }
 
-// IsCloud reports whether the provider is a cloud SDK scanner run in the SaaS.
+// IsCloud reports whether the provider is one of the three hyperscaler cloud
+// scanners. (Distinct from IsSaaSRun, which is the broader "runs in the SaaS
+// worker" set that also includes the auto-discovery API providers.)
 func (p ScannerProvider) IsCloud() bool {
 	return p == ProviderAWS || p == ProviderAzure || p == ProviderGCP
+}
+
+// IsSaaSRun reports whether the provider's collector runs in-process in the SaaS
+// worker (cloud + auto-discovery API providers) as opposed to on an on-prem
+// Agent. It is exactly the complement of IsAgentBased over the valid providers;
+// the TriggerScan use case routes on IsAgentBased, so any non-agent provider
+// automatically flows through the SaaS collector path.
+func (p ScannerProvider) IsSaaSRun() bool {
+	return p.Valid() && !p.IsAgentBased()
 }
 
 // Valid reports whether the provider string is one of the known constants.
 func (p ScannerProvider) Valid() bool {
 	switch p {
-	case ProviderAWS, ProviderAzure, ProviderGCP, ProviderNmap, ProviderAgent:
+	case ProviderAWS, ProviderAzure, ProviderGCP, ProviderNmap, ProviderAgent,
+		ProviderKubernetes, ProviderDocker, ProviderVMware, ProviderActiveDirectory,
+		ProviderM365, ProviderGitHub, ProviderGitLab:
 		return true
 	default:
 		return false

@@ -140,6 +140,110 @@ func NewGCPScanner(collector CloudCollector) Scanner {
 	}
 }
 
+// --- Auto-discovery API providers ------------------------------------------
+//
+// These run in-process in the SaaS worker exactly like the cloud scanners (they
+// reuse cloudScanner + the CloudCollector seam + the whole pipeline). Each
+// carries its endpoint AND secrets in the encrypted credentials map, so nothing
+// else in the plumbing changes. Pass nil for the collector to register the
+// provider with live validation but no enumeration (honest empty preview).
+
+// NewKubernetesScanner builds the Kubernetes cluster scanner.
+//
+// Required credentials: api_server (https URL), token (ServiceAccount bearer).
+// Optional: ca_cert (PEM; omitted → TLS verification is skipped for self-signed
+// clusters). The collector enumerates Nodes and Pods via the Kubernetes REST API.
+func NewKubernetesScanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "Kubernetes Scanner",
+		provider:  domain.ProviderKubernetes,
+		required:  []string{"api_server", "token"},
+		collector: collector,
+	}
+}
+
+// NewDockerScanner builds the Docker Engine scanner.
+//
+// Required credentials: host (tcp://host:2376 or unix socket path). Optional:
+// ca_cert/client_cert/client_key (PEM) for mTLS. The collector enumerates
+// containers and images via the Docker Engine API.
+func NewDockerScanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "Docker Scanner",
+		provider:  domain.ProviderDocker,
+		required:  []string{"host"},
+		collector: collector,
+	}
+}
+
+// NewVMwareScanner builds the VMware vCenter scanner.
+//
+// Required credentials: url (https://vcenter/sdk), username, password. The
+// collector enumerates virtual machines via govmomi.
+func NewVMwareScanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "VMware vCenter Scanner",
+		provider:  domain.ProviderVMware,
+		required:  []string{"url", "username", "password"},
+		collector: collector,
+	}
+}
+
+// NewActiveDirectoryScanner builds the Active Directory scanner.
+//
+// Required credentials: url (ldap[s]://host:389), bind_dn, password, base_dn.
+// The collector enumerates computer and user objects via LDAP.
+func NewActiveDirectoryScanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "Active Directory Scanner",
+		provider:  domain.ProviderActiveDirectory,
+		required:  []string{"url", "bind_dn", "password", "base_dn"},
+		collector: collector,
+	}
+}
+
+// NewM365Scanner builds the Microsoft 365 scanner.
+//
+// Required credentials: tenant_id, client_id, client_secret (an Entra ID app
+// registration with Directory.Read.All / Device.Read.All application perms).
+// The collector enumerates users and managed devices via Microsoft Graph.
+func NewM365Scanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "Microsoft 365 Scanner",
+		provider:  domain.ProviderM365,
+		required:  []string{"tenant_id", "client_id", "client_secret"},
+		collector: collector,
+	}
+}
+
+// NewGitHubScanner builds the GitHub scanner.
+//
+// Required credentials: token (a PAT or fine-grained token). Optional: base_url
+// (GitHub Enterprise Server API root) and org (scope to one organisation). The
+// collector enumerates repositories via the GitHub API.
+func NewGitHubScanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "GitHub Scanner",
+		provider:  domain.ProviderGitHub,
+		required:  []string{"token"},
+		collector: collector,
+	}
+}
+
+// NewGitLabScanner builds the GitLab scanner.
+//
+// Required credentials: token (a personal/group access token). Optional:
+// base_url (self-managed GitLab, default https://gitlab.com). The collector
+// enumerates projects via the GitLab API.
+func NewGitLabScanner(collector CloudCollector) Scanner {
+	return &cloudScanner{
+		name:      "GitLab Scanner",
+		provider:  domain.ProviderGitLab,
+		required:  []string{"token"},
+		collector: collector,
+	}
+}
+
 // unavailableCollector is the default when no SDK collector is wired. It emits a
 // single, clear error and no discoveries — so a scan against an unconfigured
 // provider produces an honest empty preview with the reason attached, never a
