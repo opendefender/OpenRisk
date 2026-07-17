@@ -310,6 +310,8 @@
       "update": "Mis à jour",
       "delete": "Supprimé"
     },
+    "changedBy": "par {who}",
+    "changedBySystem": "Système",
     "form": {
       "name": "Nom de l'actif",
       "type": "Type",

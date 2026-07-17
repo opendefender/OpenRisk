@@ -37,14 +37,16 @@ func TestDeleteAsset_Success(t *testing.T) {
 		},
 	}
 	uc := NewDeleteAssetUseCase(repo)
+	changedBy := uuid.New()
 
-	err := uc.Execute(context.Background(), tenantID, assetID)
+	err := uc.Execute(context.Background(), tenantID, assetID, changedBy)
 
 	require.NoError(t, err)
 	assert.True(t, deleteCalled)
 	require.NotNil(t, snapshotTaken)
 	assert.Equal(t, "delete", snapshotTaken.Reason)
 	assert.Equal(t, domain.CriticalityHigh, snapshotTaken.Criticality)
+	assert.Equal(t, changedBy, snapshotTaken.ChangedBy, "final snapshot must record WHO deleted the asset")
 }
 
 func TestDeleteAsset_NotFound(t *testing.T) {
@@ -55,7 +57,7 @@ func TestDeleteAsset_NotFound(t *testing.T) {
 	}
 	uc := NewDeleteAssetUseCase(repo)
 
-	err := uc.Execute(context.Background(), uuid.New(), uuid.New())
+	err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New())
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrNotFound)
@@ -69,7 +71,7 @@ func TestDeleteAsset_CrossTenantReturnsNotFound(t *testing.T) {
 	}
 	uc := NewDeleteAssetUseCase(repo)
 
-	err := uc.Execute(context.Background(), uuid.New(), uuid.New())
+	err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New())
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrNotFound)

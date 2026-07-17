@@ -3,7 +3,7 @@
 // This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
 // If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
 
-import { Clock, History } from 'lucide-react';
+import { Clock, History, User } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
@@ -14,6 +14,20 @@ interface AssetHistoryDrawerProps {
   assetId: string | null;
   onClose: () => void;
 }
+
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+// Resolve the "qui" of a history entry: prefer the resolved email, fall back to
+// a short actor id, and treat an unknown/nil actor as a system change.
+const actorLabel = (
+  email: string | undefined,
+  changedBy: string | undefined,
+  system: string,
+): string => {
+  if (email) return email;
+  if (changedBy && changedBy !== NIL_UUID) return changedBy.slice(0, 8);
+  return system;
+};
 
 export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps) => {
   const { t } = useI18n();
@@ -56,6 +70,13 @@ export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps
                 <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
                   {t(`assets.historyReason.${snapshot.reason ?? 'update'}`)}
                 </span>
+              </div>
+              <div className="mb-2 flex items-center gap-1.5 text-xs text-zinc-500">
+                <User size={12} />
+                {t('assets.changedBy').replace(
+                  '{who}',
+                  actorLabel(snapshot.changed_by_email, snapshot.changed_by, t('assets.changedBySystem')),
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <div>

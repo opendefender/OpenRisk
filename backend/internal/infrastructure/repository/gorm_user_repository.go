@@ -42,6 +42,33 @@ func (r *GormUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 	return &user, nil
 }
 
+// EmailsByIDs resolves a set of user IDs to their emails in a single query,
+// returning a map keyed by user ID. IDs with no matching user are simply
+// absent from the result. Backs the asset history "who" column
+// (assetapp.UserLookup); intentionally not tenant-scoped — a snapshot's
+// changed_by is already tenant-bound and users span organizations.
+func (r *GormUserRepository) EmailsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	result := make(map[uuid.UUID]string, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	var rows []struct {
+		ID    uuid.UUID
+		Email string
+	}
+	if err := r.db.WithContext(ctx).
+		Model(&domain.User{}).
+		Select("id", "email").
+		Where("id IN ?", ids).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.ID] = row.Email
+	}
+	return result, nil
+}
+
 // GetByEmail retrieves a user by email
 func (r *GormUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User

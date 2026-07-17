@@ -34,7 +34,10 @@ func (uc *DeleteAssetUseCase) WithDependencyRepository(deps domain.AssetDependen
 	return uc
 }
 
-func (uc *DeleteAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, assetID uuid.UUID) error {
+// Execute deletes an asset. changedBy is the ID of the user performing the
+// deletion; it is recorded on the final snapshot so the asset's last known
+// state remains attributable in its history (uuid.Nil when unknown/system).
+func (uc *DeleteAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, assetID uuid.UUID, changedBy uuid.UUID) error {
 	existing, err := uc.repo.GetByID(ctx, assetID, tenantID)
 	if err != nil {
 		return domain.NewInternalError(err.Error())
@@ -52,6 +55,7 @@ func (uc *DeleteAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, a
 		Criticality: existing.Criticality,
 		Owner:       existing.Owner,
 		Reason:      "delete",
+		ChangedBy:   changedBy,
 	}
 	if err := uc.repo.CreateSnapshot(ctx, snapshot); err != nil {
 		return domain.NewInternalError(err.Error())

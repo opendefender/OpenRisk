@@ -43,7 +43,10 @@ func NewUpdateAssetUseCase(repo domain.AssetRepository) *UpdateAssetUseCase {
 	return &UpdateAssetUseCase{repo: repo}
 }
 
-func (uc *UpdateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, assetID uuid.UUID, input UpdateAssetInput) (*UpdateAssetResult, error) {
+// Execute updates an asset. changedBy is the ID of the user performing the
+// update; it is recorded on the pre-change snapshot so the history answers
+// "qui a modifié quoi, et quand" (uuid.Nil when the actor is unknown/system).
+func (uc *UpdateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, assetID uuid.UUID, changedBy uuid.UUID, input UpdateAssetInput) (*UpdateAssetResult, error) {
 	existing, err := uc.repo.GetByID(ctx, assetID, tenantID)
 	if err != nil {
 		return nil, domain.NewInternalError(err.Error())
@@ -61,6 +64,7 @@ func (uc *UpdateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, a
 		Criticality: existing.Criticality,
 		Owner:       existing.Owner,
 		Reason:      "update",
+		ChangedBy:   changedBy,
 	}
 	if err := uc.repo.CreateSnapshot(ctx, snapshot); err != nil {
 		return nil, domain.NewInternalError(err.Error())

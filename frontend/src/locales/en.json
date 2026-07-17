@@ -310,6 +310,8 @@
       "update": "Updated",
       "delete": "Deleted"
     },
+    "changedBy": "by {who}",
+    "changedBySystem": "System",
     "form": {
       "name": "Asset name",
       "type": "Type",
