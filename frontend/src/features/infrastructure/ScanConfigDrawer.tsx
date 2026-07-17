@@ -11,7 +11,7 @@ import { X, ShieldCheck, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
-import { PROVIDERS, CLOUD_CRED_FIELDS } from './scannerMeta';
+import { PROVIDERS, CLOUD_CRED_FIELDS, SCOPE_HINTS } from './scannerMeta';
 import type { ScannerProvider, CreateScanConfigInput } from './scannerService';
 
 const inputStyle: React.CSSProperties = {
@@ -106,7 +106,7 @@ export function ScanConfigDrawer({
 
           {isCloud ? (
             <>
-              {CLOUD_CRED_FIELDS[provider as 'aws' | 'azure' | 'gcp'].map((f) => (
+              {(CLOUD_CRED_FIELDS[provider] ?? []).map((f) => (
                 <Field key={f.key} label={f.label}>
                   {f.kind === 'textarea' ? (
                     <textarea style={monoStyle} rows={4} value={creds[f.key] ?? ''} onChange={(e) => setCred(f.key, e.target.value)} placeholder={f.placeholder} />
@@ -115,9 +115,11 @@ export function ScanConfigDrawer({
                   )}
                 </Field>
               ))}
-              <Field label={tr('Régions (séparées par des virgules, optionnel)', 'Regions (comma-separated, optional)')}>
-                <input style={inputStyle} value={regions} onChange={(e) => setRegions(e.target.value)} placeholder="eu-west-1, us-east-1" />
-              </Field>
+              {SCOPE_HINTS[provider] && (
+                <Field label={tr(SCOPE_HINTS[provider]!.fr, SCOPE_HINTS[provider]!.en)}>
+                  <input style={inputStyle} value={regions} onChange={(e) => setRegions(e.target.value)} placeholder={SCOPE_HINTS[provider]!.placeholder} />
+                </Field>
+              )}
               <div className="flex items-start gap-2 text-[12px] text-ink-soft rounded-lg px-3 py-2.5" style={{ background: 'var(--bg-hover)' }}>
                 <ShieldCheck size={15} className="shrink-0 mt-[1px]" style={{ color: 'var(--low)' }} />
                 <span>{tr('Chiffré en AES-256-GCM, déchiffré uniquement au moment du scan.', 'Encrypted with AES-256-GCM, decrypted only at scan time.')}</span>

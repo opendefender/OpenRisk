@@ -4,22 +4,35 @@
 // Static presentation metadata for the scan engine: provider identities,
 // per-provider credential fields, status colors and small formatting helpers.
 
-import { Cloud, Server, Network, type LucideIcon } from 'lucide-react';
+import {
+  Cloud, Server, Network, Boxes, Container, Building2, GitBranch, Users, type LucideIcon,
+} from 'lucide-react';
 import type { AgentStatus, AssetCriticality, ScanJobStatus, ScannerProvider } from './scannerService';
 
 export interface ProviderMeta {
   short: string;
   color: string;
   icon: LucideIcon;
+  // cloud=true means an in-SaaS API collector (credential-based); false means an
+  // on-prem agent target (CIDR/host list).
   cloud: boolean;
+  // category groups the provider cards in the UI.
+  category: 'cloud' | 'container' | 'identity' | 'forge' | 'onprem';
 }
 
 export const PROVIDERS: Record<ScannerProvider, ProviderMeta> = {
-  aws: { short: 'AWS', color: '#ff9f0a', icon: Cloud, cloud: true },
-  azure: { short: 'Azure', color: '#0a84ff', icon: Cloud, cloud: true },
-  gcp: { short: 'GCP', color: '#30d158', icon: Cloud, cloud: true },
-  nmap: { short: 'On-Premise', color: '#7c6cff', icon: Network, cloud: false },
-  agent: { short: 'Agent', color: '#64d2ff', icon: Server, cloud: false },
+  aws: { short: 'AWS', color: '#ff9f0a', icon: Cloud, cloud: true, category: 'cloud' },
+  azure: { short: 'Azure', color: '#0a84ff', icon: Cloud, cloud: true, category: 'cloud' },
+  gcp: { short: 'GCP', color: '#30d158', icon: Cloud, cloud: true, category: 'cloud' },
+  kubernetes: { short: 'Kubernetes', color: '#326ce5', icon: Boxes, cloud: true, category: 'container' },
+  docker: { short: 'Docker', color: '#2496ed', icon: Container, cloud: true, category: 'container' },
+  vmware: { short: 'VMware', color: '#8a9aa6', icon: Server, cloud: true, category: 'container' },
+  active_directory: { short: 'Active Directory', color: '#00a4ef', icon: Building2, cloud: true, category: 'identity' },
+  m365: { short: 'Microsoft 365', color: '#eb3c00', icon: Users, cloud: true, category: 'identity' },
+  github: { short: 'GitHub', color: '#8957e5', icon: GitBranch, cloud: true, category: 'forge' },
+  gitlab: { short: 'GitLab', color: '#fc6d26', icon: GitBranch, cloud: true, category: 'forge' },
+  nmap: { short: 'On-Premise', color: '#7c6cff', icon: Network, cloud: false, category: 'onprem' },
+  agent: { short: 'Agent', color: '#64d2ff', icon: Server, cloud: false, category: 'onprem' },
 };
 
 export interface CredField {
@@ -29,9 +42,9 @@ export interface CredField {
   kind: 'text' | 'password' | 'textarea';
 }
 
-// Fields required per cloud provider — mirrors the `required` slices in
-// internal/scanner/cloud.go (NewAWSScanner / NewAzureScanner / NewGCPScanner).
-export const CLOUD_CRED_FIELDS: Record<'aws' | 'azure' | 'gcp', CredField[]> = {
+// Credential fields per in-SaaS API provider — mirrors the `required` slices in
+// internal/scanner/cloud.go (endpoint + secrets travel in the encrypted creds).
+export const CLOUD_CRED_FIELDS: Partial<Record<ScannerProvider, CredField[]>> = {
   aws: [
     { key: 'access_key_id', label: 'Access Key ID', placeholder: 'AKIA…', kind: 'text' },
     { key: 'secret_access_key', label: 'Secret Access Key', placeholder: '••••••••', kind: 'password' },
@@ -47,6 +60,52 @@ export const CLOUD_CRED_FIELDS: Record<'aws' | 'azure' | 'gcp', CredField[]> = {
     { key: 'service_account_json', label: 'Service Account JSON', placeholder: '{ "type": "service_account", … }', kind: 'textarea' },
     { key: 'project_id', label: 'Project ID (optional)', placeholder: 'my-project-123', kind: 'text' },
   ],
+  kubernetes: [
+    { key: 'api_server', label: 'API Server URL', placeholder: 'https://10.0.0.1:6443', kind: 'text' },
+    { key: 'token', label: 'ServiceAccount Token', placeholder: '••••••••', kind: 'password' },
+    { key: 'ca_cert', label: 'CA Certificate (PEM, optional)', placeholder: '-----BEGIN CERTIFICATE-----', kind: 'textarea' },
+  ],
+  docker: [
+    { key: 'host', label: 'Docker Host', placeholder: 'tcp://10.0.0.10:2376', kind: 'text' },
+    { key: 'ca_cert', label: 'CA Certificate (PEM, optional)', placeholder: '-----BEGIN CERTIFICATE-----', kind: 'textarea' },
+    { key: 'client_cert', label: 'Client Certificate (PEM, optional)', placeholder: '-----BEGIN CERTIFICATE-----', kind: 'textarea' },
+    { key: 'client_key', label: 'Client Key (PEM, optional)', placeholder: '-----BEGIN PRIVATE KEY-----', kind: 'textarea' },
+  ],
+  vmware: [
+    { key: 'url', label: 'vCenter URL', placeholder: 'https://vcenter.corp/sdk', kind: 'text' },
+    { key: 'username', label: 'Username', placeholder: 'administrator@vsphere.local', kind: 'text' },
+    { key: 'password', label: 'Password', placeholder: '••••••••', kind: 'password' },
+    { key: 'insecure', label: 'Skip TLS verify ("true"/"false")', placeholder: 'false', kind: 'text' },
+  ],
+  active_directory: [
+    { key: 'url', label: 'LDAP URL', placeholder: 'ldaps://dc1.corp.local:636', kind: 'text' },
+    { key: 'bind_dn', label: 'Bind DN', placeholder: 'CN=svc-scan,OU=Service,DC=corp,DC=local', kind: 'text' },
+    { key: 'password', label: 'Bind Password', placeholder: '••••••••', kind: 'password' },
+    { key: 'base_dn', label: 'Base DN', placeholder: 'DC=corp,DC=local', kind: 'text' },
+  ],
+  m365: [
+    { key: 'tenant_id', label: 'Directory (Tenant) ID', placeholder: '00000000-0000-…', kind: 'text' },
+    { key: 'client_id', label: 'Application (Client) ID', placeholder: '00000000-0000-…', kind: 'text' },
+    { key: 'client_secret', label: 'Client Secret', placeholder: '••••••••', kind: 'password' },
+  ],
+  github: [
+    { key: 'token', label: 'Access Token (PAT)', placeholder: 'ghp_…', kind: 'password' },
+    { key: 'org', label: 'Organisation (optional)', placeholder: 'my-org', kind: 'text' },
+    { key: 'base_url', label: 'Enterprise API URL (optional)', placeholder: 'https://ghe.corp/api/v3/', kind: 'text' },
+  ],
+  gitlab: [
+    { key: 'token', label: 'Access Token', placeholder: 'glpat-…', kind: 'password' },
+    { key: 'base_url', label: 'Instance URL (optional)', placeholder: 'https://gitlab.corp', kind: 'text' },
+  ],
+};
+
+// SCOPE_HINTS relabels the optional comma-separated "regions/scope" field per
+// provider. Providers absent from this map hide the field entirely.
+export const SCOPE_HINTS: Partial<Record<ScannerProvider, { fr: string; en: string; placeholder: string }>> = {
+  aws: { fr: 'Régions (optionnel)', en: 'Regions (optional)', placeholder: 'eu-west-1, us-east-1' },
+  azure: { fr: 'Régions (optionnel)', en: 'Regions (optional)', placeholder: 'westeurope, eastus' },
+  gcp: { fr: 'Régions (optionnel)', en: 'Regions (optional)', placeholder: 'europe-west1, us-central1' },
+  kubernetes: { fr: 'Namespaces (optionnel)', en: 'Namespaces (optional)', placeholder: 'default, production' },
 };
 
 export function jobStatusColor(s: ScanJobStatus): string {
