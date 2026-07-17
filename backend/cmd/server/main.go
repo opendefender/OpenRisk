@@ -865,7 +865,11 @@ func main() {
 	// pkg/vulnprio (CVSS + exploitability + business criticality + affected
 	// assets) and upserted into a tenant-scoped register.
 	vulnRepo := repository.NewGormVulnerabilityRepository(database.DB)
-	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo)
+	// Enrich ingested findings against the CTI feed (CISA-KEV / CVSS / severity)
+	// before prioritisation. A stateless repo instance on the shared DB — the CTI
+	// handler wires its own later.
+	vulnCTIEnricher := vulnapp.NewCTIRepoEnricher(repository.NewGormCTIRepository(database.DB))
+	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo).WithCTIEnricher(vulnCTIEnricher)
 	vulnHandler := handlers.NewVulnerabilityHandler(
 		vulnIngestUC,
 		vulnapp.NewListUseCase(vulnRepo),
