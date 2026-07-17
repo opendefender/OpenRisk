@@ -41,10 +41,14 @@ export function useVulnMutations() {
       vulnerabilityService.updateStatus(id, status),
     onSettled: invalidate,
   });
+  const createTicket = useMutation({
+    mutationFn: (id: string) => vulnerabilityService.createTicket(id),
+    onSettled: invalidate,
+  });
   const remove = useMutation({
     mutationFn: (id: string) => vulnerabilityService.remove(id),
     onSettled: invalidate,
   });
 
-  return { ingest, updateStatus, remove };
+  return { ingest, updateStatus, createTicket, remove };
 }
