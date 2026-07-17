@@ -43,6 +43,14 @@ export interface Risk {
   ale_xaf?: number;
   ale_usd?: number;
   ale_basis?: 'explicit' | 'reference';
+  // Full financial-quantification drivers (spec §9), all XAF, all optional.
+  downtime_hours?: number | null;
+  hourly_downtime_cost_xaf?: number | null;
+  data_loss_cost_xaf?: number | null;
+  fines_xaf?: number | null;
+  other_direct_cost_xaf?: number | null;
+  remediation_cost_xaf?: number | null;
+  mitigation_effectiveness?: number | null;
 }
 
 interface RiskFetchParams {

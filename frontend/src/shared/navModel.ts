@@ -8,7 +8,7 @@
 
 import {
   LayoutDashboard, TrendingUp, Trophy, ShieldAlert, ShieldCheck, Siren, Server,
-  ClipboardCheck, Globe, Cpu, Database, Atom, FileText, Sparkles, Settings, Bug,
+  ClipboardCheck, Globe, Cpu, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -34,6 +34,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/' },
       { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/analytics' },
+      { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial' },
       { key: 'leaderboard', labelKey: 'n_leaderboard', icon: Trophy, path: '/leaderboard', soon: true },
     ],
   },
