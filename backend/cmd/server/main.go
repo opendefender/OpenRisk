@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	appai "github.com/opendefender/openrisk/internal/application/ai"
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/application/auth"
 	"github.com/opendefender/openrisk/internal/application/board"
@@ -995,6 +996,45 @@ func main() {
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
 	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
+
+	// =========================================================================
+	// AI GRC Assistant (spec §12 — see ROADMAP.md Module 12).
+	// Unified AI service over the tenant's own GRC data: treatment-plan
+	// suggestions, emerging-risk detection, a natural-language Q&A assistant
+	// (hybrid RAG over risks/controls/vulnerabilities), audit-report generation,
+	// and evidence document analysis. The LLM is best-effort: when
+	// ANTHROPIC_API_KEY is set a ClaudeAssistant (claude-opus-4-8) is used;
+	// otherwise (or on any API error) a deterministic TemplateAssistant does, so
+	// every endpoint works out of the box with no key. Reuses the same key/model
+	// env vars as the board report.
+	// =========================================================================
+	aiAssistant := ai.NewAssistant(os.Getenv("ANTHROPIC_API_KEY"), os.Getenv("ANTHROPIC_MODEL"))
+	if ai.IsLLMBacked(aiAssistant) {
+		log.Printf("AI Assistant: Claude enabled (%s)", aiAssistant.Name())
+	} else {
+		log.Println("AI Assistant: no ANTHROPIC_API_KEY set — using deterministic template assistant")
+	}
+	aiTreatmentUC := appai.NewSuggestTreatmentPlanUseCase(aiAssistant, riskRepo).WithAssetReader(assetRepo)
+	aiEmergingUC := appai.NewDetectEmergingRisksUseCase(aiAssistant).WithRiskLister(riskRepo)
+	aiQueryUC := appai.NewAssistantQueryUseCase(aiAssistant).
+		WithRisks(riskRepo).
+		WithCompliance(complianceRepo).
+		WithVulns(vulnRepo).
+		WithOrgs(orgRepo)
+	aiAuditReportUC := appai.NewGenerateAuditReportUseCase(aiAssistant, complianceAuditRepo).WithGapAnalyzer(getGapAnalysisUC)
+	aiEvidenceUC := appai.NewAnalyzeEvidenceUseCase(aiAssistant, complianceRepo)
+	aiHandler := handlers.NewAIHandler(aiAssistant, aiTreatmentUC, aiEmergingUC, aiQueryUC, aiAuditReportUC, aiEvidenceUC)
+
+	// AI features are advisory (non-mutating): guarded by the read permission of
+	// the relevant module. The assistant/emerging endpoints use risks:read.
+	aiRiskRead := middleware.RequirePermission("risks:read")
+	aiComplianceRead := middleware.RequirePermission("compliance:read")
+	protected.Get("/ai/status", aiHandler.Status)
+	protected.Post("/ai/assistant/query", aiRiskRead, aiHandler.AssistantQuery)
+	protected.Post("/ai/emerging-risks", aiRiskRead, aiHandler.DetectEmergingRisks)
+	protected.Post("/ai/risks/:id/treatment-plan", aiRiskRead, aiHandler.SuggestTreatmentPlan)
+	protected.Post("/ai/audits/:id/report", aiComplianceRead, aiHandler.GenerateAuditReport)
+	protected.Post("/ai/evidence/:id/analyze", aiComplianceRead, aiHandler.AnalyzeEvidence)
 
 	api.Get("/users/me", authHandler.GetProfile)
 	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
