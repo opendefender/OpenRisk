@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
@@ -268,6 +269,30 @@ func (r *GormRiskRepository) UpdateScore(ctx context.Context, riskID uuid.UUID, 
 
 	if result.Error != nil {
 		return fmt.Errorf("failed to update risk score: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("risk not found (tenant isolation)")
+	}
+	return nil
+}
+
+// UpdateSmartScore persists the multifactor smart score, its criticality band,
+// the frozen per-factor breakdown and the computation timestamp for a risk.
+// Targeted column update (like UpdateScore) — does not run the full Save path, so
+// it never spams the risk-history timeline. MANDATORY: filter by tenant_id AND id.
+func (r *GormRiskRepository) UpdateSmartScore(ctx context.Context, riskID uuid.UUID, tenantID uuid.UUID, score float64, level string, factors datatypes.JSON, computedAt time.Time) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.Risk{}).
+		Where("id = ? AND tenant_id = ?", riskID, tenantID).
+		Updates(map[string]interface{}{
+			"smart_score":       score,
+			"smart_level":       level,
+			"smart_factors":     factors,
+			"smart_computed_at": computedAt,
+			"updated_at":        time.Now(),
+		})
+	if result.Error != nil {
+		return fmt.Errorf("failed to update smart score: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("risk not found (tenant isolation)")
