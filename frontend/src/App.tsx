@@ -48,6 +48,7 @@ import { ScanPreviewPage } from './features/infrastructure/ScanPreviewPage';
 import { SimulationsPage } from './features/simulations/SimulationsPage';
 import { ReportsScreen } from './features/reports/ReportsScreen';
 import { AiAdvisor } from './features/ai/AiAdvisor';
+import { EmergingRisksPage } from './features/ai/EmergingRisksPage';
 import { BoardReportPage } from './features/reports/BoardReportPage';
 import RiskTimeline from './pages/RiskTimeline';
 
@@ -167,6 +168,7 @@ function App() {
           <Route path="reports" element={<ReportsScreen />} />
           <Route path="reports/board" element={<BoardReportPage />} />
           <Route path="recommendations" element={<AiAdvisor />} />
+          <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
           <Route path="settings" element={<SettingsScreen />} />
 
           {/* Admin features consolidated into Settings — old routes redirect there

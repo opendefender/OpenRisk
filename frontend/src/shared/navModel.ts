@@ -70,6 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'reports', labelKey: 'n_reports', icon: FileText, path: '/reports' },
       { key: 'ai', labelKey: 'n_ai', icon: Sparkles, path: '/recommendations' },
+      { key: 'emerging', labelKey: 'n_emerging', icon: Sparkles, path: '/ai/emerging-risks' },
     ],
   },
   {
