@@ -14,6 +14,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useAudits, useFrameworks } from './useCompliance';
 import { CreateAuditDialog } from './AuditRemediationModals';
+import { AiAuditReportButton } from '../ai/AiAuditReportButton';
 import type { AuditStatus, ComplianceAudit } from '../../types/compliance';
 
 const STATUS_META: Record<AuditStatus, { color: string; fr: string; en: string }> = {
@@ -150,6 +151,7 @@ export function AuditsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
+                          <AiAuditReportButton auditId={a.id} title={a.title} />
                           {canRemediate && a.framework_id && (
                             <button onClick={() => genRemediations(a)} disabled={generateRemediations.isPending} className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink transition-colors disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} title={tr('Générer les plans de remédiation pour les écarts', 'Generate remediation plans for the gaps')}>
                               <Wand2 size={13} /> {tr('Remédier', 'Remediate')}
