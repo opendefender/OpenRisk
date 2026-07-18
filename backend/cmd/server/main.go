@@ -30,6 +30,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
+	appauto "github.com/opendefender/openrisk/internal/application/automation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
@@ -39,6 +40,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
+	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/email"
@@ -1403,6 +1405,75 @@ func main() {
 	} else {
 		log.Println("Vuln: live-pull scheduler wired (disabled — set VULN_LIVEPULL_ENABLED=true; manual pull live)")
 	}
+
+	// =========================================================================
+	// 5.9 SECURITY AUTOMATION / SOAR ENGINE (spec §10 « Automatisation »)
+	// =========================================================================
+	// Rules bind platform triggers (a newly detected vulnerability, a risk score
+	// change) to ordered action chains (scan → create risk → assign → ticket →
+	// notify → start SLA). The AutomationWorker consumes Redis events into the
+	// engine; the SLAMonitor escalates overdue remediations and auto-closes
+	// resolved ones. Action ports reuse the existing capabilities of the platform.
+	automationRuleRepo := repository.NewGormAutomationRuleRepository(database.DB)
+	automationExecRepo := repository.NewGormAutomationExecutionRepository(database.DB)
+	slaTrackerRepo := repository.NewGormSLATrackerRepository(database.DB)
+	automationChannelRepo := repository.NewGormAutomationChannelRepository(database.DB)
+
+	// Multi-channel dispatcher (in-app + email + Slack + Teams) with owner/role
+	// recipient resolution, and the concrete risk/ticket/scan action adapters.
+	automationNotifier := autoinfra.NewNotifier(automationChannelRepo, notificationUseCase, emailTransport, userRepo, database.DB, zeroLogger)
+	automationRiskActions := autoinfra.NewRiskActions(riskRepo, userRepo, database.DB, zeroLogger)
+	automationTicketer := autoinfra.NewTicketer(vulnIntegRepo, vulnIntegCipher)
+	automationScanAction := autoinfra.NewScanAction(scanConfigRepo, triggerScanUC, zeroLogger)
+
+	automationEngine := appauto.NewEngine(automationRuleRepo, automationExecRepo, slaTrackerRepo, zeroLogger).
+		WithNotifier(automationNotifier).
+		WithTicketer(automationTicketer).
+		WithRiskCreator(automationRiskActions).
+		WithRiskAssigner(automationRiskActions).
+		WithRiskResolver(automationRiskActions).
+		WithAssetScanner(automationScanAction)
+
+	automationSLAService := appauto.NewSLAService(slaTrackerRepo, zeroLogger).
+		WithNotifier(automationNotifier).
+		WithRiskLookup(automationRiskActions)
+
+	automationHandler := handlers.NewAutomationHandler(
+		appauto.NewRuleService(automationRuleRepo),
+		appauto.NewExecutionService(automationExecRepo),
+		automationSLAService,
+		appauto.NewChannelService(automationChannelRepo),
+		automationEngine,
+	)
+
+	// A newly detected vulnerability fires the engine's vulnerability_detected
+	// trigger. Mutating vulnIngestUC here still affects the vuln handlers/webhook
+	// (they hold the same pointer — same pattern as WithTicketOpener above).
+	vulnIngestUC.WithEventPublisher(autoinfra.NewVulnEventPublisher(redisClientInstance))
+
+	automationRead := middleware.RequirePermission("automation:read")
+	automationWrite := middleware.RequirePermission("automation:write")
+	automationAdmin := middleware.RequireRole("admin", "root")
+	protected.Get("/automation/rules", automationRead, automationHandler.ListRules)
+	protected.Post("/automation/rules", automationWrite, automationHandler.CreateRule)
+	// Static sub-paths before /:id so "executions"/"sla"/"channels" never parse as UUID.
+	protected.Get("/automation/executions", automationRead, automationHandler.ListExecutions)
+	protected.Get("/automation/sla", automationRead, automationHandler.ListSLA)
+	protected.Get("/automation/sla/stats", automationRead, automationHandler.SLAStats)
+	protected.Get("/automation/channels", automationRead, automationHandler.GetChannels)
+	protected.Put("/automation/channels", automationAdmin, automationHandler.SaveChannels)
+	protected.Get("/automation/rules/:id", automationRead, automationHandler.GetRule)
+	protected.Put("/automation/rules/:id", automationWrite, automationHandler.UpdateRule)
+	protected.Delete("/automation/rules/:id", automationWrite, automationHandler.DeleteRule)
+	protected.Post("/automation/rules/:id/test", automationWrite, automationHandler.TestRule)
+	protected.Get("/automation/rules/:id/executions", automationRead, automationHandler.ListRuleExecutions)
+
+	// Background workers: the SOAR engine (event-driven) and the SLA monitor (cadence).
+	automationWorker := workers.NewAutomationWorker(redisClientInstance, automationEngine, zeroLogger)
+	go automationWorker.Start(context.Background())
+	slaMonitor := workers.NewSLAMonitor(automationSLAService, zeroLogger)
+	go slaMonitor.Start(context.Background())
+	log.Println("Automation: SOAR engine + SLA monitor started (triggers: vulnerability.detected, risk.score_updated)")
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
