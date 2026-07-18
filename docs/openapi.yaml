@@ -405,6 +405,129 @@ paths:
         '401':
           description: Unauthorized
 
+  /risks/{id}/smart-score:
+    get:
+      tags:
+        - Smart Risk Calculation
+      summary: Multifactor smart risk score + breakdown
+      description: >
+        Computes (and caches on the risk) the multifactor "smart" risk score
+        (spec §8): a 0–100 score blending business criticality, internet
+        exposure, vulnerabilities/CVSS, control maturity, incident history,
+        exploitability, financial value and live threat intel (CTI), each
+        weighted by the tenant's configurable weights. Returns the radar-ready
+        per-factor breakdown. The classic Score Engine (P × I × AC) is untouched.
+      operationId: getRiskSmartScore
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Smart score with per-factor breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmartRiskScore'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+  /risks/{id}/smart-score/simulate:
+    post:
+      tags:
+        - Smart Risk Calculation
+      summary: Preview the smart score with custom weights (non-persisting)
+      description: >
+        Recomputes the smart score for a risk with the supplied factor weights
+        WITHOUT persisting — powers the "tune the weighting live" simulator.
+      operationId: simulateRiskSmartScore
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FactorWeightsInput'
+      responses:
+        '200':
+          description: Simulated smart score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmartRiskScore'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Risk not found
+
+  /risk-scoring/weights:
+    get:
+      tags:
+        - Smart Risk Calculation
+      summary: Tenant's smart-risk factor weights
+      description: >
+        Returns the tenant's effective factor weights (custom or the built-in
+        defaults) for the eight-factor multifactor model.
+      operationId: getRiskScoringWeights
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Factor weights
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskScoringWeights'
+        '401':
+          description: Unauthorized
+    put:
+      tags:
+        - Smart Risk Calculation
+      summary: Update the tenant's factor weights (admin)
+      description: >
+        Persists the tenant's custom factor weights. Weights are relative (the
+        engine normalises them); each must be in [0,1] and at least one > 0.
+        Admin only.
+      operationId: updateRiskScoringWeights
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FactorWeightsInput'
+      responses:
+        '200':
+          description: Updated weights
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskScoringWeights'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (admin only)
+
   /mitigations/{mitigationId}:
     patch:
       tags:
@@ -1787,6 +1910,89 @@ components:
         other_direct_cost_xaf: { type: number, minimum: 0 }
         remediation_cost_xaf: { type: number, minimum: 0 }
         mitigation_effectiveness: { type: number, minimum: 0, maximum: 1 }
+    SmartFactorScore:
+      type: object
+      description: One factor's contribution to the multifactor smart score (spec §8).
+      required: [key, label, weight, value, contribution, detail]
+      properties:
+        key:
+          type: string
+          enum:
+            - business_criticality
+            - internet_exposure
+            - vulnerabilities
+            - control_maturity
+            - incident_history
+            - exploitability
+            - financial_value
+            - threat_intel
+        label: { type: string, description: Human-readable factor name }
+        weight: { type: number, description: "Normalised weight applied, 0 to 1" }
+        value: { type: number, description: "Risk contribution of the factor, 0 to 1 (1 = worst)" }
+        contribution: { type: number, description: "Points this factor adds (value x weight x 100)" }
+        detail: { type: string, description: Short human explanation of the raw inputs }
+    SmartRiskScore:
+      type: object
+      description: The multifactor smart risk score plus its radar-ready breakdown.
+      required: [score, criticality, factors, explanation]
+      properties:
+        score: { type: number, description: 0–100 composite score }
+        criticality:
+          type: string
+          enum: [low, medium, high, critical]
+        factors:
+          type: array
+          items: { $ref: '#/components/schemas/SmartFactorScore' }
+        explanation: { type: string, description: Sentence naming the top drivers }
+    FactorWeightsInput:
+      type: object
+      description: >
+        The eight configurable factor weights. Relative values (the engine
+        normalises them); each in [0,1], at least one > 0.
+      required:
+        - business_criticality
+        - internet_exposure
+        - vulnerabilities
+        - control_maturity
+        - incident_history
+        - exploitability
+        - financial_value
+        - threat_intel
+      properties:
+        business_criticality: { type: number, minimum: 0, maximum: 1 }
+        internet_exposure: { type: number, minimum: 0, maximum: 1 }
+        vulnerabilities: { type: number, minimum: 0, maximum: 1 }
+        control_maturity: { type: number, minimum: 0, maximum: 1 }
+        incident_history: { type: number, minimum: 0, maximum: 1 }
+        exploitability: { type: number, minimum: 0, maximum: 1 }
+        financial_value: { type: number, minimum: 0, maximum: 1 }
+        threat_intel: { type: number, minimum: 0, maximum: 1 }
+    RiskScoringWeights:
+      type: object
+      description: A tenant's persisted smart-risk factor weights.
+      required:
+        - business_criticality
+        - internet_exposure
+        - vulnerabilities
+        - control_maturity
+        - incident_history
+        - exploitability
+        - financial_value
+        - threat_intel
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        business_criticality: { type: number }
+        internet_exposure: { type: number }
+        vulnerabilities: { type: number }
+        control_maturity: { type: number }
+        incident_history: { type: number }
+        exploitability: { type: number }
+        financial_value: { type: number }
+        threat_intel: { type: number }
+        updated_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     CriticalityBucket:
       type: object
       required: [criticality, count, ale]
