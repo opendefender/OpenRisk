@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon } from 'lucide-react';
+import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Chip, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
   SkeletonRows, EmptyState, softFill,
@@ -25,6 +25,8 @@ import { mapRisk, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { useRiskFinancial } from '../financial/useFinancial';
+import { useRiskSmartScore } from './useSmartScore';
+import { SmartRiskRadar } from './components/SmartRiskRadar';
 import { useQueryClient } from '@tanstack/react-query';
 
 type Tab = 'all' | 'critical' | 'high' | 'review';
@@ -361,9 +363,10 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const [tab, setTab] = useState<'details' | 'lifecycle' | 'score' | 'financial' | 'miti' | 'timeline' | 'cti' | 'ai'>('details');
+  const [tab, setTab] = useState<'details' | 'lifecycle' | 'score' | 'smart' | 'financial' | 'miti' | 'timeline' | 'cti' | 'ai'>('details');
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details], ['lifecycle', tr('Cycle de vie', 'Lifecycle')], ['score', L.tab_score],
+    ['smart', tr('Score intelligent', 'Smart score')],
     ['financial', tr('Financier', 'Financial')], ['miti', L.tab_miti],
     ['timeline', L.tab_timeline], ['cti', L.tab_cti], ['ai', L.tab_ai],
   ];
@@ -404,6 +407,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
           {tab === 'details' && <DrawerDetails r={r} onCreateMiti={onCreateMiti} />}
           {tab === 'lifecycle' && <DrawerLifecycle r={r} />}
           {tab === 'score' && <DrawerScore r={r} />}
+          {tab === 'smart' && <DrawerSmart r={r} />}
           {tab === 'financial' && <DrawerFinancial r={r} />}
           {tab === 'miti' && <DrawerMiti r={r} onCreateMiti={onCreateMiti} />}
           {(tab === 'timeline' || tab === 'cti' || tab === 'ai') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
@@ -474,6 +478,47 @@ function DrawerScore({ r }: { r: UiRisk }) {
         </div>
         <div className="text-[12px] text-ink-muted mt-2">{lang === 'fr' ? 'Probabilité × Impact × Criticité de l’actif' : 'Probability × Impact × Asset criticality'}</div>
       </div>
+    </div>
+  );
+}
+
+/* ---------------- smart score (multifactor, spec §8) ---------------- */
+function DrawerSmart({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const navigate = useNavigate();
+  const { data, isLoading, isError } = useRiskSmartScore(r.id);
+
+  if (isLoading) {
+    return (
+      <div className="p-[22px]">
+        <SkeletonRows rows={5} />
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">
+        {tr('Impossible de calculer le score intelligent.', 'Could not compute the smart score.')}
+      </div>
+    );
+  }
+  return (
+    <div className="p-[22px]">
+      <SmartRiskRadar data={data} lang={lang} />
+      <button
+        onClick={() => navigate('/risks/weighting')}
+        className="mt-4 w-full h-9 rounded-[10px] flex items-center justify-center gap-2 text-[12.5px] font-semibold transition-all hover:bg-hover"
+        style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+      >
+        <SlidersHorizontal size={15} /> {tr('Configurer les pondérations', 'Configure weights')}
+      </button>
+      <p className="mt-3 text-[11px] text-ink-muted leading-snug">
+        {tr(
+          'Score multifactoriel (0–100) : criticité métier, exposition Internet, vulnérabilités, maturité des contrôles, historique d’incidents, exploitabilité, valeur financière et menaces actives (CTI). Le score classique P × I × Criticité reste inchangé.',
+          'Multifactor score (0–100): business criticality, internet exposure, vulnerabilities, control maturity, incident history, exploitability, financial value and active threats (CTI). The classic P × I × Criticality score is unchanged.',
+        )}
+      </p>
     </div>
   );
 }

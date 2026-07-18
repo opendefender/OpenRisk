@@ -26,6 +26,7 @@ import { SettingsScreen } from './features/settings/SettingsScreen';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { ImportRisksPage } from './features/risks/ImportRisksPage';
 import { RiskRegisterPage } from './features/risks/RiskRegisterPage';
+import { RiskWeightsSettings } from './features/risks/RiskWeightsSettings';
 import { VulnerabilitiesPage } from './features/vulnerabilities/VulnerabilitiesPage';
 import { MitigationsBoard } from './features/mitigations/MitigationsBoard';
 import { ComplianceScreen } from './features/compliance/ComplianceScreen';
@@ -148,6 +149,7 @@ function App() {
           <Route path="compliance/remediations" element={<RemediationPage />} />
           <Route path="compliance/:frameworkId" element={<FrameworkDetail />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
+          <Route path="risks/weighting" element={<RiskWeightsSettings />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="analytics" element={<AnalyticsCiso />} />
           <Route path="analytics/financial" element={<FinancialDashboard />} />
