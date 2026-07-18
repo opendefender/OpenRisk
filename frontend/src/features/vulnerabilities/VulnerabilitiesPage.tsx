@@ -12,15 +12,16 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Bug, Search, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
+  Ticket, ExternalLink,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { useVulnerabilities, useVulnStats, useVulnConnectors, useVulnMutations } from './useVulnerabilities';
+import { useVulnerabilities, useVulnStats, useVulnMutations } from './useVulnerabilities';
 import type { Vulnerability, VulnStatus, VulnQueryParams } from './vulnerabilityService';
 import { SEVERITY_META, STATUS_META, STATUS_ORDER, TIER_META, SOURCE_LABEL, pick } from './vulnMeta';
 import { IngestModal } from './IngestModal';
-import { ConnectorsPanel } from './ConnectorsPanel';
+import { IntegrationsPanel } from './IntegrationsPanel';
 
 const cvssColor = (s: number) =>
   s >= 9 ? 'var(--critical)' : s >= 7 ? 'var(--high)' : s >= 4 ? 'var(--medium)' : 'var(--low)';
@@ -68,7 +69,7 @@ export function VulnerabilitiesPage() {
         count={`${stats?.total ?? 0} ${tr('vulnérabilités', 'vulnerabilities')}`}
         actions={
           <>
-            <Btn label={tr('Connecteurs', 'Connectors')} icon={Plug} onClick={() => setConnectorsOpen(true)} />
+            <Btn label={tr('Intégrations', 'Integrations')} icon={Plug} onClick={() => setConnectorsOpen(true)} />
             <Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />
           </>
         }
@@ -152,7 +153,7 @@ export function VulnerabilitiesPage() {
 
       {drawer && <VulnDrawer v={drawer} onClose={() => setDrawerId(null)} />}
       <IngestModal isOpen={ingestOpen} onClose={() => setIngestOpen(false)} />
-      <ConnectorsPanel isOpen={connectorsOpen} onClose={() => setConnectorsOpen(false)} onImport={() => { setConnectorsOpen(false); setIngestOpen(true); }} />
+      <IntegrationsPanel isOpen={connectorsOpen} onClose={() => setConnectorsOpen(false)} onImport={() => { setConnectorsOpen(false); setIngestOpen(true); }} />
     </PageFrame>
   );
 }
@@ -181,7 +182,17 @@ function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const canWrite = useAuthStore((s) => s.hasPermission('vulnerabilities:update'));
   const canDelete = useAuthStore((s) => s.hasPermission('vulnerabilities:delete'));
-  const { updateStatus, remove } = useVulnMutations();
+  const { updateStatus, createTicket, remove } = useVulnMutations();
+
+  const openTicket = async () => {
+    try {
+      await createTicket.mutateAsync(v.id);
+      toast.success(tr('Ticket ouvert', 'Ticket opened'));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : tr('Échec — ITSM configuré ?', 'Failed — is ITSM configured?');
+      toast.error(msg);
+    }
+  };
 
   const setStatus = async (status: VulnStatus) => {
     try {
@@ -256,6 +267,31 @@ function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
 
           {v.description ? field('Description', <span className="text-ink-soft">{v.description}</span>) : null}
           {v.remediation_hint ? field(tr('Remédiation', 'Remediation'), <span className="text-ink-soft">{v.remediation_hint}</span>) : null}
+
+          {/* Cross-module linkage: ITSM ticket + auto-created risk */}
+          <div className="rounded-[12px] p-3.5 mb-4" style={{ border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Ticket size={14} className="text-ink-muted" />
+              <span className="text-[12.5px] font-semibold text-ink">{tr('Ticket ITSM', 'ITSM ticket')}</span>
+            </div>
+            {v.ticket_key ? (
+              <a href={v.ticket_url || '#'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+                {v.ticket_key} <ExternalLink size={13} />
+              </a>
+            ) : canWrite ? (
+              <button onClick={openTicket} disabled={createTicket.isPending} className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--accent)' }}>
+                <Ticket size={13} /> {tr('Ouvrir un ticket', 'Open a ticket')}
+              </button>
+            ) : (
+              <span className="text-[12.5px] text-ink-muted">{tr('Aucun ticket', 'No ticket')}</span>
+            )}
+            {v.risk_id && (
+              <div className="mt-2.5 pt-2.5 flex items-center gap-1.5 text-[12px] text-ink-soft" style={{ borderTop: '1px solid var(--border)' }}>
+                <ShieldAlert size={13} style={{ color: 'var(--high)' }} />
+                {tr('Risque auto-créé lié', 'Linked auto-created risk')}
+              </div>
+            )}
+          </div>
 
           {/* Status lifecycle */}
           {canWrite && (

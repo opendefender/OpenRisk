@@ -46,6 +46,7 @@ import (
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/migrations"
@@ -201,6 +202,11 @@ func main() {
 		// register: findings normalised from Nessus/OpenVAS/Qualys/Defender/
 		// Inspector/Azure Defender/CrowdStrike and risk-based prioritised.
 		&domain.Vulnerability{},
+		// Vulnerability integrations — per-source connector config (encrypted API
+		// credentials, live-pull schedule, inbound webhook token, automation
+		// toggles) + tenant ITSM/ticketing config for auto-ticketing.
+		&domain.VulnIntegration{},
+		&domain.VulnTicketingConfig{},
 		// Notifications — the in-app centre + delivery preferences. Previously
 		// missing from AutoMigrate, so every /notifications route errored on a
 		// non-existent table (and the scan-completion in-app notification had
@@ -533,6 +539,13 @@ func main() {
 	var mitigationEventsHandler *handlers.MitigationEventsHandler
 	app.Get("/api/v1/mitigations/events", func(c *fiber.Ctx) error { return mitigationEventsHandler.Stream(c) })
 
+	// Vulnerability scanner webhook — external tools (Nessus/Qualys/Defender/…) POST
+	// findings here authenticated by the integration's opaque webhook token (NOT a
+	// user JWT). Mounted on `app` BEFORE the /api/v1 JWT gate for the same reason as
+	// the scanner agent endpoints. Assigned in the vulnerability section below.
+	var vulnWebhookHandler *handlers.VulnWebhookHandler
+	app.Post("/api/v1/vulnerabilities/webhook/:source", func(c *fiber.Ctx) error { return vulnWebhookHandler.Ingest(c) })
+
 	// --- Routes Protégées (Nécessitent JWT) ---
 	// Le middleware injecte user_id et role dans le contexte
 	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
@@ -853,8 +866,15 @@ func main() {
 	// pkg/vulnprio (CVSS + exploitability + business criticality + affected
 	// assets) and upserted into a tenant-scoped register.
 	vulnRepo := repository.NewGormVulnerabilityRepository(database.DB)
+	// Enrich ingested findings against the CTI feed (CISA-KEV / CVSS / severity)
+	// before prioritisation. A stateless repo instance on the shared DB — the CTI
+	// handler wires its own later.
+	vulnCTIEnricher := vulnapp.NewCTIRepoEnricher(repository.NewGormCTIRepository(database.DB))
+	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo).
+		WithCTIEnricher(vulnCTIEnricher).
+		WithRiskProposer(vulnrisk.NewRiskCreator(database.DB))
 	vulnHandler := handlers.NewVulnerabilityHandler(
-		vulnapp.NewIngestUseCase(vulnRepo, assetRepo),
+		vulnIngestUC,
 		vulnapp.NewListUseCase(vulnRepo),
 		vulnapp.NewGetUseCase(vulnRepo),
 		vulnapp.NewUpdateStatusUseCase(vulnRepo),
@@ -864,13 +884,58 @@ func main() {
 	vulnRead := middleware.RequirePermission("vulnerabilities:read")
 	vulnWrite := middleware.RequirePermission("vulnerabilities:update")
 	vulnDelete := middleware.RequirePermission("vulnerabilities:delete")
+
+	// Connector + ticketing configuration. Credentials are AES-256-GCM encrypted
+	// with the same key family as the scanner (SCANNER_CREDENTIAL_KEY) and are
+	// never returned to the API. A tenant can wire the 7 external tools, an inbound
+	// webhook token, and its ITSM (Jira/ServiceNow) here.
+	vulnIntegKeyRaw := os.Getenv("SCANNER_CREDENTIAL_KEY")
+	if vulnIntegKeyRaw == "" {
+		vulnIntegKeyRaw = "openrisk-dev-scanner-credential-key-change-me"
+	}
+	vulnIntegCipher, vulnIntegCipherErr := scanapp.NewCredentialCipher([]byte(vulnIntegKeyRaw))
+	if vulnIntegCipherErr != nil {
+		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
+	}
+	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	// Auto-ticketing: the opener composes the tenant ITSM config + Jira/ServiceNow
+	// providers (pkg/ticketing). Wired into ingest (auto-open for P1/KEV) and into
+	// the manual "Open ticket" use case. Mutating vulnIngestUC here still affects the
+	// already-built handlers — they hold the same *IngestUseCase pointer.
+	vulnTicketOpener := vulnapp.NewConfigTicketOpener(vulnIntegRepo, vulnIntegCipher)
+	vulnIngestUC.WithTicketOpener(vulnTicketOpener)
+	vulnLivePullUC := vulnapp.NewTriggerLivePullUseCase(vulnIntegRepo, vulnIntegCipher, vulnapp.LivePullAdapter{}, vulnIngestUC)
+	vulnIntegHandler := handlers.NewVulnIntegrationHandler(
+		vulnapp.NewSaveIntegrationUseCase(vulnIntegRepo, vulnIntegCipher),
+		vulnapp.NewListIntegrationsUseCase(vulnIntegRepo),
+		vulnapp.NewGetIntegrationUseCase(vulnIntegRepo),
+		vulnapp.NewDeleteIntegrationUseCase(vulnIntegRepo),
+		vulnLivePullUC,
+		vulnapp.NewSaveTicketingUseCase(vulnIntegRepo, vulnIntegCipher),
+		vulnapp.NewGetTicketingUseCase(vulnIntegRepo),
+		vulnapp.NewDeleteTicketingUseCase(vulnIntegRepo),
+		vulnapp.NewCreateTicketUseCase(vulnRepo, vulnTicketOpener),
+	)
+	// Assign the forward-declared webhook handler (route mounted before the JWT gate).
+	vulnWebhookHandler = handlers.NewVulnWebhookHandler(vulnIntegRepo, vulnIngestUC)
+
 	// Static resources first so they are never parsed as /:id.
 	protected.Get("/vulnerability-connectors", vulnRead, vulnHandler.ListConnectors)
 	protected.Get("/vulnerabilities/stats", vulnRead, vulnHandler.Stats)
 	protected.Post("/vulnerabilities/ingest", vulnWrite, vulnHandler.Ingest)
+	// Integration + ticketing config (static prefixes before /vulnerabilities/:id).
+	protected.Get("/vulnerabilities/integrations", vulnRead, vulnIntegHandler.ListIntegrations)
+	protected.Post("/vulnerabilities/integrations", vulnWrite, vulnIntegHandler.SaveIntegration)
+	protected.Get("/vulnerabilities/integrations/:id", vulnRead, vulnIntegHandler.GetIntegration)
+	protected.Post("/vulnerabilities/integrations/:id/pull", vulnWrite, vulnIntegHandler.TriggerPull)
+	protected.Delete("/vulnerabilities/integrations/:id", vulnDelete, vulnIntegHandler.DeleteIntegration)
+	protected.Get("/vulnerabilities/ticketing", vulnRead, vulnIntegHandler.GetTicketing)
+	protected.Put("/vulnerabilities/ticketing", vulnWrite, vulnIntegHandler.SaveTicketing)
+	protected.Delete("/vulnerabilities/ticketing", vulnDelete, vulnIntegHandler.DeleteTicketing)
 	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
 	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
+	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
 
 	api.Get("/users/me", authHandler.GetProfile)
@@ -1265,6 +1330,18 @@ func main() {
 		log.Println("CTI: sync worker started (NVD hourly, CISA KEV 6h, post-sync matching)")
 	} else {
 		log.Println("CTI: engine wired (periodic sync disabled — set CTI_SYNC_ENABLED=true; manual /cti/sync + /cti/match live)")
+	}
+
+	// Vulnerability live-pull scheduler — polls due integrations (schedule_minutes)
+	// on the same pipeline as the manual "Pull now" button. Off by default in dev;
+	// enable with VULN_LIVEPULL_ENABLED=true. Manual POST /vulnerabilities/
+	// integrations/:id/pull is always live.
+	if os.Getenv("VULN_LIVEPULL_ENABLED") == "true" {
+		vulnPullScheduler := vulnapp.NewLivePullScheduler(vulnIntegRepo, vulnLivePullUC, time.Minute)
+		go vulnPullScheduler.Run(context.Background())
+		log.Println("Vuln: live-pull scheduler started (due integrations polled every minute)")
+	} else {
+		log.Println("Vuln: live-pull scheduler wired (disabled — set VULN_LIVEPULL_ENABLED=true; manual pull live)")
 	}
 
 	// =========================================================================
