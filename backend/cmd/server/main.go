@@ -149,6 +149,10 @@ func main() {
 		&domain.OAuthProvider{},
 		&domain.AuthAuditLog{},
 		&domain.Risk{},
+		// Smart Risk Calculation (spec §8) — per-tenant configurable weights for the
+		// eight-factor multifactor score. The smart-score columns themselves live on
+		// domain.Risk above. Additive; the classic Score Engine is untouched.
+		&domain.RiskScoringWeights{},
 		&domain.Mitigation{},
 		&domain.Asset{},
 		&domain.AssetSnapshot{},
@@ -897,6 +901,38 @@ func main() {
 	vulnRead := middleware.RequirePermission("vulnerabilities:read")
 	vulnWrite := middleware.RequirePermission("vulnerabilities:update")
 	vulnDelete := middleware.RequirePermission("vulnerabilities:delete")
+
+	// --- Smart Risk Calculation (spec §8 "Calcul de risque intelligent") ---
+	// The multifactor risk score: blends business criticality, internet exposure,
+	// vulnerabilities/CVSS, control maturity, incident history, exploitability,
+	// financial value and live threat intel (CTI) via pkg/scoring.ComputeSmart with
+	// per-tenant CONFIGURABLE weights. The classic Score Engine (P × I × AC) is
+	// untouched — this is an additional, richer view. Every signal source is wired
+	// here from the already-built repositories; each is nil-safe in the use case.
+	smartWeightsRepo := repository.NewGormRiskScoringWeightsRepository(database.DB)
+	computeSmartUC := risk.NewComputeSmartScoreUseCase(riskRepo, smartWeightsRepo).
+		WithAssetRepo(assetRepo).
+		WithVulnLister(vulnRepo).
+		WithCompliance(complianceRepo).
+		WithIncidents(repository.NewGormIncidentCounter(database.DB)).
+		WithQuantifier(riskQuantifier).
+		WithPersister(riskRepo)
+	smartScoreHandler := handlers.NewSmartScoreHandler(
+		computeSmartUC,
+		risk.NewGetRiskWeightsUseCase(smartWeightsRepo),
+		risk.NewUpdateRiskWeightsUseCase(smartWeightsRepo),
+	)
+	// Per-risk multifactor score + breakdown (read), and a non-persisting simulator
+	// for live weight tuning. Static "risk-scoring" path is a sibling of /risks.
+	protected.Get("/risks/:id/smart-score",
+		middleware.RequirePermission("risks:read"), smartScoreHandler.GetRiskSmartScore)
+	protected.Post("/risks/:id/smart-score/simulate",
+		middleware.RequirePermission("risks:read"), smartScoreHandler.SimulateRiskSmartScore)
+	// Per-tenant factor weights: read for anyone with risks:read, write admin-only.
+	protected.Get("/risk-scoring/weights",
+		middleware.RequirePermission("risks:read"), smartScoreHandler.GetRiskWeights)
+	protected.Put("/risk-scoring/weights",
+		middleware.RequireRole("admin"), smartScoreHandler.UpdateRiskWeights)
 
 	// Connector + ticketing configuration. Credentials are AES-256-GCM encrypted
 	// with the same key family as the scanner (SCANNER_CREDENTIAL_KEY) and are
