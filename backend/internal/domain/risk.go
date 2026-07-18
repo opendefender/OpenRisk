@@ -215,6 +215,18 @@ type Risk struct {
 	SLEXAF *float64 `gorm:"type:numeric(16,2)" json:"sle_xaf"` // single loss expectancy (XAF)
 	ARO    *float64 `gorm:"type:numeric(10,4)" json:"aro"`     // annualized rate of occurrence (events/year)
 
+	// Full financial-quantification drivers (spec §9). When SLE is not supplied
+	// explicitly it is composed from these: downtime cost + fines + data loss +
+	// other. RemediationCost + MitigationEffectiveness drive ROSI. All XAF, all
+	// optional; the engine (pkg/crq) degrades gracefully to the reference model.
+	DowntimeHours           *float64 `gorm:"type:numeric(10,2)" json:"downtime_hours"`            // business hours lost per incident
+	HourlyDowntimeCostXAF   *float64 `gorm:"type:numeric(16,2)" json:"hourly_downtime_cost_xaf"`  // cost per hour of downtime
+	DataLossCostXAF         *float64 `gorm:"type:numeric(16,2)" json:"data_loss_cost_xaf"`        // data recovery / breach cost
+	FinesXAF                *float64 `gorm:"type:numeric(16,2)" json:"fines_xaf"`                 // regulatory fines
+	OtherDirectCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"other_direct_cost_xaf"`     // any other direct per-incident cost
+	RemediationCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"remediation_cost_xaf"`      // budget to deploy the control
+	MitigationEffectiveness *float64 `gorm:"type:numeric(5,4)" json:"mitigation_effectiveness"`   // [0,1] share of ALE removed
+
 	// Computed, NOT persisted — filled by the handler via pkg/crq before responding.
 	ALEXAF   float64 `gorm:"-" json:"ale_xaf"`   // annual loss expectancy (XAF)
 	ALEUSD   float64 `gorm:"-" json:"ale_usd"`   // annual loss expectancy (USD)

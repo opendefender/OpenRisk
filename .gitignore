@@ -4,6 +4,8 @@
 /build/
 *.exe
 backend/openrisk-api
+/backend/server
+/backend/orserver
 
 # Dependencies
 node_modules/

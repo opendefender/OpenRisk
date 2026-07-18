@@ -24,6 +24,8 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { mapRisk, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
+import { useRiskFinancial } from '../financial/useFinancial';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Tab = 'all' | 'critical' | 'high' | 'review';
 
@@ -611,21 +613,38 @@ function DrawerFinancial({ r }: { r: UiRisk }) {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const updateRisk = useRiskStore((s) => s.updateRisk);
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  const qc = useQueryClient();
   const raw = r.raw;
-  const [sle, setSle] = useState(raw.sle_xaf != null ? String(raw.sle_xaf) : '');
-  const [aro, setAro] = useState(raw.aro != null ? String(raw.aro) : '');
+  // Live full assessment from the backend (SLE, downtime, worst/avg, ROSI).
+  const { data: fin } = useRiskFinancial(r.id);
+
+  const s = (v: number | null | undefined) => (v == null ? '' : String(v));
+  const [sle, setSle] = useState(s(raw.sle_xaf));
+  const [aro, setAro] = useState(s(raw.aro));
+  const [dh, setDh] = useState(s(raw.downtime_hours));
+  const [hc, setHc] = useState(s(raw.hourly_downtime_cost_xaf));
+  const [dl, setDl] = useState(s(raw.data_loss_cost_xaf));
+  const [fn, setFn] = useState(s(raw.fines_xaf));
+  const [oc, setOc] = useState(s(raw.other_direct_cost_xaf));
+  const [rc, setRc] = useState(s(raw.remediation_cost_xaf));
+  const [eff, setEff] = useState(raw.mitigation_effectiveness != null ? Number(raw.mitigation_effectiveness) : 0);
   const [busy, setBusy] = useState(false);
 
   const fmtXAF = (v?: number) => (v == null ? '—' : `${Math.round(v).toLocaleString('fr-FR')} FCFA`);
   const fmtUSD = (v?: number) => (v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+  const fmtPct = (ratio: number) => `${ratio >= 0 ? '+' : ''}${Math.round(ratio * 100)}%`;
+  const num = (v: string) => (v.trim() === '' ? null : Number(v));
 
   const save = async () => {
     setBusy(true);
     try {
       await updateRisk(r.id, {
-        sle_xaf: sle.trim() === '' ? null : Number(sle),
-        aro: aro.trim() === '' ? null : Number(aro),
+        sle_xaf: num(sle), aro: num(aro),
+        downtime_hours: num(dh), hourly_downtime_cost_xaf: num(hc),
+        data_loss_cost_xaf: num(dl), fines_xaf: num(fn), other_direct_cost_xaf: num(oc),
+        remediation_cost_xaf: num(rc), mitigation_effectiveness: eff,
       });
+      await qc.invalidateQueries({ queryKey: ['financial'] });
       toast.success(tr('Exposition recalculée', 'Exposure recalculated'));
     } catch {
       toast.error(tr('Échec du recalcul', 'Recalculation failed'));
@@ -634,43 +653,81 @@ function DrawerFinancial({ r }: { r: UiRisk }) {
     }
   };
 
+  const stat = (label: string, value: string, tone?: string) => (
+    <div className="rounded-[10px] p-2.5" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
+      <div className="text-[10px] uppercase tracking-[.05em] text-ink-muted">{label}</div>
+      <div className="mono text-[14px] font-bold mt-0.5" style={{ color: tone ?? 'var(--ink)' }}>{value}</div>
+    </div>
+  );
+  const field = (label: string, val: string, set: (v: string) => void, step?: string) => (
+    <label className="block">
+      <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{label}</span>
+      <input value={val} onChange={(e) => set(e.target.value)} type="number" step={step} min={0} className="mt-1.5 w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} />
+    </label>
+  );
+
   return (
     <div className="px-[22px] py-5">
-      <div className="text-[13px] text-ink-soft mb-4">{tr('Quantification (CRQ) — perte annuelle attendue ALE = SLE × ARO.', 'Quantification (CRQ) — annual loss expectancy ALE = SLE × ARO.')}</div>
+      <div className="text-[13px] text-ink-soft mb-4">{tr('Quantification financière (FAIR/CRQ) — ALE = SLE × ARO ; ROSI = (ALE − ALE résiduel − remédiation) / remédiation.', 'Financial quantification (FAIR/CRQ) — ALE = SLE × ARO; ROSI = (ALE − residual ALE − remediation) / remediation.')}</div>
 
+      {/* Headline ALE (XAF + USD) */}
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="rounded-[12px] p-4" style={{ border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'color-mix(in srgb,var(--accent) 6%,transparent)' }}>
           <div className="text-[10.5px] uppercase tracking-[.06em] text-ink-muted">ALE (FCFA)</div>
-          <div className="mono text-[20px] font-bold text-ink mt-1">{fmtXAF(raw.ale_xaf)}</div>
+          <div className="mono text-[20px] font-bold text-ink mt-1">{fmtXAF(fin?.ale.xaf ?? raw.ale_xaf)}</div>
         </div>
         <div className="rounded-[12px] p-4" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
           <div className="text-[10.5px] uppercase tracking-[.06em] text-ink-muted">ALE (USD)</div>
-          <div className="mono text-[20px] font-bold text-ink mt-1">{fmtUSD(raw.ale_usd)}</div>
+          <div className="mono text-[20px] font-bold text-ink mt-1">{fmtUSD(fin?.ale.usd ?? raw.ale_usd)}</div>
         </div>
       </div>
+
+      {/* Full assessment breakdown */}
+      {fin && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {stat('SLE', fmtXAF(fin.sle.xaf))}
+          {stat(tr('Coût interruptions', 'Downtime cost'), fmtXAF(fin.downtime_cost.xaf))}
+          {stat(tr('Pire cas (ALE)', 'Worst-case ALE'), fmtXAF(fin.ale_worst.xaf), 'var(--critical)')}
+          {stat(tr('ALE moyen', 'Average ALE'), fmtXAF(fin.ale_average.xaf))}
+          {stat(tr('ALE résiduel', 'Residual ALE'), fmtXAF(fin.ale_after.xaf), 'var(--low)')}
+          {stat('ROSI', fin.rosi_computable ? fmtPct(fin.rosi) : '—', fin.rosi_computable ? (fin.rosi >= 0 ? 'var(--low)' : 'var(--critical)') : undefined)}
+        </div>
+      )}
       <div className="text-[11.5px] text-ink-muted mb-4">
-        {tr('Base : ', 'Basis: ')}
-        {raw.ale_basis === 'explicit'
-          ? tr('saisie explicite (SLE × ARO)', 'explicit input (SLE × ARO)')
-          : tr('valeur de référence par criticité', 'reference value by criticality')}
+        {tr('Base SLE : ', 'SLE basis: ')}
+        {fin?.sle_basis === 'explicit'
+          ? tr('saisie explicite', 'explicit input')
+          : fin?.sle_basis === 'composed'
+            ? tr('composé (interruptions + amendes + perte de données)', 'composed (downtime + fines + data loss)')
+            : tr('valeur de référence par criticité', 'reference value by criticality')}
       </div>
 
       {canUpdate && (
         <div className="rounded-[12px] p-3.5" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
+          <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-2">{tr('Pertes', 'Losses')}</div>
           <div className="grid grid-cols-2 gap-3 mb-3">
+            {field(tr('SLE explicite (FCFA)', 'Explicit SLE (FCFA)'), sle, setSle)}
+            {field(tr('ARO — Fréquence / an', 'ARO — Frequency / yr'), aro, setAro, '0.1')}
+            {field(tr('Heures d’interruption', 'Downtime hours'), dh, setDh, '0.5')}
+            {field(tr('Coût horaire (FCFA)', 'Hourly cost (FCFA)'), hc, setHc)}
+            {field(tr('Perte de données (FCFA)', 'Data loss (FCFA)'), dl, setDl)}
+            {field(tr('Amendes (FCFA)', 'Fines (FCFA)'), fn, setFn)}
+            {field(tr('Autre coût direct (FCFA)', 'Other direct cost (FCFA)'), oc, setOc)}
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-2">{tr('Remédiation (ROSI)', 'Remediation (ROSI)')}</div>
+          <div className="grid grid-cols-2 gap-3 mb-3 items-end">
+            {field(tr('Coût de remédiation (FCFA)', 'Remediation cost (FCFA)'), rc, setRc)}
             <label className="block">
-              <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{tr('SLE — Perte / sinistre (FCFA)', 'SLE — Loss / event (FCFA)')}</span>
-              <input value={sle} onChange={(e) => setSle(e.target.value)} type="number" className="mt-1.5 w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} />
-            </label>
-            <label className="block">
-              <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{tr('ARO — Fréquence / an', 'ARO — Frequency / yr')}</span>
-              <input value={aro} onChange={(e) => setAro(e.target.value)} type="number" step="0.1" className="mt-1.5 w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }} />
+              <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
+                {tr('Efficacité', 'Effectiveness')}<span className="mono text-ink">{Math.round(eff * 100)}%</span>
+              </span>
+              <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-3 w-full accent-[var(--accent)]" />
             </label>
           </div>
           <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
             <Coins size={16} /> {tr('Recalculer l’exposition', 'Recalculate exposure')}
           </button>
-          <div className="text-[11px] text-ink-muted mt-2">{tr('Laissez vides pour utiliser la valeur de référence par criticité.', 'Leave empty to use the reference value by criticality.')}</div>
+          <div className="text-[11px] text-ink-muted mt-2">{tr('SLE explicite prioritaire ; sinon composé depuis interruptions + amendes + perte de données ; sinon référence par criticité.', 'Explicit SLE wins; else composed from downtime + fines + data loss; else reference by criticality.')}</div>
         </div>
       )}
     </div>

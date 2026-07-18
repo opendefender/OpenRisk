@@ -591,6 +591,12 @@ func main() {
 	transitionPhaseUseCase := risk.NewTransitionPhaseUseCase(riskRepo)
 	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionPhaseUseCase, redisClientInstance, riskQuantifier)
 
+	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
+	// (portfolio ALE, worst-case, residual, remediation budget, ROSI). Reuses the
+	// same quantifier as per-risk CRQ so figures agree.
+	financialSummaryUseCase := risk.NewFinancialSummaryUseCase(riskRepo, riskQuantifier)
+	financialAnalyticsHandler := handlers.NewFinancialAnalyticsHandler(financialSummaryUseCase)
+
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
 	// middleware on `protected` never populates. Using middleware.RequirePermission instead.
@@ -600,6 +606,13 @@ func main() {
 	protected.Get("/risks/:id",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
+	// Financial Risk Quantification (spec §9). Read-only: full per-risk assessment
+	// and a non-persisting investment-scenario simulator. Static "financial"/
+	// "simulate" segments are risk-scoped so they never collide with :id parsing.
+	protected.Get("/risks/:id/financial",
+		middleware.RequirePermission("risks:read"), riskHandler.GetRiskFinancial)
+	protected.Post("/risks/:id/simulate",
+		middleware.RequirePermission("risks:read"), riskHandler.SimulateRiskFinancial)
 
 	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
 	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
@@ -1073,6 +1086,10 @@ func main() {
 	protected.Get("/analytics/frameworks", analyticsHandler.GetFrameworkAnalytics)
 	protected.Get("/analytics/dashboard", analyticsHandler.GetDashboardSnapshot)
 	protected.Get("/analytics/export", analyticsHandler.GetExportData)
+	// Financial Risk Quantification dashboard (spec §9) — tenant-wide portfolio
+	// ALE / worst-case / residual / remediation budget / ROSI for the CFO/CISO screen.
+	protected.Get("/analytics/financial",
+		middleware.RequirePermission("risks:read"), financialAnalyticsHandler.GetFinancialSummary)
 
 	// --- Enhanced Dashboard Analytics (Protected routes) ---
 	dashboardDataService := service.NewDashboardDataService(database.DB, nil)

@@ -36,6 +36,7 @@ import { RemediationPage } from './features/compliance/RemediationPage';
 import { InventoryPage } from './features/assets/InventoryPage';
 import { AssetUniverse } from './features/universe/AssetUniverse';
 import { AnalyticsCiso } from './features/analytics/AnalyticsCiso';
+import { FinancialDashboard } from './features/financial/FinancialDashboard';
 import { LeaderboardPage } from './features/gamification/LeaderboardPage';
 import { WarRoom } from './features/incidents/WarRoom';
 import { IncidentsScreen } from './features/incidents/IncidentsScreen';
@@ -149,6 +150,7 @@ function App() {
           <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           <Route path="analytics" element={<AnalyticsCiso />} />
+          <Route path="analytics/financial" element={<FinancialDashboard />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="incidents" element={<IncidentsScreen />} />
           <Route path="incidents/:id/war-room" element={<WarRoom />} />
