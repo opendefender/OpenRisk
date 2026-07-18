@@ -497,8 +497,47 @@ type SLATrackerRepository interface {
 	ListBreaching(ctx context.Context, now time.Time) ([]SLATracker, error)
 	// ListOpenByRisk finds open trackers for a resolved risk (for auto-close).
 	ListOpenByRisk(ctx context.Context, tenantID, riskID uuid.UUID) ([]SLATracker, error)
+	// ListOpenLinkedToRisk returns every still-open tracker that is bound to a
+	// risk, across ALL tenants. Drives the SLAMonitor's auto-close sweep.
+	ListOpenLinkedToRisk(ctx context.Context) ([]SLATracker, error)
 	// Stats returns counts by status for the tenant's SLA dashboard.
 	Stats(ctx context.Context, tenantID uuid.UUID) (SLAStats, error)
+}
+
+// AutomationChannelConfig is the tenant-level configuration of the outbound
+// alert channels the automation engine can use ("configurer un nouveau canal
+// d'alerte"). One row per tenant. Webhook URLs are write-only: they are never
+// returned to the API (only HasSlack/HasTeams booleans are).
+type AutomationChannelConfig struct {
+	ID       uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	TenantID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"tenant_id"`
+
+	SlackEnabled    bool   `gorm:"default:false" json:"slack_enabled"`
+	SlackWebhookURL string `gorm:"size:512" json:"-"`
+
+	TeamsEnabled    bool   `gorm:"default:false" json:"teams_enabled"`
+	TeamsWebhookURL string `gorm:"size:512" json:"-"`
+
+	// EmailEnabled turns on e-mail delivery for automation alerts. DefaultEmail is
+	// a fallback recipient used when a role-based alert resolves to nobody.
+	EmailEnabled bool   `gorm:"default:true" json:"email_enabled"`
+	DefaultEmail string `gorm:"size:255" json:"default_email"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Computed, NOT persisted — surfaced instead of the raw webhook URLs.
+	HasSlack bool `gorm:"-" json:"has_slack"`
+	HasTeams bool `gorm:"-" json:"has_teams"`
+}
+
+// TableName pins the table name.
+func (AutomationChannelConfig) TableName() string { return "automation_channels" }
+
+// AutomationChannelRepository persists the tenant channel configuration.
+type AutomationChannelRepository interface {
+	Upsert(ctx context.Context, c *AutomationChannelConfig) error
+	Get(ctx context.Context, tenantID uuid.UUID) (*AutomationChannelConfig, error)
 }
 
 // SLAStats is the tenant SLA dashboard summary.

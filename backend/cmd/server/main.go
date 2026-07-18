@@ -228,6 +228,7 @@ func main() {
 		&domain.AutomationRule{},
 		&domain.AutomationExecution{},
 		&domain.SLATracker{},
+		&domain.AutomationChannelConfig{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}

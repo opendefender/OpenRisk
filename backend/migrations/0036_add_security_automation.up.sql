@@ -86,3 +86,18 @@ CREATE INDEX IF NOT EXISTS idx_sla_trackers_escalate_at ON sla_trackers (escalat
 CREATE INDEX IF NOT EXISTS idx_sla_trackers_risk        ON sla_trackers (risk_id);
 CREATE INDEX IF NOT EXISTS idx_sla_trackers_subject     ON sla_trackers (subject_id);
 CREATE INDEX IF NOT EXISTS idx_sla_trackers_severity    ON sla_trackers (severity);
+
+CREATE TABLE IF NOT EXISTS automation_channels (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id         UUID NOT NULL,
+    slack_enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+    slack_webhook_url VARCHAR(512),
+    teams_enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+    teams_webhook_url VARCHAR(512),
+    email_enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+    default_email     VARCHAR(255),
+    created_at        TIMESTAMPTZ,
+    updated_at        TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_channels_tenant ON automation_channels (tenant_id);

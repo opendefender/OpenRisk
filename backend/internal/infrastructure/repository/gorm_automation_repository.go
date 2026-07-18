@@ -255,6 +255,85 @@ func (r *GormSLATrackerRepository) ListOpenByRisk(ctx context.Context, tenantID,
 	return out, err
 }
 
+// GormAutomationChannelRepository stores the tenant outbound-channel config.
+type GormAutomationChannelRepository struct{ db *gorm.DB }
+
+func NewGormAutomationChannelRepository(db *gorm.DB) *GormAutomationChannelRepository {
+	return &GormAutomationChannelRepository{db: db}
+}
+
+var _ domain.AutomationChannelRepository = (*GormAutomationChannelRepository)(nil)
+
+func channelDerived(c *domain.AutomationChannelConfig) {
+	if c != nil {
+		c.HasSlack = c.SlackWebhookURL != ""
+		c.HasTeams = c.TeamsWebhookURL != ""
+	}
+}
+
+func (r *GormAutomationChannelRepository) Upsert(ctx context.Context, c *domain.AutomationChannelConfig) error {
+	var existing domain.AutomationChannelConfig
+	err := r.db.WithContext(ctx).Where("tenant_id = ?", c.TenantID).First(&existing).Error
+	if err == gorm.ErrRecordNotFound {
+		if createErr := r.db.WithContext(ctx).Create(c).Error; createErr != nil {
+			return createErr
+		}
+		channelDerived(c)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	c.ID = existing.ID
+	c.CreatedAt = existing.CreatedAt
+	// Preserve stored webhook URLs when the caller sends blanks (write-only fields).
+	if c.SlackWebhookURL == "" {
+		c.SlackWebhookURL = existing.SlackWebhookURL
+	}
+	if c.TeamsWebhookURL == "" {
+		c.TeamsWebhookURL = existing.TeamsWebhookURL
+	}
+	if err := r.db.WithContext(ctx).Model(&domain.AutomationChannelConfig{}).
+		Where("tenant_id = ?", c.TenantID).
+		Updates(map[string]interface{}{
+			"slack_enabled":     c.SlackEnabled,
+			"slack_webhook_url": c.SlackWebhookURL,
+			"teams_enabled":     c.TeamsEnabled,
+			"teams_webhook_url": c.TeamsWebhookURL,
+			"email_enabled":     c.EmailEnabled,
+			"default_email":     c.DefaultEmail,
+			"updated_at":        time.Now(),
+		}).Error; err != nil {
+		return err
+	}
+	channelDerived(c)
+	return nil
+}
+
+func (r *GormAutomationChannelRepository) Get(ctx context.Context, tenantID uuid.UUID) (*domain.AutomationChannelConfig, error) {
+	var c domain.AutomationChannelConfig
+	err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).First(&c).Error
+	if err == gorm.ErrRecordNotFound {
+		// Absent config is not an error — the tenant simply has no channels yet.
+		return &domain.AutomationChannelConfig{TenantID: tenantID, EmailEnabled: true}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	channelDerived(&c)
+	return &c, nil
+}
+
+func (r *GormSLATrackerRepository) ListOpenLinkedToRisk(ctx context.Context) ([]domain.SLATracker, error) {
+	var out []domain.SLATracker
+	err := r.db.WithContext(ctx).
+		Where("risk_id IS NOT NULL AND status IN ?",
+			[]domain.SLAStatus{domain.SLAOpen, domain.SLABreached, domain.SLAEscalated}).
+		Limit(500).
+		Find(&out).Error
+	return out, err
+}
+
 func (r *GormSLATrackerRepository) Stats(ctx context.Context, tenantID uuid.UUID) (domain.SLAStats, error) {
 	var rows []struct {
 		Status string
