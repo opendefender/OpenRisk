@@ -167,6 +167,12 @@ func (uc *ComputeSmartScoreUseCase) assembleInput(ctx context.Context, tenantID 
 			asset = a
 		}
 	}
+	// Fall back to the first many2many-linked asset: risks created via `asset_ids`
+	// populate the risk_assets join (preloaded by GetByID) rather than the single
+	// AssetID pointer, so without this the asset-derived factors would never fire.
+	if asset == nil && len(r.Assets) > 0 {
+		asset = r.Assets[0]
+	}
 
 	// 1. Business criticality — asset criticality factor, else the risk's own impact.
 	if asset != nil {
