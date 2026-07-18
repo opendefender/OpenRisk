@@ -34,7 +34,11 @@ export function AutomationPage() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const canWrite = useAuthStore((s) => s.hasPermission)('automation:write');
 
-  const [tab, setTab] = useState<Tab>('rules');
+  // Deep-linkable tab: /automation?tab=sla focuses the SLA dashboard.
+  const initialTab = (new URLSearchParams(window.location.search).get('tab') as Tab) || 'rules';
+  const [tab, setTab] = useState<Tab>(
+    ['rules', 'sla', 'history', 'channels'].includes(initialTab) ? initialTab : 'rules',
+  );
   const [editorRule, setEditorRule] = useState<AutomationRule | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
