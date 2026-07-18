@@ -23,7 +23,32 @@ const (
 	// Payload: AssetCriticalityChangedEvent
 	// Consumer: ScoreWorker (republish risk.updated pour tous les risques liés)
 	AssetCriticalityChanged = "asset.criticality_changed"
+
+	// Publié par l'ingest de vulnérabilités (webhook scanner / live-pull / CTI)
+	// quand une nouvelle vulnérabilité est enregistrée.
+	// Payload: VulnerabilityDetectedEvent
+	// Consumer: AutomationEngine (spec §10) — déclencheur `vulnerability_detected`.
+	VulnerabilityDetected = "vulnerability.detected"
 )
+
+// VulnerabilityDetectedEvent est le payload publié sur vulnerability.detected.
+// Il porte tout ce dont le moteur d'automatisation a besoin pour évaluer les
+// conditions d'une règle (sévérité, CVSS, KEV, tier de priorité) et cibler
+// l'actif concerné, sans re-requêter la base.
+type VulnerabilityDetectedEvent struct {
+	VulnerabilityID string  `json:"vulnerability_id"`
+	TenantID        string  `json:"tenant_id"`
+	CVEID           string  `json:"cve_id"`
+	Title           string  `json:"title"`
+	Severity        string  `json:"severity"` // low|medium|high|critical
+	CVSS            float64 `json:"cvss"`
+	KEV             bool    `json:"kev"`
+	PriorityTier    string  `json:"priority_tier"` // P1..P4
+	AssetID         string  `json:"asset_id"`      // uuid or "" if unmatched
+	AssetName       string  `json:"asset_name"`
+	Source          string  `json:"source"`
+	TriggeredBy     string  `json:"triggered_by"` // user_id ou "system"
+}
 
 // RiskUpdatedEvent est le payload publié sur risk.updated.
 // Format: JSON serializable

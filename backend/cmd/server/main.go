@@ -222,6 +222,12 @@ func main() {
 		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
 		&domain.ComplianceAudit{},
 		&domain.RemediationPlan{},
+		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped
+		// playbooks (trigger + conditions + action chain + SLA policy), their
+		// execution audit trail, and the live SLA countdowns the monitor escalates.
+		&domain.AutomationRule{},
+		&domain.AutomationExecution{},
+		&domain.SLATracker{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
