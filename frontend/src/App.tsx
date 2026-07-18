@@ -38,6 +38,7 @@ import { InventoryPage } from './features/assets/InventoryPage';
 import { AssetUniverse } from './features/universe/AssetUniverse';
 import { AnalyticsCiso } from './features/analytics/AnalyticsCiso';
 import { FinancialDashboard } from './features/financial/FinancialDashboard';
+import { AutomationPage } from './features/automation/AutomationPage';
 import { LeaderboardPage } from './features/gamification/LeaderboardPage';
 import { WarRoom } from './features/incidents/WarRoom';
 import { IncidentsScreen } from './features/incidents/IncidentsScreen';
@@ -156,6 +157,7 @@ function App() {
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="incidents" element={<IncidentsScreen />} />
           <Route path="incidents/:id/war-room" element={<WarRoom />} />
+          <Route path="automation" element={<AutomationPage />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
