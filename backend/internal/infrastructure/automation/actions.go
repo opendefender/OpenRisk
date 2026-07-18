@@ -156,16 +156,21 @@ func (a *RiskActions) resolveAssignee(ctx context.Context, tenantID uuid.UUID, t
 }
 
 func (a *RiskActions) firstMemberWithRole(ctx context.Context, tenantID uuid.UUID, roles ...domain.MemberRole) uuid.UUID {
-	var id uuid.UUID
+	// Pluck requires a slice destination — plucking into a scalar silently yields
+	// nothing. Fetch into a slice and take the first.
+	var ids []uuid.UUID
 	if err := a.db.WithContext(ctx).
 		Model(&domain.OrganizationMember{}).
 		Where("organization_id = ? AND role IN ?", tenantID, roles).
 		Order("created_at ASC").
 		Limit(1).
-		Pluck("user_id", &id).Error; err != nil {
+		Pluck("user_id", &ids).Error; err != nil {
 		a.logger.Debug().Err(err).Msg("automation assign: member lookup failed")
 	}
-	return id
+	if len(ids) > 0 {
+		return ids[0]
+	}
+	return uuid.Nil
 }
 
 func severityToRisk(sev string) (prob, impact float64, crit domain.CriticalityLevel) {
