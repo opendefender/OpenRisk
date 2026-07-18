@@ -118,10 +118,10 @@ type EmergingRisksResult struct {
 // layer performs a hybrid keyword retrieval over the tenant's risks, controls and
 // vulnerabilities and passes the top matches here — this is the "RAG context".
 type KnowledgeSnippet struct {
-	Kind   string // "risk"|"control"|"vulnerability"|"framework"
-	Ref    string // reference code / CVE / name
-	Title  string
-	Detail string
+	Kind   string `json:"kind"`  // "risk"|"control"|"vulnerability"|"framework"
+	Ref    string `json:"ref"`   // reference code / CVE / name
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
 }
 
 // ChatTurn is one prior turn of the conversation, for multi-turn continuity.
