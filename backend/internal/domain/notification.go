@@ -22,6 +22,14 @@ const (
 	NotificationTypeRiskResolved       NotificationType = "risk_resolved"
 	NotificationTypeScanComplete       NotificationType = "scan_complete"
 	NotificationTypeRiskReview         NotificationType = "risk_review"
+	NotificationTypeAutomation         NotificationType = "automation"     // SOAR engine alert (spec §10)
+	NotificationTypeSLABreach          NotificationType = "sla_breach"      // SLA escalation notice
+)
+
+const (
+	// NotificationChannelTeams is the Microsoft Teams outbound channel used by
+	// the automation engine (spec §10).
+	NotificationChannelTeams NotificationChannel = "teams"
 )
 
 // NotificationChannel defines the channel through which to send notification
