@@ -1136,6 +1136,16 @@ func main() {
 	protected.Get("/analytics/financial",
 		middleware.RequirePermission("risks:read"), financialAnalyticsHandler.GetFinancialSummary)
 
+	// Executive dashboard (spec §11) — ONE consolidated, tenant-scoped aggregation
+	// (cyber score, financial exposure, KRIs, top-10 risks, risk & incident trends,
+	// compliance coverage) so the frontend makes a single request. Composes the
+	// existing tenant-scoped sources; every source is nil-safe in the use case.
+	executiveDashboardHandler := newExecutiveDashboardHandler(
+		financialSummaryUseCase, riskRepo, getGapAnalysisUC, vulnRepo, incidentService, riskQuantifier,
+	)
+	protected.Get("/analytics/executive",
+		middleware.RequirePermission("risks:read"), executiveDashboardHandler.GetExecutiveDashboard)
+
 	// --- Enhanced Dashboard Analytics (Protected routes) ---
 	dashboardDataService := service.NewDashboardDataService(database.DB, nil)
 	enhancedDashboardHandler := handlers.NewEnhancedDashboardHandler(dashboardDataService)

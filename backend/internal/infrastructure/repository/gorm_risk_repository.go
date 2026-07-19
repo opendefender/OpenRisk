@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	"github.com/opendefender/openrisk/internal/application/dashboard"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
@@ -251,6 +253,108 @@ func (r *GormRiskRepository) ListRisksForFinancial(ctx context.Context, tenantID
 		return nil, err
 	}
 	return risks, nil
+}
+
+// TopRisksByScore returns the tenant's highest-scoring active risks, capped at
+// limit, for the executive "top 10 risks" widget. It loads the full model (no
+// hand-written SELECT) so the executive use case can quantify each one's ALE from
+// the stored monetary drivers. Concrete method (off the domain.RiskRepository
+// port) so existing mocks stay valid — same rationale as ListRisksForFinancial.
+func (r *GormRiskRepository) TopRisksByScore(ctx context.Context, tenantID uuid.UUID, limit int) ([]domain.Risk, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	var risks []domain.Risk
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		Order("score DESC").
+		Limit(limit).
+		Find(&risks).Error
+	if err != nil {
+		return nil, err
+	}
+	return risks, nil
+}
+
+// MonthlyRiskTrend returns the register's risk evolution over the last `months`
+// months — one point per month that has data. Points come from risk_histories
+// (score snapshots, joined to risks so the query stays tenant-scoped); the current
+// month is always anchored to the LIVE register average so the latest point is
+// meaningful even before any history has accrued for a fresh tenant. Critical/high
+// counts use the documented Score Engine bands (score ≥ 7 = critical, ≥ 4 = high).
+func (r *GormRiskRepository) MonthlyRiskTrend(ctx context.Context, tenantID uuid.UUID, months int) ([]dashboard.MonthlyRiskPoint, error) {
+	if months <= 0 {
+		months = 6
+	}
+	now := time.Now().UTC()
+	since := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -(months - 1), 0)
+
+	type histRow struct {
+		Month    string
+		AvgScore float64
+		Total    int
+		Critical int
+		High     int
+	}
+	var rows []histRow
+	err := r.db.WithContext(ctx).
+		Table("risk_histories AS h").
+		Joins("JOIN risks r ON r.id = h.risk_id").
+		Where("r.tenant_id = ? AND h.created_at >= ?", tenantID, since).
+		Select("to_char(h.created_at, 'YYYY-MM') AS month, " +
+			"AVG(h.score) AS avg_score, " +
+			"COUNT(*) AS total, " +
+			"COUNT(*) FILTER (WHERE h.score >= 7) AS critical, " +
+			"COUNT(*) FILTER (WHERE h.score >= 4 AND h.score < 7) AS high").
+		Group("month").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	byMonth := make(map[string]dashboard.MonthlyRiskPoint, len(rows)+1)
+	for _, rr := range rows {
+		byMonth[rr.Month] = dashboard.MonthlyRiskPoint{
+			Month:    rr.Month,
+			AvgScore: math.Round(rr.AvgScore*100) / 100,
+			Critical: rr.Critical,
+			High:     rr.High,
+			Total:    rr.Total,
+		}
+	}
+
+	// Anchor the current month to the live register.
+	var live struct {
+		AvgScore float64
+		Total    int
+		Critical int
+		High     int
+	}
+	_ = r.db.WithContext(ctx).
+		Model(&domain.Risk{}).
+		Where("tenant_id = ?", tenantID).
+		Select("COALESCE(AVG(score),0) AS avg_score, " +
+			"COUNT(*) AS total, " +
+			"COUNT(*) FILTER (WHERE score >= 7) AS critical, " +
+			"COUNT(*) FILTER (WHERE score >= 4 AND score < 7) AS high").
+		Scan(&live).Error
+	if live.Total > 0 {
+		cur := now.Format("2006-01")
+		byMonth[cur] = dashboard.MonthlyRiskPoint{
+			Month:    cur,
+			AvgScore: math.Round(live.AvgScore*100) / 100,
+			Critical: live.Critical,
+			High:     live.High,
+			Total:    live.Total,
+		}
+	}
+
+	out := make([]dashboard.MonthlyRiskPoint, 0, len(byMonth))
+	for _, p := range byMonth {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Month < out[j].Month })
+	return out, nil
 }
 
 // =============================================================================

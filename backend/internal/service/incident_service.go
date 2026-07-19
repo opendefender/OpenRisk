@@ -324,6 +324,83 @@ func (s *IncidentService) GetIncidentStats(tenantID string) map[string]interface
 	return stats
 }
 
+// IncidentTrendData is one month of the incident histogram.
+type IncidentTrendData struct {
+	Month    string
+	Total    int
+	Critical int
+	High     int
+}
+
+// IncidentAnalyticsData is the incident slice consumed by the executive dashboard
+// (spec §11). Kept as a plain service struct so this legacy service stays
+// decoupled from the application layer — a thin adapter in main.go maps it onto
+// the dashboard port.
+type IncidentAnalyticsData struct {
+	Total          int
+	OpenCount      int
+	CriticalOpen   int
+	AvgMTTRDays    float64
+	ResolutionRate float64
+	Trend          []IncidentTrendData
+}
+
+// GetIncidentAnalytics computes tenant incident analytics for the executive
+// dashboard: open/critical volume, mean-time-to-resolve (over resolved incidents),
+// resolution rate and a monthly trend for the last `months` months. Tenant-scoped
+// on every query.
+func (s *IncidentService) GetIncidentAnalytics(tenantID string, months int) (*IncidentAnalyticsData, error) {
+	if months <= 0 {
+		months = 6
+	}
+	out := &IncidentAnalyticsData{Trend: []IncidentTrendData{}}
+
+	var total, open, resolved, criticalOpen int64
+	s.db.Model(&domain.Incident{}).Where("tenant_id = ?", tenantID).Count(&total)
+	s.db.Model(&domain.Incident{}).Where("tenant_id = ? AND status IN ?", tenantID, []string{"open", "investigating"}).Count(&open)
+	s.db.Model(&domain.Incident{}).Where("tenant_id = ? AND status IN ?", tenantID, []string{"resolved", "closed"}).Count(&resolved)
+	s.db.Model(&domain.Incident{}).Where("tenant_id = ? AND severity = ? AND status IN ?", tenantID, "critical", []string{"open", "investigating"}).Count(&criticalOpen)
+
+	out.Total = int(total)
+	out.OpenCount = int(open)
+	out.CriticalOpen = int(criticalOpen)
+	if total > 0 {
+		out.ResolutionRate = float64(resolved) / float64(total) * 100
+	}
+
+	// Mean time to resolve (days) over incidents that carry a resolved_at.
+	var mttr struct{ AvgDays float64 }
+	s.db.Model(&domain.Incident{}).
+		Where("tenant_id = ? AND resolved_at IS NOT NULL", tenantID).
+		Select("COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 86400.0), 0) AS avg_days").
+		Scan(&mttr)
+	out.AvgMTTRDays = mttr.AvgDays
+
+	// Monthly trend over the window.
+	now := time.Now().UTC()
+	since := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -(months - 1), 0)
+	type trendRow struct {
+		Month    string
+		Total    int
+		Critical int
+		High     int
+	}
+	var rows []trendRow
+	s.db.Model(&domain.Incident{}).
+		Where("tenant_id = ? AND created_at >= ?", tenantID, since).
+		Select("to_char(created_at, 'YYYY-MM') AS month, " +
+			"COUNT(*) AS total, " +
+			"COUNT(*) FILTER (WHERE severity = 'critical') AS critical, " +
+			"COUNT(*) FILTER (WHERE severity = 'high') AS high").
+		Group("month").
+		Order("month").
+		Scan(&rows)
+	for _, r := range rows {
+		out.Trend = append(out.Trend, IncidentTrendData{Month: r.Month, Total: r.Total, Critical: r.Critical, High: r.High})
+	}
+	return out, nil
+}
+
 // GetIncidentsForRisk retrieves all incidents linked to a risk
 func (s *IncidentService) GetIncidentsForRisk(tenantID string, riskID uint) ([]domain.Incident, error) {
 	var incidents []domain.Incident
