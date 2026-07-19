@@ -17,6 +17,7 @@ import { useControls, useComplianceReport, useEvidences } from './useCompliance'
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
 import { CreateControlDialog } from './ComplianceModals';
 import { ControlMappingsSection } from './ControlMappingsSection';
+import { AiEvidenceAnalysis } from '../ai/AiEvidenceAnalysis';
 import { relTime } from '../risks/riskMap';
 import { CONTROL_STATUSES, type ControlStatus, type ComplianceControl } from '../../types/compliance';
 
@@ -333,14 +334,17 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
           ) : (
             <div className="flex flex-col gap-2">
               {evidences.map((e) => (
-                <div key={e.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
-                  <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><FileText size={17} /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-ink truncate">{e.filename}</div>
-                    <div className="text-[11.5px] text-ink-muted truncate">{e.description || tr('Sans description', 'No description')} · {relTime(e.created_at, lang)}</div>
+                <div key={e.id} className="rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
+                  <div className="flex items-center gap-3 px-3 py-2.5">
+                    <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><FileText size={17} /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium text-ink truncate">{e.filename}</div>
+                      <div className="text-[11.5px] text-ink-muted truncate">{e.description || tr('Sans description', 'No description')} · {relTime(e.created_at, lang)}</div>
+                    </div>
+                    <button onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors" title={tr('Télécharger', 'Download')}><Download size={15} /></button>
+                    <button onClick={() => { if (window.confirm(tr('Supprimer cette preuve ?', 'Delete this evidence?'))) deleteEvidence.mutate(e.id); }} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}><Trash2 size={15} /></button>
                   </div>
-                  <button onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors" title={tr('Télécharger', 'Download')}><Download size={15} /></button>
-                  <button onClick={() => { if (window.confirm(tr('Supprimer cette preuve ?', 'Delete this evidence?'))) deleteEvidence.mutate(e.id); }} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}><Trash2 size={15} /></button>
+                  <AiEvidenceAnalysis evidenceId={e.id} />
                 </div>
               ))}
             </div>

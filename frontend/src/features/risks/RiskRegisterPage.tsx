@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal } from 'lucide-react';
+import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Chip, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
   SkeletonRows, EmptyState, softFill,
@@ -27,6 +27,7 @@ import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { useRiskFinancial } from '../financial/useFinancial';
 import { useRiskSmartScore } from './useSmartScore';
 import { SmartRiskRadar } from './components/SmartRiskRadar';
+import { useTreatmentPlan } from '../ai/useAi';
 import { useQueryClient } from '@tanstack/react-query';
 
 type Tab = 'all' | 'critical' | 'high' | 'review';
@@ -359,6 +360,103 @@ function RowMenu({ onView, onEdit, onExport, onDelete, onClose }: { onView: () =
 }
 
 /* ---------------- drawer ---------------- */
+// DrawerAI — the "IA" tab: generates a synthesis + suggested treatment plan for
+// this risk via the live /ai/risks/:id/treatment-plan endpoint (spec §12.1). Claude
+// when configured, deterministic template otherwise (shown in the provenance line).
+function DrawerAI({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const locale = lang === 'fr' ? 'fr' : 'en';
+  const plan = useTreatmentPlan();
+  const res = plan.data;
+
+  const stratLabel: Record<string, string> = {
+    mitigate: tr('Atténuer', 'Mitigate'),
+    accept: tr('Accepter', 'Accept'),
+    transfer: tr('Transférer', 'Transfer'),
+    avoid: tr('Éviter', 'Avoid'),
+  };
+  const prioColor: Record<string, string> = { high: 'var(--critical)', medium: 'var(--high)', low: 'var(--accent)' };
+
+  return (
+    <div className="py-5 px-[22px]">
+      <div className="flex items-start gap-2 mb-4">
+        <div className="flex-1">
+          <div className="text-[14px] font-semibold text-ink mb-1">{tr('Plan de traitement assisté par IA', 'AI-assisted treatment plan')}</div>
+          <div className="text-[12.5px] text-ink-soft leading-relaxed">
+            {tr(
+              "L'IA synthétise ce risque et propose une stratégie et un plan d'actions, à partir de son score, sa criticité et l'actif lié.",
+              'The AI synthesises this risk and proposes a strategy and action plan from its score, criticality and linked asset.',
+            )}
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => plan.mutate({ riskId: r.id, locale })}
+        disabled={plan.isPending}
+        className="w-full h-11 rounded-[12px] flex items-center justify-center gap-2 text-white text-[13.5px] font-semibold disabled:opacity-60"
+        style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 2px 12px var(--accent-glow)' }}
+      >
+        {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
+        {plan.isPending ? tr('Génération…', 'Generating…') : res ? tr('Régénérer', 'Regenerate') : tr('Générer avec l’IA', 'Generate with AI')}
+      </button>
+
+      {plan.isError && (
+        <div className="mt-4 text-[12.5px]" style={{ color: 'var(--critical)' }}>
+          {tr('La génération a échoué. Réessayez.', 'Generation failed. Please try again.')}
+        </div>
+      )}
+
+      {res && (
+        <div className="mt-5 space-y-4" style={{ animation: 'or-fadeup .25s ease' }}>
+          <div>
+            <div className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">{tr('Synthèse', 'Summary')}</div>
+            <div className="text-[13px] text-ink leading-relaxed">{res.plan.summary}</div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">{tr('Stratégie', 'Strategy')}</span>
+            <span
+              className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-line)' }}
+            >
+              {stratLabel[res.plan.recommended_strategy] ?? res.plan.recommended_strategy}
+            </span>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide mb-2">{tr('Plan d’actions', 'Action plan')}</div>
+            <div className="space-y-2.5">
+              {res.plan.actions.map((a, i) => (
+                <div key={i} className="p-3 rounded-[11px]" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: prioColor[a.priority] ?? 'var(--accent)' }}>{i + 1}</span>
+                    <span className="text-[13px] font-semibold text-ink flex-1">{a.title}</span>
+                    <span className="text-[10.5px] font-semibold uppercase" style={{ color: prioColor[a.priority] ?? 'var(--accent)' }}>{a.priority}</span>
+                  </div>
+                  <div className="text-[12.5px] text-ink-soft leading-relaxed pl-7">{a.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {res.plan.rationale && (
+            <div className="text-[12px] text-ink-soft italic leading-relaxed">{res.plan.rationale}</div>
+          )}
+
+          <div className="text-[11px] text-ink-muted pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+            <span className="pt-2 inline-block">
+              {tr('Généré par', 'Generated by')} : <span className="font-semibold">{res.generated_by}</span>
+              {res.generated_by === 'template' && ' · ' + tr('mode local (configurez ANTHROPIC_API_KEY pour Claude)', 'local mode (set ANTHROPIC_API_KEY for Claude)')}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk; onClose: () => void; onEdit: () => void; onExport: () => void; onCreateMiti: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
@@ -410,7 +508,8 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
           {tab === 'smart' && <DrawerSmart r={r} />}
           {tab === 'financial' && <DrawerFinancial r={r} />}
           {tab === 'miti' && <DrawerMiti r={r} onCreateMiti={onCreateMiti} />}
-          {(tab === 'timeline' || tab === 'cti' || tab === 'ai') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
+          {tab === 'ai' && <DrawerAI r={r} />}
+          {(tab === 'timeline' || tab === 'cti') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
         </div>
       </div>
     </div>
