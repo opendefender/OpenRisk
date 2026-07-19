@@ -232,6 +232,17 @@ type Risk struct {
 	ALEUSD   float64 `gorm:"-" json:"ale_usd"`   // annual loss expectancy (USD)
 	ALEBasis string  `gorm:"-" json:"ale_basis"` // "explicit" | "reference"
 
+	// Smart Risk Calculation (spec §8) — the multifactor score computed by
+	// pkg/scoring.ComputeSmart from eight factors (business criticality, internet
+	// exposure, vulnerabilities, control maturity, incident history, exploitability,
+	// financial value, active threats). Persisted so the register can sort/badge on
+	// it; refreshed on demand via GET /risks/:id/smart-score. SmartFactors is the
+	// frozen per-factor breakdown (radar-ready []scoring.FactorScore snapshot).
+	SmartScore      float64          `gorm:"type:numeric(5,2);default:0;index" json:"smart_score"` // 0–100
+	SmartLevel      CriticalityLevel `gorm:"type:varchar(20)" json:"smart_level"`                  // low|medium|high|critical
+	SmartFactors    datatypes.JSON   `gorm:"type:jsonb" json:"smart_factors,omitempty"`
+	SmartComputedAt *time.Time       `json:"smart_computed_at,omitempty"`
+
 	// Review cadence — automated risk-review reminders. ReviewIntervalDays = 0
 	// disables it; NextReviewAt is when the owner is next nudged; LastReviewedAt is
 	// the last time the risk was marked reviewed.
