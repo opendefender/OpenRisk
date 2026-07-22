@@ -1,7 +1,7 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
-// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
-// If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
+// This file is part of the OpenRisk Enterprise Edition and is NOT covered by the
+// AGPL; it is licensed under the OpenRisk Commercial License (see LICENSE.commercial).
 
 // Package board holds the monthly board-of-directors report use cases: it
 // aggregates a tenant's risk and compliance posture, asks an ai.Advisor to write

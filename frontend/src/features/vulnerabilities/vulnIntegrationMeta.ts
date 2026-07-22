@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Per-source connector metadata for the integration config screen: which
 // credential fields each scanner needs, whether it exposes a real live-pull, and

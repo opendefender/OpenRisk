@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // War Room (OpenRisk.dc.html §6.5): full-screen incident console for reviewing a
 // REAL incident (/incidents/:id/war-room) — top bar with its live elapsed timer,

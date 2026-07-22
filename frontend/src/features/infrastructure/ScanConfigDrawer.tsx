@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Slide-in drawer to create a scan configuration. Cloud providers show their
 // credential fields (encrypted server-side, never returned); on-premise shows

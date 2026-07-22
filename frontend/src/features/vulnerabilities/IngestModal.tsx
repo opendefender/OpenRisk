@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Import findings from a named integration: pick the source, paste the tool's
 // native findings JSON (an array of objects, exactly as exported), submit. The

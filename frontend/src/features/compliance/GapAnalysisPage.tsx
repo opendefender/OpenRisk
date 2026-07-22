@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Gap analysis ("analyse d'écarts") — every unsatisfied control across the
 // tenant's frameworks, grouped by framework, with per-framework roll-ups. Wired

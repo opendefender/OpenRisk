@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Display metadata (colors + FR/EN labels) shared by the register, drawer and
 // ingest modal. Kept in one place so the vocabulary stays consistent.

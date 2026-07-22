@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Scan Preview — the human-in-the-loop gate. A scan's results live only in a
 // Redis preview (48h TTL); nothing is in the DB until the user imports here.

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Cross-framework control mappings ("cross-mapping entre référentiels") shown
 // inside a control's drawer: the crosswalks that tie this control to equivalent

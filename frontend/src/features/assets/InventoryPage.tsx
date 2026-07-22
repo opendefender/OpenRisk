@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Inventory (OpenRisk.dc.html §6.12) — wired to the real /assets store. Asset table
 // with type-icon, criticality badge, derived score (max of linked risks), linked-risk

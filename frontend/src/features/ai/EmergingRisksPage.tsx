@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Emerging-risk detection (spec §12.2): paste a threat-intel report, a news
 // snippet or logs, and the AI extracts candidate new risks (title, severity,

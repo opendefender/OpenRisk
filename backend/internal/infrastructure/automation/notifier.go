@@ -1,7 +1,7 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
-// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
-// If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
+// This file is part of the OpenRisk Enterprise Edition and is NOT covered by the
+// AGPL; it is licensed under the OpenRisk Commercial License (see LICENSE.commercial).
 
 // Package automation (infrastructure) wires the SOAR engine's abstract action
 // ports to concrete capabilities: the multi-channel alert Notifier, the ITSM

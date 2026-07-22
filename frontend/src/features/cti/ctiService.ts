@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Typed client for the CTI / Intel Threat engine (/cti/*). Shapes mirror
 // backend/pkg/cti/model.go (CTIVulnerability) and the cti_handler responses.

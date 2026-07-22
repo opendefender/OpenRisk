@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Typed client for the scan engine (/scanner/*). Hand-written (like the
 // incidents/mitigations services). Shapes mirror backend/internal/domain/

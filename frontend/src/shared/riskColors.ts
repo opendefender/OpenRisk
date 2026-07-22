@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Small color helpers mapping risk semantics to the design-token CSS variables
 // (OpenRisk.dc.html §11). Returning `var(--…)` keeps everything theme-aware.

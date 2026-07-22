@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Grouped navigation model (OpenRisk.dc.html §5). Single source of truth shared
 // by the Sidebar and the ⌘K command palette. `labelKey`/`groupKey` index into

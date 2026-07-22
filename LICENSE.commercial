@@ -1,0 +1,51 @@
+OpenRisk Commercial License (Enterprise Edition)
+================================================
+
+Copyright (c) 2026 OpenDefender. All rights reserved.
+
+This license governs the "Enterprise Edition" (EE) portions of OpenRisk. Files
+that are part of the Enterprise Edition carry the SPDX identifier
+`LicenseRef-OpenRisk-Commercial` in their header, and the authoritative list of
+EE paths is maintained in LICENSING.md. Everything else in this repository is the
+Community Edition, licensed separately under the GNU Affero General Public
+License v3.0 (see LICENSE).
+
+The Enterprise Edition is NOT covered by the AGPLv3 and is NOT open source.
+
+1. Grant of license
+   Subject to a valid, paid subscription agreement with OpenDefender (the
+   "Commercial Agreement") and to the terms below, OpenDefender grants the
+   customer a non-exclusive, non-transferable, non-sublicensable right to use,
+   in object form, the Enterprise Edition solely for the customer's internal
+   business purposes, for the number of instances and users covered by the
+   Commercial Agreement.
+
+2. Restrictions
+   Absent a separate written agreement, you may NOT: (a) use the Enterprise
+   Edition in production without a valid Commercial Agreement; (b) copy, modify,
+   distribute, sublicense, rent, lease, or make the Enterprise Edition available
+   to any third party as a hosted or managed service; (c) remove or alter any
+   proprietary notices; or (d) reverse engineer the Enterprise Edition except to
+   the extent that applicable law expressly permits despite this limitation.
+
+3. Evaluation
+   OpenDefender may make the Enterprise Edition source available for evaluation,
+   development, and testing. Such use does not grant any production right and is
+   subject to this license.
+
+4. Ownership
+   The Enterprise Edition is licensed, not sold. OpenDefender retains all right,
+   title, and interest, including all intellectual property rights.
+
+5. No warranty; limitation of liability
+   THE ENTERPRISE EDITION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. TO
+   THE MAXIMUM EXTENT PERMITTED BY LAW, OPENDEFENDER SHALL NOT BE LIABLE FOR ANY
+   INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN
+   CONNECTION WITH THE ENTERPRISE EDITION.
+
+6. Termination
+   This license terminates automatically if you breach it or upon expiry of the
+   Commercial Agreement. On termination you must cease all use of the Enterprise
+   Edition and destroy all copies.
+
+For commercial licensing, contact: licensing@opendefender.io

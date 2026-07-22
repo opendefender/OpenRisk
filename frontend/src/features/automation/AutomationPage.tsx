@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Security Automation / SOAR (spec §10 « Automatisation »). Four views:
 //  - Rules: the workflow builder — each rule shows its trigger → action chain.

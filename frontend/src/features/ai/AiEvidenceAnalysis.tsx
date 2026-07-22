@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Inline AI evidence analysis (spec §12.5): a compact "Analyser (IA)" control
 // under an uploaded evidence that checks, via POST /ai/evidence/:id/analyze,

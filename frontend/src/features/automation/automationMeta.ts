@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Display metadata for the automation module: triggers, action types, notify
 // channels, execution + SLA statuses. Kept separate so the page/editor share it.

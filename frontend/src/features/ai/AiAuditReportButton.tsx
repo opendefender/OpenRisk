@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // "Rapport IA" button + modal (spec §12.4): generates an executive audit report
 // from an audit campaign via POST /ai/audits/:id/report. Composes the audit, a

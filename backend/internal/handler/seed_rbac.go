@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // SeedRBAC provisions the RBAC / multi-tenant tables so the Settings admin tabs
 // (Roles, Organizations, Audit log) are fully functional. It is idempotent and

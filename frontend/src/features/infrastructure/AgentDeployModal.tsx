@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // "Deploy Agent" modal for an on-premise scan config. Mints a 24h registration
 // token and shows the per-OS downloads + a ready-to-run command with the token
