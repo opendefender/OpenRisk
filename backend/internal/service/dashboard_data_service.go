@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/gorm"
@@ -29,6 +30,13 @@ func NewDashboardDataService(db *gorm.DB, metricsRegistry *prometheus.Registry) 
 	}
 }
 
+// scoped returns a fresh, tenant-scoped query builder. Every dashboard query
+// MUST go through this helper so no widget ever aggregates data across tenants
+// (project RULE #2: filter by tenant_id on every DB query).
+func (s *DashboardDataService) scoped(ctx context.Context, tenantID uuid.UUID) *gorm.DB {
+	return s.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
+}
+
 // DashboardMetrics represents KPI metrics for the dashboard
 type DashboardMetrics struct {
 	AverageRiskScore  float64   `json:"average_risk_score"`
@@ -41,15 +49,15 @@ type DashboardMetrics struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// GetDashboardMetrics aggregates key metrics for the dashboard
-func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context) (*DashboardMetrics, error) {
+// GetDashboardMetrics aggregates key metrics for the dashboard (tenant-scoped)
+func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context, tenantID uuid.UUID) (*DashboardMetrics, error) {
 	metrics := &DashboardMetrics{
 		UpdatedAt: time.Now(),
 	}
 
 	// Get total and active risks
-	s.db.WithContext(ctx).Model(&domain.Risk{}).Count(&metrics.TotalRisks)
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).Count(&metrics.TotalRisks)
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("status = ?", "active").
 		Count(&metrics.ActiveRisks)
 
@@ -58,7 +66,7 @@ func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context) (*Dashbo
 		AvgScore float64
 	}
 	var scoreRes scoreResult
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Select("COALESCE(AVG(score), 0) as avg_score").
 		Scan(&scoreRes)
 	metrics.AverageRiskScore = scoreRes.AvgScore
@@ -66,23 +74,23 @@ func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context) (*Dashbo
 	// Calculate trending up percentage (risks with score increasing)
 	if metrics.TotalRisks > 0 {
 		var trendingUp int64
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("score > ? AND updated_at > ?", metrics.AverageRiskScore*0.9, time.Now().AddDate(0, 0, -7)).
 			Count(&trendingUp)
 		metrics.TrendingUpPercent = float64(trendingUp) / float64(metrics.TotalRisks) * 100
 	}
 
 	// Count overdue mitigations
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("due_date < ? AND status != ?", time.Now(), "completed").
 		Count(&metrics.OverdueCount)
 
 	// Calculate SLA compliance (mitigations completed on time / total mitigations)
 	var totalMitigations int64
 	var completedOnTime int64
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).Count(&totalMitigations)
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).Count(&totalMitigations)
 	if totalMitigations > 0 {
-		s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+		s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 			Where("status = ? AND completed_at <= due_date", "completed").
 			Count(&completedOnTime)
 		metrics.SLAComplianceRate = float64(completedOnTime) / float64(totalMitigations) * 100
@@ -90,7 +98,7 @@ func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context) (*Dashbo
 
 	// Calculate mitigation rate
 	var mitigatedRisks int64
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("status = ?", "mitigated").
 		Count(&mitigatedRisks)
 	if metrics.TotalRisks > 0 {
@@ -109,8 +117,8 @@ type RiskTrendDataPoint struct {
 	Mitigated int64   `json:"mitigated"`
 }
 
-// GetRiskTrends returns risk trends for the last 7 days
-func (s *DashboardDataService) GetRiskTrends(ctx context.Context) ([]RiskTrendDataPoint, error) {
+// GetRiskTrends returns risk trends for the last 7 days (tenant-scoped)
+func (s *DashboardDataService) GetRiskTrends(ctx context.Context, tenantID uuid.UUID) ([]RiskTrendDataPoint, error) {
 	var trends []RiskTrendDataPoint
 	now := time.Now()
 
@@ -124,7 +132,7 @@ func (s *DashboardDataService) GetRiskTrends(ctx context.Context) ([]RiskTrendDa
 		}
 
 		// Total risks as of this date
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("created_at <= ?", endOfDay).
 			Count(&point.Count)
 
@@ -133,19 +141,19 @@ func (s *DashboardDataService) GetRiskTrends(ctx context.Context) ([]RiskTrendDa
 			AvgScore float64
 		}
 		var scoreRes scoreResult
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("created_at <= ?", endOfDay).
 			Select("COALESCE(AVG(score), 0) as avg_score").
 			Scan(&scoreRes)
 		point.Score = scoreRes.AvgScore
 
 		// New risks created this day
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 			Count(&point.NewRisks)
 
 		// Risks mitigated this day
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("status = ? AND updated_at >= ? AND updated_at < ?", "mitigated", startOfDay, endOfDay).
 			Count(&point.Mitigated)
 
@@ -163,8 +171,8 @@ type RiskSeverityDistribution struct {
 	Low      int64 `json:"low"`
 }
 
-// GetSeverityDistribution returns risk count by severity level
-func (s *DashboardDataService) GetSeverityDistribution(ctx context.Context) (*RiskSeverityDistribution, error) {
+// GetSeverityDistribution returns risk count by severity level (tenant-scoped)
+func (s *DashboardDataService) GetSeverityDistribution(ctx context.Context, tenantID uuid.UUID) (*RiskSeverityDistribution, error) {
 	dist := &RiskSeverityDistribution{}
 
 	// Map severity levels to counts
@@ -176,7 +184,7 @@ func (s *DashboardDataService) GetSeverityDistribution(ctx context.Context) (*Ri
 	}
 
 	for severity, countPtr := range severityLevels {
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("severity = ?", severity).
 			Count(countPtr)
 	}
@@ -192,23 +200,23 @@ type MitigationStatus struct {
 	Overdue    int64 `json:"overdue"`
 }
 
-// GetMitigationStatus returns mitigation count by status
-func (s *DashboardDataService) GetMitigationStatus(ctx context.Context) (*MitigationStatus, error) {
+// GetMitigationStatus returns mitigation count by status (tenant-scoped)
+func (s *DashboardDataService) GetMitigationStatus(ctx context.Context, tenantID uuid.UUID) (*MitigationStatus, error) {
 	status := &MitigationStatus{}
 
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status = ?", "completed").
 		Count(&status.Completed)
 
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status = ?", "in_progress").
 		Count(&status.InProgress)
 
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status = ?", "not_started").
 		Count(&status.NotStarted)
 
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("due_date < ? AND status != ?", time.Now(), "completed").
 		Count(&status.Overdue)
 
@@ -228,8 +236,8 @@ type TopRisk struct {
 	MitigationCount int64     `json:"mitigation_count"`
 }
 
-// GetTopRisks returns the top N risks by score
-func (s *DashboardDataService) GetTopRisks(ctx context.Context, limit int) ([]TopRisk, error) {
+// GetTopRisks returns the top N risks by score (tenant-scoped)
+func (s *DashboardDataService) GetTopRisks(ctx context.Context, tenantID uuid.UUID, limit int) ([]TopRisk, error) {
 	if limit <= 0 {
 		limit = 5
 	}
@@ -240,7 +248,7 @@ func (s *DashboardDataService) GetTopRisks(ctx context.Context, limit int) ([]To
 	var topRisks []TopRisk
 	var risks []domain.Risk
 
-	err := s.db.WithContext(ctx).
+	err := s.scoped(ctx, tenantID).
 		Preload("Team").
 		Order("score DESC").
 		Limit(limit).
@@ -270,8 +278,8 @@ func (s *DashboardDataService) GetTopRisks(ctx context.Context, limit int) ([]To
 			LastUpdated: risk.UpdatedAt,
 		}
 
-		// Count mitigations for this risk
-		s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+		// Count mitigations for this risk (risk already tenant-scoped above)
+		s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 			Where("risk_id = ?", risk.ID).
 			Count(&topRisk.MitigationCount)
 
@@ -307,8 +315,8 @@ type MitigationProgress struct {
 	DaysRemaining int       `json:"days_remaining"`
 }
 
-// GetMitigationProgress returns mitigations with progress tracking
-func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, limit int) ([]MitigationProgress, error) {
+// GetMitigationProgress returns mitigations with progress tracking (tenant-scoped)
+func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, tenantID uuid.UUID, limit int) ([]MitigationProgress, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -319,7 +327,7 @@ func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, limit 
 	var progressList []MitigationProgress
 	var mitigations []domain.Mitigation
 
-	err := s.db.WithContext(ctx).
+	err := s.scoped(ctx, tenantID).
 		Preload("Risk").
 		Order("due_date ASC").
 		Limit(limit).
@@ -378,8 +386,8 @@ type DashboardAnalytics struct {
 	GeneratedAt          time.Time                 `json:"generated_at"`
 }
 
-// GetCompleteDashboardData aggregates all dashboard data in one call
-func (s *DashboardDataService) GetCompleteDashboardData(ctx context.Context) (*DashboardAnalytics, error) {
+// GetCompleteDashboardData aggregates all dashboard data in one call (tenant-scoped)
+func (s *DashboardDataService) GetCompleteDashboardData(ctx context.Context, tenantID uuid.UUID) (*DashboardAnalytics, error) {
 	analytics := &DashboardAnalytics{
 		GeneratedAt: time.Now(),
 	}
@@ -388,27 +396,27 @@ func (s *DashboardDataService) GetCompleteDashboardData(ctx context.Context) (*D
 
 	// Get all data in parallel where possible
 	// For now, sequential for simplicity
-	if analytics.Metrics, err = s.GetDashboardMetrics(ctx); err != nil {
+	if analytics.Metrics, err = s.GetDashboardMetrics(ctx, tenantID); err != nil {
 		return nil, fmt.Errorf("failed to get metrics: %w", err)
 	}
 
-	if analytics.RiskTrends, err = s.GetRiskTrends(ctx); err != nil {
+	if analytics.RiskTrends, err = s.GetRiskTrends(ctx, tenantID); err != nil {
 		return nil, fmt.Errorf("failed to get risk trends: %w", err)
 	}
 
-	if analytics.SeverityDistribution, err = s.GetSeverityDistribution(ctx); err != nil {
+	if analytics.SeverityDistribution, err = s.GetSeverityDistribution(ctx, tenantID); err != nil {
 		return nil, fmt.Errorf("failed to get severity distribution: %w", err)
 	}
 
-	if analytics.MitigationStatus, err = s.GetMitigationStatus(ctx); err != nil {
+	if analytics.MitigationStatus, err = s.GetMitigationStatus(ctx, tenantID); err != nil {
 		return nil, fmt.Errorf("failed to get mitigation status: %w", err)
 	}
 
-	if analytics.TopRisks, err = s.GetTopRisks(ctx, 5); err != nil {
+	if analytics.TopRisks, err = s.GetTopRisks(ctx, tenantID, 5); err != nil {
 		return nil, fmt.Errorf("failed to get top risks: %w", err)
 	}
 
-	if analytics.MitigationProgress, err = s.GetMitigationProgress(ctx, 10); err != nil {
+	if analytics.MitigationProgress, err = s.GetMitigationProgress(ctx, tenantID, 10); err != nil {
 		return nil, fmt.Errorf("failed to get mitigation progress: %w", err)
 	}
 
@@ -417,8 +425,9 @@ func (s *DashboardDataService) GetCompleteDashboardData(ctx context.Context) (*D
 
 // GetMetrics returns metrics for export (stub for compatibility)
 func (s *DashboardDataService) GetMetrics(tenantID string, timeRange string) (map[string]interface{}, error) {
-	// Stub implementation for export service compatibility
-	metrics := s.db.Model(&domain.Risk{}).Where("owner = ?", tenantID)
+	// Stub implementation for export service compatibility.
+	// Scoped by tenant_id (not owner) to avoid cross-tenant aggregation.
+	metrics := s.db.Model(&domain.Risk{}).Where("tenant_id = ?", tenantID)
 	var count int64
 	metrics.Count(&count)
 

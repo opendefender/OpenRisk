@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"gorm.io/gorm"
 )
@@ -23,6 +24,13 @@ func NewAnalyticsService(db *gorm.DB) *AnalyticsService {
 	return &AnalyticsService{
 		db: db,
 	}
+}
+
+// scoped returns a fresh, tenant-scoped query builder. Every analytics query
+// MUST go through this helper so that no metric ever aggregates data across
+// tenants (project RULE #2: filter by tenant_id on every DB query).
+func (s *AnalyticsService) scoped(ctx context.Context, tenantID uuid.UUID) *gorm.DB {
+	return s.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 }
 
 // RiskMetrics represents aggregated risk metrics
@@ -40,23 +48,23 @@ type RiskMetrics struct {
 	UpdatedThisMonth int64            `json:"updated_this_month"`
 }
 
-// GetRiskMetrics returns aggregated risk metrics
-func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, error) {
+// GetRiskMetrics returns aggregated risk metrics for a single tenant
+func (s *AnalyticsService) GetRiskMetrics(ctx context.Context, tenantID uuid.UUID) (*RiskMetrics, error) {
 	metrics := &RiskMetrics{
 		RisksByFramework: make(map[string]int64),
 		RisksByStatus:    make(map[string]int64),
 	}
 
 	// Total risks
-	s.db.WithContext(ctx).Model(&domain.Risk{}).Count(&metrics.TotalRisks)
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).Count(&metrics.TotalRisks)
 
 	// Active risks
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("status = ?", "active").
 		Count(&metrics.ActiveRisks)
 
 	// Mitigated risks
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("status = ?", "mitigated").
 		Count(&metrics.MitigatedRisks)
 
@@ -65,19 +73,19 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 		Avg float64
 	}
 	var scoreRes scoreResult
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Select("AVG(score) as avg").
 		Scan(&scoreRes)
 	metrics.AverageScore = scoreRes.Avg
 
 	// Risks by level
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("level = ?", "high").
 		Count(&metrics.HighRisks)
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("level = ?", "medium").
 		Count(&metrics.MediumRisks)
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("level = ?", "low").
 		Count(&metrics.LowRisks)
 
@@ -87,7 +95,7 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 		Count     int64
 	}
 	var frameworks []frameworkResult
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Select("framework, COUNT(*) as count").
 		Group("framework").
 		Scan(&frameworks)
@@ -101,7 +109,7 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 		Count  int64
 	}
 	var statuses []statusResult
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Select("status, COUNT(*) as count").
 		Group("status").
 		Scan(&statuses)
@@ -112,12 +120,12 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context) (*RiskMetrics, er
 	// Created this month
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("created_at >= ?", monthStart).
 		Count(&metrics.CreatedThisMonth)
 
 	// Updated this month
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Where("updated_at >= ?", monthStart).
 		Count(&metrics.UpdatedThisMonth)
 
@@ -133,8 +141,8 @@ type RiskTrendPoint struct {
 	Mitigated int64     `json:"mitigated"`
 }
 
-// GetRiskTrends returns risk trends over time (last 30 days)
-func (s *AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskTrendPoint, error) {
+// GetRiskTrends returns risk trends over time (last N days) for a single tenant
+func (s *AnalyticsService) GetRiskTrends(ctx context.Context, tenantID uuid.UUID, days int) ([]RiskTrendPoint, error) {
 	var trends []RiskTrendPoint
 
 	// Generate daily data for last N days
@@ -149,7 +157,7 @@ func (s *AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskT
 		}
 
 		// Total risks as of this date
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("created_at <= ?", endOfDay).
 			Count(&point.Count)
 
@@ -158,19 +166,19 @@ func (s *AnalyticsService) GetRiskTrends(ctx context.Context, days int) ([]RiskT
 			Avg float64
 		}
 		var scoreRes scoreResult
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("created_at <= ?", endOfDay).
 			Select("AVG(score) as avg").
 			Scan(&scoreRes)
 		point.AvgScore = scoreRes.Avg
 
 		// New risks created on this day
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("created_at >= ? AND created_at < ?", startOfDay, endOfDay).
 			Count(&point.NewRisks)
 
 		// Mitigated on this day
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("status = ?", "mitigated").
 			Where("updated_at >= ? AND updated_at < ?", startOfDay, endOfDay).
 			Count(&point.Mitigated)
@@ -193,28 +201,28 @@ type MitigationMetrics struct {
 	MitigationsByRisk    map[string]int64 `json:"mitigations_by_risk"`
 }
 
-// GetMitigationMetrics returns mitigation analytics
-func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context) (*MitigationMetrics, error) {
+// GetMitigationMetrics returns mitigation analytics for a single tenant
+func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context, tenantID uuid.UUID) (*MitigationMetrics, error) {
 	metrics := &MitigationMetrics{
 		MitigationsByRisk: make(map[string]int64),
 	}
 
 	// Total mitigations
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).Count(&metrics.TotalMitigations)
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).Count(&metrics.TotalMitigations)
 
 	// Completed mitigations
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status = ?", "completed").
 		Count(&metrics.CompletedMitigations)
 
 	// Pending mitigations
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status IN ?", []string{"open", "in_progress"}).
 		Count(&metrics.PendingMitigations)
 
 	// Overdue mitigations
 	now := time.Now()
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status != ?", "completed").
 		Where("due_date < ?", now).
 		Count(&metrics.OverdueMitigations)
@@ -229,7 +237,7 @@ func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context) (*Mitigatio
 		AvgDays float64
 	}
 	var compRes completionResult
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status = ?", "completed").
 		Select("AVG(EXTRACT(DAY FROM (completed_at - created_at))) as avg_days").
 		Scan(&compRes)
@@ -241,7 +249,7 @@ func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context) (*Mitigatio
 		Count  int64
 	}
 	var riskMitigations []riskMitigationResult
-	s.db.WithContext(ctx).Model(&domain.Mitigation{}).
+	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Select("risk_id, COUNT(*) as count").
 		Group("risk_id").
 		Scan(&riskMitigations)
@@ -260,15 +268,15 @@ type FrameworkAnalytics struct {
 	AverageRiskScore     float64 `json:"average_risk_score"`
 }
 
-// GetFrameworkAnalytics returns compliance analytics by framework
-func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]FrameworkAnalytics, error) {
+// GetFrameworkAnalytics returns compliance analytics by framework for a single tenant
+func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context, tenantID uuid.UUID) ([]FrameworkAnalytics, error) {
 	var analytics []FrameworkAnalytics
 
 	type frameworkResult struct {
 		Framework string
 	}
 	var frameworks []frameworkResult
-	s.db.WithContext(ctx).Model(&domain.Risk{}).
+	s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 		Distinct("framework").
 		Scan(&frameworks)
 
@@ -276,7 +284,7 @@ func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]Framewo
 		analytic := FrameworkAnalytics{Framework: fw.Framework}
 
 		// Associated risks
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("framework = ?", fw.Framework).
 			Count(&analytic.AssociatedRisks)
 
@@ -285,7 +293,7 @@ func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context) ([]Framewo
 			Avg float64
 		}
 		var scoreRes scoreResult
-		s.db.WithContext(ctx).Model(&domain.Risk{}).
+		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
 			Where("framework = ?", fw.Framework).
 			Select("AVG(score) as avg").
 			Scan(&scoreRes)
@@ -306,32 +314,32 @@ type DashboardSnapshot struct {
 	Trends             []RiskTrendPoint     `json:"trends"`
 }
 
-// GetDashboardSnapshot returns a complete dashboard snapshot
-func (s *AnalyticsService) GetDashboardSnapshot(ctx context.Context) (*DashboardSnapshot, error) {
+// GetDashboardSnapshot returns a complete dashboard snapshot for a single tenant
+func (s *AnalyticsService) GetDashboardSnapshot(ctx context.Context, tenantID uuid.UUID) (*DashboardSnapshot, error) {
 	snapshot := &DashboardSnapshot{
 		Timestamp: time.Now(),
 	}
 
 	// Get all metrics
-	riskMetrics, err := s.GetRiskMetrics(ctx)
+	riskMetrics, err := s.GetRiskMetrics(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	snapshot.RiskMetrics = riskMetrics
 
-	mitigationMetrics, err := s.GetMitigationMetrics(ctx)
+	mitigationMetrics, err := s.GetMitigationMetrics(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	snapshot.MitigationMetrics = mitigationMetrics
 
-	frameworkAnalytics, err := s.GetFrameworkAnalytics(ctx)
+	frameworkAnalytics, err := s.GetFrameworkAnalytics(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	snapshot.FrameworkAnalytics = frameworkAnalytics
 
-	trends, err := s.GetRiskTrends(ctx, 30)
+	trends, err := s.GetRiskTrends(ctx, tenantID, 30)
 	if err != nil {
 		return nil, err
 	}

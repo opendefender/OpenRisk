@@ -394,10 +394,15 @@ func main() {
 	}))
 	app.Use(helmet.New()) // Sécurité headers (XSS, Content-Type, etc.)
 
-	// Configuration CORS Stricte pour la Prod, Permissive pour Dev
-	allowOrigins := "http://localhost:5173,http://localhost:3000"
-	if os.Getenv("APP_ENV") == "production" {
-		allowOrigins = "https://app.opendefender.io" // À changer selon ton domaine
+	// CORS: honour the CORS_ORIGINS env var (comma-separated allowlist) when set
+	// — this is what .env.example documents and what deployments need to point at
+	// their own domain without recompiling. Fall back to sane per-env defaults.
+	allowOrigins := os.Getenv("CORS_ORIGINS")
+	if allowOrigins == "" {
+		allowOrigins = "http://localhost:5173,http://localhost:3000"
+		if os.Getenv("APP_ENV") == "production" {
+			allowOrigins = "https://app.opendefender.io"
+		}
 	}
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: allowOrigins,
@@ -531,14 +536,24 @@ func main() {
 		})
 	})
 
+	// Brute-force protection on credential endpoints. Uses an in-memory sliding
+	// window (5 attempts / 15 min per IP). NOTE: this store is per-instance —
+	// for a horizontally-scaled deployment, back it with Redis (see audit report).
+	authLimiterStore := middleware.NewRateLimitStore()
+	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		MaxRequests: 5,
+		WindowSize:  15 * time.Minute,
+		Store:       authLimiterStore,
+	})
+
 	// Clean Architecture Auth Routes
-	api.Post("/auth/login", cleanAuthHandler.Login)
-	api.Post("/auth/register", cleanAuthHandler.Register)
+	api.Post("/auth/login", authRateLimit, cleanAuthHandler.Login)
+	api.Post("/auth/register", authRateLimit, cleanAuthHandler.Register)
 	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
 	api.Post("/auth/logout", cleanAuthHandler.Logout)
 
 	// Legacy Auth Routes (for backward compatibility)
-	api.Post("/auth/legacy/login", authHandler.Login)
+	api.Post("/auth/legacy/login", authRateLimit, authHandler.Login)
 	api.Post("/auth/legacy/refresh", authHandler.RefreshToken)
 
 	// --- OAuth2 Routes ---
