@@ -6,12 +6,52 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+// RateLimitBackend is the storage contract behind the rate limiter. Both the
+// in-memory RateLimitStore and the Redis-backed RedisRateLimitStore satisfy it,
+// so the middleware is agnostic to where counters live.
+type RateLimitBackend interface {
+	IsAllowed(key string, maxRequests int, windowSize time.Duration) bool
+}
+
+// redisRateLimiter is the minimal surface the Redis-backed store needs. Declared
+// structurally here so this package does not import the redis wrapper (keeps the
+// middleware decoupled and avoids an import cycle).
+type redisRateLimiter interface {
+	AllowRate(ctx context.Context, key string, maxRequests int, window time.Duration) (bool, error)
+}
+
+// RedisRateLimitStore backs the limiter with Redis so counters are shared across
+// every instance of a horizontally-scaled deployment. If Redis is unavailable it
+// degrades gracefully to a per-instance in-memory limiter (still some protection)
+// rather than failing open.
+type RedisRateLimitStore struct {
+	client   redisRateLimiter
+	fallback *RateLimitStore
+}
+
+// NewRedisRateLimitStore wraps a Redis client (anything exposing AllowRate).
+func NewRedisRateLimitStore(client redisRateLimiter) *RedisRateLimitStore {
+	return &RedisRateLimitStore{client: client, fallback: NewRateLimitStore()}
+}
+
+// IsAllowed consults Redis; on any Redis error it falls back to the local store.
+func (r *RedisRateLimitStore) IsAllowed(key string, maxRequests int, windowSize time.Duration) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	allowed, err := r.client.AllowRate(ctx, key, maxRequests, windowSize)
+	if err != nil {
+		return r.fallback.IsAllowed(key, maxRequests, windowSize)
+	}
+	return allowed
+}
 
 // RateLimitStore tracks requests per IP/user
 type RateLimitStore struct {
@@ -77,7 +117,7 @@ type RateLimitConfig struct {
 	WindowSize     time.Duration // Time window (e.g., 1 minute)
 	SkipSuccessful bool          // Don't count successful requests
 	LimitByUser    bool          // Limit by user ID instead of IP
-	Store          *RateLimitStore
+	Store          RateLimitBackend
 }
 
 // RateLimit creates a rate limit middleware

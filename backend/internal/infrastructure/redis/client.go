@@ -144,6 +144,27 @@ func (c *Client) Expire(ctx context.Context, key string, ttl time.Duration) erro
 	return nil
 }
 
+// AllowRate implémente un rate limiter à fenêtre fixe, sûr en multi-instance.
+// La fenêtre est « bucketisée » sur l'horloge murale pour que toutes les instances
+// s'accordent sur la même frontière. Renvoie true si la requête est dans la limite
+// pour la fenêtre courante ; le compteur expire automatiquement après la fenêtre.
+// INCR + EXPIRE sont pipelinés (un seul aller-retour, atomiques via TxPipeline).
+func (c *Client) AllowRate(ctx context.Context, key string, maxRequests int, window time.Duration) (bool, error) {
+	if window <= 0 {
+		window = time.Minute
+	}
+	bucket := time.Now().UnixNano() / int64(window)
+	rkey := fmt.Sprintf("ratelimit:%s:%d", key, bucket)
+
+	pipe := c.redis.TxPipeline()
+	incr := pipe.Incr(ctx, rkey)
+	pipe.Expire(ctx, rkey, window)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return false, fmt.Errorf("rate limit check failed for %s: %w", key, err)
+	}
+	return incr.Val() <= int64(maxRequests), nil
+}
+
 // Close ferme la connexion Redis.
 func (c *Client) Close() error {
 	return c.redis.Close()
