@@ -697,9 +697,15 @@ func main() {
 	mitigationCreate := middleware.RequirePermission("mitigations:create")
 	mitigationUpdate := middleware.RequirePermission("mitigations:update")
 	mitigationDelete := middleware.RequirePermission("mitigations:delete")
-	// Still used by Incidents/Risk-Management routes below — now fixed to read
-	// org_roles correctly (see middleware.RequireRole's doc comment).
-	writerRole := middleware.RequireRole("admin", "analyst")
+	// Incident write guards. These used to be RequireRole("admin","analyst"), but
+	// "analyst" is not a runtime org role (org roles are root/admin/user), so that
+	// gate was effectively admin-only and could never be granted to a business
+	// role. Switched to permission strings (the incidents:* family) so RSSI and
+	// Security Analyst business roles can declare/manage incidents while admin/root
+	// still pass via the "*" wildcard — consistent with risks/mitigations/compliance.
+	incidentCreate := middleware.RequirePermission("incidents:create")
+	incidentUpdate := middleware.RequirePermission("incidents:update")
+	incidentDelete := middleware.RequirePermission("incidents:delete")
 
 	protected.Get("/mitigations", mitigationRead, handlers.ListMitigations)
 	protected.Post("/risks/:id/mitigations", mitigationCreate, handlers.CreateMitigation)
@@ -1164,17 +1170,17 @@ func main() {
 	incidentService := service.NewIncidentService(database.DB)
 	incidentHandler := handlers.NewIncidentHandler(incidentService)
 	incidentsGroup := protected.Group("/incidents")
-	incidentsGroup.Post("", writerRole, incidentHandler.CreateIncident)
+	incidentsGroup.Post("", incidentCreate, incidentHandler.CreateIncident)
 	incidentsGroup.Get("/stats", incidentHandler.GetIncidentStats)
 	incidentsGroup.Get("", incidentHandler.ListIncidents)
 	incidentsGroup.Get("/:id", incidentHandler.GetIncident)
-	incidentsGroup.Put("/:id", writerRole, incidentHandler.UpdateIncident)
-	incidentsGroup.Delete("/:id", writerRole, incidentHandler.DeleteIncident)
+	incidentsGroup.Put("/:id", incidentUpdate, incidentHandler.UpdateIncident)
+	incidentsGroup.Delete("/:id", incidentDelete, incidentHandler.DeleteIncident)
 	incidentsGroup.Get("/:id/timeline", incidentHandler.GetIncidentTimeline)
-	incidentsGroup.Post("/:id/risks/:riskId", writerRole, incidentHandler.LinkRisk)
-	incidentsGroup.Post("/:id/actions", writerRole, incidentHandler.CreateIncidentAction)
+	incidentsGroup.Post("/:id/risks/:riskId", incidentUpdate, incidentHandler.LinkRisk)
+	incidentsGroup.Post("/:id/actions", incidentUpdate, incidentHandler.CreateIncidentAction)
 	incidentsGroup.Get("/:id/actions", incidentHandler.GetIncidentActions)
-	incidentsGroup.Put("/:id/actions/:actionId", writerRole, incidentHandler.UpdateIncidentAction)
+	incidentsGroup.Put("/:id/actions/:actionId", incidentUpdate, incidentHandler.UpdateIncidentAction)
 	protected.Get("/risks/:id/incidents", incidentHandler.GetIncidentsForRisk)
 
 	// NOTE: the legacy /risk-management/* lifecycle subsystem (service +
