@@ -531,14 +531,24 @@ func main() {
 		})
 	})
 
+	// Brute-force protection on credential endpoints. Uses an in-memory sliding
+	// window (5 attempts / 15 min per IP). NOTE: this store is per-instance —
+	// for a horizontally-scaled deployment, back it with Redis (see audit report).
+	authLimiterStore := middleware.NewRateLimitStore()
+	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		MaxRequests: 5,
+		WindowSize:  15 * time.Minute,
+		Store:       authLimiterStore,
+	})
+
 	// Clean Architecture Auth Routes
-	api.Post("/auth/login", cleanAuthHandler.Login)
-	api.Post("/auth/register", cleanAuthHandler.Register)
+	api.Post("/auth/login", authRateLimit, cleanAuthHandler.Login)
+	api.Post("/auth/register", authRateLimit, cleanAuthHandler.Register)
 	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
 	api.Post("/auth/logout", cleanAuthHandler.Logout)
 
 	// Legacy Auth Routes (for backward compatibility)
-	api.Post("/auth/legacy/login", authHandler.Login)
+	api.Post("/auth/legacy/login", authRateLimit, authHandler.Login)
 	api.Post("/auth/legacy/refresh", authHandler.RefreshToken)
 
 	// --- OAuth2 Routes ---
