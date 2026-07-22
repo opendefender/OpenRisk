@@ -20,6 +20,9 @@ import type {
   SubAction,
 } from '../types/mitigation';
 
+/** Backend lifecycle vocabulary (domain.MitigationStatus). */
+export type BoardStatus = 'PLANNED' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+
 export const mitigationService = {
   /**
    * List mitigations with filters and pagination
@@ -55,6 +58,16 @@ export const mitigationService = {
    */
   updateMitigation: async (id: string, payload: UpdateMitigationInput): Promise<Mitigation> => {
     const response = await api.patch<Mitigation>(`/mitigations/${id}`, payload);
+    return response.data;
+  },
+
+  /**
+   * Move a mitigation across its lifecycle (PLANNED → IN_PROGRESS → REVIEW → DONE).
+   * Backend status vocabulary (domain.MitigationStatus), which the board maps to
+   * its four columns.
+   */
+  setStatus: async (id: string, status: BoardStatus): Promise<Mitigation> => {
+    const response = await api.patch<Mitigation>(`/mitigations/${id}`, { status });
     return response.data;
   },
 

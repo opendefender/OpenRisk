@@ -21,12 +21,16 @@ export interface UiMiti {
   crit: Criticality;
   overdue: boolean;
   column: Column;
+  /** Raw backend status (domain.MitigationStatus) for the drawer's status control. */
+  rawStatus: string;
+  description?: string;
   /** Raw ISO dates for the Gantt view (may be undefined). */
   startISO?: string;
   dueISO?: string;
 }
 
-const COL: Record<string, Column> = { TODO: 'todo', IN_PROGRESS: 'progress', REVIEW: 'review', DONE: 'done' };
+// Backend uses PLANNED for a freshly-created plan (not TODO) — both land in "todo".
+const COL: Record<string, Column> = { PLANNED: 'todo', TODO: 'todo', IN_PROGRESS: 'progress', REVIEW: 'review', DONE: 'done' };
 const CRIT: Record<string, Criticality> = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
 
 function fmtDate(iso?: string): string {
@@ -36,7 +40,7 @@ function fmtDate(iso?: string): string {
 }
 
 export function mapMitigation(m: Mitigation): UiMiti {
-  const mm = m as Mitigation & { assignee?: string; risk_title?: string; created_at?: string };
+  const mm = m as Mitigation & { assignee?: string; risk_title?: string; created_at?: string; progress?: number };
   const column = COL[m.status] ?? 'todo';
   const overdue = column !== 'done' && !!m.due_date && new Date(m.due_date).getTime() < Date.now();
   return {
@@ -45,10 +49,13 @@ export function mapMitigation(m: Mitigation): UiMiti {
     risk: mm.risk_title || (m.risk_id ? `#${m.risk_id.slice(0, 8)}` : '—'),
     owner: initialsOf(mm.assignee),
     deadline: fmtDate(m.due_date),
-    progress: m.progress_percentage ?? 0,
+    // Backend serialises the field as `progress`; keep the legacy fallback.
+    progress: mm.progress ?? m.progress_percentage ?? 0,
     crit: CRIT[(m.priority ?? 'low').toLowerCase()] ?? 'low',
     overdue,
     column,
+    rawStatus: m.status,
+    description: m.description,
     startISO: mm.created_at,
     dueISO: m.due_date,
   };
