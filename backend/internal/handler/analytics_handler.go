@@ -11,10 +11,22 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
+
+// analyticsTenant resolves the caller's tenant (organization) id from the
+// request context. Returns uuid.Nil when the request is not tenant-scoped, in
+// which case the tenant-scoped queries below return no rows (fail-closed) — a
+// tenant must never see another tenant's aggregate metrics (RULE #2).
+func analyticsTenant(c *fiber.Ctx) uuid.UUID {
+	if mw := middleware.GetContext(c); mw != nil {
+		return mw.OrganizationID
+	}
+	return uuid.Nil
+}
 
 // AnalyticsHandler handles analytics endpoints
 type AnalyticsHandler struct {
@@ -39,7 +51,7 @@ func (h *AnalyticsHandler) GetRiskMetrics(c *fiber.Ctx) error {
 		})
 	}
 
-	metrics, err := h.analyticsService.GetRiskMetrics(c.Context())
+	metrics, err := h.analyticsService.GetRiskMetrics(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve risk metrics",
@@ -68,7 +80,7 @@ func (h *AnalyticsHandler) GetRiskTrends(c *fiber.Ctx) error {
 		}
 	}
 
-	trends, err := h.analyticsService.GetRiskTrends(c.Context(), days)
+	trends, err := h.analyticsService.GetRiskTrends(c.Context(), analyticsTenant(c), days)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve risk trends",
@@ -92,7 +104,7 @@ func (h *AnalyticsHandler) GetMitigationMetrics(c *fiber.Ctx) error {
 		})
 	}
 
-	metrics, err := h.analyticsService.GetMitigationMetrics(c.Context())
+	metrics, err := h.analyticsService.GetMitigationMetrics(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve mitigation metrics",
@@ -113,7 +125,7 @@ func (h *AnalyticsHandler) GetFrameworkAnalytics(c *fiber.Ctx) error {
 		})
 	}
 
-	analytics, err := h.analyticsService.GetFrameworkAnalytics(c.Context())
+	analytics, err := h.analyticsService.GetFrameworkAnalytics(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve framework analytics",
@@ -134,7 +146,7 @@ func (h *AnalyticsHandler) GetDashboardSnapshot(c *fiber.Ctx) error {
 		})
 	}
 
-	snapshot, err := h.analyticsService.GetDashboardSnapshot(c.Context())
+	snapshot, err := h.analyticsService.GetDashboardSnapshot(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve dashboard snapshot",
@@ -157,7 +169,7 @@ func (h *AnalyticsHandler) GetExportData(c *fiber.Ctx) error {
 
 	format := c.Query("format", "json")
 
-	snapshot, err := h.analyticsService.GetDashboardSnapshot(c.Context())
+	snapshot, err := h.analyticsService.GetDashboardSnapshot(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve data for export",

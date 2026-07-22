@@ -35,7 +35,7 @@ func (h *EnhancedDashboardHandler) GetDashboardMetrics(c *fiber.Ctx) error {
 		})
 	}
 
-	metrics, err := h.dashboardDataService.GetDashboardMetrics(c.Context())
+	metrics, err := h.dashboardDataService.GetDashboardMetrics(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve dashboard metrics",
@@ -55,7 +55,7 @@ func (h *EnhancedDashboardHandler) GetRiskTrends(c *fiber.Ctx) error {
 		})
 	}
 
-	trends, err := h.dashboardDataService.GetRiskTrends(c.Context())
+	trends, err := h.dashboardDataService.GetRiskTrends(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve risk trends",
@@ -77,7 +77,7 @@ func (h *EnhancedDashboardHandler) GetSeverityDistribution(c *fiber.Ctx) error {
 		})
 	}
 
-	distribution, err := h.dashboardDataService.GetSeverityDistribution(c.Context())
+	distribution, err := h.dashboardDataService.GetSeverityDistribution(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve severity distribution",
@@ -97,7 +97,7 @@ func (h *EnhancedDashboardHandler) GetMitigationStatus(c *fiber.Ctx) error {
 		})
 	}
 
-	status, err := h.dashboardDataService.GetMitigationStatus(c.Context())
+	status, err := h.dashboardDataService.GetMitigationStatus(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve mitigation status",
@@ -124,7 +124,7 @@ func (h *EnhancedDashboardHandler) GetTopRisks(c *fiber.Ctx) error {
 		}
 	}
 
-	risks, err := h.dashboardDataService.GetTopRisks(c.Context(), limit)
+	risks, err := h.dashboardDataService.GetTopRisks(c.Context(), analyticsTenant(c), limit)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve top risks",
@@ -154,7 +154,7 @@ func (h *EnhancedDashboardHandler) GetMitigationProgress(c *fiber.Ctx) error {
 		}
 	}
 
-	progress, err := h.dashboardDataService.GetMitigationProgress(c.Context(), limit)
+	progress, err := h.dashboardDataService.GetMitigationProgress(c.Context(), analyticsTenant(c), limit)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve mitigation progress",
@@ -177,7 +177,7 @@ func (h *EnhancedDashboardHandler) GetCompleteDashboard(c *fiber.Ctx) error {
 		})
 	}
 
-	analytics, err := h.dashboardDataService.GetCompleteDashboardData(c.Context())
+	analytics, err := h.dashboardDataService.GetCompleteDashboardData(c.Context(), analyticsTenant(c))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve complete dashboard data",
