@@ -28,9 +28,21 @@ type UpdateMitigationPlanInput struct {
 	PlanID      uuid.UUID
 	Title       *string
 	Description *string
+	Status      *domain.MitigationStatus
 	Priority    *domain.MitigationPriority
 	AssignedTo  *domain.UUIDArray
 	DueDate     *time.Time
+}
+
+// validMitigationStatus reports whether s is a known lifecycle status.
+func validMitigationStatus(s domain.MitigationStatus) bool {
+	switch s {
+	case domain.MitigationPlanned, domain.MitigationInProgress,
+		domain.MitigationReview, domain.MitigationDone, domain.MitigationCancelled:
+		return true
+	default:
+		return false
+	}
 }
 
 // Execute updates a mitigation plan
@@ -49,6 +61,19 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 	}
 	if input.Description != nil {
 		mitigation.Description = *input.Description
+	}
+	if input.Status != nil {
+		if !validMitigationStatus(*input.Status) {
+			return fmt.Errorf("invalid status: %s", *input.Status)
+		}
+		mitigation.Status = *input.Status
+		// Keep the coarse progress in sync with the terminal states so the board
+		// bar and the status agree (sub-actions still drive intermediate values).
+		if *input.Status == domain.MitigationDone {
+			mitigation.Progress = 100
+		} else if *input.Status == domain.MitigationPlanned {
+			mitigation.Progress = 0
+		}
 	}
 	if input.Priority != nil {
 		mitigation.Priority = *input.Priority

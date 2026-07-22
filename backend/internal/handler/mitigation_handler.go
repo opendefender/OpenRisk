@@ -204,6 +204,7 @@ func UpdateMitigation(c *fiber.Ctx) error {
 	payload := struct {
 		Title       *string  `json:"title"`
 		Description *string  `json:"description"`
+		Status      *string  `json:"status"`
 		Priority    *string  `json:"priority"`
 		AssignedTo  []string `json:"assigned_to"`
 		DueDate     *string  `json:"due_date"`
@@ -211,6 +212,12 @@ func UpdateMitigation(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
+	}
+
+	var status *domain.MitigationStatus
+	if payload.Status != nil {
+		s := domain.MitigationStatus(*payload.Status)
+		status = &s
 	}
 
 	// Convert assignedTo if provided
@@ -246,6 +253,7 @@ func UpdateMitigation(c *fiber.Ctx) error {
 		PlanID:      uuid.MustParse(planID),
 		Title:       payload.Title,
 		Description: payload.Description,
+		Status:      status,
 		Priority:    priority,
 		AssignedTo:  assignedTo,
 		DueDate:     dueDate,
