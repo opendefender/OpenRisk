@@ -34,6 +34,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
+	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	vulnapp "github.com/opendefender/openrisk/internal/application/vulnerability"
@@ -1319,6 +1320,21 @@ func main() {
 	rbacTenants.Delete("/:tenant_id", rbacTenantHandler.DeleteTenant)                 // Delete (owner only)
 	rbacTenants.Get("/:tenant_id/users", adminRole, rbacTenantHandler.GetTenantUsers) // List users
 	rbacTenants.Get("/:tenant_id/stats", rbacTenantHandler.GetTenantStats)            // Get stats
+
+	// Business Roles — the runtime RBAC that actually drives authorization.
+	// The catalog (permissions + presets) is readable by any authenticated member
+	// so the UI can render the matrix; listing members and assigning a business
+	// role are admin-gated. Operates on organization_members (the login-path model),
+	// tenant-scoped by GormMemberRBACRepository. The static /rbac/members/roles
+	// catalog path is a sibling of /rbac/members/:userId (no Fiber :param trap).
+	memberRBACRepo := repository.NewGormMemberRBACRepository(database.DB)
+	businessRoleHandler := handlers.NewBusinessRoleHandler(
+		apprbac.NewListMembersUseCase(memberRBACRepo),
+		apprbac.NewAssignBusinessRoleUseCase(memberRBACRepo),
+	)
+	protected.Get("/rbac/business-roles", businessRoleHandler.GetCatalog)
+	protected.Get("/rbac/members", adminRole, businessRoleHandler.ListMembers)
+	protected.Put("/rbac/members/:userId/business-role", adminRole, businessRoleHandler.AssignBusinessRole)
 
 	// =========================================================================
 	// 5.6 SCANNER ENGINE (cloud SDK scans + on-prem Agent, Redis preview)
