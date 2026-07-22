@@ -108,8 +108,14 @@ func SeedAdminUser() {
 
 		adminPassword := os.Getenv("INITIAL_ADMIN_PASSWORD")
 		if adminPassword == "" {
-			adminPassword = "admin123" // Fallback, log warning
-			log.Println("WARNING: INITIAL_ADMIN_PASSWORD not set, using default password 'admin123'")
+			// SECURITY (RC1): never seed a weak, publicly-known default password in a
+			// production deployment. Fail fast so the operator is forced to provision a
+			// strong INITIAL_ADMIN_PASSWORD. Dev keeps the convenient fallback.
+			if os.Getenv("APP_ENV") == "production" {
+				log.Fatal("FATAL: INITIAL_ADMIN_PASSWORD must be set to seed the initial admin in production — refusing to boot with a default password")
+			}
+			adminPassword = "admin123" // Dev-only fallback
+			log.Println("WARNING: INITIAL_ADMIN_PASSWORD not set, using default dev password 'admin123' (blocked in production)")
 		}
 
 		// Hash password using Argon2id (OWASP recommended)
