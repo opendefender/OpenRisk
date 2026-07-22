@@ -394,10 +394,15 @@ func main() {
 	}))
 	app.Use(helmet.New()) // Sécurité headers (XSS, Content-Type, etc.)
 
-	// Configuration CORS Stricte pour la Prod, Permissive pour Dev
-	allowOrigins := "http://localhost:5173,http://localhost:3000"
-	if os.Getenv("APP_ENV") == "production" {
-		allowOrigins = "https://app.opendefender.io" // À changer selon ton domaine
+	// CORS: honour the CORS_ORIGINS env var (comma-separated allowlist) when set
+	// — this is what .env.example documents and what deployments need to point at
+	// their own domain without recompiling. Fall back to sane per-env defaults.
+	allowOrigins := os.Getenv("CORS_ORIGINS")
+	if allowOrigins == "" {
+		allowOrigins = "http://localhost:5173,http://localhost:3000"
+		if os.Getenv("APP_ENV") == "production" {
+			allowOrigins = "https://app.opendefender.io"
+		}
 	}
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: allowOrigins,
