@@ -587,6 +587,29 @@ func main() {
 	api.Use(middleware.PATMiddleware(patService, resolveSession))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
 
+	// Governance audit trail (spec §15): stamp the acting identity + request
+	// metadata onto the request context for every authenticated route, so any
+	// repository that threads c.UserContext() into GORM lets the audittrail
+	// plugin attribute the mutation to the real user (the "Qui"). Additive and
+	// value-only — it never alters request handling.
+	protected.Use(func(c *fiber.Ctx) error {
+		if mw := middleware.GetContext(c); mw != nil {
+			var actorID *uuid.UUID
+			if mw.UserID != uuid.Nil {
+				id := mw.UserID
+				actorID = &id
+			}
+			c.SetUserContext(audittrailinfra.WithActor(c.UserContext(), audittrailinfra.Actor{
+				ID:        actorID,
+				TenantID:  mw.OrganizationID,
+				IPAddress: c.IP(),
+				UserAgent: c.Get("User-Agent"),
+				RequestID: c.Get("X-Request-ID"),
+			}))
+		}
+		return c.Next()
+	})
+
 	// --- MFA enrollment (L4) — full session required ---
 	protected.Post("/auth/mfa/setup", mfaHandler.Setup)
 	protected.Post("/auth/mfa/verify", mfaHandler.Verify)
