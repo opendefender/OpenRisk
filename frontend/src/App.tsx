@@ -3,7 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,39 +20,43 @@ import { CommandPalette } from './components/layout/CommandPalette';
 // which white-screened the whole app on a null risk_stats/matrix response.
 import { CreateRiskModal } from './features/risks/CreateRiskModal';
 
-// --- Imports des Pages & Features ---
+// --- Public auth screen stays eager (first paint / login path) ---
 import { AuthScreen } from './features/auth/AuthScreen';
-import { SettingsScreen } from './features/settings/SettingsScreen';
-import { DashboardPage } from './features/dashboard/DashboardPage';
-import { ImportRisksPage } from './features/risks/ImportRisksPage';
-import { RiskRegisterPage } from './features/risks/RiskRegisterPage';
-import { RiskWeightsSettings } from './features/risks/RiskWeightsSettings';
-import { VulnerabilitiesPage } from './features/vulnerabilities/VulnerabilitiesPage';
-import { MitigationsBoard } from './features/mitigations/MitigationsBoard';
-import { ComplianceScreen } from './features/compliance/ComplianceScreen';
-import { FrameworkDetail } from './features/compliance/FrameworkDetail';
-import { GapAnalysisPage } from './features/compliance/GapAnalysisPage';
-import { AuditsPage } from './features/compliance/AuditsPage';
-import { RemediationPage } from './features/compliance/RemediationPage';
-import { InventoryPage } from './features/assets/InventoryPage';
-import { AssetUniverse } from './features/universe/AssetUniverse';
-import { ExecutiveDashboard } from './features/analytics/ExecutiveDashboard';
-import { FinancialDashboard } from './features/financial/FinancialDashboard';
-import { AutomationPage } from './features/automation/AutomationPage';
-import { GovernancePage } from './features/governance/GovernancePage';
-import { RolesAccessPage } from './features/rbac/RolesAccessPage';
-import { LeaderboardPage } from './features/gamification/LeaderboardPage';
-import { WarRoom } from './features/incidents/WarRoom';
-import { IncidentsScreen } from './features/incidents/IncidentsScreen';
-import { ThreatIntel } from './features/cti/ThreatIntel';
-import { InfrastructurePage } from './features/infrastructure/InfrastructurePage';
-import { ScanPreviewPage } from './features/infrastructure/ScanPreviewPage';
-import { SimulationsPage } from './features/simulations/SimulationsPage';
-import { ReportsScreen } from './features/reports/ReportsScreen';
-import { AiAdvisor } from './features/ai/AiAdvisor';
-import { EmergingRisksPage } from './features/ai/EmergingRisksPage';
-import { BoardReportPage } from './features/reports/BoardReportPage';
-import RiskTimeline from './pages/RiskTimeline';
+
+// --- Feature pages are route-split with React.lazy so the initial bundle only
+//     carries the shell + auth; each screen's chunk loads on navigation. This
+//     cut the single ~1.5 MB bundle into per-route chunks. ---
+const SettingsScreen = lazy(() => import('./features/settings/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const ImportRisksPage = lazy(() => import('./features/risks/ImportRisksPage').then(m => ({ default: m.ImportRisksPage })));
+const RiskRegisterPage = lazy(() => import('./features/risks/RiskRegisterPage').then(m => ({ default: m.RiskRegisterPage })));
+const RiskWeightsSettings = lazy(() => import('./features/risks/RiskWeightsSettings').then(m => ({ default: m.RiskWeightsSettings })));
+const VulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/VulnerabilitiesPage').then(m => ({ default: m.VulnerabilitiesPage })));
+const MitigationsBoard = lazy(() => import('./features/mitigations/MitigationsBoard').then(m => ({ default: m.MitigationsBoard })));
+const ComplianceScreen = lazy(() => import('./features/compliance/ComplianceScreen').then(m => ({ default: m.ComplianceScreen })));
+const FrameworkDetail = lazy(() => import('./features/compliance/FrameworkDetail').then(m => ({ default: m.FrameworkDetail })));
+const GapAnalysisPage = lazy(() => import('./features/compliance/GapAnalysisPage').then(m => ({ default: m.GapAnalysisPage })));
+const AuditsPage = lazy(() => import('./features/compliance/AuditsPage').then(m => ({ default: m.AuditsPage })));
+const RemediationPage = lazy(() => import('./features/compliance/RemediationPage').then(m => ({ default: m.RemediationPage })));
+const InventoryPage = lazy(() => import('./features/assets/InventoryPage').then(m => ({ default: m.InventoryPage })));
+const AssetUniverse = lazy(() => import('./features/universe/AssetUniverse').then(m => ({ default: m.AssetUniverse })));
+const ExecutiveDashboard = lazy(() => import('./features/analytics/ExecutiveDashboard').then(m => ({ default: m.ExecutiveDashboard })));
+const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
+const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
+const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
+const RolesAccessPage = lazy(() => import('./features/rbac/RolesAccessPage').then(m => ({ default: m.RolesAccessPage })));
+const LeaderboardPage = lazy(() => import('./features/gamification/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
+const WarRoom = lazy(() => import('./features/incidents/WarRoom').then(m => ({ default: m.WarRoom })));
+const IncidentsScreen = lazy(() => import('./features/incidents/IncidentsScreen').then(m => ({ default: m.IncidentsScreen })));
+const ThreatIntel = lazy(() => import('./features/cti/ThreatIntel').then(m => ({ default: m.ThreatIntel })));
+const InfrastructurePage = lazy(() => import('./features/infrastructure/InfrastructurePage').then(m => ({ default: m.InfrastructurePage })));
+const ScanPreviewPage = lazy(() => import('./features/infrastructure/ScanPreviewPage').then(m => ({ default: m.ScanPreviewPage })));
+const SimulationsPage = lazy(() => import('./features/simulations/SimulationsPage').then(m => ({ default: m.SimulationsPage })));
+const ReportsScreen = lazy(() => import('./features/reports/ReportsScreen').then(m => ({ default: m.ReportsScreen })));
+const AiAdvisor = lazy(() => import('./features/ai/AiAdvisor').then(m => ({ default: m.AiAdvisor })));
+const EmergingRisksPage = lazy(() => import('./features/ai/EmergingRisksPage').then(m => ({ default: m.EmergingRisksPage })));
+const BoardReportPage = lazy(() => import('./features/reports/BoardReportPage').then(m => ({ default: m.BoardReportPage })));
+const RiskTimeline = lazy(() => import('./pages/RiskTimeline'));
 
 /**
  * COMPOSANT 1: PROTECTION DE ROUTE
@@ -109,7 +113,9 @@ const DashboardLayout = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0" style={{ background: 'var(--bg-primary)' }}>
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main className="flex-1 overflow-hidden relative flex flex-col">
-          <AnimatedOutlet />
+          <Suspense fallback={<RouteFallback />}>
+            <AnimatedOutlet />
+          </Suspense>
         </main>
       </div>
 
@@ -123,6 +129,23 @@ const DashboardLayout = () => {
     </div>
   );
 };
+
+/**
+ * Fallback shown while a route's lazy chunk is being fetched. Kept minimal and
+ * theme-aware — route chunks are small so this is only visible briefly.
+ */
+function RouteFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div
+        className="h-8 w-8 rounded-full animate-spin"
+        style={{ border: '3px solid var(--border-subtle)', borderTopColor: 'var(--accent, #2e6be6)' }}
+        role="status"
+        aria-label="Chargement…"
+      />
+    </div>
+  );
+}
 
 /**
  * COMPOSANT PRINCIPAL : APP ROUTER
