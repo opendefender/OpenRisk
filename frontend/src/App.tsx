@@ -40,6 +40,7 @@ import { ExecutiveDashboard } from './features/analytics/ExecutiveDashboard';
 import { FinancialDashboard } from './features/financial/FinancialDashboard';
 import { AutomationPage } from './features/automation/AutomationPage';
 import { GovernancePage } from './features/governance/GovernancePage';
+import { RolesAccessPage } from './features/rbac/RolesAccessPage';
 import { LeaderboardPage } from './features/gamification/LeaderboardPage';
 import { WarRoom } from './features/incidents/WarRoom';
 import { IncidentsScreen } from './features/incidents/IncidentsScreen';
@@ -171,6 +172,7 @@ function App() {
           <Route path="recommendations" element={<AiAdvisor />} />
           <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
           <Route path="governance" element={<GovernancePage />} />
+          <Route path="settings/roles" element={<RolesAccessPage />} />
           <Route path="settings" element={<SettingsScreen />} />
 
           {/* Admin features consolidated into Settings — old routes redirect there

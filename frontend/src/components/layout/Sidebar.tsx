@@ -10,8 +10,9 @@ import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { NAV_GROUPS, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
+import { visibleNavGroups, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -26,6 +27,20 @@ function initials(name?: string, fallback = 'AD'): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || fallback;
 }
 
+// Human-readable role label: the GRC business role (RSSI, Risk Manager, …) when
+// set, otherwise the org role (Administrator / Member).
+const BUSINESS_ROLE_LABELS: Record<string, string> = {
+  rssi: 'RSSI / CISO', dsi: 'DSI / CIO', risk_manager: 'Risk Manager', auditor: 'Auditeur',
+  compliance_officer: 'Responsable conformité', internal_control: 'Contrôle interne',
+  asset_owner: "Propriétaire d'actif", risk_owner: 'Propriétaire de risque',
+  security_analyst: 'Analyste sécurité', executive: 'Direction', viewer: 'Lecteur',
+};
+function roleLabel(user?: { role?: string; business_role?: string } | null): string {
+  if (user?.business_role && BUSINESS_ROLE_LABELS[user.business_role]) return BUSINESS_ROLE_LABELS[user.business_role];
+  if (user?.role === 'admin' || user?.role === 'root') return 'Administrateur';
+  return user?.role ? user.role : 'Membre';
+}
+
 export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleCollapse = useUIStore((s) => s.toggleSidebar);
@@ -36,7 +51,17 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const { pathname } = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Role-aware navigation: only surface screens the member can actually reach
+  // (same permission gates the API enforces), so each business role sees a menu
+  // coherent with its job.
+  const navGroups = useMemo(
+    () => visibleNavGroups(can, isAdmin()),
+    // `can`/`isAdmin` are stable per permission set (memoized in usePermissions).
+    [can, isAdmin]
+  );
 
   const handleLogout = () => {
     setMenuOpen(false);
@@ -199,7 +224,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">
-            {NAV_GROUPS.map((group) => (
+            {navGroups.map((group) => (
               <div key={group.groupKey} className="mb-4">
                 {!collapsed && (
                   <div className="text-[10px] tracking-[0.09em] uppercase text-ink-muted font-semibold px-3 pb-[7px]">
@@ -281,7 +306,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     <div className="text-[12px] font-semibold leading-tight text-ink truncate">
                       {user?.full_name || user?.username || 'Admin'}
                     </div>
-                    <div className="text-[10.5px] text-ink-soft truncate">{user?.role || L.ciso}</div>
+                    <div className="text-[10.5px] text-ink-soft truncate">{roleLabel(user)}</div>
                   </div>
                 )}
               </button>

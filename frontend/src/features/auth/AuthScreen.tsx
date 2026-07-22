@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Lock, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { landingForBusinessRole } from '../../shared/navModel';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { OpenRiskLogo } from '../../shared/Logo';
@@ -130,7 +131,10 @@ function LoginForm({ onRegister, onMfa }: { onRegister: () => void; onMfa: () =>
     try {
       await login(email, password);
       toast.success('Welcome back to OpenRisk');
-      navigate('/');
+      // Land each GRC business role on a screen relevant to its job (mirrors the
+      // backend default landing); admins/root land on the main dashboard.
+      const businessRole = useAuthStore.getState().user?.business_role;
+      navigate(landingForBusinessRole(businessRole));
     } catch {
       toast.error('Incorrect email or password. Please check and try again.');
     } finally {

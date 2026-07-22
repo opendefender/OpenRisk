@@ -10,7 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, Sun, Moon, Languages, Search, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
-import { NAV_GROUPS } from '../../shared/navModel';
+import { visibleNavGroups } from '../../shared/navModel';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface CmdItem {
   label: string;
@@ -33,6 +34,7 @@ export const CommandPalette = () => {
   const lang = useUIStore((s) => s.lang);
   const L = useUIStrings();
   const navigate = useNavigate();
+  const { can, isAdmin } = usePermissions();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +61,7 @@ export const CommandPalette = () => {
 
   const groups: CmdGroup[] = useMemo(() => {
     const close = () => setOpen(false);
-    const nav: CmdItem[] = NAV_GROUPS.flatMap((g) =>
+    const nav: CmdItem[] = visibleNavGroups(can, isAdmin()).flatMap((g) =>
       g.items.map((it) => ({
         label: L[it.labelKey],
         icon: it.icon,
@@ -89,7 +91,7 @@ export const CommandPalette = () => {
       { label: lang === 'fr' ? 'Navigation' : 'Navigation', items: flt(nav) },
       { label: lang === 'fr' ? 'Actions rapides' : 'Quick actions', items: flt(actions) },
     ].filter((g) => g.items.length > 0);
-  }, [L, query, navigate, setOpen, theme, lang, toggleTheme, toggleLang]);
+  }, [L, query, navigate, setOpen, theme, lang, toggleTheme, toggleLang, can, isAdmin]);
 
   if (!open) return null;
 
