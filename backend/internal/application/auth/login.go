@@ -32,6 +32,10 @@ type LoginOutput struct {
 	Organization *domain.Organization
 	MFARequired  bool
 	MFAToken     string
+	// BusinessRole is the member's GRC job-role preset (rssi/dsi/…), surfaced so
+	// the frontend can pick a role-appropriate landing screen. Empty for
+	// root/admin members.
+	BusinessRole domain.BusinessRoleKey
 }
 
 // LoginUseCase handles user authentication
@@ -100,6 +104,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	// Get user roles and permissions for the organization
 	orgRoles := make(map[uuid.UUID]string)
 	permissions := []string{}
+	var businessRole domain.BusinessRoleKey
 
 	member, err := uc.userRepo.GetOrganizationMember(ctx, user.ID, org.ID)
 	if err != nil {
@@ -107,7 +112,10 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	}
 	if member != nil {
 		orgRoles[org.ID] = string(member.Role)
-		permissions = member.GetPermissionSet().GetAllPermissions()
+		// EffectivePermissions unifies root/admin wildcard, the business-role
+		// preset, and any legacy profile rules (see domain.OrganizationMember).
+		permissions = member.EffectivePermissions()
+		businessRole = member.BusinessRole
 	}
 
 	// L4 — MFA enforcement. If the user has a verified MFA secret, do NOT issue a
@@ -158,6 +166,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		User:         user,
 		TokenPair:    tokenPair,
 		Organization: org,
+		BusinessRole: businessRole,
 	}, nil
 }
 

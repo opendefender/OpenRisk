@@ -460,7 +460,10 @@ func main() {
 		}
 		if member != nil {
 			sc.OrgRoles[org.ID] = string(member.Role)
-			sc.Permissions = member.GetPermissionSet().GetAllPermissions()
+			// EffectivePermissions unifies the admin wildcard, the business-role
+			// preset, and any legacy profile rules — so a business-role user keeps
+			// its permissions across a token refresh (same path as login).
+			sc.Permissions = member.EffectivePermissions()
 		}
 		return sc, nil
 	}

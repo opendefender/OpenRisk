@@ -29,14 +29,19 @@ type OrganizationMember struct {
 	UserID         uuid.UUID     `gorm:"index" json:"user_id"`
 	User           *User         `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Role           MemberRole    `gorm:"not null" json:"role"`
-	ProfileID      *uuid.UUID    `gorm:"type:uuid;index" json:"profile_id,omitempty"` // For role='user' only
-	Profile        *Profile      `gorm:"foreignKey:ProfileID" json:"profile,omitempty"`
-	IsActive       bool          `gorm:"default:true;index" json:"is_active"`
-	JoinedAt       time.Time     `gorm:"autoCreateTime" json:"joined_at"`
-	InvitedByID    *uuid.UUID    `gorm:"type:uuid" json:"invited_by_id,omitempty"`
-	InvitedBy      *User         `gorm:"foreignKey:InvitedByID" json:"invited_by,omitempty"`
-	CreatedAt      time.Time     `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time     `gorm:"autoUpdateTime" json:"updated_at"`
+	// BusinessRole is the GRC job-role preset (rssi, dsi, risk_manager, …) that
+	// grants a role='user' member a coherent, least-privilege permission set at
+	// login. Empty for root/admin (they get the "*" wildcard) or for legacy
+	// profile-driven users. See business_roles.go.
+	BusinessRole BusinessRoleKey `gorm:"type:varchar(64);index" json:"business_role,omitempty"`
+	ProfileID    *uuid.UUID      `gorm:"type:uuid;index" json:"profile_id,omitempty"` // For role='user' only
+	Profile      *Profile        `gorm:"foreignKey:ProfileID" json:"profile,omitempty"`
+	IsActive     bool            `gorm:"default:true;index" json:"is_active"`
+	JoinedAt     time.Time       `gorm:"autoCreateTime" json:"joined_at"`
+	InvitedByID  *uuid.UUID      `gorm:"type:uuid" json:"invited_by_id,omitempty"`
+	InvitedBy    *User           `gorm:"foreignKey:InvitedByID" json:"invited_by,omitempty"`
+	CreatedAt    time.Time       `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt    time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName specifies the table name for OrganizationMember
@@ -138,6 +143,40 @@ func (pat *PersonalAccessToken) UpdateLastUsed() {
 	now := time.Now()
 	pat.LastUsedAt = &now
 	pat.UpdatedAt = now
+}
+
+// EffectivePermissions is the single source of truth for the permission strings
+// embedded into a member's JWT at login (and re-derived on refresh). It unifies
+// the three ways a member can gain access:
+//   - root/admin  → the "*" wildcard (full access);
+//   - a business role (rssi/dsi/…) → its least-privilege preset;
+//   - a legacy Profile → its fine-grained resource:action rules.
+//
+// A user may carry both a business role and a profile — the result is their
+// union, deduplicated. Empty for a plain 'user' with neither.
+func (m *OrganizationMember) EffectivePermissions() []string {
+	if m.IsAdmin() { // root or admin
+		return []string{"*"}
+	}
+
+	set := make(map[string]struct{})
+	// Business-role preset.
+	if m.BusinessRole != "" {
+		for _, p := range BusinessRolePermissions(m.BusinessRole) {
+			set[p] = struct{}{}
+		}
+	}
+	// Legacy profile rules (nil-safe: GetPermissionSet returns an empty set when
+	// no profile is attached).
+	for _, p := range m.GetPermissionSet().GetAllPermissions() {
+		set[p] = struct{}{}
+	}
+
+	out := make([]string, 0, len(set))
+	for p := range set {
+		out = append(out, p)
+	}
+	return out
 }
 
 // GetPermissionSet returns the PermissionSet for this organization member

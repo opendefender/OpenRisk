@@ -62,6 +62,9 @@ type LoginResponse struct {
 	User         *domain.User         `json:"user"`
 	TokenPair    *coreauth.TokenPair  `json:"token_pair"`
 	Organization *domain.Organization `json:"organization"`
+	// BusinessRole is the member's GRC job-role preset (rssi/dsi/…) or "" for
+	// root/admin. The frontend uses it to choose a role-appropriate landing.
+	BusinessRole domain.BusinessRoleKey `json:"business_role,omitempty"`
 }
 
 // Login godoc
@@ -134,6 +137,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		User:         result.User,
 		TokenPair:    result.TokenPair,
 		Organization: result.Organization,
+		BusinessRole: result.BusinessRole,
 	})
 }
 
