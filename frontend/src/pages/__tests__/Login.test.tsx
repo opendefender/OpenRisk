@@ -175,7 +175,12 @@ describe('Login Page', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Invalid credentials');
+      // The product intentionally maps any login failure to a friendly,
+      // non-enumerable message (does not reveal whether email or password was
+      // wrong) — see Login.tsx / userFriendlyErrors.ts. Assert that copy.
+      expect(toast.error).toHaveBeenCalledWith(
+        'Incorrect email or password. Please check and try again.'
+      );
     });
   });
 
