@@ -27,11 +27,12 @@ import (
 	appai "github.com/opendefender/openrisk/internal/application/ai"
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/application/auth"
+	appauto "github.com/opendefender/openrisk/internal/application/automation"
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
+	"github.com/opendefender/openrisk/internal/application/governance"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
-	appauto "github.com/opendefender/openrisk/internal/application/automation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
@@ -41,6 +42,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
+	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
@@ -232,6 +234,13 @@ func main() {
 		&domain.AutomationExecution{},
 		&domain.SLATracker{},
 		&domain.AutomationChannelConfig{},
+		// Governance (spec §15 « Gouvernance »): the immutable audit trail
+		// (append-only who/what/when/before→after), time-boxed delegations, and
+		// the configurable Maker-Checker approval engine (workflows + requests).
+		&domain.AuditEvent{},
+		&domain.Delegation{},
+		&domain.ApprovalWorkflow{},
+		&domain.ApprovalRequest{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -240,6 +249,16 @@ func main() {
 	// Must run after AutoMigrate: these SQL migrations add indices/tables/FKs on top of
 	// the base tables (users, organizations, risks, ...) that AutoMigrate creates first.
 	migrations.RunMigrations()
+
+	// Governance audit trail (spec §15): install the GORM plugin AFTER the tables
+	// exist. From here on, every struct-form mutation of an Auditable model
+	// (Asset, ComplianceControl, …) is journaled automatically into audit_events —
+	// developers can't forget to log. Best-effort: a failure never blocks a write.
+	if err := database.DB.Use(audittrailinfra.New(database.DB)); err != nil {
+		log.Printf("audit trail: failed to install GORM plugin: %v", err)
+	} else {
+		log.Println("Governance: immutable audit-trail plugin installed")
+	}
 
 	// Création du compte Admin par défaut si la DB est vide
 	// Cela garantit que l'app est utilisable immédiatement après déploiement.
@@ -1524,6 +1543,66 @@ func main() {
 	slaMonitor := workers.NewSLAMonitor(automationSLAService, zeroLogger)
 	go slaMonitor.Start(context.Background())
 	log.Println("Automation: SOAR engine + SLA monitor started (triggers: vulnerability.detected, risk.score_updated)")
+
+	// =========================================================================
+	// 5.10 GOVERNANCE (spec §15 « Gouvernance »)
+	// =========================================================================
+	// One GORM store backs the four governance aggregates. Audit reads/writes and
+	// email resolution reuse the existing tenant-scoped user repo. Writes are
+	// guarded by role (audit trail + workflow config = admin; delegations +
+	// approval decisions = any authenticated member — the use cases enforce
+	// four-eyes and role-eligibility internally).
+	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
+	delegationRepo := repository.NewGormDelegationRepository(database.DB)
+	approvalRepo := repository.NewGormApprovalRepository(database.DB)
+	governanceRecorder := governance.NewAuditRecorder(auditEventRepo)
+
+	governanceHandler := handlers.NewGovernanceHandler(handlers.GovernanceDeps{
+		ListAudit: governance.NewListAuditEventsUseCase(auditEventRepo).WithUserLookup(userRepo),
+		Recorder:  governanceRecorder,
+
+		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo),
+		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo),
+		RevokeDelegation: governance.NewRevokeDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder),
+		EffectivePerms:   governance.NewResolveEffectivePermissionsUseCase(delegationRepo),
+
+		CreateWorkflow: governance.NewCreateWorkflowUseCase(approvalRepo),
+		ListWorkflows:  governance.NewListWorkflowsUseCase(approvalRepo),
+		UpdateWorkflow: governance.NewUpdateWorkflowUseCase(approvalRepo),
+		DeleteWorkflow: governance.NewDeleteWorkflowUseCase(approvalRepo),
+
+		SubmitApproval: governance.NewSubmitApprovalRequestUseCase(approvalRepo, approvalRepo).WithRecorder(governanceRecorder),
+		DecideApproval: governance.NewDecideApprovalStepUseCase(approvalRepo).WithRecorder(governanceRecorder),
+		CancelApproval: governance.NewCancelApprovalRequestUseCase(approvalRepo),
+		ListApprovals:  governance.NewListApprovalRequestsUseCase(approvalRepo).WithUserLookup(userRepo),
+		GetRequest:     approvalRepo,
+	})
+
+	governanceAdmin := middleware.RequireRole("admin", "root")
+
+	// Audit trail — admin only (matches /audit-logs). Static export path first.
+	protected.Get("/governance/audit-events/export", governanceAdmin, governanceHandler.ExportAuditEvents)
+	protected.Get("/governance/audit-events", governanceAdmin, governanceHandler.ListAuditEvents)
+
+	// Delegations — any authenticated member manages their own; static paths first.
+	protected.Get("/governance/delegations/effective", governanceHandler.EffectiveDelegatedPermissions)
+	protected.Get("/governance/delegations", governanceHandler.ListDelegations)
+	protected.Post("/governance/delegations", governanceHandler.CreateDelegation)
+	protected.Post("/governance/delegations/:id/revoke", governanceHandler.RevokeDelegation)
+
+	// Approval workflows (config) — admin only.
+	protected.Get("/governance/workflows", governanceHandler.ListWorkflows)
+	protected.Post("/governance/workflows", governanceAdmin, governanceHandler.CreateWorkflow)
+	protected.Put("/governance/workflows/:id", governanceAdmin, governanceHandler.UpdateWorkflow)
+	protected.Delete("/governance/workflows/:id", governanceAdmin, governanceHandler.DeleteWorkflow)
+
+	// Approval requests (the Maker-Checker inbox) — any authenticated member.
+	protected.Get("/governance/approvals", governanceHandler.ListApprovals)
+	protected.Post("/governance/approvals", governanceHandler.SubmitApproval)
+	protected.Get("/governance/approvals/:id", governanceHandler.GetApproval)
+	protected.Post("/governance/approvals/:id/decide", governanceHandler.DecideApproval)
+	protected.Post("/governance/approvals/:id/cancel", governanceHandler.CancelApproval)
+	log.Println("Governance: audit trail + delegations + approval workflows mounted (/governance/*)")
 
 	// =========================================================================
 	// 6. GRACEFUL SHUTDOWN (Kubernetes Ready)
