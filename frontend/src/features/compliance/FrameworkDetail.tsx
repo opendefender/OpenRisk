@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Framework detail (opened from the Compliance grid): the framework's real controls
 // with reference code, source citation and an editable status. Header carries the

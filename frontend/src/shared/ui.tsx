@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Reusable design-system primitives for the dc.html reskin — the React
 // equivalents of the prototype's card()/pageHeader()/btn()/chip()/badge()/

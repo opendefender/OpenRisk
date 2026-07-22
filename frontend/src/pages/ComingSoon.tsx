@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Graceful placeholder for design-language screens whose backend isn't built yet
 // (Leaderboard, Infrastructure, Simulations, Asset Universe). Keeps the shell from

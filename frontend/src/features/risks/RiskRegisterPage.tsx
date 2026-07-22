@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Risk Register (OpenRisk.dc.html §6.3) — wired to the real /risks store. Criticality
 // chips, a filter/search bar, a dense table with multi-select + floating bulk bar

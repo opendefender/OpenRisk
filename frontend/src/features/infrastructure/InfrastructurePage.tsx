@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Infrastructure — the live scan engine console. Provider cards (AWS/Azure/GCP/
 // On-Premise), scan configurations, connected on-prem Agents, and recent scans

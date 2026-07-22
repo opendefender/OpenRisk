@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // ⌘K / Ctrl+K command palette (OpenRisk.dc.html §8). Glass overlay, autofocused
 // input, grouped Navigation + Quick actions filtered as you type. Esc / backdrop

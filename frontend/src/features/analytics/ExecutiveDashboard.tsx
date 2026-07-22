@@ -1,6 +1,6 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
-// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
+// SPDX-License-Identifier: AGPL-3.0-only
+// This program is free software: you can redistribute it and/or modify it under
 //
 // Executive dashboard (spec §11 « Tableau de bord exécutif ») — a board-level view
 // of the whole security posture: a cyber-score grade, financial exposure, key risk

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Signature Dashboard (OpenRisk.dc.html §6.2). Score hero gauge + count-up KPIs,
 // 5×5 probability×impact heatmap, risk-trend sparklines, recent activity and the

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // IA Advisor (spec §12.3 — Assistant en langage naturel). A centered conversational
 // UI wired to the LIVE backend (/ai/assistant/query): the assistant answers over the

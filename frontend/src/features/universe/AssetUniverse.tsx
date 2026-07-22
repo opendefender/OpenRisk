@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Asset Universe — the dependency cartography ("cartographie des dépendances
 // entre actifs"). A force-directed graph on a raw <canvas> with an IN-HOUSE

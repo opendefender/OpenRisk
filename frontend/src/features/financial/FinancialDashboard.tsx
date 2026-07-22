@@ -1,6 +1,6 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
-// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
+// SPDX-License-Identifier: AGPL-3.0-only
+// This program is free software: you can redistribute it and/or modify it under
 //
 // Financial Risk Quantification dashboard (spec §9) — a CFO/CISO view of the
 // tenant's cyber exposure in money: portfolio ALE, worst-case, remediation

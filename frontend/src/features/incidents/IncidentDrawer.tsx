@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Incident detail / edit drawer — slides in when a register row is clicked.
 // View and modify the incident (title, description, severity, status, assignee,

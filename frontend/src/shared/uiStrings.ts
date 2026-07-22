@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Flat FR/EN dictionary for the redesigned app shell + screens, ported verbatim
 // from the OpenRisk design handoff (OpenRisk.dc.html §10). Kept separate from the

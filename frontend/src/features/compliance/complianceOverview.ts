@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Combined compliance overview (frameworks + per-framework progress in one query)
 // shaped for the dc.html Compliance screen. Complements the per-framework hooks in

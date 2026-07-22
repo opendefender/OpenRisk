@@ -1,7 +1,7 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
-// This Source Code Form is subject to the terms of the Business Source License, Version 1.1.
-// If a copy of the BUSL was not distributed with this file, You can obtain one at https://mariadb.com/bsl11/
+// SPDX-License-Identifier: AGPL-3.0-only
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 // Package crq is OpenRisk's Cyber Risk Quantification engine. It turns a risk's
 // qualitative posture (or explicit loss inputs) into a monetary figure in both

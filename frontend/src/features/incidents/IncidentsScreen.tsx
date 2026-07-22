@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Incidents register (routed at /incidents) — the real, backend-wired incident
 // hub: KPI header (from /incidents/stats), status filter chips, a table with

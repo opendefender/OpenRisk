@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Create / edit an automation rule: trigger + conditions + an ordered action
 // chain + an optional SLA policy. This is the visual workflow builder for §10.

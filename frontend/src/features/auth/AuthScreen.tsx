@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Auth (OpenRisk.dc.html §6.1): split-screen 45/55 — animated orbit + Schneier
 // quote on the left, Login / Register / MFA forms on the right. The Login form is

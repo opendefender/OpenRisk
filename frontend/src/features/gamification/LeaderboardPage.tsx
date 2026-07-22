@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Risk Champions Leaderboard (OpenRisk.dc.html §6.8): animated top-3 podium
 // (crowned #1 centre-raised), a ranks 4→N table and a "your position" card.

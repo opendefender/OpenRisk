@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Settings (OpenRisk.dc.html §6.16) — the consolidation point for every admin
 // feature. Internal nav + tabs: General, Members (real /users), RBAC, API Tokens

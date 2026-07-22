@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Simulations — Risk Digital Twin (OpenRisk.dc.html §6.7): impact gauge + blast
 // radius chain, AI-suggested scenarios, run history, and the "propagating…"

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Typed client for the incident register (/incidents). Hand-written (like the
 // mitigations service) — incidents aren't in the generated OpenAPI client. The

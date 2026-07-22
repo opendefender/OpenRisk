@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Typed client for the Security Automation / SOAR module (/automation/*).
 // Shapes mirror backend/internal/domain/automation.go. Rules bind a trigger to

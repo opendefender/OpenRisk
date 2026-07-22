@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Typed client for the GRC AI assistant (/ai/*). Shapes mirror
 // backend/pkg/ai/assistant.go and internal/application/ai. Every endpoint is

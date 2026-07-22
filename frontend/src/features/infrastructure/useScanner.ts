@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // React Query hooks for the scan engine. The jobs query self-polls while any
 // scan is in flight (queued/claimed/running) so the UI reflects agent pushes
