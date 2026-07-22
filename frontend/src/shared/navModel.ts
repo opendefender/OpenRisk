@@ -9,7 +9,7 @@
 import {
   LayoutDashboard, TrendingUp, Trophy, ShieldAlert, ShieldCheck, Siren, Server,
   ClipboardCheck, Globe, Cpu, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
-  Workflow,
+  Workflow, Scale,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -75,7 +75,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     groupKey: 'g_admin',
-    items: [{ key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' }],
+    items: [
+      { key: 'governance', labelKey: 'n_governance', icon: Scale, path: '/governance' },
+      { key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' },
+    ],
   },
 ];
 
