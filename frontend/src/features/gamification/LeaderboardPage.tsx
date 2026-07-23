@@ -6,9 +6,11 @@
 
 import { useState } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageFrame, PageHeader, Chip, Card, Avatar, PreviewBadge } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
+import { UpsellLock } from '../../shared/UpsellLock';
 
 interface Person { name: string; init: string; dept: string; pts: number; badges: string[]; trend: number; streak: number }
 
@@ -49,6 +51,13 @@ export function LeaderboardPage() {
       />
       <div className="text-[13.5px] text-ink-soft -mt-2 mb-1.5">{L.lbSub}</div>
 
+      <UpsellLock
+        moment={tr('Premium', 'Premium')}
+        title={tr('Motivez vos équipes avec la gamification', 'Rally your teams with gamification')}
+        description={tr('Classement des Champions du risque, badges et défis d’équipe — passez au plan supérieur pour engager toute l’organisation.', 'Risk Champions leaderboard, badges and team challenges — upgrade to engage the whole organisation.')}
+        ctaLabel={tr('Passer au plan supérieur', 'Upgrade plan')}
+        onUpgrade={() => toast(tr('Facturation — bientôt disponible', 'Billing — coming soon'))}
+      >
       {/* podium */}
       <div className="flex items-end justify-center gap-[18px] pt-5 pb-[30px]">
         {podiumOrder.map((p, i) => (
@@ -133,6 +142,7 @@ export function LeaderboardPage() {
         </div>
         <div className="text-[26px]">👑</div>
       </div>
+      </UpsellLock>
     </PageFrame>
   );
 }
