@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	// "github.com/golang-jwt/jwt/v5"
 	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -158,7 +159,23 @@ func SeedAdminUser() {
 	}
 }
 
-// GetUsers retrieves all users (admin only)
+// userInTenant reports whether the target user is a member of the caller's
+// organization. domain.User is many-to-many with organizations via
+// OrganizationMember, so the legacy /users management endpoints must scope every
+// action to the caller's tenant — an admin may only see/modify/delete users who
+// share their tenant (RULE #2), never every user in the deployment.
+func userInTenant(userID, tenantID uuid.UUID) bool {
+	if tenantID == uuid.Nil {
+		return false
+	}
+	var count int64
+	database.DB.Model(&domain.OrganizationMember{}).
+		Where("organization_id = ? AND user_id = ?", tenantID, userID).
+		Count(&count)
+	return count > 0
+}
+
+// GetUsers retrieves the users in the caller's tenant (admin only)
 func GetUsers(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
@@ -170,8 +187,16 @@ func GetUsers(c *fiber.Ctx) error {
 	// RBAC-managed users whose legacy Role FK is nil (e.g. the seeded root admin) — that
 	// nil-pointer dereference was the source of the 500 on GET /users.
 
+	// Scope to the caller's organization: the list previously returned EVERY user
+	// in the deployment across all tenants.
+	tenantID := safeGetUUID(c, "tenant_id")
+	var memberIDs []uuid.UUID
+	database.DB.Model(&domain.OrganizationMember{}).
+		Where("organization_id = ?", tenantID).
+		Pluck("user_id", &memberIDs)
+
 	var users []domain.User
-	if err := database.DB.Preload("Role").Find(&users).Error; err != nil {
+	if err := database.DB.Preload("Role").Where("id IN ?", memberIDs).Find(&users).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve users"})
 	}
 
@@ -228,6 +253,11 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 
 	var targetUser domain.User
 	if err := database.DB.First(&targetUser, "id = ?", userID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// The target must belong to the caller's tenant.
+	if !userInTenant(targetUser.ID, safeGetUUID(c, "tenant_id")) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -294,7 +324,15 @@ func UpdateUserRole(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	oldRole := targetUser.Role.Name
+	// The target must belong to the caller's tenant.
+	if !userInTenant(targetUser.ID, safeGetUUID(c, "tenant_id")) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	oldRole := ""
+	if targetUser.Role != nil {
+		oldRole = targetUser.Role.Name
+	}
 	targetUser.RoleID = role.ID
 	if err := database.DB.Save(&targetUser).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user role"})
@@ -336,6 +374,11 @@ func DeleteUser(c *fiber.Ctx) error {
 	// Get the target user to pass to audit log
 	var targetUser domain.User
 	if err := database.DB.First(&targetUser, "id = ?", userID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// The target must belong to the caller's tenant.
+	if !userInTenant(targetUser.ID, safeGetUUID(c, "tenant_id")) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -416,6 +459,17 @@ func CreateUser(c *fiber.Ctx) error {
 
 	if err := database.DB.Create(&newUser).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
+	}
+
+	// Attach the new user to the caller's organization so it belongs to this
+	// tenant (and is visible to /users, which is now org-scoped) rather than
+	// floating globally with no membership.
+	if tenantID := safeGetUUID(c, "tenant_id"); tenantID != uuid.Nil {
+		_ = database.DB.Create(&domain.OrganizationMember{
+			OrganizationID: tenantID,
+			UserID:         newUser.ID,
+			Role:           domain.RoleUser,
+		}).Error
 	}
 
 	// Log the action
