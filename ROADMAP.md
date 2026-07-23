@@ -286,12 +286,15 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   patrimoine* · *Anticiper les menaces* · *Prouver la conformité* · *Décider & rapporter* · *Administration*).
   `NavItem.pinned` + `NavGroup.core` + `pinnedItems()`, clés i18n `g_*` refondées, en-tête core accentué.
   Action première (« Nouveau risque ») déjà épinglée, `soon`→ComingSoon (CTA, pas de dead-end). `tsc`/`vite` verts.
-- [~] **UX-1 — Universal Search ⌘K** (`feature/ux-universal-search`) — **pilote live ✅ 2026-07-23** :
-  endpoint `GET /search?q=` tenant-scoped + **RBAC par source** (une source n'est cherchée que si le
-  demandeur a sa permission) + best-effort (nil-safe), sur **3 entités cœur** (risques/actifs/vulns) ;
-  palette ⌘K étendue en vraie recherche d'entités (groupe « Résultats » débounced, chips de sévérité,
-  navigation). **Preuve live** : `q=log` → risque Log4j + actif `log4j-app-01` + 4 vulns, HTTP 200.
-  **Reste (propagation)** : deep-open `?focus=<id>` sur les pages cibles + entités contrôles/audits/rapports/CVE/users.
+- [x] **UX-1 — Universal Search ⌘K** ✅ 2026-07-23 (`feature/ux-universal-search`) — endpoint
+  `GET /search?q=` tenant-scoped + **RBAC par source** (une source n'est cherchée que si le demandeur a
+  sa permission) + best-effort (nil-safe), sur **les 8 entités de la spec** : risques · actifs · vulns ·
+  **contrôles · audits · rapports · CVE · utilisateurs** (users admin-only, CVE = threat-intel global).
+  Palette ⌘K = vraie recherche d'entités (groupe « Résultats » débouncé 180 ms, icône par type, chip de
+  sévérité). **Deep-open `?focus=<id>`** câblé sur risques/actifs/vulns (hook `useFocusParam`). **Preuves
+  live** : `q=admin` → risque + 2 contrôles + 6 CVE + user `System Administrator` ; `q=log` → risque +
+  actif + 4 vulns + 6 contrôles ; **capture headless** `/risks?focus=<id>` → drawer Log4j ouvert directement.
+  7 tests use-case verts, `go vet`/`tsc`/`vite` verts.
 - [ ] **UX-2 — Dashboards intelligents par rôle** (`feature/ux-role-dashboards`) — jeu de widgets adapté au
   rôle métier (RSSI = top risques/exposition · Analyste = vulns · Auditeur = contrôles · Direction = coûts/KPI),
   sur les business roles existants. Directive §1.

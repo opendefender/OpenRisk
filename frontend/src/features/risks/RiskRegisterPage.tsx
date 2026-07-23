@@ -20,6 +20,7 @@ import type { Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
+import { useFocusParam } from '../../shared/useFocusParam';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { mapRisk, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
@@ -75,6 +76,15 @@ export function RiskRegisterPage() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
+
+  // Deep-link from universal search (/risks?focus=<id>) → open that risk's drawer.
+  const { focusId, clearFocus } = useFocusParam();
+  useEffect(() => {
+    if (focusId) {
+      setDrawerId(focusId);
+      clearFocus();
+    }
+  }, [focusId, clearFocus]);
 
   useEffect(() => { fetchRisks().catch(() => {}); }, [fetchRisks]);
 

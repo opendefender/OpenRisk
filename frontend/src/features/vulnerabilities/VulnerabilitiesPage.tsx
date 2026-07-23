@@ -8,7 +8,7 @@
 // stats, filters, a detail drawer (status lifecycle + prioritisation breakdown),
 // an ingest modal and a connectors panel.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Bug, Search, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
@@ -17,6 +17,7 @@ import {
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useFocusParam } from '../../shared/useFocusParam';
 import { useVulnerabilities, useVulnStats, useVulnMutations } from './useVulnerabilities';
 import type { Vulnerability, VulnStatus, VulnQueryParams } from './vulnerabilityService';
 import { SEVERITY_META, STATUS_META, STATUS_ORDER, TIER_META, SOURCE_LABEL, pick } from './vulnMeta';
@@ -37,6 +38,15 @@ export function VulnerabilitiesPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [ingestOpen, setIngestOpen] = useState(false);
+
+  // Deep-link from universal search (/vulnerabilities?focus=<id>) → open its drawer.
+  const { focusId, clearFocus } = useFocusParam();
+  useEffect(() => {
+    if (focusId) {
+      setDrawerId(focusId);
+      clearFocus();
+    }
+  }, [focusId, clearFocus]);
   const [connectorsOpen, setConnectorsOpen] = useState(false);
 
   const params: VulnQueryParams = useMemo(() => {
