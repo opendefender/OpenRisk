@@ -46,9 +46,13 @@ func (h *RiskTimelineHandler) GetRiskTimeline(c *fiber.Ctx) error {
 		offset = o
 	}
 
-	// Get timeline with pagination
-	timeline, total, err := h.service.GetRiskTimelineWithPagination(riskID, limit, offset)
+	// Get timeline with pagination (tenant-scoped: a risk from another tenant 404s)
+	tenantID := safeGetUUID(c, "tenant_id")
+	timeline, total, err := h.service.GetRiskTimelineWithPagination(tenantID, riskID, limit, offset)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Risk not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -73,8 +77,12 @@ func (h *RiskTimelineHandler) GetStatusChanges(c *fiber.Ctx) error {
 		})
 	}
 
-	changes, err := h.service.GetStatusChanges(riskID)
+	tenantID := safeGetUUID(c, "tenant_id")
+	changes, err := h.service.GetStatusChanges(tenantID, riskID)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Risk not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -96,8 +104,12 @@ func (h *RiskTimelineHandler) GetScoreChanges(c *fiber.Ctx) error {
 		})
 	}
 
-	changes, err := h.service.GetScoreChanges(riskID)
+	tenantID := safeGetUUID(c, "tenant_id")
+	changes, err := h.service.GetScoreChanges(tenantID, riskID)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Risk not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -119,8 +131,12 @@ func (h *RiskTimelineHandler) GetRiskTrend(c *fiber.Ctx) error {
 		})
 	}
 
-	trend, err := h.service.ComputeRiskTrend(riskID)
+	tenantID := safeGetUUID(c, "tenant_id")
+	trend, err := h.service.ComputeRiskTrend(tenantID, riskID)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Risk not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -146,8 +162,12 @@ func (h *RiskTimelineHandler) GetChangesByType(c *fiber.Ctx) error {
 		})
 	}
 
-	changes, err := h.service.GetRiskChangesByType(riskID, changeType)
+	tenantID := safeGetUUID(c, "tenant_id")
+	changes, err := h.service.GetRiskChangesByType(tenantID, riskID, changeType)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Risk not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -168,8 +188,12 @@ func (h *RiskTimelineHandler) GetRecentActivity(c *fiber.Ctx) error {
 		limit = l
 	}
 
-	activity, err := h.service.GetRecentChanges(limit)
+	tenantID := safeGetUUID(c, "tenant_id")
+	activity, err := h.service.GetRecentChanges(tenantID, limit)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.JSON(fiber.Map{"activity": []any{}, "count": 0, "limit": limit})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -199,8 +223,12 @@ func (h *RiskTimelineHandler) GetChangesSince(c *fiber.Ctx) error {
 		})
 	}
 
-	changes, err := h.service.GetChangesSince(riskID, since)
+	tenantID := safeGetUUID(c, "tenant_id")
+	changes, err := h.service.GetChangesSince(tenantID, riskID, since)
 	if err != nil {
+		if service.IsNotFound(err) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Risk not found"})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
