@@ -273,6 +273,41 @@ Aucune n'est mergée dans `master`. **Demander avant tout merge/PR.**
 
 ## 4. PROCHAINES PRIORITÉS (ordonnées par valeur × dépendances)
 
+**Bloc UX — REFONTE UX STRATÉGIQUE (sprint courant, 2026-07-23)** — *transformer OpenRisk en outil
+intuitif et centré utilisateur : prise en main immédiate, zéro charge cognitive, zéro dead-end.*
+Focus produit défini : **LE registre des risques et sa réduction** (identifier → scorer → traiter →
+prouver) est la fonctionnalité-cœur ; tout le reste (actifs, vulns, conformité, IA, dashboards) orbite
+autour. **Aha! moment** = « je crée/importe mon premier risque et je vois immédiatement son exposition
+financière + un plan de traitement suggéré ». Une branche par phase, commits atomiques, doc + test à chaque étape.
+
+- [x] **UX-0 — Socle : architecture de l'information & navigation par intentions** ✅ 2026-07-23
+  (`feature/ux-information-architecture`) — sidebar regroupée en **7 espaces par intention** (⭐ *Maîtriser
+  les risques* en tête et accentué · *Piloter la posture* avec Dashboard épinglé · *Cartographier le
+  patrimoine* · *Anticiper les menaces* · *Prouver la conformité* · *Décider & rapporter* · *Administration*).
+  `NavItem.pinned` + `NavGroup.core` + `pinnedItems()`, clés i18n `g_*` refondées, en-tête core accentué.
+  Action première (« Nouveau risque ») déjà épinglée, `soon`→ComingSoon (CTA, pas de dead-end). `tsc`/`vite` verts.
+- [ ] **UX-1 — Universal Search ⌘K** (`feature/ux-universal-search`) — endpoint `/search?q=` tenant-scoped
+  (risques, actifs, CVE, contrôles, audits, rapports, utilisateurs) + palette ⌘K étendue en vraie recherche
+  d'entités. Directive §1.
+- [ ] **UX-2 — Dashboards intelligents par rôle** (`feature/ux-role-dashboards`) — jeu de widgets adapté au
+  rôle métier (RSSI = top risques/exposition · Analyste = vulns · Auditeur = contrôles · Direction = coûts/KPI),
+  sur les business roles existants. Directive §1.
+- [ ] **UX-3 — Psychologie des interactions** (`feature/ux-inline-edit-autosave`) — édition fantôme (inline)
+  sur les champs simples, autosave + suppression des boutons « Enregistrer » inutiles, feedback visuel
+  systématique (toasts succès/échec), gestion de l'attente (anticipation/progression). Directives §3 + §4 (soft delete).
+- [ ] **UX-4 — Actions critiques & erreurs** (`feature/ux-critical-actions`) — radiographie d'impact avant
+  action lourde (+ alternatives dans la modale), soft-delete + toast « Annuler », messages d'erreur avec
+  solution, empty states qui donnent envie d'agir. Directives §4 + frictions utiles §3.
+- [ ] **UX-5 — Onboarding & Aha moment** (`feature/ux-onboarding-aha`) — inscription minimale, onboarding
+  *par l'action* vers le premier risque, aide contextuelle (pas de product tour), personnalisation
+  post-victoire (logo/thème/couleurs), déclencheurs Fogg. Directive §2.
+- [ ] **UX-6 — Notifications, rétention & upsell** (`feature/ux-notifications-upsell`) — catégories de
+  notifications (Sécurité/Conformité/Tâches/Collaboration/Facturation) + préférences fines, timing/relances,
+  upsell doux (aperçu flou + 3 moments de conversion). Directive §5.
+- [ ] **UX-7 — Ergonomie & accessibilité (passe finale)** (`feature/ux-a11y-responsive`) — raccourcis clavier
+  des actions fréquentes, audit responsive de tous les écrans, hiérarchie visuelle, balayage anti-dead-end.
+  Directive §6.
+
 **Bloc A — Solidifier les fondations (avant d'empiler des features)**
 1. **Prouver live l'Auth complète (Module 2)** : MFA, OAuth2, SAML2, refresh-token, switch-org. Corriger
    `TestSetupMFA_Success`/`TestRiskCRUDFlow`. Tant que non prouvé → 🟡.
@@ -333,3 +368,4 @@ session, commencer par « Lis [fichier] et explique-moi le problème avant de pr
 
 **Discipline branche/doc** : une branche par feature ; à chaque fin de module, commit + mise à jour de
 `ROADMAP.md` et `CLAUDE.md`. Vérifier chaque page **live** avant de la déclarer faite.
+continue
