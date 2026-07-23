@@ -15,6 +15,7 @@ import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState, softF
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { relTime } from '../risks/riskMap';
+import { useSoftDelete } from '../../shared/useSoftDelete';
 import { useIncidents, useIncidentStats } from './useIncidents';
 import { IncidentDrawer } from './IncidentDrawer';
 import { SEV, STATUS, STATUSES, SEVERITIES, TYPES, sevMeta, statusMeta } from './incidentMeta';
@@ -45,10 +46,15 @@ export function IncidentsScreen() {
     );
   };
 
-  const remove = (inc: Incident) => {
-    if (!window.confirm(tr(`Supprimer l’incident « ${inc.title} » ?`, `Delete incident "${inc.title}"?`))) return;
-    deleteIncident.mutate(inc.id, { onError: () => toast.error(tr('Suppression échouée', 'Delete failed')) });
-  };
+  // Soft delete: hide the row immediately + Undo toast; the API delete defers.
+  // (Incident ids are numeric; the hook keys on strings.)
+  const { pending, remove: softDeleteIncident } = useSoftDelete<Incident>({
+    idOf: (inc) => String(inc.id),
+    onCommit: (id) => deleteIncident.mutateAsync(Number(id)),
+    message: (inc, lang) => (lang === 'fr' ? `Incident « ${inc.title} » supprimé` : `Incident "${inc.title}" deleted`),
+  });
+  const visibleIncidents = incidents.filter((inc) => !pending.has(String(inc.id)));
+  const remove = (inc: Incident) => softDeleteIncident(inc);
 
   const exportCsv = async () => {
     setExporting(true);
@@ -135,7 +141,7 @@ export function IncidentsScreen() {
                 </tr>
               </thead>
               <tbody>
-                {incidents.map((inc, i) => (
+                {visibleIncidents.map((inc, i) => (
                   <tr
                     key={inc.id}
                     onClick={() => setSelected(inc)}
