@@ -552,9 +552,10 @@ func main() {
 	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
 	api.Post("/auth/logout", cleanAuthHandler.Logout)
 
-	// Legacy Auth Routes (for backward compatibility)
-	api.Post("/auth/legacy/login", authRateLimit, authHandler.Login)
-	api.Post("/auth/legacy/refresh", authHandler.RefreshToken)
+	// NOTE: the legacy HS256 login/refresh routes (/auth/legacy/*) were removed for
+	// RC1. They minted HS256 sessions signed with JWT_SECRET that the RS256 gate
+	// rejected anyway (dead but dangerous surface). /auth/login (RS256) is the sole
+	// session-issuing path. The legacy handler is retained only for /users/me below.
 
 	// --- OAuth2 Routes ---
 	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
@@ -1103,7 +1104,7 @@ func main() {
 	protected.Post("/ai/audits/:id/report", aiComplianceRead, aiHandler.GenerateAuditReport)
 	protected.Post("/ai/evidence/:id/analyze", aiComplianceRead, aiHandler.AnalyzeEvidence)
 
-	api.Get("/users/me", authHandler.GetProfile)
+	// (/users/me is already registered once above — duplicate registration removed for RC1.)
 	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
 	api.Get("/stats/risk-distribution", cacheableHandlers.CacheDashboardStatsGET(handlers.GetRiskDistribution))
 	api.Get("/stats/mitigation-metrics", cacheableHandlers.CacheDashboardStatsGET(handlers.GetMitigationMetrics))
