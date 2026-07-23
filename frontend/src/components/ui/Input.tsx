@@ -3,7 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { type InputHTMLAttributes, forwardRef } from 'react';
+import { type InputHTMLAttributes, forwardRef, useId } from 'react';
 import { cn } from './Button';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -12,15 +12,20 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, ...props }, ref) => {
+  ({ className, label, error, id, ...props }, ref) => {
+    // Associate the label with the input (htmlFor/id) so screen readers and
+    // getByLabelText resolve the field. Honour a caller-supplied id if present.
+    const autoId = useId();
+    const inputId = id ?? autoId;
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+          <label htmlFor={inputId} className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
             {label}
           </label>
         )}
         <input
+          id={inputId}
           ref={ref}
           className={cn(
             'flex h-10 w-full rounded-lg border border-border bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600',

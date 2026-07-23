@@ -27,7 +27,8 @@ describe('EditRiskModal', () => {
 
   it('renders existing risk and updates', async () => {
     const onClose = vi.fn();
-    const risk = { id: '1', title: 'Old', description: 'Old desc', impact: 2, probability: 2, tags: [] };
+    // description must satisfy the form's Zod min(10) so submit is not blocked.
+    const risk = { id: '1', title: 'Old title', description: 'Old description text', impact: 2, probability: 2, tags: [] };
     render(<EditRiskModal isOpen={true} onClose={onClose} risk={risk} />);
 
     const title = screen.getByLabelText(/Titre/i);

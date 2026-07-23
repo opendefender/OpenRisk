@@ -52,6 +52,7 @@ type BulkOperation struct {
 	ErrorCount   int    `json:"error_count"`
 
 	// Metadata
+	TenantID      uuid.UUID  `gorm:"type:uuid;index" json:"tenant_id"` // Owning tenant — every resource query is scoped to it (RULE #2)
 	CreatedBy     uuid.UUID  `gorm:"index" json:"created_by"`
 	CreatedAt     time.Time  `json:"created_at"`
 	StartedAt     *time.Time `json:"started_at,omitempty"`

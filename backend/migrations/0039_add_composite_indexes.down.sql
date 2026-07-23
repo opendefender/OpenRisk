@@ -1,0 +1,11 @@
+DROP INDEX IF EXISTS idx_risks_tenant_status;
+DROP INDEX IF EXISTS idx_risks_tenant_criticality;
+DROP INDEX IF EXISTS idx_vulns_tenant_status;
+DROP INDEX IF EXISTS idx_vulns_tenant_priority;
+DROP INDEX IF EXISTS idx_assets_tenant_type;
+DROP INDEX IF EXISTS idx_controls_tenant_framework;
+DROP INDEX IF EXISTS idx_controls_tenant_status;
+DROP INDEX IF EXISTS idx_incidents_tenant_status;
+DROP INDEX IF EXISTS idx_mitigations_tenant_status;
+DROP INDEX IF EXISTS idx_mitigations_tenant_risk;
+DROP INDEX IF EXISTS idx_audit_events_tenant_created;

@@ -536,10 +536,11 @@ func main() {
 		})
 	})
 
-	// Brute-force protection on credential endpoints. Uses an in-memory sliding
-	// window (5 attempts / 15 min per IP). NOTE: this store is per-instance —
-	// for a horizontally-scaled deployment, back it with Redis (see audit report).
-	authLimiterStore := middleware.NewRateLimitStore()
+	// Brute-force protection on credential endpoints (5 attempts / 15 min per IP).
+	// Backed by Redis so the counter is shared across every instance of a
+	// horizontally-scaled deployment; degrades gracefully to a per-instance
+	// in-memory limiter if Redis is unreachable.
+	authLimiterStore := middleware.NewRedisRateLimitStore(redisClientInstance)
 	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
 		MaxRequests: 5,
 		WindowSize:  15 * time.Minute,

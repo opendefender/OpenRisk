@@ -6,12 +6,57 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+// fakeRedis drives AllowRate deterministically without a real Redis.
+type fakeRedis struct {
+	allow bool
+	err   error
+	calls int
+}
+
+func (f *fakeRedis) AllowRate(_ context.Context, _ string, _ int, _ time.Duration) (bool, error) {
+	f.calls++
+	return f.allow, f.err
+}
+
+func TestRedisStore_UsesRedisResult(t *testing.T) {
+	fr := &fakeRedis{allow: true}
+	s := NewRedisRateLimitStore(fr)
+	if !s.IsAllowed("k", 5, time.Minute) {
+		t.Fatal("should allow when redis says allow")
+	}
+	fr.allow = false
+	if s.IsAllowed("k", 5, time.Minute) {
+		t.Fatal("should block when redis says block")
+	}
+	if fr.calls != 2 {
+		t.Fatalf("expected redis consulted twice, got %d", fr.calls)
+	}
+}
+
+func TestRedisStore_FallsBackOnError(t *testing.T) {
+	// Redis errors → fall back to the per-instance in-memory limiter, which must
+	// still enforce the limit (graceful degradation, not fail-open forever).
+	fr := &fakeRedis{err: errors.New("redis down")}
+	s := NewRedisRateLimitStore(fr)
+	window := time.Minute
+	for i := 0; i < 2; i++ {
+		if !s.IsAllowed("ip", 2, window) {
+			t.Fatalf("fallback request %d should be allowed", i+1)
+		}
+	}
+	if s.IsAllowed("ip", 2, window) {
+		t.Fatal("fallback must still block once the in-memory limit is exceeded")
+	}
+}
 
 func TestRateLimitStore_IsAllowed(t *testing.T) {
 	store := &RateLimitStore{

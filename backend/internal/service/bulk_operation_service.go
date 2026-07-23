@@ -31,8 +31,9 @@ func NewBulkOperationService() *BulkOperationService {
 	}
 }
 
-// CreateBulkOperation creates a new bulk operation job
-func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain.CreateBulkOperationRequest) (*domain.BulkOperation, error) {
+// CreateBulkOperation creates a new bulk operation job. Every resource query is
+// scoped to tenantID so a user can never delete/update/export/assign across tenants.
+func (s *BulkOperationService) CreateBulkOperation(userID, tenantID uuid.UUID, req *domain.CreateBulkOperationRequest) (*domain.BulkOperation, error) {
 	// Validate operation type
 	switch req.OperationType {
 	case domain.BulkOperationTypeUpdate, domain.BulkOperationTypeDelete,
@@ -42,9 +43,9 @@ func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain
 		return nil, fmt.Errorf("invalid operation type: %s", req.OperationType)
 	}
 
-	// Count matching resources
+	// Count matching resources (tenant-scoped)
 	count := int64(0)
-	if err := s.countResourcesByFilter(&count, req.FilterQuery); err != nil {
+	if err := s.countResourcesByFilter(&count, tenantID, req.FilterQuery); err != nil {
 		return nil, fmt.Errorf("failed to count resources: %w", err)
 	}
 
@@ -57,6 +58,7 @@ func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain
 		ResourceCount: int(count),
 		UpdateData:    req.UpdateData,
 		ExportFormat:  req.ExportFormat,
+		TenantID:      tenantID,
 		CreatedBy:     userID,
 		CreatedAt:     time.Now(),
 	}
@@ -71,19 +73,20 @@ func (s *BulkOperationService) CreateBulkOperation(userID uuid.UUID, req *domain
 	return op, nil
 }
 
-// GetBulkOperation retrieves a bulk operation by ID
-func (s *BulkOperationService) GetBulkOperation(opID uuid.UUID) (*domain.BulkOperation, error) {
+// GetBulkOperation retrieves a bulk operation by ID, scoped to the tenant so a
+// user cannot read another tenant's operation by guessing its UUID.
+func (s *BulkOperationService) GetBulkOperation(opID, tenantID uuid.UUID) (*domain.BulkOperation, error) {
 	op := &domain.BulkOperation{}
-	if err := s.db.First(op, "id = ?", opID).Error; err != nil {
+	if err := s.db.Where("id = ? AND tenant_id = ?", opID, tenantID).First(op).Error; err != nil {
 		return nil, err
 	}
 	return op, nil
 }
 
-// ListBulkOperations lists bulk operations for a user
-func (s *BulkOperationService) ListBulkOperations(userID uuid.UUID, limit int, offset int) ([]*domain.BulkOperation, error) {
+// ListBulkOperations lists bulk operations for a user within their tenant.
+func (s *BulkOperationService) ListBulkOperations(userID, tenantID uuid.UUID, limit int, offset int) ([]*domain.BulkOperation, error) {
 	var ops []*domain.BulkOperation
-	if err := s.db.Where("created_by = ?", userID).
+	if err := s.db.Where("created_by = ? AND tenant_id = ?", userID, tenantID).
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -143,7 +146,7 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 
 // processBulkUpdate handles bulk update operations
 func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error {
-	risks, err := s.getRisksByFilter(op.FilterQuery)
+	risks, err := s.getRisksByFilter(op.TenantID, op.FilterQuery)
 	if err != nil {
 		return err
 	}
@@ -171,7 +174,7 @@ func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error
 
 // processBulkDelete handles bulk delete operations
 func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error {
-	risks, err := s.getRisksByFilter(op.FilterQuery)
+	risks, err := s.getRisksByFilter(op.TenantID, op.FilterQuery)
 	if err != nil {
 		return err
 	}
@@ -198,7 +201,7 @@ func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error
 
 // processBulkExport handles bulk export operations
 func (s *BulkOperationService) processBulkExport(op *domain.BulkOperation) error {
-	risks, err := s.getRisksByFilter(op.FilterQuery)
+	risks, err := s.getRisksByFilter(op.TenantID, op.FilterQuery)
 	if err != nil {
 		return err
 	}
@@ -212,7 +215,7 @@ func (s *BulkOperationService) processBulkExport(op *domain.BulkOperation) error
 
 // processBulkAssign handles bulk mitigation assignment
 func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error {
-	risks, err := s.getRisksByFilter(op.FilterQuery)
+	risks, err := s.getRisksByFilter(op.TenantID, op.FilterQuery)
 	if err != nil {
 		return err
 	}
@@ -247,10 +250,11 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 	return nil
 }
 
-// getRisksByFilter retrieves risks matching a filter
-func (s *BulkOperationService) getRisksByFilter(filter map[string]interface{}) ([]*domain.Risk, error) {
+// getRisksByFilter retrieves risks matching a filter, always scoped to the tenant
+// (RULE #2) so bulk delete/update/export/assign can never touch another tenant.
+func (s *BulkOperationService) getRisksByFilter(tenantID uuid.UUID, filter map[string]interface{}) ([]*domain.Risk, error) {
 	var risks []*domain.Risk
-	query := s.db
+	query := s.db.Where("tenant_id = ?", tenantID)
 
 	// Apply filters (simple key-value matching for now)
 	if status, ok := filter["status"].(string); ok {
@@ -273,9 +277,9 @@ func (s *BulkOperationService) getRisksByFilter(filter map[string]interface{}) (
 	return risks, nil
 }
 
-// countResourcesByFilter counts resources matching a filter
-func (s *BulkOperationService) countResourcesByFilter(count *int64, filter map[string]interface{}) error {
-	query := s.db
+// countResourcesByFilter counts resources matching a filter, tenant-scoped.
+func (s *BulkOperationService) countResourcesByFilter(count *int64, tenantID uuid.UUID, filter map[string]interface{}) error {
+	query := s.db.Where("tenant_id = ?", tenantID)
 
 	if status, ok := filter["status"].(string); ok {
 		query = query.Where("status = ?", status)

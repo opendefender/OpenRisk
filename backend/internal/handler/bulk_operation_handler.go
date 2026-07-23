@@ -51,8 +51,14 @@ func (h *BulkOperationHandler) CreateBulkOperation(c *fiber.Ctx) error {
 		})
 	}
 
+	// Resolve tenant from the request context — every resource query is scoped to it.
+	rc := middleware.GetContext(c)
+	if rc == nil || rc.OrganizationID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No tenant context"})
+	}
+
 	// Create bulk operation
-	op, err := h.service.CreateBulkOperation(userClaims.Sub, req)
+	op, err := h.service.CreateBulkOperation(userClaims.Sub, rc.OrganizationID, req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
@@ -72,7 +78,12 @@ func (h *BulkOperationHandler) GetBulkOperation(c *fiber.Ctx) error {
 		})
 	}
 
-	op, err := h.service.GetBulkOperation(opID)
+	rc := middleware.GetContext(c)
+	if rc == nil || rc.OrganizationID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No tenant context"})
+	}
+
+	op, err := h.service.GetBulkOperation(opID, rc.OrganizationID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Operation not found",
@@ -102,7 +113,12 @@ func (h *BulkOperationHandler) ListBulkOperations(c *fiber.Ctx) error {
 		offset = o
 	}
 
-	ops, err := h.service.ListBulkOperations(userClaims.Sub, limit, offset)
+	rc := middleware.GetContext(c)
+	if rc == nil || rc.OrganizationID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No tenant context"})
+	}
+
+	ops, err := h.service.ListBulkOperations(userClaims.Sub, rc.OrganizationID, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
