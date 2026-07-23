@@ -295,9 +295,13 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   live** : `q=admin` → risque + 2 contrôles + 6 CVE + user `System Administrator` ; `q=log` → risque +
   actif + 4 vulns + 6 contrôles ; **capture headless** `/risks?focus=<id>` → drawer Log4j ouvert directement.
   7 tests use-case verts, `go vet`/`tsc`/`vite` verts.
-- [ ] **UX-2 — Dashboards intelligents par rôle** (`feature/ux-role-dashboards`) — jeu de widgets adapté au
-  rôle métier (RSSI = top risques/exposition · Analyste = vulns · Auditeur = contrôles · Direction = coûts/KPI),
-  sur les business roles existants. Directive §1.
+- [x] **UX-2 — Dashboards intelligents par rôle** ✅ 2026-07-23 (`feature/ux-role-dashboards`) — le dashboard
+  `/` s'adapte au `business_role` via un dispatcher (`dashboardPersona.ts`) → **6 personas** à données réelles :
+  **posture** (RSSI/risk/admin, layout existant) · **analyst** (vulns : KPI P1/KEV + file de priorité
+  deep-linkée) · **audit** (couverture par référentiel + écarts + audits) · **exec** (cyber score A–F + ALE
+  FCFA + KRI) · **estate** (inventaire + criticité + actifs critiques deep-linkés) · **viewer** (aperçu
+  lecture seule). Primitives partagées (`shared.tsx`). **Preuves headless** : Direction→F/117,5 M FCFA/7 KRI ;
+  Auditeur→6 réf./ISO 46 %/180 écarts ; DSI→16 actifs/7 crit. ; Analyste→file P1/KEV. `tsc`/`vite` verts.
 - [ ] **UX-3 — Psychologie des interactions** (`feature/ux-inline-edit-autosave`) — édition fantôme (inline)
   sur les champs simples, autosave + suppression des boutons « Enregistrer » inutiles, feedback visuel
   systématique (toasts succès/échec), gestion de l'attente (anticipation/progression). Directives §3 + §4 (soft delete).
