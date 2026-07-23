@@ -3,13 +3,15 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
 import { useRiskStore } from './hooks/useRiskStore';
+import { usePermissions } from './hooks/usePermissions';
+import { NAV_GROUPS } from './shared/navModel';
 
 // --- App shell ---
 import { Sidebar } from './components/layout/Sidebar';
@@ -114,7 +116,9 @@ const DashboardLayout = () => {
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main className="flex-1 overflow-hidden relative flex flex-col">
           <Suspense fallback={<RouteFallback />}>
-            <AnimatedOutlet />
+            <RoutePermissionGuard>
+              <AnimatedOutlet />
+            </RoutePermissionGuard>
           </Suspense>
         </main>
       </div>
@@ -129,6 +133,41 @@ const DashboardLayout = () => {
     </div>
   );
 };
+
+// path -> required permission, derived from the SAME nav model that filters the
+// sidebar, so the route guard, the nav filter, and the backend guard all agree.
+// Unmapped paths are allowed (fail-open to the backend, which still enforces).
+const PATH_PERMS: Record<string, string> = Object.fromEntries(
+  NAV_GROUPS.flatMap((g) => g.items)
+    .filter((i) => i.perm)
+    .map((i) => [i.path, i.perm as string])
+);
+
+/**
+ * Real per-route permission guard (frontend defense-in-depth over the backend
+ * 403). Renders a friendly "access restricted" panel instead of a broken screen
+ * when a user deep-links to a route they lack the permission for. Admins ('*')
+ * always pass (usePermissions().can handles the wildcard).
+ */
+function RoutePermissionGuard({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const { can } = usePermissions();
+  const required = PATH_PERMS[pathname];
+  if (required && !can(required)) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8" style={{ background: 'var(--bg-primary)' }}>
+        <div className="max-w-md text-center space-y-3">
+          <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Accès restreint</div>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Vous n'avez pas la permission requise (<code>{required}</code>) pour accéder à cette page.
+            Contactez un administrateur si vous pensez qu'il s'agit d'une erreur.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
 
 /**
  * Fallback shown while a route's lazy chunk is being fetched. Kept minimal and
