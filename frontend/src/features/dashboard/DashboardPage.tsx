@@ -17,6 +17,9 @@ import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats } from './useStats';
+import { useAuthStore } from '../../hooks/useAuthStore';
+import { personaFor } from './dashboardPersona';
+import { AnalystDashboard } from './AnalystDashboard';
 
 /* ---------------- helpers ---------------- */
 
@@ -64,9 +67,24 @@ interface RecentRisk {
   fw: string;
 }
 
-/* ---------------- page ---------------- */
+/* ---------------- persona dispatcher ---------------- */
 
+// The dashboard adapts to the member's GRC role (UX-2). Each persona renders its
+// own real-data view; admins and unmapped roles get the full posture dashboard.
 export const DashboardPage = () => {
+  const businessRole = useAuthStore((s) => s.user?.business_role);
+  const persona = personaFor(businessRole);
+  switch (persona) {
+    case 'analyst':
+      return <AnalystDashboard />;
+    default:
+      return <PostureDashboard />;
+  }
+};
+
+/* ---------------- posture persona (default: RSSI / risk roles / admin) ---------------- */
+
+function PostureDashboard() {
   const navigate = useNavigate();
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
