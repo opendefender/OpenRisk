@@ -7,6 +7,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -25,16 +26,15 @@ func GetDashboardStats(c *fiber.Ctx) error {
 	var stats DashboardStats
 	var risks []domain.Risk
 
-	// NEW: Get organization context for multi-tenancy
+	// Get organization context for multi-tenancy. Fail closed: without a resolved
+	// tenant we must NOT fall back to querying every tenant's risks (RULE #2).
 	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid tenant"})
+	}
 
 	// 1. Récupère tout (pour l'instant ok, plus tard on paginera)
-	query := database.DB
-	// NEW: Filter by organization_id if available
-	if ctx != nil {
-		query = query.Where("organization_id = ?", ctx.OrganizationID)
-	}
-	query.Find(&risks).Count(&stats.TotalRisks)
+	database.DB.Where("organization_id = ?", ctx.OrganizationID).Find(&risks).Count(&stats.TotalRisks)
 
 	// 2. Calculs
 	var totalScore float64
