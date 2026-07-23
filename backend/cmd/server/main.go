@@ -1068,20 +1068,6 @@ func main() {
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
 
 	// =========================================================================
-	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes
-	// the existing tenant-scoped repos through nil-safe ports; each source is
-	// searched only if the caller holds its read permission, so results respect
-	// RBAC exactly like the sidebar. Best-effort: always 200.
-	// =========================================================================
-	searchHandler := handlers.NewSearchHandler(
-		searchapp.New().
-			WithRisks(riskRepo).
-			WithAssets(assetRepo).
-			WithVulns(vulnRepo),
-	)
-	protected.Get("/search", searchHandler.Search)
-
-	// =========================================================================
 	// AI GRC Assistant (spec §12 — see ROADMAP.md Module 12).
 	// Unified AI service over the tenant's own GRC data: treatment-plan
 	// suggestions, emerging-risk detection, a natural-language Q&A assistant
@@ -1539,6 +1525,26 @@ func main() {
 	protected.Get("/cti/stats", ctiRead, ctiHandler.Stats)
 	protected.Post("/cti/sync", ctiAdmin, ctiHandler.Sync)
 	protected.Post("/cti/match", ctiAdmin, ctiHandler.Match)
+
+	// =========================================================================
+	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes
+	// the existing tenant-scoped repos through nil-safe ports; each source is
+	// searched only if the caller holds its read permission, so results respect
+	// RBAC exactly like the sidebar. Best-effort: always 200. Placed after the CTI
+	// service is built so CVE search can compose it.
+	// =========================================================================
+	searchHandler := handlers.NewSearchHandler(
+		searchapp.New().
+			WithRisks(riskRepo).
+			WithAssets(assetRepo).
+			WithVulns(vulnRepo).
+			WithControls(complianceRepo).
+			WithAudits(complianceAuditRepo).
+			WithReports(boardRepo).
+			WithCVE(ctiService).
+			WithMembers(memberRBACRepo),
+	)
+	protected.Get("/search", searchHandler.Search)
 
 	// The periodic sync worker (NVD 1h / CISA 6h + post-sync matching) runs in
 	// production. In dev it stays off by default to avoid hitting the feeds on every

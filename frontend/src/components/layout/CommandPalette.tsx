@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Sun, Moon, Languages, Search, ShieldAlert, Database, Bug, Loader2, type LucideIcon } from 'lucide-react';
+import { Plus, FileText, Sun, Moon, Languages, Search, ShieldAlert, Database, Bug, Loader2, ClipboardCheck, Scale, Globe, Users, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { visibleNavGroups } from '../../shared/navModel';
@@ -32,6 +32,11 @@ const TYPE_ICON: Record<SearchResultType, LucideIcon> = {
   risk: ShieldAlert,
   asset: Database,
   vulnerability: Bug,
+  control: ClipboardCheck,
+  audit: Scale,
+  report: FileText,
+  cve: Globe,
+  user: Users,
 };
 const TONE: Record<string, string> = {
   critical: 'var(--critical)',
