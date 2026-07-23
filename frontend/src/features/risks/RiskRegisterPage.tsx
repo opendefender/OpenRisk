@@ -21,6 +21,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
 import { useFocusParam } from '../../shared/useFocusParam';
+import { useSoftDelete } from '../../shared/useSoftDelete';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { mapRisk, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
@@ -76,8 +77,11 @@ export function RiskRegisterPage() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
-  // Rows hidden pending a deferred (undoable) delete — see removeRisk.
-  const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set());
+  // Soft delete: rows hidden pending an undoable, deferred delete (shared hook).
+  const { pending: pendingDelete, remove: softRemoveRisk } = useSoftDelete<UiRisk>({
+    onCommit: (id) => deleteRisk(id),
+    message: (r, lang) => (lang === 'fr' ? `Risque « ${r.name} » supprimé` : `Risk "${r.name}" deleted`),
+  });
 
   // Deep-link from universal search (/risks?focus=<id>) → open that risk's drawer.
   const { focusId, clearFocus } = useFocusParam();
@@ -104,29 +108,10 @@ export function RiskRegisterPage() {
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  // Soft delete: the row disappears immediately and a toast offers Undo for a few
-  // seconds. The real API delete only fires once that window closes — so Undo is
-  // instant and costs nothing (no restore round-trip). Friction lives in the undo
-  // window, not a blocking confirm dialog.
   const removeRisk = (r: UiRisk) => {
     setMenuFor(null);
-    setPendingDelete((prev) => new Set(prev).add(r.id));
     if (drawerId === r.id) setDrawerId(null);
-    const unhide = () => setPendingDelete((prev) => { const n = new Set(prev); n.delete(r.id); return n; });
-    let undone = false;
-    const timer = setTimeout(() => {
-      if (undone) return;
-      deleteRisk(r.id)
-        .then(unhide) // store already dropped it; clear the local hide too
-        .catch(() => { toast.error(tr('Suppression échouée', 'Delete failed')); unhide(); });
-    }, 5000);
-    toast(tr(`Risque « ${r.name} » supprimé`, `Risk "${r.name}" deleted`), {
-      duration: 5000,
-      action: {
-        label: tr('Annuler', 'Undo'),
-        onClick: () => { undone = true; clearTimeout(timer); unhide(); },
-      },
-    });
+    softRemoveRisk(r);
   };
 
   const bulkDelete = async () => {
