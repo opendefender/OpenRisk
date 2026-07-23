@@ -7,22 +7,44 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Sun, Moon, Languages, Search, type LucideIcon } from 'lucide-react';
+import { Plus, FileText, Sun, Moon, Languages, Search, ShieldAlert, Database, Bug, Loader2, ClipboardCheck, Scale, Globe, Users, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { visibleNavGroups } from '../../shared/navModel';
 import { usePermissions } from '../../hooks/usePermissions';
+import { universalSearch, type SearchResult, type SearchResultType } from '../../services/searchService';
 
 interface CmdItem {
   label: string;
   icon: LucideIcon;
   shortcut?: string;
+  subtitle?: string;
+  badge?: { text: string; tone: string };
   run: () => void;
 }
 interface CmdGroup {
   label: string;
   items: CmdItem[];
 }
+
+// Entity icon + severity/criticality colour for universal-search results.
+const TYPE_ICON: Record<SearchResultType, LucideIcon> = {
+  risk: ShieldAlert,
+  asset: Database,
+  vulnerability: Bug,
+  control: ClipboardCheck,
+  audit: Scale,
+  report: FileText,
+  cve: Globe,
+  user: Users,
+};
+const TONE: Record<string, string> = {
+  critical: 'var(--critical)',
+  high: 'var(--high)',
+  medium: 'var(--medium)',
+  low: 'var(--low)',
+  info: 'var(--text-muted)',
+};
 
 export const CommandPalette = () => {
   const open = useUIStore((s) => s.cmdkOpen);
@@ -36,6 +58,8 @@ export const CommandPalette = () => {
   const navigate = useNavigate();
   const { can, isAdmin } = usePermissions();
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Global ⌘K / Ctrl+K + Esc.
@@ -54,10 +78,36 @@ export const CommandPalette = () => {
   useEffect(() => {
     if (open) {
       setQuery('');
+      setResults([]);
       // Autofocus after the mount animation begins.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
+
+  // Live universal search (debounced, cancellable) — cross-entity hits from the
+  // backend, so ⌘K finds any risk/asset/vulnerability, not just nav destinations.
+  useEffect(() => {
+    const q = query.trim();
+    if (!open || q.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      universalSearch(q, ctrl.signal).then((hits) => {
+        if (!ctrl.signal.aborted) {
+          setResults(hits);
+          setSearching(false);
+        }
+      });
+    }, 180);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query, open]);
 
   const groups: CmdGroup[] = useMemo(() => {
     const close = () => setOpen(false);
@@ -87,11 +137,23 @@ export const CommandPalette = () => {
     ];
     const q = query.trim().toLowerCase();
     const flt = (items: CmdItem[]) => (q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items);
+    // Backend already matched these to the query — render as-is (no client filter).
+    const resultItems: CmdItem[] = results.map((r) => ({
+      label: r.title,
+      icon: TYPE_ICON[r.type] ?? Search,
+      subtitle: r.subtitle,
+      badge: r.badge ? { text: r.badge, tone: TONE[r.badge] ?? 'var(--text-muted)' } : undefined,
+      run: () => {
+        navigate(r.url);
+        close();
+      },
+    }));
     return [
+      { label: lang === 'fr' ? 'Résultats' : 'Results', items: resultItems },
       { label: lang === 'fr' ? 'Navigation' : 'Navigation', items: flt(nav) },
       { label: lang === 'fr' ? 'Actions rapides' : 'Quick actions', items: flt(actions) },
     ].filter((g) => g.items.length > 0);
-  }, [L, query, navigate, setOpen, theme, lang, toggleTheme, toggleLang, can, isAdmin]);
+  }, [L, query, results, navigate, setOpen, theme, lang, toggleTheme, toggleLang, can, isAdmin]);
 
   if (!open) return null;
 
@@ -118,7 +180,11 @@ export const CommandPalette = () => {
         style={{ width: 'min(92vw,600px)', animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)' }}
       >
         <div className="flex items-center gap-[11px] px-[18px] py-4 border-b border-border">
-          <Search size={18} strokeWidth={1.8} className="text-ink-muted" />
+          {searching ? (
+            <Loader2 size={18} strokeWidth={1.8} className="text-ink-muted animate-spin" />
+          ) : (
+            <Search size={18} strokeWidth={1.8} className="text-ink-muted" />
+          )}
           <input
             ref={inputRef}
             value={query}
@@ -146,10 +212,23 @@ export const CommandPalette = () => {
                     onClick={it.run}
                     className="w-full flex items-center gap-3 px-3 py-[9px] rounded-[10px] hover:bg-accent-soft transition-colors text-left"
                   >
-                    <span className="text-ink-soft flex">
+                    <span className="text-ink-soft flex shrink-0">
                       <Icon size={17} strokeWidth={1.75} />
                     </span>
-                    <span className="flex-1 text-[13.5px] text-ink">{it.label}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[13.5px] text-ink truncate">{it.label}</span>
+                      {it.subtitle && (
+                        <span className="block text-[11px] text-ink-muted truncate">{it.subtitle}</span>
+                      )}
+                    </span>
+                    {it.badge && (
+                      <span
+                        className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
+                        style={{ color: it.badge.tone, background: `color-mix(in srgb, ${it.badge.tone} 16%, transparent)` }}
+                      >
+                        {it.badge.text}
+                      </span>
+                    )}
                     {it.shortcut && (
                       <span className="mono text-[10.5px] px-1.5 py-0.5 rounded text-ink-muted" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>
                         {it.shortcut}
@@ -161,7 +240,9 @@ export const CommandPalette = () => {
             </div>
           ))}
           {groups.length === 0 && (
-            <div className="px-3 py-6 text-center text-[13px] text-ink-muted">{L.notifEmpty}</div>
+            <div className="px-3 py-6 text-center text-[13px] text-ink-muted">
+              {searching ? (lang === 'fr' ? 'Recherche…' : 'Searching…') : L.notifEmpty}
+            </div>
           )}
         </div>
 
