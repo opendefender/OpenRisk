@@ -308,9 +308,14 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   disparaît + toast « Annuler » 5 s, l'API ne part qu'après → undo instantané) sur risques, vulns,
   incidents. Les suppressions **vitales** (tenant/user/rôle/token) gardent un confirm explicite (→ UX-4
   radiographie). `tsc`/`vite` verts, affordance inline prouvée live (risks + vulns).
-- [ ] **UX-4 — Actions critiques & erreurs** (`feature/ux-critical-actions`) — radiographie d'impact avant
-  action lourde (+ alternatives dans la modale), soft-delete + toast « Annuler », messages d'erreur avec
-  solution, empty states qui donnent envie d'agir. Directives §4 + frictions utiles §3.
+- [x] **UX-4 — Actions critiques & erreurs** ✅ 2026-07-23 (`feature/ux-critical-actions`) — composant
+  réutilisable **`shared/DangerConfirm`** (radiographie d'impact : conséquence + bilan label→valeur +
+  **alternatives en 1re classe** + action destructive) sur les suppressions **vitales** live : révocation
+  de membre (alternative « Désactiver — réversible »), révocation de jeton API (avait **zéro friction**),
+  suppression de référentiel (cascade contrôles+preuves, montre nb contrôles/couverture). Messages d'erreur
+  enrichis (« réessayez / contactez un admin »). **Empty states** des listes cœur (risques/vulns/actifs/
+  incidents) **déjà** dotés d'un CTA actionnable (vérifié, pas de dead-end). Prouvé live (modale rendue sur
+  /settings). `tsc`/`vite` verts.
 - [ ] **UX-5 — Onboarding & Aha moment** (`feature/ux-onboarding-aha`) — inscription minimale, onboarding
   *par l'action* vers le premier risque, aide contextuelle (pas de product tour), personnalisation
   post-victoire (logo/thème/couleurs), déclencheurs Fogg. Directive §2.

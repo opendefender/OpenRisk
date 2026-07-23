@@ -11,10 +11,11 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   Settings as SettingsIcon, Users, Lock, KeyRound, Building2, ScrollText, SlidersHorizontal, Plug,
-  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Laptop, Trash2, Copy, Database,
+  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Laptop, Trash2, Copy, Database, PowerOff,
   type LucideIcon,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
+import { DangerConfirm } from '../../shared/DangerConfirm';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { relTime } from '../risks/riskMap';
@@ -127,11 +128,14 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
   const roleColor = (r: string) => (r === 'admin' || r === 'root' ? 'var(--accent)' : r ? 'var(--info)' : 'var(--text-muted)');
   const th = (t: string) => <th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>;
 
-  const revoke = (id: string, name: string) => {
-    if (!window.confirm(tr(`Révoquer l’accès de ${name} ?`, `Revoke access for ${name}?`))) return;
-    remove.mutate(id, {
-      onSuccess: () => toast.success(tr('Membre révoqué', 'Member revoked')),
-      onError: () => toast.error(tr('Action échouée', 'Action failed')),
+  // Revoking access is vital + irreversible → an impact-radiography dialog with a
+  // safer alternative (deactivate), not a bare confirm.
+  const [revoking, setRevoking] = useState<null | { id: string; name: string; role: string; active: boolean }>(null);
+  const doRevoke = () => {
+    if (!revoking) return;
+    remove.mutate(revoking.id, {
+      onSuccess: () => { toast.success(tr('Membre révoqué', 'Member revoked')); setRevoking(null); },
+      onError: () => toast.error(tr('Action échouée — réessayez ou contactez un administrateur.', 'Action failed — retry or contact an administrator.')),
     });
   };
   const toggle = (id: string, active: boolean) =>
@@ -169,7 +173,7 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
                         <span className="w-[7px] h-[7px] rounded-full" style={{ background: u.is_active ? 'var(--low)' : 'var(--text-muted)' }} />{u.is_active ? L.active : tr('Inactif', 'Inactive')}
                       </button>
                     </td>
-                    <td className="px-3 py-3 text-right"><button onClick={() => revoke(u.id, u.full_name || u.email)} className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{L.revoke}</button></td>
+                    <td className="px-3 py-3 text-right"><button onClick={() => setRevoking({ id: u.id, name: u.full_name || u.email, role: u.role, active: u.is_active })} className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{L.revoke}</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -178,6 +182,30 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
         )}
       </Card>
       <div className="text-[11.5px] text-ink-muted mt-2.5">{tr('Astuce : cliquez sur le statut pour activer / désactiver un membre.', 'Tip: click a status to enable / disable a member.')}</div>
+
+      <DangerConfirm
+        open={!!revoking}
+        onClose={() => setRevoking(null)}
+        title={tr('Révoquer l’accès du membre', 'Revoke member access')}
+        subject={revoking?.name}
+        intro={tr(
+          'Le membre perdra immédiatement tout accès à cette organisation. Ses risques et revues assignés resteront, mais ne lui seront plus attribués.',
+          'The member loses all access to this organisation immediately. Their assigned risks and reviews remain, but become unassigned.'
+        )}
+        impact={revoking ? [
+          { label: tr('Rôle', 'Role'), value: revoking.role || '—' },
+          { label: tr('Statut', 'Status'), value: revoking.active ? tr('Actif', 'Active') : tr('Inactif', 'Inactive') },
+        ] : []}
+        alternatives={revoking?.active ? [{
+          label: tr('Désactiver le compte', 'Deactivate account'),
+          description: tr('Bloque l’accès sans supprimer — réversible.', 'Blocks access without deleting — reversible.'),
+          icon: PowerOff,
+          onClick: () => { if (revoking) { toggle(revoking.id, revoking.active); setRevoking(null); } },
+        }] : []}
+        confirmLabel={tr('Révoquer l’accès', 'Revoke access')}
+        onConfirm={doRevoke}
+        busy={remove.isPending}
+      />
     </>
   );
 }
@@ -185,6 +213,8 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
 function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   const { tokens, isLoading, isError, create, revoke } = useTokens();
   const [name, setName] = useState('');
+  // Revoking a token breaks any integration using it → impact-radiography confirm.
+  const [revokingToken, setRevokingToken] = useState<null | { id: string; name: string; lastUsed?: string | null }>(null);
 
   const doCreate = () => {
     const n = name.trim() || tr('Nouveau jeton', 'New token');
@@ -226,7 +256,7 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                     <td className="px-3 py-3 text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</td>
                     <td className="px-3 py-3 text-[12px] text-ink-soft">{t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}</td>
                     <td className="px-3 py-3 text-right">
-                      {!t.revoked && <button onClick={() => revoke.mutate(t.id, { onSuccess: () => toast.success(tr('Jeton révoqué', 'Token revoked')) })} className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}><Trash2 size={13} /> {tr('Révoquer', 'Revoke')}</button>}
+                      {!t.revoked && <button onClick={() => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at })} className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}><Trash2 size={13} /> {tr('Révoquer', 'Revoke')}</button>}
                     </td>
                   </tr>
                 ))}
@@ -235,6 +265,23 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
           </div>
         )}
       </Card>
+
+      <DangerConfirm
+        open={!!revokingToken}
+        onClose={() => setRevokingToken(null)}
+        title={tr('Révoquer le jeton API', 'Revoke API token')}
+        subject={revokingToken?.name}
+        intro={tr(
+          'Toute intégration ou script utilisant ce jeton cessera immédiatement de fonctionner. Cette action est irréversible.',
+          'Any integration or script using this token stops working immediately. This action is irreversible.'
+        )}
+        impact={revokingToken ? [
+          { label: tr('Dernière utilisation', 'Last used'), value: revokingToken.lastUsed ? relTime(revokingToken.lastUsed, lang) : tr('jamais', 'never') },
+        ] : []}
+        confirmLabel={tr('Révoquer le jeton', 'Revoke token')}
+        onConfirm={() => { if (revokingToken) revoke.mutate(revokingToken.id, { onSuccess: () => { toast.success(tr('Jeton révoqué', 'Token revoked')); setRevokingToken(null); }, onError: () => toast.error(tr('Révocation échouée — réessayez.', 'Revocation failed — retry.')) }); }}
+        busy={revoke.isPending}
+      />
     </>
   );
 }
