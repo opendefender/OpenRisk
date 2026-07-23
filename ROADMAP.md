@@ -331,9 +331,12 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   bénéfice + CTA, jamais de mur dur ; label « moment ») appliqué au Classement (gamification premium).
   Prouvé live (matrice 5 contextes + overlay PREMIUM flouté). `tsc`/`vite` verts. **Honnête** : pas de
   backend billing → gate cosmétique (vrai gating = module Billing, Bloc D) ; persistance prefs = localStorage.
-- [ ] **UX-7 — Ergonomie & accessibilité (passe finale)** (`feature/ux-a11y-responsive`) — raccourcis clavier
-  des actions fréquentes, audit responsive de tous les écrans, hiérarchie visuelle, balayage anti-dead-end.
-  Directive §6.
+- [x] **UX-7 — Ergonomie & accessibilité (passe finale)** ✅ 2026-07-23 (`feature/ux-a11y-responsive`) —
+  **raccourcis clavier globaux** (`GlobalShortcuts` monté dans le shell : `N` nouveau risque · `/` recherche ·
+  `G` puis D/R/V/M/I/C/A/S = aller à · `?` aide · Esc) qui ne détournent jamais la frappe dans un champ, +
+  **overlay d'aide** listant tout. Responsive (sidebar off-canvas < lg vérifiée à 414 px, tables overflow-x),
+  no-dead-end (empty states + ComingSoon CTA, UX-4) et hiérarchie visuelle **déjà en place**. Prouvé live
+  (overlay raccourcis + capture mobile). `tsc`/`vite` verts. **🎉 Les 8 phases de la refonte UX sont livrées.**
 
 **Bloc A — Solidifier les fondations (avant d'empiler des features)**
 1. **Prouver live l'Auth complète (Module 2)** : MFA, OAuth2, SAML2, refresh-token, switch-org. Corriger
