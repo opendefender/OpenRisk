@@ -10,10 +10,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
+import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ChevronDown, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Chip, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
-  SkeletonRows, EmptyState, softFill,
+  SkeletonRows, EmptyState, softFill, type RiskStatus,
 } from '../../shared/ui';
 import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
@@ -76,6 +76,8 @@ export function RiskRegisterPage() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
+  // Rows hidden pending a deferred (undoable) delete — see removeRisk.
+  const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set());
 
   // Deep-link from universal search (/risks?focus=<id>) → open that risk's drawer.
   const { focusId, clearFocus } = useFocusParam();
@@ -94,23 +96,37 @@ export function RiskRegisterPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return ui
+      .filter((r) => !pendingDelete.has(r.id))
       .filter((r) => (tab === 'all' ? true : tab === 'critical' ? r.crit === 'critical' : tab === 'high' ? r.crit === 'high' : r.status === 'open'))
       .filter((r) => (q ? `${r.name} ${r.asset} ${r.fw} ${r.ownerName}`.toLowerCase().includes(q) : true));
-  }, [ui, tab, query]);
+  }, [ui, tab, query, pendingDelete]);
   const drawer = drawerId ? ui.find((r) => r.id === drawerId) ?? null : null;
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const removeRisk = async (r: UiRisk) => {
+  // Soft delete: the row disappears immediately and a toast offers Undo for a few
+  // seconds. The real API delete only fires once that window closes — so Undo is
+  // instant and costs nothing (no restore round-trip). Friction lives in the undo
+  // window, not a blocking confirm dialog.
+  const removeRisk = (r: UiRisk) => {
     setMenuFor(null);
-    if (!window.confirm(tr(`Supprimer le risque « ${r.name} » ?`, `Delete risk "${r.name}"?`))) return;
-    try {
-      await deleteRisk(r.id);
-      toast.success(tr('Risque supprimé', 'Risk deleted'));
-      if (drawerId === r.id) setDrawerId(null);
-    } catch {
-      toast.error(tr('Suppression échouée', 'Delete failed'));
-    }
+    setPendingDelete((prev) => new Set(prev).add(r.id));
+    if (drawerId === r.id) setDrawerId(null);
+    const unhide = () => setPendingDelete((prev) => { const n = new Set(prev); n.delete(r.id); return n; });
+    let undone = false;
+    const timer = setTimeout(() => {
+      if (undone) return;
+      deleteRisk(r.id)
+        .then(unhide) // store already dropped it; clear the local hide too
+        .catch(() => { toast.error(tr('Suppression échouée', 'Delete failed')); unhide(); });
+    }, 5000);
+    toast(tr(`Risque « ${r.name} » supprimé`, `Risk "${r.name}" deleted`), {
+      duration: 5000,
+      action: {
+        label: tr('Annuler', 'Undo'),
+        onClick: () => { undone = true; clearTimeout(timer); unhide(); },
+      },
+    });
   };
 
   const bulkDelete = async () => {
@@ -217,7 +233,7 @@ export function RiskRegisterPage() {
                       </td>
                       <td className="px-3 py-[13px]"><span className="mono text-[15px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span></td>
                       <td className="px-3 py-[13px]"><CritBadge crit={r.crit} /></td>
-                      <td className="px-3 py-[13px]"><StatusPill status={r.status} /></td>
+                      <td className="px-3 py-[13px]"><InlineStatus risk={r} /></td>
                       <td className="px-3 py-[13px]">{r.fw !== '—' ? <FwBadge fw={r.fw} /> : <span className="text-ink-muted text-[12px]">—</span>}</td>
                       <td className="px-3 py-[13px]">{r.owner !== '—' ? <Avatar initials={r.owner} title={r.ownerName} /> : <span className="text-ink-muted text-[12px]">—</span>}</td>
                       <td className="px-3 py-[13px] text-[12px] text-ink-soft whitespace-nowrap">{r.mod}</td>
@@ -290,6 +306,68 @@ function cellCrit(p: number, i: number): Criticality {
   const v = p * i;
   return v >= 15 ? 'critical' : v >= 8 ? 'high' : v >= 4 ? 'medium' : 'low';
 }
+/* ---------------- inline status editor (ghost edit + autosave) ---------------- */
+
+const STATUS_TO_BACKEND: Record<RiskStatus, string> = {
+  open: 'open', progress: 'in_progress', mitigated: 'mitigated', accepted: 'accepted',
+};
+const STATUS_OPTIONS: RiskStatus[] = ['open', 'progress', 'mitigated', 'accepted'];
+
+// Click-to-edit status right in the register row: no modal, no Save button — the
+// change autosaves optimistically (System-1 quick edit) and a toast confirms it.
+function InlineStatus({ risk }: { risk: UiRisk }) {
+  const updateRisk = useRiskStore((s) => s.updateRisk);
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const change = async (s: RiskStatus) => {
+    setOpen(false);
+    if (s === risk.status) return;
+    setSaving(true);
+    try {
+      await updateRisk(risk.id, { status: STATUS_TO_BACKEND[s] });
+      toast.success(tr('Statut mis à jour', 'Status updated'));
+    } catch {
+      toast.error(tr('Mise à jour échouée', 'Update failed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={saving}
+        title={tr('Changer le statut', 'Change status')}
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 -mx-1 hover:bg-hover transition-colors"
+      >
+        <StatusPill status={risk.status} />
+        {saving ? <Loader2 size={12} className="animate-spin text-ink-muted" /> : <ChevronDown size={12} className="text-ink-muted" />}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-[150px] rounded-[10px] p-1 shadow-card-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+            {STATUS_OPTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => change(s)}
+                className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-[7px] hover:bg-hover transition-colors text-left"
+              >
+                <StatusPill status={s} />
+                {s === risk.status && <Check size={13} className="text-accent" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RiskMatrixView({ risks, onOpen }: { risks: UiRisk[]; onOpen: (id: string) => void }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
