@@ -2,11 +2,19 @@
 
 All notable changes to OpenRisk will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## [Unreleased]
 
 ### Added
+- **Single-source versioning.** The root `VERSION` file is the sole source of truth,
+  propagated to the Go binary (via `-ldflags` → reported by `GET /api/v1/health`), the
+  Helm chart (`version`/`appVersion`) and the frontend (`package.json`) through
+  `make sync-version` / `make check-version`. Tag convention `vX.Y.Z[-rc.N]` (SemVer 2.0.0)
+  with a tag-triggered release workflow that fails when the tag and `VERSION` diverge.
+  See [docs/VERSIONING.md](docs/VERSIONING.md).
 - **M4 — Official compliance report (PDF, 1-click).** New `GET /compliance/frameworks/{id}/report?locale=fr|en`
   streams a print-ready PDF for a framework: cover identity (organization, framework, date, requester),
   executive summary (compliance %, per-status breakdown, progress bar) and a paginated controls table
@@ -135,6 +143,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/1.0.4...HEAD
-[1.0.4]: https://github.com/opendefender/OpenRisk/compare/1.0.3...1.0.4
-[1.0.3]: https://github.com/opendefender/OpenRisk/compare/1.0.2...1.0.3
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...HEAD
+[1.1.0-rc.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.8...v1.1.0-rc.1
+[1.0.4]: https://github.com/opendefender/OpenRisk/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/opendefender/OpenRisk/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/opendefender/OpenRisk/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/opendefender/OpenRisk/releases/tag/v1.0.0
