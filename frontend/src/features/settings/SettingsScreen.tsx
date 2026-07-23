@@ -213,6 +213,8 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
 function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   const { tokens, isLoading, isError, create, revoke } = useTokens();
   const [name, setName] = useState('');
+  // Revoking a token breaks any integration using it → impact-radiography confirm.
+  const [revokingToken, setRevokingToken] = useState<null | { id: string; name: string; lastUsed?: string | null }>(null);
 
   const doCreate = () => {
     const n = name.trim() || tr('Nouveau jeton', 'New token');
@@ -254,7 +256,7 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                     <td className="px-3 py-3 text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</td>
                     <td className="px-3 py-3 text-[12px] text-ink-soft">{t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}</td>
                     <td className="px-3 py-3 text-right">
-                      {!t.revoked && <button onClick={() => revoke.mutate(t.id, { onSuccess: () => toast.success(tr('Jeton révoqué', 'Token revoked')) })} className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}><Trash2 size={13} /> {tr('Révoquer', 'Revoke')}</button>}
+                      {!t.revoked && <button onClick={() => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at })} className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}><Trash2 size={13} /> {tr('Révoquer', 'Revoke')}</button>}
                     </td>
                   </tr>
                 ))}
@@ -263,6 +265,23 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
           </div>
         )}
       </Card>
+
+      <DangerConfirm
+        open={!!revokingToken}
+        onClose={() => setRevokingToken(null)}
+        title={tr('Révoquer le jeton API', 'Revoke API token')}
+        subject={revokingToken?.name}
+        intro={tr(
+          'Toute intégration ou script utilisant ce jeton cessera immédiatement de fonctionner. Cette action est irréversible.',
+          'Any integration or script using this token stops working immediately. This action is irreversible.'
+        )}
+        impact={revokingToken ? [
+          { label: tr('Dernière utilisation', 'Last used'), value: revokingToken.lastUsed ? relTime(revokingToken.lastUsed, lang) : tr('jamais', 'never') },
+        ] : []}
+        confirmLabel={tr('Révoquer le jeton', 'Revoke token')}
+        onConfirm={() => { if (revokingToken) revoke.mutate(revokingToken.id, { onSuccess: () => { toast.success(tr('Jeton révoqué', 'Token revoked')); setRevokingToken(null); }, onError: () => toast.error(tr('Révocation échouée — réessayez.', 'Revocation failed — retry.')) }); }}
+        busy={revoke.isPending}
+      />
     </>
   );
 }
