@@ -5,14 +5,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut } from 'lucide-react';
+import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { visibleNavGroups, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
+import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -62,6 +62,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
     // `can`/`isAdmin` are stable per permission set (memoized in usePermissions).
     [can, isAdmin]
   );
+  // Dashboard (and any future pinned entry) is hoisted above the intention groups.
+  const pinned = useMemo(() => pinnedItems(navGroups), [navGroups]);
 
   const handleLogout = () => {
     setMenuOpen(false);
@@ -224,16 +226,31 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">
-            {navGroups.map((group) => (
-              <div key={group.groupKey} className="mb-4">
-                {!collapsed && (
-                  <div className="text-[10px] tracking-[0.09em] uppercase text-ink-muted font-semibold px-3 pb-[7px]">
-                    {L[group.groupKey]}
-                  </div>
-                )}
-                {group.items.map(navItem)}
-              </div>
-            ))}
+            {/* Pinned entries (Dashboard) hoisted above the intention groups. */}
+            {pinned.length > 0 && (
+              <div className="mb-3 pb-3 border-b border-border">{pinned.map(navItem)}</div>
+            )}
+            {navGroups.map((group) => {
+              const items = group.items.filter((i) => !i.pinned);
+              if (items.length === 0) return null;
+              return (
+                <div key={group.groupKey} className="mb-4">
+                  {!collapsed && (
+                    <div
+                      className={cn(
+                        'text-[10px] tracking-[0.09em] uppercase font-semibold px-3 pb-[7px] flex items-center gap-1.5',
+                        !group.core && 'text-ink-muted'
+                      )}
+                      style={group.core ? { color: 'var(--accent)' } : undefined}
+                    >
+                      {group.core && <Star size={10} strokeWidth={2.5} fill="var(--accent)" />}
+                      {L[group.groupKey]}
+                    </div>
+                  )}
+                  {items.map(navItem)}
+                </div>
+              );
+            })}
           </nav>
 
           {/* Security score footer */}
