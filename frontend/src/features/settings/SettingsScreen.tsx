@@ -17,6 +17,7 @@ import {
 import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
+import { NotificationCategoryPrefs } from '../notifications/NotificationCategoryPrefs';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { relTime } from '../risks/riskMap';
@@ -479,12 +480,9 @@ function NotifTab({ tr }: { tr: Tr }) {
         <ToggleRow label="SMS" sub={tr('Uniquement incidents critiques', 'Critical incidents only')} on={false} />
       </Card>
       <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('M’alerter quand…', 'Notify me when…')}</Title>
-        <ToggleRow label={tr('Un risque critique est créé', 'A critical risk is created')} on />
-        <ToggleRow label={tr('Un score augmente de +10 %', 'A score rises by +10%')} on />
-        <ToggleRow label={tr('Une War Room est déclenchée', 'A War Room is triggered')} on />
-        <ToggleRow label={tr('Une mitigation m’est assignée', 'A mitigation is assigned to me')} on />
-        <ToggleRow label={tr('Résumé hebdomadaire', 'Weekly digest')} on={false} />
+        <Title>{tr('Préférences par contexte', 'Preferences by context')}</Title>
+        <p className="text-[12.5px] text-ink-soft -mt-2 mb-3">{tr('Choisissez comment vous êtes alerté pour chaque type de notification.', 'Choose how you’re alerted for each type of notification.')}</p>
+        <NotificationCategoryPrefs />
       </Card>
     </>
   );
