@@ -13,9 +13,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// Team represents a team/group within the organization
+// Team represents a team/group within the organization. TenantID scopes every
+// team to one tenant (RULE #2) — without it an admin of one tenant could list,
+// edit, delete or add members to another tenant's teams.
 type Team struct {
 	ID          uuid.UUID       `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	TenantID    uuid.UUID       `gorm:"type:uuid;not null;index" json:"tenant_id"`
 	Name        string          `gorm:"not null;index" json:"name"`
 	Description string          `json:"description"`
 	Members     []User          `gorm:"many2many:team_members;" json:"members,omitempty"`
