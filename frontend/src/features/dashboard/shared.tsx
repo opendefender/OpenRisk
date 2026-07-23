@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileText, type LucideIcon } from 'lucide-react';
+import { InfoHint } from '../../shared/InfoHint';
 
 /** Numeric count-up over ~1.1s, ease-out cubic. Re-runs when target changes. */
 export function useCountUp(target: number, duration = 1100): number {
@@ -147,9 +148,9 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
 
 /** Radial gauge. `max`/`grade` let it show a 0–100 score or an A–F cyber grade. */
 export function ScoreHero({
-  score, title, ctaLabel, onDetails, grade, max = 100,
+  score, title, ctaLabel, onDetails, grade, max = 100, hint,
 }: {
-  score: number; title: string; ctaLabel: string; onDetails: () => void; grade?: string; max?: number;
+  score: number; title: string; ctaLabel: string; onDetails: () => void; grade?: string; max?: number; hint?: string;
 }) {
   const val = Math.round(useCountUp(score));
   const cx = 110, cy = 112, r = 76;
@@ -159,7 +160,9 @@ export function ScoreHero({
   const col = pct >= 0.7 ? 'var(--low)' : pct >= 0.45 ? 'var(--high)' : 'var(--critical)';
   return (
     <Card>
-      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft">{title}</div>
+      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
+        {title}{hint && <InfoHint text={hint} />}
+      </div>
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
           <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />

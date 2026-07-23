@@ -42,6 +42,7 @@ export function ExecDashboard() {
           title={tr('Cyber score', 'Cyber score')}
           score={Math.round(cyber?.score ?? 0)}
           grade={cyber?.grade}
+          hint={tr('Note composite A–F sur 4 axes pondérés : conformité, risques, vulnérabilités, incidents.', 'Composite A–F grade over 4 weighted axes: compliance, risks, vulnerabilities, incidents.')}
           ctaLabel={tr('Voir Analytics', 'View analytics')}
           onDetails={() => navigate('/analytics')}
         />

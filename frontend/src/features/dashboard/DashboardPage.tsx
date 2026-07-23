@@ -24,6 +24,8 @@ import { ExecDashboard } from './ExecDashboard';
 import { AuditDashboard } from './AuditDashboard';
 import { EstateDashboard } from './EstateDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
+import { InfoHint } from '../../shared/InfoHint';
 
 /* ---------------- helpers ---------------- */
 
@@ -155,6 +157,9 @@ function PostureDashboard() {
           </button>
         </div>
 
+        {/* Onboarding-by-action: guides a new tenant to the Aha, hides once set up. */}
+        <OnboardingChecklist />
+
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
           <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} onDetails={() => navigate('/risks')} />
@@ -180,6 +185,7 @@ function PostureDashboard() {
 /* ---------------- Score hero ---------------- */
 function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void }) {
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
   const val = Math.round(useCountUp(score));
   const cx = 110, cy = 112, r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
@@ -187,7 +193,10 @@ function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void 
   const col = val >= 70 ? 'var(--low)' : val >= 45 ? 'var(--high)' : 'var(--critical)';
   return (
     <Card>
-      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft">{L.globalScore}</div>
+      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
+        {L.globalScore}
+        <InfoHint text={lang === 'fr' ? '0–100 : plus le score est élevé, meilleure est votre posture de sécurité.' : '0–100: the higher the score, the stronger your security posture.'} />
+      </div>
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
           <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />

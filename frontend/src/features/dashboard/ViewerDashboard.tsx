@@ -50,6 +50,7 @@ export function ViewerDashboard() {
         <ScoreHero
           title={tr('Score de sécurité', 'Security score')}
           score={Math.round(stats?.global_risk_score ?? 0)}
+          hint={tr('0–100 : plus le score est élevé, meilleure est votre posture de sécurité.', '0–100: the higher the score, the stronger your security posture.')}
           ctaLabel={tr('Voir les risques', 'View risks')}
           onDetails={() => navigate('/risks')}
         />

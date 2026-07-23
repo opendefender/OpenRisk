@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
 import { DangerConfirm } from '../../shared/DangerConfirm';
+import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { relTime } from '../risks/riskMap';
@@ -426,6 +427,10 @@ function GeneralTab({ tr }: { tr: Tr }) {
         </div>
         <Field label={tr('Nom de l’organisation', 'Organization name')} value="Banque Atlantique" />
         <div className="flex gap-4"><div className="flex-1"><Field label={tr('Secteur', 'Industry')} value={tr('Banque & Finance', 'Banking & Finance')} /></div><div className="flex-1"><Field label={tr('Fuseau horaire', 'Time zone')} value="GMT · Abidjan" /></div></div>
+      </Card>
+      <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
+        <Title>{tr('Apparence', 'Appearance')}</Title>
+        <PersonalizeCard />
       </Card>
       <Card style={{ padding: '20px 22px' }}>
         <Title>{tr('Préférences', 'Preferences')}</Title>
