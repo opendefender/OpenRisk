@@ -316,9 +316,13 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   enrichis (« réessayez / contactez un admin »). **Empty states** des listes cœur (risques/vulns/actifs/
   incidents) **déjà** dotés d'un CTA actionnable (vérifié, pas de dead-end). Prouvé live (modale rendue sur
   /settings). `tsc`/`vite` verts.
-- [ ] **UX-5 — Onboarding & Aha moment** (`feature/ux-onboarding-aha`) — inscription minimale, onboarding
-  *par l'action* vers le premier risque, aide contextuelle (pas de product tour), personnalisation
-  post-victoire (logo/thème/couleurs), déclencheurs Fogg. Directive §2.
+- [x] **UX-5 — Onboarding & Aha moment** ✅ 2026-07-23 (`feature/ux-onboarding-aha`) — **onboarding par
+  l'action** (`OnboardingChecklist` sur le dashboard) : étapes auto-cochées depuis les vraies données vers
+  l'Aha (⭐ créer son 1er risque → exposition+traitement), puis actif + référentiel ; barre de progression
+  honnête, actions 1-clic, dismissible (un tenant configuré ne la voit jamais). **Personnalisation
+  post-victoire** débloquée après l'Aha (`PersonalizeCard` : thème clair/sombre + accent azure/iris, déjà
+  branchés tokens) — aussi dans Paramètres › Apparence. **Aide contextuelle** (`shared/InfoHint`, tooltip
+  progressive, pas de product tour) sur les jauges de score. Prouvé live (état new-tenant). `tsc`/`vite` verts.
 - [ ] **UX-6 — Notifications, rétention & upsell** (`feature/ux-notifications-upsell`) — catégories de
   notifications (Sécurité/Conformité/Tâches/Collaboration/Facturation) + préférences fines, timing/relances,
   upsell doux (aperçu flou + 3 moments de conversion). Directive §5.
