@@ -20,6 +20,10 @@ import { useDashboardStats } from './useStats';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { personaFor } from './dashboardPersona';
 import { AnalystDashboard } from './AnalystDashboard';
+import { ExecDashboard } from './ExecDashboard';
+import { AuditDashboard } from './AuditDashboard';
+import { EstateDashboard } from './EstateDashboard';
+import { ViewerDashboard } from './ViewerDashboard';
 
 /* ---------------- helpers ---------------- */
 
@@ -77,6 +81,14 @@ export const DashboardPage = () => {
   switch (persona) {
     case 'analyst':
       return <AnalystDashboard />;
+    case 'exec':
+      return <ExecDashboard />;
+    case 'audit':
+      return <AuditDashboard />;
+    case 'estate':
+      return <EstateDashboard />;
+    case 'viewer':
+      return <ViewerDashboard />;
     default:
       return <PostureDashboard />;
   }

@@ -102,6 +102,26 @@ export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpe
   );
 }
 
+/** Like KpiCard but for a pre-formatted string value (e.g. "117 500 000 FCFA"). */
+export function StatCard({ label, value, col, icon: Icon, onClick }: { label: string; value: string; col: string; icon?: LucideIcon; onClick?: () => void }) {
+  const inner = (
+    <>
+      {Icon && (
+        <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center mb-3.5" style={{ color: col, background: softFill(col, 14) }}>
+          <Icon size={18} strokeWidth={1.75} />
+        </div>
+      )}
+      <div className="disp mono text-[24px] font-bold text-ink leading-tight break-words">{value}</div>
+      <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>
+    </>
+  );
+  return onClick ? (
+    <button onClick={onClick} className="or-card text-left p-[18px] hover:bg-hover transition-colors w-full">{inner}</button>
+  ) : (
+    <div className="or-card p-[18px]">{inner}</div>
+  );
+}
+
 export function KpiRow({ items }: { items: KpiSpec[] }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
