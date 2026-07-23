@@ -323,9 +323,14 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   post-victoire** débloquée après l'Aha (`PersonalizeCard` : thème clair/sombre + accent azure/iris, déjà
   branchés tokens) — aussi dans Paramètres › Apparence. **Aide contextuelle** (`shared/InfoHint`, tooltip
   progressive, pas de product tour) sur les jauges de score. Prouvé live (état new-tenant). `tsc`/`vite` verts.
-- [ ] **UX-6 — Notifications, rétention & upsell** (`feature/ux-notifications-upsell`) — catégories de
-  notifications (Sécurité/Conformité/Tâches/Collaboration/Facturation) + préférences fines, timing/relances,
-  upsell doux (aperçu flou + 3 moments de conversion). Directive §5.
+- [x] **UX-6 — Notifications, rétention & upsell** ✅ 2026-07-23 (`feature/ux-notifications-upsell`) —
+  **notifications catégorisées** : taxonomie `shared/notificationCategory.ts` (5 contextes Sécurité/
+  Conformité/Tâches/Collaboration/Facturation + mapping `type→catégorie`) → **matrice de préférences par
+  contexte** dans Paramètres › Notifications (switches In-app + E-mail par contexte, persistés localStorage)
+  + chips de catégorie & filtre sur la cloche. **Upsell doux** : `shared/UpsellLock` (aperçu **flou** +
+  bénéfice + CTA, jamais de mur dur ; label « moment ») appliqué au Classement (gamification premium).
+  Prouvé live (matrice 5 contextes + overlay PREMIUM flouté). `tsc`/`vite` verts. **Honnête** : pas de
+  backend billing → gate cosmétique (vrai gating = module Billing, Bloc D) ; persistance prefs = localStorage.
 - [ ] **UX-7 — Ergonomie & accessibilité (passe finale)** (`feature/ux-a11y-responsive`) — raccourcis clavier
   des actions fréquentes, audit responsive de tous les écrans, hiérarchie visuelle, balayage anti-dead-end.
   Directive §6.
