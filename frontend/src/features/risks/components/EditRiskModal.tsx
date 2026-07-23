@@ -21,7 +21,10 @@ const riskSchema = z.object({
   description: z.string().min(10),
   impact: z.number().min(1).max(5),
   probability: z.number().min(1).max(5),
-  tags: z.array(z.string()),
+  // Bound to a comma-separated text input; split into an array on submit. The
+  // schema previously declared z.array here while the input produced a string,
+  // so zodResolver rejected EVERY save (the Edit form's Save was broken).
+  tags: z.string(),
   asset_ids: z.array(z.string()).optional(),
   frameworks: z.array(z.string()).optional(),
 });
@@ -45,7 +48,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       impact: 3,
       probability: 3,
       asset_ids: [],
-      tags: [],
+      tags: '',
       frameworks: [],
     }
   });
@@ -103,7 +106,12 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const onSubmit = async (data: RiskFormData) => {
     if (!risk) return;
     try {
-      await updateRisk(risk.id, data);
+      // Split the comma-separated tags text into the array the API expects.
+      const payload = {
+        ...data,
+        tags: data.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      };
+      await updateRisk(risk.id, payload);
       toast.success('Risque mis à jour');
       onClose();
       if (typeof ({} as any) !== 'undefined') {

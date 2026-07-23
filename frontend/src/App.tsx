@@ -16,8 +16,8 @@ import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 import { CommandPalette } from './components/layout/CommandPalette';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
-// The older features/risks/components/CreateRiskModal embedded ScoreEngineVisualizer,
-// which white-screened the whole app on a null risk_stats/matrix response.
+// The older duplicate (features/risks/components/CreateRiskModal, which embedded
+// ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
 import { CreateRiskModal } from './features/risks/CreateRiskModal';
 
 // --- Public auth screen stays eager (first paint / login path) ---

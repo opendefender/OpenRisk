@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useRiskStore } from '../useRiskStore'
+import { useRiskStore, type Risk } from '../useRiskStore'
 import { api } from '../../lib/api'
 
 describe('useRiskStore', () => {
@@ -59,11 +59,13 @@ describe('useRiskStore', () => {
     expect(state.total).toBe(1)
   })
 
-  it('updateRisk patches payload and refreshes list', async () => {
-    const patch = { title: 'Updated' }
+  it('updateRisk patches the risk optimistically in place', async () => {
+    // updateRisk is an OPTIMISTIC mutation (RULE #10): it patches the row in
+    // place and reconciles with the PATCH response — it does not refetch.
     const id = '4'
-    vi.spyOn(api, 'patch').mockResolvedValueOnce({ data: { id, ...patch } })
-    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: { items: [{ id, title: 'Updated' }], total: 1 } })
+    const patch = { title: 'Updated' }
+    useRiskStore.setState({ risks: [{ id, title: 'Old' } as unknown as Risk] })
+    vi.spyOn(api, 'patch').mockResolvedValueOnce({ data: { id, title: 'Updated' } })
 
     await useRiskStore.getState().updateRisk(id, patch)
 

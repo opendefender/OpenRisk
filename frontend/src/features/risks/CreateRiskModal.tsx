@@ -171,8 +171,9 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   disabled={isSubmitting}
                 />
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.riskDescription')}</label>
+                  <label htmlFor="create-risk-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.riskDescription')}</label>
                   <textarea
+                    id="create-risk-description"
                     {...register('description')}
                     rows={5}
                     className="w-full rounded-3xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40"

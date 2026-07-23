@@ -6,12 +6,12 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
 import App from '../App';
 import { useAuthStore } from '../hooks/useAuthStore';
 
-// Mock auth store
-vi.mock('../../hooks/useAuthStore');
+// Mock auth store (path must match the import above — was ../../ which mocked
+// nothing, so vi.mocked(useAuthStore) was not a mock).
+vi.mock('../hooks/useAuthStore');
 
 // Mock Sonner toast
 vi.mock('sonner', () => ({
@@ -23,7 +23,7 @@ vi.mock('sonner', () => ({
 }));
 
 // Mock API
-vi.mock('../../lib/api', () => ({
+vi.mock('../lib/api', () => ({
   api: {
     get: vi.fn().mockResolvedValue({ data: {} }),
     post: vi.fn().mockResolvedValue({ data: {} }),
@@ -47,13 +47,11 @@ describe('App Integration', () => {
       return selector(store as any);
     });
 
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    );
+    // App renders its own <BrowserRouter>; don't double-wrap.
+    render(<App />);
 
-    expect(screen.getByText('Welcome back')).toBeInTheDocument();
+    // Login screen heading (locale-robust: EN "Welcome to OpenRisk" / FR "Bienvenue sur OpenRisk").
+    expect(screen.getByText(/Welcome to OpenRisk|Bienvenue sur OpenRisk/)).toBeInTheDocument();
   });
 
   it('should render Dashboard when authenticated', async () => {
@@ -66,11 +64,8 @@ describe('App Integration', () => {
       return selector(store as any);
     });
 
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    );
+    // App renders its own <BrowserRouter>; don't double-wrap.
+    render(<App />);
 
     await waitFor(() => {
       expect(screen.queryByText('Welcome back')).not.toBeInTheDocument();
@@ -94,11 +89,8 @@ describe('App Integration', () => {
       return selector(store as any);
     });
 
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    );
+    // App renders its own <BrowserRouter>; don't double-wrap.
+    render(<App />);
 
     await waitFor(() => {
       expect(screen.queryByText('Welcome back')).not.toBeInTheDocument();
