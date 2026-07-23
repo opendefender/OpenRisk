@@ -302,9 +302,12 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   FCFA + KRI) · **estate** (inventaire + criticité + actifs critiques deep-linkés) · **viewer** (aperçu
   lecture seule). Primitives partagées (`shared.tsx`). **Preuves headless** : Direction→F/117,5 M FCFA/7 KRI ;
   Auditeur→6 réf./ISO 46 %/180 écarts ; DSI→16 actifs/7 crit. ; Analyste→file P1/KEV. `tsc`/`vite` verts.
-- [ ] **UX-3 — Psychologie des interactions** (`feature/ux-inline-edit-autosave`) — édition fantôme (inline)
-  sur les champs simples, autosave + suppression des boutons « Enregistrer » inutiles, feedback visuel
-  systématique (toasts succès/échec), gestion de l'attente (anticipation/progression). Directives §3 + §4 (soft delete).
+- [x] **UX-3 — Psychologie des interactions** ✅ 2026-07-23 (`feature/ux-inline-edit-autosave`) — **édition
+  fantôme** (statut click-to-edit inline, autosave optimiste + toast, zéro bouton Enregistrer) sur risques
+  & vulns & mitigations ; **soft-delete + undo** via hook réutilisable `shared/useSoftDelete` (la ligne
+  disparaît + toast « Annuler » 5 s, l'API ne part qu'après → undo instantané) sur risques, vulns,
+  incidents. Les suppressions **vitales** (tenant/user/rôle/token) gardent un confirm explicite (→ UX-4
+  radiographie). `tsc`/`vite` verts, affordance inline prouvée live (risks + vulns).
 - [ ] **UX-4 — Actions critiques & erreurs** (`feature/ux-critical-actions`) — radiographie d'impact avant
   action lourde (+ alternatives dans la modale), soft-delete + toast « Annuler », messages d'erreur avec
   solution, empty states qui donnent envie d'agir. Directives §4 + frictions utiles §3.
