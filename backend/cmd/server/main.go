@@ -37,6 +37,7 @@ import (
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
+	searchapp "github.com/opendefender/openrisk/internal/application/search"
 	vulnapp "github.com/opendefender/openrisk/internal/application/vulnerability"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
@@ -1065,6 +1066,20 @@ func main() {
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
 	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
+
+	// =========================================================================
+	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes
+	// the existing tenant-scoped repos through nil-safe ports; each source is
+	// searched only if the caller holds its read permission, so results respect
+	// RBAC exactly like the sidebar. Best-effort: always 200.
+	// =========================================================================
+	searchHandler := handlers.NewSearchHandler(
+		searchapp.New().
+			WithRisks(riskRepo).
+			WithAssets(assetRepo).
+			WithVulns(vulnRepo),
+	)
+	protected.Get("/search", searchHandler.Search)
 
 	// =========================================================================
 	// AI GRC Assistant (spec §12 — see ROADMAP.md Module 12).

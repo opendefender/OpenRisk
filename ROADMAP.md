@@ -286,9 +286,12 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   patrimoine* · *Anticiper les menaces* · *Prouver la conformité* · *Décider & rapporter* · *Administration*).
   `NavItem.pinned` + `NavGroup.core` + `pinnedItems()`, clés i18n `g_*` refondées, en-tête core accentué.
   Action première (« Nouveau risque ») déjà épinglée, `soon`→ComingSoon (CTA, pas de dead-end). `tsc`/`vite` verts.
-- [ ] **UX-1 — Universal Search ⌘K** (`feature/ux-universal-search`) — endpoint `/search?q=` tenant-scoped
-  (risques, actifs, CVE, contrôles, audits, rapports, utilisateurs) + palette ⌘K étendue en vraie recherche
-  d'entités. Directive §1.
+- [~] **UX-1 — Universal Search ⌘K** (`feature/ux-universal-search`) — **pilote live ✅ 2026-07-23** :
+  endpoint `GET /search?q=` tenant-scoped + **RBAC par source** (une source n'est cherchée que si le
+  demandeur a sa permission) + best-effort (nil-safe), sur **3 entités cœur** (risques/actifs/vulns) ;
+  palette ⌘K étendue en vraie recherche d'entités (groupe « Résultats » débounced, chips de sévérité,
+  navigation). **Preuve live** : `q=log` → risque Log4j + actif `log4j-app-01` + 4 vulns, HTTP 200.
+  **Reste (propagation)** : deep-open `?focus=<id>` sur les pages cibles + entités contrôles/audits/rapports/CVE/users.
 - [ ] **UX-2 — Dashboards intelligents par rôle** (`feature/ux-role-dashboards`) — jeu de widgets adapté au
   rôle métier (RSSI = top risques/exposition · Analyste = vulns · Auditeur = contrôles · Direction = coûts/KPI),
   sur les business roles existants. Directive §1.
