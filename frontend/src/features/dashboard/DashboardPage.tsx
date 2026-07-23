@@ -24,6 +24,7 @@ import { ExecDashboard } from './ExecDashboard';
 import { AuditDashboard } from './AuditDashboard';
 import { EstateDashboard } from './EstateDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 
 /* ---------------- helpers ---------------- */
 
@@ -154,6 +155,9 @@ function PostureDashboard() {
             {L.genReport}
           </button>
         </div>
+
+        {/* Onboarding-by-action: guides a new tenant to the Aha, hides once set up. */}
+        <OnboardingChecklist />
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
