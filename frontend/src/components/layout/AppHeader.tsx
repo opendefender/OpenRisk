@@ -15,6 +15,7 @@ import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { ALL_NAV_ITEMS } from '../../shared/navModel';
+import { categoryMeta, type NotifCategory } from '../../shared/notificationCategory';
 
 interface AppHeaderProps {
   onOpenMobileNav: () => void;
@@ -124,15 +125,18 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const [filter, setFilter] = useState<NotifCategory | 'all'>('all');
 
   const items: {
-    icon: LucideIcon; color: string; title: string; body: string; time: string; unread: boolean;
+    icon: LucideIcon; color: string; title: string; body: string; time: string; unread: boolean; category: NotifCategory;
   }[] = [
-    { icon: AlertTriangle, color: 'var(--critical)', title: tr('Nouveau risque critique', 'New critical risk'), body: tr('RDP exposé détecté sur srv-paie-01', 'Exposed RDP detected on srv-paie-01'), time: tr('il y a 8 min', '8 min ago'), unread: true },
-    { icon: Siren, color: 'var(--critical)', title: tr('Incident déclenché', 'Incident triggered'), body: tr('INC-2026-014 · exfiltration suspectée', 'INC-2026-014 · suspected exfiltration'), time: tr('il y a 1 h', '1 h ago'), unread: true },
-    { icon: ShieldCheck, color: 'var(--low)', title: tr('Mitigation auto-détectée', 'Auto-detected mitigation'), body: tr('TLS 1.3 appliqué sur gw-bank-02', 'TLS 1.3 applied on gw-bank-02'), time: tr('il y a 3 h', '3 h ago'), unread: false },
-    { icon: Trophy, color: 'var(--accent)', title: tr('Badge débloqué', 'Badge unlocked'), body: tr('Vous avez atteint le rang #4', 'You reached rank #4'), time: tr('hier', 'yesterday'), unread: false },
+    { icon: AlertTriangle, color: 'var(--critical)', title: tr('Nouveau risque critique', 'New critical risk'), body: tr('RDP exposé détecté sur srv-paie-01', 'Exposed RDP detected on srv-paie-01'), time: tr('il y a 8 min', '8 min ago'), unread: true, category: 'security' },
+    { icon: Siren, color: 'var(--critical)', title: tr('Incident déclenché', 'Incident triggered'), body: tr('INC-2026-014 · exfiltration suspectée', 'INC-2026-014 · suspected exfiltration'), time: tr('il y a 1 h', '1 h ago'), unread: true, category: 'security' },
+    { icon: ShieldCheck, color: 'var(--low)', title: tr('Mitigation auto-détectée', 'Auto-detected mitigation'), body: tr('TLS 1.3 appliqué sur gw-bank-02', 'TLS 1.3 applied on gw-bank-02'), time: tr('il y a 3 h', '3 h ago'), unread: false, category: 'tasks' },
+    { icon: Trophy, color: 'var(--accent)', title: tr('Badge débloqué', 'Badge unlocked'), body: tr('Vous avez atteint le rang #4', 'You reached rank #4'), time: tr('hier', 'yesterday'), unread: false, category: 'collaboration' },
   ];
+  const shown = filter === 'all' ? items : items.filter((it) => it.category === filter);
+  const cats: (NotifCategory | 'all')[] = ['all', ...Array.from(new Set(items.map((it) => it.category)))];
 
   return (
     <>
@@ -149,8 +153,25 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
             {L.notifAll}
           </button>
         </div>
-        <div className="max-h-[380px] overflow-y-auto">
-          {items.map((it, i) => {
+        {/* category filter — separate the contexts (UX-6) */}
+        <div className="flex gap-1.5 px-[15px] py-2.5 border-b border-border overflow-x-auto">
+          {cats.map((c) => {
+            const active = filter === c;
+            const label = c === 'all' ? tr('Tout', 'All') : categoryMeta(c).label[lang];
+            return (
+              <button
+                key={c}
+                onClick={() => setFilter(c)}
+                className="shrink-0 h-[26px] px-2.5 rounded-full text-[11.5px] font-semibold transition-colors"
+                style={{ background: active ? 'var(--accent-soft)' : 'var(--bg-hover)', color: active ? 'var(--accent)' : 'var(--text-secondary)' }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="max-h-[340px] overflow-y-auto">
+          {shown.map((it, i) => {
             const Icon = it.icon;
             return (
               <div
@@ -167,7 +188,12 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-semibold text-ink mb-0.5">{it.title}</div>
                   <div className="text-[12px] text-ink-soft leading-snug">{it.body}</div>
-                  <div className="text-[11px] text-ink-muted mt-1">{it.time}</div>
+                  <div className="text-[11px] text-ink-muted mt-1 flex items-center gap-1.5">
+                    {it.time}
+                    <span className="px-1.5 py-[1px] rounded-full text-[10px] font-semibold" style={{ color: categoryMeta(it.category).color, background: `color-mix(in srgb, ${categoryMeta(it.category).color} 14%, transparent)` }}>
+                      {categoryMeta(it.category).label[lang]}
+                    </span>
+                  </div>
                 </div>
                 {it.unread && <span className="w-[7px] h-[7px] rounded-full shrink-0 mt-1.5" style={{ background: 'var(--accent)' }} />}
               </div>
