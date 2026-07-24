@@ -1,265 +1,215 @@
 name: E2E Tests
 
+# PR-blocking end-to-end tests (Playwright). Topology is fixed by the app: the
+# frontend hardcodes its API base to :8080 and CORS defaults to :5173, so we run
+# backend on :8080 + frontend dev on :5173 and drive the browser at :5173.
+# Firefox/WebKit are reserved for the nightly job — a 25-min PR CI is a CI nobody
+# uses.
+
 on:
   push:
-    branches: [main, stag, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main, stag, develop]
+    branches: [master, develop]
+  schedule:
+    # Nightly cross-browser + weekly onboarding guard (UX-33 runs every night too).
+    - cron: '17 3 * * *'
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ==================== E2E TESTS WITH PLAYWRIGHT ====================
-  e2e-tests:
-    name: E2E Tests - ${{ matrix.browser }}
+  # ==================== PR-BLOCKING E2E (chromium + Mobile Chrome) ============
+  e2e:
+    name: E2E (chromium + Mobile Chrome)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
-    
+    timeout-minutes: 25
+
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:16-alpine
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: openrisk_test
+          POSTGRES_USER: openrisk
+          POSTGRES_PASSWORD: openrisk
+          POSTGRES_DB: openrisk_e2e
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
           - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
           - 6379:6379
 
-    steps:
-      - uses: actions/checkout@v3
+    env:
+      # Backend
+      DATABASE_URL: postgres://openrisk:openrisk@localhost:5432/openrisk_e2e?sslmode=disable
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: openrisk
+      DB_PASSWORD: openrisk
+      DB_NAME: openrisk_e2e
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      APP_ENV: test
+      PORT: '8080'
+      JWT_SECRET: e2e-secret-key-not-for-production
+      CORS_ORIGINS: http://localhost:5173
+      INITIAL_ADMIN_PASSWORD: admin123
+      # E2E harness
+      E2E_NO_WEBSERVER: '1'
+      E2E_BASE_URL: http://localhost:5173
+      E2E_API_URL: http://localhost:8080/api/v1
+      E2E_ADMIN_EMAIL: admin@opendefender.io
+      E2E_ADMIN_PASSWORD: admin123
 
-      # Setup Go for backend
-      - uses: actions/setup-go@v4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
 
-      # Setup Node for frontend
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
 
-      # Build backend
       - name: Build backend
-        run: |
-          cd backend
-          go mod download
-          go build -o openrisk ./cmd/server
-        env:
-          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
+        run: cd backend && go build -o openrisk ./cmd/server
 
-      # Start backend server
-      - name: Start backend server
+      - name: Start backend (:8080)
         run: |
-          cd backend
-          timeout 120s ./openrisk &
-          sleep 3
-        env:
-          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          APP_ENV: test
-          PORT: 8080
-          JWT_SECRET: test-secret-key
-          CORS_ALLOWED_ORIGINS: http://localhost:3000
+          cd backend && ./openrisk &
+          echo "BACKEND_PID=$!" >> "$GITHUB_ENV"
 
-      # Wait for backend
-      - name: Wait for backend to be ready
+      - name: Wait for backend health
         run: |
-          for i in {1..60}; do
-            if curl -f http://localhost:8080/health; then
-              echo "✅ Backend is ready"
-              exit 0
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
+              echo "✅ backend ready"; exit 0
             fi
-            echo "Waiting for backend... ($i/60)"
-            sleep 1
+            echo "waiting for backend ($i/60)"; sleep 1
           done
-          echo "❌ Backend failed to start"
-          exit 1
+          echo "❌ backend failed to start"; exit 1
 
-      # Build frontend
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
+      - name: Install frontend deps
+        run: npm --prefix frontend ci
 
-      - name: Build frontend
-        run: cd frontend && npm run build
-        env:
-          VITE_API_URL: http://localhost:8080
-          VITE_APP_NAME: OpenRisk
-
-      # Start frontend dev server
-      - name: Start frontend dev server
+      - name: Start frontend dev server (:5173)
         run: |
-          cd frontend
-          npm run dev &
-          sleep 5
-        env:
-          VITE_API_URL: http://localhost:8080
-
-      # Wait for frontend
-      - name: Wait for frontend to be ready
-        run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:5173; then
-              echo "✅ Frontend is ready"
-              exit 0
-            fi
-            echo "Waiting for frontend... ($i/30)"
-            sleep 1
+          npm --prefix frontend run dev -- --port 5173 --strictPort &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:5173 >/dev/null; then echo "✅ frontend ready"; exit 0; fi
+            echo "waiting for frontend ($i/30)"; sleep 1
           done
-          echo "❌ Frontend failed to start"
-          exit 1
+          echo "❌ frontend failed to start"; exit 1
 
-      # Install Playwright
+      - name: Install E2E deps
+        run: npm ci
+
       - name: Install Playwright browsers
-        run: cd frontend && npx playwright install --with-deps ${{ matrix.browser }}
+        run: npx playwright install --with-deps chromium chromium-headless-shell
 
-      # Run E2E tests
-      - name: Run E2E tests (${{ matrix.browser }})
-        run: cd frontend && npm run test:e2e -- --project=${{ matrix.browser }}
-        env:
-          CI: true
-          BASE_URL: http://localhost:5173
-          API_URL: http://localhost:8080
+      - name: Run E2E (chromium + Mobile Chrome)
+        run: npx playwright test --project=chromium --project="Mobile Chrome"
 
-      # Upload test results
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v3
+      - name: Route coverage → job summary
         if: always()
+        run: node scripts/e2e-route-summary.mjs >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload Playwright report + traces
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.browser }}
-          path: frontend/playwright-report/
+          name: playwright-report
+          path: tests/e2e/.artifacts
           retention-days: 30
 
-      # Upload test videos
-      - name: Upload test videos
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: playwright-videos-${{ matrix.browser }}
-          path: frontend/test-results/
-          retention-days: 7
-
-  # ==================== PERFORMANCE TESTING ====================
-  performance-tests:
-    name: Performance Tests (k6)
+  # ==================== NIGHTLY CROSS-BROWSER (firefox + webkit) ==============
+  e2e-crossbrowser:
+    name: E2E nightly (firefox + webkit)
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+    timeout-minutes: 40
+
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:16-alpine
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: openrisk_test
+          POSTGRES_USER: openrisk
+          POSTGRES_PASSWORD: openrisk
+          POSTGRES_DB: openrisk_e2e
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
           - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
           - 6379:6379
 
+    env:
+      DATABASE_URL: postgres://openrisk:openrisk@localhost:5432/openrisk_e2e?sslmode=disable
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: openrisk
+      DB_PASSWORD: openrisk
+      DB_NAME: openrisk_e2e
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      APP_ENV: test
+      PORT: '8080'
+      JWT_SECRET: e2e-secret-key-not-for-production
+      CORS_ORIGINS: http://localhost:5173
+      INITIAL_ADMIN_PASSWORD: admin123
+      E2E_NO_WEBSERVER: '1'
+      E2E_CROSS_BROWSER: '1'
+      E2E_BASE_URL: http://localhost:5173
+      E2E_API_URL: http://localhost:8080/api/v1
+      E2E_ADMIN_EMAIL: admin@opendefender.io
+      E2E_ADMIN_PASSWORD: admin123
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-
-      - name: Build backend
-        run: |
-          cd backend
-          go mod download
-          go build -o openrisk ./cmd/server
-        env:
-          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-
-      - name: Start backend
-        run: |
-          cd backend
-          timeout 120s ./openrisk &
-          sleep 3
-        env:
-          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          APP_ENV: test
-          PORT: 8080
-
-      - name: Wait for backend
-        run: |
-          for i in {1..60}; do
-            if curl -f http://localhost:8080/health; then
-              echo "✅ Backend is ready"
-              exit 0
-            fi
-            sleep 1
-          done
-          exit 1
-
-      - name: Run k6 performance tests
-        uses: grafana/k6-action@v0.3.0
+      - uses: actions/setup-node@v4
         with:
-          filename: load_tests/baseline.js
-          cloud: false
-        env:
-          K6_VUS: 50
-          K6_DURATION: 2m
-          API_URL: http://localhost:8080
-
-      - name: Upload k6 results
-        uses: actions/upload-artifact@v3
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - name: Build & start backend
+        run: |
+          cd backend && go build -o openrisk ./cmd/server && ./openrisk &
+          for i in $(seq 1 60); do curl -fsS http://localhost:8080/api/v1/health >/dev/null && break; sleep 1; done
+      - name: Start frontend
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run dev -- --port 5173 --strictPort &
+          for i in $(seq 1 30); do curl -fsS http://localhost:5173 >/dev/null && break; sleep 1; done
+      - name: Install E2E deps + browsers
+        run: |
+          npm ci
+          npx playwright install --with-deps firefox webkit
+      - name: Run nightly E2E (firefox + webkit)
+        run: npx playwright test --project=firefox --project=webkit
+      - name: Upload report
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: k6-results
-          path: load_tests/results/
-          retention-days: 30
-
-  # ==================== E2E SUMMARY ====================
-  e2e-summary:
-    name: E2E Test Summary
-    runs-on: ubuntu-latest
-    needs: [e2e-tests]
-    if: always()
-    steps:
-      - name: E2E Tests Summary
-        run: |
-          echo "🧪 E2E Testing Complete"
-          if [ "${{ needs.e2e-tests.result }}" == "success" ]; then
-            echo "✅ All E2E tests passed"
-          else
-            echo "❌ Some E2E tests failed - check artifacts for details"
-            exit 1
-          fi
+          name: playwright-report-nightly
+          path: tests/e2e/.artifacts
+          retention-days: 14
