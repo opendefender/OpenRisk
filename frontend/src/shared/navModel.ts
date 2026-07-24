@@ -3,12 +3,17 @@
 //
 // Grouped navigation model (OpenRisk.dc.html §5). Single source of truth shared
 // by the Sidebar and the ⌘K command palette. `labelKey`/`groupKey` index into
-// uiStrings so labels stay FR/EN reactive. Screens without a backend yet route to
-// the ComingSoon placeholder so the shell never dead-ends.
+// uiStrings so labels stay FR/EN reactive.
+//
+// Information architecture: grouped by the user's GRC intention, in the natural
+// order of the work — Piloter → Identifier → Évaluer → Traiter → Prouver — plus a
+// utility group (see docs/IA_NAVIGATION_PROPOSAL.md, ratified 2026-07-24). Genuine
+// placeholders (leaderboard, simulations) are withheld from the sidebar rather than
+// shown as empty promises; their routes still exist for progressive disclosure.
 
 import {
-  LayoutDashboard, TrendingUp, Trophy, ShieldAlert, ShieldCheck, Siren, Server,
-  ClipboardCheck, Globe, Cpu, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
+  LayoutDashboard, TrendingUp, ShieldAlert, ShieldCheck, Siren, Server,
+  ClipboardCheck, Globe, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
   Workflow, Scale, Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,53 +41,57 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
+  // 0 · Piloter — « Où en suis-je ? » (dashboard par rôle, exécutif, financier)
   {
-    groupKey: 'g_overview',
+    groupKey: 'g_pilot',
     items: [
       { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/' },
       { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/analytics', perm: 'risks:read' },
       { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial', perm: 'risks:read' },
-      { key: 'leaderboard', labelKey: 'n_leaderboard', icon: Trophy, path: '/leaderboard', soon: true },
     ],
   },
+  // 1 · Identifier — « Qu'est-ce que je possède et qu'est-ce qui me menace ? »
   {
-    groupKey: 'g_security',
-    items: [
-      { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', badge: { text: '12' }, perm: 'risks:read' },
-      { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
-      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', badge: { text: '3', color: 'var(--high)' }, perm: 'mitigations:read' },
-      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
-      { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
-      { key: 'infrastructure', labelKey: 'n_infra', icon: Server, path: '/infrastructure', soon: true, perm: 'scanner:read' },
-    ],
-  },
-  {
-    groupKey: 'g_intel',
-    items: [
-      { key: 'compliance', labelKey: 'n_compliance', icon: ClipboardCheck, path: '/compliance', perm: 'compliance:read' },
-      { key: 'cti', labelKey: 'n_cti', icon: Globe, path: '/threat-map', perm: 'risks:read' },
-      { key: 'simulations', labelKey: 'n_simulations', icon: Cpu, path: '/simulations', soon: true },
-    ],
-  },
-  {
-    groupKey: 'g_assets',
+    groupKey: 'g_identify',
     items: [
       { key: 'assets', labelKey: 'n_assets', icon: Database, path: '/assets', perm: 'assets:read' },
-      { key: 'universe', labelKey: 'n_universe', icon: Atom, path: '/assets/universe', soon: true, perm: 'assets:read' },
+      { key: 'universe', labelKey: 'n_universe', icon: Atom, path: '/assets/universe', perm: 'assets:read' },
+      { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
+      { key: 'cti', labelKey: 'n_cti', icon: Globe, path: '/threat-map', perm: 'risks:read' },
+      { key: 'infrastructure', labelKey: 'n_infra', icon: Server, path: '/infrastructure', perm: 'scanner:read' },
     ],
   },
+  // 2 · Évaluer — « Quel est mon risque, en clair et en argent ? »
   {
-    groupKey: 'g_report',
+    groupKey: 'g_evaluate',
     items: [
+      { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', perm: 'risks:read' },
+    ],
+  },
+  // 3 · Traiter — « Que fais-je pour réduire ? »
+  {
+    groupKey: 'g_treat',
+    items: [
+      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', perm: 'mitigations:read' },
+      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
+      { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
+    ],
+  },
+  // 4 · Prouver — « Comment je le démontre à un régulateur ? »
+  {
+    groupKey: 'g_prove',
+    items: [
+      { key: 'compliance', labelKey: 'n_compliance', icon: ClipboardCheck, path: '/compliance', perm: 'compliance:read' },
       { key: 'reports', labelKey: 'n_reports', icon: FileText, path: '/reports', perm: 'reports:board:read' },
       { key: 'ai', labelKey: 'n_ai', icon: Sparkles, path: '/recommendations', perm: 'risks:read' },
       { key: 'emerging', labelKey: 'n_emerging', icon: Sparkles, path: '/ai/emerging-risks', perm: 'risks:read' },
+      { key: 'governance', labelKey: 'n_governance', icon: Scale, path: '/governance', adminOnly: true },
     ],
   },
+  // Utility — hors des 5 intentions (bas de sidebar)
   {
     groupKey: 'g_admin',
     items: [
-      { key: 'governance', labelKey: 'n_governance', icon: Scale, path: '/governance', adminOnly: true },
       { key: 'roles', labelKey: 'n_roles', icon: Users, path: '/settings/roles', adminOnly: true },
       { key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' },
     ],
