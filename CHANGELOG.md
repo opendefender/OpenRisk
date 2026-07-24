@@ -50,16 +50,25 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   ratified (accent default azure, density Confort, 4K master-detail); mockups polished.
 
 ### Fixed
-- **UX bug registry — 10 of 12 audit findings** (`fix/ux-audit-bug-registry`, atomic
+- **UX bug registry — all 12 audit findings** (`fix/ux-audit-bug-registry`, atomic
   commits): **OR-BUG-001/009** registration is real (3 fields → account + org
   membership → auto-login → land; fake MFA façade removed); **OR-BUG-002** first-run
-  onboarding card + personalized greeting; **OR-BUG-005** sidebar shows the real org
-  name + real cyber score (was hardcoded 72/"Banque Atlantique"); **OR-BUG-006** scan
-  preview no longer retry-spams the console; **OR-BUG-008** auth rate limit relaxed
-  5/15min → 15/5min; **OR-BUG-010** plain-language glossary tooltips for CVE/KEV/EPSS/
-  CVSS; **OR-BUG-011/012** WCAG 2.1 AA — axe-core reports 0 serious/critical on the 6
-  key screens (labels + contrast fixed, a11y gate un-quarantined). OR-BUG-003
-  (member invite) and OR-BUG-004 (Settings real data) remain — larger, planned next.
+  onboarding card + personalized greeting; **OR-BUG-003** invite a member into the
+  tenant (`InviteMemberUseCase` + `POST /rbac/members` + invite modal; live-proven:
+  invite → member logs in with tenant + business role → RBAC governs them);
+  **OR-BUG-004** Settings shows real session data (org/email/time zone) + honest
+  placeholders for un-built areas, with persisted "Saved ✓" preference toggles;
+  **OR-BUG-005** sidebar shows the real org name + real cyber score (was hardcoded
+  72/"Banque Atlantique"); **OR-BUG-006** scan preview no longer retry-spams the
+  console; **OR-BUG-008** auth rate limit relaxed 5/15min → 15/5min; **OR-BUG-010**
+  plain-language glossary tooltips for CVE/KEV/EPSS/CVSS; **OR-BUG-011/012** WCAG 2.1
+  AA — axe-core reports 0 serious/critical on the 6 key screens (labels + contrast
+  fixed, a11y gate un-quarantined).
+
+### Added
+- **Member invite** (`POST /rbac/members`, admin): provision a real tenant member
+  (user + organization_member) with an org role and an optional business-role preset;
+  returns a one-time temporary password. Frontend invite modal on `/settings/roles`.
 
 ### Changed
 - **UI elevation lot** (`feat/ia-nav-ui-elevation`): design tokens (motion, type
