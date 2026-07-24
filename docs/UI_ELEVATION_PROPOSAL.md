@@ -152,12 +152,15 @@ Trois écrans, HTML autonome, thème clair + sombre :
 - **(d) Accent par défaut : azure.** Déjà le défaut du `uiStore` (`variant: 'azure'`), confirmé.
 
 ## 10. État d'implémentation
-- ✅ **Lot 1 (livré, `feat/ia-nav-ui-elevation`)** : accent azure confirmé par défaut ; IA
-  de navigation à 5 intentions (voir `IA_NAVIGATION_PROPOSAL.md`) ; mockups de référence
-  polis (light+dark). Ces choix ancrent les tokens ci-dessus.
-- ⏭️ **À séquencer** (chantiers plus lourds, à faire écran par écran avec vérif live et
-  garde tsc/E2E verte) : moteur de densité commutable (§1.2), cadre de table dense
-  réutilisable (§6 — tri/colonne figée/sélection), drawers master-detail 4K (§7b),
-  système de mouvement + confetti (§4/§9c), composants d'états vides/erreur canoniques (§5).
-  Chacun = un lot atomique ; ne pas tout réécrire d'un coup pour ne pas régresser la
-  surface saine (42 routes, 0 cassé) mesurée par la suite E2E.
+- ✅ **Livré (`feat/ia-nav-ui-elevation`)** :
+  - **Accent azure** confirmé par défaut ; **IA de navigation à 5 intentions** (voir `IA_NAVIGATION_PROPOSAL.md`) ; mockups de référence polis (light+dark).
+  - **Tokens de design** (§1) : motion (`--dur/--ease`), échelle typographique, espacement, rayons (≤18px), élévation — dans `index.css`.
+  - **Système de densité** (§1.2) : `--den-*` via `[data-density]`, préférence persistée dans le `uiStore` (Confort défaut), **contrôle dans l'entête** (Confort→Compact→Spacieux) ; le Registre des risques y réagit (vérifié live).
+  - **Primitives réutilisables** (§5/§6) : `DataTable` (tri/colonne figée/sélection, density-aware, zéro `any`) et `EmptyState` — prêtes à l'adoption écran par écran.
+  - **Micro-victoires** (§4/§9c) : `celebrate()` confetti sobre au 1ᵉʳ risque (UX-32), `prefers-reduced-motion` respecté.
+  - **CSS master-detail 4K** (§7b) : `.or-md-*` posé (adoption drawer à venir).
+- ⏭️ **À séquencer** (écran par écran, vérif live + garde tsc/E2E verte) : adoption de
+  `DataTable`/`EmptyState` sur les autres écrans de liste (Vulnérabilités, Actifs,
+  Conformité, Incidents…), branchement du drawer de risque en master-detail 4K,
+  composants d'erreur canoniques (§5). Chacun = un lot atomique ; ne pas tout réécrire
+  d'un coup pour ne pas régresser la surface saine (42 routes, 0 cassé) mesurée par l'E2E.
