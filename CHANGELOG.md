@@ -39,6 +39,16 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   in the application layer, `CountEvidencesByFramework` repo method (single grouped query), and a
   "PDF report" button on the Compliance page (FR/EN). Serves the COBAC/BCEAO/ISO one-click statement goal.
 
+### Changed
+- **Navigation restructured into 5 GRC intentions** (founder-ratified UX proposal).
+  The sidebar is regrouped by the user's intention, in the natural order of the work —
+  **Piloter → Identifier → Évaluer → Traiter → Prouver** — plus a utility group
+  (7 groups/~20 items → 5 intentions + utility, UX-16/UX-07). Infrastructure and Asset
+  Universe are un-flagged as "soon" (both shipped); genuine placeholders (Leaderboard,
+  Simulations) are withheld from the sidebar; fake count badges removed from
+  Risks/Mitigations. `docs/IA_NAVIGATION_PROPOSAL.md` + `docs/UI_ELEVATION_PROPOSAL.md`
+  ratified (accent default azure, density Confort, 4K master-detail); mockups polished.
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Multi-tenant support

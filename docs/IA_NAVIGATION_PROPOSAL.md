@@ -1,6 +1,8 @@
 # OpenRisk — Proposition d'architecture d'information (navigation)
 
-> **Statut : proposition. À valider par le fondateur avant toute implémentation (session 5).**
+> **Statut : RATIFIÉE par le fondateur le 2026-07-24 — IMPLÉMENTÉE** sur
+> `feat/ia-nav-ui-elevation` (`frontend/src/shared/navModel.ts`). La sidebar est
+> désormais groupée en 5 intentions + utilitaire (voir §6 « État »).
 > Contrainte directrice : la navigation doit refléter le **chemin naturel de
 > l'utilisateur** — *identifier → évaluer → traiter → prouver* — pas l'arborescence
 > technique du code. Cible : ≤ 5 intentions de premier niveau (UX-16).
@@ -120,5 +122,14 @@ voisine (satisfait UX-07 « toujours guider vers l'action suivante »).
 - **UX-16** : 5 espaces (< 7). ✅
 - **UX-24** : « Piloter » est *le* point de différenciation par rôle — chaque rôle métier y atterrit sur sa vue.
 - **UX-31** : chaque intention se rattache à la fonctionnalité principale nommée dans `ROADMAP.md` ; toute future entrée doit se ranger dans l'une des 5.
-- **Migration douce** : conserver toutes les routes actuelles (les 11 redirections existantes montrent que c'est déjà la pratique) ; seule la **présentation** de la sidebar change. Aucune URL cassée.
-- **À trancher par le fondateur** : (a) garder Financier comme onglet de Piloter ou comme espace à part pour le CFO ? (b) « IA » = espace transverse ou capacité contextuelle dans chaque écran ? (c) Gouvernance sous *Prouver* ou dans l'utilitaire ?
+- **Migration douce** : toutes les routes actuelles sont conservées ; seule la **présentation** de la sidebar change. Aucune URL cassée.
+- **Arbitrages tranchés (2026-07-24)** : (a) **Financier = item de Piloter** (vue CFO en onglet) ; (b) **IA reste des items sous Prouver** (Assistant + Émergents), une contextualisation dans les écrans viendra plus tard ; (c) **Gouvernance sous Prouver** (« la preuve, c'est la gouvernance »).
+
+## 6. État d'implémentation (livré)
+`frontend/src/shared/navModel.ts` + `uiStrings.ts` (commit `feat(nav): restructure sidebar into 5 GRC intentions`) :
+- ✅ 5 groupes d'intention **Piloter · Identifier · Évaluer · Traiter · Prouver** + 1 groupe utilitaire, dans l'ordre du parcours.
+- ✅ Fusions appliquées (Piloter = Dashboard+Exécutif+Financier ; Identifier = Actifs+Universe+Vulns+CTI+Infra ; Prouver = Conformité+Rapports+IA+Gouvernance).
+- ✅ Placeholders **Leaderboard/Simulations retirés** de la sidebar (routes conservées) ; **Infrastructure** et **Asset Universe** dé-« soon » (features réellement livrées, le flag était périmé).
+- ✅ **Badges de comptage factices retirés** de Risques/Mitigations (données mock).
+- ✅ i18n FR/EN des 5 intentions ; libellé Analytics → « Tableau exécutif ».
+- **Vérifié** : `tsc -b` vert ; la sidebar rend les 5 intentions dans l'ordre (capture live). Les 42 routes E2E restent inchangées (navigation par URL).

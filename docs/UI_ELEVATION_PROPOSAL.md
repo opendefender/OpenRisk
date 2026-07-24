@@ -1,6 +1,8 @@
 # OpenRisk — Proposition d'élévation UI (niveau console AWS / app Google)
 
-> **Statut : proposition. À valider par le fondateur avant toute implémentation (session 5).**
+> **Statut : RATIFIÉE par le fondateur le 2026-07-24.** Décisions §9 arrêtées (a Confort ·
+> b master-detail 4K · c confetti/pastille selon contexte · d azure). Implémentation
+> incrémentale sur `feat/ia-nav-ui-elevation` — premier lot livré (voir §10 « État »).
 > Objectif : hisser l'interface au niveau d'une **console d'infrastructure** (densité,
 > lisibilité, tables sérieuses) tout en gardant la **chaleur d'une app grand public**
 > (mouvement, états vides accueillants). Aucune refonte de code dans cette session —
@@ -143,8 +145,19 @@ Trois écrans, HTML autonome, thème clair + sombre :
 
 ---
 
-## 9. À trancher par le fondateur
-- (a) Densité par défaut : **Confort** (grand public) ou **Compact** (console) ?
-- (b) 4K : drawer **côte à côte** (master-detail) ou superposé partout ?
-- (c) Micro-victoires : confetti sobre ou simple pastille (selon le ton de marque) ?
-- (d) Palette d'accent par défaut : azure ou iris ?
+## 9. Décisions ratifiées (fondateur, 2026-07-24)
+- **(a) Densité par défaut : Confort** (row 40 px). Compact reste commutable pour les tables 50+ lignes.
+- **(b) 4K : drawer côte à côte (master-detail).** Au-delà de 1920 px, le détail (drawer de risque/vuln/contrôle) s'ouvre en panneau adjacent à la liste, pas en superposition.
+- **(c) Micro-victoires : confetti sobre OU pastille, selon le contexte.** Confetti (600 ms) réservé aux vrais jalons (1ᵉʳ risque, 1ᵉʳ contrôle évalué, 1ᵉʳ rapport) ; pastille « ✓ » discrète pour le fréquent (autosave, action mineure).
+- **(d) Accent par défaut : azure.** Déjà le défaut du `uiStore` (`variant: 'azure'`), confirmé.
+
+## 10. État d'implémentation
+- ✅ **Lot 1 (livré, `feat/ia-nav-ui-elevation`)** : accent azure confirmé par défaut ; IA
+  de navigation à 5 intentions (voir `IA_NAVIGATION_PROPOSAL.md`) ; mockups de référence
+  polis (light+dark). Ces choix ancrent les tokens ci-dessus.
+- ⏭️ **À séquencer** (chantiers plus lourds, à faire écran par écran avec vérif live et
+  garde tsc/E2E verte) : moteur de densité commutable (§1.2), cadre de table dense
+  réutilisable (§6 — tri/colonne figée/sélection), drawers master-detail 4K (§7b),
+  système de mouvement + confetti (§4/§9c), composants d'états vides/erreur canoniques (§5).
+  Chacun = un lot atomique ; ne pas tout réécrire d'un coup pour ne pas régresser la
+  surface saine (42 routes, 0 cassé) mesurée par la suite E2E.
