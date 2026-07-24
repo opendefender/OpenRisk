@@ -9,11 +9,11 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ShieldCheck, Users, KeyRound } from 'lucide-react';
+import { ShieldCheck, Users, KeyRound, UserPlus, X, Copy } from 'lucide-react';
 import { PageFrame, PageHeader, Card, Chip, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
-import { useRbacCatalog, useRbacMembers, useAssignBusinessRole } from './useRbac';
-import type { BusinessRole, PermissionDef, MemberView } from './rbacService';
+import { useRbacCatalog, useRbacMembers, useAssignBusinessRole, useInviteMember } from './useRbac';
+import type { BusinessRole, PermissionDef, MemberView, InviteMemberResult } from './rbacService';
 
 type Tab = 'roles' | 'members';
 
@@ -150,6 +150,7 @@ function MembersView() {
   const { data: catalog } = useRbacCatalog();
   const { data: members = [], isLoading } = useRbacMembers();
   const assign = useAssignBusinessRole();
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const roleLabel = (key: string): string => {
     const r = catalog?.business_roles.find((b) => b.key === key);
@@ -171,10 +172,43 @@ function MembersView() {
     );
   };
 
-  if (isLoading) return <SkeletonRows rows={5} />;
-  if (members.length === 0) return <EmptyState icon={Users} title={tr('Aucun membre', 'No members')} />;
+  const inviteBar = (
+    <div className="flex justify-end mb-3">
+      <button
+        onClick={() => setInviteOpen(true)}
+        className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-white inline-flex items-center gap-1.5"
+        style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}
+      >
+        <UserPlus size={15} /> {tr('Inviter un membre', 'Invite a member')}
+      </button>
+    </div>
+  );
+  const modal = inviteOpen && <InviteModal catalog={catalog} onClose={() => setInviteOpen(false)} />;
+
+  if (isLoading)
+    return (
+      <>
+        {inviteBar}
+        <SkeletonRows rows={5} />
+        {modal}
+      </>
+    );
+  if (members.length === 0)
+    return (
+      <>
+        {inviteBar}
+        <EmptyState
+          icon={Users}
+          title={tr('Aucun membre', 'No members')}
+          sub={tr('Invitez votre premier membre pour collaborer.', 'Invite your first member to collaborate.')}
+        />
+        {modal}
+      </>
+    );
 
   return (
+    <>
+    {inviteBar}
     <Card className="p-0 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]" style={{ minWidth: 640 }}>
@@ -239,6 +273,94 @@ function MembersView() {
         )}
       </div>
     </Card>
+    {modal}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Invite modal — provisions a real member (user + org membership) and shows the
+// one-time temporary password to share.
+// ---------------------------------------------------------------------------
+function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacCatalog>['data']; onClose: () => void }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const invite = useInviteMember();
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState(''); // '' = no preset; '__admin__' = full admin; else preset key
+  const [result, setResult] = useState<InviteMemberResult | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const input =
+      role === ADMIN_OPTION
+        ? { email, full_name: fullName, member_role: 'admin' as const }
+        : { email, full_name: fullName, member_role: 'user' as const, business_role: role };
+    invite.mutate(input, {
+      onSuccess: (res) => setResult(res),
+      onError: (err) => {
+        const status = (err as { response?: { status?: number; data?: { error?: string } } })?.response;
+        toast.error(
+          status?.status === 409
+            ? tr('Un compte existe déjà avec cet email.', 'An account already exists for this email.')
+            : status?.data?.error || tr("L'invitation a échoué.", 'The invite failed.'),
+        );
+      },
+    });
+  };
+
+  const copy = () => {
+    if (result) navigator.clipboard?.writeText(result.temp_password);
+    toast.success(tr('Copié', 'Copied'));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={onClose}>
+      <div className="w-full max-w-[440px] rounded-[16px] p-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--elev-4)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[16px] font-bold text-ink">{tr('Inviter un membre', 'Invite a member')}</div>
+          <button onClick={onClose} className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover" aria-label={tr('Fermer', 'Close')}><X size={17} /></button>
+        </div>
+
+        {result ? (
+          <div>
+            <div className="text-[13.5px] text-ink mb-2">
+              {tr('Membre créé :', 'Member created:')} <b>{result.member.email}</b>
+            </div>
+            <div className="text-[12.5px] text-ink-soft mb-2">
+              {tr(
+                'Partagez ce mot de passe temporaire avec le membre (affiché une seule fois) :',
+                'Share this one-time temporary password with the member (shown only once):',
+              )}
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-[10px] mb-4" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-strong)' }}>
+              <code className="mono text-[14px] text-ink flex-1 break-all">{result.temp_password}</code>
+              <button onClick={copy} className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover shrink-0" aria-label={tr('Copier', 'Copy')}><Copy size={16} /></button>
+            </div>
+            <button onClick={onClose} className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>{tr('Terminé', 'Done')}</button>
+          </div>
+        ) : (
+          <form onSubmit={submit}>
+            <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="inv-name">{tr('Nom complet', 'Full name')}</label>
+            <input id="inv-name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus className="w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none mb-3" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }} />
+            <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="inv-email">{tr('Email', 'Email')}</label>
+            <input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none mb-3" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }} />
+            <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="inv-role">{tr('Rôle', 'Role')}</label>
+            <select id="inv-role" value={role} onChange={(e) => setRole(e.target.value)} className="w-full h-[42px] px-3 rounded-[11px] text-[14px] text-ink outline-none mb-4" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }}>
+              <option value="">{tr('— Aucun rôle métier —', '— No business role —')}</option>
+              {catalog?.business_roles.map((r) => (
+                <option key={r.key} value={r.key}>{lang === 'fr' ? r.label_fr : r.label_en}</option>
+              ))}
+              <option value={ADMIN_OPTION}>{tr('Administrateur (accès complet)', 'Administrator (full access)')}</option>
+            </select>
+            <button type="submit" disabled={invite.isPending} className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', opacity: invite.isPending ? 0.7 : 1 }}>
+              {invite.isPending ? '…' : tr('Créer le membre', 'Create member')}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 

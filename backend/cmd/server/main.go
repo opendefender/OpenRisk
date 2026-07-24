@@ -1370,9 +1370,14 @@ func main() {
 	businessRoleHandler := handlers.NewBusinessRoleHandler(
 		apprbac.NewListMembersUseCase(memberRBACRepo),
 		apprbac.NewAssignBusinessRoleUseCase(memberRBACRepo),
+		// Invite reuses the shared user repo + password hasher to provision a real
+		// member (user + organization_member) in the tenant (OR-BUG-003).
+		apprbac.NewInviteMemberUseCase(userRepo, passwordHasher),
 	)
 	protected.Get("/rbac/business-roles", businessRoleHandler.GetCatalog)
 	protected.Get("/rbac/members", adminRole, businessRoleHandler.ListMembers)
+	// POST /rbac/members (static) is a sibling of /rbac/members/:userId — no trap.
+	protected.Post("/rbac/members", adminRole, businessRoleHandler.InviteMember)
 	protected.Put("/rbac/members/:userId/business-role", adminRole, businessRoleHandler.AssignBusinessRole)
 
 	// =========================================================================

@@ -4,7 +4,7 @@
 // React Query hooks for the RBAC business-role admin screen.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { rbacService, type AssignBusinessRoleInput } from './rbacService';
+import { rbacService, type AssignBusinessRoleInput, type InviteMemberInput } from './rbacService';
 
 const CATALOG_KEY = ['rbac', 'catalog'] as const;
 const MEMBERS_KEY = ['rbac', 'members'] as const;
@@ -29,6 +29,16 @@ export function useAssignBusinessRole() {
   return useMutation({
     mutationFn: ({ userId, input }: { userId: string; input: AssignBusinessRoleInput }) =>
       rbacService.assignBusinessRole(userId, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: MEMBERS_KEY });
+    },
+  });
+}
+
+export function useInviteMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: InviteMemberInput) => rbacService.inviteMember(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: MEMBERS_KEY });
     },
