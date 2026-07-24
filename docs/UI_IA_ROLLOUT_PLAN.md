@@ -40,12 +40,36 @@ Chaque écran est « élevé » quand il coche :
 **DoD par écran** : checklist ci-dessus + `tsc -b`/`vite build` verts + smoke E2E de la
 route toujours vert + **capture live avant/après** attachée à la PR.
 
+## 1bis. Consignes fondateur — backlog transverse de primitives (2026-07-25)
+
+Consignes UX supplémentaires du fondateur, rattachées à la charte. Chacune = une
+**primitive partagée** à livrer puis à adopter par écran (comme `DataTable`/`EmptyState`).
+
+| # | Consigne (UX-xx) | Primitive à livrer | Prio |
+|---|---|---|---|
+| A | Suppression **mineure** = exécution immédiate + toast « Annulé/Restaurer » ≥ 7 s, sans modale (UX-12/28) | `shared/undoableDelete.ts` (hide optimiste + commit différé + Undo) | P1 |
+| B | Suppression **importante** = **radiographie d'impact** (objets liés) + alternative (transfert) avant d'agir (UX-11) | `shared/ImpactDialog.tsx` (« Annuler / Transférer les risques / Supprimer ») | P1 |
+| C | Aide contextuelle au 1ᵉʳ survol, non répétée, pas de product tour (UX-14) | `shared/Hint.tsx` (mémorisé localStorage) + compléter le `<Term>` glossaire | P2 |
+| D | Attente exploitée : progression + info utile si > 1,5 s (UX-09) | `shared/ProgressState.tsx` (scan / rapport / calcul CRQ) | P2 |
+| E | Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + centre de notif catégorisé + prefs | P1 |
+| F | Relance après inactivité + annonce de nouveauté, calées sur fuseau/heures d'activité (UX-29) | backend `last_active_at` + job d'envoi ciblé | P2 |
+| G | Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + overlay `?` | P2 |
+| H | Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | généraliser le drawer d'historique (déjà sur Assets) à Risk/Control/Mitigation | P1 |
+| I | Aperçu **flouté** des features payantes + 3 moments de conversion (après Aha / à la limite / après victoire), jamais « limite atteinte » sec (UX-18/19) | `shared/PremiumPeek.tsx` + déclencheurs Fogg | P3 |
+| J | Trial court / basé usage (Parkinson), compteur d'usage visible (UX-30) | bandeau d'essai + compteur (dépend billing) | P3 |
+| K | Onboarding testé ≥ 1×/semaine (UX-33) | ✅ cron nocturne `e2e.yml` — passer en garde hebdo bloquante | — |
+
+**Déjà appliqué** (ne pas refaire) : onboarding guidé jusqu'au Aha + personnalisation
+post-Aha (`features/onboarding/OnboardingChecklist`, UX-01/07/13/17/32/Fogg) ; nav par
+intention ≤ 7 (IA) ; autosave Paramètres (UX-23) ; densité + tokens + confetti ;
+invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
+
 ## 2. Revue par intention
 
 ### 0 · Piloter
 | Écran | Route | Priorité UI | Points de revue clés | Statut |
 |-------|-------|-------------|----------------------|--------|
-| Dashboard | `/` | **Haute** | héros chiffré par rôle (UX-24) ; retirer le reste de mock ; KRI tabulaires ; micro-victoire onboarding | 🟡 onboarding+greeting faits (OR-BUG-002), reste du hero à élever |
+| Dashboard | `/` | **Haute** | héros chiffré par rôle (UX-24) ; retirer le reste de mock ; KRI tabulaires | 🟡 **onboarding guidé jusqu'au Aha + personnalisation** livré (`OnboardingChecklist`) ; **dashboard par rôle** + hero à élever |
 | Tableau exécutif | `/analytics` | Moyenne | déjà data-réel ; appliquer tokens/hiérarchie ; filtres temporels | 🟢 données OK, polish |
 | Quantification financière | `/analytics/financial` | Moyenne | tokens ; table top-expositions → `DataTable` ; simulateur en master-detail | ⬜ |
 
