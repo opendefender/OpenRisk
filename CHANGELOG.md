@@ -9,6 +9,17 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 ## [Unreleased]
 
 ### Added
+- **Guided onboarding to the Aha moment.** After signup (email + password only),
+  the dashboard runs a 4-step action-driven checklist — create your first risk (the
+  Aha), import a framework, invite a teammate, personalize your workspace — with a
+  progress bar. Steps auto-tick from real data; the current step is emphasized so no
+  one faces an empty dashboard; completion celebrates (reduced-motion-safe confetti).
+  Post-Aha personalization (theme + accent) is an inline ghost edit. New
+  `features/onboarding`; replaces the single dismissible banner. (UX-01/07/13/17/32.)
+- **Page-by-page UI/IA rollout plan** (`docs/UI_IA_PAGE_ROLLOUT.md`): applies
+  UI_ELEVATION + IA_NAVIGATION + the founder's UX guidelines screen by screen, with
+  status and priority, and a sequenced backlog of shared primitives (undo-delete,
+  impact radiography, contextual hints, categorized notifications, role dashboards).
 - **End-to-end test harness + UX audit (Gate 0).** A runnable Playwright workspace at
   the repo root (`package.json`, `playwright.config.ts`, `tests/e2e/`) that drives the
   real app: a deterministic seed (`scripts/seed-e2e.mjs` + `dev/fixtures/e2e-dataset.json`),
