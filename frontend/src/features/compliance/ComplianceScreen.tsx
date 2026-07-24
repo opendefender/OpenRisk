@@ -17,6 +17,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useComplianceOverview, frameworkColorFor, type FrameworkWithProgress } from './complianceOverview';
 import { useComplianceReport, useFrameworks } from './useCompliance';
 import { CreateFrameworkDialog, ImportFrameworkDialog } from './ComplianceModals';
+import { DangerConfirm } from '../../shared/DangerConfirm';
 
 export function ComplianceScreen() {
   const L = useUIStrings();
@@ -46,15 +47,16 @@ export function ComplianceScreen() {
     });
   };
 
-  const remove = (f: FrameworkWithProgress) => {
-    if (!window.confirm(tr(
-      `Supprimer « ${f.name} » et tous ses contrôles ? Cette action est irréversible.`,
-      `Delete "${f.name}" and all its controls? This cannot be undone.`
-    ))) return;
-    toast.promise(deleteFramework.mutateAsync(f.id), {
+  // Deleting a framework cascades its controls + evidence → impact-radiography.
+  const [removingFw, setRemovingFw] = useState<FrameworkWithProgress | null>(null);
+  const doRemoveFw = () => {
+    if (!removingFw) return;
+    const id = removingFw.id;
+    setRemovingFw(null);
+    toast.promise(deleteFramework.mutateAsync(id), {
       loading: tr('Suppression…', 'Deleting…'),
       success: tr('Référentiel supprimé', 'Framework deleted'),
-      error: tr('Suppression échouée', 'Delete failed'),
+      error: tr('Suppression échouée — réessayez.', 'Delete failed — retry.'),
     });
   };
 
@@ -150,7 +152,7 @@ export function ComplianceScreen() {
                     </button>
                     {canDelete && (
                       <button
-                        onClick={() => remove(f)}
+                        onClick={() => setRemovingFw(f)}
                         className="h-8 px-3 rounded-[9px] inline-flex items-center justify-center transition-colors hover:brightness-110"
                         style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', background: 'color-mix(in srgb,var(--critical) 10%,transparent)', color: 'var(--critical)' }}
                         title={tr('Supprimer le référentiel', 'Delete framework')}
@@ -172,6 +174,24 @@ export function ComplianceScreen() {
       {modal === 'import' && (
         <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/${id}`)} />
       )}
+
+      <DangerConfirm
+        open={!!removingFw}
+        onClose={() => setRemovingFw(null)}
+        title={tr('Supprimer le référentiel', 'Delete framework')}
+        subject={removingFw?.name}
+        intro={tr(
+          'Le référentiel, ses contrôles et leurs preuves seront définitivement supprimés. Cette action est irréversible.',
+          'The framework, its controls and their evidence will be permanently deleted. This action is irreversible.'
+        )}
+        impact={removingFw ? [
+          { label: tr('Contrôles', 'Controls'), value: removingFw.total },
+          { label: tr('Couverture', 'Coverage'), value: `${removingFw.pct}%` },
+        ] : []}
+        confirmLabel={tr('Supprimer le référentiel', 'Delete framework')}
+        onConfirm={doRemoveFw}
+        busy={deleteFramework.isPending}
+      />
     </PageFrame>
   );
 }

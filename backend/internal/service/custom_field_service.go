@@ -29,8 +29,11 @@ func NewCustomFieldService() *CustomFieldService {
 	}
 }
 
-// CreateCustomField creates a new custom field
-func (s *CustomFieldService) CreateCustomField(userID uuid.UUID, req *domain.CreateCustomFieldRequest) (*domain.CustomField, error) {
+// CreateCustomField creates a new custom field (tenant-scoped)
+func (s *CustomFieldService) CreateCustomField(tenantID, userID uuid.UUID, req *domain.CreateCustomFieldRequest) (*domain.CustomField, error) {
+	if tenantID == uuid.Nil {
+		return nil, fmt.Errorf("tenant is required")
+	}
 	// Validate field type
 	switch req.FieldType {
 	case domain.CustomFieldTypeText, domain.CustomFieldTypeNumber, domain.CustomFieldTypeChoice,
@@ -48,9 +51,9 @@ func (s *CustomFieldService) CreateCustomField(userID uuid.UUID, req *domain.Cre
 		return nil, fmt.Errorf("invalid scope: %s", req.Scope)
 	}
 
-	// Check for duplicate name within scope
+	// Check for duplicate name within scope, scoped to this tenant
 	existing := &domain.CustomField{}
-	if err := s.db.Where("name = ? AND scope = ?", req.Name, req.Scope).First(existing).Error; err == nil {
+	if err := s.db.Where("tenant_id = ? AND name = ? AND scope = ?", tenantID, req.Name, req.Scope).First(existing).Error; err == nil {
 		return nil, fmt.Errorf("custom field with name '%s' already exists for scope '%s'", req.Name, req.Scope)
 	}
 
@@ -67,6 +70,7 @@ func (s *CustomFieldService) CreateCustomField(userID uuid.UUID, req *domain.Cre
 	// Create field
 	field := &domain.CustomField{
 		ID:           uuid.New(),
+		TenantID:     tenantID,
 		Name:         req.Name,
 		DisplayName:  req.DisplayName,
 		Description:  req.Description,
@@ -88,19 +92,19 @@ func (s *CustomFieldService) CreateCustomField(userID uuid.UUID, req *domain.Cre
 	return field, nil
 }
 
-// GetCustomField retrieves a custom field by ID
-func (s *CustomFieldService) GetCustomField(fieldID uuid.UUID) (*domain.CustomField, error) {
+// GetCustomField retrieves a custom field by ID (tenant-scoped)
+func (s *CustomFieldService) GetCustomField(tenantID, fieldID uuid.UUID) (*domain.CustomField, error) {
 	field := &domain.CustomField{}
-	if err := s.db.First(field, "id = ?", fieldID).Error; err != nil {
+	if err := s.db.First(field, "id = ? AND tenant_id = ?", fieldID, tenantID).Error; err != nil {
 		return nil, err
 	}
 	return field, nil
 }
 
-// GetCustomFieldsByScope retrieves all custom fields for a specific scope
-func (s *CustomFieldService) GetCustomFieldsByScope(scope domain.CustomFieldScope) ([]*domain.CustomField, error) {
+// GetCustomFieldsByScope retrieves all custom fields for a specific scope (tenant-scoped)
+func (s *CustomFieldService) GetCustomFieldsByScope(tenantID uuid.UUID, scope domain.CustomFieldScope) ([]*domain.CustomField, error) {
 	var fields []*domain.CustomField
-	if err := s.db.Where("scope = ? AND visible = ?", scope, true).
+	if err := s.db.Where("tenant_id = ? AND scope = ? AND visible = ?", tenantID, scope, true).
 		Order("position ASC").
 		Find(&fields).Error; err != nil {
 		return nil, err
@@ -108,9 +112,9 @@ func (s *CustomFieldService) GetCustomFieldsByScope(scope domain.CustomFieldScop
 	return fields, nil
 }
 
-// ListCustomFields lists all custom fields with optional filtering
-func (s *CustomFieldService) ListCustomFields(scope *domain.CustomFieldScope) ([]*domain.CustomField, error) {
-	query := s.db
+// ListCustomFields lists all custom fields with optional filtering (tenant-scoped)
+func (s *CustomFieldService) ListCustomFields(tenantID uuid.UUID, scope *domain.CustomFieldScope) ([]*domain.CustomField, error) {
+	query := s.db.Where("tenant_id = ?", tenantID)
 	if scope != nil {
 		query = query.Where("scope = ?", *scope)
 	}
@@ -122,10 +126,10 @@ func (s *CustomFieldService) ListCustomFields(scope *domain.CustomFieldScope) ([
 	return fields, nil
 }
 
-// UpdateCustomField updates an existing custom field
-func (s *CustomFieldService) UpdateCustomField(fieldID uuid.UUID, req *domain.UpdateCustomFieldRequest) (*domain.CustomField, error) {
+// UpdateCustomField updates an existing custom field (tenant-scoped)
+func (s *CustomFieldService) UpdateCustomField(tenantID, fieldID uuid.UUID, req *domain.UpdateCustomFieldRequest) (*domain.CustomField, error) {
 	field := &domain.CustomField{}
-	if err := s.db.First(field, "id = ?", fieldID).Error; err != nil {
+	if err := s.db.First(field, "id = ? AND tenant_id = ?", fieldID, tenantID).Error; err != nil {
 		return nil, err
 	}
 
@@ -166,13 +170,25 @@ func (s *CustomFieldService) UpdateCustomField(fieldID uuid.UUID, req *domain.Up
 	return field, nil
 }
 
-// DeleteCustomField deletes a custom field (soft delete)
-func (s *CustomFieldService) DeleteCustomField(fieldID uuid.UUID) error {
-	return s.db.Delete(&domain.CustomField{}, "id = ?", fieldID).Error
+// DeleteCustomField deletes a custom field (soft delete, tenant-scoped)
+func (s *CustomFieldService) DeleteCustomField(tenantID, fieldID uuid.UUID) error {
+	res := s.db.Delete(&domain.CustomField{}, "id = ? AND tenant_id = ?", fieldID, tenantID)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
-// CreateTemplate creates a custom field template
-func (s *CustomFieldService) CreateTemplate(userID uuid.UUID, name string, scope domain.CustomFieldScope, fields []*domain.CustomField) (*domain.CustomFieldTemplate, error) {
+// CreateTemplate creates a custom field template (tenant-scoped)
+func (s *CustomFieldService) CreateTemplate(tenantID, userID uuid.UUID, name string, scope domain.CustomFieldScope, fields []*domain.CustomField) (*domain.CustomFieldTemplate, error) {
+	// Stamp the tenant on every embedded field so an applied template can never
+	// materialise fields owned by another tenant.
+	for _, f := range fields {
+		f.TenantID = tenantID
+	}
 	// Marshal fields
 	fieldsJSON, err := json.Marshal(fields)
 	if err != nil {
@@ -181,6 +197,7 @@ func (s *CustomFieldService) CreateTemplate(userID uuid.UUID, name string, scope
 
 	template := &domain.CustomFieldTemplate{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		Name:      name,
 		Scope:     scope,
 		Fields:    fieldsJSON,
@@ -195,10 +212,10 @@ func (s *CustomFieldService) CreateTemplate(userID uuid.UUID, name string, scope
 	return template, nil
 }
 
-// ApplyTemplate applies a custom field template to create new fields
-func (s *CustomFieldService) ApplyTemplate(templateID uuid.UUID, userID uuid.UUID) ([]*domain.CustomField, error) {
+// ApplyTemplate applies a custom field template to create new fields (tenant-scoped)
+func (s *CustomFieldService) ApplyTemplate(tenantID, templateID, userID uuid.UUID) ([]*domain.CustomField, error) {
 	template := &domain.CustomFieldTemplate{}
-	if err := s.db.First(template, "id = ?", templateID).Error; err != nil {
+	if err := s.db.First(template, "id = ? AND tenant_id = ?", templateID, tenantID).Error; err != nil {
 		return nil, fmt.Errorf("failed to find template: %w", err)
 	}
 
@@ -208,10 +225,11 @@ func (s *CustomFieldService) ApplyTemplate(templateID uuid.UUID, userID uuid.UUI
 		return nil, fmt.Errorf("failed to unmarshal template fields: %w", err)
 	}
 
-	// Create new fields from template
+	// Create new fields from template — always in the caller's tenant.
 	var createdFields []*domain.CustomField
 	for _, field := range templateFields {
 		field.ID = uuid.New()
+		field.TenantID = tenantID
 		field.CreatedBy = userID
 
 		if err := s.db.Create(field).Error; err != nil {

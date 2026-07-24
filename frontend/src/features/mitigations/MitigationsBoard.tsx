@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Clock, ShieldCheck, KanbanSquare, Rows3, GanttChartSquare, X } from 'lucide-react';
+import { Plus, Clock, ShieldCheck, KanbanSquare, Rows3, GanttChartSquare, X, ChevronDown, Check, Loader2 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Avatar, Skeleton, EmptyState, softFill } from '../../shared/ui';
 import { critColor } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -256,6 +256,56 @@ function KanbanCard({ c, onOpen }: { c: UiMiti; onOpen: () => void }) {
 }
 
 /* ---------------- table view ---------------- */
+// Click-to-edit status right in the table row (ghost edit + optimistic autosave).
+function InlineMitiStatus({ c, statusLabel, statusColor }: { c: UiMiti; statusLabel: Record<Column, string>; statusColor: Record<Column, string> }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const setStatus = useMutation({
+    mutationFn: (col: Column) => mitigationService.setStatus(c.id, COL_TO_STATUS[col]),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mitigations'] }); toast.success(tr('Statut mis à jour', 'Status updated')); },
+    onError: () => toast.error(tr('Échec', 'Failed')),
+  });
+  const cols: Column[] = ['todo', 'progress', 'review', 'done'];
+  const pill = (col: Column) => (
+    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-soft">
+      <span className="w-[7px] h-[7px] rounded-full" style={{ background: statusColor[col] }} />
+      {statusLabel[col]}
+    </span>
+  );
+  return (
+    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={setStatus.isPending}
+        title={tr('Changer le statut', 'Change status')}
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 -mx-1 hover:bg-hover transition-colors"
+      >
+        {pill(c.column)}
+        {setStatus.isPending ? <Loader2 size={12} className="animate-spin text-ink-muted" /> : <ChevronDown size={12} className="text-ink-muted" />}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-[150px] rounded-[10px] p-1 shadow-card-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+            {cols.map((col) => (
+              <button
+                key={col}
+                onClick={() => { setOpen(false); if (col !== c.column) setStatus.mutate(col); }}
+                className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-[7px] hover:bg-hover transition-colors text-left"
+              >
+                {pill(col)}
+                {col === c.column && <Check size={13} className="text-accent" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TableView({ items, isLoading, statusLabel, statusColor, onOpen }: { items: UiMiti[]; isLoading: boolean; statusLabel: Record<Column, string>; statusColor: Record<Column, string>; onOpen: (m: UiMiti) => void }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
@@ -281,7 +331,7 @@ function TableView({ items, isLoading, statusLabel, statusColor, onOpen }: { ite
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: critColor[c.crit] }} />{c.crit}
                   </span>
                 </td>
-                <td className="px-3.5 py-3"><span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-soft"><span className="w-[7px] h-[7px] rounded-full" style={{ background: statusColor[c.column] }} />{statusLabel[c.column]}</span></td>
+                <td className="px-3.5 py-3"><InlineMitiStatus c={c} statusLabel={statusLabel} statusColor={statusColor} /></td>
                 <td className="px-3.5 py-3">
                   <div className="flex items-center gap-2 min-w-[120px]">
                     <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ background: 'var(--bg-hover)' }}>

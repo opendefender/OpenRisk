@@ -17,6 +17,15 @@ import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats } from './useStats';
+import { useAuthStore } from '../../hooks/useAuthStore';
+import { personaFor } from './dashboardPersona';
+import { AnalystDashboard } from './AnalystDashboard';
+import { ExecDashboard } from './ExecDashboard';
+import { AuditDashboard } from './AuditDashboard';
+import { EstateDashboard } from './EstateDashboard';
+import { ViewerDashboard } from './ViewerDashboard';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
+import { InfoHint } from '../../shared/InfoHint';
 
 /* ---------------- helpers ---------------- */
 
@@ -64,9 +73,32 @@ interface RecentRisk {
   fw: string;
 }
 
-/* ---------------- page ---------------- */
+/* ---------------- persona dispatcher ---------------- */
 
+// The dashboard adapts to the member's GRC role (UX-2). Each persona renders its
+// own real-data view; admins and unmapped roles get the full posture dashboard.
 export const DashboardPage = () => {
+  const businessRole = useAuthStore((s) => s.user?.business_role);
+  const persona = personaFor(businessRole);
+  switch (persona) {
+    case 'analyst':
+      return <AnalystDashboard />;
+    case 'exec':
+      return <ExecDashboard />;
+    case 'audit':
+      return <AuditDashboard />;
+    case 'estate':
+      return <EstateDashboard />;
+    case 'viewer':
+      return <ViewerDashboard />;
+    default:
+      return <PostureDashboard />;
+  }
+};
+
+/* ---------------- posture persona (default: RSSI / risk roles / admin) ---------------- */
+
+function PostureDashboard() {
   const navigate = useNavigate();
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
@@ -125,6 +157,9 @@ export const DashboardPage = () => {
           </button>
         </div>
 
+        {/* Onboarding-by-action: guides a new tenant to the Aha, hides once set up. */}
+        <OnboardingChecklist />
+
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
           <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} onDetails={() => navigate('/risks')} />
@@ -150,6 +185,7 @@ export const DashboardPage = () => {
 /* ---------------- Score hero ---------------- */
 function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void }) {
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
   const val = Math.round(useCountUp(score));
   const cx = 110, cy = 112, r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
@@ -157,7 +193,10 @@ function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void 
   const col = val >= 70 ? 'var(--low)' : val >= 45 ? 'var(--high)' : 'var(--critical)';
   return (
     <Card>
-      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft">{L.globalScore}</div>
+      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
+        {L.globalScore}
+        <InfoHint text={lang === 'fr' ? '0–100 : plus le score est élevé, meilleure est votre posture de sécurité.' : '0–100: the higher the score, the stronger your security posture.'} />
+      </div>
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
           <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />

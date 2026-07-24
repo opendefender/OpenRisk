@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -244,6 +245,27 @@ func (r *GormRiskRepository) CountRisksByCriticality(ctx context.Context, tenant
 // domain.RiskRepository port) so existing mocks stay valid; the financial-summary
 // use case depends on a narrow port instead. Registers are small, so the extra
 // columns are immaterial.
+// SearchByText is a lightweight, tenant-scoped substring search over a risk's
+// name/title/description for the universal search palette. Unlike List's full-text
+// tsvector match (strict, whole-word), this ILIKE match is forgiving of partial
+// words (type-ahead) and returns only a capped, score-ordered slice. Concrete
+// method (off the RiskRepository port, like ListRisksForFinancial), so mocks stay
+// intact.
+func (r *GormRiskRepository) SearchByText(ctx context.Context, tenantID uuid.UUID, q string, limit int) ([]domain.Risk, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 8
+	}
+	like := "%" + strings.ToLower(strings.TrimSpace(q)) + "%"
+	var risks []domain.Risk
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		Where("LOWER(name) LIKE ? OR LOWER(title) LIKE ? OR LOWER(COALESCE(description,'')) LIKE ?", like, like, like).
+		Order("score DESC").
+		Limit(limit).
+		Find(&risks).Error
+	return risks, err
+}
+
 func (r *GormRiskRepository) ListRisksForFinancial(ctx context.Context, tenantID uuid.UUID) ([]domain.Risk, error) {
 	var risks []domain.Risk
 	err := r.db.WithContext(ctx).

@@ -299,6 +299,71 @@ Aucune n'est mergée dans `master`. **Demander avant tout merge/PR.**
 
 ## 4. PROCHAINES PRIORITÉS (ordonnées par valeur × dépendances)
 
+**Bloc UX — REFONTE UX STRATÉGIQUE (sprint courant, 2026-07-23)** — *transformer OpenRisk en outil
+intuitif et centré utilisateur : prise en main immédiate, zéro charge cognitive, zéro dead-end.*
+Focus produit défini : **LE registre des risques et sa réduction** (identifier → scorer → traiter →
+prouver) est la fonctionnalité-cœur ; tout le reste (actifs, vulns, conformité, IA, dashboards) orbite
+autour. **Aha! moment** = « je crée/importe mon premier risque et je vois immédiatement son exposition
+financière + un plan de traitement suggéré ». Une branche par phase, commits atomiques, doc + test à chaque étape.
+
+- [x] **UX-0 — Socle : architecture de l'information & navigation par intentions** ✅ 2026-07-23
+  (`feature/ux-information-architecture`) — sidebar regroupée en **7 espaces par intention** (⭐ *Maîtriser
+  les risques* en tête et accentué · *Piloter la posture* avec Dashboard épinglé · *Cartographier le
+  patrimoine* · *Anticiper les menaces* · *Prouver la conformité* · *Décider & rapporter* · *Administration*).
+  `NavItem.pinned` + `NavGroup.core` + `pinnedItems()`, clés i18n `g_*` refondées, en-tête core accentué.
+  Action première (« Nouveau risque ») déjà épinglée, `soon`→ComingSoon (CTA, pas de dead-end). `tsc`/`vite` verts.
+- [x] **UX-1 — Universal Search ⌘K** ✅ 2026-07-23 (`feature/ux-universal-search`) — endpoint
+  `GET /search?q=` tenant-scoped + **RBAC par source** (une source n'est cherchée que si le demandeur a
+  sa permission) + best-effort (nil-safe), sur **les 8 entités de la spec** : risques · actifs · vulns ·
+  **contrôles · audits · rapports · CVE · utilisateurs** (users admin-only, CVE = threat-intel global).
+  Palette ⌘K = vraie recherche d'entités (groupe « Résultats » débouncé 180 ms, icône par type, chip de
+  sévérité). **Deep-open `?focus=<id>`** câblé sur risques/actifs/vulns (hook `useFocusParam`). **Preuves
+  live** : `q=admin` → risque + 2 contrôles + 6 CVE + user `System Administrator` ; `q=log` → risque +
+  actif + 4 vulns + 6 contrôles ; **capture headless** `/risks?focus=<id>` → drawer Log4j ouvert directement.
+  7 tests use-case verts, `go vet`/`tsc`/`vite` verts.
+- [x] **UX-2 — Dashboards intelligents par rôle** ✅ 2026-07-23 (`feature/ux-role-dashboards`) — le dashboard
+  `/` s'adapte au `business_role` via un dispatcher (`dashboardPersona.ts`) → **6 personas** à données réelles :
+  **posture** (RSSI/risk/admin, layout existant) · **analyst** (vulns : KPI P1/KEV + file de priorité
+  deep-linkée) · **audit** (couverture par référentiel + écarts + audits) · **exec** (cyber score A–F + ALE
+  FCFA + KRI) · **estate** (inventaire + criticité + actifs critiques deep-linkés) · **viewer** (aperçu
+  lecture seule). Primitives partagées (`shared.tsx`). **Preuves headless** : Direction→F/117,5 M FCFA/7 KRI ;
+  Auditeur→6 réf./ISO 46 %/180 écarts ; DSI→16 actifs/7 crit. ; Analyste→file P1/KEV. `tsc`/`vite` verts.
+- [x] **UX-3 — Psychologie des interactions** ✅ 2026-07-23 (`feature/ux-inline-edit-autosave`) — **édition
+  fantôme** (statut click-to-edit inline, autosave optimiste + toast, zéro bouton Enregistrer) sur risques
+  & vulns & mitigations ; **soft-delete + undo** via hook réutilisable `shared/useSoftDelete` (la ligne
+  disparaît + toast « Annuler » 5 s, l'API ne part qu'après → undo instantané) sur risques, vulns,
+  incidents. Les suppressions **vitales** (tenant/user/rôle/token) gardent un confirm explicite (→ UX-4
+  radiographie). `tsc`/`vite` verts, affordance inline prouvée live (risks + vulns).
+- [x] **UX-4 — Actions critiques & erreurs** ✅ 2026-07-23 (`feature/ux-critical-actions`) — composant
+  réutilisable **`shared/DangerConfirm`** (radiographie d'impact : conséquence + bilan label→valeur +
+  **alternatives en 1re classe** + action destructive) sur les suppressions **vitales** live : révocation
+  de membre (alternative « Désactiver — réversible »), révocation de jeton API (avait **zéro friction**),
+  suppression de référentiel (cascade contrôles+preuves, montre nb contrôles/couverture). Messages d'erreur
+  enrichis (« réessayez / contactez un admin »). **Empty states** des listes cœur (risques/vulns/actifs/
+  incidents) **déjà** dotés d'un CTA actionnable (vérifié, pas de dead-end). Prouvé live (modale rendue sur
+  /settings). `tsc`/`vite` verts.
+- [x] **UX-5 — Onboarding & Aha moment** ✅ 2026-07-23 (`feature/ux-onboarding-aha`) — **onboarding par
+  l'action** (`OnboardingChecklist` sur le dashboard) : étapes auto-cochées depuis les vraies données vers
+  l'Aha (⭐ créer son 1er risque → exposition+traitement), puis actif + référentiel ; barre de progression
+  honnête, actions 1-clic, dismissible (un tenant configuré ne la voit jamais). **Personnalisation
+  post-victoire** débloquée après l'Aha (`PersonalizeCard` : thème clair/sombre + accent azure/iris, déjà
+  branchés tokens) — aussi dans Paramètres › Apparence. **Aide contextuelle** (`shared/InfoHint`, tooltip
+  progressive, pas de product tour) sur les jauges de score. Prouvé live (état new-tenant). `tsc`/`vite` verts.
+- [x] **UX-6 — Notifications, rétention & upsell** ✅ 2026-07-23 (`feature/ux-notifications-upsell`) —
+  **notifications catégorisées** : taxonomie `shared/notificationCategory.ts` (5 contextes Sécurité/
+  Conformité/Tâches/Collaboration/Facturation + mapping `type→catégorie`) → **matrice de préférences par
+  contexte** dans Paramètres › Notifications (switches In-app + E-mail par contexte, persistés localStorage)
+  + chips de catégorie & filtre sur la cloche. **Upsell doux** : `shared/UpsellLock` (aperçu **flou** +
+  bénéfice + CTA, jamais de mur dur ; label « moment ») appliqué au Classement (gamification premium).
+  Prouvé live (matrice 5 contextes + overlay PREMIUM flouté). `tsc`/`vite` verts. **Honnête** : pas de
+  backend billing → gate cosmétique (vrai gating = module Billing, Bloc D) ; persistance prefs = localStorage.
+- [x] **UX-7 — Ergonomie & accessibilité (passe finale)** ✅ 2026-07-23 (`feature/ux-a11y-responsive`) —
+  **raccourcis clavier globaux** (`GlobalShortcuts` monté dans le shell : `N` nouveau risque · `/` recherche ·
+  `G` puis D/R/V/M/I/C/A/S = aller à · `?` aide · Esc) qui ne détournent jamais la frappe dans un champ, +
+  **overlay d'aide** listant tout. Responsive (sidebar off-canvas < lg vérifiée à 414 px, tables overflow-x),
+  no-dead-end (empty states + ComingSoon CTA, UX-4) et hiérarchie visuelle **déjà en place**. Prouvé live
+  (overlay raccourcis + capture mobile). `tsc`/`vite` verts. **🎉 Les 8 phases de la refonte UX sont livrées.**
+
 **Bloc A — Solidifier les fondations (avant d'empiler des features)**
 1. **Prouver live l'Auth complète (Module 2)** : MFA, OAuth2, SAML2, refresh-token, switch-org. Corriger
    `TestSetupMFA_Success`/`TestRiskCRUDFlow`. Tant que non prouvé → 🟡.
@@ -359,3 +424,4 @@ session, commencer par « Lis [fichier] et explique-moi le problème avant de pr
 
 **Discipline branche/doc** : une branche par feature ; à chaque fin de module, commit + mise à jour de
 `ROADMAP.md` et `CLAUDE.md`. Vérifier chaque page **live** avant de la déclarer faite.
+continue

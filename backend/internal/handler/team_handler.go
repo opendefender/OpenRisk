@@ -67,12 +67,18 @@ func CreateTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can create teams"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid tenant"})
+	}
+
 	input := new(CreateTeamInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
 	}
 
 	team := domain.Team{
+		TenantID:    tenantID,
 		Name:        input.Name,
 		Description: input.Description,
 	}
@@ -109,8 +115,10 @@ func GetTeams(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view teams"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
+
 	var teams []domain.Team
-	if err := database.DB.Find(&teams).Error; err != nil {
+	if err := database.DB.Where("tenant_id = ?", tenantID).Find(&teams).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve teams"})
 	}
 
@@ -149,9 +157,10 @@ func GetTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view teams"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
 	teamID := c.Params("id")
 	var team domain.Team
-	if err := database.DB.First(&team, "id = ?", teamID).Error; err != nil {
+	if err := database.DB.First(&team, "id = ? AND tenant_id = ?", teamID, tenantID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
 	}
 
@@ -201,9 +210,10 @@ func UpdateTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can update teams"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
 	teamID := c.Params("id")
 	var team domain.Team
-	if err := database.DB.First(&team, "id = ?", teamID).Error; err != nil {
+	if err := database.DB.First(&team, "id = ? AND tenant_id = ?", teamID, tenantID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
 	}
 
@@ -255,9 +265,10 @@ func DeleteTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can delete teams"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
 	teamID := c.Params("id")
 	var team domain.Team
-	if err := database.DB.First(&team, "id = ?", teamID).Error; err != nil {
+	if err := database.DB.First(&team, "id = ? AND tenant_id = ?", teamID, tenantID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
 	}
 
@@ -291,18 +302,31 @@ func AddTeamMember(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can add team members"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
 	teamID := c.Params("id")
 	userID := c.Params("userId")
 
-	// Verify team exists
+	// Verify team exists in this tenant
 	var team domain.Team
-	if err := database.DB.First(&team, "id = ?", teamID).Error; err != nil {
+	if err := database.DB.First(&team, "id = ? AND tenant_id = ?", teamID, tenantID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
 	}
 
 	// Verify user exists
 	var user domain.User
 	if err := database.DB.First(&user, "id = ?", userID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// The target user must belong to this tenant — never let an admin pull a
+	// member from another organization into their team.
+	var orgMemberCount int64
+	if err := database.DB.Model(&domain.OrganizationMember{}).
+		Where("organization_id = ? AND user_id = ?", tenantID, userID).
+		Count(&orgMemberCount).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to verify membership"})
+	}
+	if orgMemberCount == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
@@ -344,8 +368,15 @@ func RemoveTeamMember(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can remove team members"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
 	teamID := c.Params("id")
 	userID := c.Params("userId")
+
+	// Verify the team belongs to this tenant before touching its membership.
+	var team domain.Team
+	if err := database.DB.First(&team, "id = ? AND tenant_id = ?", teamID, tenantID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
+	}
 
 	if err := database.DB.Where("team_id = ? AND user_id = ?", teamID, userID).Delete(&domain.TeamMember{}).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to remove team member"})

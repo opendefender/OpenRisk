@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -168,8 +169,13 @@ func (h *IncidentHandler) GetIncidentTimeline(c *fiber.Ctx) error {
 		})
 	}
 
-	timeline, err := h.incidentService.GetTimeline(uint(incidentID))
+	tenantID := safeGetString(c, "tenant_id")
+
+	timeline, err := h.incidentService.GetTimeline(tenantID, uint(incidentID))
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to get timeline: %v", err),
 		})
@@ -195,7 +201,12 @@ func (h *IncidentHandler) LinkRisk(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.incidentService.LinkRisk(uint(incidentID), uint(riskID)); err != nil {
+	tenantID := safeGetString(c, "tenant_id")
+
+	if err := h.incidentService.LinkRisk(tenantID, uint(incidentID), uint(riskID)); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to link risk: %v", err),
 		})
@@ -229,9 +240,14 @@ func (h *IncidentHandler) CreateIncidentAction(c *fiber.Ctx) error {
 		})
 	}
 
+	tenantID := safeGetString(c, "tenant_id")
+
 	action, err := h.incidentService.CreateIncidentAction(
-		uint(incidentID), req.Title, req.Description, req.DueDate, req.AssignedTo)
+		tenantID, uint(incidentID), req.Title, req.Description, req.DueDate, req.AssignedTo)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to create action: %v", err),
 		})
@@ -250,8 +266,13 @@ func (h *IncidentHandler) GetIncidentActions(c *fiber.Ctx) error {
 		})
 	}
 
-	actions, err := h.incidentService.GetIncidentActions(uint(incidentID))
+	tenantID := safeGetString(c, "tenant_id")
+
+	actions, err := h.incidentService.GetIncidentActions(tenantID, uint(incidentID))
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to get actions: %v", err),
 		})
@@ -280,7 +301,12 @@ func (h *IncidentHandler) UpdateIncidentAction(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.incidentService.UpdateIncidentAction(uint(actionID), req.Status); err != nil {
+	tenantID := safeGetString(c, "tenant_id")
+
+	if err := h.incidentService.UpdateIncidentAction(tenantID, uint(actionID), req.Status); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Action not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to update action: %v", err),
 		})

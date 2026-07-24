@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -119,6 +120,24 @@ func (r *GormComplianceRepository) ListControlsByFramework(ctx context.Context, 
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND framework_id = ?", tenantID, frameworkID).
 		Order("reference_code ASC").
+		Find(&controls).Error
+	return controls, err
+}
+
+// SearchControls is a lightweight, tenant-scoped substring search over a control's
+// reference code / name / description, for the universal search palette. Concrete
+// method (off the ComplianceRepository port) so mocks stay intact.
+func (r *GormComplianceRepository) SearchControls(ctx context.Context, tenantID uuid.UUID, q string, limit int) ([]domain.ComplianceControl, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 8
+	}
+	like := "%" + strings.ToLower(strings.TrimSpace(q)) + "%"
+	var controls []domain.ComplianceControl
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		Where("LOWER(reference_code) LIKE ? OR LOWER(name) LIKE ? OR LOWER(COALESCE(description,'')) LIKE ?", like, like, like).
+		Order("reference_code ASC").
+		Limit(limit).
 		Find(&controls).Error
 	return controls, err
 }
