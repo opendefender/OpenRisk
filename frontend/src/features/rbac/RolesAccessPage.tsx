@@ -14,6 +14,7 @@ import { PageFrame, PageHeader, Card, Chip, SkeletonRows, EmptyState } from '../
 import { useUIStore } from '../../store/uiStore';
 import { useRbacCatalog, useRbacMembers, useAssignBusinessRole, useInviteMember } from './useRbac';
 import type { BusinessRole, PermissionDef, MemberView, InviteMemberResult } from './rbacService';
+import { useOnboarding } from '../onboarding/onboardingStore';
 
 type Tab = 'roles' | 'members';
 
@@ -286,6 +287,7 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const invite = useInviteMember();
+  const markInvited = useOnboarding((s) => s.markInvited);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState(''); // '' = no preset; '__admin__' = full admin; else preset key
@@ -298,7 +300,10 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
         ? { email, full_name: fullName, member_role: 'admin' as const }
         : { email, full_name: fullName, member_role: 'user' as const, business_role: role };
     invite.mutate(input, {
-      onSuccess: (res) => setResult(res),
+      onSuccess: (res) => {
+        setResult(res);
+        markInvited(); // completes the onboarding "invite a teammate" step
+      },
       onError: (err) => {
         const status = (err as { response?: { status?: number; data?: { error?: string } } })?.response;
         toast.error(
