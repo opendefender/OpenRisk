@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, Bell, Sun, Moon, Mic, Menu, ChevronRight, AlertTriangle, Siren, ShieldCheck, Trophy,
+  Rows2, Rows3, Rows4,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
@@ -27,9 +28,16 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
   const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
   const toggleLang = useUIStore((s) => s.toggleLang);
+  const cycleDensity = useUIStore((s) => s.cycleDensity);
+  const density = useUIStore((s) => s.density);
   const theme = useUIStore((s) => s.theme);
   const lang = useUIStore((s) => s.lang);
   const L = useUIStrings();
+  const densityMeta = {
+    comfort: { Icon: Rows3, label: lang === 'fr' ? 'Densité : Confort' : 'Density: Comfort' },
+    compact: { Icon: Rows4, label: lang === 'fr' ? 'Densité : Compact' : 'Density: Compact' },
+    spacious: { Icon: Rows2, label: lang === 'fr' ? 'Densité : Spacieux' : 'Density: Spacious' },
+  }[density];
   const { pathname } = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -93,6 +101,10 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
 
         <button onClick={toggleLang} className={iconBtn} title="Language" aria-label="Toggle language">
           <span className="mono text-[11px] font-semibold">{lang.toUpperCase()}</span>
+        </button>
+
+        <button onClick={cycleDensity} className={cn(iconBtn, 'hidden sm:flex')} title={densityMeta.label} aria-label={densityMeta.label}>
+          <densityMeta.Icon size={18} strokeWidth={1.7} />
         </button>
 
         <button className={cn(iconBtn, 'hidden sm:flex')} title="Voice assistant" aria-label="Voice assistant">

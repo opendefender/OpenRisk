@@ -185,7 +185,7 @@ export function RiskRegisterPage() {
           <RiskMatrixView risks={filtered} onOpen={setDrawerId} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 820 }}>
+            <table className="w-full border-collapse or-den-rows" style={{ minWidth: 820 }}>
               <thead style={{ borderBottom: '1px solid var(--border)' }}>
                 <tr>
                   {th('', '34px')}{th(L.col_name)}{th(L.col_score)}{th(L.col_crit)}{th(L.col_status)}{th(L.col_fw)}{th(L.col_owner)}{th(L.col_mod)}{th('')}
