@@ -28,7 +28,7 @@
   --border-strong: #2e2f3c;
   --text-primary: #f4f4f7;
   --text-secondary: #9a9aa6;
-  --text-muted: #65656f;
+  --text-muted: #8b8b97; /* WCAG AA: ≥4.5:1 on dark surfaces (OR-BUG-011) */
   /* semantic (identical in both themes) */
   --critical: #ff453a;
   --high: #ff9f0a;
@@ -54,7 +54,7 @@
   --border-strong: #d4d4dc;
   --text-primary: #161618;
   --text-secondary: #65656d;
-  --text-muted: #9a9aa2;
+  --text-muted: #6d6d77; /* WCAG AA: ≥4.5:1 on light surfaces (OR-BUG-011) */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 6px 22px rgba(20, 20, 40, 0.09);
   --shadow-lg: 0 16px 48px rgba(20, 20, 40, 0.14);

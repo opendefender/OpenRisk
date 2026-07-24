@@ -195,8 +195,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
               >
                 <div
-                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-white"
+                  style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
                 >
                   {orgInitials}
                 </div>

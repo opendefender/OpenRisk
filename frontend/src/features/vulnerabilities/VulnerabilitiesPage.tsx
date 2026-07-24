@@ -131,7 +131,7 @@ export function VulnerabilitiesPage() {
                   <tr key={v.id} onClick={() => setDrawerId(v.id)} className="cursor-pointer transition-colors hover:bg-hover">
                     <td className="px-3 py-[13px]">
                       <div className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold text-white" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)' }}>{v.priority_tier}</span>
+                        <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: '#12151c' }}>{v.priority_tier}</span>
                         <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
                         {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
                       </div>
@@ -237,7 +237,7 @@ function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
             <button onClick={onClose} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}><X size={18} /></button>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold text-white" style={{ background: TIER_META[v.priority_tier]?.color }}>{v.priority_tier} · {v.priority_score.toFixed(0)}</span>
+            <span className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color, color: '#12151c' }}>{v.priority_tier} · {v.priority_score.toFixed(0)}</span>
             <SevBadge sev={v.severity} lang={lang} />
             <StatusChip status={v.status} lang={lang} />
           </div>

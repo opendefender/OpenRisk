@@ -304,8 +304,8 @@ function TrendCard() {
       onClick={() => setRange(v)}
       className="h-[26px] px-2.5 rounded-[7px] text-[11.5px] font-semibold transition-colors"
       style={{
-        background: range === v ? 'var(--accent-soft)' : 'transparent',
-        color: range === v ? 'var(--accent)' : 'var(--text-secondary)',
+        background: range === v ? 'var(--accent-hover)' : 'transparent',
+        color: range === v ? '#fff' : 'var(--text-secondary)',
       }}
     >
       {lbl}

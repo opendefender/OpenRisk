@@ -134,7 +134,7 @@ export function RiskRegisterPage() {
                   key={v}
                   onClick={() => setView(v)}
                   className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors"
-                  style={{ background: view === v ? 'var(--accent-soft)' : 'transparent', color: view === v ? 'var(--accent)' : 'var(--text-secondary)' }}
+                  style={{ background: view === v ? 'var(--accent-hover)' : 'transparent', color: view === v ? '#fff' : 'var(--text-secondary)' }}
                   title={lbl}
                 >
                   <Icon size={15} /> <span className="hidden sm:inline">{lbl}</span>

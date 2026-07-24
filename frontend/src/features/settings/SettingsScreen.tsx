@@ -7,7 +7,7 @@
 // Integrations, Notifications, Security, Billing, Danger. Endpoints whose tables
 // aren't migrated yet (roles/tenants/audit) degrade to an honest unavailable state.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Settings as SettingsIcon, Users, Lock, KeyRound, Building2, ScrollText, SlidersHorizontal, Plug,
@@ -24,10 +24,10 @@ type TabKey = 'general' | 'members' | 'rbac' | 'tokens' | 'orgs' | 'audit' | 'fi
 type Tr = (fr: string, en: string) => string;
 
 /* ---- reusable bits ---- */
-function Toggle({ on: initial }: { on: boolean }) {
+function Toggle({ on: initial, label }: { on: boolean; label?: string }) {
   const [on, setOn] = useState(initial);
   return (
-    <button onClick={() => setOn((v) => !v)} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on}>
+    <button onClick={() => setOn((v) => !v)} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on} aria-label={label}>
       <span className="absolute rounded-full bg-white" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
     </button>
   );
@@ -36,15 +36,17 @@ function ToggleRow({ label, sub, on }: { label: string; sub?: string | null; on:
   return (
     <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
       <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{label}</div>{sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}</div>
-      <Toggle on={on} />
+      <Toggle on={on} label={label} />
     </div>
   );
 }
+let fieldSeq = 0;
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const id = useMemo(() => `field-${(fieldSeq += 1)}`, []);
   return (
     <div className="mb-[18px]">
-      <label className="block text-[12px] font-semibold text-ink-soft mb-[7px]">{label}</label>
-      <input defaultValue={value} className={`w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none ${mono ? 'mono' : ''}`} style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} />
+      <label htmlFor={id} className="block text-[12px] font-semibold text-ink-soft mb-[7px]">{label}</label>
+      <input id={id} aria-label={label} defaultValue={value} className={`w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none ${mono ? 'mono' : ''}`} style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} />
     </div>
   );
 }
@@ -408,7 +410,7 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-[11px] flex items-center justify-center" style={{ background: `color-mix(in srgb,${col} 16%,transparent)`, color: col }}><Plug size={20} /></div>
               <div className="flex-1 text-[14px] font-semibold text-ink">{name}</div>
-              <Toggle on={on} />
+              <Toggle on={on} label={name} />
             </div>
             <div className="text-[12.5px] text-ink-soft leading-snug">{desc}</div>
           </Card>
