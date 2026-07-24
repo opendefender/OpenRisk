@@ -147,6 +147,27 @@ jobs:
       - name: Check code formatting (Prettier)
         run: cd frontend && npm run format:check || npm run format
 
+  # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
+  # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
+  # dedicated gate. Uses the local binary since the frontend has no `type-check`
+  # script.
+  frontend-typecheck:
+    name: Frontend Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Typecheck (tsc -b)
+        run: cd frontend && npx tsc -b
+
   frontend-unit-tests:
     name: Frontend Unit Tests
     runs-on: ubuntu-latest
@@ -321,7 +342,7 @@ jobs:
   ci-summary:
     name: CI Status
     runs-on: ubuntu-latest
-    needs: [backend-lint, backend-unit-tests, backend-integration-tests, frontend-lint, frontend-unit-tests, build-backend, build-frontend]
+    needs: [backend-lint, backend-unit-tests, backend-integration-tests, frontend-lint, frontend-typecheck, frontend-unit-tests, build-backend, build-frontend]
     if: always()
     steps:
       - name: Check CI Status
@@ -349,6 +370,10 @@ jobs:
           fi
           if [ "${{ needs.frontend-lint.result }}" != "success" ]; then
             echo "Frontend lint failed"
+            exit 1
+          fi
+          if [ "${{ needs.frontend-typecheck.result }}" != "success" ]; then
+            echo "Frontend typecheck failed"
             exit 1
           fi
           if [ "${{ needs.frontend-unit-tests.result }}" != "success" ]; then

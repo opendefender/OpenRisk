@@ -9,6 +9,22 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 ## [Unreleased]
 
 ### Added
+- **End-to-end test harness + UX audit (Gate 0).** A runnable Playwright workspace at
+  the repo root (`package.json`, `playwright.config.ts`, `tests/e2e/`) that drives the
+  real app: a deterministic seed (`scripts/seed-e2e.mjs` + `dev/fixtures/e2e-dataset.json`),
+  API-minted `storageState` auth (no UI login except `auth.login.spec.ts`), and suites
+  `smoke.routes` (every route in `App.tsx`/`navModel.ts`), `journey.newcomer`,
+  `journey.settings`, `journey.rbac`, `a11y` (axe-core WCAG 2.1 AA) and a real risk
+  `workflows` journey. **Local run: 95 passed / 0 failed / 19 fixme** (chromium +
+  Mobile Chrome); 42 routes render (0 broken), time-to-value measured at 3.7 s. Broken
+  flows are written and quarantined `test.fixme` with a bug id. E2E workflow rebuilt on
+  v4/v5 actions (Node 20, PR-blocking chromium + Mobile Chrome, nightly firefox/webkit,
+  route×status job summary); `ci.yml` gains a blocking `frontend-typecheck` job. Stable
+  `data-testid`s added (attribute-only): `login-*`, `nav-*`, `app-main`, `settings-tab-*`.
+  Deliverables: [docs/UX_CHARTER.md](docs/UX_CHARTER.md), [docs/UX_AUDIT_2026-07.md](docs/UX_AUDIT_2026-07.md),
+  [docs/IA_NAVIGATION_PROPOSAL.md](docs/IA_NAVIGATION_PROPOSAL.md),
+  [docs/UI_ELEVATION_PROPOSAL.md](docs/UI_ELEVATION_PROPOSAL.md) (+ 3 mockups),
+  [docs/DOCS_INVENTORY.md](docs/DOCS_INVENTORY.md).
 - **Single-source versioning.** The root `VERSION` file is the sole source of truth,
   propagated to the Go binary (via `-ldflags` → reported by `GET /api/v1/health`), the
   Helm chart (`version`/`appVersion`) and the frontend (`package.json`) through

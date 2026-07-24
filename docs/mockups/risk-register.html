@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenRisk — Mockup : Registre des risques avant/après</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Registre des risques — table « console » · avant / après</h1>
+  <p class="sub">Réf. UI_ELEVATION_PROPOSAL §6 (tables denses) · UX-10 / UX-11 / UX-27. Statique, à valider.</p>
+  <div class="cols">
+
+    <!-- AVANT -->
+    <div class="panel">
+      <span class="tag before">Avant</span>
+      <div class="row" style="gap:8px;margin-bottom:12px">
+        <span class="btn primary">Nouveau risque</span>
+        <span class="btn primary">Importer</span>
+        <span class="btn primary">Matrice</span>
+        <span class="btn ghost">Filtres</span>
+      </div>
+      <table>
+        <thead><tr><th>Titre</th><th>Score</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td>Log4Shell sur web-01</td><td>18.9</td><td>Ouvert</td></tr>
+          <tr><td>Bucket S3 public</td><td>12.0</td><td>Ouvert</td></tr>
+          <tr><td>VPN en fin de vie</td><td>8.0</td><td>Ouvert</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Plusieurs boutons pleins en concurrence (pas d'action dominante, UX-10). Pas de tri, pas de sélection multiple, pas de colonne figée, pas de densité. Score non aligné. Ligne peu cliquable, aucun sélecteur stable.</div>
+    </div>
+
+    <!-- APRÈS -->
+    <div class="panel">
+      <span class="tag after">Après</span>
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <span class="btn primary">+ Nouveau risque</span>
+        <div class="row" style="gap:6px">
+          <span class="btn ghost">Filtres</span>
+          <span class="btn ghost">Densité</span>
+          <span class="btn ghost">Colonnes</span>
+        </div>
+      </div>
+      <div class="card" style="padding:8px 12px;margin-bottom:8px;display:none" id="selbar"></div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th style="width:26px"><input type="checkbox" aria-label="Tout sélectionner"></th>
+          <th class="frozen">Titre ▲</th>
+          <th class="num">Score</th><th class="num">ALE (FCFA)</th><th>Phase</th><th>Sévérité</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" aria-label="Sélectionner Log4Shell"></td><td class="frozen">Log4Shell sur web-01</td><td class="num">18.9</td><td class="num">50 000 000</td><td>Traiter</td><td><span class="pill crit">critique</span></td></tr>
+          <tr><td><input type="checkbox" aria-label="Sélectionner S3"></td><td class="frozen">Bucket S3 public</td><td class="num">12.0</td><td class="num">18 000 000</td><td>Évaluer</td><td><span class="pill high">élevé</span></td></tr>
+          <tr><td><input type="checkbox" aria-label="Sélectionner VPN"></td><td class="frozen">VPN en fin de vie</td><td class="num">8.0</td><td class="num">9 000 000</td><td>Identifier</td><td><span class="pill med">moyen</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="note"><b>1 action dominante</b> (Nouveau risque). En-tête sticky, <b>colonne titre figée</b>, tri, <b>sélection multiple</b> → barre d'actions groupées avec radiographie d'impact avant suppression (UX-11). Chiffres <span class="mono">tabulaires</span> alignés à droite. Ligne = ouvre le drawer. Scroll horizontal maîtrisé (UX-27).</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

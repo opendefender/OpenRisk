@@ -1,0 +1,51 @@
+{
+  "_comment": "Deterministic E2E dataset consumed by scripts/seed-e2e.mjs. Seeded into the admin tenant (admin@opendefender.io). Idempotent by title/CVE. Impact scale 0-10, probability 0-1 (Score Engine bounds).",
+  "personas": {
+    "analyst": {
+      "email": "e2e-analyst@openrisk.test",
+      "username": "e2e_analyst",
+      "full_name": "Awa Analyste",
+      "password": "E2eAnalyst!2026",
+      "business_role": "security_analyst"
+    },
+    "auditor": {
+      "email": "e2e-auditor@openrisk.test",
+      "username": "e2e_auditor",
+      "full_name": "Koffi Auditeur",
+      "password": "E2eAuditor!2026",
+      "business_role": "auditor"
+    }
+  },
+  "risks": [
+    { "title": "[E2E] Unpatched web framework on public server", "description": "Public web server runs an outdated framework with known CVEs.", "impact": 8, "probability": 0.7, "tags": ["web", "cve"], "frameworks": [] },
+    { "title": "[E2E] Publicly readable S3 backup bucket", "description": "S3 bucket with public read access storing production backups.", "impact": 7, "probability": 0.5, "tags": ["cloud", "storage"], "frameworks": [] },
+    { "title": "[E2E] Weak password policy on admin portal", "description": "Admin portal accepts 6-character passwords with no MFA.", "impact": 6, "probability": 0.6, "tags": ["identity"], "frameworks": [] },
+    { "title": "[E2E] Missing encryption at rest on customer DB", "description": "Customer database stores PII without at-rest encryption.", "impact": 9, "probability": 0.4, "tags": ["data", "pii"], "frameworks": [] },
+    { "title": "[E2E] No offsite backup for core banking ledger", "description": "Core ledger has no tested offsite backup.", "impact": 9, "probability": 0.3, "tags": ["resilience"], "frameworks": [] },
+    { "title": "[E2E] Shared privileged credentials among ops team", "description": "Ops team shares a single root credential.", "impact": 7, "probability": 0.5, "tags": ["identity", "pam"], "frameworks": [] },
+    { "title": "[E2E] Unmonitored third-party payment integration", "description": "Payment partner integration has no monitoring or alerting.", "impact": 6, "probability": 0.4, "tags": ["third-party"], "frameworks": [] },
+    { "title": "[E2E] Legacy VPN appliance past end-of-life", "description": "Remote-access VPN appliance is EOL and unpatched.", "impact": 8, "probability": 0.5, "tags": ["network"], "frameworks": [] },
+    { "title": "[E2E] No incident response runbook", "description": "No documented, tested incident response procedure.", "impact": 5, "probability": 0.6, "tags": ["process"], "frameworks": [] },
+    { "title": "[E2E] Phishing exposure — no email filtering", "description": "Inbound email has no anti-phishing filtering.", "impact": 6, "probability": 0.7, "tags": ["phishing"], "frameworks": [] },
+    { "title": "[E2E] Unsegmented flat production network", "description": "Production network is flat with no segmentation.", "impact": 7, "probability": 0.4, "tags": ["network"], "frameworks": [] },
+    { "title": "[E2E] Insufficient logging for regulatory audit", "description": "Systems lack the retained logs a COBAC audit requires.", "impact": 5, "probability": 0.5, "tags": ["compliance", "cobac"], "frameworks": [] }
+  ],
+  "frameworks": [
+    { "name": "[E2E] ISO 27001", "version": "2022", "description": "E2E fixture — ISO/IEC 27001 Annex A.", "catalog_key": "iso27001" },
+    { "name": "[E2E] Compliance baseline", "version": "1.0", "description": "E2E fixture — second reference framework.", "catalog_key": "" }
+  ],
+  "vulnerabilities": [
+    { "title": "Apache Log4j2 RCE (Log4Shell)", "cve": "CVE-2021-44228", "cvss": 10.0, "severity": "critical", "kev": true, "exploit_available": true, "host": "web-01", "description": "JNDI lookup RCE in Log4j2." },
+    { "title": "OpenSSL infinite loop DoS", "cve": "CVE-2022-0778", "cvss": 7.5, "severity": "high", "kev": false, "exploit_available": true, "host": "web-01", "description": "BN_mod_sqrt infinite loop." },
+    { "title": "Spring4Shell RCE", "cve": "CVE-2022-22965", "cvss": 9.8, "severity": "critical", "kev": true, "exploit_available": true, "host": "app-02", "description": "Spring Framework data-binding RCE." },
+    { "title": "Outdated nginx information disclosure", "cve": "CVE-2019-20372", "cvss": 5.3, "severity": "medium", "kev": false, "exploit_available": false, "host": "web-03", "description": "nginx error_page request smuggling." },
+    { "title": "Weak TLS cipher suite enabled", "cve": "", "cvss": 4.0, "severity": "low", "kev": false, "exploit_available": false, "host": "lb-01", "description": "Server negotiates deprecated TLS ciphers." }
+  ],
+  "incident": {
+    "title": "[E2E] Suspicious login burst on admin portal",
+    "description": "Multiple failed admin logins from an unusual geography.",
+    "type": "security",
+    "severity": "high",
+    "status": "open"
+  }
+}

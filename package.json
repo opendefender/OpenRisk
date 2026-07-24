@@ -1,0 +1,18 @@
+{
+  "name": "openrisk-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "OpenRisk end-to-end test harness (Playwright). Not shipped — repo-root workspace that drives the running app (frontend :5173 + backend :8080).",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report tests/e2e/.artifacts/playwright-report",
+    "test:e2e:update-baseline": "playwright test --update-snapshots",
+    "seed:e2e": "node scripts/seed-e2e.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.49.1"
+  }
+}

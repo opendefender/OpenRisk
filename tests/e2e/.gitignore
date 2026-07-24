@@ -1,0 +1,4 @@
+# E2E run artifacts + minted auth states + seed output — never committed.
+.artifacts/
+.auth/
+.seed-ids.json
