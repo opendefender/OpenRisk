@@ -551,9 +551,14 @@ func main() {
 	// horizontally-scaled deployment; degrades gracefully to a per-instance
 	// in-memory limiter if Redis is unreachable.
 	authLimiterStore := middleware.NewRedisRateLimitStore(redisClientInstance)
+	// Per-IP throttle on auth endpoints. 5/15min locked out legitimate users (a
+	// couple of mistyped passwords, MFA re-auth, or shared-NAT colleagues) for a
+	// quarter hour (OR-BUG-008). 15/5min still blocks rapid brute force (~3/min
+	// sustained) without punishing normal use. Per-account lockout + captcha are
+	// the stronger long-term controls (tracked separately).
 	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
-		MaxRequests: 5,
-		WindowSize:  15 * time.Minute,
+		MaxRequests: 15,
+		WindowSize:  5 * time.Minute,
 		Store:       authLimiterStore,
 	})
 
