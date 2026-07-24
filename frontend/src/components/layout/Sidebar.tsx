@@ -13,6 +13,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
 import { visibleNavGroups, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
+import { useExecutiveDashboard } from '../../features/analytics/useExecutive';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -53,6 +54,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const logout = useAuthStore((s) => s.logout);
   const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Real org identity + posture — replaces the former hardcoded fixtures.
+  const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
+  const orgInitials = initials(orgName, 'OR');
+  const { data: exec } = useExecutiveDashboard();
+  const cyber = exec?.cyber_score;
 
   // Role-aware navigation: only surface screens the member can actually reach
   // (same permission gates the API enforces), so each business role sees a menu
@@ -90,9 +96,10 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
     return best;
   }, [pathname]);
 
-  // Security posture footer (fixture; the Dashboard hero is the source of truth).
-  const score = 72;
-  const scoreColor = score >= 70 ? 'var(--low)' : score >= 45 ? 'var(--high)' : 'var(--critical)';
+  // Security posture footer — real cyber score from the executive dashboard.
+  const score = cyber ? Math.round(cyber.score) : undefined;
+  const scoreColor =
+    score === undefined ? 'var(--text-muted)' : score >= 70 ? 'var(--low)' : score >= 45 ? 'var(--high)' : 'var(--critical)';
 
   const navItem = (item: NavItem) => {
     const active = item.key === activeKey;
@@ -191,11 +198,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
-                  BA
+                  {orgInitials}
                 </div>
                 <div className="min-w-0 flex-1 text-left">
                   <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
-                    Banque Atlantique
+                    {orgName}
                   </div>
                   <div className="text-[10.5px] text-ink-soft">{L.enterprise}</div>
                 </div>
@@ -237,11 +244,18 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             ))}
           </nav>
 
-          {/* Security score footer */}
-          {!collapsed && (
-            <div className="px-[14px] py-3 border-t border-border">
+          {/* Security score footer — real cyber score; hidden until available. */}
+          {!collapsed && score !== undefined && (
+            <button
+              onClick={() => navigate('/analytics')}
+              className="w-full text-left px-[14px] py-3 border-t border-border hover:bg-hover transition-colors"
+              title={tr('Voir le tableau exécutif', 'Open the executive dashboard')}
+            >
               <div className="flex items-center justify-between mb-[7px]">
-                <span className="text-[10.5px] text-ink-soft font-medium">{L.globalScore}</span>
+                <span className="text-[10.5px] text-ink-soft font-medium">
+                  {L.globalScore}
+                  {cyber?.grade ? ` · ${cyber.grade}` : ''}
+                </span>
                 <span className="mono text-[12px] font-semibold" style={{ color: scoreColor }}>
                   {score}/100
                 </span>
@@ -256,7 +270,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   }}
                 />
               </div>
-            </div>
+            </button>
           )}
 
           {/* User menu (account · settings · logout) + collapse */}
