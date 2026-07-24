@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenRisk — Mockup : Piloter (Dashboard) avant/après</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Piloter — Dashboard · avant / après</h1>
+  <p class="sub">Réf. UI_ELEVATION_PROPOSAL §3 (hiérarchie), UX-10 / UX-24 · UX_AUDIT OR-BUG-005. Statique, à valider.</p>
+  <div class="cols">
+
+    <!-- AVANT -->
+    <div class="panel">
+      <span class="tag before">Avant</span>
+      <div class="card" style="margin-bottom:12px">
+        <div class="row" style="justify-content:space-between">
+          <div><div class="lbl">Score de sécurité</div><div class="kpi">72<span style="font-size:13px;color:var(--ink-3)">/100</span></div></div>
+          <div class="note" style="margin:0">⚠ valeur codée en dur (Sidebar.tsx:94)</div>
+        </div>
+      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="card" style="flex:1"><div class="lbl">Widget</div><div>SecurityScore</div><div class="note" style="margin:2px 0 0">endpoint inexistant → repli</div></div>
+        <div class="card" style="flex:1"><div class="lbl">Widget</div><div>AssetStatistics</div><div class="note" style="margin:2px 0 0">endpoint inexistant → repli</div></div>
+      </div>
+      <div class="note">3 « vues de haut » dispersées (Dashboard, Exécutif, Financier) — l'utilisateur ne sait pas laquelle est la sienne. Aucune différenciation par rôle (UX-24). Pas d'action dominante (UX-10).</div>
+    </div>
+
+    <!-- APRÈS -->
+    <div class="panel">
+      <span class="tag after">Après</span>
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div class="nav"><span class="item on">RSSI</span><span class="item">Analyste</span><span class="item">Auditeur</span><span class="item">Direction</span></div>
+        <span class="btn ghost">Densité: Confort</span>
+      </div>
+      <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px">
+        <div><div class="lbl">Cyber-score</div><div class="hero" style="color:var(--critical)">F · 31</div><div class="note" style="margin:2px 0 0">4 axes réels, poids Σ=1</div></div>
+        <div><div class="lbl">Exposition (ALE)</div><div class="hero">117,5<span style="font-size:14px;color:var(--ink-3)"> M FCFA</span></div><div class="note" style="margin:2px 0 0">moteur CRQ · pire-cas 235 M</div></div>
+      </div>
+      <table>
+        <thead><tr><th>KRI</th><th class="num">Valeur</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td>Vulns critiques ouvertes</td><td class="num">7</td><td><span class="pill crit">élevé</span></td></tr>
+          <tr><td>CVE activement exploitées (KEV)</td><td class="num">3</td><td><span class="pill high">à traiter</span></td></tr>
+          <tr><td>MTTR incidents</td><td class="num">4,2 j</td><td><span class="pill med">moyen</span></td></tr>
+          <tr><td>Couverture conformité</td><td class="num">31 %</td><td><span class="pill high">faible</span></td></tr>
+        </tbody>
+      </table>
+      <div class="note">Un <b>héros chiffré</b> dominant + KRI tabulaires (chiffres alignés mono). Le rôle choisit la vue (UX-24). Données réelles, plus de score fixture (OR-BUG-005).</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

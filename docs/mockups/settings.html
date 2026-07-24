@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenRisk — Mockup : Paramètres avant/après</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Paramètres — données réelles &amp; autosave · avant / après</h1>
+  <p class="sub">Réf. UI_ELEVATION_PROPOSAL §5 · UX-05 (inerte) / UX-23 (autosave) / a11y · UX_AUDIT OR-BUG-004 / 012. Statique, à valider.</p>
+  <div class="cols">
+
+    <!-- AVANT -->
+    <div class="panel">
+      <span class="tag before">Avant</span>
+      <div class="card" style="margin-bottom:10px">
+        <div class="lbl">Fuseau</div>
+        <input value="GMT · Abidjan" style="width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink)">
+        <div class="note" style="color:var(--critical)">⚠ champ sans &lt;label&gt; (a11y OR-BUG-012)</div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="row" style="justify-content:space-between"><span>Notifications e-mail</span><span class="pill low" style="background:var(--surface-2);color:var(--ink-2)">amir@banque-atlantique.ci</span></div>
+        <div class="note" style="color:var(--critical)">⚠ e-mail codé en dur (fixture)</div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><span>Plan · Enterprise</span><span class="mono">€24k / an</span></div>
+        <div class="note" style="color:var(--critical)">⚠ facturation fictive · toggles inertes, pas d'autosave (UX-05/23)</div>
+      </div>
+    </div>
+
+    <!-- APRÈS -->
+    <div class="panel">
+      <span class="tag after">Après</span>
+      <div class="card" style="margin-bottom:10px">
+        <label for="tz" class="lbl">Fuseau horaire</label>
+        <div class="row" style="gap:8px;margin-top:6px">
+          <input id="tz" value="Africa/Abidjan (GMT)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink)">
+          <span class="saved">Enregistré ✓</span>
+        </div>
+        <div class="note">Label explicite (a11y). Autosave par champ — pas de bouton « Enregistrer » (UX-23).</div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="row" style="justify-content:space-between"><label for="notif">Notifications e-mail</label>
+          <span class="row" style="gap:8px"><span class="mono" style="color:var(--ink-2)">vous@votre-org.io</span><input id="notif" type="checkbox" checked aria-label="Notifications e-mail"></span></div>
+        <div class="note">Adresse réelle de la session · catégorisable (Sécurité/Conformité/Tâches…) par canal (UX-20).</div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><span>Plan</span><span class="row" style="gap:8px"><span class="mono">réel</span><span class="pill low">actif</span></span></div>
+        <div class="note">Données réelles du tenant. Historique daté &amp; attribué accessible (UX-25).</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

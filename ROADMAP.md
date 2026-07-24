@@ -24,6 +24,32 @@ fausses sur `SetContext`, sur l'architecture réelle des Assets, et sur toute la
 
 ---
 
+## Gate 0 — Harnais E2E & Audit UX (2026-07-24) · N/A (instrument, pas une feature)
+
+Branche `test/e2e-ci-and-ux-audit`. **Aucun bug produit corrigé** (règle de la session) ;
+seule modification produit = ajout d'attributs `data-testid` (commit isolé).
+
+- **Harnais E2E réel** (`tests/e2e/`, Playwright) piloté contre le stack live — remplace
+  la spec fictive `workflows.spec.ts` (qui visait `localhost:3000` avec des sélecteurs
+  inexistants). Seed déterministe idempotent + `storageState` frappé par API. Suites :
+  `smoke.routes` (les **42 routes** de `App.tsx`/`navModel.ts`), `journey.newcomer`,
+  `journey.settings`, `journey.rbac`, `a11y` (axe WCAG 2.1 AA), `workflows` (cycle de risque réel).
+- **Preuve live (2026-07-24)** : `npm run test:e2e` → **95 passed / 0 failed / 19 fixme**
+  (chromium + Mobile Chrome). **42 routes rendent, 0 cassé, 1 dégradé, 4 placeholders** ;
+  **time-to-value 3,7 s** (création d'un 1ᵉʳ risque, UX-01) ; a11y : `/risks` propre,
+  contraste serious/critical sur 5 écrans (quarantainés `OR-BUG-011/012`).
+- **CI** : `e2e.yml` reconstruit (actions v4/v5, Node 20, job PR bloquant chromium+Mobile,
+  job nocturne firefox/webkit, table route×statut en résumé) ; `ci.yml` gagne un job
+  `frontend-typecheck` bloquant.
+- **Livrables** : `docs/UX_CHARTER.md` (Annexe A, 33 règles UX-01..33), `docs/UX_AUDIT_2026-07.md`
+  (12 bugs `OR-BUG-001..012` + 3 personas + écrans mock + testabilité), `docs/IA_NAVIGATION_PROPOSAL.md`
+  (7 groupes → 5 intentions, parcours principal 7→4 clics), `docs/UI_ELEVATION_PROPOSAL.md`
+  (+ 3 mockups avant/après), `docs/DOCS_INVENTORY.md` (192 `.md` classés — proposition).
+- **Constats majeurs pour les sessions 2–4** : inscription/MFA = façades sans backend
+  (**P0**, OR-BUG-001/009) ; pas de chemin d'ajout de membre à un tenant (**P0**, OR-BUG-003) ;
+  écrans Paramètres/sidebar = fixtures (**P1**, OR-BUG-004/005). **Propositions IA + UI à
+  valider par le fondateur avant implémentation (session 5).**
+
 ## Verdict global (2026-07-10)
 
 - **Fondations GRC (Modules 0–13)** : le cœur métier est **livré et majoritairement prouvé live** —
