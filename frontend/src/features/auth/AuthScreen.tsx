@@ -146,11 +146,11 @@ function LoginForm({ onRegister, onMfa }: { onRegister: () => void; onMfa: () =>
     <form onSubmit={submit}>
       <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{L.welcome}</h1>
       <div className="text-[14px] text-ink-soft mb-[26px]">{L.welcomeSub}</div>
-      <div className="mb-[15px]"><Label>{L.email}</Label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus className={inputCls} style={inputStyle} /></div>
+      <div className="mb-[15px]"><Label>{L.email}</Label><input data-testid="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus className={inputCls} style={inputStyle} /></div>
       <div className="mb-[15px]">
         <Label>{L.password}</Label>
         <div className="relative">
-          <input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} style={inputStyle} />
+          <input data-testid="login-password" type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} style={inputStyle} />
           <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted" aria-label="Toggle password">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
         </div>
       </div>
@@ -158,7 +158,7 @@ function LoginForm({ onRegister, onMfa }: { onRegister: () => void; onMfa: () =>
         <label className="flex items-center gap-[7px] text-[12.5px] text-ink-soft cursor-pointer"><input type="checkbox" style={{ accentColor: 'var(--accent)' }} />{L.rememberMe}</label>
         <a href="#" onClick={(e) => e.preventDefault()} className="text-[12.5px] font-medium">{L.forgot}</a>
       </div>
-      <button type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.signin}</button>
+      <button data-testid="login-submit" type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.signin}</button>
       <div className="flex items-center gap-3 my-[18px]"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[12px] text-ink-muted">{L.orSep}</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
       <div className="flex gap-2.5 mb-2">
         {['Google', 'GitHub'].map((p) => (

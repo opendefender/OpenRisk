@@ -114,7 +114,7 @@ const DashboardLayout = () => {
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0" style={{ background: 'var(--bg-primary)' }}>
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
-        <main className="flex-1 overflow-hidden relative flex flex-col">
+        <main data-testid="app-main" className="flex-1 overflow-hidden relative flex flex-col">
           <Suspense fallback={<RouteFallback />}>
             <RoutePermissionGuard>
               <AnimatedOutlet />

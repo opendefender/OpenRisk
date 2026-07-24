@@ -92,6 +92,7 @@ export function SettingsScreen() {
           {tabs.map(([k, lbl, Icon]) => (
             <button
               key={k}
+              data-testid={`settings-tab-${k}`}
               onClick={() => setTab(k)}
               className="w-full flex items-center gap-2.5 px-3 py-[9px] rounded-[9px] mb-0.5 text-[13px] text-left whitespace-nowrap transition-colors"
               style={{ background: tab === k ? 'var(--accent-soft)' : 'transparent', color: tab === k ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: tab === k ? 600 : 500 }}

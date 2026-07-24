@@ -100,6 +100,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
     return (
       <button
         key={item.key}
+        data-testid={`nav-${item.key}`}
         onClick={() => navigate(item.path)}
         title={L[item.labelKey]}
         className={cn(
