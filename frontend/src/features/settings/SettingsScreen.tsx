@@ -17,8 +17,10 @@ import {
 import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { relTime } from '../risks/riskMap';
 import { useUsers, useTokens, useCustomFields, useRoles, useAuditLogs, useTenants } from './adminData';
+import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
 
 type TabKey = 'general' | 'members' | 'rbac' | 'tokens' | 'orgs' | 'audit' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
@@ -37,6 +39,29 @@ function ToggleRow({ label, sub, on }: { label: string; sub?: string | null; on:
     <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
       <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{label}</div>{sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}</div>
       <Toggle on={on} label={label} />
+    </div>
+  );
+}
+/** Toggle bound to a persisted preference — autosaves and shows "Saved ✓"
+ *  briefly (UX-23). Survives a reload. */
+function SavedToggleRow({ label, sub, prefKey, tr }: { label: string; sub?: string | null; prefKey: PrefKey; tr: Tr }) {
+  const on = useSettingsPrefs((s) => s.prefs[prefKey]);
+  const setPref = useSettingsPrefs((s) => s.setPref);
+  const [saved, setSaved] = useState(false);
+  const toggle = () => {
+    setPref(prefKey, !on);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1600);
+  };
+  return (
+    <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{label}</div>{sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}</div>
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-[11.5px] font-semibold transition-opacity" style={{ color: 'var(--low)', opacity: saved ? 1 : 0 }}>{tr('Enregistré ✓', 'Saved ✓')}</span>
+        <button onClick={toggle} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on} aria-label={label}>
+          <span className="absolute rounded-full bg-white" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -372,21 +397,31 @@ function RbacTab({ tr }: { tr: Tr }) {
 /* ==================== static tabs ==================== */
 
 function GeneralTab({ tr }: { tr: Tr }) {
+  const user = useAuthStore((s) => s.user);
+  const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
+  const orgInitials =
+    orgName
+      .split(/\s+/)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'OR';
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Profil de l’organisation', 'Organization profile')}</Title>
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>BA</div>
+          <div className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{orgInitials}</div>
           <Btn label={tr('Changer le logo', 'Change logo')} />
         </div>
-        <Field label={tr('Nom de l’organisation', 'Organization name')} value="Banque Atlantique" />
-        <div className="flex gap-4"><div className="flex-1"><Field label={tr('Secteur', 'Industry')} value={tr('Banque & Finance', 'Banking & Finance')} /></div><div className="flex-1"><Field label={tr('Fuseau horaire', 'Time zone')} value="GMT · Abidjan" /></div></div>
+        <Field label={tr('Nom de l’organisation', 'Organization name')} value={orgName} />
+        <Field label={tr('Fuseau horaire', 'Time zone')} value={tz} />
       </Card>
       <Card style={{ padding: '20px 22px' }}>
         <Title>{tr('Préférences', 'Preferences')}</Title>
-        <ToggleRow label={tr('Mode conformité stricte', 'Strict compliance mode')} sub={tr('Bloque la clôture d’un risque sans preuve documentée', 'Blocks closing a risk without documented evidence')} on />
-        <ToggleRow label={tr('Recalcul automatique des scores', 'Automatic score recalculation')} sub={tr('Met à jour les scores à chaque scan d’infrastructure', 'Updates scores after each infrastructure scan')} on />
+        <SavedToggleRow prefKey="strict_compliance" tr={tr} label={tr('Mode conformité stricte', 'Strict compliance mode')} sub={tr('Bloque la clôture d’un risque sans preuve documentée', 'Blocks closing a risk without documented evidence')} />
+        <SavedToggleRow prefKey="auto_recalc" tr={tr} label={tr('Recalcul automatique des scores', 'Automatic score recalculation')} sub={tr('Met à jour les scores à chaque scan d’infrastructure', 'Updates scores after each infrastructure scan')} />
       </Card>
     </>
   );
@@ -421,80 +456,78 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
 }
 
 function NotifTab({ tr }: { tr: Tr }) {
+  const user = useAuthStore((s) => s.user);
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Canaux', 'Channels')}</Title>
-        <ToggleRow label="Email" sub="amir@banque-atlantique.ci" on />
-        <ToggleRow label="Slack" sub="#soc-alerts" on />
-        <ToggleRow label="SMS" sub={tr('Uniquement incidents critiques', 'Critical incidents only')} on={false} />
+        <SavedToggleRow prefKey="notif_email" tr={tr} label="Email" sub={user?.email || tr('Adresse du compte', 'Account address')} />
+        <SavedToggleRow prefKey="notif_slack" tr={tr} label="Slack" sub={tr('Non configuré — connectez Slack dans Intégrations', 'Not configured — connect Slack under Integrations')} />
+        <SavedToggleRow prefKey="notif_sms" tr={tr} label="SMS" sub={tr('Uniquement incidents critiques', 'Critical incidents only')} />
       </Card>
       <Card style={{ padding: '20px 22px' }}>
         <Title>{tr('M’alerter quand…', 'Notify me when…')}</Title>
-        <ToggleRow label={tr('Un risque critique est créé', 'A critical risk is created')} on />
-        <ToggleRow label={tr('Un score augmente de +10 %', 'A score rises by +10%')} on />
-        <ToggleRow label={tr('Une War Room est déclenchée', 'A War Room is triggered')} on />
-        <ToggleRow label={tr('Une mitigation m’est assignée', 'A mitigation is assigned to me')} on />
-        <ToggleRow label={tr('Résumé hebdomadaire', 'Weekly digest')} on={false} />
+        <SavedToggleRow prefKey="alert_critical_risk" tr={tr} label={tr('Un risque critique est créé', 'A critical risk is created')} />
+        <SavedToggleRow prefKey="alert_score_up" tr={tr} label={tr('Un score augmente de +10 %', 'A score rises by +10%')} />
+        <SavedToggleRow prefKey="alert_warroom" tr={tr} label={tr('Une War Room est déclenchée', 'A War Room is triggered')} />
+        <SavedToggleRow prefKey="alert_mitigation" tr={tr} label={tr('Une mitigation m’est assignée', 'A mitigation is assigned to me')} />
+        <SavedToggleRow prefKey="alert_digest" tr={tr} label={tr('Résumé hebdomadaire', 'Weekly digest')} />
       </Card>
     </>
   );
 }
 
+// Minimal, honest browser label from the UA — no invented device history.
+function currentDeviceLabel(): string {
+  if (typeof navigator === 'undefined') return 'Session';
+  const ua = navigator.userAgent;
+  const browser = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
+  const os = /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : '';
+  return os ? `${browser} · ${os}` : browser;
+}
+
 function SecurityTab({ tr }: { tr: Tr }) {
-  const sessions: [string, string, boolean][] = [
-    [tr('MacBook Pro · Abidjan', 'MacBook Pro · Abidjan'), tr('Session actuelle', 'Current session'), true],
-    ['iPhone 15 · Abidjan', 'Chrome · iOS', false],
-    [tr('Windows · Dakar', 'Windows · Dakar'), tr('il y a 2 jours', '2 days ago'), false],
-  ];
+  const user = useAuthStore((s) => s.user);
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Authentification', 'Authentication')}</Title>
-        <ToggleRow label={tr('MFA obligatoire (TOTP)', 'Mandatory MFA (TOTP)')} sub={tr('Imposée à tous les membres de l’organisation', 'Enforced for all organization members')} on />
-        <ToggleRow label="SSO SAML 2.0" sub={tr('Connexion via votre fournisseur d’identité', 'Sign in via your identity provider')} on />
-        <ToggleRow label={tr('Expiration de session (8 h)', 'Session timeout (8 h)')} on />
+        <div className="text-[13px] text-ink-soft leading-relaxed">
+          {tr(
+            'La MFA (TOTP) et les codes de secours sont disponibles par utilisateur (POST /auth/mfa). La politique MFA/SSO au niveau de l’organisation est configurée par un administrateur — sa gestion depuis cet écran arrive prochainement.',
+            'MFA (TOTP) and backup codes are available per user (POST /auth/mfa). Organization-wide MFA/SSO policy is configured by an administrator — managing it from this screen is coming soon.'
+          )}
+        </div>
       </Card>
       <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('Sessions actives', 'Active sessions')}</Title>
-        {sessions.map(([name, meta, cur], i) => (
-          <div key={name} className="flex items-center gap-3 py-3" style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}>
-            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><Laptop size={18} /></div>
-            <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{name}</div><div className="text-[12px] mt-0.5" style={{ color: cur ? 'var(--low)' : 'var(--text-muted)' }}>{meta}</div></div>
-            {!cur && <button className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{tr('Déconnecter', 'Revoke')}</button>}
+        <Title>{tr('Session active', 'Active session')}</Title>
+        <div className="flex items-center gap-3 py-2">
+          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><Laptop size={18} /></div>
+          <div className="flex-1">
+            <div className="text-[13.5px] font-medium text-ink">{currentDeviceLabel()}</div>
+            <div className="text-[12px] mt-0.5" style={{ color: 'var(--low)' }}>{tr('Session actuelle', 'Current session')} · {user?.email}</div>
           </div>
-        ))}
+        </div>
+        <div className="text-[11.5px] text-ink-muted mt-1.5">{tr('L’historique multi-appareils arrivera avec la gestion des sessions.', 'Multi-device history will arrive with session management.')}</div>
       </Card>
     </>
   );
 }
 
 function BillingTab({ tr }: { tr: Tr }) {
-  const usage: [string, string, number][] = [
-    [tr('Membres', 'Members'), '18 / 50', 36], [tr('Actifs surveillés', 'Monitored assets'), '142 / 500', 28], [tr('Simulations / mois', 'Simulations / mo'), '23 / 100', 23],
-  ];
   return (
-    <>
-      <Card style={{ padding: '22px 24px', marginBottom: 16 }}>
-        <div className="flex items-start justify-between flex-wrap gap-3.5">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1.5"><span className="disp text-[20px] font-bold text-ink">Enterprise</span><span className="text-[11px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}>{tr('Actif', 'Active')}</span></div>
-            <div className="text-[13px] text-ink-soft">{tr('Facturation annuelle · renouvellement le 1 janv. 2027', 'Annual billing · renews Jan 1, 2027')}</div>
-          </div>
-          <div className="text-right"><span className="disp mono text-[26px] font-bold text-ink">€24k</span><span className="text-[12px] text-ink-muted">{tr('/ an', '/ yr')}</span></div>
-        </div>
-        <div className="flex gap-2.5 mt-[18px]"><Btn label={tr('Gérer le plan', 'Manage plan')} primary /><Btn label={tr('Voir les factures', 'View invoices')} icon={FileText} /></div>
-      </Card>
-      <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('Consommation', 'Usage')}</Title>
-        {usage.map(([lbl, val, pct]) => (
-          <div key={lbl} className="mb-4">
-            <div className="flex justify-between mb-[7px]"><span className="text-[13px] text-ink">{lbl}</span><span className="mono text-[12.5px] text-ink-soft">{val}</span></div>
-            <div className="h-1.5 rounded-md overflow-hidden" style={{ background: 'var(--bg-hover)' }}><div className="h-full rounded-md" style={{ width: `${pct}%`, background: 'var(--accent)' }} /></div>
-          </div>
-        ))}
-      </Card>
-    </>
+    <Card style={{ padding: '22px 24px' }}>
+      <div className="flex items-center gap-2.5 mb-1.5">
+        <span className="disp text-[20px] font-bold text-ink">{tr('Édition open-source', 'Open-source edition')}</span>
+        <span className="text-[11px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}>AGPL-3.0</span>
+      </div>
+      <div className="text-[13px] text-ink-soft leading-relaxed max-w-[60ch]">
+        {tr(
+          'Cette instance est l’édition communautaire OpenRisk — aucune facturation n’est configurée. Les offres managées et le suivi d’usage apparaîtront ici lorsqu’ils seront disponibles.',
+          'This instance runs the OpenRisk community edition — no billing is configured. Managed plans and usage metering will appear here when available.'
+        )}
+      </div>
+    </Card>
   );
 }
 
