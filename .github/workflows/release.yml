@@ -1,0 +1,130 @@
+name: Release
+
+# Fires only on version tags (vMAJOR.MINOR.PATCH[-rc.N]). The guard job refuses
+# to proceed unless the tag matches the committed VERSION file, so a release can
+# never ship a binary/chart/frontend whose reported version disagrees with the tag.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1. Version guard — the single non-negotiable gate.
+  # --------------------------------------------------------------------------
+  guard:
+    name: Version guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Tag must equal v$(VERSION)
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          FILE_VERSION="$(cat VERSION | tr -d '[:space:]')"
+          if [ "v${FILE_VERSION}" != "${TAG}" ]; then
+            echo "::error::Tag '${TAG}' does not match VERSION file (expected 'v${FILE_VERSION}'). Bump VERSION and 'make sync-version' before tagging."
+            exit 1
+          fi
+          echo "OK: tag ${TAG} matches VERSION ${FILE_VERSION}."
+
+      - name: Propagated versions must not drift
+        run: make check-version
+
+  # --------------------------------------------------------------------------
+  # 2. Build + test, then stage the release artifacts.
+  # --------------------------------------------------------------------------
+  build:
+    name: Build, test & package
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Backend build (version-stamped) + tests
+        run: |
+          make build
+          cd backend && go test ./...
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Frontend build
+        run: cd frontend && npm ci && npm run build
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Stage artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p dist-artifacts
+          cp backend/openrisk dist-artifacts/openrisk-linux-amd64
+          tar -czf dist-artifacts/frontend-dist.tar.gz -C frontend dist
+          helm package helm/openrisk --destination dist-artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist-artifacts/
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 3. Publish the GitHub release with notes taken from CHANGELOG.md.
+  # --------------------------------------------------------------------------
+  release:
+    name: Publish GitHub release
+    needs: [guard, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist-artifacts
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          awk -v ver="$VER" '
+            $0 ~ "^## \\[" ver "\\]" { grab = 1; next }
+            grab && /^## \[/ { exit }
+            grab { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${TAG}. See CHANGELOG.md." > release-notes.md
+          fi
+          echo "----- release notes -----"; cat release-notes.md
+
+      - name: Detect pre-release (tag contains a hyphen, e.g. -rc.N)
+        id: prerel
+        run: |
+          if echo "${GITHUB_REF_NAME}" | grep -q '-'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          prerelease: ${{ steps.prerel.outputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: |
+            dist-artifacts/openrisk-linux-amd64
+            dist-artifacts/frontend-dist.tar.gz
+            dist-artifacts/*.tgz

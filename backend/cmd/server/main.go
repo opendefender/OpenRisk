@@ -70,6 +70,15 @@ import (
 	"github.com/opendefender/openrisk/pkg/storage"
 )
 
+// Version and Commit are injected at build time via ldflags
+// (-X main.Version=$(cat VERSION) -X main.Commit=$(git rev-parse --short HEAD);
+// see Makefile). They are the SINGLE source of truth the /health endpoint
+// reports. The defaults mark a non-release build (e.g. `go run`).
+var (
+	Version = "dev"
+	Commit  = "none"
+)
+
 func main() {
 	// =========================================================================
 	// 1. CONFIGURATION & INFRASTRUCTURE
@@ -532,7 +541,8 @@ func main() {
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "UP",
-			"version": "1.0.0",
+			"version": Version,
+			"commit":  Commit,
 			"db":      "CONNECTED",
 		})
 	})

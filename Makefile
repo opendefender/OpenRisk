@@ -1,4 +1,11 @@
-.PHONY: help build test lint clean docker-build docker-up docker-down migrate seed dev install setup
+.PHONY: help build test lint clean docker-build docker-up docker-down migrate seed dev install setup version sync-version check-version
+
+# ============================================================================
+# VERSION — single source of truth is the root VERSION file (see docs/VERSIONING.md)
+# ============================================================================
+VERSION    := $(shell cat VERSION 2>/dev/null | tr -d '[:space:]')
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+LDFLAGS    := -X main.Version=$(VERSION) -X main.Commit=$(GIT_COMMIT)
 
 help:
 	@echo "╔════════════════════════════════════════════════════════════════╗"
@@ -68,9 +75,33 @@ frontend-install:
 # ============================================================================
 
 build:
-	@echo "🔨 Building backend binary..."
-	cd backend && CGO_ENABLED=0 go build -o openrisk ./cmd/server
+	@echo "🔨 Building backend binary (v$(VERSION), commit $(GIT_COMMIT))..."
+	cd backend && CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o openrisk ./cmd/server
 	@echo "✅ Backend binary built: backend/openrisk"
+
+# ----------------------------------------------------------------------------
+# VERSION propagation & verification
+# ----------------------------------------------------------------------------
+version: ## Print the single-source version
+	@echo "$(VERSION)"
+
+sync-version: ## Write VERSION into the Helm chart and frontend package.json
+	@echo "🔁 Propagating VERSION=$(VERSION) to Helm chart + frontend..."
+	@sed -i.bak -E 's/^version: .*/version: $(VERSION)/' helm/openrisk/Chart.yaml && rm -f helm/openrisk/Chart.yaml.bak
+	@sed -i.bak -E 's/^appVersion: .*/appVersion: "$(VERSION)"/' helm/openrisk/Chart.yaml && rm -f helm/openrisk/Chart.yaml.bak
+	@sed -i.bak -E '0,/"version":/ s/("version": *")[^"]*"/\1$(VERSION)"/' frontend/package.json && rm -f frontend/package.json.bak
+	@echo "✅ Synced. Review the diff, then commit."
+
+check-version: ## Fail if Helm chart / frontend version drift from VERSION (used by release CI)
+	@chart="$$(grep -E '^version:' helm/openrisk/Chart.yaml | head -1 | awk '{print $$2}')"; \
+	 app="$$(grep -E '^appVersion:' helm/openrisk/Chart.yaml | head -1 | sed -E 's/appVersion: *"?([^"]*)"?/\1/')"; \
+	 fe="$$(grep -E '"version"' frontend/package.json | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')"; \
+	 fail=0; \
+	 [ "$$chart" = "$(VERSION)" ] || { echo "::error::Helm chart version '$$chart' != VERSION '$(VERSION)'"; fail=1; }; \
+	 [ "$$app" = "$(VERSION)" ]   || { echo "::error::Helm appVersion '$$app' != VERSION '$(VERSION)'"; fail=1; }; \
+	 [ "$$fe" = "$(VERSION)" ]    || { echo "::error::frontend version '$$fe' != VERSION '$(VERSION)'"; fail=1; }; \
+	 if [ "$$fail" -ne 0 ]; then exit 1; fi; \
+	 echo "✅ Versions aligned on $(VERSION) (chart/appVersion/frontend)"
 
 frontend-build:
 	@echo "🔨 Building frontend for production..."
