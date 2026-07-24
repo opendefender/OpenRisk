@@ -15,6 +15,7 @@ import { riskService, type Risk } from '../../services/riskService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
+import { celebrate } from '../../shared/celebrate';
 
 const createRiskSchema = z.object({
   title: z.string().min(5, 'Le nom doit comporter au moins 5 caractères').max(100),
@@ -114,6 +115,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
         source: 'manual',
       };
       const created = await riskService.createRisk(payload);
+      // Micro-victory (UX-32): celebrate the very first risk once.
+      celebrate('first_risk');
       toast.success(t('messages.riskCreatedSuccess'), {
         description: 'Le risque a été créé et le score est calculé en backend.',
         icon: <Zap className="w-4 h-4 text-primary" />,

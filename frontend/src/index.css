@@ -84,6 +84,71 @@
   --font-display: 'DM Sans';
 }
 
+/* ── Design tokens (docs/UI_ELEVATION_PROPOSAL.md) — motion, scale, density ──
+   Additive layer on top of the theme/variant tokens above. Consumed by the
+   elevated primitives (DataTable, EmptyState, drawers) and available app-wide. */
+:root {
+  /* Motion — nothing over 300ms; transform/opacity only. */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Type scale (base 14, ratio ~1.2). */
+  --text-2xs: 10.5px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 19px;
+  --text-xl: 23px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+
+  /* Spacing (4px grid). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii — max 18px (console register, not mobile-app). */
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* Elevation — 5 discreet levels. */
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --elev-2: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --elev-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --elev-4: 0 16px 48px rgba(0, 0, 0, 0.2);
+
+  /* Density (Confort by default) — drives table/list row rhythm. */
+  --den-row: 40px;
+  --den-cell-y: 10px;
+  --den-gap: 12px;
+  --den-font: 14px;
+}
+:root[data-density='compact'] {
+  --den-row: 32px;
+  --den-cell-y: 6px;
+  --den-gap: 8px;
+  --den-font: 13px;
+}
+:root[data-density='spacious'] {
+  --den-row: 48px;
+  --den-cell-y: 14px;
+  --den-gap: 16px;
+  --den-font: 14px;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -280,4 +345,160 @@
     color: var(--low);
     background: color-mix(in srgb, var(--low) 15%, transparent);
   }
+}
+
+/* ── Elevated primitives (docs/UI_ELEVATION_PROPOSAL.md §5/§6/§7) ─────────── */
+@layer components {
+  /* Dense "console" table — density-aware, sticky header, frozen first column. */
+  .or-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--den-font);
+  }
+  .or-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    font-size: var(--text-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: var(--den-cell-y) 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .or-table thead th.sortable {
+    cursor: pointer;
+  }
+  .or-table thead th.sortable:hover {
+    color: var(--text-secondary);
+  }
+  .or-table tbody td {
+    padding: var(--den-cell-y) 12px;
+    border-bottom: 1px solid var(--border);
+    height: var(--den-row);
+  }
+  .or-table tbody tr {
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  .or-table tbody tr:hover {
+    background: var(--bg-hover);
+    cursor: pointer;
+  }
+  .or-table tbody tr[data-selected='true'] {
+    background: var(--accent-soft);
+  }
+  .or-table .num {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .or-table .frozen {
+    position: sticky;
+    left: 0;
+    background: var(--bg-elevated);
+    z-index: 1;
+  }
+  .or-table tbody tr:hover .frozen {
+    background: var(--bg-hover);
+  }
+
+  /* Canonical empty state (UX-04) — illustration + value line + primary action. */
+  .or-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 10px;
+    padding: 56px 24px;
+    color: var(--text-secondary);
+  }
+  .or-empty .or-empty-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    background: var(--accent-soft);
+    margin-bottom: 4px;
+  }
+  .or-empty h3 {
+    font-size: var(--text-md);
+    font-weight: 650;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .or-empty p {
+    font-size: var(--text-sm);
+    max-width: 42ch;
+    margin: 0;
+  }
+
+  /* Master-detail: on ≥1920px the detail drawer opens beside the list (UX-27/§7b),
+     rather than overlaying it. Components opt in via .or-md-shell / .or-md-detail. */
+  .or-md-detail {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(560px, 92vw);
+  }
+  @media (min-width: 1920px) {
+    .or-md-shell.or-md-open {
+      display: grid;
+      grid-template-columns: 1fr min(720px, 40vw);
+      gap: var(--space-6);
+    }
+    .or-md-shell.or-md-open .or-md-detail {
+      position: sticky;
+      top: var(--space-6);
+      inset: auto;
+      width: auto;
+      height: fit-content;
+      align-self: start;
+    }
+  }
+}
+
+/* Confetti (UX-32 micro-victory) — sober, 600ms, respects reduced-motion. */
+@keyframes or-confetti-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--cx, 0), 82vh, 0) rotate(540deg);
+    opacity: 0;
+  }
+}
+.or-confetti-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.or-confetti-layer i {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: or-confetti-fall 900ms var(--ease-in) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .or-confetti-layer {
+    display: none;
+  }
+}
+
+/* Opt-in density on an existing (non-primitive) table: overrides the fixed
+   Tailwind row padding so the header density control reaches the flagship. */
+.or-den-rows td {
+  padding-block: var(--den-cell-y) !important;
 }
