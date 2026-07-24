@@ -15,6 +15,7 @@ import {
   Ticket, ExternalLink,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
+import { Term } from '../../shared/Term';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useVulnerabilities, useVulnStats, useVulnMutations } from './useVulnerabilities';
@@ -53,7 +54,7 @@ export function VulnerabilitiesPage() {
   const items = data?.items ?? [];
   const drawer = drawerId ? items.find((v) => v.id === drawerId) ?? null : null;
 
-  const kpi = (label: string, value: number | string, color: string, Icon: typeof Flame) => (
+  const kpi = (label: React.ReactNode, value: number | string, color: string, Icon: typeof Flame) => (
     <Card style={{ padding: '14px 16px', flex: 1, minWidth: 130 }}>
       <div className="flex items-center gap-2 text-ink-muted text-[11px] font-semibold uppercase tracking-[.04em]">
         <Icon size={13} style={{ color }} /> {label}
@@ -80,7 +81,7 @@ export function VulnerabilitiesPage() {
         {kpi(tr('Total', 'Total'), stats?.total ?? 0, 'var(--accent)', Bug)}
         {kpi(tr('Ouvertes', 'Open'), stats?.open ?? 0, 'var(--high)', ShieldAlert)}
         {kpi('P1', stats?.by_tier?.P1 ?? 0, 'var(--critical)', Flame)}
-        {kpi('CISA-KEV', stats?.kev_count ?? 0, 'var(--critical)', Flame)}
+        {kpi(<Term term="KEV">CISA-KEV</Term>, stats?.kev_count ?? 0, 'var(--critical)', Flame)}
         {kpi(tr('Exploitables', 'Exploitable'), stats?.exploit_count ?? 0, 'var(--high)', Zap)}
       </div>
 
@@ -213,7 +214,7 @@ function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
     }
   };
 
-  const field = (lbl: string, val: React.ReactNode) => (
+  const field = (lbl: React.ReactNode, val: React.ReactNode) => (
     <div className="mb-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">{lbl}</div>
       <div className="text-[13.5px] text-ink">{val}</div>
@@ -251,8 +252,8 @@ function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
           </div>
 
           <div className="grid grid-cols-2 gap-x-5">
-            {field('CVSS', <span className="mono font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}{v.cvss_vector ? ` · ${v.cvss_vector}` : ''}</span>)}
-            {field('EPSS', v.epss ? `${(v.epss * 100).toFixed(1)}%` : '—')}
+            {field(<Term term="CVSS">CVSS</Term>, <span className="mono font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}{v.cvss_vector ? ` · ${v.cvss_vector}` : ''}</span>)}
+            {field(<Term term="EPSS">EPSS</Term>, v.epss ? `${(v.epss * 100).toFixed(1)}%` : '—')}
             {field(tr('Actif concerné', 'Affected asset'), v.asset_name ? `${v.asset_name}${v.asset_criticality ? ` · ${v.asset_criticality}` : ''}` : '—')}
             {field(tr('Actifs concernés', 'Affected assets'), String(v.affected_assets_count))}
             {field(tr('Source', 'Source'), SOURCE_LABEL[v.source] ?? v.source)}
