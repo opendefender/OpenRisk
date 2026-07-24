@@ -49,6 +49,24 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   Risks/Mitigations. `docs/IA_NAVIGATION_PROPOSAL.md` + `docs/UI_ELEVATION_PROPOSAL.md`
   ratified (accent default azure, density Confort, 4K master-detail); mockups polished.
 
+### Fixed
+- **UX bug registry — 10 of 12 audit findings** (`fix/ux-audit-bug-registry`, atomic
+  commits): **OR-BUG-001/009** registration is real (3 fields → account + org
+  membership → auto-login → land; fake MFA façade removed); **OR-BUG-002** first-run
+  onboarding card + personalized greeting; **OR-BUG-005** sidebar shows the real org
+  name + real cyber score (was hardcoded 72/"Banque Atlantique"); **OR-BUG-006** scan
+  preview no longer retry-spams the console; **OR-BUG-008** auth rate limit relaxed
+  5/15min → 15/5min; **OR-BUG-010** plain-language glossary tooltips for CVE/KEV/EPSS/
+  CVSS; **OR-BUG-011/012** WCAG 2.1 AA — axe-core reports 0 serious/critical on the 6
+  key screens (labels + contrast fixed, a11y gate un-quarantined). OR-BUG-003
+  (member invite) and OR-BUG-004 (Settings real data) remain — larger, planned next.
+
+### Changed
+- **UI elevation lot** (`feat/ia-nav-ui-elevation`): design tokens (motion, type
+  scale, spacing, radii, elevation), a persisted density system (Confort default) with
+  a header control, reusable `DataTable`/`EmptyState` primitives, and confetti
+  micro-victories (UX-32). See `docs/UI_ELEVATION_PROPOSAL.md` §10.
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Multi-tenant support

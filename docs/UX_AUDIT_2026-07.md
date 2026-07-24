@@ -83,10 +83,37 @@ sont de **maturité** (entrée, données réelles, a11y), pas de **stabilité**.
 ## 3. Registre de bugs
 
 > Chaque entrée : ID stable · reproduction ≤ 3 étapes · attendu · cause racine (si
-> identifiée) · correction proposée. Assignée à une session ultérieure (le gel du
-> code produit de cette session interdit toute correction ici).
+> identifiée) · correction proposée.
 
-### OR-BUG-001 — L'inscription ne crée aucun compte · **P0** · Session 2
+### État des correctifs (2026-07-24, branche `fix/ux-audit-bug-registry`)
+
+**10 / 12 corrigés** (commits atomiques, la plupart vérifiés live) :
+
+| Bug | Statut | Preuve |
+|-----|--------|--------|
+| OR-BUG-001 | ✅ Corrigé | inscription réelle 3 champs → compte créé → atterrissage (live) |
+| OR-BUG-002 | ✅ Corrigé | carte d'onboarding + greeting « Bonjour, Awa » (live) |
+| OR-BUG-005 | ✅ Corrigé | sidebar : org réelle + cyber score réel (live) |
+| OR-BUG-006 | ✅ Corrigé | `retry:false` sur preview inconnu (plus de bruit console) |
+| OR-BUG-007 | ✅ Corrigé | placeholders retirés (nav 5 intentions) |
+| OR-BUG-008 | ✅ Corrigé | rate limit 5/15min → 15/5min |
+| OR-BUG-009 | ✅ Corrigé | fausse MFA supprimée |
+| OR-BUG-010 | ✅ Corrigé | glossaire `<Term>` CVE/KEV/EPSS (Vulnérabilités) |
+| OR-BUG-011 | ✅ Corrigé | axe WCAG AA : **0 serious/critical** sur 6 écrans (vérifié) |
+| OR-BUG-012 | ✅ Corrigé | labels/aria-label Paramètres (axe vert) |
+| **OR-BUG-003** | ⏭️ Restant | invitation de membre = nouvelle feature backend (plan ↓) |
+| **OR-BUG-004** | ⏭️ Restant | données réelles Paramètres = refonte multi-endpoints (plan ↓) |
+
+**Plan OR-BUG-003 (P0)** : chemin de réutilisation prêt (`GormUserRepository.Create`
++ `CreateOrganizationMember`, comme `RegisterUseCase`). → `InviteMemberUseCase`
+(hash mdp temporaire → `User` + `OrganizationMember(tenant, role, business_role)`),
+`POST /rbac/members` (admin), formulaire sur `/settings/roles`. Prouver live :
+inviter → le membre se connecte → voit son rôle. Débloque `journey.rbac`.
+
+**Plan OR-BUG-004 (P1)** : brancher chaque onglet Paramètres sur son endpoint réel +
+autosave par champ + « Enregistré ✓ », onglet par onglet avec vérif live.
+
+### OR-BUG-001 — L'inscription ne crée aucun compte · **P0** · ✅ CORRIGÉ
 - **Repro** : (1) aller à `/register` ; (2) remplir les champs ; (3) cliquer « Créer un compte ».
 - **Attendu** : un compte + un tenant sont créés, l'utilisateur entre dans l'app (UX-01/13).
 - **Constaté** : le formulaire bascule simplement vers l'écran MFA, puis « valider » navigue vers `/` sans jeton → `ProtectedRoute` renvoie à `/login`. Aucun appel réseau.
