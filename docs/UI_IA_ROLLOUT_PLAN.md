@@ -68,6 +68,9 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 
 **Primitives partagées livrées (commits atomiques, sans co-auteur) :**
 - ✅ A `shared/undoableDelete.ts` (toast + Undo, commit différé) — UX-12/28
+- ✅ A' `shared/useUndoableRemove.ts` (hook : `undoableDelete` + set d'ids masqués
+  optimiste + restore sur Undo — le chemin d'adoption mécanique pour les listes
+  react-query) — UX-12/28
 - ✅ B `shared/ImpactDialog.tsx` (radiographie d'impact + alternatives) — UX-11
 - ✅ C `shared/Hint.tsx` (tooltip 1ᵉʳ survol, non répété) — UX-14
 - ✅ D `shared/ProgressState.tsx` (attente informative, étapes + stat) — UX-09
@@ -76,10 +79,13 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 **Adoptions par écran faites :**
 - ✅ Conformité (`ComplianceScreen`) : suppression de référentiel → `ImpactDialog`
   (N contrôles + preuves + alternative « exporter le rapport d'abord »).
+- ✅ `undoableDelete` sur les suppressions **mineures** (via `useUndoableRemove`,
+  masquage optimiste + toast Annuler ≥ 7 s, plus de `window.confirm`) : correspondance
+  de contrôle (`ControlMappingsSection`), preuve (`FrameworkDetail`), plan de
+  remédiation (`RemediationPage`), audit (`AuditsPage`), dépendance d'actif
+  (`AssetUniverse` — l'arête disparaît du graphe **et** du panneau pendant le délai).
 
 **Reste à adopter (prochaine session, un commit par écran) :**
-- `undoableDelete` sur les suppressions **mineures** (mapping de contrôle, preuve,
-  plan de remédiation, audit, dépendance d'actif) — remplacer les `window.confirm`.
 - `ImpactDialog` sur les suppressions **importantes** restantes : risque (mitigations
   liées), actif (support de risques), membre/rétrogradation (risques possédés →
   alternative « transférer »).

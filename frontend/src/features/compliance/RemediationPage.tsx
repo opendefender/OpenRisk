@@ -8,9 +8,11 @@
 
 import { useMemo, useState } from 'react';
 import { Wrench, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useUndoableRemove } from '../../shared/useUndoableRemove';
 import { useRemediations } from './useCompliance';
 import { CreateRemediationDialog } from './AuditRemediationModals';
 import type { RemediationPlan, RemediationPriority, RemediationStatus } from '../../types/compliance';
@@ -33,6 +35,7 @@ export function RemediationPage() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { remediations, isLoading, error, refetch, updateRemediation, deleteRemediation } = useRemediations();
+  const { undoRemove, isHidden } = useUndoableRemove();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canWrite = hasPermission('compliance:remediations:write');
 
@@ -42,18 +45,23 @@ export function RemediationPage() {
   const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
   const isOverdue = (p: RemediationPlan) => p.due_date != null && p.status !== 'completed' && p.status !== 'cancelled' && new Date(p.due_date) < new Date();
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: remediations.length };
-    for (const p of remediations) c[p.status] = (c[p.status] ?? 0) + 1;
-    return c;
-  }, [remediations]);
+  const visible = useMemo(() => remediations.filter((p) => !isHidden(p.id)), [remediations, isHidden]);
 
-  const shown = filter === 'all' ? remediations : remediations.filter((p) => p.status === filter);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: visible.length };
+    for (const p of visible) c[p.status] = (c[p.status] ?? 0) + 1;
+    return c;
+  }, [visible]);
+
+  const shown = filter === 'all' ? visible : visible.filter((p) => p.status === filter);
 
   const setStatus = (p: RemediationPlan, status: RemediationStatus) => updateRemediation.mutate({ id: p.id, payload: { status } });
-  const remove = (p: RemediationPlan) => {
-    if (window.confirm(tr(`Supprimer le plan « ${p.title} » ?`, `Delete plan "${p.title}"?`))) deleteRemediation.mutate(p.id);
-  };
+  const remove = (p: RemediationPlan) => undoRemove(p.id, {
+    message: tr(`Plan « ${p.title} » supprimé`, `Plan "${p.title}" removed`),
+    undoLabel: tr('Annuler', 'Undo'),
+    onCommit: () => deleteRemediation.mutate(p.id),
+    onError: () => toast.error(tr('Suppression échouée', 'Delete failed')),
+  });
 
   return (
     <PageFrame wide>

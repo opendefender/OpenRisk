@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useUndoableRemove } from '../../shared/useUndoableRemove';
 import { useAudits, useFrameworks } from './useCompliance';
 import { CreateAuditDialog } from './AuditRemediationModals';
 import { AiAuditReportButton } from '../ai/AiAuditReportButton';
@@ -37,6 +38,7 @@ export function AuditsPage() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { audits, isLoading, error, refetch, updateAudit, deleteAudit, generateRemediations } = useAudits();
   const { frameworks } = useFrameworks();
+  const { undoRemove, isHidden } = useUndoableRemove();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canWrite = hasPermission('compliance:audits:write');
   const canRemediate = hasPermission('compliance:remediations:write');
@@ -47,22 +49,25 @@ export function AuditsPage() {
   const fwName = (id: string | null) => (id ? frameworks.find((f) => f.id === id)?.name ?? tr('Référentiel', 'Framework') : tr('Programme entier', 'Whole program'));
   const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: audits.length };
-    for (const a of audits) c[a.status] = (c[a.status] ?? 0) + 1;
-    return c;
-  }, [audits]);
+  const visible = useMemo(() => audits.filter((a) => !isHidden(a.id)), [audits, isHidden]);
 
-  const shown = filter === 'all' ? audits : audits.filter((a) => a.status === filter);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: visible.length };
+    for (const a of visible) c[a.status] = (c[a.status] ?? 0) + 1;
+    return c;
+  }, [visible]);
+
+  const shown = filter === 'all' ? visible : visible.filter((a) => a.status === filter);
 
   const setStatus = (a: ComplianceAudit, status: AuditStatus) => {
     updateAudit.mutate({ id: a.id, payload: { status } });
   };
-  const remove = (a: ComplianceAudit) => {
-    if (window.confirm(tr(`Supprimer l’audit « ${a.title} » ?`, `Delete audit "${a.title}"?`))) {
-      deleteAudit.mutate(a.id);
-    }
-  };
+  const remove = (a: ComplianceAudit) => undoRemove(a.id, {
+    message: tr(`Audit « ${a.title} » supprimé`, `Audit "${a.title}" removed`),
+    undoLabel: tr('Annuler', 'Undo'),
+    onCommit: () => deleteAudit.mutate(a.id),
+    onError: () => toast.error(tr('Suppression échouée', 'Delete failed')),
+  });
   const genRemediations = (a: ComplianceAudit) => {
     if (!a.framework_id) {
       toast.error(tr('Cet audit couvre le programme entier — rattachez-le à un référentiel.', 'This audit is program-wide — scope it to a framework.'));
