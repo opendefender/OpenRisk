@@ -100,9 +100,24 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
     possédés, et **« transférer ses risques » nécessite un backend** (reporté) — la
     désactivation est l'échappatoire honnête disponible.
 
-**Reste à adopter (prochaine session, un commit par écran) :**
-- `Hint` sur le jargon/boutons clés (1ʳᵉ rencontre) ; `ProgressState` sur scan /
-  génération de rapport (PDF/IA) / calcul CRQ ; `PremiumPeek` aux 3 moments de conversion.
+- ✅ `ProgressState` (attente informative UX-09) sur les vraies attentes LLM/agrégation :
+  plan de traitement **IA** du drawer de risque (`DrawerAI` → étapes analyse/stratégie/
+  priorisation + nom du risque) et **génération du Board Report** (`BoardReportPage`
+  `EmptyList` → étapes agrégation/rédaction/finalisation). Remplace le spinner nu.
+- ✅ `Hint` (aide 1ᵉʳ survol, non répété, UX-14) sur les **actions non évidentes** (le
+  jargon a déjà `<Term>`) : contrôle de **densité** de l'en-tête (`AppHeader`) et bouton
+  **« Remédier »** des audits (`AuditsPage` — explique l'auto-génération des plans).
+- ✅ `PremiumPeek` (aperçu flouté premium UX-18/19) : **un** teaser honnête sur l'écran
+  **Rapports** — « Rapports programmés » (envoi auto par e-mail, **non encore développé**)
+  en aperçu flouté + CTA **« Bientôt disponible »** (jamais de mur « limite atteinte »).
+  Moment de conversion « après une victoire » (l'utilisateur vient de générer des
+  rapports). **Vérifié live** (capture headless authentifiée, page `/reports`).
+
+**Reste à adopter (prochaine session) :**
+- Étendre `ProgressState` au **scan** (Infrastructure) et au **calcul CRQ/smart-score**
+  quand ces attentes deviennent > 1,5 s de façon observable.
+- `PremiumPeek` aux **2 autres moments de conversion** (après le Aha / à la limite) —
+  dépend d'un vrai **billing** pour ne pas mentir (CTA « bientôt » en attendant).
 - **Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
   inactivité, G raccourcis clavier + overlay `?`, H time-travel généralisé, dashboards
   par rôle. Voir §1bis + §2.
