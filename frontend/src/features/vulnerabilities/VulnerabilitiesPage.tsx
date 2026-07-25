@@ -15,6 +15,7 @@ import {
   Ticket, ExternalLink,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
+import { DataTable, type Column } from '../../shared/DataTable';
 import { Term } from '../../shared/Term';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -53,6 +54,35 @@ export function VulnerabilitiesPage() {
   const { data: stats } = useVulnStats();
   const items = data?.items ?? [];
   const drawer = drawerId ? items.find((v) => v.id === drawerId) ?? null : null;
+
+  // Kit adoption (docs/UI_ELEVATION §6): the bespoke table becomes a dense, sortable,
+  // density-aware DataTable with a frozen priority column. Sorting lets the user
+  // re-rank the page by CVSS / severity / asset beyond the default priority order.
+  const columns: Column<Vulnerability>[] = useMemo(() => {
+    const sevRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+    return [
+      {
+        key: 'priority',
+        header: tr('Priorité', 'Priority'),
+        frozen: true,
+        sortValue: (v) => v.priority_score,
+        render: (v) => (
+          <div className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: '#12151c' }}>{v.priority_tier}</span>
+            <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
+            {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
+          </div>
+        ),
+      },
+      { key: 'cve', header: 'CVE', sortValue: (v) => v.cve_id || '', render: (v) => <span className="mono text-[12.5px] text-ink">{v.cve_id || '—'}</span> },
+      { key: 'title', header: tr('Titre', 'Title'), render: (v) => <div className="text-[13px] text-ink max-w-[280px] truncate">{v.title}</div> },
+      { key: 'severity', header: tr('Sévérité', 'Severity'), sortValue: (v) => sevRank[v.severity] ?? 0, render: (v) => <SevBadge sev={v.severity} lang={lang} /> },
+      { key: 'cvss', header: 'CVSS', align: 'right', sortValue: (v) => v.cvss_score ?? 0, render: (v) => <span className="mono text-[13px] font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}</span> },
+      { key: 'asset', header: tr('Actif', 'Asset'), sortValue: (v) => v.asset_name || '', render: (v) => <span className="text-[12.5px] text-ink-soft">{v.asset_name || '—'}</span> },
+      { key: 'source', header: tr('Source', 'Source'), render: (v) => <span className="text-[12px] text-ink-muted">{SOURCE_LABEL[v.source] ?? v.source}</span> },
+      { key: 'status', header: tr('Statut', 'Status'), render: (v) => <StatusChip status={v.status} lang={lang} /> },
+    ];
+  }, [lang]);
 
   const kpi = (label: React.ReactNode, value: number | string, color: string, Icon: typeof Flame) => (
     <Card style={{ padding: '14px 16px', flex: 1, minWidth: 130 }}>
@@ -110,45 +140,23 @@ export function VulnerabilitiesPage() {
       <Card style={{ padding: '8px 8px 4px', overflow: 'hidden' }}>
         {isLoading && items.length === 0 ? (
           <SkeletonRows rows={6} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={Bug}
-            title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
-            sub={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
-            cta={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
-          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 900 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}>
-                <tr>
-                  {[tr('Priorité', 'Priority'), 'CVE', tr('Titre', 'Title'), tr('Sévérité', 'Severity'), 'CVSS', tr('Actif', 'Asset'), tr('Source', 'Source'), tr('Statut', 'Status')].map((h) => (
-                    <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((v) => (
-                  <tr key={v.id} onClick={() => setDrawerId(v.id)} className="cursor-pointer transition-colors hover:bg-hover">
-                    <td className="px-3 py-[13px]">
-                      <div className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: '#12151c' }}>{v.priority_tier}</span>
-                        <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
-                        {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
-                      </div>
-                    </td>
-                    <td className="px-3 py-[13px]"><span className="mono text-[12.5px] text-ink">{v.cve_id || '—'}</span></td>
-                    <td className="px-3 py-[13px]"><div className="text-[13px] text-ink max-w-[280px] truncate">{v.title}</div></td>
-                    <td className="px-3 py-[13px]"><SevBadge sev={v.severity} lang={lang} /></td>
-                    <td className="px-3 py-[13px]"><span className="mono text-[13px] font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}</span></td>
-                    <td className="px-3 py-[13px] text-[12.5px] text-ink-soft">{v.asset_name || '—'}</td>
-                    <td className="px-3 py-[13px] text-[12px] text-ink-muted">{SOURCE_LABEL[v.source] ?? v.source}</td>
-                    <td className="px-3 py-[13px]"><StatusChip status={v.status} lang={lang} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={items}
+            columns={columns}
+            rowKey={(v) => v.id}
+            onRowClick={(v) => setDrawerId(v.id)}
+            minWidth={900}
+            initialSort={{ key: 'priority', dir: 'desc' }}
+            empty={
+              <EmptyState
+                icon={Bug}
+                title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
+                sub={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
+                cta={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
+              />
+            }
+          />
         )}
       </Card>
 

@@ -51,7 +51,7 @@ Consignes UX supplémentaires du fondateur, rattachées à la charte. Chacune = 
 | B | Suppression **importante** = **radiographie d'impact** (objets liés) + alternative (transfert) avant d'agir (UX-11) | `shared/ImpactDialog.tsx` (« Annuler / Transférer les risques / Supprimer ») | P1 |
 | C | Aide contextuelle au 1ᵉʳ survol, non répétée, pas de product tour (UX-14) | `shared/Hint.tsx` (mémorisé localStorage) + compléter le `<Term>` glossaire | P2 |
 | D | Attente exploitée : progression + info utile si > 1,5 s (UX-09) | `shared/ProgressState.tsx` (scan / rapport / calcul CRQ) | P2 |
-| E | Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + centre de notif catégorisé + prefs | P1 |
+| E | ⏸️ **Reporté (lourd, backend)** — Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + migration + centre de notif catégorisé + prefs | P1 |
 | F | Relance après inactivité + annonce de nouveauté, calées sur fuseau/heures d'activité (UX-29) | backend `last_active_at` + job d'envoi ciblé | P2 |
 | G | ✅ Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + `shared/ShortcutsOverlay.tsx` (voir §1ter) | P2 |
 | H | 🟡 Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | `shared/HistoryTimeline.tsx` + **Risk fait** (drawer) ; Asset déjà là ; Control/Mitigation = reste (voir §1ter) | P1 |
@@ -143,9 +143,16 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
     (`pages/RiskTimeline.tsx`, non liée, bugs de token/fetch) est **supplantée** par
     l'onglet du drawer.
 
-**Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
-  inactivité, Control/Mitigation time-travel (endpoints d'historique), dashboards par
-  rôle. Voir §1bis + §2.
+**Adoption du kit (Vague 1, §2/§3)** : ✅ **Vulnérabilités** = 1ʳᵉ adoption réelle de
+  `DataTable` (le primitive du kit était livré mais **jamais adopté**) — tri par colonne,
+  colonne Priorité **figée**, densité, drawer préservé. **Vérifié live** (Playwright : tri
+  CVSS desc → 1ʳᵉ ligne 9.8 ; 14 lignes ; clic ligne → drawer). Reste : **Registre des
+  risques** (le pilote « officiel », plus lourd : multi-sélection + barre groupée + vue
+  Matrice + menu de ligne à préserver) puis **Inventaire des actifs**.
+
+**Reporté / non commencées** (plus lourdes, backend) : ⏸️ **E notifications catégorisées**
+  (reporté à la demande du fondateur — lourd), F relance inactivité, Control/Mitigation
+  time-travel (endpoints d'historique), dashboards par rôle. Voir §1bis + §2.
 
 ## 2. Revue par intention
 
@@ -161,7 +168,7 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 |-------|-------|-------------|----------------------|--------|
 | Inventaire des actifs | `/assets` | **Haute** | table → `DataTable` (tri/sélection/figée) ; `EmptyState` ; drawer master-detail 4K | ⬜ |
 | Asset Universe | `/assets/universe` | Basse | graphe : tokens + états ; panneau de dépendances en master-detail | ⬜ |
-| Vulnérabilités | `/vulnerabilities` | **Haute** | table priorisée → `DataTable` ; glossaire déjà là (OR-BUG-010) ; drawer master-detail | 🟡 glossaire fait, table à élever |
+| Vulnérabilités | `/vulnerabilities` | **Haute** | table priorisée → `DataTable` ; glossaire déjà là (OR-BUG-010) ; drawer master-detail | 🟢 **table migrée vers `DataTable`** (1ʳᵉ adoption du kit : tri par colonne, colonne Priorité figée, densité) + glossaire ; drawer master-detail 4K = reste |
 | Intel Threat (CTI) | `/threat-map` | Moyenne | flux CVE → `DataTable` ; badges KEV/MITRE ; états | ⬜ |
 | Infrastructure (scanner) | `/infrastructure` | Moyenne | cartes providers : tokens ; historique scans → `DataTable` ; preview en master-detail | ⬜ |
 
