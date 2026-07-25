@@ -5,7 +5,7 @@
 // with type-icon, criticality badge, derived score (max of linked risks), linked-risk
 // count and last-updated. Type-filter chips; create/edit modals; loading + empty states.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Atom, Plus, ChevronRight, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, type LucideIcon } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, CritBadge, SkeletonRows, EmptyState } from '../../shared/ui';
@@ -16,6 +16,7 @@ import { useAssets } from './useAssets';
 import { CreateAssetModal } from './CreateAssetModal';
 import { EditAssetModal } from './EditAssetModal';
 import { AssetHistoryDrawer } from './AssetHistoryDrawer';
+import { useFocusParam } from '../../shared/useFocusParam';
 import { relTime } from '../risks/riskMap';
 import type { Asset } from '../../types/asset';
 
@@ -34,6 +35,18 @@ export function InventoryPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Asset | undefined>(undefined);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
+
+  // Deep-link from universal search (/assets?focus=<id>) → open that asset's editor
+  // once it's present in the loaded list.
+  const { focusId, clearFocus } = useFocusParam();
+  useEffect(() => {
+    if (!focusId) return;
+    const a = assets.find((x) => x.id === focusId);
+    if (a) {
+      setEditing(a);
+      clearFocus();
+    }
+  }, [focusId, assets, clearFocus]);
 
   const types = useMemo(() => [...new Set(assets.map((a) => a.type).filter(Boolean) as string[])], [assets]);
   const rows = assets.filter((a) => !type || a.type === type);

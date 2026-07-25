@@ -36,14 +36,17 @@ type CustomFieldValidation struct {
 	AllowedValues []string `json:"allowed_values,omitempty"`
 }
 
-// CustomField defines a custom field that can be added to risks or assets
+// CustomField defines a custom field that can be added to risks or assets.
+// TenantID scopes every field to one tenant (RULE #2); the (tenant_id,name,scope)
+// unique index lets two tenants each define a "Department" field independently.
 type CustomField struct {
 	ID          uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Name        string           `gorm:"uniqueIndex:idx_name_scope;not null" json:"name"` // e.g., "Risk ID", "Department"
+	TenantID    uuid.UUID        `gorm:"type:uuid;not null;index;uniqueIndex:idx_tenant_name_scope" json:"tenant_id"`
+	Name        string           `gorm:"uniqueIndex:idx_tenant_name_scope;not null" json:"name"` // e.g., "Risk ID", "Department"
 	DisplayName string           `json:"display_name"`
 	Description string           `gorm:"type:text" json:"description"`
 	FieldType   CustomFieldType  `gorm:"type:varchar(20);not null" json:"field_type"`
-	Scope       CustomFieldScope `gorm:"type:varchar(20);not null;uniqueIndex:idx_name_scope" json:"scope"` // "risk" or "asset"
+	Scope       CustomFieldScope `gorm:"type:varchar(20);not null;uniqueIndex:idx_tenant_name_scope" json:"scope"` // "risk" or "asset"
 
 	// Field configuration
 	DefaultValue string         `json:"default_value,omitempty"`
@@ -73,7 +76,8 @@ const (
 // CustomFieldTemplate represents a predefined set of custom fields
 type CustomFieldTemplate struct {
 	ID          uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Name        string           `gorm:"uniqueIndex;not null" json:"name"` // e.g., "ISO 27001", "NIST Cybersecurity Framework"
+	TenantID    uuid.UUID        `gorm:"type:uuid;not null;index;uniqueIndex:idx_tenant_template_name" json:"tenant_id"`
+	Name        string           `gorm:"uniqueIndex:idx_tenant_template_name;not null" json:"name"` // e.g., "ISO 27001", "NIST Cybersecurity Framework"
 	Description string           `gorm:"type:text" json:"description"`
 	Scope       CustomFieldScope `gorm:"type:varchar(20);not null" json:"scope"`
 
