@@ -7,9 +7,10 @@
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Atom, Plus, ChevronRight, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, type LucideIcon } from 'lucide-react';
+import { Atom, Plus, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, type LucideIcon } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, CritBadge, SkeletonRows, EmptyState } from '../../shared/ui';
-import { critColor, scoreColor, softFill, scoreToCriticality, type Criticality } from '../../shared/riskColors';
+import { DataTable, type Column } from '../../shared/DataTable';
+import { critColor, scoreColor, softFill, type Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAssets } from './useAssets';
@@ -23,6 +24,14 @@ const TYPE_ICON: Record<string, LucideIcon> = {
   Server: Server, Application: AppWindow, Cloud: Cloud, Database: Database, SaaS: Cloud,
   Storage: HardDrive, Network: Globe, Laptop: Laptop, Data: Database, User: Users, Supplier: Building2,
 };
+
+// Derived asset score = the max score of its linked risks (null when none).
+const scoreOf = (a: Asset): number | null => {
+  const rs = a.risks ?? [];
+  if (!rs.length) return null;
+  return Math.max(...rs.map((r) => r.score ?? 0));
+};
+const CRIT_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
 
 export function InventoryPage() {
   const L = useUIStrings();
@@ -38,15 +47,32 @@ export function InventoryPage() {
   const types = useMemo(() => [...new Set(assets.map((a) => a.type).filter(Boolean) as string[])], [assets]);
   const rows = assets.filter((a) => !type || a.type === type);
 
-  const scoreOf = (a: Asset): number | null => {
-    const rs = a.risks ?? [];
-    if (!rs.length) return null;
-    return Math.max(...rs.map((r) => r.score ?? 0));
-  };
-
-  const th = (t: string, right?: boolean) => (
-    <th className={`text-${right ? 'right' : 'left'} text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]`}>{t}</th>
-  );
+  // Kit adoption (docs/UI_ELEVATION §6): dense, sortable, density-aware DataTable with
+  // a frozen Asset column. Default sort surfaces the most critical assets first.
+  const columns: Column<Asset>[] = useMemo(() => [
+    {
+      key: 'name', header: tr('Actif', 'Asset'), frozen: true, sortValue: (a) => (a.name ?? '').toLowerCase(),
+      render: (a) => {
+        const crit = ((a.criticality ?? 'LOW').toLowerCase()) as Criticality;
+        const Icon = TYPE_ICON[a.type ?? 'Server'] ?? Server;
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: softFill(critColor[crit], 14), color: critColor[crit] }}><Icon size={17} /></div>
+            <div>
+              <div className="text-[13.5px] font-medium text-ink">{a.name}</div>
+              <div className="mono text-[11px] text-ink-muted">{a.owner || '—'}</div>
+            </div>
+          </div>
+        );
+      },
+    },
+    { key: 'type', header: 'Type', sortValue: (a) => a.type ?? '', render: (a) => <span className="text-[12.5px] text-ink-soft">{a.type ?? '—'}</span> },
+    { key: 'crit', header: L.col_crit, sortValue: (a) => CRIT_RANK[(a.criticality ?? 'LOW').toLowerCase()] ?? 0, render: (a) => <CritBadge crit={((a.criticality ?? 'LOW').toLowerCase()) as Criticality} /> },
+    { key: 'score', header: 'Score', align: 'right', sortValue: (a) => scoreOf(a) ?? -1, render: (a) => { const sc = scoreOf(a); return sc != null ? <span className="mono text-[14px] font-bold" style={{ color: scoreColor(sc) }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>; } },
+    { key: 'risks', header: tr('Risques', 'Risks'), align: 'right', sortValue: (a) => a.risks?.length ?? 0, render: (a) => <span className="text-[13px] text-ink">{a.risks?.length || '—'}</span> },
+    { key: 'mod', header: L.col_mod, sortValue: (a) => new Date(a.updated_at ?? 0).getTime(), render: (a) => <span className="text-[12px] text-ink-soft">{relTime(a.updated_at, lang)}</span> },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [lang]);
 
   return (
     <PageFrame wide>
@@ -79,40 +105,15 @@ export function InventoryPage() {
             cta={<Btn label={tr('Nouvel actif', 'New asset')} icon={Plus} primary onClick={() => setCreating(true)} />}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 720 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}>
-                <tr>{th(tr('Actif', 'Asset'))}{th('Type')}{th(L.col_crit)}{th('Score')}{th(tr('Risques', 'Risks'))}{th(L.col_mod)}{th('')}</tr>
-              </thead>
-              <tbody>
-                {rows.map((a) => {
-                  const crit = ((a.criticality ?? 'LOW').toLowerCase()) as Criticality;
-                  const Icon = TYPE_ICON[a.type ?? 'Server'] ?? Server;
-                  const sc = scoreOf(a);
-                  const col = sc != null ? scoreColor(sc) : critColor[scoreToCriticality(0)];
-                  return (
-                    <tr key={a.id} onClick={() => setEditing(a)} className="cursor-pointer hover:bg-hover transition-colors" style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: softFill(critColor[crit], 14), color: critColor[crit] }}><Icon size={17} /></div>
-                          <div>
-                            <div className="text-[13.5px] font-medium text-ink">{a.name}</div>
-                            <div className="mono text-[11px] text-ink-muted">{a.owner || '—'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-[12.5px] text-ink-soft">{a.type ?? '—'}</td>
-                      <td className="px-3 py-3"><CritBadge crit={crit} /></td>
-                      <td className="px-3 py-3">{sc != null ? <span className="mono text-[14px] font-bold" style={{ color: col }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>}</td>
-                      <td className="px-3 py-3 text-[13px] text-ink">{a.risks?.length || '—'}</td>
-                      <td className="px-3 py-3 text-[12px] text-ink-soft">{relTime(a.updated_at, lang)}</td>
-                      <td className="px-3 py-3 text-right"><ChevronRight size={16} className="text-ink-muted inline" /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={rows}
+            columns={columns}
+            rowKey={(a) => a.id as string}
+            onRowClick={(a) => setEditing(a)}
+            minWidth={720}
+            initialSort={{ key: 'crit', dir: 'desc' }}
+            empty={<EmptyState icon={Boxes} title={tr('Aucun résultat', 'No results')} sub={tr('Aucun actif ne correspond à ce filtre.', 'No asset matches this filter.')} />}
+          />
         )}
       </Card>
 

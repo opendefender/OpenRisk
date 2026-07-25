@@ -68,7 +68,7 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 
 **Primitives partagées livrées (commits atomiques, sans co-auteur) :**
 - ✅ A `shared/undoableDelete.ts` (toast + Undo, commit différé) — UX-12/28
-- ✅ A' `shared/useUndoableRemove.ts` (hook : `undoableDelete` + set d'ids masqués
+- ✅ A' `shared/useU3 000 000ndoableRemove.ts` (hook : `undoableDelete` + set d'ids masqués
   optimiste + restore sur Undo — le chemin d'adoption mécanique pour les listes
   react-query) — UX-12/28
 - ✅ B `shared/ImpactDialog.tsx` (radiographie d'impact + alternatives) — UX-11
@@ -143,12 +143,16 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
     (`pages/RiskTimeline.tsx`, non liée, bugs de token/fetch) est **supplantée** par
     l'onglet du drawer.
 
-**Adoption du kit (Vague 1, §2/§3)** : ✅ **Vulnérabilités** = 1ʳᵉ adoption réelle de
-  `DataTable` (le primitive du kit était livré mais **jamais adopté**) — tri par colonne,
-  colonne Priorité **figée**, densité, drawer préservé. **Vérifié live** (Playwright : tri
-  CVSS desc → 1ʳᵉ ligne 9.8 ; 14 lignes ; clic ligne → drawer). Reste : **Registre des
-  risques** (le pilote « officiel », plus lourd : multi-sélection + barre groupée + vue
-  Matrice + menu de ligne à préserver) puis **Inventaire des actifs**.
+**Adoption du kit (Vague 1, §2/§3)** : le primitive `DataTable` était livré mais **jamais
+  adopté** — désormais adopté sur **2 écrans** :
+  - ✅ **Vulnérabilités** (1ʳᵉ adoption) — tri par colonne, colonne Priorité **figée**,
+    densité, drawer préservé. **Vérifié live** (Playwright : tri CVSS desc → 1ʳᵉ ligne 9.8 ;
+    14 lignes ; clic ligne → drawer).
+  - ✅ **Inventaire des actifs** — tri par colonne, colonne Actif **figée**, densité, tri
+    criticité desc par défaut, `EmptyState` filtre, modale d'édition préservée. **Vérifié
+    live** (Playwright : 16 lignes triées Critique→Élevé ; clic ligne → modale d'édition).
+  - Reste : **Registre des risques** (le pilote « officiel », plus lourd : multi-sélection
+    + barre groupée + vue Matrice + menu de ligne à préserver).
 
 **Reporté / non commencées** (plus lourdes, backend) : ⏸️ **E notifications catégorisées**
   (reporté à la demande du fondateur — lourd), F relance inactivité, Control/Mitigation
@@ -166,7 +170,7 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 ### 1 · Identifier
 | Écran | Route | Priorité UI | Points de revue clés | Statut |
 |-------|-------|-------------|----------------------|--------|
-| Inventaire des actifs | `/assets` | **Haute** | table → `DataTable` (tri/sélection/figée) ; `EmptyState` ; drawer master-detail 4K | ⬜ |
+| Inventaire des actifs | `/assets` | **Haute** | table → `DataTable` (tri/sélection/figée) ; `EmptyState` ; drawer master-detail 4K | 🟢 **table migrée vers `DataTable`** (tri par colonne, colonne Actif figée, densité, tri criticité desc par défaut) + `EmptyState` ; drawer master-detail 4K = reste |
 | Asset Universe | `/assets/universe` | Basse | graphe : tokens + états ; panneau de dépendances en master-detail | ⬜ |
 | Vulnérabilités | `/vulnerabilities` | **Haute** | table priorisée → `DataTable` ; glossaire déjà là (OR-BUG-010) ; drawer master-detail | 🟢 **table migrée vers `DataTable`** (1ʳᵉ adoption du kit : tri par colonne, colonne Priorité figée, densité) + glossaire ; drawer master-detail 4K = reste |
 | Intel Threat (CTI) | `/threat-map` | Moyenne | flux CVE → `DataTable` ; badges KEV/MITRE ; états | ⬜ |
