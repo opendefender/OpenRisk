@@ -19,11 +19,13 @@ import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
 import { ProgressState } from '../../shared/ProgressState';
+import { HistoryTimeline, type HistoryEntry } from '../../shared/HistoryTimeline';
+import { useRiskTimeline } from './useRiskTimeline';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { mapRisk, type UiRisk } from './riskMap';
+import { mapRisk, relTime, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { useRiskFinancial } from '../financial/useFinancial';
@@ -394,6 +396,63 @@ function RowMenu({ onView, onEdit, onExport, onDelete, onClose }: { onView: () =
 }
 
 /* ---------------- drawer ---------------- */
+// DrawerTimeline — the "Timeline" tab: real time-travel history for this risk
+// (who changed what, and when) from GET /risks/:id/timeline, rendered with the
+// shared HistoryTimeline primitive (UX-25). Replaces the former "coming soon".
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+function DrawerTimeline({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { data, isLoading, error } = useRiskTimeline(r.id);
+
+  const kindOf = (t: string): string | undefined => {
+    const k = t.toUpperCase();
+    if (k === 'CREATE' || k === 'CREATED') return 'create';
+    if (k === 'MITIGATE' || k.startsWith('MITIGATION')) return 'mitigate';
+    if (k === 'DELETE' || k === 'DELETED') return 'delete';
+    if (k) return 'update';
+    return undefined;
+  };
+  const titleOf = (t: string): string => {
+    switch (kindOf(t)) {
+      case 'create': return tr('Risque créé', 'Risk created');
+      case 'mitigate': return tr('Mitigation appliquée', 'Mitigation applied');
+      case 'delete': return tr('Risque supprimé', 'Risk deleted');
+      case 'update': return tr('Mise à jour', 'Updated');
+      default: return t;
+    }
+  };
+  const actorOf = (changedBy: string): string => {
+    if (!changedBy || changedBy === NIL_UUID || changedBy.toLowerCase() === 'system') return tr('Système', 'System');
+    return changedBy.length > 12 ? changedBy.slice(0, 8) : changedBy;
+  };
+
+  const entries: HistoryEntry[] = (data ?? []).map((e) => ({
+    id: e.id,
+    kind: kindOf(e.change_type),
+    title: titleOf(e.change_type),
+    actor: actorOf(e.changed_by),
+    at: e.created_at,
+    fields: [
+      { label: tr('Score', 'Score'), value: (e.score ?? 0).toFixed(1) },
+      { label: tr('Statut', 'Status'), value: e.status },
+    ],
+  }));
+
+  return (
+    <div className="py-5 px-[22px]">
+      <HistoryTimeline
+        entries={entries}
+        isLoading={isLoading}
+        error={!!error}
+        emptyLabel={tr('Aucun changement enregistré pour ce risque.', 'No changes recorded for this risk yet.')}
+        errorLabel={tr('Chargement de l’historique impossible.', 'Could not load the history.')}
+        formatDate={(iso) => relTime(iso, lang)}
+      />
+    </div>
+  );
+}
+
 // DrawerAI — the "IA" tab: generates a synthesis + suggested treatment plan for
 // this risk via the live /ai/risks/:id/treatment-plan endpoint (spec §12.1). Claude
 // when configured, deterministic template otherwise (shown in the provenance line).
@@ -557,7 +616,8 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
           {tab === 'financial' && <DrawerFinancial r={r} />}
           {tab === 'miti' && <DrawerMiti r={r} onCreateMiti={onCreateMiti} />}
           {tab === 'ai' && <DrawerAI r={r} />}
-          {(tab === 'timeline' || tab === 'cti') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
+          {tab === 'timeline' && <DrawerTimeline r={r} />}
+          {tab === 'cti' && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
         </div>
       </div>
     </div>

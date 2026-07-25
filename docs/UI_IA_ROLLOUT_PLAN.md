@@ -54,7 +54,7 @@ Consignes UX supplémentaires du fondateur, rattachées à la charte. Chacune = 
 | E | Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + centre de notif catégorisé + prefs | P1 |
 | F | Relance après inactivité + annonce de nouveauté, calées sur fuseau/heures d'activité (UX-29) | backend `last_active_at` + job d'envoi ciblé | P2 |
 | G | ✅ Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + `shared/ShortcutsOverlay.tsx` (voir §1ter) | P2 |
-| H | Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | généraliser le drawer d'historique (déjà sur Assets) à Risk/Control/Mitigation | P1 |
+| H | 🟡 Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | `shared/HistoryTimeline.tsx` + **Risk fait** (drawer) ; Asset déjà là ; Control/Mitigation = reste (voir §1ter) | P1 |
 | I | Aperçu **flouté** des features payantes + 3 moments de conversion (après Aha / à la limite / après victoire), jamais « limite atteinte » sec (UX-18/19) | `shared/PremiumPeek.tsx` + déclencheurs Fogg | P3 |
 | J | Trial court / basé usage (Parkinson), compteur d'usage visible (UX-30) | bandeau d'essai + compteur (dépend billing) | P3 |
 | K | Onboarding testé ≥ 1×/semaine (UX-33) | ✅ cron nocturne `e2e.yml` — passer en garde hebdo bloquante | — |
@@ -126,9 +126,26 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
   quand ces attentes deviennent > 1,5 s de façon observable.
 - `PremiumPeek` aux **2 autres moments de conversion** (après le Aha / à la limite) —
   dépend d'un vrai **billing** pour ne pas mentir (CTA « bientôt » en attendant).
-- **Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
-  inactivité, H time-travel généralisé (Risk/Control/Mitigation), dashboards par rôle.
-  Voir §1bis + §2.
+- ✅ **H (partiel) — Time travel généralisé** (UX-25) : nouvelle primitive
+  `shared/HistoryTimeline.tsx` (timeline daté + attribué qui/quoi/quand, thème-aware,
+  alimentée par un `HistoryEntry[]` normalisé depuis n'importe quelle source). **Risque
+  câblé** : l'onglet « Timeline » du drawer (`RiskRegisterPage` `DrawerTimeline`) affiche
+  désormais le **vrai** historique via `GET /risks/:id/timeline` (`riskTimelineService` +
+  `useRiskTimeline`, client `api` typé) — remplace le « bientôt ». **Vérifié live**
+  (Playwright : drawer → onglet Timeline → entrée « Mise à jour » Score 2.5 · Statut
+  DRAFT · acteur · date relative ; 0 placeholder « bientôt »).
+  - **Restes honnêtes** : **Asset** a déjà son drawer d'historique (fonctionnel, pourrait
+    adopter la primitive plus tard) ; **Control** n'a d'historique que via
+    `audit_events` **admin-only** (`/governance/audit-events?entity_type=compliance_control`
+    — il faudrait un accès lecture non-admin ou un endpoint dédié) ; **Mitigation** n'est
+    **pas `Auditable`** → aucune source d'historique (nécessite un `mitigation_histories`
+    ou opt-in Auditable côté backend). La page orpheline `/risks/:riskId/timeline`
+    (`pages/RiskTimeline.tsx`, non liée, bugs de token/fetch) est **supplantée** par
+    l'onglet du drawer.
+
+**Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
+  inactivité, Control/Mitigation time-travel (endpoints d'historique), dashboards par
+  rôle. Voir §1bis + §2.
 
 ## 2. Revue par intention
 
