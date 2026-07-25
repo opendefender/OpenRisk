@@ -17,6 +17,7 @@ import {
 } from '../../shared/ui';
 import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
+import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
@@ -75,6 +76,8 @@ export function RiskRegisterPage() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<UiRisk | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchRisks().catch(() => {}); }, [fetchRisks]);
 
@@ -91,15 +94,22 @@ export function RiskRegisterPage() {
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const removeRisk = async (r: UiRisk) => {
-    setMenuFor(null);
-    if (!window.confirm(tr(`Supprimer le risque « ${r.name} » ?`, `Delete risk "${r.name}"?`))) return;
+  // Important + irreversible (a risk carries linked mitigation plans + history) →
+  // impact radiography (UX-11), not a bare confirm.
+  const removeRisk = (r: UiRisk) => { setMenuFor(null); setToDelete(r); };
+  const confirmDeleteRisk = async () => {
+    const r = toDelete;
+    if (!r) return;
+    setDeleting(true);
     try {
       await deleteRisk(r.id);
       toast.success(tr('Risque supprimé', 'Risk deleted'));
       if (drawerId === r.id) setDrawerId(null);
+      setToDelete(null);
     } catch {
       toast.error(tr('Suppression échouée', 'Delete failed'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -267,6 +277,29 @@ export function RiskRegisterPage() {
         riskId={mitiRiskId ?? undefined}
         onClose={() => setMitiRiskId(null)}
         onCreated={() => { setMitiRiskId(null); void fetchRisks(); toast.success(tr('Plan de mitigation lié au risque', 'Mitigation plan linked to the risk')); }}
+      />
+
+      <ImpactDialog
+        open={!!toDelete}
+        title={tr('Supprimer ce risque ?', 'Delete this risk?')}
+        subject={toDelete?.name ?? ''}
+        description={tr('Action irréversible. Voici ce qui sera supprimé :', 'This cannot be undone. Here is what will be removed:')}
+        impacts={toDelete ? [
+          { label: tr('Plans de mitigation liés', 'Linked mitigation plans'), detail: String(toDelete.raw.mitigations?.length ?? 0) },
+          { label: tr('Historique & scores du risque', 'Risk history & scores'), detail: tr('perdus', 'lost') },
+        ] : []}
+        alternatives={toDelete ? [
+          {
+            label: tr('Exporter le risque (CSV) avant de supprimer', 'Export the risk (CSV) first'),
+            description: tr('Gardez une trace hors-ligne avant la suppression.', 'Keep an offline record before deleting.'),
+            onClick: () => { if (toDelete) exportRiskCsv(toDelete); },
+          },
+        ] : []}
+        confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
+        cancelLabel={tr('Annuler', 'Cancel')}
+        loading={deleting}
+        onConfirm={confirmDeleteRisk}
+        onClose={() => setToDelete(null)}
       />
     </PageFrame>
   );

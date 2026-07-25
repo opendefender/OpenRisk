@@ -3,16 +3,19 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Server, History } from 'lucide-react';
+import { X, Server, History, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
+import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
+import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useAssets } from './useAssets';
 import { ASSET_CRITICALITIES, ASSET_TYPES, type Asset } from '../../types/asset';
 
@@ -35,8 +38,13 @@ interface EditAssetModalProps {
 export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModalProps) => {
   const { t } = useI18n();
   const toast = useToast();
-  const { updateAsset } = useAssets();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const canDelete = useAuthStore((s) => s.hasPermission('assets:delete'));
+  const { updateAsset, deleteAsset } = useAssets();
   const isOpen = !!asset;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const linkedRisks = asset?.risks?.length ?? 0;
 
   const {
     register,
@@ -58,6 +66,7 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
 
   const handleClose = () => {
     reset();
+    setConfirmingDelete(false);
     onClose();
   };
 
@@ -72,7 +81,22 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
     }
   };
 
+  // Important + irreversible (an asset supports linked risks + dependency edges) →
+  // impact radiography (UX-11), not a bare confirm.
+  const confirmDelete = async () => {
+    if (!asset?.id) return;
+    try {
+      await deleteAsset.mutateAsync(asset.id);
+      toast.success(t('assets.deleteSuccess'));
+      setConfirmingDelete(false);
+      handleClose();
+    } catch {
+      toast.error(t('errors.failedToDeleteAsset'));
+    }
+  };
+
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -173,13 +197,25 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
 
                 </div>
 
-                <div className="flex shrink-0 justify-end gap-3 border-t border-zinc-800 bg-zinc-950/95 px-6 py-4">
-                  <Button type="button" variant="ghost" onClick={handleClose}>
-                    {t('common.cancel', 'Cancel')}
-                  </Button>
-                  <Button type="submit" variant="primary" isLoading={isSubmitting}>
-                    {t('common.save', 'Save')}
-                  </Button>
+                <div className="flex shrink-0 items-center justify-between gap-3 border-t border-zinc-800 bg-zinc-950/95 px-6 py-4">
+                  {canDelete ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDelete(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                      <span>{t('common.delete', 'Delete')}</span>
+                    </button>
+                  ) : <span />}
+                  <div className="flex items-center gap-3">
+                    <Button type="button" variant="ghost" onClick={handleClose}>
+                      {t('common.cancel', 'Cancel')}
+                    </Button>
+                    <Button type="submit" variant="primary" isLoading={isSubmitting}>
+                      {t('common.save', 'Save')}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -187,5 +223,29 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
         </>
       )}
     </AnimatePresence>
+
+    <ImpactDialog
+      open={confirmingDelete && !!asset}
+      title={tr('Supprimer cet actif ?', 'Delete this asset?')}
+      subject={asset?.name ?? ''}
+      description={tr('Action irréversible. Voici ce qui sera impacté :', 'This cannot be undone. Here is what will be affected:')}
+      impacts={[
+        { label: tr('Risques qui s’appuient sur cet actif', 'Risks that rely on this asset'), detail: String(linkedRisks) },
+        { label: tr('Dépendances (cartographie) liées', 'Linked dependency edges'), detail: tr('retirées', 'removed') },
+      ]}
+      alternatives={onShowHistory && asset?.id ? [
+        {
+          label: tr('Consulter l’historique avant de supprimer', 'Review the history first'),
+          description: tr('Voyez qui a modifié cet actif et quand.', 'See who changed this asset and when.'),
+          onClick: () => { setConfirmingDelete(false); onShowHistory(asset.id as string); },
+        },
+      ] : []}
+      confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
+      cancelLabel={tr('Annuler', 'Cancel')}
+      loading={deleteAsset.isPending}
+      onConfirm={confirmDelete}
+      onClose={() => setConfirmingDelete(false)}
+    />
+    </>
   );
 };

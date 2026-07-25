@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
+import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -155,10 +156,24 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
   const roleColor = (r: string) => (r === 'admin' || r === 'root' ? 'var(--accent)' : r ? 'var(--info)' : 'var(--text-muted)');
   const th = (t: string) => <th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>;
 
-  const revoke = (id: string, name: string) => {
-    if (!window.confirm(tr(`Révoquer l’accès de ${name} ?`, `Revoke access for ${name}?`))) return;
+  // Revoking a member is important + irreversible → impact radiography (UX-11) with a
+  // non-destructive escape hatch (deactivate keeps the account + their ownership).
+  const [toRevoke, setToRevoke] = useState<{ id: string; name: string; active: boolean } | null>(null);
+  const confirmRevoke = () => {
+    if (!toRevoke) return;
+    const id = toRevoke.id;
+    setToRevoke(null);
     remove.mutate(id, {
       onSuccess: () => toast.success(tr('Membre révoqué', 'Member revoked')),
+      onError: () => toast.error(tr('Action échouée', 'Action failed')),
+    });
+  };
+  const deactivateInstead = () => {
+    if (!toRevoke) return;
+    const id = toRevoke.id;
+    setToRevoke(null);
+    setStatus.mutate({ id, is_active: false }, {
+      onSuccess: () => toast.success(tr('Membre désactivé', 'Member deactivated')),
       onError: () => toast.error(tr('Action échouée', 'Action failed')),
     });
   };
@@ -197,7 +212,7 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
                         <span className="w-[7px] h-[7px] rounded-full" style={{ background: u.is_active ? 'var(--low)' : 'var(--text-muted)' }} />{u.is_active ? L.active : tr('Inactif', 'Inactive')}
                       </button>
                     </td>
-                    <td className="px-3 py-3 text-right"><button onClick={() => revoke(u.id, u.full_name || u.email)} className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{L.revoke}</button></td>
+                    <td className="px-3 py-3 text-right"><button onClick={() => setToRevoke({ id: u.id, name: u.full_name || u.email, active: u.is_active })} className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{L.revoke}</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -206,6 +221,29 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
         )}
       </Card>
       <div className="text-[11.5px] text-ink-muted mt-2.5">{tr('Astuce : cliquez sur le statut pour activer / désactiver un membre.', 'Tip: click a status to enable / disable a member.')}</div>
+
+      <ImpactDialog
+        open={!!toRevoke}
+        title={tr('Révoquer ce membre ?', 'Revoke this member?')}
+        subject={toRevoke?.name ?? ''}
+        description={tr('Action irréversible. Voici ce qui se passe :', 'This cannot be undone. Here is what happens:')}
+        impacts={[
+          { label: tr('Perte immédiate de tout accès', 'Loses all access immediately') },
+          { label: tr('Actifs & risques dont il est responsable → sans responsable', 'Assets & risks they own → left unassigned') },
+        ]}
+        alternatives={toRevoke?.active ? [
+          {
+            label: tr('Désactiver le compte au lieu de révoquer', 'Deactivate the account instead'),
+            description: tr('Coupe l’accès mais garde le membre et ses responsabilités — réversible.', 'Cuts access but keeps the member and their ownership — reversible.'),
+            onClick: deactivateInstead,
+          },
+        ] : []}
+        confirmLabel={tr('Révoquer définitivement', 'Revoke permanently')}
+        cancelLabel={tr('Annuler', 'Cancel')}
+        loading={remove.isPending}
+        onConfirm={confirmRevoke}
+        onClose={() => setToRevoke(null)}
+      />
     </>
   );
 }

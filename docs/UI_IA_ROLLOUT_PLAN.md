@@ -84,11 +84,23 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
   de contrôle (`ControlMappingsSection`), preuve (`FrameworkDetail`), plan de
   remédiation (`RemediationPage`), audit (`AuditsPage`), dépendance d'actif
   (`AssetUniverse` — l'arête disparaît du graphe **et** du panneau pendant le délai).
+- ✅ `ImpactDialog` sur les suppressions **importantes** (radiographie d'impact +
+  alternative non destructive, plus de `window.confirm`) :
+  - **Risque** (`RiskRegisterPage`) : conséquences = plans de mitigation liés (compte)
+    + historique/scores perdus ; alternative « Exporter le risque (CSV) avant de
+    supprimer ».
+  - **Actif** (`EditAssetModal`) : bouton Supprimer **gardé `assets:delete`** ajouté à
+    la modale live (l'inventaire n'exposait aucune suppression) → conséquences =
+    N risques qui s'appuient sur l'actif + arêtes de dépendance retirées ; alternative
+    « Consulter l'historique avant de supprimer ».
+  - **Membre** (`SettingsScreen` → onglet Membres) : conséquences = perte d'accès +
+    actifs/risques possédés laissés sans responsable ; alternative **réelle**
+    « Désactiver le compte au lieu de révoquer » (réversible, via `setStatus`). NB :
+    `owner` est un texte libre (pas une FK user) → pas de recompte fiable des risques
+    possédés, et **« transférer ses risques » nécessite un backend** (reporté) — la
+    désactivation est l'échappatoire honnête disponible.
 
 **Reste à adopter (prochaine session, un commit par écran) :**
-- `ImpactDialog` sur les suppressions **importantes** restantes : risque (mitigations
-  liées), actif (support de risques), membre/rétrogradation (risques possédés →
-  alternative « transférer »).
 - `Hint` sur le jargon/boutons clés (1ʳᵉ rencontre) ; `ProgressState` sur scan /
   génération de rapport (PDF/IA) / calcul CRQ ; `PremiumPeek` aux 3 moments de conversion.
 - **Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
