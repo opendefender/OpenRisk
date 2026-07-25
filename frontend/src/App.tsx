@@ -17,6 +17,7 @@ import { NAV_GROUPS } from './shared/navModel';
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 import { CommandPalette } from './components/layout/CommandPalette';
+import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
@@ -125,6 +126,7 @@ const DashboardLayout = () => {
 
       {/* Global shell overlays */}
       <CommandPalette />
+      <GlobalShortcuts />
       <CreateRiskModal
         isOpen={newRiskOpen}
         onClose={() => setNewRiskOpen(false)}

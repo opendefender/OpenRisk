@@ -68,9 +68,32 @@ interface RecentRisk {
   fw: string;
 }
 
-/* ---------------- page ---------------- */
+/* ---------------- persona dispatcher ---------------- */
 
+// The dashboard adapts to the member's GRC role (UX-2). Each persona renders its
+// own real-data view; admins and unmapped roles get the full posture dashboard.
 export const DashboardPage = () => {
+  const businessRole = useAuthStore((s) => s.user?.business_role);
+  const persona = personaFor(businessRole);
+  switch (persona) {
+    case 'analyst':
+      return <AnalystDashboard />;
+    case 'exec':
+      return <ExecDashboard />;
+    case 'audit':
+      return <AuditDashboard />;
+    case 'estate':
+      return <EstateDashboard />;
+    case 'viewer':
+      return <ViewerDashboard />;
+    default:
+      return <PostureDashboard />;
+  }
+};
+
+/* ---------------- posture persona (default: RSSI / risk roles / admin) ---------------- */
+
+function PostureDashboard() {
   const navigate = useNavigate();
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
@@ -169,6 +192,7 @@ export const DashboardPage = () => {
 /* ---------------- Score hero ---------------- */
 function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void }) {
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
   const val = Math.round(useCountUp(score));
   const cx = 110, cy = 112, r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
@@ -176,7 +200,10 @@ function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void 
   const col = val >= 70 ? 'var(--low)' : val >= 45 ? 'var(--high)' : 'var(--critical)';
   return (
     <Card>
-      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft">{L.globalScore}</div>
+      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
+        {L.globalScore}
+        <InfoHint text={lang === 'fr' ? '0–100 : plus le score est élevé, meilleure est votre posture de sécurité.' : '0–100: the higher the score, the stronger your security posture.'} />
+      </div>
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
           <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />

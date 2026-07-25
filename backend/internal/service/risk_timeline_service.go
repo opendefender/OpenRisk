@@ -6,6 +6,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -15,7 +16,12 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// RiskTimelineService handles risk history and timeline operations
+// RiskTimelineService handles risk history and timeline operations.
+//
+// RiskHistory rows carry no tenant_id of their own (they are children of a Risk),
+// so every read MUST be gated by the parent risk's tenant. Without that gate any
+// authenticated user could read another tenant's risk history — scores, statuses,
+// who changed what — simply by knowing (or guessing) a risk UUID (RULE #2).
 type RiskTimelineService struct {
 	db *gorm.DB
 }
@@ -27,8 +33,28 @@ func NewRiskTimelineService() *RiskTimelineService {
 	}
 }
 
-// GetRiskTimeline retrieves the timeline/history for a specific risk
-func (s *RiskTimelineService) GetRiskTimeline(riskID uuid.UUID) ([]*domain.RiskHistory, error) {
+// ownsRisk returns domain.ErrNotFound unless the risk exists within the tenant.
+func (s *RiskTimelineService) ownsRisk(tenantID, riskID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.ErrNotFound
+	}
+	var count int64
+	if err := s.db.Model(&domain.Risk{}).
+		Where("id = ? AND tenant_id = ?", riskID, tenantID).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to verify risk ownership: %w", err)
+	}
+	if count == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// GetRiskTimeline retrieves the timeline/history for a specific risk (tenant-scoped)
+func (s *RiskTimelineService) GetRiskTimeline(tenantID, riskID uuid.UUID) ([]*domain.RiskHistory, error) {
+	if err := s.ownsRisk(tenantID, riskID); err != nil {
+		return nil, err
+	}
 	var history []*domain.RiskHistory
 	if err := s.db.Where("risk_id = ?", riskID).
 		Order("created_at DESC").
@@ -38,8 +64,11 @@ func (s *RiskTimelineService) GetRiskTimeline(riskID uuid.UUID) ([]*domain.RiskH
 	return history, nil
 }
 
-// GetRiskTimelineWithPagination retrieves paginated risk history
-func (s *RiskTimelineService) GetRiskTimelineWithPagination(riskID uuid.UUID, limit int, offset int) ([]*domain.RiskHistory, int64, error) {
+// GetRiskTimelineWithPagination retrieves paginated risk history (tenant-scoped)
+func (s *RiskTimelineService) GetRiskTimelineWithPagination(tenantID, riskID uuid.UUID, limit int, offset int) ([]*domain.RiskHistory, int64, error) {
+	if err := s.ownsRisk(tenantID, riskID); err != nil {
+		return nil, 0, err
+	}
 	var history []*domain.RiskHistory
 	var total int64
 
@@ -59,8 +88,11 @@ func (s *RiskTimelineService) GetRiskTimelineWithPagination(riskID uuid.UUID, li
 	return history, total, nil
 }
 
-// GetRiskChangesByType retrieves history entries of a specific change type
-func (s *RiskTimelineService) GetRiskChangesByType(riskID uuid.UUID, changeType string) ([]*domain.RiskHistory, error) {
+// GetRiskChangesByType retrieves history entries of a specific change type (tenant-scoped)
+func (s *RiskTimelineService) GetRiskChangesByType(tenantID, riskID uuid.UUID, changeType string) ([]*domain.RiskHistory, error) {
+	if err := s.ownsRisk(tenantID, riskID); err != nil {
+		return nil, err
+	}
 	var history []*domain.RiskHistory
 	if err := s.db.Where("risk_id = ? AND change_type = ?", riskID, changeType).
 		Order("created_at DESC").
@@ -70,8 +102,11 @@ func (s *RiskTimelineService) GetRiskChangesByType(riskID uuid.UUID, changeType 
 	return history, nil
 }
 
-// GetStatusChanges retrieves only status change events
-func (s *RiskTimelineService) GetStatusChanges(riskID uuid.UUID) ([]*domain.RiskHistory, error) {
+// GetStatusChanges retrieves only status change events (tenant-scoped)
+func (s *RiskTimelineService) GetStatusChanges(tenantID, riskID uuid.UUID) ([]*domain.RiskHistory, error) {
+	if err := s.ownsRisk(tenantID, riskID); err != nil {
+		return nil, err
+	}
 	var history []*domain.RiskHistory
 	if err := s.db.Where("risk_id = ? AND change_type = ?", riskID, "STATUS_CHANGE").
 		Order("created_at DESC").
@@ -81,8 +116,11 @@ func (s *RiskTimelineService) GetStatusChanges(riskID uuid.UUID) ([]*domain.Risk
 	return history, nil
 }
 
-// GetScoreChanges retrieves only score change events
-func (s *RiskTimelineService) GetScoreChanges(riskID uuid.UUID) ([]*domain.RiskHistory, error) {
+// GetScoreChanges retrieves only score change events (tenant-scoped)
+func (s *RiskTimelineService) GetScoreChanges(tenantID, riskID uuid.UUID) ([]*domain.RiskHistory, error) {
+	if err := s.ownsRisk(tenantID, riskID); err != nil {
+		return nil, err
+	}
 	var history []*domain.RiskHistory
 	if err := s.db.Where("risk_id = ? AND change_type = ?", riskID, "SCORE_CHANGE").
 		Order("created_at DESC").
@@ -92,9 +130,9 @@ func (s *RiskTimelineService) GetScoreChanges(riskID uuid.UUID) ([]*domain.RiskH
 	return history, nil
 }
 
-// ComputeRiskTrend analyzes the risk score trend over time
-func (s *RiskTimelineService) ComputeRiskTrend(riskID uuid.UUID) (map[string]interface{}, error) {
-	history, err := s.GetRiskTimeline(riskID)
+// ComputeRiskTrend analyzes the risk score trend over time (tenant-scoped)
+func (s *RiskTimelineService) ComputeRiskTrend(tenantID, riskID uuid.UUID) (map[string]interface{}, error) {
+	history, err := s.GetRiskTimeline(tenantID, riskID)
 	if err != nil {
 		return nil, err
 	}
@@ -139,10 +177,18 @@ func (s *RiskTimelineService) ComputeRiskTrend(riskID uuid.UUID) (map[string]int
 	}, nil
 }
 
-// GetRecentChanges gets the most recent N changes across all risks
-func (s *RiskTimelineService) GetRecentChanges(limit int) ([]*domain.RiskHistory, error) {
+// GetRecentChanges gets the most recent N changes across the tenant's risks. The
+// join to risks (which carry tenant_id) keeps this from leaking other tenants'
+// activity — the previous implementation returned changes across ALL tenants.
+func (s *RiskTimelineService) GetRecentChanges(tenantID uuid.UUID, limit int) ([]*domain.RiskHistory, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.ErrNotFound
+	}
 	var history []*domain.RiskHistory
-	if err := s.db.Order("created_at DESC").
+	if err := s.db.
+		Joins("JOIN risks ON risks.id = risk_histories.risk_id").
+		Where("risks.tenant_id = ?", tenantID).
+		Order("risk_histories.created_at DESC").
 		Limit(limit).
 		Find(&history).Error; err != nil {
 		return nil, err
@@ -150,8 +196,11 @@ func (s *RiskTimelineService) GetRecentChanges(limit int) ([]*domain.RiskHistory
 	return history, nil
 }
 
-// GetChangesSince gets all changes since a specific time
-func (s *RiskTimelineService) GetChangesSince(riskID uuid.UUID, sinceUnix int64) ([]*domain.RiskHistory, error) {
+// GetChangesSince gets all changes since a specific time (tenant-scoped)
+func (s *RiskTimelineService) GetChangesSince(tenantID, riskID uuid.UUID, sinceUnix int64) ([]*domain.RiskHistory, error) {
+	if err := s.ownsRisk(tenantID, riskID); err != nil {
+		return nil, err
+	}
 	var history []*domain.RiskHistory
 	if err := s.db.Where("risk_id = ? AND EXTRACT(EPOCH FROM created_at) > ?", riskID, sinceUnix).
 		Order("created_at DESC").
@@ -159,4 +208,10 @@ func (s *RiskTimelineService) GetChangesSince(riskID uuid.UUID, sinceUnix int64)
 		return nil, err
 	}
 	return history, nil
+}
+
+// IsNotFound reports whether err is the tenant-scoped not-found sentinel, so
+// handlers can map ownership failures to 404 without importing domain.
+func IsNotFound(err error) bool {
+	return errors.Is(err, domain.ErrNotFound)
 }
