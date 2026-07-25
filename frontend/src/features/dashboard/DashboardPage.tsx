@@ -15,18 +15,12 @@ import {
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats } from './useStats';
-import { useAuthStore } from '../../hooks/useAuthStore';
-import { personaFor } from './dashboardPersona';
-import { AnalystDashboard } from './AnalystDashboard';
-import { ExecDashboard } from './ExecDashboard';
-import { AuditDashboard } from './AuditDashboard';
-import { EstateDashboard } from './EstateDashboard';
-import { ViewerDashboard } from './ViewerDashboard';
+import { useFrameworks } from '../compliance/useCompliance';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
-import { InfoHint } from '../../shared/InfoHint';
 
 /* ---------------- helpers ---------------- */
 
@@ -120,13 +114,8 @@ function PostureDashboard() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
   const greeting = `${tr('Bonjour', 'Hello')}${firstName ? `, ${firstName}` : ''}`;
-  const [onbDismissed, setOnbDismissed] = useState(() => {
-    try { return localStorage.getItem('openrisk_onboard') === '1'; } catch { return false; }
-  });
-  const dismissOnb = () => {
-    try { localStorage.setItem('openrisk_onboard', '1'); } catch { /* ignore */ }
-    setOnbDismissed(true);
-  };
+  const { isAdmin } = usePermissions();
+  const frameworkCount = useFrameworks().frameworks?.length ?? 0;
   const sev = stats?.risks_by_severity ?? {};
   const kpis = useMemo(() => ({
     total: stats?.total_risks ?? (total || risks.length),
@@ -169,46 +158,14 @@ function PostureDashboard() {
           </button>
         </div>
 
-        {/* First-run guidance (UX-01/UX-07): shown while the tenant is empty. */}
-        {kpis.total === 0 && !onbDismissed && (
-          <div
-            className="relative rounded-[16px] p-5 mb-4 flex flex-wrap items-center gap-4"
-            style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', animation: 'or-fadeup .4s ease' }}
-          >
-            <div className="flex-1 min-w-[240px]">
-              <div className="text-[15.5px] font-bold text-ink mb-1">{tr('Bienvenue sur OpenRisk 👋', 'Welcome to OpenRisk 👋')}</div>
-              <div className="text-[13.5px] text-ink-soft">
-                {tr(
-                  'Commencez par cartographier votre premier risque, ou importez un référentiel de conformité — le tableau de bord se remplira tout seul.',
-                  'Start by mapping your first risk, or import a compliance framework — this dashboard fills itself in.',
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2.5 flex-wrap">
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-                className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold text-white inline-flex items-center gap-2"
-                style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}
-              >
-                <Zap size={16} /> {tr('Créer mon premier risque', 'Create my first risk')}
-              </button>
-              <button
-                onClick={() => navigate('/compliance')}
-                className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold text-ink inline-flex items-center gap-2"
-                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
-              >
-                {tr('Importer un référentiel', 'Import a framework')}
-              </button>
-            </div>
-            <button
-              onClick={dismissOnb}
-              className="absolute top-2.5 right-2.5 w-7 h-7 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"
-              aria-label={tr('Masquer', 'Dismiss')}
-            >
-              ✕
-            </button>
-          </div>
-        )}
+        {/* Guided onboarding (UX-01/07/17/32): drives the user to the Aha moment
+            then to personalization. Auto-ticks steps from real data. */}
+        <OnboardingChecklist
+          riskCount={kpis.total}
+          frameworkCount={frameworkCount}
+          isAdmin={isAdmin()}
+          onCreateRisk={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+        />
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
