@@ -18,6 +18,7 @@ import {
 import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
+import { ProgressState } from '../../shared/ProgressState';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
@@ -434,6 +435,20 @@ function DrawerAI({ r }: { r: UiRisk }) {
         {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {plan.isPending ? tr('Génération…', 'Generating…') : res ? tr('Régénérer', 'Regenerate') : tr('Générer avec l’IA', 'Generate with AI')}
       </button>
+
+      {plan.isPending && (
+        // Informative wait (UX-09): the LLM call takes a few seconds — surface the
+        // conceptual steps + the risk being analysed instead of a bare spinner.
+        <ProgressState
+          title={tr('Analyse en cours…', 'Analysing…')}
+          stat={tr(`Risque : ${r.name}`, `Risk: ${r.name}`)}
+          steps={[
+            tr('Analyse du risque et de l’actif lié', 'Analysing the risk and linked asset'),
+            tr('Choix de la stratégie de traitement', 'Choosing the treatment strategy'),
+            tr('Priorisation du plan d’actions', 'Prioritising the action plan'),
+          ]}
+        />
+      )}
 
       {plan.isError && (
         <div className="mt-4 text-[12.5px]" style={{ color: 'var(--critical)' }}>
