@@ -64,6 +64,31 @@ post-Aha (`features/onboarding/OnboardingChecklist`, UX-01/07/13/17/32/Fogg) ; n
 intention ≤ 7 (IA) ; autosave Paramètres (UX-23) ; densité + tokens + confetti ;
 invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 
+## 1ter. Journal d'avancement — branche `feat/ux-rollout-p1-p3`
+
+**Primitives partagées livrées (commits atomiques, sans co-auteur) :**
+- ✅ A `shared/undoableDelete.ts` (toast + Undo, commit différé) — UX-12/28
+- ✅ B `shared/ImpactDialog.tsx` (radiographie d'impact + alternatives) — UX-11
+- ✅ C `shared/Hint.tsx` (tooltip 1ᵉʳ survol, non répété) — UX-14
+- ✅ D `shared/ProgressState.tsx` (attente informative, étapes + stat) — UX-09
+- ✅ I `shared/PremiumPeek.tsx` (aperçu flouté premium + bénéfice) — UX-18/19
+
+**Adoptions par écran faites :**
+- ✅ Conformité (`ComplianceScreen`) : suppression de référentiel → `ImpactDialog`
+  (N contrôles + preuves + alternative « exporter le rapport d'abord »).
+
+**Reste à adopter (prochaine session, un commit par écran) :**
+- `undoableDelete` sur les suppressions **mineures** (mapping de contrôle, preuve,
+  plan de remédiation, audit, dépendance d'actif) — remplacer les `window.confirm`.
+- `ImpactDialog` sur les suppressions **importantes** restantes : risque (mitigations
+  liées), actif (support de risques), membre/rétrogradation (risques possédés →
+  alternative « transférer »).
+- `Hint` sur le jargon/boutons clés (1ʳᵉ rencontre) ; `ProgressState` sur scan /
+  génération de rapport (PDF/IA) / calcul CRQ ; `PremiumPeek` aux 3 moments de conversion.
+- **Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
+  inactivité, G raccourcis clavier + overlay `?`, H time-travel généralisé, dashboards
+  par rôle. Voir §1bis + §2.
+
 ## 2. Revue par intention
 
 ### 0 · Piloter
