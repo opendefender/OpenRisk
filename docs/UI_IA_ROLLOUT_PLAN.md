@@ -53,7 +53,7 @@ Consignes UX supplémentaires du fondateur, rattachées à la charte. Chacune = 
 | D | Attente exploitée : progression + info utile si > 1,5 s (UX-09) | `shared/ProgressState.tsx` (scan / rapport / calcul CRQ) | P2 |
 | E | Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + centre de notif catégorisé + prefs | P1 |
 | F | Relance après inactivité + annonce de nouveauté, calées sur fuseau/heures d'activité (UX-29) | backend `last_active_at` + job d'envoi ciblé | P2 |
-| G | Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + overlay `?` | P2 |
+| G | ✅ Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + `shared/ShortcutsOverlay.tsx` (voir §1ter) | P2 |
 | H | Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | généraliser le drawer d'historique (déjà sur Assets) à Risk/Control/Mitigation | P1 |
 | I | Aperçu **flouté** des features payantes + 3 moments de conversion (après Aha / à la limite / après victoire), jamais « limite atteinte » sec (UX-18/19) | `shared/PremiumPeek.tsx` + déclencheurs Fogg | P3 |
 | J | Trial court / basé usage (Parkinson), compteur d'usage visible (UX-30) | bandeau d'essai + compteur (dépend billing) | P3 |
@@ -112,6 +112,14 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
   en aperçu flouté + CTA **« Bientôt disponible »** (jamais de mur « limite atteinte »).
   Moment de conversion « après une victoire » (l'utilisateur vient de générer des
   rapports). **Vérifié live** (capture headless authentifiée, page `/reports`).
+- ✅ **G — Raccourcis clavier découvrables + overlay `?`** (UX-26) : nouvelle primitive
+  `shared/useHotkeys.ts` (couche de raccourcis mono-touche globale, **ignore la frappe
+  en champ** + les combos ⌘/Ctrl/Alt) + `shared/ShortcutsOverlay.tsx` (panneau d'aide
+  thème-aware). 5 actions clés câblées dans le shell (`App` `DashboardLayout`) :
+  `N` nouveau risque · `/` recherche & commandes (⌘K) · `G` tableau de bord · `T` thème ·
+  `?` afficher/masquer l'aide. Affordance **découvrable** : bouton clavier dans l'en-tête
+  (`AppHeader`, avec `Hint` 1ᵉʳ survol) qui ouvre l'overlay. **Vérifié live** (Playwright :
+  `?` → l'overlay « Raccourcis clavier » s'ouvre avec les 5 actions + ⌘K/Esc).
 
 **Reste à adopter (prochaine session) :**
 - Étendre `ProgressState` au **scan** (Infrastructure) et au **calcul CRQ/smart-score**
@@ -119,8 +127,8 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 - `PremiumPeek` aux **2 autres moments de conversion** (après le Aha / à la limite) —
   dépend d'un vrai **billing** pour ne pas mentir (CTA « bientôt » en attendant).
 - **Non commencées** (plus lourdes, backend) : E notifications catégorisées, F relance
-  inactivité, G raccourcis clavier + overlay `?`, H time-travel généralisé, dashboards
-  par rôle. Voir §1bis + §2.
+  inactivité, H time-travel généralisé (Risk/Control/Mitigation), dashboards par rôle.
+  Voir §1bis + §2.
 
 ## 2. Revue par intention
 

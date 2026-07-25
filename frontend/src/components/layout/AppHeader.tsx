@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, Bell, Sun, Moon, Mic, Menu, ChevronRight, AlertTriangle, Siren, ShieldCheck, Trophy,
-  Rows2, Rows3, Rows4,
+  Rows2, Rows3, Rows4, Keyboard,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
@@ -113,6 +113,23 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         >
           <button onClick={cycleDensity} className={cn(iconBtn, 'hidden sm:flex')} title={densityMeta.label} aria-label={densityMeta.label}>
             <densityMeta.Icon size={18} strokeWidth={1.7} />
+          </button>
+        </Hint>
+
+        <Hint
+          id="header-shortcuts"
+          side="bottom"
+          text={lang === 'fr'
+            ? 'Raccourcis clavier — ou appuyez sur « ? » à tout moment.'
+            : 'Keyboard shortcuts — or press “?” anytime.'}
+        >
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('openrisk:shortcuts'))}
+            className={cn(iconBtn, 'hidden sm:flex')}
+            title={lang === 'fr' ? 'Raccourcis clavier (?)' : 'Keyboard shortcuts (?)'}
+            aria-label={lang === 'fr' ? 'Raccourcis clavier' : 'Keyboard shortcuts'}
+          >
+            <Keyboard size={18} strokeWidth={1.7} />
           </button>
         </Hint>
 
