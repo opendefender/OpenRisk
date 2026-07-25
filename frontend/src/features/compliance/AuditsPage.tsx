@@ -13,6 +13,7 @@ import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState 
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';
+import { Hint } from '../../shared/Hint';
 import { useAudits, useFrameworks } from './useCompliance';
 import { CreateAuditDialog } from './AuditRemediationModals';
 import { AiAuditReportButton } from '../ai/AiAuditReportButton';
@@ -158,9 +159,11 @@ export function AuditsPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <AiAuditReportButton auditId={a.id} title={a.title} />
                           {canRemediate && a.framework_id && (
-                            <button onClick={() => genRemediations(a)} disabled={generateRemediations.isPending} className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink transition-colors disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} title={tr('Générer les plans de remédiation pour les écarts', 'Generate remediation plans for the gaps')}>
-                              <Wand2 size={13} /> {tr('Remédier', 'Remediate')}
-                            </button>
+                            <Hint id="audit-remediate" text={tr('Crée automatiquement un plan de remédiation pour chaque écart du référentiel de cet audit.', 'Auto-creates a remediation plan for each gap in this audit’s framework.')}>
+                              <button onClick={() => genRemediations(a)} disabled={generateRemediations.isPending} className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink transition-colors disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} title={tr('Générer les plans de remédiation pour les écarts', 'Generate remediation plans for the gaps')}>
+                                <Wand2 size={13} /> {tr('Remédier', 'Remediate')}
+                              </button>
+                            </Hint>
                           )}
                           {canWrite && (
                             <button onClick={() => remove(a)} className="w-8 h-8 rounded-[8px] inline-flex items-center justify-center transition-colors hover:brightness-110" style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}>
