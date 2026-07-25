@@ -15,6 +15,7 @@ import {
   ChevronDown, Check, Loader2, Ticket, ExternalLink,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
+import { Term } from '../../shared/Term';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useFocusParam } from '../../shared/useFocusParam';
@@ -70,7 +71,7 @@ export function VulnerabilitiesPage() {
   const items = (data?.items ?? []).filter((v) => !pending.has(v.id));
   const drawer = drawerId ? items.find((v) => v.id === drawerId) ?? null : null;
 
-  const kpi = (label: string, value: number | string, color: string, Icon: typeof Flame) => (
+  const kpi = (label: React.ReactNode, value: number | string, color: string, Icon: typeof Flame) => (
     <Card style={{ padding: '14px 16px', flex: 1, minWidth: 130 }}>
       <div className="flex items-center gap-2 text-ink-muted text-[11px] font-semibold uppercase tracking-[.04em]">
         <Icon size={13} style={{ color }} /> {label}
@@ -97,7 +98,7 @@ export function VulnerabilitiesPage() {
         {kpi(tr('Total', 'Total'), stats?.total ?? 0, 'var(--accent)', Bug)}
         {kpi(tr('Ouvertes', 'Open'), stats?.open ?? 0, 'var(--high)', ShieldAlert)}
         {kpi('P1', stats?.by_tier?.P1 ?? 0, 'var(--critical)', Flame)}
-        {kpi('CISA-KEV', stats?.kev_count ?? 0, 'var(--critical)', Flame)}
+        {kpi(<Term term="KEV">CISA-KEV</Term>, stats?.kev_count ?? 0, 'var(--critical)', Flame)}
         {kpi(tr('Exploitables', 'Exploitable'), stats?.exploit_count ?? 0, 'var(--high)', Zap)}
       </div>
 
@@ -148,7 +149,7 @@ export function VulnerabilitiesPage() {
                   <tr key={v.id} onClick={() => setDrawerId(v.id)} className="cursor-pointer transition-colors hover:bg-hover">
                     <td className="px-3 py-[13px]">
                       <div className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold text-white" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)' }}>{v.priority_tier}</span>
+                        <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: '#12151c' }}>{v.priority_tier}</span>
                         <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
                         {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
                       </div>
@@ -271,7 +272,7 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
   // hands off to it.
   const del = () => onDelete();
 
-  const field = (lbl: string, val: React.ReactNode) => (
+  const field = (lbl: React.ReactNode, val: React.ReactNode) => (
     <div className="mb-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">{lbl}</div>
       <div className="text-[13.5px] text-ink">{val}</div>
@@ -295,7 +296,7 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
             <button onClick={onClose} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}><X size={18} /></button>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold text-white" style={{ background: TIER_META[v.priority_tier]?.color }}>{v.priority_tier} · {v.priority_score.toFixed(0)}</span>
+            <span className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color, color: '#12151c' }}>{v.priority_tier} · {v.priority_score.toFixed(0)}</span>
             <SevBadge sev={v.severity} lang={lang} />
             <StatusChip status={v.status} lang={lang} />
           </div>
@@ -309,8 +310,8 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
           </div>
 
           <div className="grid grid-cols-2 gap-x-5">
-            {field('CVSS', <span className="mono font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}{v.cvss_vector ? ` · ${v.cvss_vector}` : ''}</span>)}
-            {field('EPSS', v.epss ? `${(v.epss * 100).toFixed(1)}%` : '—')}
+            {field(<Term term="CVSS">CVSS</Term>, <span className="mono font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}{v.cvss_vector ? ` · ${v.cvss_vector}` : ''}</span>)}
+            {field(<Term term="EPSS">EPSS</Term>, v.epss ? `${(v.epss * 100).toFixed(1)}%` : '—')}
             {field(tr('Actif concerné', 'Affected asset'), v.asset_name ? `${v.asset_name}${v.asset_criticality ? ` · ${v.asset_criticality}` : ''}` : '—')}
             {field(tr('Actifs concernés', 'Affected assets'), String(v.affected_assets_count))}
             {field(tr('Source', 'Source'), SOURCE_LABEL[v.source] ?? v.source)}

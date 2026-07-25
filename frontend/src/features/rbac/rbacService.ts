@@ -46,6 +46,18 @@ export interface AssignBusinessRoleInput {
   member_role?: 'admin' | 'user'; // optional org-role change
 }
 
+export interface InviteMemberInput {
+  email: string;
+  full_name: string;
+  member_role?: 'admin' | 'user';
+  business_role?: string;
+}
+
+export interface InviteMemberResult {
+  member: MemberView;
+  temp_password: string; // shown once so the admin can share it
+}
+
 export const rbacService = {
   /** The permission catalog + business-role presets (any authenticated member). */
   async getCatalog(): Promise<RBACCatalog> {
@@ -62,6 +74,12 @@ export const rbacService = {
   /** Assign (or clear) a member's business role; optionally change the org role. */
   async assignBusinessRole(userId: string, input: AssignBusinessRoleInput): Promise<MemberView> {
     const { data } = await api.put<MemberView>(`/rbac/members/${userId}/business-role`, input);
+    return data;
+  },
+
+  /** Invite a new member into the tenant; returns a one-time temporary password. */
+  async inviteMember(input: InviteMemberInput): Promise<InviteMemberResult> {
+    const { data } = await api.post<InviteMemberResult>('/rbac/members', input);
     return data;
   },
 };

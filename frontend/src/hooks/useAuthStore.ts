@@ -18,6 +18,7 @@ interface User {
   org_roles?: Record<string, string>; // { orgId: roleName } from the JWT
   business_role?: string; // GRC job-role preset (rssi/dsi/…), "" for admin/root
   tenant_id?: string;
+  org_name?: string; // display name of the user's organization (from login)
   bio?: string;
   phone?: string;
   department?: string;
@@ -60,7 +61,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const { data } = await api.post('/auth/login', { email, password });
     // Flatten the nested Role object and fold in the JWT permissions/roles + the
     // business_role the backend returns, so RBAC gating works on the client.
-    const base: User = { ...data.user, role: data.user.role?.name ?? '' };
+    const base: User = { ...data.user, role: data.user.role?.name ?? '', org_name: data.organization?.name };
     const user = withTokenClaims(base, data.token_pair.access_token, data.business_role);
 
     localStorage.setItem('auth_token', data.token_pair.access_token);

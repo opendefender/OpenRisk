@@ -17,13 +17,14 @@ import (
 // assign-a-business-role action. Reads are open to any authenticated member (so
 // the UI can render matrices); the assign action is admin-gated at the route.
 type BusinessRoleHandler struct {
-	listMembers *apprbac.ListMembersUseCase
-	assignRole  *apprbac.AssignBusinessRoleUseCase
+	listMembers  *apprbac.ListMembersUseCase
+	assignRole   *apprbac.AssignBusinessRoleUseCase
+	inviteMember *apprbac.InviteMemberUseCase
 }
 
 // NewBusinessRoleHandler builds the handler.
-func NewBusinessRoleHandler(listMembers *apprbac.ListMembersUseCase, assignRole *apprbac.AssignBusinessRoleUseCase) *BusinessRoleHandler {
-	return &BusinessRoleHandler{listMembers: listMembers, assignRole: assignRole}
+func NewBusinessRoleHandler(listMembers *apprbac.ListMembersUseCase, assignRole *apprbac.AssignBusinessRoleUseCase, inviteMember *apprbac.InviteMemberUseCase) *BusinessRoleHandler {
+	return &BusinessRoleHandler{listMembers: listMembers, assignRole: assignRole, inviteMember: inviteMember}
 }
 
 // RBACCatalogResponse is the self-describing permission matrix payload.
@@ -81,4 +82,32 @@ func (h *BusinessRoleHandler) AssignBusinessRole(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(view)
+}
+
+// InviteMemberRequest is the invite body.
+type InviteMemberRequest struct {
+	Email        string `json:"email"`
+	FullName     string `json:"full_name"`
+	MemberRole   string `json:"member_role"`   // optional: "admin" | "user" (default user)
+	BusinessRole string `json:"business_role"` // optional preset key
+}
+
+// InviteMember adds a new member to the current tenant with an org role and an
+// optional business-role preset, returning a one-time temporary password to share.
+// POST /rbac/members
+func (h *BusinessRoleHandler) InviteMember(c *fiber.Ctx) error {
+	var req InviteMemberRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	res, err := h.inviteMember.Execute(c.UserContext(), tenantID(c), apprbac.InviteMemberInput{
+		Email:        req.Email,
+		FullName:     req.FullName,
+		MemberRole:   domain.MemberRole(req.MemberRole),
+		BusinessRole: domain.BusinessRoleKey(req.BusinessRole),
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(res)
 }

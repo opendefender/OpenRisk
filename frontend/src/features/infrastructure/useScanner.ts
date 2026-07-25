@@ -82,6 +82,10 @@ export function useScanPreview(jobId: string | undefined) {
     queryKey: ['scanner', 'preview', jobId],
     queryFn: () => scannerService.getPreview(jobId as string),
     enabled: !!jobId,
+    // A missing/expired preview (unknown job id) is an expected state, not a
+    // transient failure — don't retry-spam the console (OR-BUG-006); the page
+    // renders a clean "Preview unavailable" state.
+    retry: false,
   });
 
   const importPreview = useMutation({

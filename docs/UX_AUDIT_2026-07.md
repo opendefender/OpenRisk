@@ -83,10 +83,40 @@ sont de **maturité** (entrée, données réelles, a11y), pas de **stabilité**.
 ## 3. Registre de bugs
 
 > Chaque entrée : ID stable · reproduction ≤ 3 étapes · attendu · cause racine (si
-> identifiée) · correction proposée. Assignée à une session ultérieure (le gel du
-> code produit de cette session interdit toute correction ici).
+> identifiée) · correction proposée.
 
-### OR-BUG-001 — L'inscription ne crée aucun compte · **P0** · Session 2
+### État des correctifs (2026-07-24, branche `fix/ux-audit-bug-registry`)
+
+**12 / 12 corrigés** (commits atomiques, la plupart vérifiés live) :
+
+| Bug | Statut | Preuve |
+|-----|--------|--------|
+| OR-BUG-001 | ✅ Corrigé | inscription réelle 3 champs → compte créé → atterrissage (live) |
+| OR-BUG-002 | ✅ Corrigé | carte d'onboarding + greeting « Bonjour, Awa » (live) |
+| OR-BUG-003 | ✅ Corrigé | `InviteMemberUseCase` + `POST /rbac/members` + modale ; **live : inviter→login membre (tenant+rssi)→/risks 200, delete 403, admin 403** |
+| OR-BUG-004 | ✅ Corrigé | Paramètres : org/email/fuseau réels, sessions/billing honnêtes, toggles persistés « Enregistré ✓ » (tsc+build) |
+| OR-BUG-005 | ✅ Corrigé | sidebar : org réelle + cyber score réel (live) |
+| OR-BUG-006 | ✅ Corrigé | `retry:false` sur preview inconnu (plus de bruit console) |
+| OR-BUG-007 | ✅ Corrigé | placeholders retirés (nav 5 intentions) |
+| OR-BUG-008 | ✅ Corrigé | rate limit 5/15min → 15/5min |
+| OR-BUG-009 | ✅ Corrigé | fausse MFA supprimée |
+| OR-BUG-010 | ✅ Corrigé | glossaire `<Term>` CVE/KEV/EPSS (Vulnérabilités) |
+| OR-BUG-011 | ✅ Corrigé | axe WCAG AA : **0 serious/critical** sur 6 écrans (vérifié) |
+| OR-BUG-012 | ✅ Corrigé | labels/aria-label Paramètres (axe vert) |
+
+**OR-BUG-003 (P0) — corrigé** : `InviteMemberUseCase` réutilise `GormUserRepository.Create`
++ `CreateOrganizationMember` (comme `RegisterUseCase`) → `User` + `OrganizationMember(tenant,
+role, business_role)` + mot de passe temporaire à usage unique ; `POST /rbac/members` (admin,
+409/400 gérés) ; modale « Inviter un membre » sur `/settings/roles`. Tests use-case
+Success/Conflict/Validation verts. **Débloque `journey.rbac`.**
+
+**OR-BUG-004 (P1) — corrigé** : les fixtures des onglets Paramètres (identité, sessions,
+facturation) sont remplacées par les données réelles de session ou des états honnêtes ;
+les préférences sont persistées (store `settingsPrefs`, localStorage) avec « Enregistré ✓ »
+(un changement survit au rechargement, UX-23). Les onglets nécessitant un backend non
+provisionné (billing managé, historique de sessions) sont annoncés honnêtement, sans inventer.
+
+### OR-BUG-001 — L'inscription ne crée aucun compte · **P0** · ✅ CORRIGÉ
 - **Repro** : (1) aller à `/register` ; (2) remplir les champs ; (3) cliquer « Créer un compte ».
 - **Attendu** : un compte + un tenant sont créés, l'utilisateur entre dans l'app (UX-01/13).
 - **Constaté** : le formulaire bascule simplement vers l'écran MFA, puis « valider » navigue vers `/` sans jeton → `ProtectedRoute` renvoie à `/login`. Aucun appel réseau.

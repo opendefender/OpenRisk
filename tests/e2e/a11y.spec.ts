@@ -18,17 +18,10 @@ const SCREENS: { path: string; name: string }[] = [
   { path: '/settings', name: 'Settings' },
 ];
 
-// path -> OR-BUG id, filled after the first run for screens with serious/critical
-// violations. Keeps the suite green; the audit lists every violation. /risks is
-// deliberately NOT quarantined — it passes today and proves the harness catches
-// real violations rather than skipping wholesale.
-const A11Y_KNOWN: Record<string, string> = {
-  '/': 'OR-BUG-011', // color-contrast
-  '/compliance': 'OR-BUG-011', // color-contrast
-  '/vulnerabilities': 'OR-BUG-011', // color-contrast
-  '/analytics': 'OR-BUG-011', // color-contrast
-  '/settings': 'OR-BUG-012', // button-name + label + color-contrast
-};
+// path -> OR-BUG id for screens with unresolved serious/critical violations.
+// Empty: OR-BUG-011 (contrast) and OR-BUG-012 (labels/button-name) were fixed and
+// the 6 key screens now pass axe WCAG 2.1 AA — the gate enforces it going forward.
+const A11Y_KNOWN: Record<string, string> = {};
 
 for (const screen of SCREENS) {
   test(`a11y: ${screen.name} (${screen.path})`, async ({ page }, info) => {

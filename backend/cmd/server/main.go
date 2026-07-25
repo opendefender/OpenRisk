@@ -552,9 +552,14 @@ func main() {
 	// horizontally-scaled deployment; degrades gracefully to a per-instance
 	// in-memory limiter if Redis is unreachable.
 	authLimiterStore := middleware.NewRedisRateLimitStore(redisClientInstance)
+	// Per-IP throttle on auth endpoints. 5/15min locked out legitimate users (a
+	// couple of mistyped passwords, MFA re-auth, or shared-NAT colleagues) for a
+	// quarter hour (OR-BUG-008). 15/5min still blocks rapid brute force (~3/min
+	// sustained) without punishing normal use. Per-account lockout + captcha are
+	// the stronger long-term controls (tracked separately).
 	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
-		MaxRequests: 5,
-		WindowSize:  15 * time.Minute,
+		MaxRequests: 15,
+		WindowSize:  5 * time.Minute,
 		Store:       authLimiterStore,
 	})
 
@@ -1366,9 +1371,14 @@ func main() {
 	businessRoleHandler := handlers.NewBusinessRoleHandler(
 		apprbac.NewListMembersUseCase(memberRBACRepo),
 		apprbac.NewAssignBusinessRoleUseCase(memberRBACRepo),
+		// Invite reuses the shared user repo + password hasher to provision a real
+		// member (user + organization_member) in the tenant (OR-BUG-003).
+		apprbac.NewInviteMemberUseCase(userRepo, passwordHasher),
 	)
 	protected.Get("/rbac/business-roles", businessRoleHandler.GetCatalog)
 	protected.Get("/rbac/members", adminRole, businessRoleHandler.ListMembers)
+	// POST /rbac/members (static) is a sibling of /rbac/members/:userId — no trap.
+	protected.Post("/rbac/members", adminRole, businessRoleHandler.InviteMember)
 	protected.Put("/rbac/members/:userId/business-role", adminRole, businessRoleHandler.AssignBusinessRole)
 
 	// =========================================================================
