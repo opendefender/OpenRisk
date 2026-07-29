@@ -209,12 +209,23 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const strength = Math.min(4, Math.floor(password.length / 3) + (/[^a-zA-Z0-9]/.test(password) ? 1 : 0));
+  // Enforce a genuinely strong password: ≥ 8 chars AND at least 3 of the 4
+  // character classes (lowercase, UPPERCASE, digit, symbol). Blocks weak passwords.
+  const checks = {
+    len: password.length >= 8,
+    lower: /[a-z]/.test(password),
+    upper: /[A-Z]/.test(password),
+    digit: /[0-9]/.test(password),
+    special: /[^a-zA-Z0-9]/.test(password),
+  };
+  const classCount = [checks.lower, checks.upper, checks.digit, checks.special].filter(Boolean).length;
+  const strongEnough = checks.len && classCount >= 3;
+  const strength = checks.len ? Math.min(4, 1 + classCount) : Math.min(1, classCount);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) return toast.error(tr('Indiquez votre nom.', 'Please enter your name.'));
-    if (password.length < 8) return toast.error(tr('Le mot de passe doit faire au moins 8 caractères.', 'Password must be at least 8 characters.'));
+    if (!strongEnough) return toast.error(tr('Mot de passe trop faible : au moins 8 caractères et 3 types parmi minuscule, MAJUSCULE, chiffre et symbole.', 'Password too weak: at least 8 characters and 3 of lowercase, UPPERCASE, digit and symbol.'));
     setLoading(true);
     try {
       const local = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_.-]/g, '');
@@ -260,8 +271,17 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
           <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted" aria-label={tr('Afficher le mot de passe', 'Toggle password')}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
         </div>
       </div>
-      <div className="flex gap-1.5 mb-[18px]">{[0, 1, 2, 3].map((i) => <div key={i} className="flex-1 h-1 rounded" style={{ background: i < strength ? (strength >= 3 ? 'var(--low)' : 'var(--high)') : 'var(--bg-hover)' }} />)}</div>
-      <button type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.createAccount}</button>
+      <div className="flex gap-1.5 mb-2">{[0, 1, 2, 3].map((i) => <div key={i} className="flex-1 h-1 rounded" style={{ background: i < strength ? (strongEnough ? 'var(--low)' : 'var(--high)') : 'var(--bg-hover)' }} />)}</div>
+      {password.length > 0 && !strongEnough && (
+        <div className="text-[11.5px] text-ink-muted mb-[18px] leading-snug">
+          {tr('Requis : ', 'Required: ')}
+          <span style={{ color: checks.len ? 'var(--low)' : 'var(--text-muted)' }}>{tr('8+ caractères', '8+ characters')}</span>
+          {' · '}
+          <span style={{ color: classCount >= 3 ? 'var(--low)' : 'var(--text-muted)' }}>{tr('3 types (minuscule, MAJ, chiffre, symbole)', '3 classes (lower, UPPER, digit, symbol)')}</span>
+        </div>
+      )}
+      {(password.length === 0 || strongEnough) && <div className="mb-[18px]" />}
+      <button type="submit" disabled={loading || !strongEnough || !fullName.trim()} className={primaryBtn} style={{ ...primaryStyle, opacity: (loading || !strongEnough || !fullName.trim()) ? 0.6 : 1 }}>{loading ? '…' : L.createAccount}</button>
       <div className="text-center text-[13px] text-ink-soft mt-[18px]">{L.haveAccount}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onLogin(); }} className="font-semibold">{L.signinLink}</a></div>
     </form>
   );
