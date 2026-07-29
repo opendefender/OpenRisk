@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, Sun, Moon, Languages } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { landingForBusinessRole } from '../../shared/navModel';
@@ -24,20 +24,21 @@ const ORBIT_NODES: [string, number, number][] = [
 ];
 
 // Real, attributed quotes on cybersecurity, risk and science — rotated on the
-// login hero to keep the sign-in screen alive without inventing anything.
-const QUOTES: [string, string][] = [
-  ['Security is a process, not a product.', 'Bruce Schneier'],
-  ['The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards.', 'Gene Spafford'],
-  ['Amateurs hack systems, professionals hack people.', 'Bruce Schneier'],
-  ['There are two types of companies: those that have been hacked, and those that don’t yet know they have been hacked.', 'John Chambers'],
-  ['It takes 20 years to build a reputation and a few minutes of cyber-incident to ruin it.', 'Stéphane Nappo'],
-  ['Complexity is the worst enemy of security.', 'Bruce Schneier'],
-  ['Given enough eyeballs, all bugs are shallow.', 'Linus’s Law — Eric S. Raymond'],
-  ['In God we trust. All others must bring data.', 'W. Edwards Deming'],
-  ['Risk comes from not knowing what you’re doing.', 'Warren Buffett'],
-  ['An ounce of prevention is worth a pound of cure.', 'Benjamin Franklin'],
-  ['The measure of intelligence is the ability to change.', 'Albert Einstein'],
-  ['What we anticipate seldom occurs; what we least expect generally happens.', 'Benjamin Disraeli'],
+// login hero to keep the sign-in screen alive without inventing anything. Each
+// entry carries a French and an English rendering, picked from the UI language.
+const QUOTES: { fr: string; en: string; author: string }[] = [
+  { fr: 'La sécurité est un processus, pas un produit.', en: 'Security is a process, not a product.', author: 'Bruce Schneier' },
+  { fr: 'Le seul système vraiment sûr est éteint, coulé dans un bloc de béton et scellé dans une pièce blindée sous bonne garde.', en: 'The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards.', author: 'Gene Spafford' },
+  { fr: 'Les amateurs piratent des systèmes, les professionnels piratent des personnes.', en: 'Amateurs hack systems, professionals hack people.', author: 'Bruce Schneier' },
+  { fr: 'Il y a deux types d’entreprises : celles qui ont été piratées, et celles qui ne le savent pas encore.', en: 'There are two types of companies: those that have been hacked, and those that don’t yet know they have been hacked.', author: 'John Chambers' },
+  { fr: 'Il faut 20 ans pour bâtir une réputation et quelques minutes de cyber-incident pour la ruiner.', en: 'It takes 20 years to build a reputation and a few minutes of cyber-incident to ruin it.', author: 'Stéphane Nappo' },
+  { fr: 'La complexité est le pire ennemi de la sécurité.', en: 'Complexity is the worst enemy of security.', author: 'Bruce Schneier' },
+  { fr: 'Avec assez d’yeux, tous les bugs deviennent évidents.', en: 'Given enough eyeballs, all bugs are shallow.', author: 'Linus’s Law — Eric S. Raymond' },
+  { fr: 'En Dieu nous croyons. Tous les autres doivent apporter des données.', en: 'In God we trust. All others must bring data.', author: 'W. Edwards Deming' },
+  { fr: 'Le risque vient de ne pas savoir ce que l’on fait.', en: 'Risk comes from not knowing what you’re doing.', author: 'Warren Buffett' },
+  { fr: 'Mieux vaut prévenir que guérir.', en: 'An ounce of prevention is worth a pound of cure.', author: 'Benjamin Franklin' },
+  { fr: 'La mesure de l’intelligence, c’est la capacité de changer.', en: 'The measure of intelligence is the ability to change.', author: 'Albert Einstein' },
+  { fr: 'Ce que l’on anticipe arrive rarement ; ce que l’on attend le moins arrive généralement.', en: 'What we anticipate seldom occurs; what we least expect generally happens.', author: 'Benjamin Disraeli' },
 ];
 
 export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
@@ -45,6 +46,8 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
   const L = useUIStrings();
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
+  const lang = useUIStore((s) => s.lang);
+  const toggleLang = useUIStore((s) => s.toggleLang);
 
   const [qi, setQi] = useState(() => Math.floor(Math.random() * QUOTES.length));
   const [qShow, setQShow] = useState(true);
@@ -55,20 +58,33 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
     }, 7000);
     return () => clearInterval(t);
   }, []);
-  const [quote, author] = QUOTES[qi];
+  const q = QUOTES[qi];
+  const quote = lang === 'fr' ? q.fr : q.en;
+  const author = q.author;
 
   return (
     <div className="flex w-full relative" style={{ height: '100vh' }}>
-      {/* Theme toggle — available before sign-in */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-5 right-5 z-10 w-10 h-10 rounded-[11px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
-        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
-        title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
-        aria-label="Toggle theme"
-      >
-        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
+      {/* Language + theme toggles — available before sign-in */}
+      <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+        <button
+          onClick={toggleLang}
+          className="h-10 px-3 rounded-[11px] flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
+          aria-label="Toggle language"
+        >
+          <Languages size={17} /><span className="mono text-[12px] font-semibold uppercase">{lang}</span>
+        </button>
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-[11px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
       {/* left */}
       <div className="relative overflow-hidden flex-col justify-between p-11 hidden md:flex" style={{ flex: '0 0 45%', background: 'linear-gradient(150deg,#0a0b12,#111225)' }}>
         <div className="absolute rounded-full" style={{ top: '-15%', right: '-10%', width: 420, height: 420, background: 'radial-gradient(circle,var(--accent-glow),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
@@ -99,10 +115,16 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
       </div>
 
       {/* right */}
-      <div className="flex-1 flex items-center justify-center p-8" style={{ background: 'var(--bg-app)' }}>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 relative" style={{ background: 'var(--bg-app)' }}>
         <div className="w-full max-w-[380px]" style={{ animation: 'or-fadeup .4s ease' }}>
           {view === 'login' && <LoginForm onRegister={() => setView('register')} />}
           {view === 'register' && <RegisterForm onLogin={() => setView('login')} />}
+        </div>
+        {/* Product / company relationship — OpenRisk is the product, OpenDefender the company. */}
+        <div className="absolute bottom-5 left-0 right-0 text-center text-[11.5px] text-ink-muted">
+          {lang === 'fr' ? 'Un produit ' : 'A product by '}
+          <span className="font-semibold text-ink-soft">OpenDefender</span>
+          {lang === 'fr' ? '' : ''} · <span className="opacity-70">© {new Date().getFullYear()}</span>
         </div>
       </div>
     </div>
