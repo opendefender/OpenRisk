@@ -139,14 +139,42 @@ const inputStyle: React.CSSProperties = { border: '1px solid var(--border-strong
 const primaryBtn = 'w-full h-[46px] rounded-xl text-[14px] font-semibold text-white';
 const primaryStyle: React.CSSProperties = { background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 4px 16px var(--accent-glow)' };
 
+const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = [
+  { id: 'google', label: 'Google' },
+  { id: 'github', label: 'GitHub' },
+  { id: 'azure', label: 'Microsoft' },
+];
+
 function LoginForm({ onRegister }: { onRegister: () => void }) {
   const L = useUIStrings();
   const navigate = useNavigate();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Real OAuth2/OIDC sign-in. The backend starts the flow at
+  // /auth/oauth2/login/:provider (google | github | azure) and 302-redirects to
+  // the provider; if the provider isn't configured server-side it replies 400,
+  // so we probe first and surface an honest message instead of a JSON dead-end.
+  const oauth = async (provider: 'google' | 'github' | 'azure', label: string) => {
+    const url = `${api.defaults.baseURL ?? ''}/auth/oauth2/login/${provider}`;
+    try {
+      const res = await fetch(url, { redirect: 'manual' });
+      if (res.type === 'opaqueredirect' || res.status === 0 || (res.status >= 300 && res.status < 400)) {
+        window.location.href = url;
+      } else if (res.status === 400) {
+        toast.error(tr(`Connexion ${label} indisponible — le fournisseur n'est pas configuré côté serveur.`, `${label} sign-in unavailable — the provider isn't configured on the server.`));
+      } else {
+        window.location.href = url;
+      }
+    } catch {
+      window.location.href = url;
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,9 +211,9 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
       </div>
       <button data-testid="login-submit" type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.signin}</button>
       <div className="flex items-center gap-3 my-[18px]"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[12px] text-ink-muted">{L.orSep}</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
-      <div className="flex gap-2.5 mb-2">
-        {['Google', 'GitHub'].map((p) => (
-          <button key={p} type="button" className="flex-1 h-11 rounded-[11px] text-[13px] font-semibold text-ink flex items-center justify-center gap-2 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>{p}</button>
+      <div className="grid grid-cols-3 gap-2.5 mb-2">
+        {OAUTH_PROVIDERS.map((p) => (
+          <button key={p.id} type="button" onClick={() => oauth(p.id, p.label)} className="h-11 rounded-[11px] text-[12.5px] font-semibold text-ink flex items-center justify-center gap-2 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>{p.label}</button>
         ))}
       </div>
       <div className="text-center text-[13px] text-ink-soft mt-[18px]">{L.noAccount}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onRegister(); }} className="font-semibold">{L.createAccount}</a></div>
