@@ -7,7 +7,7 @@
 // lands here.
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ChevronRight, ShieldCheck, FileText, Filter, Wrench } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ShieldCheck, FileText, Filter, Wrench, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
@@ -56,6 +56,7 @@ export function GapAnalysisPage() {
 
   return (
     <PageFrame>
+      <button onClick={() => navigate('/compliance')} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink mb-3 transition-colors"><ArrowLeft size={15} /> {tr('Conformité', 'Compliance')}</button>
       <PageHeader
         title={tr("Analyse d'écarts", 'Gap analysis')}
         actions={<Btn label={tr('Voir la conformité', 'View compliance')} icon={FileText} onClick={() => navigate('/compliance')} />}

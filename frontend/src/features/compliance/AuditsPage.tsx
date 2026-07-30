@@ -6,7 +6,7 @@
 // its lifecycle (planned → in progress → completed), and keep the history.
 
 import { useMemo, useState } from 'react';
-import { CalendarClock, Plus, Trash2, Wand2 } from 'lucide-react';
+import { CalendarClock, Plus, Trash2, Wand2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
@@ -87,6 +87,7 @@ export function AuditsPage() {
 
   return (
     <PageFrame wide>
+      <button onClick={() => navigate('/compliance')} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink mb-3 transition-colors"><ArrowLeft size={15} /> {tr('Conformité', 'Compliance')}</button>
       <PageHeader
         title={tr('Audits de conformité', 'Compliance audits')}
         actions={canWrite ? <Btn label={tr('Planifier un audit', 'Schedule audit')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}

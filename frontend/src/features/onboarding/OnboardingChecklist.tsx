@@ -66,7 +66,7 @@ export function OnboardingChecklist({ riskCount, frameworkCount, isAdmin, onCrea
             icon: UserPlus,
             title: tr('Invitez un collègue', 'Invite a teammate'),
             why: tr('La GRC est un sport d’équipe — assignez des risques et des contrôles.', 'GRC is a team sport — assign risks and controls to people.'),
-            cta: { label: tr('Inviter', 'Invite'), run: () => navigate('/settings/roles') },
+            cta: { label: tr('Inviter', 'Invite'), run: () => navigate('/settings?tab=members') },
           } as Step,
         ]
       : []),
