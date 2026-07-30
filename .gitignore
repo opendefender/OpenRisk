@@ -3,7 +3,9 @@
 /dist/
 /build/
 *.exe
-backend/openrisk-api
+/backend/openrisk
+/backend/openrisk-api
+/backend/main
 /backend/server
 /backend/orserver
 
