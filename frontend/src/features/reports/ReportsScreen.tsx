@@ -9,6 +9,7 @@ import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkle
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Card } from '../../shared/ui';
+import { PremiumPeek } from '../../shared/PremiumPeek';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { riskService } from '../../services/riskService';
@@ -73,6 +74,41 @@ export function ReportsScreen() {
           </Card>
         ))}
       </div>
+      {/* Conversion moment "after a win" (UX-18/19): the user just generated reports —
+          tease automatic scheduled delivery (not built yet) as a blurred premium peek
+          with an honest "coming soon" CTA, never a hard paywall. */}
+      <div className="mb-7">
+        <PremiumPeek
+          title={tr('Rapports programmés', 'Scheduled reports')}
+          benefit={tr(
+            'Recevez vos rapports automatiquement par e-mail (hebdo / mensuel) — plus jamais de rapport oublié avant un COMEX.',
+            'Get your reports delivered automatically by email (weekly / monthly) — never scramble for a report before a board meeting again.',
+          )}
+          ctaLabel={tr('Bientôt disponible', 'Coming soon')}
+          onUpgrade={() => toast(tr('Rapports programmés — bientôt disponible.', 'Scheduled reports — coming soon.'), { icon: '🗓️' })}
+        >
+          <div className="p-5">
+            <div className="text-[13px] font-semibold text-ink mb-3">{tr('Planification automatique', 'Automatic scheduling')}</div>
+            <div className="flex flex-col gap-2">
+              {[
+                [tr('Synthèse exécutive', 'Executive summary'), tr('Chaque lundi · 08:00', 'Every Monday · 08:00'), tr('E-mail COMEX', 'Board email')],
+                [tr('Conformité ISO 27001', 'ISO 27001 compliance'), tr('1er du mois', '1st of the month'), tr('E-mail RSSI', 'CISO email')],
+                [tr('Registre des risques', 'Risk register'), tr('Chaque vendredi', 'Every Friday'), tr('E-mail équipe', 'Team email')],
+              ].map(([name, when, to]) => (
+                <div key={name} className="flex items-center gap-3 rounded-[10px] px-3 py-2.5" style={{ border: '1px solid var(--border)' }}>
+                  <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><FileText size={16} /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-ink">{name}</div>
+                    <div className="text-[11.5px] text-ink-muted">{when} · {to}</div>
+                  </div>
+                  <div className="w-9 h-5 rounded-full shrink-0" style={{ background: 'var(--accent)' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </PremiumPeek>
+      </div>
+
       <Card style={{ padding: '18px 22px' }}>
         <div className="text-[14px] font-semibold text-ink mb-3.5">{tr('Rapports récents', 'Recent reports')}</div>
         {recent.map(([name, fmt, date], i) => (

@@ -17,6 +17,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { Button, cn } from '../../components/ui/Button';
+import { ProgressState } from '../../shared/ProgressState';
 import { useBoardReports, useBoardReport } from './useBoardReports';
 import type { BoardReport, BoardLocale } from '../../types/board';
 
@@ -225,6 +226,23 @@ function ListSkeleton() {
 }
 
 function EmptyList({ generating, onGenerate }: { generating: boolean; onGenerate: () => void }) {
+  // Generating the board report aggregates the real posture + drafts the narrative
+  // (LLM when configured) — a genuine multi-second wait, so show the steps (UX-09).
+  if (generating) {
+    return (
+      <div className="bg-surface border border-dashed border-border rounded-xl p-2">
+        <ProgressState
+          title="Génération du rapport…"
+          stat="Agrégation de la posture réelle du tenant"
+          steps={[
+            'Agrégation de la posture (risques, conformité, finances)',
+            'Rédaction de la synthèse et des commentaires',
+            'Finalisation du brouillon',
+          ]}
+        />
+      </div>
+    );
+  }
   return (
     <div className="bg-surface border border-dashed border-border rounded-xl p-8 text-center">
       <FileText size={40} className="mx-auto mb-3 text-zinc-600" />

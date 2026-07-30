@@ -51,10 +51,10 @@ Consignes UX supplémentaires du fondateur, rattachées à la charte. Chacune = 
 | B | Suppression **importante** = **radiographie d'impact** (objets liés) + alternative (transfert) avant d'agir (UX-11) | `shared/ImpactDialog.tsx` (« Annuler / Transférer les risques / Supprimer ») | P1 |
 | C | Aide contextuelle au 1ᵉʳ survol, non répétée, pas de product tour (UX-14) | `shared/Hint.tsx` (mémorisé localStorage) + compléter le `<Term>` glossaire | P2 |
 | D | Attente exploitée : progression + info utile si > 1,5 s (UX-09) | `shared/ProgressState.tsx` (scan / rapport / calcul CRQ) | P2 |
-| E | Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + centre de notif catégorisé + prefs | P1 |
+| E | ⏸️ **Reporté (lourd, backend)** — Notifications **catégorisées** (Sécurité/Conformité/Tâches/Collaboration/Produit/Facturation), préférences par catégorie **et** canal (in-app + email) (UX-20/21) | `domain.NotificationCategory` + migration + centre de notif catégorisé + prefs | P1 |
 | F | Relance après inactivité + annonce de nouveauté, calées sur fuseau/heures d'activité (UX-29) | backend `last_active_at` + job d'envoi ciblé | P2 |
-| G | Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + overlay `?` | P2 |
-| H | Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | généraliser le drawer d'historique (déjà sur Assets) à Risk/Control/Mitigation | P1 |
+| G | ✅ Raccourcis clavier découvrables (aide `?`) pour les 5 actions clés (UX-26) | `shared/useHotkeys.ts` + `shared/ShortcutsOverlay.tsx` (voir §1ter) | P2 |
+| H | 🟡 Time travel : historique daté & attribué sur chaque entité majeure (UX-25) | `shared/HistoryTimeline.tsx` + **Risk fait** (drawer) ; Asset déjà là ; Control/Mitigation = reste (voir §1ter) | P1 |
 | I | Aperçu **flouté** des features payantes + 3 moments de conversion (après Aha / à la limite / après victoire), jamais « limite atteinte » sec (UX-18/19) | `shared/PremiumPeek.tsx` + déclencheurs Fogg | P3 |
 | J | Trial court / basé usage (Parkinson), compteur d'usage visible (UX-30) | bandeau d'essai + compteur (dépend billing) | P3 |
 | K | Onboarding testé ≥ 1×/semaine (UX-33) | ✅ cron nocturne `e2e.yml` — passer en garde hebdo bloquante | — |
@@ -63,6 +63,100 @@ Consignes UX supplémentaires du fondateur, rattachées à la charte. Chacune = 
 post-Aha (`features/onboarding/OnboardingChecklist`, UX-01/07/13/17/32/Fogg) ; nav par
 intention ≤ 7 (IA) ; autosave Paramètres (UX-23) ; densité + tokens + confetti ;
 invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
+
+## 1ter. Journal d'avancement — branche `feat/ux-rollout-p1-p3`
+
+**Primitives partagées livrées (commits atomiques, sans co-auteur) :**
+- ✅ A `shared/undoableDelete.ts` (toast + Undo, commit différé) — UX-12/28
+- ✅ A' `shared/useU3 000 000ndoableRemove.ts` (hook : `undoableDelete` + set d'ids masqués
+  optimiste + restore sur Undo — le chemin d'adoption mécanique pour les listes
+  react-query) — UX-12/28
+- ✅ B `shared/ImpactDialog.tsx` (radiographie d'impact + alternatives) — UX-11
+- ✅ C `shared/Hint.tsx` (tooltip 1ᵉʳ survol, non répété) — UX-14
+- ✅ D `shared/ProgressState.tsx` (attente informative, étapes + stat) — UX-09
+- ✅ I `shared/PremiumPeek.tsx` (aperçu flouté premium + bénéfice) — UX-18/19
+
+**Adoptions par écran faites :**
+- ✅ Conformité (`ComplianceScreen`) : suppression de référentiel → `ImpactDialog`
+  (N contrôles + preuves + alternative « exporter le rapport d'abord »).
+- ✅ `undoableDelete` sur les suppressions **mineures** (via `useUndoableRemove`,
+  masquage optimiste + toast Annuler ≥ 7 s, plus de `window.confirm`) : correspondance
+  de contrôle (`ControlMappingsSection`), preuve (`FrameworkDetail`), plan de
+  remédiation (`RemediationPage`), audit (`AuditsPage`), dépendance d'actif
+  (`AssetUniverse` — l'arête disparaît du graphe **et** du panneau pendant le délai).
+- ✅ `ImpactDialog` sur les suppressions **importantes** (radiographie d'impact +
+  alternative non destructive, plus de `window.confirm`) :
+  - **Risque** (`RiskRegisterPage`) : conséquences = plans de mitigation liés (compte)
+    + historique/scores perdus ; alternative « Exporter le risque (CSV) avant de
+    supprimer ».
+  - **Actif** (`EditAssetModal`) : bouton Supprimer **gardé `assets:delete`** ajouté à
+    la modale live (l'inventaire n'exposait aucune suppression) → conséquences =
+    N risques qui s'appuient sur l'actif + arêtes de dépendance retirées ; alternative
+    « Consulter l'historique avant de supprimer ».
+  - **Membre** (`SettingsScreen` → onglet Membres) : conséquences = perte d'accès +
+    actifs/risques possédés laissés sans responsable ; alternative **réelle**
+    « Désactiver le compte au lieu de révoquer » (réversible, via `setStatus`). NB :
+    `owner` est un texte libre (pas une FK user) → pas de recompte fiable des risques
+    possédés, et **« transférer ses risques » nécessite un backend** (reporté) — la
+    désactivation est l'échappatoire honnête disponible.
+
+- ✅ `ProgressState` (attente informative UX-09) sur les vraies attentes LLM/agrégation :
+  plan de traitement **IA** du drawer de risque (`DrawerAI` → étapes analyse/stratégie/
+  priorisation + nom du risque) et **génération du Board Report** (`BoardReportPage`
+  `EmptyList` → étapes agrégation/rédaction/finalisation). Remplace le spinner nu.
+- ✅ `Hint` (aide 1ᵉʳ survol, non répété, UX-14) sur les **actions non évidentes** (le
+  jargon a déjà `<Term>`) : contrôle de **densité** de l'en-tête (`AppHeader`) et bouton
+  **« Remédier »** des audits (`AuditsPage` — explique l'auto-génération des plans).
+- ✅ `PremiumPeek` (aperçu flouté premium UX-18/19) : **un** teaser honnête sur l'écran
+  **Rapports** — « Rapports programmés » (envoi auto par e-mail, **non encore développé**)
+  en aperçu flouté + CTA **« Bientôt disponible »** (jamais de mur « limite atteinte »).
+  Moment de conversion « après une victoire » (l'utilisateur vient de générer des
+  rapports). **Vérifié live** (capture headless authentifiée, page `/reports`).
+- ✅ **G — Raccourcis clavier découvrables + overlay `?`** (UX-26) : nouvelle primitive
+  `shared/useHotkeys.ts` (couche de raccourcis mono-touche globale, **ignore la frappe
+  en champ** + les combos ⌘/Ctrl/Alt) + `shared/ShortcutsOverlay.tsx` (panneau d'aide
+  thème-aware). 5 actions clés câblées dans le shell (`App` `DashboardLayout`) :
+  `N` nouveau risque · `/` recherche & commandes (⌘K) · `G` tableau de bord · `T` thème ·
+  `?` afficher/masquer l'aide. Affordance **découvrable** : bouton clavier dans l'en-tête
+  (`AppHeader`, avec `Hint` 1ᵉʳ survol) qui ouvre l'overlay. **Vérifié live** (Playwright :
+  `?` → l'overlay « Raccourcis clavier » s'ouvre avec les 5 actions + ⌘K/Esc).
+
+**Reste à adopter (prochaine session) :**
+- Étendre `ProgressState` au **scan** (Infrastructure) et au **calcul CRQ/smart-score**
+  quand ces attentes deviennent > 1,5 s de façon observable.
+- `PremiumPeek` aux **2 autres moments de conversion** (après le Aha / à la limite) —
+  dépend d'un vrai **billing** pour ne pas mentir (CTA « bientôt » en attendant).
+- ✅ **H (partiel) — Time travel généralisé** (UX-25) : nouvelle primitive
+  `shared/HistoryTimeline.tsx` (timeline daté + attribué qui/quoi/quand, thème-aware,
+  alimentée par un `HistoryEntry[]` normalisé depuis n'importe quelle source). **Risque
+  câblé** : l'onglet « Timeline » du drawer (`RiskRegisterPage` `DrawerTimeline`) affiche
+  désormais le **vrai** historique via `GET /risks/:id/timeline` (`riskTimelineService` +
+  `useRiskTimeline`, client `api` typé) — remplace le « bientôt ». **Vérifié live**
+  (Playwright : drawer → onglet Timeline → entrée « Mise à jour » Score 2.5 · Statut
+  DRAFT · acteur · date relative ; 0 placeholder « bientôt »).
+  - **Restes honnêtes** : **Asset** a déjà son drawer d'historique (fonctionnel, pourrait
+    adopter la primitive plus tard) ; **Control** n'a d'historique que via
+    `audit_events` **admin-only** (`/governance/audit-events?entity_type=compliance_control`
+    — il faudrait un accès lecture non-admin ou un endpoint dédié) ; **Mitigation** n'est
+    **pas `Auditable`** → aucune source d'historique (nécessite un `mitigation_histories`
+    ou opt-in Auditable côté backend). La page orpheline `/risks/:riskId/timeline`
+    (`pages/RiskTimeline.tsx`, non liée, bugs de token/fetch) est **supplantée** par
+    l'onglet du drawer.
+
+**Adoption du kit (Vague 1, §2/§3)** : le primitive `DataTable` était livré mais **jamais
+  adopté** — désormais adopté sur **2 écrans** :
+  - ✅ **Vulnérabilités** (1ʳᵉ adoption) — tri par colonne, colonne Priorité **figée**,
+    densité, drawer préservé. **Vérifié live** (Playwright : tri CVSS desc → 1ʳᵉ ligne 9.8 ;
+    14 lignes ; clic ligne → drawer).
+  - ✅ **Inventaire des actifs** — tri par colonne, colonne Actif **figée**, densité, tri
+    criticité desc par défaut, `EmptyState` filtre, modale d'édition préservée. **Vérifié
+    live** (Playwright : 16 lignes triées Critique→Élevé ; clic ligne → modale d'édition).
+  - Reste : **Registre des risques** (le pilote « officiel », plus lourd : multi-sélection
+    + barre groupée + vue Matrice + menu de ligne à préserver).
+
+**Reporté / non commencées** (plus lourdes, backend) : ⏸️ **E notifications catégorisées**
+  (reporté à la demande du fondateur — lourd), F relance inactivité, Control/Mitigation
+  time-travel (endpoints d'historique), dashboards par rôle. Voir §1bis + §2.
 
 ## 2. Revue par intention
 
@@ -76,9 +170,9 @@ invitation de membre (OR-BUG-003) ; ⌘K (couverture à étendre).
 ### 1 · Identifier
 | Écran | Route | Priorité UI | Points de revue clés | Statut |
 |-------|-------|-------------|----------------------|--------|
-| Inventaire des actifs | `/assets` | **Haute** | table → `DataTable` (tri/sélection/figée) ; `EmptyState` ; drawer master-detail 4K | ⬜ |
+| Inventaire des actifs | `/assets` | **Haute** | table → `DataTable` (tri/sélection/figée) ; `EmptyState` ; drawer master-detail 4K | 🟢 **table migrée vers `DataTable`** (tri par colonne, colonne Actif figée, densité, tri criticité desc par défaut) + `EmptyState` ; drawer master-detail 4K = reste |
 | Asset Universe | `/assets/universe` | Basse | graphe : tokens + états ; panneau de dépendances en master-detail | ⬜ |
-| Vulnérabilités | `/vulnerabilities` | **Haute** | table priorisée → `DataTable` ; glossaire déjà là (OR-BUG-010) ; drawer master-detail | 🟡 glossaire fait, table à élever |
+| Vulnérabilités | `/vulnerabilities` | **Haute** | table priorisée → `DataTable` ; glossaire déjà là (OR-BUG-010) ; drawer master-detail | 🟢 **table migrée vers `DataTable`** (1ʳᵉ adoption du kit : tri par colonne, colonne Priorité figée, densité) + glossaire ; drawer master-detail 4K = reste |
 | Intel Threat (CTI) | `/threat-map` | Moyenne | flux CVE → `DataTable` ; badges KEV/MITRE ; états | ⬜ |
 | Infrastructure (scanner) | `/infrastructure` | Moyenne | cartes providers : tokens ; historique scans → `DataTable` ; preview en master-detail | ⬜ |
 

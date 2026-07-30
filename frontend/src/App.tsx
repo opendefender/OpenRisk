@@ -4,13 +4,16 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
 import { useRiskStore } from './hooks/useRiskStore';
 import { usePermissions } from './hooks/usePermissions';
+import { useUIStore } from './store/uiStore';
+import { useHotkeys } from './shared/useHotkeys';
+import { ShortcutsOverlay } from './shared/ShortcutsOverlay';
 import { NAV_GROUPS } from './shared/navModel';
 
 // --- App shell ---
@@ -102,13 +105,34 @@ const AnimatedOutlet = () => {
 const DashboardLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [newRiskOpen, setNewRiskOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const navigate = useNavigate();
+  const lang = useUIStore((s) => s.lang);
+  const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
 
   // The sidebar quick action and command palette dispatch this to open the modal.
+  // A header button dispatches openrisk:shortcuts to reveal the shortcuts overlay.
   useEffect(() => {
-    const open = () => setNewRiskOpen(true);
-    window.addEventListener('openrisk:new-risk', open);
-    return () => window.removeEventListener('openrisk:new-risk', open);
+    const openRisk = () => setNewRiskOpen(true);
+    const openShortcuts = () => setShowShortcuts(true);
+    window.addEventListener('openrisk:new-risk', openRisk);
+    window.addEventListener('openrisk:shortcuts', openShortcuts);
+    return () => {
+      window.removeEventListener('openrisk:new-risk', openRisk);
+      window.removeEventListener('openrisk:shortcuts', openShortcuts);
+    };
   }, []);
+
+  // Discoverable global shortcuts (UX-26). Rows shown in ShortcutsOverlay must
+  // mirror these handlers. The hook ignores keys while typing / with ⌘/Ctrl/Alt.
+  useHotkeys([
+    { key: '?', handler: () => setShowShortcuts((v) => !v) },
+    { key: 'n', handler: () => { setShowShortcuts(false); window.dispatchEvent(new CustomEvent('openrisk:new-risk')); } },
+    { key: '/', handler: () => { setShowShortcuts(false); setCmdkOpen(true); } },
+    { key: 'g', handler: () => { setShowShortcuts(false); navigate('/'); } },
+    { key: 't', handler: () => { setShowShortcuts(false); toggleTheme(); } },
+  ]);
 
   return (
     <div className="flex h-screen bg-app text-ink overflow-hidden font-sans selection:bg-accent-soft">
@@ -126,7 +150,7 @@ const DashboardLayout = () => {
 
       {/* Global shell overlays */}
       <CommandPalette />
-      <GlobalShortcuts />
+      <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} lang={lang} />
       <CreateRiskModal
         isOpen={newRiskOpen}
         onClose={() => setNewRiskOpen(false)}

@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useUndoableRemove } from '../../shared/useUndoableRemove';
+import { Hint } from '../../shared/Hint';
 import { useAudits, useFrameworks } from './useCompliance';
 import { CreateAuditDialog } from './AuditRemediationModals';
 import { AiAuditReportButton } from '../ai/AiAuditReportButton';
@@ -37,6 +39,7 @@ export function AuditsPage() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { audits, isLoading, error, refetch, updateAudit, deleteAudit, generateRemediations } = useAudits();
   const { frameworks } = useFrameworks();
+  const { undoRemove, isHidden } = useUndoableRemove();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canWrite = hasPermission('compliance:audits:write');
   const canRemediate = hasPermission('compliance:remediations:write');
@@ -47,22 +50,25 @@ export function AuditsPage() {
   const fwName = (id: string | null) => (id ? frameworks.find((f) => f.id === id)?.name ?? tr('Référentiel', 'Framework') : tr('Programme entier', 'Whole program'));
   const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: audits.length };
-    for (const a of audits) c[a.status] = (c[a.status] ?? 0) + 1;
-    return c;
-  }, [audits]);
+  const visible = useMemo(() => audits.filter((a) => !isHidden(a.id)), [audits, isHidden]);
 
-  const shown = filter === 'all' ? audits : audits.filter((a) => a.status === filter);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: visible.length };
+    for (const a of visible) c[a.status] = (c[a.status] ?? 0) + 1;
+    return c;
+  }, [visible]);
+
+  const shown = filter === 'all' ? visible : visible.filter((a) => a.status === filter);
 
   const setStatus = (a: ComplianceAudit, status: AuditStatus) => {
     updateAudit.mutate({ id: a.id, payload: { status } });
   };
-  const remove = (a: ComplianceAudit) => {
-    if (window.confirm(tr(`Supprimer l’audit « ${a.title} » ?`, `Delete audit "${a.title}"?`))) {
-      deleteAudit.mutate(a.id);
-    }
-  };
+  const remove = (a: ComplianceAudit) => undoRemove(a.id, {
+    message: tr(`Audit « ${a.title} » supprimé`, `Audit "${a.title}" removed`),
+    undoLabel: tr('Annuler', 'Undo'),
+    onCommit: () => deleteAudit.mutate(a.id),
+    onError: () => toast.error(tr('Suppression échouée', 'Delete failed')),
+  });
   const genRemediations = (a: ComplianceAudit) => {
     if (!a.framework_id) {
       toast.error(tr('Cet audit couvre le programme entier — rattachez-le à un référentiel.', 'This audit is program-wide — scope it to a framework.'));
@@ -153,9 +159,11 @@ export function AuditsPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <AiAuditReportButton auditId={a.id} title={a.title} />
                           {canRemediate && a.framework_id && (
-                            <button onClick={() => genRemediations(a)} disabled={generateRemediations.isPending} className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink transition-colors disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} title={tr('Générer les plans de remédiation pour les écarts', 'Generate remediation plans for the gaps')}>
-                              <Wand2 size={13} /> {tr('Remédier', 'Remediate')}
-                            </button>
+                            <Hint id="audit-remediate" text={tr('Crée automatiquement un plan de remédiation pour chaque écart du référentiel de cet audit.', 'Auto-creates a remediation plan for each gap in this audit’s framework.')}>
+                              <button onClick={() => genRemediations(a)} disabled={generateRemediations.isPending} className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-ink transition-colors disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} title={tr('Générer les plans de remédiation pour les écarts', 'Generate remediation plans for the gaps')}>
+                                <Wand2 size={13} /> {tr('Remédier', 'Remediate')}
+                              </button>
+                            </Hint>
                           )}
                           {canWrite && (
                             <button onClick={() => remove(a)} className="w-8 h-8 rounded-[8px] inline-flex items-center justify-center transition-colors hover:brightness-110" style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}>

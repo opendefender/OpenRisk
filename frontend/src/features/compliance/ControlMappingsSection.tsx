@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { SkeletonRows } from '../../shared/ui';
+import { useUndoableRemove } from '../../shared/useUndoableRemove';
 import { useControlMappings, useControls, useFrameworks } from './useCompliance';
 import type { ComplianceControl, MappingRelation } from '../../types/compliance';
 
@@ -32,6 +33,8 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
 
   const { mappings, isLoading, create, remove } = useControlMappings(control.id);
   const { frameworks } = useFrameworks();
+  const { undoRemove, isHidden } = useUndoableRemove();
+  const visibleMappings = mappings.filter((m) => !isHidden(m.id));
 
   const [adding, setAdding] = useState(false);
   const [targetFw, setTargetFw] = useState('');
@@ -61,7 +64,7 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
     <div>
       <div className="flex items-center justify-between mt-6 mb-2.5">
         <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
-          {tr('Correspondances', 'Cross-mappings')} · {mappings.length}
+          {tr('Correspondances', 'Cross-mappings')} · {visibleMappings.length}
         </div>
         {canEdit && !adding && (
           <button
@@ -129,13 +132,13 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
 
       {isLoading ? (
         <SkeletonRows rows={1} height={48} />
-      ) : mappings.length === 0 ? (
+      ) : visibleMappings.length === 0 ? (
         <div className="text-center py-6 text-[12.5px] text-ink-muted">
           {tr('Aucune correspondance. Reliez ce contrôle à un référentiel équivalent.', 'No cross-mappings yet. Link this control to an equivalent framework.')}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {mappings.map((m) => {
+          {visibleMappings.map((m) => {
             // Show the OTHER side of the link relative to the current control.
             const otherIsTarget = m.source_control_id === control.id;
             const code = otherIsTarget ? m.target_code : m.source_code;
@@ -152,7 +155,12 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
                 </div>
                 {canEdit && (
                   <button
-                    onClick={() => { if (window.confirm(tr('Supprimer cette correspondance ?', 'Remove this mapping?'))) remove.mutate(m.id); }}
+                    onClick={() => undoRemove(m.id, {
+                      message: tr('Correspondance supprimée', 'Mapping removed'),
+                      undoLabel: tr('Annuler', 'Undo'),
+                      onCommit: () => remove.mutate(m.id),
+                      onError: () => toast.error(tr('Suppression impossible', 'Could not remove')),
+                    })}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                     style={{ color: 'var(--critical)' }}
                     title={tr('Supprimer', 'Remove')}

@@ -26,6 +26,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { useAssets } from '../assets/useAssets';
 import { useAssetDependencies } from '../assets/useAssetDependencies';
+import { useUndoableRemove } from '../../shared/useUndoableRemove';
 import { useToast } from '../../hooks/useToast';
 import { DEPENDENCY_TYPES, type Asset, type AssetDependency, type DependencyType } from '../../types/asset';
 
@@ -70,6 +71,12 @@ export function AssetUniverse() {
 
   const { assets, isLoading } = useAssets();
   const { dependencies, createDependency, deleteDependency } = useAssetDependencies();
+  const { undoRemove, isHidden } = useUndoableRemove();
+  // Edges pending an undoable delete are optimistically hidden from the graph + panel.
+  const visibleDependencies = useMemo(
+    () => (dependencies as AssetDependency[]).filter((d) => !d.id || !isHidden(d.id as string)),
+    [dependencies, isHidden]
+  );
   const canEdit = useAuthStore((s) => s.hasPermission('assets:update'));
   const toast = useToast();
 
@@ -99,12 +106,12 @@ export function AssetUniverse() {
       owner: a.owner ?? '',
     }));
     const known = new Set(gnodes.map((n) => n.id));
-    const glinks = (dependencies as AssetDependency[])
+    const glinks = visibleDependencies
       .filter((d) => known.has(d.source_asset_id as string) && known.has(d.target_asset_id as string))
       .map((d) => [d.source_asset_id as string, d.target_asset_id as string] as [string, string]);
     const sig = gnodes.map((n) => n.id + n.crit).join('|') + '::' + glinks.map((l) => l.join('>')).join('|');
     return { gnodes, glinks, sig };
-  }, [assets, dependencies]);
+  }, [assets, visibleDependencies]);
 
   const selectedAsset = useMemo(() => assets.find((a) => a.id === selectedId), [assets, selectedId]);
 
@@ -277,13 +284,14 @@ export function AssetUniverse() {
       toast.error(tr("Impossible d'ajouter la dépendance", 'Could not add dependency'));
     }
   };
-  const removeDependency = async (id: string) => {
-    try {
-      await deleteDependency.mutateAsync(id);
-      toast.success(tr('Dépendance supprimée', 'Dependency removed'));
-    } catch {
-      toast.error(tr('Impossible de supprimer la dépendance', 'Could not remove dependency'));
-    }
+  const removeDependency = (id: string) => {
+    // Minor, reversible: hide the edge now, offer Undo, commit after the window (UX-12/28).
+    undoRemove(id, {
+      message: tr('Dépendance supprimée', 'Dependency removed'),
+      undoLabel: tr('Annuler', 'Undo'),
+      onCommit: () => deleteDependency.mutateAsync(id),
+      onError: () => toast.error(tr('Impossible de supprimer la dépendance', 'Could not remove dependency')),
+    });
   };
 
   return (
@@ -340,7 +348,7 @@ export function AssetUniverse() {
         <AssetPanel
           asset={selectedAsset}
           assets={assets}
-          dependencies={dependencies}
+          dependencies={visibleDependencies}
           canEdit={canEdit}
           busy={createDependency.isPending || deleteDependency.isPending}
           onClose={resetView}

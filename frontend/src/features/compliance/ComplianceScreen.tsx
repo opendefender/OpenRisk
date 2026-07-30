@@ -17,7 +17,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useComplianceOverview, frameworkColorFor, type FrameworkWithProgress } from './complianceOverview';
 import { useComplianceReport, useFrameworks } from './useCompliance';
 import { CreateFrameworkDialog, ImportFrameworkDialog } from './ComplianceModals';
-import { DangerConfirm } from '../../shared/DangerConfirm';
+import { ImpactDialog } from '../../shared/ImpactDialog';
 
 export function ComplianceScreen() {
   const L = useUIStrings();
@@ -33,6 +33,7 @@ export function ComplianceScreen() {
   const canDelete = hasPermission('compliance:frameworks:delete');
 
   const [modal, setModal] = useState<null | 'create' | 'import'>(null);
+  const [toDelete, setToDelete] = useState<FrameworkWithProgress | null>(null);
 
   const overall = fws.length ? Math.round(fws.reduce((a, f) => a + f.pct, 0) / fws.length) : 0;
   const totalControls = fws.reduce((a, f) => a + f.total, 0);
@@ -47,13 +48,13 @@ export function ComplianceScreen() {
     });
   };
 
-  // Deleting a framework cascades its controls + evidence → impact-radiography.
-  const [removingFw, setRemovingFw] = useState<FrameworkWithProgress | null>(null);
-  const doRemoveFw = () => {
-    if (!removingFw) return;
-    const id = removingFw.id;
-    setRemovingFw(null);
-    toast.promise(deleteFramework.mutateAsync(id), {
+  // Important + irreversible → impact radiography (UX-11), not a bare confirm.
+  const remove = (f: FrameworkWithProgress) => setToDelete(f);
+  const confirmRemove = () => {
+    const f = toDelete;
+    if (!f) return;
+    setToDelete(null);
+    toast.promise(deleteFramework.mutateAsync(f.id), {
       loading: tr('Suppression…', 'Deleting…'),
       success: tr('Référentiel supprimé', 'Framework deleted'),
       error: tr('Suppression échouée — réessayez.', 'Delete failed — retry.'),
@@ -175,22 +176,26 @@ export function ComplianceScreen() {
         <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/${id}`)} />
       )}
 
-      <DangerConfirm
-        open={!!removingFw}
-        onClose={() => setRemovingFw(null)}
-        title={tr('Supprimer le référentiel', 'Delete framework')}
-        subject={removingFw?.name}
-        intro={tr(
-          'Le référentiel, ses contrôles et leurs preuves seront définitivement supprimés. Cette action est irréversible.',
-          'The framework, its controls and their evidence will be permanently deleted. This action is irreversible.'
-        )}
-        impact={removingFw ? [
-          { label: tr('Contrôles', 'Controls'), value: removingFw.total },
-          { label: tr('Couverture', 'Coverage'), value: `${removingFw.pct}%` },
-        ] : []}
-        confirmLabel={tr('Supprimer le référentiel', 'Delete framework')}
-        onConfirm={doRemoveFw}
-        busy={deleteFramework.isPending}
+      <ImpactDialog
+        open={!!toDelete}
+        title={tr('Supprimer ce référentiel ?', 'Delete this framework?')}
+        subject={toDelete?.name ?? ''}
+        description={tr('Action irréversible. Voici ce qui sera supprimé :', 'This cannot be undone. Here is what will be removed:')}
+        impacts={[
+          { label: tr('Contrôles supprimés', 'Controls removed'), detail: String(toDelete?.total ?? 0) },
+          { label: tr('Preuves rattachées perdues', 'Attached evidence lost'), detail: tr('toutes', 'all') },
+        ]}
+        alternatives={[
+          {
+            label: tr('Exporter le rapport avant de supprimer', 'Export the report first'),
+            description: tr('Gardez une trace PDF de la conformité actuelle.', 'Keep a PDF record of the current posture.'),
+            onClick: () => { if (toDelete) download(toDelete); },
+          },
+        ]}
+        confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
+        cancelLabel={tr('Annuler', 'Cancel')}
+        onConfirm={confirmRemove}
+        onClose={() => setToDelete(null)}
       />
     </PageFrame>
   );

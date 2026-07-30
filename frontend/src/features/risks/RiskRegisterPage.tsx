@@ -17,13 +17,17 @@ import {
 } from '../../shared/ui';
 import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
+import { ImpactDialog } from '../../shared/ImpactDialog';
+import { ProgressState } from '../../shared/ProgressState';
+import { HistoryTimeline, type HistoryEntry } from '../../shared/HistoryTimeline';
+import { useRiskTimeline } from './useRiskTimeline';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
 import { useFocusParam } from '../../shared/useFocusParam';
 import { useSoftDelete } from '../../shared/useSoftDelete';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { mapRisk, type UiRisk } from './riskMap';
+import { mapRisk, relTime, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { useRiskFinancial } from '../financial/useFinancial';
@@ -77,20 +81,8 @@ export function RiskRegisterPage() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
-  // Soft delete: rows hidden pending an undoable, deferred delete (shared hook).
-  const { pending: pendingDelete, remove: softRemoveRisk } = useSoftDelete<UiRisk>({
-    onCommit: (id) => deleteRisk(id),
-    message: (r, lang) => (lang === 'fr' ? `Risque « ${r.name} » supprimé` : `Risk "${r.name}" deleted`),
-  });
-
-  // Deep-link from universal search (/risks?focus=<id>) → open that risk's drawer.
-  const { focusId, clearFocus } = useFocusParam();
-  useEffect(() => {
-    if (focusId) {
-      setDrawerId(focusId);
-      clearFocus();
-    }
-  }, [focusId, clearFocus]);
+  const [toDelete, setToDelete] = useState<UiRisk | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchRisks().catch(() => {}); }, [fetchRisks]);
 
@@ -108,10 +100,23 @@ export function RiskRegisterPage() {
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const removeRisk = (r: UiRisk) => {
-    setMenuFor(null);
-    if (drawerId === r.id) setDrawerId(null);
-    softRemoveRisk(r);
+  // Important + irreversible (a risk carries linked mitigation plans + history) →
+  // impact radiography (UX-11), not a bare confirm.
+  const removeRisk = (r: UiRisk) => { setMenuFor(null); setToDelete(r); };
+  const confirmDeleteRisk = async () => {
+    const r = toDelete;
+    if (!r) return;
+    setDeleting(true);
+    try {
+      await deleteRisk(r.id);
+      toast.success(tr('Risque supprimé', 'Risk deleted'));
+      if (drawerId === r.id) setDrawerId(null);
+      setToDelete(null);
+    } catch {
+      toast.error(tr('Suppression échouée', 'Delete failed'));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const bulkDelete = async () => {
@@ -279,6 +284,29 @@ export function RiskRegisterPage() {
         onClose={() => setMitiRiskId(null)}
         onCreated={() => { setMitiRiskId(null); void fetchRisks(); toast.success(tr('Plan de mitigation lié au risque', 'Mitigation plan linked to the risk')); }}
       />
+
+      <ImpactDialog
+        open={!!toDelete}
+        title={tr('Supprimer ce risque ?', 'Delete this risk?')}
+        subject={toDelete?.name ?? ''}
+        description={tr('Action irréversible. Voici ce qui sera supprimé :', 'This cannot be undone. Here is what will be removed:')}
+        impacts={toDelete ? [
+          { label: tr('Plans de mitigation liés', 'Linked mitigation plans'), detail: String(toDelete.raw.mitigations?.length ?? 0) },
+          { label: tr('Historique & scores du risque', 'Risk history & scores'), detail: tr('perdus', 'lost') },
+        ] : []}
+        alternatives={toDelete ? [
+          {
+            label: tr('Exporter le risque (CSV) avant de supprimer', 'Export the risk (CSV) first'),
+            description: tr('Gardez une trace hors-ligne avant la suppression.', 'Keep an offline record before deleting.'),
+            onClick: () => { if (toDelete) exportRiskCsv(toDelete); },
+          },
+        ] : []}
+        confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
+        cancelLabel={tr('Annuler', 'Cancel')}
+        loading={deleting}
+        onConfirm={confirmDeleteRisk}
+        onClose={() => setToDelete(null)}
+      />
     </PageFrame>
   );
 }
@@ -433,6 +461,63 @@ function RowMenu({ onView, onEdit, onExport, onDelete, onClose }: { onView: () =
 }
 
 /* ---------------- drawer ---------------- */
+// DrawerTimeline — the "Timeline" tab: real time-travel history for this risk
+// (who changed what, and when) from GET /risks/:id/timeline, rendered with the
+// shared HistoryTimeline primitive (UX-25). Replaces the former "coming soon".
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+function DrawerTimeline({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { data, isLoading, error } = useRiskTimeline(r.id);
+
+  const kindOf = (t: string): string | undefined => {
+    const k = t.toUpperCase();
+    if (k === 'CREATE' || k === 'CREATED') return 'create';
+    if (k === 'MITIGATE' || k.startsWith('MITIGATION')) return 'mitigate';
+    if (k === 'DELETE' || k === 'DELETED') return 'delete';
+    if (k) return 'update';
+    return undefined;
+  };
+  const titleOf = (t: string): string => {
+    switch (kindOf(t)) {
+      case 'create': return tr('Risque créé', 'Risk created');
+      case 'mitigate': return tr('Mitigation appliquée', 'Mitigation applied');
+      case 'delete': return tr('Risque supprimé', 'Risk deleted');
+      case 'update': return tr('Mise à jour', 'Updated');
+      default: return t;
+    }
+  };
+  const actorOf = (changedBy: string): string => {
+    if (!changedBy || changedBy === NIL_UUID || changedBy.toLowerCase() === 'system') return tr('Système', 'System');
+    return changedBy.length > 12 ? changedBy.slice(0, 8) : changedBy;
+  };
+
+  const entries: HistoryEntry[] = (data ?? []).map((e) => ({
+    id: e.id,
+    kind: kindOf(e.change_type),
+    title: titleOf(e.change_type),
+    actor: actorOf(e.changed_by),
+    at: e.created_at,
+    fields: [
+      { label: tr('Score', 'Score'), value: (e.score ?? 0).toFixed(1) },
+      { label: tr('Statut', 'Status'), value: e.status },
+    ],
+  }));
+
+  return (
+    <div className="py-5 px-[22px]">
+      <HistoryTimeline
+        entries={entries}
+        isLoading={isLoading}
+        error={!!error}
+        emptyLabel={tr('Aucun changement enregistré pour ce risque.', 'No changes recorded for this risk yet.')}
+        errorLabel={tr('Chargement de l’historique impossible.', 'Could not load the history.')}
+        formatDate={(iso) => relTime(iso, lang)}
+      />
+    </div>
+  );
+}
+
 // DrawerAI — the "IA" tab: generates a synthesis + suggested treatment plan for
 // this risk via the live /ai/risks/:id/treatment-plan endpoint (spec §12.1). Claude
 // when configured, deterministic template otherwise (shown in the provenance line).
@@ -474,6 +559,20 @@ function DrawerAI({ r }: { r: UiRisk }) {
         {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {plan.isPending ? tr('Génération…', 'Generating…') : res ? tr('Régénérer', 'Regenerate') : tr('Générer avec l’IA', 'Generate with AI')}
       </button>
+
+      {plan.isPending && (
+        // Informative wait (UX-09): the LLM call takes a few seconds — surface the
+        // conceptual steps + the risk being analysed instead of a bare spinner.
+        <ProgressState
+          title={tr('Analyse en cours…', 'Analysing…')}
+          stat={tr(`Risque : ${r.name}`, `Risk: ${r.name}`)}
+          steps={[
+            tr('Analyse du risque et de l’actif lié', 'Analysing the risk and linked asset'),
+            tr('Choix de la stratégie de traitement', 'Choosing the treatment strategy'),
+            tr('Priorisation du plan d’actions', 'Prioritising the action plan'),
+          ]}
+        />
+      )}
 
       {plan.isError && (
         <div className="mt-4 text-[12.5px]" style={{ color: 'var(--critical)' }}>
@@ -582,7 +681,8 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
           {tab === 'financial' && <DrawerFinancial r={r} />}
           {tab === 'miti' && <DrawerMiti r={r} onCreateMiti={onCreateMiti} />}
           {tab === 'ai' && <DrawerAI r={r} />}
-          {(tab === 'timeline' || tab === 'cti') && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
+          {tab === 'timeline' && <DrawerTimeline r={r} />}
+          {tab === 'cti' && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
         </div>
       </div>
     </div>

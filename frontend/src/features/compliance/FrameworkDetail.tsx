@@ -13,6 +13,7 @@ import { PageFrame, PageHeader, Btn, Chip, Card, RingGauge, SkeletonRows, EmptyS
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useUndoableRemove } from '../../shared/useUndoableRemove';
 import { useControls, useComplianceReport, useEvidences } from './useCompliance';
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
 import { CreateControlDialog } from './ComplianceModals';
@@ -273,6 +274,8 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { evidences, isLoading, createEvidence, deleteEvidence, downloadEvidence } = useEvidences(control.id);
+  const { undoRemove, isHidden } = useUndoableRemove();
+  const visibleEvidences = evidences.filter((e) => !isHidden(e.id));
   const fileRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState('');
 
@@ -326,14 +329,14 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
           </button>
 
           {/* list */}
-          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mt-6 mb-2.5">{tr('Preuves', 'Evidence')} · {evidences.length}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mt-6 mb-2.5">{tr('Preuves', 'Evidence')} · {visibleEvidences.length}</div>
           {isLoading ? (
             <SkeletonRows rows={2} height={52} />
-          ) : evidences.length === 0 ? (
+          ) : visibleEvidences.length === 0 ? (
             <div className="text-center py-8 text-[13px] text-ink-muted">{tr('Aucune preuve pour ce contrôle.', 'No evidence for this control yet.')}</div>
           ) : (
             <div className="flex flex-col gap-2">
-              {evidences.map((e) => (
+              {visibleEvidences.map((e) => (
                 <div key={e.id} className="rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
                   <div className="flex items-center gap-3 px-3 py-2.5">
                     <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><FileText size={17} /></div>
@@ -342,7 +345,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
                       <div className="text-[11.5px] text-ink-muted truncate">{e.description || tr('Sans description', 'No description')} · {relTime(e.created_at, lang)}</div>
                     </div>
                     <button onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors" title={tr('Télécharger', 'Download')}><Download size={15} /></button>
-                    <button onClick={() => { if (window.confirm(tr('Supprimer cette preuve ?', 'Delete this evidence?'))) deleteEvidence.mutate(e.id); }} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}><Trash2 size={15} /></button>
+                    <button onClick={() => undoRemove(e.id, { message: tr('Preuve supprimée', 'Evidence removed'), undoLabel: tr('Annuler', 'Undo'), onCommit: () => deleteEvidence.mutate(e.id), onError: () => toast.error(tr('Suppression échouée', 'Delete failed')) })} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}><Trash2 size={15} /></button>
                   </div>
                   <AiEvidenceAnalysis evidenceId={e.id} />
                 </div>

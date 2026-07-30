@@ -9,12 +9,13 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, Bell, Sun, Moon, Mic, Menu, ChevronRight, AlertTriangle, Siren, ShieldCheck, Trophy,
-  Rows2, Rows3, Rows4,
+  Rows2, Rows3, Rows4, Keyboard,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
+import { Hint } from '../../shared/Hint';
 import { ALL_NAV_ITEMS } from '../../shared/navModel';
 import { categoryMeta, type NotifCategory } from '../../shared/notificationCategory';
 
@@ -104,9 +105,34 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
           <span className="mono text-[11px] font-semibold">{lang.toUpperCase()}</span>
         </button>
 
-        <button onClick={cycleDensity} className={cn(iconBtn, 'hidden sm:flex')} title={densityMeta.label} aria-label={densityMeta.label}>
-          <densityMeta.Icon size={18} strokeWidth={1.7} />
-        </button>
+        <Hint
+          id="header-density"
+          side="bottom"
+          text={lang === 'fr'
+            ? 'Ajustez la densité des tables et listes : Confort · Compact · Spacieux.'
+            : 'Adjust table & list density: Comfort · Compact · Spacious.'}
+        >
+          <button onClick={cycleDensity} className={cn(iconBtn, 'hidden sm:flex')} title={densityMeta.label} aria-label={densityMeta.label}>
+            <densityMeta.Icon size={18} strokeWidth={1.7} />
+          </button>
+        </Hint>
+
+        <Hint
+          id="header-shortcuts"
+          side="bottom"
+          text={lang === 'fr'
+            ? 'Raccourcis clavier — ou appuyez sur « ? » à tout moment.'
+            : 'Keyboard shortcuts — or press “?” anytime.'}
+        >
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('openrisk:shortcuts'))}
+            className={cn(iconBtn, 'hidden sm:flex')}
+            title={lang === 'fr' ? 'Raccourcis clavier (?)' : 'Keyboard shortcuts (?)'}
+            aria-label={lang === 'fr' ? 'Raccourcis clavier' : 'Keyboard shortcuts'}
+          >
+            <Keyboard size={18} strokeWidth={1.7} />
+          </button>
+        </Hint>
 
         <button className={cn(iconBtn, 'hidden sm:flex')} title="Voice assistant" aria-label="Voice assistant">
           <Mic size={18} strokeWidth={1.7} />
