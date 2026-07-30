@@ -8,17 +8,19 @@
 // stats, filters, a detail drawer (status lifecycle + prioritisation breakdown),
 // an ingest modal and a connectors panel.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Bug, Search, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
-  Ticket, ExternalLink,
+  ChevronDown, Check, Loader2, Ticket, ExternalLink,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { DataTable, type Column } from '../../shared/DataTable';
 import { Term } from '../../shared/Term';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useFocusParam } from '../../shared/useFocusParam';
+import { useSoftDelete } from '../../shared/useSoftDelete';
 import { useVulnerabilities, useVulnStats, useVulnMutations } from './useVulnerabilities';
 import type { Vulnerability, VulnStatus, VulnQueryParams } from './vulnerabilityService';
 import { SEVERITY_META, STATUS_META, STATUS_ORDER, TIER_META, SOURCE_LABEL, pick } from './vulnMeta';
@@ -39,6 +41,15 @@ export function VulnerabilitiesPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [ingestOpen, setIngestOpen] = useState(false);
+
+  // Deep-link from universal search (/vulnerabilities?focus=<id>) → open its drawer.
+  const { focusId, clearFocus } = useFocusParam();
+  useEffect(() => {
+    if (focusId) {
+      setDrawerId(focusId);
+      clearFocus();
+    }
+  }, [focusId, clearFocus]);
   const [connectorsOpen, setConnectorsOpen] = useState(false);
 
   const params: VulnQueryParams = useMemo(() => {
@@ -52,7 +63,13 @@ export function VulnerabilitiesPage() {
 
   const { data, isLoading } = useVulnerabilities(params);
   const { data: stats } = useVulnStats();
-  const items = data?.items ?? [];
+  const { remove } = useVulnMutations();
+  // Soft delete: hide the row immediately + Undo toast; the API delete defers.
+  const { pending, remove: softDeleteVuln } = useSoftDelete<Vulnerability>({
+    onCommit: (id) => remove.mutateAsync(id),
+    message: (v, lang) => (lang === 'fr' ? `Vulnérabilité « ${v.title} » supprimée` : `Vulnerability "${v.title}" deleted`),
+  });
+  const items = (data?.items ?? []).filter((v) => !pending.has(v.id));
   const drawer = drawerId ? items.find((v) => v.id === drawerId) ?? null : null;
 
   // Kit adoption (docs/UI_ELEVATION §6): the bespoke table becomes a dense, sortable,
@@ -160,7 +177,7 @@ export function VulnerabilitiesPage() {
         )}
       </Card>
 
-      {drawer && <VulnDrawer v={drawer} onClose={() => setDrawerId(null)} />}
+      {drawer && <VulnDrawer v={drawer} onClose={() => setDrawerId(null)} onDelete={() => { const d = drawer; setDrawerId(null); softDeleteVuln(d); }} />}
       <IngestModal isOpen={ingestOpen} onClose={() => setIngestOpen(false)} />
       <IntegrationsPanel isOpen={connectorsOpen} onClose={() => setConnectorsOpen(false)} onImport={() => { setConnectorsOpen(false); setIngestOpen(true); }} />
     </PageFrame>
@@ -176,6 +193,54 @@ function SevBadge({ sev, lang }: { sev: Vulnerability['severity']; lang: 'fr' | 
   );
 }
 
+// Click-to-edit status right in the row (ghost edit + optimistic autosave + toast).
+function InlineVulnStatus({ v }: { v: Vulnerability }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { updateStatus } = useVulnMutations();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const change = async (s: VulnStatus) => {
+    setOpen(false);
+    if (s === v.status) return;
+    setSaving(true);
+    try {
+      await updateStatus.mutateAsync({ id: v.id, status: s });
+      toast.success(tr('Statut mis à jour', 'Status updated'));
+    } catch {
+      toast.error(tr('Échec', 'Failed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={saving}
+        title={tr('Changer le statut', 'Change status')}
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 -mx-1 hover:bg-hover transition-colors"
+      >
+        <StatusChip status={v.status} lang={lang} />
+        {saving ? <Loader2 size={12} className="animate-spin text-ink-muted" /> : <ChevronDown size={12} className="text-ink-muted" />}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-[170px] rounded-[10px] p-1 shadow-card-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+            {STATUS_ORDER.map((s) => (
+              <button key={s} onClick={() => change(s)} className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-[7px] hover:bg-hover transition-colors text-left">
+                <StatusChip status={s} lang={lang} />
+                {s === v.status && <Check size={13} className="text-accent" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function StatusChip({ status, lang }: { status: VulnStatus; lang: 'fr' | 'en' }) {
   const m = STATUS_META[status];
   return (
@@ -186,12 +251,12 @@ function StatusChip({ status, lang }: { status: VulnStatus; lang: 'fr' | 'en' })
 }
 
 /* ---------------- drawer ---------------- */
-function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
+function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () => void; onDelete: () => void }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const canWrite = useAuthStore((s) => s.hasPermission('vulnerabilities:update'));
   const canDelete = useAuthStore((s) => s.hasPermission('vulnerabilities:delete'));
-  const { updateStatus, createTicket, remove } = useVulnMutations();
+  const { updateStatus, createTicket } = useVulnMutations();
 
   const openTicket = async () => {
     try {
@@ -211,16 +276,9 @@ function VulnDrawer({ v, onClose }: { v: Vulnerability; onClose: () => void }) {
       toast.error(tr('Échec', 'Failed'));
     }
   };
-  const del = async () => {
-    if (!window.confirm(tr('Supprimer cette vulnérabilité ?', 'Delete this vulnerability?'))) return;
-    try {
-      await remove.mutateAsync(v.id);
-      toast.success(tr('Supprimée', 'Deleted'));
-      onClose();
-    } catch {
-      toast.error(tr('Échec', 'Failed'));
-    }
-  };
+  // Soft delete lives in the page (Undo toast + deferred API call); the drawer just
+  // hands off to it.
+  const del = () => onDelete();
 
   const field = (lbl: React.ReactNode, val: React.ReactNode) => (
     <div className="mb-3.5">

@@ -54,6 +54,10 @@ func buildIncidentApp(t *testing.T, db *gorm.DB, tenantID uuid.UUID) *fiber.App 
 	g.Put("/:id", h.UpdateIncident)
 	g.Delete("/:id", h.DeleteIncident)
 	g.Get("/:id/timeline", h.GetIncidentTimeline)
+	g.Post("/:id/risks/:riskId", h.LinkRisk)
+	g.Post("/:id/actions", h.CreateIncidentAction)
+	g.Get("/:id/actions", h.GetIncidentActions)
+	g.Put("/:id/actions/:actionId", h.UpdateIncidentAction)
 	return app
 }
 
@@ -165,6 +169,83 @@ func TestIncident_CrossTenant(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 404, resp.StatusCode)
 	resp.Body.Close()
+}
+
+// TestIncident_CrossTenant_TimelineAndActions proves the sub-resource routes are
+// tenant-scoped too. Incident IDs are sequential integers (trivially enumerable),
+// so timeline/actions/link must verify the parent incident belongs to the caller
+// before reading OR writing — otherwise tenant B reads/mutates tenant A's data by
+// guessing an ID.
+func TestIncident_CrossTenant_TimelineAndActions(t *testing.T) {
+	db := setupIncidentDB(t)
+	tenantA := uuid.New()
+	tenantB := uuid.New()
+	appA := buildIncidentApp(t, db, tenantA)
+	appB := buildIncidentApp(t, db, tenantB)
+
+	// Tenant A creates an incident + an action on it.
+	req := httptest.NewRequest(http.MethodPost, "/incidents",
+		mustJSON(t, map[string]any{
+			"title": "A's incident", "description": "x", "incident_type": "attack",
+			"severity": "high", "source": "internal", "reported_by": "a",
+		}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := appA.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 201, resp.StatusCode)
+	var created domain.Incident
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
+	resp.Body.Close()
+	id := itoa(created.ID)
+
+	req = httptest.NewRequest(http.MethodPost, "/incidents/"+id+"/actions",
+		mustJSON(t, map[string]any{"title": "Rotate keys", "assigned_to": "soc", "due_date": "2030-01-01T00:00:00Z"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = appA.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 201, resp.StatusCode)
+	var action domain.IncidentAction
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&action))
+	resp.Body.Close()
+	require.NotZero(t, action.ID)
+	actionID := itoa(action.ID)
+
+	// Tenant B is blocked from every sub-resource of A's incident (read + write).
+	cases := []struct {
+		name, method, path string
+		body               map[string]any
+	}{
+		{"read timeline", http.MethodGet, "/incidents/" + id + "/timeline", nil},
+		{"read actions", http.MethodGet, "/incidents/" + id + "/actions", nil},
+		{"create action", http.MethodPost, "/incidents/" + id + "/actions", map[string]any{"title": "evil", "assigned_to": "b", "due_date": "2030-01-01T00:00:00Z"}},
+		{"update action", http.MethodPut, "/incidents/" + id + "/actions/" + actionID, map[string]any{"status": "completed"}},
+		{"link risk", http.MethodPost, "/incidents/" + id + "/risks/1", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var r *http.Request
+			if tc.body != nil {
+				r = httptest.NewRequest(tc.method, tc.path, mustJSON(t, tc.body))
+				r.Header.Set("Content-Type", "application/json")
+			} else {
+				r = httptest.NewRequest(tc.method, tc.path, nil)
+			}
+			rp, err := appB.Test(r)
+			require.NoError(t, err)
+			require.Equal(t, 404, rp.StatusCode, "tenant B must not reach tenant A's incident sub-resource")
+			rp.Body.Close()
+		})
+	}
+
+	// Sanity: the action A created was NOT mutated by B's forbidden update.
+	var fresh domain.IncidentAction
+	require.NoError(t, db.First(&fresh, action.ID).Error)
+	require.Equal(t, "pending", fresh.Status)
+
+	// And no rogue action leaked onto A's incident from B's create attempt.
+	var actionCount int64
+	require.NoError(t, db.Model(&domain.IncidentAction{}).Where("incident_id = ?", created.ID).Count(&actionCount).Error)
+	require.EqualValues(t, 1, actionCount)
 }
 
 // TestUpdateIncident_InvalidStatus rejects an out-of-vocabulary status.

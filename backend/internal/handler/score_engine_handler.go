@@ -225,10 +225,12 @@ func (h *ScoreEngineHandler) ComputeRiskScore(c *fiber.Ctx) error {
 		config = h.service.DefaultScoringConfig()
 	}
 
-	// Load assets if provided
+	// Load assets if provided — scoped to the caller's tenant so a client cannot
+	// fold another tenant's asset criticality into a computed score (RULE #2).
 	var assets []*domain.Asset
 	if len(input.AssetIDs) > 0 {
-		if err := h.db.Where("id IN ?", input.AssetIDs).Find(&assets).Error; err != nil {
+		tenantID := safeGetUUID(c, "tenant_id")
+		if err := h.db.Where("id IN ? AND tenant_id = ?", input.AssetIDs, tenantID).Find(&assets).Error; err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Failed to load assets"})
 		}
 	}

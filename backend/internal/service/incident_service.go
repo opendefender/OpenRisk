@@ -7,6 +7,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -206,6 +207,23 @@ func (s *IncidentService) DeleteIncident(tenantID string, incidentID uint) error
 	return nil
 }
 
+// ownsIncident verifies that the incident belongs to the given tenant.
+// Returns domain.ErrNotFound when the incident does not exist for that tenant,
+// so callers never expose (or mutate) another tenant's incident by guessing its
+// sequential integer ID (RULE #2: filter by tenant_id on every DB query).
+func (s *IncidentService) ownsIncident(tenantID string, incidentID uint) error {
+	var count int64
+	if err := s.db.Model(&domain.Incident{}).
+		Where("id = ? AND tenant_id = ?", incidentID, tenantID).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to verify incident ownership: %w", err)
+	}
+	if count == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 // AddTimelineEntry adds an event to incident timeline
 func (s *IncidentService) AddTimelineEntry(incidentID uint, eventType, message, metadata, createdBy string) error {
 	entry := domain.IncidentTimeline{
@@ -228,8 +246,11 @@ func (s *IncidentService) AddTimelineEntry(incidentID uint, eventType, message, 
 	return nil
 }
 
-// GetTimeline retrieves incident timeline
-func (s *IncidentService) GetTimeline(incidentID uint) ([]domain.IncidentTimeline, error) {
+// GetTimeline retrieves incident timeline (tenant-scoped)
+func (s *IncidentService) GetTimeline(tenantID string, incidentID uint) ([]domain.IncidentTimeline, error) {
+	if err := s.ownsIncident(tenantID, incidentID); err != nil {
+		return nil, err
+	}
 	var timeline []domain.IncidentTimeline
 	if err := s.db.Where("incident_id = ?", incidentID).
 		Order("created_at ASC").
@@ -239,10 +260,13 @@ func (s *IncidentService) GetTimeline(incidentID uint) ([]domain.IncidentTimelin
 	return timeline, nil
 }
 
-// LinkRisk links an incident to a risk
-func (s *IncidentService) LinkRisk(incidentID, riskID uint) error {
+// LinkRisk links an incident to a risk (tenant-scoped)
+func (s *IncidentService) LinkRisk(tenantID string, incidentID, riskID uint) error {
+	if err := s.ownsIncident(tenantID, incidentID); err != nil {
+		return err
+	}
 	if err := s.db.Model(&domain.Incident{}).
-		Where("id = ?", incidentID).
+		Where("id = ? AND tenant_id = ?", incidentID, tenantID).
 		Update("risk_id", riskID).Error; err != nil {
 		return fmt.Errorf("failed to link risk: %w", err)
 	}
@@ -257,8 +281,11 @@ func (s *IncidentService) LinkRisk(incidentID, riskID uint) error {
 	return nil
 }
 
-// CreateIncidentAction creates a mitigation action for incident
-func (s *IncidentService) CreateIncidentAction(incidentID uint, title, description string, dueDate time.Time, assignedTo string) (*domain.IncidentAction, error) {
+// CreateIncidentAction creates a mitigation action for incident (tenant-scoped)
+func (s *IncidentService) CreateIncidentAction(tenantID string, incidentID uint, title, description string, dueDate time.Time, assignedTo string) (*domain.IncidentAction, error) {
+	if err := s.ownsIncident(tenantID, incidentID); err != nil {
+		return nil, err
+	}
 	action := &domain.IncidentAction{
 		IncidentID:  incidentID,
 		Title:       title,
@@ -277,8 +304,11 @@ func (s *IncidentService) CreateIncidentAction(incidentID uint, title, descripti
 	return action, nil
 }
 
-// GetIncidentActions retrieves all actions for incident
-func (s *IncidentService) GetIncidentActions(incidentID uint) ([]domain.IncidentAction, error) {
+// GetIncidentActions retrieves all actions for incident (tenant-scoped)
+func (s *IncidentService) GetIncidentActions(tenantID string, incidentID uint) ([]domain.IncidentAction, error) {
+	if err := s.ownsIncident(tenantID, incidentID); err != nil {
+		return nil, err
+	}
 	var actions []domain.IncidentAction
 	if err := s.db.Where("incident_id = ?", incidentID).
 		Order("created_at ASC").
@@ -288,12 +318,24 @@ func (s *IncidentService) GetIncidentActions(incidentID uint) ([]domain.Incident
 	return actions, nil
 }
 
-// UpdateIncidentAction updates action status
-func (s *IncidentService) UpdateIncidentAction(actionID uint, status string) error {
+// UpdateIncidentAction updates action status (tenant-scoped: the action's parent
+// incident must belong to the tenant, so an integer actionID from another tenant
+// can never be mutated).
+func (s *IncidentService) UpdateIncidentAction(tenantID string, actionID uint, status string) error {
+	// Resolve the action's parent incident and confirm tenant ownership.
+	var action domain.IncidentAction
+	if err := s.db.Where("id = ?", actionID).First(&action).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.ErrNotFound
+		}
+		return fmt.Errorf("failed to load action: %w", err)
+	}
+	if err := s.ownsIncident(tenantID, action.IncidentID); err != nil {
+		return err
+	}
 	if err := s.db.Model(&domain.IncidentAction{}).
 		Where("id = ?", actionID).
-		Update("status", status).
-		Update("updated_at", time.Now()).Error; err != nil {
+		Updates(map[string]interface{}{"status": status, "updated_at": time.Now()}).Error; err != nil {
 		return fmt.Errorf("failed to update action: %w", err)
 	}
 	return nil

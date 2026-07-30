@@ -51,8 +51,9 @@ func (h *CustomFieldHandler) CreateCustomField(c *fiber.Ctx) error {
 		})
 	}
 
-	// Create field
-	field, err := h.service.CreateCustomField(userClaims.Sub, req)
+	// Create field (scoped to the caller's tenant)
+	tenantID := safeGetUUID(c, "tenant_id")
+	field, err := h.service.CreateCustomField(tenantID, userClaims.Sub, req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
@@ -72,7 +73,8 @@ func (h *CustomFieldHandler) GetCustomField(c *fiber.Ctx) error {
 		})
 	}
 
-	field, err := h.service.GetCustomField(fieldID)
+	tenantID := safeGetUUID(c, "tenant_id")
+	field, err := h.service.GetCustomField(tenantID, fieldID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Field not found",
@@ -100,7 +102,8 @@ func (h *CustomFieldHandler) ListCustomFields(c *fiber.Ctx) error {
 		}
 	}
 
-	fields, err := h.service.ListCustomFields(scope)
+	tenantID := safeGetUUID(c, "tenant_id")
+	fields, err := h.service.ListCustomFields(tenantID, scope)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -128,11 +131,12 @@ func (h *CustomFieldHandler) UpdateCustomField(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update field
-	field, err := h.service.UpdateCustomField(fieldID, req)
+	// Update field (tenant-scoped)
+	tenantID := safeGetUUID(c, "tenant_id")
+	field, err := h.service.UpdateCustomField(tenantID, fieldID, req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Field not found",
 		})
 	}
 
@@ -149,9 +153,10 @@ func (h *CustomFieldHandler) DeleteCustomField(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.service.DeleteCustomField(fieldID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+	tenantID := safeGetUUID(c, "tenant_id")
+	if err := h.service.DeleteCustomField(tenantID, fieldID); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Field not found",
 		})
 	}
 
@@ -173,7 +178,8 @@ func (h *CustomFieldHandler) ListCustomFieldsByScope(c *fiber.Ctx) error {
 		})
 	}
 
-	fields, err := h.service.GetCustomFieldsByScope(scope)
+	tenantID := safeGetUUID(c, "tenant_id")
+	fields, err := h.service.GetCustomFieldsByScope(tenantID, scope)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -200,8 +206,9 @@ func (h *CustomFieldHandler) ApplyTemplate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Apply template
-	fields, err := h.service.ApplyTemplate(templateID, userClaims.Sub)
+	// Apply template (tenant-scoped)
+	tenantID := safeGetUUID(c, "tenant_id")
+	fields, err := h.service.ApplyTemplate(tenantID, templateID, userClaims.Sub)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),

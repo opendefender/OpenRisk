@@ -33,19 +33,42 @@ export interface NavItem {
   perm?: string;
   /** Only visible to org admins/root (governance, tenant administration). */
   adminOnly?: boolean;
+  /** Hoisted above the grouped nav as a standalone entry (e.g. Dashboard).
+   *  Still lives inside its group for routing/palette/breadcrumb lookups. */
+  pinned?: boolean;
 }
 
 export interface NavGroup {
   groupKey: keyof UIStrings;
   items: NavItem[];
+  /** The product's core intention — visually emphasised so the user always
+   *  knows where the primary job (reduce risk) lives. */
+  core?: boolean;
 }
 
+// Navigation grouped by INTENTION (what the user is trying to accomplish), not by
+// technical domain. Order reflects the natural GRC flow toward the core job. The
+// core intention — "Maîtriser les risques" (identify → score → treat → prove) — is
+// the product's reason to exist, so it leads and is visually emphasised (`core`).
+// Dashboard is `pinned`: it stays inside its group for routing/palette lookups but
+// the Sidebar hoists it to a standalone entry at the very top.
 export const NAV_GROUPS: NavGroup[] = [
   // 0 · Piloter — « Où en suis-je ? » (dashboard par rôle, exécutif, financier)
   {
     groupKey: 'g_pilot',
     items: [
-      { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/' },
+      { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', badge: { text: '12' }, perm: 'risks:read' },
+      { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
+      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', badge: { text: '3', color: 'var(--high)' }, perm: 'mitigations:read' },
+      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
+      { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
+    ],
+  },
+  {
+    // Where do I stand? — the high-level read on posture and exposure.
+    groupKey: 'g_monitor',
+    items: [
+      { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/', pinned: true },
       { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/analytics', perm: 'risks:read' },
       { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial', perm: 'risks:read' },
     ],
@@ -100,6 +123,13 @@ export const NAV_GROUPS: NavGroup[] = [
 
 /** Flat list of all nav items, for the command palette. */
 export const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
+/** Items hoisted above the grouped nav (e.g. Dashboard), in the given (already
+ *  permission-filtered) groups. The Sidebar renders these first, then renders the
+ *  groups with their pinned items removed so nothing shows twice. */
+export function pinnedItems(groups: NavGroup[]): NavItem[] {
+  return groups.flatMap((g) => g.items.filter((i) => i.pinned));
+}
 
 /**
  * Filter the nav to what a member may actually reach, given a permission check
