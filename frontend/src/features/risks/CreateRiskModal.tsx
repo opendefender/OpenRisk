@@ -43,11 +43,20 @@ const frameworkOptions = [
   { value: 'OWASP', label: 'OWASP' },
 ];
 
+// The instant score is P(0–1) × Impact(1–10) × AssetCriticality(0.1–3), so it lives
+// on the 0–30 scale — the label must use the Score Engine bands (≥7 critical, ≥4 high,
+// ≥2 medium), not the 0–100 thresholds that left it stuck on "Bas".
 const scoreLabel = (score: number) => {
-  if (score >= 80) return 'Critique';
-  if (score >= 60) return 'Élevé';
-  if (score >= 40) return 'Moyen';
+  if (score >= 7) return 'Critique';
+  if (score >= 4) return 'Élevé';
+  if (score >= 2) return 'Moyen';
   return 'Bas';
+};
+const scoreColor = (score: number) => {
+  if (score >= 7) return 'var(--critical)';
+  if (score >= 4) return 'var(--high)';
+  if (score >= 2) return 'var(--medium)';
+  return 'var(--low)';
 };
 
 export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalProps) => {
@@ -154,13 +163,13 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
             {/* Bounded height + scrollable body so a tall form never pushes the header
                 or the submit button off-screen (the modal used to be vertically centered
                 with no max-height, hiding its own actions). Header and footer stay pinned. */}
-            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/40">
-              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-6 py-5">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
+              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
-                  <h2 className="text-2xl font-semibold">{t('risks.createRisk')}</h2>
-                  <p className="text-sm text-zinc-500">Créez un risque avec score en temps réel.</p>
+                  <h2 className="text-2xl font-semibold text-ink">{t('risks.createRisk')}</h2>
+                  <p className="text-sm text-ink-muted">Créez un risque avec score en temps réel.</p>
                 </div>
-                <button type="button" onClick={handleClose} className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors">
+                <button type="button" onClick={handleClose} className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -174,12 +183,12 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   disabled={isSubmitting}
                 />
                 <div className="space-y-1.5">
-                  <label htmlFor="create-risk-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.riskDescription')}</label>
+                  <label htmlFor="create-risk-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskDescription')}</label>
                   <textarea
                     id="create-risk-description"
                     {...register('description')}
                     rows={5}
-                    className="w-full rounded-3xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40"
+                    className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
                     disabled={isSubmitting}
                   />
                   {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
@@ -187,7 +196,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.probability')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.probability')}</label>
                     <input
                       type="range"
                       min={0}
@@ -196,7 +205,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                       {...register('probability', { valueAsNumber: true })}
                       className="w-full"
                     />
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <div className="flex items-center justify-between text-xs text-ink-muted">
                       <span>0</span>
                       <span>{watchedProbability.toFixed(2)}</span>
                       <span>1</span>
@@ -204,7 +213,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.impact')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.impact')}</label>
                     <input
                       type="range"
                       min={1}
@@ -213,7 +222,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                       {...register('impact', { valueAsNumber: true })}
                       className="w-full"
                     />
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <div className="flex items-center justify-between text-xs text-ink-muted">
                       <span>1</span>
                       <span>{watchedImpact}</span>
                       <span>10</span>
@@ -221,7 +230,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.riskAssetCriticality')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskAssetCriticality')}</label>
                     <input
                       type="range"
                       min={0.1}
@@ -230,7 +239,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                       {...register('assetCriticality', { valueAsNumber: true })}
                       className="w-full"
                     />
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <div className="flex items-center justify-between text-xs text-ink-muted">
                       <span>0.1</span>
                       <span>{watchedCriticality.toFixed(1)}</span>
                       <span>3.0</span>
@@ -238,22 +247,22 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
                 </div>
 
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-4">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-border bg-hover p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Score instantané</p>
-                      <p className="text-3xl font-semibold text-white">{score}</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Score instantané (Probabilité × Impact × Criticité)</p>
+                      <p className="text-3xl font-semibold text-ink">{score}</p>
                     </div>
-                    <div className="rounded-3xl bg-zinc-950 px-4 py-2 text-xs text-zinc-300">{scoreLabel(score)}</div>
+                    <div className="rounded-3xl px-4 py-2 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${scoreColor(score)} 16%, transparent)`, color: scoreColor(score) }}>{scoreLabel(score)}</div>
                   </div>
                 </motion.div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.riskFramework')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskFramework')}</label>
                     <select
                       {...register('framework')}
-                      className="w-full rounded-3xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white"
+                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
                       disabled={isSubmitting}
                     >
                       <option value="">Sélectionnez un cadre</option>
@@ -263,12 +272,12 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{t('risks.riskAssets')}</label>
-                    <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-3 min-h-[120px] overflow-y-auto">
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskAssets')}</label>
+                    <div className="rounded-3xl border border-border bg-app p-3 min-h-[120px] overflow-y-auto">
                       {assetsLoading ? (
-                        <p className="text-xs text-zinc-500">Chargement des assets...</p>
+                        <p className="text-xs text-ink-muted">Chargement des assets...</p>
                       ) : assets.length === 0 ? (
-                        <p className="text-xs text-zinc-500">Aucun asset disponible</p>
+                        <p className="text-xs text-ink-muted">Aucun asset disponible</p>
                       ) : (
                         <div className="grid gap-2">
                           {assets.map((asset) => (
@@ -283,7 +292,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                                   setValue('asset_ids', [...current, asset.id], { shouldValidate: true });
                                 }
                               }}
-                              className={`w-full rounded-2xl border px-3 py-2 text-left text-sm transition-colors ${watchedAssetIds.includes(asset.id) ? 'border-primary bg-primary/10 text-white' : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-600'}`}
+                              className={`w-full rounded-2xl border px-3 py-2 text-left text-sm transition-colors ${watchedAssetIds.includes(asset.id) ? 'border-primary bg-primary/10 text-accent' : 'border-border bg-app text-ink-soft hover:border-border-strong'}`}
                             >
                               <div className="flex items-center gap-2">
                                 <Database size={16} />
@@ -308,7 +317,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
 
                 </div>
 
-                <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-zinc-800 bg-zinc-950/95 px-6 py-4">
+                <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
                   <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
                   <Button type="submit" variant="secondary" isLoading={isSubmitting} className="gap-2">
                     <Zap size={16} /> {t('common.save')}
