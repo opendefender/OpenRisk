@@ -220,7 +220,10 @@ export function CreateFrameworkDialog({ onClose, onCreated }: { onClose: () => v
 
 export function ImportFrameworkDialog({ onClose, onImported }: { onClose: () => void; onImported?: (id: string) => void }) {
   const tr = useTr();
-  const { data: catalogs, isLoading, error } = useCatalogs();
+  const { data, isLoading, error } = useCatalogs();
+  // Only surface importable catalogs — hide "coming soon" placeholders (e.g. the
+  // Cameroon personal-data framework, whose source text isn't available yet).
+  const catalogs = (data ?? []).filter((c) => c.available);
   const importCatalog = useImportCatalogAsFramework();
 
   const handleImport = (catalog: ComplianceCatalogSummary) => {

@@ -7,7 +7,8 @@
 // Integrations, Notifications, Security, Billing, Danger. Endpoints whose tables
 // aren't migrated yet (roles/tenants/audit) degrade to an honest unavailable state.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Settings as SettingsIcon, Users, Lock, KeyRound, Building2, ScrollText, SlidersHorizontal, Plug,
@@ -91,11 +92,23 @@ function Unavailable({ tr }: { tr: Tr }) {
   );
 }
 
+const TAB_KEYS: TabKey[] = ['general', 'members', 'rbac', 'tokens', 'orgs', 'audit', 'fields', 'integrations', 'notif', 'security', 'billing', 'danger'];
+
 export function SettingsScreen() {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr: Tr = (fr, en) => (lang === 'fr' ? fr : en);
-  const [tab, setTab] = useState<TabKey>('general');
+  // Deep-linkable tab via ?tab= (e.g. the onboarding "Invite" CTA opens Members).
+  const [params, setParams] = useSearchParams();
+  const paramTab = params.get('tab');
+  const [tab, setTab] = useState<TabKey>(TAB_KEYS.includes(paramTab as TabKey) ? (paramTab as TabKey) : 'general');
+  useEffect(() => {
+    if (paramTab && TAB_KEYS.includes(paramTab as TabKey)) setTab(paramTab as TabKey);
+  }, [paramTab]);
+  const selectTab = (k: TabKey) => {
+    setTab(k);
+    setParams((prev) => { const n = new URLSearchParams(prev); n.set('tab', k); return n; }, { replace: true });
+  };
 
   const tabs: [TabKey, string, LucideIcon][] = [
     ['general', L.s_general, SettingsIcon],
@@ -121,7 +134,7 @@ export function SettingsScreen() {
             <button
               key={k}
               data-testid={`settings-tab-${k}`}
-              onClick={() => setTab(k)}
+              onClick={() => selectTab(k)}
               className="w-full flex items-center gap-2.5 px-3 py-[9px] rounded-[9px] mb-0.5 text-[13px] text-left whitespace-nowrap transition-colors"
               style={{ background: tab === k ? 'var(--accent-soft)' : 'transparent', color: tab === k ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: tab === k ? 600 : 500 }}
             >

@@ -20,6 +20,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats } from './useStats';
 import { useFrameworks } from '../compliance/useCompliance';
+import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 
 /* ---------------- helpers ---------------- */
@@ -176,13 +177,13 @@ function PostureDashboard() {
         {/* row 2 — heatmap + trend */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
           <HeatmapCard />
-          <TrendCard />
+          <TrendCard risks={risks} />
         </div>
 
         {/* row 3 — recent + war room */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4">
           <RecentActivityCard risks={recent} onOpen={() => navigate('/risks')} />
-          <WarRoomCard onJoin={() => navigate('/incidents')} />
+          <WarRoomCard onJoin={(id) => navigate(id ? `/incidents/${id}/war-room` : '/incidents')} />
         </div>
       </div>
     </div>
@@ -328,20 +329,39 @@ function HeatmapCard() {
 }
 
 /* ---------------- Trend ---------------- */
-const TREND_SERIES: Record<string, { crit: number[]; high: number[]; med: number[] }> = {
-  '7': { crit: [3, 4, 3, 5, 4, 6, 5], high: [8, 7, 9, 8, 10, 9, 11], med: [14, 15, 13, 16, 15, 17, 16] },
-  '30': { crit: [2, 3, 5, 4, 6, 5, 7, 6, 8, 5], high: [6, 8, 7, 9, 8, 10, 9, 11, 10, 12], med: [12, 14, 13, 15, 16, 15, 17, 18, 17, 19] },
-  '90': { crit: [1, 2, 4, 3, 5, 7, 6, 8, 7, 9, 8, 10], high: [5, 7, 6, 9, 8, 11, 10, 12, 11, 13, 12, 14], med: [10, 13, 12, 15, 14, 17, 16, 18, 17, 20, 19, 22] },
-};
-
-function TrendCard() {
+// Real risk trend: the cumulative count of risks by severity band as of each day
+// in the window, derived from the tenant's own risks (created_at). A fresh tenant
+// with no risks shows an honest empty state instead of a fabricated series.
+type TrendRisk = { score: number; level?: string | null; created_at?: string };
+function TrendCard({ risks }: { risks: TrendRisk[] }) {
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const [range, setRange] = useState<'7' | '30' | '90'>('30');
-  const series = TREND_SERIES[range];
+  const days = Number(range);
+  const bandOf = (r: TrendRisk): Criticality => ((r.level?.toLowerCase() as Criticality) || scoreToCriticality(r.score));
+  const series = useMemo(() => {
+    const end0 = new Date(); end0.setHours(23, 59, 59, 999);
+    const crit: number[] = [], high: number[] = [], med: number[] = [];
+    for (let d = 0; d < days; d++) {
+      const end = end0.getTime() - (days - 1 - d) * 864e5;
+      let c = 0, h = 0, m = 0;
+      for (const r of risks) {
+        const created = r.created_at ? new Date(r.created_at).getTime() : 0;
+        if (created > end) continue;
+        const b = bandOf(r);
+        if (b === 'critical') c++; else if (b === 'high') h++; else if (b === 'medium') m++;
+      }
+      crit.push(c); high.push(h); med.push(m);
+    }
+    return { crit, high, med };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [risks, days]);
+  const hasData = risks.length > 0;
   const W = 300, H = 120, pad = 8;
-  const allMax = Math.max(...series.crit, ...series.high, ...series.med);
+  const allMax = Math.max(1, ...series.crit, ...series.high, ...series.med);
   const line = (arr: number[]) => {
-    const step = (W - pad * 2) / (arr.length - 1);
+    const step = (W - pad * 2) / Math.max(1, arr.length - 1);
     return arr.map((v, i) => `${pad + i * step},${H - pad - (v / allMax) * (H - pad * 2)}`).join(' ');
   };
   const tab = (v: '7' | '30' | '90', lbl: string) => (
@@ -378,6 +398,11 @@ function TrendCard() {
         {leg('var(--high)', L.high)}
         {leg('var(--medium)', L.medium)}
       </div>
+      {!hasData ? (
+        <div className="flex items-center justify-center text-center text-[12.5px] text-ink-muted" style={{ height: 150 }}>
+          {tr('Pas encore de tendance — créez des risques pour la voir apparaître.', 'No trend yet — create risks to see it build up.')}
+        </div>
+      ) : (
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="150" preserveAspectRatio="none">
         {[1, 2, 3].map((i) => (
           <line key={i} x1={pad} x2={W - pad} y1={pad + (i * (H - pad * 2)) / 3} y2={pad + (i * (H - pad * 2)) / 3} stroke="var(--border)" strokeWidth={1} />
@@ -386,6 +411,7 @@ function TrendCard() {
         <polyline points={line(series.high)} fill="none" stroke="var(--high)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         <polyline points={line(series.crit)} fill="none" stroke="var(--critical)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
+      )}
     </Card>
   );
 }
@@ -433,48 +459,63 @@ function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: ()
 }
 
 /* ---------------- War Room widget ---------------- */
-function WarRoomCard({ onJoin }: { onJoin: () => void }) {
+// Real "incident in progress": the most recent open/in-progress incident for this
+// tenant with a live duration; an honest empty state when there is none (no more
+// hardcoded INC-2026-014).
+const SEV_COLOR = { critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)' } as const;
+function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
   const L = useUIStrings();
-  return (
-    <div
-      className="rounded-[16px] p-5 flex flex-col"
-      style={{
-        background: 'linear-gradient(135deg,rgba(255,69,58,.1),rgba(255,69,58,.03))',
-        border: '1px solid rgba(255,69,58,.28)',
-      }}
-    >
-      <div className="flex items-center gap-2 mb-3.5">
-        <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--critical)', animation: 'or-pulsedot 1.4s infinite' }} />
-        <span className="text-[11px] font-bold tracking-[0.06em] uppercase" style={{ color: 'var(--critical)' }}>{L.warTitle}</span>
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { incidents } = useIncidents({ limit: 20 });
+  const [now, setNow] = useState(() => Date.now());
+  const active = (incidents ?? []).filter((i) => i.status === 'open' || i.status === 'in_progress');
+  const inc = active.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  useEffect(() => {
+    if (!inc) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [inc?.id]);
+
+  if (!inc) {
+    return (
+      <div className="rounded-[16px] p-5 flex flex-col" style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+        <div className="flex items-center gap-2 mb-3.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--low)' }} />
+          <span className="text-[11px] font-bold tracking-[0.06em] uppercase text-ink-muted">{L.warTitle}</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-1.5">
+          <ShieldCheck size={26} style={{ color: 'var(--low)' }} />
+          <div className="text-[13.5px] font-semibold text-ink">{tr('Aucun incident en cours', 'No active incident')}</div>
+          <div className="text-[12px] text-ink-muted">{tr('Tout est calme. Les incidents ouverts s’afficheront ici.', 'All clear. Open incidents will appear here.')}</div>
+        </div>
+        <button onClick={() => onJoin()} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink transition-colors" style={{ border: '1px solid var(--border-strong)' }}>
+          {tr('Voir les incidents', 'View incidents')}
+        </button>
       </div>
-      <div className="text-[15px] font-semibold text-ink mb-1">INC-2026-014 · Exfiltration suspectée</div>
-      <div className="text-[12.5px] text-ink-soft mb-4">srv-paie-01 · Sévérité critique</div>
+    );
+  }
+
+  const sevColor = SEV_COLOR[inc.severity] ?? 'var(--high)';
+  const elapsed = Math.max(0, Math.floor((now - new Date(inc.created_at).getTime()) / 1000));
+  const hh = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+  const ss = String(elapsed % 60).padStart(2, '0');
+  return (
+    <div className="rounded-[16px] p-5 flex flex-col" style={{ background: `linear-gradient(135deg, color-mix(in srgb,${sevColor} 10%,transparent), color-mix(in srgb,${sevColor} 3%,transparent))`, border: `1px solid color-mix(in srgb,${sevColor} 28%,transparent)` }}>
+      <div className="flex items-center gap-2 mb-3.5">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: sevColor, animation: 'or-pulsedot 1.4s infinite' }} />
+        <span className="text-[11px] font-bold tracking-[0.06em] uppercase" style={{ color: sevColor }}>{L.warTitle}</span>
+      </div>
+      <div className="text-[15px] font-semibold text-ink mb-1">INC-{inc.id} · {inc.title}</div>
+      <div className="text-[12.5px] text-ink-soft mb-4 capitalize">{inc.severity} · {inc.status === 'in_progress' ? tr('en cours', 'in progress') : tr('ouvert', 'open')}</div>
       <div className="flex items-center gap-4 mb-4.5">
         <div>
-          <div className="disp mono text-[22px] font-bold text-ink">01:47:12</div>
-          <div className="text-[11px] text-ink-muted">Durée</div>
-        </div>
-        <div className="flex ml-auto">
-          {['AD', 'FS', 'KM'].map((x, i) => (
-            <div
-              key={x}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-              style={{
-                background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
-                border: '2px solid var(--bg-elevated)',
-                marginLeft: i ? '-8px' : 0,
-              }}
-            >
-              {x}
-            </div>
-          ))}
+          <div className="disp mono text-[22px] font-bold text-ink">{hh}:{mm}:{ss}</div>
+          <div className="text-[11px] text-ink-muted">{tr('Durée', 'Duration')}</div>
         </div>
       </div>
-      <button
-        onClick={onJoin}
-        className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white"
-        style={{ background: 'var(--critical)' }}
-      >
+      <button onClick={() => onJoin(inc.id)} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white" style={{ background: sevColor }}>
         <Zap size={16} /> {L.warJoin}
       </button>
     </div>

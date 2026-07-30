@@ -7,7 +7,8 @@
 // compliance control they remediate.
 
 import { useMemo, useState } from 'react';
-import { Wrench, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Wrench, Plus, Trash2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
@@ -33,6 +34,7 @@ const STATUS_ORDER: RemediationStatus[] = ['open', 'in_progress', 'completed', '
 
 export function RemediationPage() {
   const lang = useUIStore((s) => s.lang);
+  const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { remediations, isLoading, error, refetch, updateRemediation, deleteRemediation } = useRemediations();
   const { undoRemove, isHidden } = useUndoableRemove();
@@ -65,6 +67,7 @@ export function RemediationPage() {
 
   return (
     <PageFrame wide>
+      <button onClick={() => navigate('/compliance')} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink mb-3 transition-colors"><ArrowLeft size={15} /> {tr('Conformité', 'Compliance')}</button>
       <PageHeader
         title={tr('Plans de remédiation', 'Remediation plans')}
         actions={canWrite ? <Btn label={tr('Nouveau plan', 'New plan')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}

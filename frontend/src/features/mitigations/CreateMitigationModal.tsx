@@ -102,13 +102,13 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
             transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
             className="fixed inset-0 z-[90] flex items-center justify-center p-4"
           >
-            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/40">
-              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-6 py-5">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
+              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
-                  <h2 className="text-2xl font-semibold">Créer un plan d'atténuation</h2>
-                  <p className="text-sm text-zinc-500">Créez un plan pour atténuer un risque</p>
+                  <h2 className="text-2xl font-semibold text-ink">Créer un plan d'atténuation</h2>
+                  <p className="text-sm text-ink-muted">Créez un plan pour atténuer un risque</p>
                 </div>
-                <button type="button" onClick={handleClose} className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors">
+                <button type="button" onClick={handleClose} className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -118,19 +118,19 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
                 <Input label="Titre" {...register('title')} error={errors.title?.message} disabled={isSubmitting} />
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Description</label>
-                  <textarea {...register('description')} rows={4} className="w-full rounded-3xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40" disabled={isSubmitting} />
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Description</label>
+                  <textarea {...register('description')} rows={4} className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40" disabled={isSubmitting} />
                   {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Deadline</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Deadline</label>
                     <Input type="date" {...register('due_date')} disabled={isSubmitting} />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Priorité</label>
-                    <select {...register('priority')} className="w-full rounded-3xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white">
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Priorité</label>
+                    <select {...register('priority')} className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink">
                       <option value="critical">Critique</option>
                       <option value="high">Élevé</option>
                       <option value="medium">Moyen</option>
@@ -141,7 +141,7 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
 
                 </div>
 
-                <div className="flex shrink-0 justify-end gap-3 border-t border-zinc-800 bg-zinc-950/95 px-6 py-4">
+                <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
                   <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
                   <Button type="submit" variant="secondary" isLoading={isSubmitting} className="gap-2"><Zap size={16} />Créer</Button>
                 </div>

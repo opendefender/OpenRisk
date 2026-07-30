@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, Sun, Moon, Languages } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { landingForBusinessRole } from '../../shared/navModel';
@@ -24,20 +24,21 @@ const ORBIT_NODES: [string, number, number][] = [
 ];
 
 // Real, attributed quotes on cybersecurity, risk and science — rotated on the
-// login hero to keep the sign-in screen alive without inventing anything.
-const QUOTES: [string, string][] = [
-  ['Security is a process, not a product.', 'Bruce Schneier'],
-  ['The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards.', 'Gene Spafford'],
-  ['Amateurs hack systems, professionals hack people.', 'Bruce Schneier'],
-  ['There are two types of companies: those that have been hacked, and those that don’t yet know they have been hacked.', 'John Chambers'],
-  ['It takes 20 years to build a reputation and a few minutes of cyber-incident to ruin it.', 'Stéphane Nappo'],
-  ['Complexity is the worst enemy of security.', 'Bruce Schneier'],
-  ['Given enough eyeballs, all bugs are shallow.', 'Linus’s Law — Eric S. Raymond'],
-  ['In God we trust. All others must bring data.', 'W. Edwards Deming'],
-  ['Risk comes from not knowing what you’re doing.', 'Warren Buffett'],
-  ['An ounce of prevention is worth a pound of cure.', 'Benjamin Franklin'],
-  ['The measure of intelligence is the ability to change.', 'Albert Einstein'],
-  ['What we anticipate seldom occurs; what we least expect generally happens.', 'Benjamin Disraeli'],
+// login hero to keep the sign-in screen alive without inventing anything. Each
+// entry carries a French and an English rendering, picked from the UI language.
+const QUOTES: { fr: string; en: string; author: string }[] = [
+  { fr: 'La sécurité est un processus, pas un produit.', en: 'Security is a process, not a product.', author: 'Bruce Schneier' },
+  { fr: 'Le seul système vraiment sûr est éteint, coulé dans un bloc de béton et scellé dans une pièce blindée sous bonne garde.', en: 'The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards.', author: 'Gene Spafford' },
+  { fr: 'Les amateurs piratent des systèmes, les professionnels piratent des personnes.', en: 'Amateurs hack systems, professionals hack people.', author: 'Bruce Schneier' },
+  { fr: 'Il y a deux types d’entreprises : celles qui ont été piratées, et celles qui ne le savent pas encore.', en: 'There are two types of companies: those that have been hacked, and those that don’t yet know they have been hacked.', author: 'John Chambers' },
+  { fr: 'Il faut 20 ans pour bâtir une réputation et quelques minutes de cyber-incident pour la ruiner.', en: 'It takes 20 years to build a reputation and a few minutes of cyber-incident to ruin it.', author: 'Stéphane Nappo' },
+  { fr: 'La complexité est le pire ennemi de la sécurité.', en: 'Complexity is the worst enemy of security.', author: 'Bruce Schneier' },
+  { fr: 'Avec assez d’yeux, tous les bugs deviennent évidents.', en: 'Given enough eyeballs, all bugs are shallow.', author: 'Linus’s Law — Eric S. Raymond' },
+  { fr: 'En Dieu nous croyons. Tous les autres doivent apporter des données.', en: 'In God we trust. All others must bring data.', author: 'W. Edwards Deming' },
+  { fr: 'Le risque vient de ne pas savoir ce que l’on fait.', en: 'Risk comes from not knowing what you’re doing.', author: 'Warren Buffett' },
+  { fr: 'Mieux vaut prévenir que guérir.', en: 'An ounce of prevention is worth a pound of cure.', author: 'Benjamin Franklin' },
+  { fr: 'La mesure de l’intelligence, c’est la capacité de changer.', en: 'The measure of intelligence is the ability to change.', author: 'Albert Einstein' },
+  { fr: 'Ce que l’on anticipe arrive rarement ; ce que l’on attend le moins arrive généralement.', en: 'What we anticipate seldom occurs; what we least expect generally happens.', author: 'Benjamin Disraeli' },
 ];
 
 export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
@@ -45,6 +46,8 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
   const L = useUIStrings();
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
+  const lang = useUIStore((s) => s.lang);
+  const toggleLang = useUIStore((s) => s.toggleLang);
 
   const [qi, setQi] = useState(() => Math.floor(Math.random() * QUOTES.length));
   const [qShow, setQShow] = useState(true);
@@ -55,20 +58,33 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
     }, 7000);
     return () => clearInterval(t);
   }, []);
-  const [quote, author] = QUOTES[qi];
+  const q = QUOTES[qi];
+  const quote = lang === 'fr' ? q.fr : q.en;
+  const author = q.author;
 
   return (
     <div className="flex w-full relative" style={{ height: '100vh' }}>
-      {/* Theme toggle — available before sign-in */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-5 right-5 z-10 w-10 h-10 rounded-[11px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
-        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
-        title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
-        aria-label="Toggle theme"
-      >
-        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
+      {/* Language + theme toggles — available before sign-in */}
+      <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+        <button
+          onClick={toggleLang}
+          className="h-10 px-3 rounded-[11px] flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
+          aria-label="Toggle language"
+        >
+          <Languages size={17} /><span className="mono text-[12px] font-semibold uppercase">{lang}</span>
+        </button>
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-[11px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
       {/* left */}
       <div className="relative overflow-hidden flex-col justify-between p-11 hidden md:flex" style={{ flex: '0 0 45%', background: 'linear-gradient(150deg,#0a0b12,#111225)' }}>
         <div className="absolute rounded-full" style={{ top: '-15%', right: '-10%', width: 420, height: 420, background: 'radial-gradient(circle,var(--accent-glow),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
@@ -99,10 +115,16 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
       </div>
 
       {/* right */}
-      <div className="flex-1 flex items-center justify-center p-8" style={{ background: 'var(--bg-app)' }}>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 relative" style={{ background: 'var(--bg-app)' }}>
         <div className="w-full max-w-[380px]" style={{ animation: 'or-fadeup .4s ease' }}>
           {view === 'login' && <LoginForm onRegister={() => setView('register')} />}
           {view === 'register' && <RegisterForm onLogin={() => setView('login')} />}
+        </div>
+        {/* Product / company relationship — OpenRisk is the product, OpenDefender the company. */}
+        <div className="absolute bottom-5 left-0 right-0 text-center text-[11.5px] text-ink-muted">
+          {lang === 'fr' ? 'Un produit ' : 'A product by '}
+          <span className="font-semibold text-ink-soft">OpenDefender</span>
+          {lang === 'fr' ? '' : ''} · <span className="opacity-70">© {new Date().getFullYear()}</span>
         </div>
       </div>
     </div>
@@ -117,14 +139,42 @@ const inputStyle: React.CSSProperties = { border: '1px solid var(--border-strong
 const primaryBtn = 'w-full h-[46px] rounded-xl text-[14px] font-semibold text-white';
 const primaryStyle: React.CSSProperties = { background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 4px 16px var(--accent-glow)' };
 
+const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = [
+  { id: 'google', label: 'Google' },
+  { id: 'github', label: 'GitHub' },
+  { id: 'azure', label: 'Microsoft' },
+];
+
 function LoginForm({ onRegister }: { onRegister: () => void }) {
   const L = useUIStrings();
   const navigate = useNavigate();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Real OAuth2/OIDC sign-in. The backend starts the flow at
+  // /auth/oauth2/login/:provider (google | github | azure) and 302-redirects to
+  // the provider; if the provider isn't configured server-side it replies 400,
+  // so we probe first and surface an honest message instead of a JSON dead-end.
+  const oauth = async (provider: 'google' | 'github' | 'azure', label: string) => {
+    const url = `${api.defaults.baseURL ?? ''}/auth/oauth2/login/${provider}`;
+    try {
+      const res = await fetch(url, { redirect: 'manual' });
+      if (res.type === 'opaqueredirect' || res.status === 0 || (res.status >= 300 && res.status < 400)) {
+        window.location.href = url;
+      } else if (res.status === 400) {
+        toast.error(tr(`Connexion ${label} indisponible — le fournisseur n'est pas configuré côté serveur.`, `${label} sign-in unavailable — the provider isn't configured on the server.`));
+      } else {
+        window.location.href = url;
+      }
+    } catch {
+      window.location.href = url;
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,9 +211,9 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
       </div>
       <button data-testid="login-submit" type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.signin}</button>
       <div className="flex items-center gap-3 my-[18px]"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[12px] text-ink-muted">{L.orSep}</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
-      <div className="flex gap-2.5 mb-2">
-        {['Google', 'GitHub'].map((p) => (
-          <button key={p} type="button" className="flex-1 h-11 rounded-[11px] text-[13px] font-semibold text-ink flex items-center justify-center gap-2 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>{p}</button>
+      <div className="grid grid-cols-3 gap-2.5 mb-2">
+        {OAUTH_PROVIDERS.map((p) => (
+          <button key={p.id} type="button" onClick={() => oauth(p.id, p.label)} className="h-11 rounded-[11px] text-[12.5px] font-semibold text-ink flex items-center justify-center gap-2 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>{p.label}</button>
         ))}
       </div>
       <div className="text-center text-[13px] text-ink-soft mt-[18px]">{L.noAccount}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onRegister(); }} className="font-semibold">{L.createAccount}</a></div>
@@ -187,12 +237,23 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const strength = Math.min(4, Math.floor(password.length / 3) + (/[^a-zA-Z0-9]/.test(password) ? 1 : 0));
+  // Enforce a genuinely strong password: ≥ 8 chars AND at least 3 of the 4
+  // character classes (lowercase, UPPERCASE, digit, symbol). Blocks weak passwords.
+  const checks = {
+    len: password.length >= 8,
+    lower: /[a-z]/.test(password),
+    upper: /[A-Z]/.test(password),
+    digit: /[0-9]/.test(password),
+    special: /[^a-zA-Z0-9]/.test(password),
+  };
+  const classCount = [checks.lower, checks.upper, checks.digit, checks.special].filter(Boolean).length;
+  const strongEnough = checks.len && classCount >= 3;
+  const strength = checks.len ? Math.min(4, 1 + classCount) : Math.min(1, classCount);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) return toast.error(tr('Indiquez votre nom.', 'Please enter your name.'));
-    if (password.length < 8) return toast.error(tr('Le mot de passe doit faire au moins 8 caractères.', 'Password must be at least 8 characters.'));
+    if (!strongEnough) return toast.error(tr('Mot de passe trop faible : au moins 8 caractères et 3 types parmi minuscule, MAJUSCULE, chiffre et symbole.', 'Password too weak: at least 8 characters and 3 of lowercase, UPPERCASE, digit and symbol.'));
     setLoading(true);
     try {
       const local = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_.-]/g, '');
@@ -238,8 +299,17 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
           <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted" aria-label={tr('Afficher le mot de passe', 'Toggle password')}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
         </div>
       </div>
-      <div className="flex gap-1.5 mb-[18px]">{[0, 1, 2, 3].map((i) => <div key={i} className="flex-1 h-1 rounded" style={{ background: i < strength ? (strength >= 3 ? 'var(--low)' : 'var(--high)') : 'var(--bg-hover)' }} />)}</div>
-      <button type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.createAccount}</button>
+      <div className="flex gap-1.5 mb-2">{[0, 1, 2, 3].map((i) => <div key={i} className="flex-1 h-1 rounded" style={{ background: i < strength ? (strongEnough ? 'var(--low)' : 'var(--high)') : 'var(--bg-hover)' }} />)}</div>
+      {password.length > 0 && !strongEnough && (
+        <div className="text-[11.5px] text-ink-muted mb-[18px] leading-snug">
+          {tr('Requis : ', 'Required: ')}
+          <span style={{ color: checks.len ? 'var(--low)' : 'var(--text-muted)' }}>{tr('8+ caractères', '8+ characters')}</span>
+          {' · '}
+          <span style={{ color: classCount >= 3 ? 'var(--low)' : 'var(--text-muted)' }}>{tr('3 types (minuscule, MAJ, chiffre, symbole)', '3 classes (lower, UPPER, digit, symbol)')}</span>
+        </div>
+      )}
+      {(password.length === 0 || strongEnough) && <div className="mb-[18px]" />}
+      <button type="submit" disabled={loading || !strongEnough || !fullName.trim()} className={primaryBtn} style={{ ...primaryStyle, opacity: (loading || !strongEnough || !fullName.trim()) ? 0.6 : 1 }}>{loading ? '…' : L.createAccount}</button>
       <div className="text-center text-[13px] text-ink-soft mt-[18px]">{L.haveAccount}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onLogin(); }} className="font-semibold">{L.signinLink}</a></div>
     </form>
   );

@@ -76,18 +76,18 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
             transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/40">
-              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-800 px-6 py-5">
+            <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
+              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
                 <div className="flex items-center gap-3">
                   <div className="rounded-2xl bg-primary/10 p-2 text-primary">
                     <Server size={20} />
                   </div>
-                  <h2 className="text-xl font-semibold">{t('assets.createAsset')}</h2>
+                  <h2 className="text-xl font-semibold text-ink">{t('assets.createAsset')}</h2>
                 </div>
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                  className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -106,13 +106,13 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
                       {t('assets.form.type')}
                     </label>
                     <select
                       {...register('type')}
                       disabled={isSubmitting}
-                      className="w-full h-10 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 text-sm text-white outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                     >
                       {ASSET_TYPES.map((type) => (
                         <option key={type} value={type}>
@@ -122,13 +122,13 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
                       {t('assets.form.criticality')}
                     </label>
                     <select
                       {...register('criticality')}
                       disabled={isSubmitting}
-                      className="w-full h-10 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 text-sm text-white outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                     >
                       {ASSET_CRITICALITIES.map((level) => (
                         <option key={level} value={level}>
@@ -148,7 +148,7 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
 
                 </div>
 
-                <div className="flex shrink-0 justify-end gap-3 border-t border-zinc-800 bg-zinc-950/95 px-6 py-4">
+                <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
                   <Button type="button" variant="ghost" onClick={handleClose}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
