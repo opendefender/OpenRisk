@@ -168,11 +168,11 @@ func (uc *RegisterUseCase) validateInput(input RegisterInput) error {
 	if input.Username == "" {
 		return domain.NewValidationError("username is required")
 	}
-	if input.Password == "" {
-		return domain.NewValidationError("password is required")
-	}
-	if len(input.Password) < 8 {
-		return domain.NewValidationError("password must be at least 8 characters")
+	// Single source of truth for the policy (domain.ValidatePassword) so the
+	// rules cannot drift between entry points — they already had, with the code
+	// enforcing 8 characters while the README promised 12 (audit finding F-05).
+	if err := domain.ValidatePassword(input.Password); err != nil {
+		return err
 	}
 	if input.FullName == "" {
 		return domain.NewValidationError("full name is required")

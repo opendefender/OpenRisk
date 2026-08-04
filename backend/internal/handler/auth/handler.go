@@ -147,7 +147,7 @@ func strptr(s string) *string { return &s }
 type RegisterRequest struct {
 	Email       string `json:"email" validate:"required,email"`
 	Username    string `json:"username" validate:"required,min=3,max=50"`
-	Password    string `json:"password" validate:"required,min=8"`
+	Password    string `json:"password" validate:"required,min=12"`
 	FullName    string `json:"full_name" validate:"required"`
 	CompanyName string `json:"company_name" validate:"required"`
 }
