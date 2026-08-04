@@ -6,7 +6,7 @@
 // wired to the real auth store; Register/MFA are the design flow.
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { Eye, EyeOff, Sun, Moon, Languages } from 'lucide-react';

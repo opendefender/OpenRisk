@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight, Plus, Library, Trash2, CalendarClock, Wrench } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';

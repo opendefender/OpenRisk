@@ -8,7 +8,7 @@
 // real inventory.
 
 import { useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, Boxes, Bug, Wrench, Check, Server, Cloud, Download, Trash2, ShieldCheck,
 } from 'lucide-react';

@@ -8,7 +8,7 @@
 // /incidents/:id/war-room (Preview) and is reachable per-incident.
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Siren, Plus, Trash2, Radio, ShieldAlert, CheckCircle2, Activity, X, Loader2, Download } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState, softFill } from '../../shared/ui';

@@ -6,7 +6,7 @@
 // plus a recent-reports list.
 
 import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, type LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Card } from '../../shared/ui';
 import { PremiumPeek } from '../../shared/PremiumPeek';

@@ -6,7 +6,7 @@
 // count and last-updated. Type-filter chips; create/edit modals; loading + empty states.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Atom, Plus, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, type LucideIcon } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, CritBadge, SkeletonRows, EmptyState } from '../../shared/ui';
 import { DataTable, type Column } from '../../shared/DataTable';

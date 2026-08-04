@@ -5,7 +5,7 @@
 // framework, the gap count, and shortcuts to audits & gap analysis. Real data from
 // the same compliance overview the Compliance screen uses.
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { ClipboardCheck, Layers, AlertTriangle, ListChecks } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useComplianceOverview, frameworkColorFor } from '../compliance/complianceOverview';

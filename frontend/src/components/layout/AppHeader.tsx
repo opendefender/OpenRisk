@@ -6,7 +6,7 @@
 // above the scrollable body. On < lg it collapses to a hamburger + brand.
 
 import { useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import {
   Search, Bell, Sun, Moon, Mic, Menu, ChevronRight, AlertTriangle, Siren, ShieldCheck, Trophy,
   Rows2, Rows3, Rows4, Keyboard,

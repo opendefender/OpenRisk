@@ -10,7 +10,7 @@ import { useAuthStore } from '../hooks/useAuthStore';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from 'sonner';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router';
 
 export const Login = () => {
   const [email, setEmail] = useState('');

@@ -7,7 +7,7 @@
 // the design's representative fixtures otherwise.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
   ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap,
   type LucideIcon,

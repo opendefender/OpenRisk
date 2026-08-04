@@ -6,7 +6,7 @@
 // authoring actions, since a viewer can only read.
 
 import { useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { ShieldAlert, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore } from '../../hooks/useRiskStore';

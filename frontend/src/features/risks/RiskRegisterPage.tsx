@@ -8,7 +8,7 @@
 // you can edit the risk, export it, and create a linked mitigation plan.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ChevronDown, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
 import {

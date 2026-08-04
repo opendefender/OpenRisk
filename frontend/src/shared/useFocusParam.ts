@@ -9,7 +9,7 @@
 // after the list finishes loading.
 
 import { useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 
 export function useFocusParam(): { focusId: string | null; clearFocus: () => void } {
   const [params, setParams] = useSearchParams();

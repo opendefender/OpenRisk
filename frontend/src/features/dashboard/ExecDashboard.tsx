@@ -5,7 +5,7 @@
 // the A–F cyber score, financial exposure (ALE, FCFA) and the key risk indicators.
 // Real data from the consolidated /analytics/executive endpoint.
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Coins, AlertTriangle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useExecutiveDashboard } from '../analytics/useExecutive';

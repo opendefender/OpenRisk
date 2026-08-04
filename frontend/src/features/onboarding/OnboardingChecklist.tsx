@@ -8,7 +8,7 @@
 // step is emphasized so the user is never left facing an empty dashboard.
 
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Check, ShieldAlert, ClipboardCheck, UserPlus, Palette, Sun, Moon, ArrowRight } from 'lucide-react';
 import { useUIStore, type Variant } from '../../store/uiStore';
 import { useOnboarding } from './onboardingStore';

@@ -6,7 +6,7 @@
 // each row deep-linking into the vulnerability drawer. Real data from the same
 // endpoints the Vulnerabilities screen uses.
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Bug, ShieldAlert, Flame, Zap } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useVulnerabilities, useVulnStats } from '../vulnerabilities/useVulnerabilities';

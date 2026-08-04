@@ -7,7 +7,7 @@
 // pipeline never writes assets/risks; results wait in a preview to be imported.
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
   Plus, Play, Trash2, Radar, ChevronRight, Server, DownloadCloud,
   ShieldOff, Boxes, Bug, Loader2, Clock,
