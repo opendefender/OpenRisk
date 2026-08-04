@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { scannerService, type ScanConfig, type RegistrationTokenResponse } from './scannerService';
+import { safeExternalUrl } from '../../shared/safeUrl';
 
 function detectOS(): 'windows' | 'macos' | 'linux' {
   const p = `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
@@ -76,7 +77,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
             {osOptions.map((o) => (
               <a
                 key={o.key}
-                href={data ? o.key === 'docker' ? undefined : new URL(data.downloads[o.key], api_origin()).href : undefined}
+                href={data && o.key !== 'docker' ? safeExternalUrl(new URL(data.downloads[o.key], api_origin()).href) : undefined}
                 target="_blank"
                 rel="noreferrer"
                 onClick={o.key === 'docker' && data ? (e) => { e.preventDefault(); copy('docker', dockerCmd); } : undefined}
