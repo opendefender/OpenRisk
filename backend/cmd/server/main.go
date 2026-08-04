@@ -392,17 +392,10 @@ func main() {
 		EnableTrustedProxyCheck: true,
 		TrustedProxies:          middleware.TrustedProxies(),
 		ProxyHeader:             fiber.HeaderXForwardedFor,
-		// Custom Error Handler pour toujours renvoyer du JSON
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
-			return c.Status(code).JSON(fiber.Map{
-				"error": true,
-				"msg":   err.Error(),
-			})
-		},
+		// Always JSON. In production the raw error is logged server-side against a
+		// correlation ID and never returned to the client — it used to be echoed
+		// verbatim, leaking GORM's SQL and schema (audit finding F-02).
+		ErrorHandler: middleware.ErrorHandler(middleware.IsProductionEnv()),
 	})
 
 	// --- Middlewares Globaux ---
