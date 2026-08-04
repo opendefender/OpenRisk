@@ -384,6 +384,15 @@ func main() {
 		DisableStartupMessage: true, // Plus propre dans les logs de prod
 		ReadTimeout:           10 * time.Second,
 		WriteTimeout:          10 * time.Second,
+		// Trusted proxies (audit finding F-04). Fiber only resolves ProxyHeader
+		// into c.IP() when the peer socket address is in TrustedProxies. With an
+		// empty TRUSTED_PROXIES the check trusts nobody, so a client-supplied
+		// X-Forwarded-For is ignored and c.IP() falls back to the real socket IP
+		// — the safe posture for a directly exposed service. Deployments behind a
+		// load balancer must set TRUSTED_PROXIES to the balancer's addresses.
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          middleware.TrustedProxies(),
+		ProxyHeader:             fiber.HeaderXForwardedFor,
 		// Custom Error Handler pour toujours renvoyer du JSON
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
