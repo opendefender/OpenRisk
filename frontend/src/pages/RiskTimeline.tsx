@@ -78,7 +78,7 @@ export default function RiskTimeline() {
     if (!riskId) return;
     try {
       const response = await fetch(`/api/v1/risks/${riskId}/timeline`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
 
       if (response.ok) {

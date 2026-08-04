@@ -62,7 +62,7 @@ export default function Marketplace() {
       try {
         const response = await fetch('/api/v1/marketplace/connectors', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }
         });
         const data = await response.json();
@@ -79,7 +79,7 @@ export default function Marketplace() {
       try {
         const response = await fetch('/api/v1/marketplace/apps', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }
         });
         const data = await response.json();
@@ -109,7 +109,7 @@ export default function Marketplace() {
       const response = await fetch('/api/v1/marketplace/apps', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -139,7 +139,7 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 
@@ -156,7 +156,7 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}/${endpoint}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 
@@ -174,14 +174,14 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}/sync`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 
       // Refresh apps list
       const response = await fetch('/api/v1/marketplace/apps', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       const data = await response.json();

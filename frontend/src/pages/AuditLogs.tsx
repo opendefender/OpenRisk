@@ -51,7 +51,7 @@ export default function AuditLogs() {
 
       const response = await fetch(`/api/v1/audit-logs?${params}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
 

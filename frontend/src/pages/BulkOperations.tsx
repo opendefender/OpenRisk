@@ -75,7 +75,7 @@ export default function BulkOperations() {
   const fetchOperations = async () => {
     try {
       const response = await fetch('/api/v1/bulk-operations', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -93,7 +93,7 @@ export default function BulkOperations() {
       const response = await fetch(
         `/api/v1/bulk-operations/${operationId}/logs`,
         {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
         }
       );
       if (response.ok) {
@@ -118,7 +118,7 @@ export default function BulkOperations() {
         `/api/v1/bulk-operations/${operationId}/cancel`,
         {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
         }
       );
 
@@ -139,7 +139,7 @@ export default function BulkOperations() {
     try {
       const response = await fetch(`/api/v1/bulk-operations/${operationId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
 
       if (response.ok) {
