@@ -431,6 +431,18 @@ func main() {
 
 	api := app.Group("/api/v1")
 
+	// Baseline per-IP quota across the whole API (audit finding F-03: only 2 of
+	// 289 routes were metered). Mounted here so it also covers unauthenticated
+	// surface — OAuth/SAML callbacks, webhooks, health. Credential endpoints keep
+	// their own much stricter throttle below. The per-tenant quota is mounted
+	// after the auth gate, where the tenant is known.
+	//
+	// Shares the Redis-backed store so counters hold across a horizontally-scaled
+	// deployment, falling back to a per-instance limiter if Redis is unreachable.
+	apiQuota := middleware.LoadQuotaConfig()
+	quotaStore := middleware.NewRedisRateLimitStore(redisClientInstance)
+	api.Use(middleware.IPRateLimit(quotaStore, apiQuota))
+
 	// =========================================================================
 	// 5.1 CLEAN ARCHITECTURE AUTH MODULE INITIALIZATION
 	// =========================================================================
@@ -628,6 +640,13 @@ func main() {
 	// JWT middleware skips when a PAT already authenticated the request.
 	api.Use(middleware.PATMiddleware(patService, resolveSession))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
+
+	// Per-tenant quota (audit finding F-03), mounted immediately after the auth
+	// gate because that is what populates the tenant local. Without this a single
+	// tenant — runaway integration or compromised token — can exhaust shared DB
+	// and Redis capacity and degrade every other customer, while staying under
+	// the per-IP limit by spreading traffic across hosts.
+	protected.Use(middleware.TenantRateLimit(quotaStore, apiQuota))
 
 	// Governance audit trail (spec §15): stamp the acting identity + request
 	// metadata onto the request context for every authenticated route, so any
