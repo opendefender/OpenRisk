@@ -195,8 +195,24 @@ func TestPublicRateLimit(t *testing.T) {
 	}
 }
 
+// TestRateLimit_DifferentIPs asserts that distinct clients get independent
+// budgets. That intent is unchanged, but the setup is not: this test used to
+// pass a bare fiber.New() and rely on X-Forwarded-For being believed
+// unconditionally — the exact behaviour audit finding F-04 removed, since it let
+// any caller mint a fresh bucket per request.
+//
+// A forwarded client IP is now honoured only when the peer is a trusted proxy,
+// which is how a real deployment behind a load balancer is configured. app.Test
+// dials from 0.0.0.0, so that is the proxy to trust here.
+//
+// The spoofing case — an untrusted peer forging the header — is covered by
+// TestRateLimit_SpoofedForwardedForCannotResetCounter.
 func TestRateLimit_DifferentIPs(t *testing.T) {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"0.0.0.0"},
+		ProxyHeader:             fiber.HeaderXForwardedFor,
+	})
 	store := &RateLimitStore{
 		requests: make(map[string][]time.Time),
 	}
