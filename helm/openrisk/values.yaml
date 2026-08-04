@@ -108,9 +108,11 @@ frontend:
 postgresql:
   enabled: true
   auth:
-    postgresPassword: "changeme"
+    # No default: a shipped credential is a credential in production.
+    # Supply at install time (--set) or manage via secrets.externalSecrets.
+    postgresPassword: ""
     username: "openrisk"
-    password: "changeme"
+    password: ""
     database: "openrisk"
   
   primary:
@@ -138,7 +140,8 @@ redis:
   enabled: true
   auth:
     enabled: true
-    password: "changeme"
+    # No default — supply at install time.
+    password: ""
   
   master:
     persistence:
@@ -214,7 +217,8 @@ monitoring:
     retention: 30d
   grafana:
     enabled: true
-    adminPassword: "changeme"
+    # No default — supply at install time.
+    adminPassword: ""
   
   serviceMonitor:
     enabled: true
