@@ -12,7 +12,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { visibleNavGroups, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
+import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
 import { useExecutiveDashboard } from '../../features/analytics/useExecutive';
 
 interface SidebarProps {

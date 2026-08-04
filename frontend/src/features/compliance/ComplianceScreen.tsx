@@ -153,7 +153,7 @@ export function ComplianceScreen() {
                     </button>
                     {canDelete && (
                       <button
-                        onClick={() => setRemovingFw(f)}
+                        onClick={() => remove(f)}
                         className="h-8 px-3 rounded-[9px] inline-flex items-center justify-center transition-colors hover:brightness-110"
                         style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', background: 'color-mix(in srgb,var(--critical) 10%,transparent)', color: 'var(--critical)' }}
                         title={tr('Supprimer le référentiel', 'Delete framework')}

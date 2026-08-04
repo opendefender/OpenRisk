@@ -25,7 +25,6 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
 import { useFocusParam } from '../../shared/useFocusParam';
-import { useSoftDelete } from '../../shared/useSoftDelete';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { mapRisk, relTime, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
@@ -91,11 +90,13 @@ export function RiskRegisterPage() {
   const highCount = ui.filter((r) => r.crit === 'high').length;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    // No soft-delete filter here: this page deletes through DangerConfirm (an
+    // impact radiography the user confirms), so a row disappears only once the
+    // deletion has actually been committed.
     return ui
-      .filter((r) => !pendingDelete.has(r.id))
       .filter((r) => (tab === 'all' ? true : tab === 'critical' ? r.crit === 'critical' : tab === 'high' ? r.crit === 'high' : r.status === 'open'))
       .filter((r) => (q ? `${r.name} ${r.asset} ${r.fw} ${r.ownerName}`.toLowerCase().includes(q) : true));
-  }, [ui, tab, query, pendingDelete]);
+  }, [ui, tab, query]);
   const drawer = drawerId ? ui.find((r) => r.id === drawerId) ?? null : null;
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));

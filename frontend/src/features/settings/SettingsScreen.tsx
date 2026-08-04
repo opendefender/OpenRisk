@@ -23,6 +23,8 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { relTime } from '../risks/riskMap';
 import { useUsers, useTokens, useCustomFields, useRoles, useAuditLogs, useTenants } from './adminData';
 import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
+import { DangerConfirm } from '../../shared/DangerConfirm';
+import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 
 type TabKey = 'general' | 'members' | 'rbac' | 'tokens' | 'orgs' | 'audit' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
