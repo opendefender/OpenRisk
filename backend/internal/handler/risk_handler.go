@@ -339,7 +339,7 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 
 	result, err := h.listRisksUseCase.Execute(c.UserContext(), orgID, query)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch risks", "details": err.Error()})
+		return serverError(c, "Could not fetch risks", err)
 	}
 
 	for i := range result.Data {

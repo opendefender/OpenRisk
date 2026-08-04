@@ -79,7 +79,7 @@ func (b ruleBody) toInput() appauto.RuleInput {
 func (h *AutomationHandler) ListRules(c *fiber.Ctx) error {
 	items, err := h.rules.List(c.UserContext(), h.tenant(c))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "could not list rules", "details": err.Error()})
+		return serverError(c, "could not list rules", err)
 	}
 	return c.JSON(fiber.Map{"items": items})
 }
@@ -189,7 +189,7 @@ func (h *AutomationHandler) ListExecutions(c *fiber.Ctx) error {
 	offset := c.QueryInt("offset", 0)
 	items, err := h.executions.List(c.UserContext(), h.tenant(c), limit, offset)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "could not list executions", "details": err.Error()})
+		return serverError(c, "could not list executions", err)
 	}
 	return c.JSON(fiber.Map{"items": items})
 }
@@ -202,7 +202,7 @@ func (h *AutomationHandler) ListRuleExecutions(c *fiber.Ctx) error {
 	}
 	items, err := h.executions.ListByRule(c.UserContext(), h.tenant(c), id, c.QueryInt("limit", 50))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "could not list executions", "details": err.Error()})
+		return serverError(c, "could not list executions", err)
 	}
 	return c.JSON(fiber.Map{"items": items})
 }
@@ -211,7 +211,7 @@ func (h *AutomationHandler) ListRuleExecutions(c *fiber.Ctx) error {
 func (h *AutomationHandler) ListSLA(c *fiber.Ctx) error {
 	items, err := h.sla.ListOpen(c.UserContext(), h.tenant(c))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "could not list SLA trackers", "details": err.Error()})
+		return serverError(c, "could not list SLA trackers", err)
 	}
 	return c.JSON(fiber.Map{"items": items})
 }
@@ -220,7 +220,7 @@ func (h *AutomationHandler) ListSLA(c *fiber.Ctx) error {
 func (h *AutomationHandler) SLAStats(c *fiber.Ctx) error {
 	stats, err := h.sla.Stats(c.UserContext(), h.tenant(c))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "could not compute SLA stats", "details": err.Error()})
+		return serverError(c, "could not compute SLA stats", err)
 	}
 	return c.JSON(stats)
 }
