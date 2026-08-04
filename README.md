@@ -116,10 +116,11 @@ docker compose up -d
 4. Rotate credentials regularly in production
 5. Use a secrets management solution (Vault, AWS Secrets Manager, etc.)
 
-**Password Requirements:**
+**Password Requirements** (enforced server-side at registration):
 - Minimum 12 characters
-- Mix of uppercase, lowercase, numbers, and special characters
-- Generated with a password manager (1Password, LastPass, etc.)
+- At least three of: lowercase, uppercase, digits, symbols
+- Common and predictable passwords are rejected
+- Preferably generated with a password manager (1Password, Bitwarden, etc.)
 
 ---
 
@@ -391,12 +392,13 @@ OpenRisk implements enterprise-grade security:
 
 - **Authentication**: JWT tokens (RS256) with expiration and JTI blacklist
 - **Authorization**: RBAC with permission matrices and resource-level granularity
-- **Password Hashing**: Argon2id (OWASP recommended) - never SHA256 or bcrypt alone
+- **Password Hashing**: Argon2id (m=64MB, t=3, p=4) - never SHA256 or bcrypt alone
 - **Encryption**: AES-256-GCM for sensitive data at rest
 - **Audit Trail**: Complete audit logging for all operations (append-only)
 - **SSO**: OAuth2 (Google, GitHub) and SAML2 support
-- **Rate Limiting**: API rate limiting middleware to prevent abuse
-- **Input Validation**: Request validation with Zod and explicit type checking
+- **Rate Limiting**: Per-IP and per-tenant quotas across the API, with a stricter throttle on credential endpoints
+- **Security Headers**: CSP, HSTS, X-Frame-Options, Referrer-Policy and nosniff
+- **Input Validation**: Server-side request validation (go-playground/validator); Zod on the frontend
 - **Default Credentials**: Never hardcoded - always use environment variables
 - **Secrets Management**: Support for external secret managers (Vault, AWS Secrets Manager)
 

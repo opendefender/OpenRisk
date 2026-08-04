@@ -25,7 +25,7 @@ type LoginInput struct {
 
 type RegisterInput struct {
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
+	Password string `json:"password" validate:"required,min=12"`
 	Username string `json:"username" validate:"required,min=3"`
 	FullName string `json:"full_name" validate:"required"`
 }
@@ -223,9 +223,10 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "All fields are required"})
 	}
 
-	if len(input.Password) < 8 {
-		_ = h.auditService.LogRegister(nil, domain.ResultFailure, ipAddress, userAgent, "Password too short")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password must be at least 8 characters"})
+	// Shared policy (audit finding F-05) — see domain.ValidatePassword.
+	if err := domain.ValidatePassword(input.Password); err != nil {
+		_ = h.auditService.LogRegister(nil, domain.ResultFailure, ipAddress, userAgent, "Password does not meet policy")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	if len(input.Username) < 3 {

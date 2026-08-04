@@ -23,10 +23,15 @@ type Argon2idPasswordHasher struct {
 	saltLen uint32 // Salt length in bytes
 }
 
-// NewArgon2idPasswordHasher creates a new Argon2id password hasher with OWASP recommended parameters
+// NewArgon2idPasswordHasher creates a new Argon2id password hasher with OWASP recommended parameters.
+//
+// No migration is needed when these values change: the stored hash is in PHC
+// format and carries its own m/t/p, which Verify reads back per-hash. Existing
+// passwords keep verifying under the parameters they were written with, and new
+// ones are written with the values below.
 func NewArgon2idPasswordHasher() *Argon2idPasswordHasher {
 	return &Argon2idPasswordHasher{
-		time:    2,     // OWASP: 2 iterations
+		time:    3,     // 3 iterations (audit finding F-06; was 2)
 		memory:  65536, // OWASP: 64 MB
 		threads: 4,     // OWASP: 4 parallel threads
 		keyLen:  32,    // 32 bytes (256 bits)
@@ -146,26 +151,8 @@ type hashParts struct {
 	hash    string
 }
 
-// SimplePasswordHasher implements PasswordHasher with SHA256 (DEPRECATED - for development/testing only)
-// Kept for backward compatibility during transition. Use Argon2idPasswordHasher in production.
-type SimplePasswordHasher struct{}
-
-// NewSimplePasswordHasher creates a new simple password hasher (DEPRECATED)
-// This is kept for backward compatibility. Use NewArgon2idPasswordHasher() instead.
-func NewSimplePasswordHasher() *SimplePasswordHasher {
-	return &SimplePasswordHasher{}
-}
-
-// Hash hashes a password using SHA256 (DEPRECATED - NOT SECURE)
-// This method is deprecated. Use Argon2idPasswordHasher.Hash() instead.
-func (h *SimplePasswordHasher) Hash(password string) (string, error) {
-	// This is deprecated - kept only for backward compatibility during transition
-	// All new code should use Argon2idPasswordHasher
-	return "", fmt.Errorf("SimplePasswordHasher is deprecated - use Argon2idPasswordHasher instead")
-}
-
-// Verify verifies a password against its hash (DEPRECATED)
-func (h *SimplePasswordHasher) Verify(hashedPassword, plainPassword string) bool {
-	// This is deprecated - kept only for backward compatibility
-	return false
-}
+// SimplePasswordHasher (SHA-256) was removed. It had no callers anywhere in the
+// tree and was already inert — Hash returned an error and Verify always returned
+// false. Its only remaining effect was to make the codebase look as though a
+// SHA-256 path existed, which is precisely the claim the security audit had to
+// spend time disproving.

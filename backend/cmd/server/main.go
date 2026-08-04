@@ -18,7 +18,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/google/uuid"
@@ -384,17 +383,19 @@ func main() {
 		DisableStartupMessage: true, // Plus propre dans les logs de prod
 		ReadTimeout:           10 * time.Second,
 		WriteTimeout:          10 * time.Second,
-		// Custom Error Handler pour toujours renvoyer du JSON
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
-			return c.Status(code).JSON(fiber.Map{
-				"error": true,
-				"msg":   err.Error(),
-			})
-		},
+		// Trusted proxies (audit finding F-04). Fiber only resolves ProxyHeader
+		// into c.IP() when the peer socket address is in TrustedProxies. With an
+		// empty TRUSTED_PROXIES the check trusts nobody, so a client-supplied
+		// X-Forwarded-For is ignored and c.IP() falls back to the real socket IP
+		// — the safe posture for a directly exposed service. Deployments behind a
+		// load balancer must set TRUSTED_PROXIES to the balancer's addresses.
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          middleware.TrustedProxies(),
+		ProxyHeader:             fiber.HeaderXForwardedFor,
+		// Always JSON. In production the raw error is logged server-side against a
+		// correlation ID and never returned to the client — it used to be echoed
+		// verbatim, leaking GORM's SQL and schema (audit finding F-02).
+		ErrorHandler: middleware.ErrorHandler(middleware.IsProductionEnv()),
 	})
 
 	// --- Middlewares Globaux ---
@@ -402,7 +403,11 @@ func main() {
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${method} ${path} (${latency})\n",
 	}))
-	app.Use(helmet.New()) // Sécurité headers (XSS, Content-Type, etc.)
+	// Security headers. helmet's zero-value config omits Content-Security-Policy
+	// and Strict-Transport-Security entirely (audit finding F-01) — both are now
+	// configured explicitly. See middleware.LoadSecurityHeadersConfig for the
+	// env overrides and why the API policy is maximally strict.
+	app.Use(middleware.SecurityHeaders(middleware.LoadSecurityHeadersConfig()))
 
 	// CORS: honour the CORS_ORIGINS env var (comma-separated allowlist) when set
 	// — this is what .env.example documents and what deployments need to point at
@@ -425,6 +430,18 @@ func main() {
 	// =========================================================================
 
 	api := app.Group("/api/v1")
+
+	// Baseline per-IP quota across the whole API (audit finding F-03: only 2 of
+	// 289 routes were metered). Mounted here so it also covers unauthenticated
+	// surface — OAuth/SAML callbacks, webhooks, health. Credential endpoints keep
+	// their own much stricter throttle below. The per-tenant quota is mounted
+	// after the auth gate, where the tenant is known.
+	//
+	// Shares the Redis-backed store so counters hold across a horizontally-scaled
+	// deployment, falling back to a per-instance limiter if Redis is unreachable.
+	apiQuota := middleware.LoadQuotaConfig()
+	quotaStore := middleware.NewRedisRateLimitStore(redisClientInstance)
+	api.Use(middleware.IPRateLimit(quotaStore, apiQuota))
 
 	// =========================================================================
 	// 5.1 CLEAN ARCHITECTURE AUTH MODULE INITIALIZATION
@@ -623,6 +640,13 @@ func main() {
 	// JWT middleware skips when a PAT already authenticated the request.
 	api.Use(middleware.PATMiddleware(patService, resolveSession))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
+
+	// Per-tenant quota (audit finding F-03), mounted immediately after the auth
+	// gate because that is what populates the tenant local. Without this a single
+	// tenant — runaway integration or compromised token — can exhaust shared DB
+	// and Redis capacity and degrade every other customer, while staying under
+	// the per-IP limit by spreading traffic across hosts.
+	protected.Use(middleware.TenantRateLimit(quotaStore, apiQuota))
 
 	// Governance audit trail (spec §15): stamp the acting identity + request
 	// metadata onto the request context for every authenticated route, so any

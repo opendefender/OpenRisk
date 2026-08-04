@@ -52,9 +52,11 @@ frontend:
 postgresql:
   enabled: true
   auth:
-    postgresPassword: "changeme-in-production"
+    # No default — supply at install time or via externalSecrets.
+    postgresPassword: ""
     username: "openrisk"
-    password: "changeme-in-production"
+    # No default — supply at install time or via externalSecrets.
+    password: ""
     database: "openrisk"
   
   primary:
@@ -83,7 +85,8 @@ redis:
   enabled: true
   auth:
     enabled: true
-    password: "changeme-in-production"
+    # No default — supply at install time or via externalSecrets.
+    password: ""
   
   master:
     persistence:
@@ -149,7 +152,8 @@ monitoring:
     retention: 90d
   grafana:
     enabled: true
-    adminPassword: "changeme-in-production"
+    # No default — supply at install time or via externalSecrets.
+    adminPassword: ""
   
   serviceMonitor:
     enabled: true

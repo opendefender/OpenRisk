@@ -2,9 +2,12 @@ name: Security Scanning
 
 on:
   push:
-    branches: [main, stag, develop]
+    # `master` is this repository's default branch. It was missing here while
+    # every other workflow listed it, so the entire security suite never ran on
+    # the default branch. `main` is kept for forks that renamed it.
+    branches: [master, main, stag, develop]
   pull_request:
-    branches: [main, stag, develop]
+    branches: [master, main, stag, develop]
   schedule:
     # Run security scans daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -228,11 +231,31 @@ jobs:
           # Verify no GPL/AGPL licenses (optional stricter check)
           echo "✅ License check completed"
 
+  # ==================== TENANT ISOLATION GATE ====================
+  tenant-isolation:
+    name: Tenant Isolation Coverage Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      # Blocking by design. The route surface is derived from the router by AST,
+      # so a new endpoint taking an ID fails this job until its tenant-isolation
+      # decision is recorded in internal/security/isolation/registry.go.
+      # Six real cross-tenant leaks reached master before the July 2026 sweep,
+      # all found by hand; this is what stops the next one silently shipping.
+      - name: Verify every parameterised route has an isolation decision
+        run: |
+          cd backend
+          go test ./internal/security/... -v
+
   # ==================== SECURITY SUMMARY ====================
   security-summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
-    needs: [dependency-check, golang-security, container-scan, code-quality, sast-semgrep]
+    needs: [dependency-check, golang-security, container-scan, code-quality, sast-semgrep, tenant-isolation]
     if: always()
     steps:
       - name: Security Check Summary

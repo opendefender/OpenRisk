@@ -135,11 +135,15 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 	}
 
 	return func(c *fiber.Ctx) error {
-		// Determine the key (IP or user ID)
+		// Determine the key (IP or user ID).
+		//
+		// c.IP() is the ONLY acceptable source here. It resolves the proxy header
+		// exclusively when the peer is a configured trusted proxy (see
+		// middleware.TrustedProxies and fiber.Config.EnableTrustedProxyCheck in
+		// main.go). Reading X-Forwarded-For directly — as this code used to —
+		// let any client mint a fresh counter per request and defeated the
+		// throttle outright (audit finding F-04).
 		key := c.IP()
-		if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
-			key = forwarded
-		}
 
 		if config.LimitByUser {
 			// Try to get user ID from context
