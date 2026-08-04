@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from 'react';
 import { AlertTriangle, ChevronRight, ShieldCheck, FileText, Filter, Wrench, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';

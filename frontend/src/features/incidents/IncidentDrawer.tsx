@@ -6,7 +6,7 @@
 // resolution), see its real timeline, jump into the War Room, or delete it.
 
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { X, Save, Trash2, Activity, Clock, Loader2 } from 'lucide-react';
 import { SkeletonRows } from '../../shared/ui';

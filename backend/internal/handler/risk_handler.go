@@ -432,7 +432,9 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 
 	domainRisk, err := h.updateRiskUseCase.Execute(c.UserContext(), orgID, riskID, ucInput)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Could not update risk", "details": err.Error()})
+		// Typed mapping: updating another tenant's risk is a not-found, not a
+		// bad request, and the raw error must not reach the client.
+		return writeAppError(c, err)
 	}
 
 	if len(input.AssetIDs) > 0 {
@@ -516,9 +518,13 @@ func (h *RiskHandler) DeleteRisk(c *fiber.Ctx) error {
 		orgID = mwCtx.OrganizationID
 	}
 
-	err = h.deleteRiskUseCase.Execute(c.UserContext(), orgID, riskID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not delete risk", "details": err.Error()})
+	// Map the typed domain error instead of collapsing everything into 500.
+	// Deleting a risk that belongs to another tenant used to answer 500 with the
+	// raw error in `details`: wrong semantics (it is a not-found, not a server
+	// fault) and an information leak that bypassed the global error handler,
+	// since this response is constructed explicitly.
+	if err = h.deleteRiskUseCase.Execute(c.UserContext(), orgID, riskID); err != nil {
+		return writeAppError(c, err)
 	}
 
 	return c.SendStatus(204)

@@ -23,7 +23,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { CritBadge, softFill } from '../../shared/ui';
 import { scoreColor, critColor, type Criticality } from '../../shared/riskColors';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useAssets } from '../assets/useAssets';
 import { useAssetDependencies } from '../assets/useAssetDependencies';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';

@@ -9,7 +9,7 @@ import { Zap, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from 'sonner';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router';
 import { api } from '../lib/api';
 
 export const Register = () => {

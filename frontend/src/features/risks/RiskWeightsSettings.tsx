@@ -8,7 +8,7 @@
 // the live-normalised effective share of each factor. Read-only for non-admins.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { SlidersHorizontal, RotateCcw, Save, ArrowLeft } from 'lucide-react';
 import { PageFrame, PageHeader, Card, Btn, SkeletonRows, ErrorState } from '../../shared/ui';

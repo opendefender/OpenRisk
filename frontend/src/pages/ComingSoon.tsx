@@ -5,7 +5,7 @@
 // (Leaderboard, Infrastructure, Simulations, Asset Universe). Keeps the shell from
 // dead-ending — an explicit empty state with icon + title + subtitle, per §8.
 
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { ALL_NAV_ITEMS } from '../shared/navModel';
 import { useUIStrings } from '../shared/uiStrings';

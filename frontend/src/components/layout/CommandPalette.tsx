@@ -6,7 +6,7 @@
 // closes. Registers the global ⌘K keyboard shortcut itself.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Plus, FileText, Sun, Moon, Languages, Search, ShieldAlert, Database, Bug, Loader2, ClipboardCheck, Scale, Globe, Users, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';

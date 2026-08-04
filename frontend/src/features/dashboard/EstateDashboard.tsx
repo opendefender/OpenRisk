@@ -6,7 +6,7 @@
 // asset editor). Real data from the assets endpoint.
 
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Database, ShieldAlert, AlertTriangle, Boxes } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useAssets } from '../assets/useAssets';

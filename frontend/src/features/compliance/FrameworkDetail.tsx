@@ -6,7 +6,7 @@
 // progress gauge + a one-click PDF export. Status filter chips for the long lists.
 
 import { useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { ArrowLeft, Download, ClipboardCheck, Paperclip, Upload, Trash2, X, FileText, Plus } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Chip, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';

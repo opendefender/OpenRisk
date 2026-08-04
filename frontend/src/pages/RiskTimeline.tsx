@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowUp, ArrowDown, Clock, User, AlertCircle, Loader, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { toast } from 'react-hot-toast';
 
 interface TimelineEvent {
@@ -78,7 +78,7 @@ export default function RiskTimeline() {
     if (!riskId) return;
     try {
       const response = await fetch(`/api/v1/risks/${riskId}/timeline`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
 
       if (response.ok) {

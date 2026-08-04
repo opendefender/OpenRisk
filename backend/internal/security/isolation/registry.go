@@ -124,10 +124,14 @@ var decisions = []Decision{
 	// --- Known gaps -------------------------------------------------------
 	// These execute against real tenant data and rely on repository-level
 	// scoping that no test currently pins end to end.
-	{"/api/v1/risks/{id}", Pending,
-		"repository is tenant-scoped via GetByID(tenant) but no cross-tenant HTTP assertion"},
+	{"/api/v1/risks/{id}", Covered,
+		"handler/risk_isolation_test drives read/update/transition/review/delete from tenant A at tenant B's risk over the real handler+repository chain; validated by sabotage"},
+	{"/api/v1/risks/{id}/transition", Covered,
+		"handler/risk_isolation_test TestRiskIsolation_CrossTenantAccessIsRefused/transition_phase"},
+	{"/api/v1/risks/{id}/review", Covered,
+		"handler/risk_isolation_test TestRiskIsolation_CrossTenantAccessIsRefused/mark_reviewed"},
 	{"/api/v1/risks/*", Pending,
-		"financial/smart-score/simulate/review/mitigations subpaths lack cross-tenant assertions"},
+		"financial/smart-score/simulate/mitigations subpaths lack cross-tenant assertions"},
 	{"/api/v1/mitigations/*", Pending,
 		"sub-action paths verify ownership through the parent plan; not pinned by a test"},
 	{"/api/v1/governance/*", Pending,

@@ -7,7 +7,7 @@
 // + empty state on all three.
 
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Clock, ShieldCheck, KanbanSquare, Rows3, GanttChartSquare, X, ChevronDown, Check, Loader2 } from 'lucide-react';

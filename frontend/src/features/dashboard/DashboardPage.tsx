@@ -7,7 +7,7 @@
 // the design's representative fixtures otherwise.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
   ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap,
   type LucideIcon,
@@ -22,6 +22,13 @@ import { useDashboardStats } from './useStats';
 import { useFrameworks } from '../compliance/useCompliance';
 import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
+import { InfoHint } from '../../shared/InfoHint';
+import { personaFor } from './dashboardPersona';
+import { AnalystDashboard } from './AnalystDashboard';
+import { ExecDashboard } from './ExecDashboard';
+import { AuditDashboard } from './AuditDashboard';
+import { EstateDashboard } from './EstateDashboard';
+import { ViewerDashboard } from './ViewerDashboard';
 
 /* ---------------- helpers ---------------- */
 

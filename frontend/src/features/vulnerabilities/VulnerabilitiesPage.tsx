@@ -26,6 +26,7 @@ import type { Vulnerability, VulnStatus, VulnQueryParams } from './vulnerability
 import { SEVERITY_META, STATUS_META, STATUS_ORDER, TIER_META, SOURCE_LABEL, pick } from './vulnMeta';
 import { IngestModal } from './IngestModal';
 import { IntegrationsPanel } from './IntegrationsPanel';
+import { safeExternalUrl } from '../../shared/safeUrl';
 
 const cvssColor = (s: number) =>
   s >= 9 ? 'var(--critical)' : s >= 7 ? 'var(--high)' : s >= 4 ? 'var(--medium)' : 'var(--low)';
@@ -342,7 +343,9 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
               <span className="text-[12.5px] font-semibold text-ink">{tr('Ticket ITSM', 'ITSM ticket')}</span>
             </div>
             {v.ticket_key ? (
-              <a href={v.ticket_url || '#'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+              // The ITSM base URL comes from tenant-configured integration data,
+              // so the href is allowlisted to http(s) rather than trusted.
+              <a href={safeExternalUrl(v.ticket_url) ?? '#'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
                 {v.ticket_key} <ExternalLink size={13} />
               </a>
             ) : canWrite ? (

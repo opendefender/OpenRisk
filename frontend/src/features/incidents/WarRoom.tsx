@@ -9,7 +9,7 @@
 // hence the Aperçu/Preview badge; the incident context + timeline + close are real.
 
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { Check, Plus, Send, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Avatar, PreviewBadge, SkeletonRows, EmptyState } from '../../shared/ui';

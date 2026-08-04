@@ -75,7 +75,7 @@ export default function CustomFields() {
   const fetchFields = async () => {
     try {
       const response = await fetch('/api/v1/custom-fields', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -91,7 +91,7 @@ export default function CustomFields() {
   const fetchTemplates = async () => {
     try {
       const response = await fetch('/api/v1/custom-fields/templates', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -118,7 +118,7 @@ export default function CustomFields() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify(formData),
       });
@@ -151,7 +151,7 @@ export default function CustomFields() {
     try {
       const response = await fetch(`/api/v1/custom-fields/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
 
       if (response.ok) {
