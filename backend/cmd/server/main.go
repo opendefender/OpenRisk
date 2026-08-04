@@ -18,7 +18,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/google/uuid"
@@ -411,7 +410,11 @@ func main() {
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${method} ${path} (${latency})\n",
 	}))
-	app.Use(helmet.New()) // Sécurité headers (XSS, Content-Type, etc.)
+	// Security headers. helmet's zero-value config omits Content-Security-Policy
+	// and Strict-Transport-Security entirely (audit finding F-01) — both are now
+	// configured explicitly. See middleware.LoadSecurityHeadersConfig for the
+	// env overrides and why the API policy is maximally strict.
+	app.Use(middleware.SecurityHeaders(middleware.LoadSecurityHeadersConfig()))
 
 	// CORS: honour the CORS_ORIGINS env var (comma-separated allowlist) when set
 	// — this is what .env.example documents and what deployments need to point at
