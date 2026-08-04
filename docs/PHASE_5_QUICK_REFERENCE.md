@@ -213,7 +213,7 @@ curl 'http://localhost:9090/api/v1/query?query=redis_commands_processed_total'
 curl http://localhost:9090/api/v1/rules | jq '.data.groups[0].rules'
 
 # Check Grafana datasource
-curl -u admin:admin http://localhost:3001/api/datasources
+curl -u "$GRAFANA_USER:$GRAFANA_PASSWORD" http://localhost:3001/api/datasources
 ```
 
 ## Useful Links

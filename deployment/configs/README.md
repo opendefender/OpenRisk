@@ -161,7 +161,7 @@ curl https://openrisk-api.onrender.com/api/health
 # Get token
 TOKEN=$(curl -X POST https://openrisk-api.onrender.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@openrisk.local","password":"admin123"}' \
+  -d "{\"email\":\"$OPENRISK_EMAIL\",\"password\":\"$OPENRISK_PASSWORD\"}" \
   | jq -r '.token')
 
 # Use token
