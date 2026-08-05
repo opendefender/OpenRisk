@@ -13,6 +13,7 @@ import (
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 // MFAHandler exposes the /auth/mfa/* endpoints: setup + verify (enrollment, under
@@ -157,7 +158,20 @@ func (h *MFAHandler) Challenge(c *fiber.Ctx) error {
 	if h.audit != nil {
 		_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaVerify, true, nil)
 	}
-	return c.JSON(LoginResponse{TokenPair: pair})
+
+	// The MFA challenge is the second leg of login and the point where the real
+	// session is minted, so it must set the same cookies as /auth/login —
+	// otherwise every MFA-enabled account would silently fall back to
+	// token-in-JavaScript, which is the exact exposure this migration removes.
+	csrfToken, err := middleware.IssueSessionCookies(
+		c, pair.AccessToken, pair.RefreshToken,
+		coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL,
+	)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
+	}
+
+	return c.JSON(LoginResponse{TokenPair: pair, CSRFToken: csrfToken})
 }
 
 // mapAuthError maps typed domain errors to HTTP status codes.

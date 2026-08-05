@@ -11,6 +11,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 // Handler handles authentication endpoints
@@ -65,6 +66,10 @@ type LoginResponse struct {
 	// BusinessRole is the member's GRC job-role preset (rssi/dsi/…) or "" for
 	// root/admin. The frontend uses it to choose a role-appropriate landing.
 	BusinessRole domain.BusinessRoleKey `json:"business_role,omitempty"`
+	// CSRFToken mirrors the readable or_csrf cookie. Returning it here spares the
+	// SPA a cookie read on first load; it is not a secret from the client, only
+	// from other origins.
+	CSRFToken string `json:"csrf_token,omitempty"`
 }
 
 // Login godoc
@@ -133,12 +138,40 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	}
 	h.logAudit(c, &result.User.ID, tenantID, coreauth.AuditActionLogin, true, nil)
 
+	csrfToken, err := h.issueSessionCookies(c, result.TokenPair)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Could not establish session",
+		})
+	}
+
 	return c.JSON(LoginResponse{
 		User:         result.User,
 		TokenPair:    result.TokenPair,
 		Organization: result.Organization,
 		BusinessRole: result.BusinessRole,
+		CSRFToken:    csrfToken,
 	})
+}
+
+// issueSessionCookies writes the HttpOnly session pair and returns the CSRF
+// token minted alongside it.
+//
+// The token pair stays in the response body as well. Dropping it would break
+// every non-browser consumer in one step — the scanner agent, CI scripts and the
+// generated OpenAPI client all read it — so the cookies are additive and the
+// browser client simply stops persisting what it receives.
+func (h *Handler) issueSessionCookies(c *fiber.Ctx, pair *coreauth.TokenPair) (string, error) {
+	if pair == nil {
+		return "", nil
+	}
+	return middleware.IssueSessionCookies(
+		c,
+		pair.AccessToken,
+		pair.RefreshToken,
+		coreauth.AccessTokenTTL,
+		coreauth.RefreshTokenTTL,
+	)
 }
 
 func strptr(s string) *string { return &s }
@@ -219,6 +252,8 @@ type RefreshTokenRequest struct {
 
 // RefreshTokenResponse represents the refresh token response
 type RefreshTokenResponse struct {
+	// CSRFToken mirrors the refreshed or_csrf cookie (see LoginResponse).
+	CSRFToken string              `json:"csrf_token,omitempty"`
 	TokenPair *coreauth.TokenPair `json:"token_pair"`
 }
 
@@ -235,9 +270,21 @@ type RefreshTokenResponse struct {
 // @Router /auth/refresh [post]
 func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	var req RefreshTokenRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+	// A cookie-based client sends no body at all, so a parse failure is only
+	// fatal once the cookie has also come up empty.
+	parseErr := c.BodyParser(&req)
+
+	if req.RefreshToken == "" {
+		req.RefreshToken = middleware.RefreshTokenFromRequest(c)
+	}
+	if req.RefreshToken == "" {
+		if parseErr != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid request body",
+			})
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Token refresh failed",
 		})
 	}
 
@@ -259,8 +306,20 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	}
 
 	h.logAudit(c, nil, nil, coreauth.AuditActionRefresh, true, nil)
+
+	// Rotation is single-use (L3): the presented refresh token was destroyed, so
+	// the cookies must be re-issued or the browser would keep replaying a token
+	// that is now revoked. A fresh CSRF token comes with them.
+	csrfToken, err := h.issueSessionCookies(c, result.TokenPair)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Could not establish session",
+		})
+	}
+
 	return c.JSON(RefreshTokenResponse{
 		TokenPair: result.TokenPair,
+		CSRFToken: csrfToken,
 	})
 }
 
@@ -282,10 +341,19 @@ type LogoutRequest struct {
 // @Router /auth/logout [post]
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	var req LogoutRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+	_ = c.BodyParser(&req) // cookie-based clients send no body
+
+	if req.RefreshToken == "" {
+		req.RefreshToken = middleware.RefreshTokenFromRequest(c)
+	}
+
+	// Clear unconditionally, before the revocation attempt. If revocation fails
+	// the browser must still lose its session — a logout that leaves usable
+	// cookies behind is worse than one that reports an error.
+	middleware.ClearSessionCookies(c)
+
+	if req.RefreshToken == "" {
+		return c.JSON(fiber.Map{"message": "Logged out"})
 	}
 
 	err := h.logoutUseCase.Execute(c.UserContext(), auth.LogoutInput{

@@ -33,25 +33,27 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 			return c.Next()
 		}
 
-		// Extract token from Authorization header
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
+		tokenString, fromCookie, extractErr := extractAccessToken(c)
+		if extractErr != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"code":    "UNAUTHORIZED",
-				"message": "Missing authorization header",
+				"message": extractErr.Error(),
 			})
 		}
 
-		// Parse "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "UNAUTHORIZED",
-				"message": "Invalid authorization header format",
-			})
+		// The browser attaches cookies on its own, so a cookie-authenticated
+		// state-changing request may have been triggered by another origin. A bearer
+		// header cannot be attached that way, which is why header-authenticated
+		// callers (PATs, scanner agents, CI tooling) are exempt from the CSRF check.
+		if fromCookie {
+			if err := verifyCSRF(c); err != nil {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"code":    "CSRF_FAILED",
+					"message": err.Error(),
+				})
+			}
+			c.Locals("auth_via_cookie", true)
 		}
-
-		tokenString := parts[1]
 
 		// Validate JWT with RS256 signature and JTI blacklist check
 		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)

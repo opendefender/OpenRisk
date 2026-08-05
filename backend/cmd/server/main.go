@@ -419,10 +419,16 @@ func main() {
 			allowOrigins = "https://app.opendefender.io"
 		}
 	}
+	// AllowCredentials is required for the HttpOnly session cookies: without it a
+	// browser refuses to attach them to a cross-origin request. It also forbids
+	// the "*" origin, which is why the allowlist above must stay explicit — the
+	// combination of a wildcard origin and credentials is precisely the
+	// misconfiguration that lets any site call the API as the logged-in user.
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: allowOrigins,
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET, POST, PATCH, DELETE, OPTIONS",
+		AllowOrigins:     allowOrigins,
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-CSRF-Token, X-Device-Fingerprint",
+		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		AllowCredentials: true,
 	}))
 
 	// =========================================================================
