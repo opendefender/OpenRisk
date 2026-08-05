@@ -36,29 +36,29 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
   const getStatusIcon = (status?: string) => {
     switch (status) {
       case 'active':
-        return <CheckCircle size={16} className="text-green-600" />;
+        return <CheckCircle size={16} className="text-success-text" />;
       case 'warning':
-        return <AlertTriangle size={16} className="text-yellow-600" />;
+        return <AlertTriangle size={16} className="text-warning-text" />;
       case 'critical':
-        return <AlertTriangle size={16} className="text-red-600" />;
+        return <AlertTriangle size={16} className="text-danger-text" />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900">
+      <div className="flex items-center justify-between p-4 border-b border-border-subtle">
+        <h3 className="text-lg font-semibold text-text-primary">
           {title}
           {rowCount !== undefined && (
-            <span className="ml-2 text-sm font-normal text-gray-400">({rowCount})</span>
+            <span className="ml-2 text-sm font-normal text-text-secondary">({rowCount})</span>
           )}
         </h3>
         <button
           onClick={onViewMore}
-          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+          className="p-2 text-text-secondary hover:text-text-muted rounded-lg hover:bg-surface-sunken transition"
         >
           <MoreVertical size={18} />
         </button>
@@ -71,43 +71,43 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
         <>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-surface-sunken border-b border-border-subtle">
                 <tr>
                   {(columns ?? []).map((col) => (
                     <th
                       key={col}
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide"
+                      className="px-4 py-3 text-left text-xs font-semibold text-text-primary uppercase tracking-wide"
                     >
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border-subtle">
                 {(data ?? []).map((item) => (
                   <tr
                     key={item.id}
                     onClick={() => onRowClick?.(item)}
-                    className={`transition ${onRowClick ? 'hover:bg-gray-50 cursor-pointer' : ''}`}
+                    className={`transition ${onRowClick ? 'hover:bg-surface-sunken cursor-pointer' : ''}`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(item.status)}
-                        <span className="text-sm font-medium text-gray-900">{item.name}</span>
+                        <span className="text-sm font-medium text-text-primary">{item.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-gray-700">{item.value}</span>
+                      <span className="text-sm text-text-primary">{item.value}</span>
                     </td>
                     {item.trend !== undefined && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <TrendingUp
                             size={14}
-                            className={item.trend >= 0 ? 'text-green-600' : 'text-red-600'}
+                            className={item.trend >= 0 ? 'text-success-text' : 'text-danger-text'}
                           />
                           <span
-                            className={`text-sm font-medium ${item.trend >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                            className={`text-sm font-medium ${item.trend >= 0 ? 'text-success-text' : 'text-danger-text'}`}
                           >
                             {item.trend >= 0 ? '+' : ''}{item.trend}%
                           </span>
@@ -123,7 +123,7 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
           {/* Empty state */}
           {(data ?? []).length === 0 && (
             <div className="p-8 text-center">
-              <p className="text-gray-500">No data available</p>
+              <p className="text-text-muted">No data available</p>
             </div>
           )}
         </>

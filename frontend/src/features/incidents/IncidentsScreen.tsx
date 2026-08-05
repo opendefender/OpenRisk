@@ -290,7 +290,7 @@ function CreateIncidentModal({ onClose }: { onClose: () => void }) {
 
         <div className="px-[22px] py-4 flex justify-end gap-2.5" style={{ borderTop: '1px solid var(--border)' }}>
           <button type="button" onClick={onClose} className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold text-ink-soft hover:text-ink transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>{tr('Annuler', 'Cancel')}</button>
-          <button type="submit" disabled={createIncident.isPending} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition-all disabled:opacity-60" style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}>
+          <button type="submit" disabled={createIncident.isPending} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-60" style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}>
             {createIncident.isPending && <Loader2 size={15} className="animate-spin" />}
             {tr('Créer', 'Create')}
           </button>

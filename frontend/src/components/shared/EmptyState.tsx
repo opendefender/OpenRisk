@@ -46,7 +46,7 @@ export const EmptyState = ({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.1, type: 'spring', stiffness: 100 }}
-        className="mb-6 text-zinc-500"
+        className="mb-6 text-text-muted"
       >
         {typeof icon === 'string' ? (
           <div className="text-6xl">{icon}</div>
@@ -62,7 +62,7 @@ export const EmptyState = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="text-lg font-semibold text-white mb-2"
+        className="text-lg font-semibold text-text-primary mb-2"
       >
         {title}
       </motion.h3>
@@ -73,7 +73,7 @@ export const EmptyState = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-sm text-zinc-400 mb-6 max-w-md"
+          className="text-sm text-text-secondary mb-6 max-w-md"
         >
           {description}
         </motion.p>

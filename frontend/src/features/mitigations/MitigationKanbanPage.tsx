@@ -30,10 +30,10 @@ import { cn } from '../../utils/cn';
 type KanbanColumn = MitigationStatus;
 
 const KANBAN_COLUMNS: Array<{ id: KanbanColumn; label: string; color: string }> = [
-  { id: 'TODO', label: 'À faire', color: 'bg-slate-500/20' },
-  { id: 'IN_PROGRESS', label: 'En cours', color: 'bg-blue-500/20' },
-  { id: 'REVIEW', label: 'Vérification', color: 'bg-orange-500/20' },
-  { id: 'DONE', label: 'Complété', color: 'bg-emerald-500/20' },
+  { id: 'TODO', label: 'À faire', color: 'bg-surface-3/20' },
+  { id: 'IN_PROGRESS', label: 'En cours', color: 'bg-accent-500/20' },
+  { id: 'REVIEW', label: 'Vérification', color: 'bg-warning/20' },
+  { id: 'DONE', label: 'Complété', color: 'bg-success/20' },
 ];
 
 interface OptimisticUpdate {
@@ -196,8 +196,8 @@ export const MitigationKanbanPage = () => {
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-white">Plans d'atténuation</h1>
-          <p className="text-sm text-zinc-400 mt-1">Gérez et suivez vos plans d'atténuation des risques</p>
+          <h1 className="text-2xl font-bold text-text-primary">Plans d'atténuation</h1>
+          <p className="text-sm text-text-secondary mt-1">Gérez et suivez vos plans d'atténuation des risques</p>
         </div>
         <div className="flex items-center gap-3">
           <ViewSwitcher />
@@ -213,7 +213,7 @@ export const MitigationKanbanPage = () => {
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity }}>
-              <Zap className="text-blue-500" size={32} />
+              <Zap className="text-info-text" size={32} />
             </motion.div>
           </div>
         ) : mitigations.length === 0 ? (
@@ -247,20 +247,20 @@ export const MitigationKanbanPage = () => {
                   >
                     {/* Column Header */}
                     <div className={cn(
-                      'px-4 py-3 border-b border-zinc-700',
-                      isReviewColumn ? 'bg-orange-500/20' : 'bg-zinc-800/50'
+                      'px-4 py-3 border-b border-border-default',
+                      isReviewColumn ? 'bg-warning/20' : 'bg-surface-2/50'
                     )}>
                       <div className="flex items-center justify-between">
                         <h2 className={cn(
                           'font-semibold text-sm',
-                          isReviewColumn ? 'text-orange-400' : 'text-white'
+                          isReviewColumn ? 'text-warning-text' : 'text-text-primary'
                         )}>
                           {column.label}
                         </h2>
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             'text-xs font-medium px-2 py-1 rounded-full',
-                            isReviewColumn ? 'bg-orange-500/30 text-orange-300' : 'bg-zinc-700 text-zinc-300'
+                            isReviewColumn ? 'bg-warning/30 text-warning-text' : 'bg-surface-3 text-text-secondary'
                           )}>
                             {items.length}
                           </span>
@@ -268,7 +268,7 @@ export const MitigationKanbanPage = () => {
                             <motion.span
                               animate={{ scale: [1, 1.1, 1] }}
                               transition={{ duration: 1.5, repeat: Infinity }}
-                              className="text-xs font-bold px-2 py-1 rounded-full bg-red-500/30 text-red-400"
+                              className="text-xs font-bold px-2 py-1 rounded-full bg-danger/30 text-danger-text"
                             >
                               {reviewPendingCount} en retard
                             </motion.span>
@@ -285,7 +285,7 @@ export const MitigationKanbanPage = () => {
                           {...provided.droppableProps}
                           className={cn(
                             'flex-1 p-3 space-y-3 overflow-y-auto',
-                            snapshot.isDraggingOver ? 'bg-zinc-800/30' : 'bg-zinc-900/20'
+                            snapshot.isDraggingOver ? 'bg-surface-2/30' : 'bg-surface-1/20'
                           )}
                         >
                           <AnimatePresence>
@@ -314,7 +314,7 @@ export const MitigationKanbanPage = () => {
                           </AnimatePresence>
 
                           {items.length === 0 && (
-                            <div className="text-center py-8 text-zinc-500 text-sm">
+                            <div className="text-center py-8 text-text-muted text-sm">
                               Glissez des plans ici
                             </div>
                           )}

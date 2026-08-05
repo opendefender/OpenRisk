@@ -21,7 +21,7 @@ export const ViewSwitcher = memo(function ViewSwitcher() {
   const { viewMode, setViewMode } = useMitigationStore();
 
   return (
-    <div className="flex items-center gap-2 bg-zinc-800/30 p-1 rounded-lg border border-zinc-700">
+    <div className="flex items-center gap-2 bg-surface-2/30 p-1 rounded-lg border border-border-default">
       {VIEWS.map((view) => (
         <motion.button
           key={view.id}
@@ -29,8 +29,8 @@ export const ViewSwitcher = memo(function ViewSwitcher() {
           className={cn(
             'px-3 py-2 rounded flex items-center gap-2 transition-colors text-sm font-medium',
             viewMode === view.id
-              ? 'bg-blue-600 text-white'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-accent-500 text-text-primary'
+              : 'text-text-secondary hover:text-text-primary'
           )}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

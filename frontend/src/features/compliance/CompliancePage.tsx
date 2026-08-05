@@ -92,8 +92,8 @@ export const CompliancePage = () => {
       <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{t('compliance.title')}</h1>
-          <p className="text-sm text-zinc-500">{t('compliance.description')}</p>
+          <h1 className="text-2xl font-semibold text-text-primary">{t('compliance.title')}</h1>
+          <p className="text-sm text-text-muted">{t('compliance.description')}</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
@@ -115,11 +115,11 @@ export const CompliancePage = () => {
           {frameworksLoading ? (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-11 animate-pulse rounded-xl bg-zinc-900" />
+                <div key={i} className="h-11 animate-pulse rounded-xl bg-surface-1" />
               ))}
             </div>
           ) : frameworksError ? (
-            <p className="text-sm text-red-400">{t('errors.networkError')}</p>
+            <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
           ) : frameworks.length === 0 ? (
             <EmptyState
               icon={<ShieldCheck size={24} />}
@@ -137,18 +137,18 @@ export const CompliancePage = () => {
                 className={`group relative rounded-xl border transition-all ${
                   selectedFrameworkId === framework.id
                     ? 'border-primary bg-primary/10'
-                    : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'
+                    : 'border-border-subtle bg-surface-0/40 hover:border-border-default'
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => framework.id && selectFramework(framework.id)}
                   className={`w-full rounded-xl px-4 py-2.5 pr-10 text-left text-sm transition-colors ${
-                    selectedFrameworkId === framework.id ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-200'
+                    selectedFrameworkId === framework.id ? 'text-text-primary' : 'text-text-secondary group-hover:text-text-primary'
                   }`}
                 >
                   <div className="font-medium">{framework.name}</div>
-                  {framework.version && <div className="text-xs text-zinc-500">{framework.version}</div>}
+                  {framework.version && <div className="text-xs text-text-muted">{framework.version}</div>}
                 </button>
                 {isAdmin && framework.id && (
                   <button
@@ -156,7 +156,7 @@ export const CompliancePage = () => {
                     aria-label={t('compliance.deleteFramework')}
                     title={t('compliance.deleteFramework')}
                     onClick={() => handleDeleteFramework(framework.id as string, framework.name)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 focus:opacity-100 group-hover:opacity-100"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-text-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger-text focus:opacity-100 group-hover:opacity-100"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -175,7 +175,7 @@ export const CompliancePage = () => {
               <ComplianceGauge progress={computeComplianceProgress(selectedFrameworkId, controls)} />
 
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
                   {t('compliance.controls')}
                 </h2>
                 <div className="flex items-center gap-2">
@@ -200,8 +200,8 @@ export const CompliancePage = () => {
               {controlsLoading ? (
                 <SkeletonTable rows={5} columns={4} />
               ) : controlsError ? (
-                <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-6 text-center">
-                  <p className="text-sm text-red-400">{t('errors.networkError')}</p>
+                <div className="rounded-2xl border border-red-900/40 bg-danger-surface p-6 text-center">
+                  <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
                 </div>
               ) : controls.length === 0 ? (
                 <EmptyState

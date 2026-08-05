@@ -137,7 +137,7 @@ export function WarRoom() {
         </div>
         <div className="flex gap-2.5">
           {!closed && (
-            <button onClick={() => setConfirmClose(true)} className="h-9 px-[15px] rounded-[10px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition-all hover:brightness-110" style={{ background: 'var(--critical)' }}><Check size={16} /> {tr('Clore l’incident', 'Close incident')}</button>
+            <button onClick={() => setConfirmClose(true)} className="h-9 px-[15px] rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all hover:brightness-110" style={{ background: 'var(--critical)' }}><Check size={16} /> {tr('Clore l’incident', 'Close incident')}</button>
           )}
         </div>
       </div>
@@ -196,7 +196,7 @@ export function WarRoom() {
               className="flex-1 h-11 px-4 rounded-xl text-[14px] text-ink outline-none"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
             />
-            <button onClick={send} className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}><Send size={19} /></button>
+            <button onClick={send} className="w-11 h-11 rounded-xl flex items-center justify-center text-text-primary shrink-0" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}><Send size={19} /></button>
           </div>
         </div>
 
@@ -232,7 +232,7 @@ export function WarRoom() {
             <div className="text-[13.5px] text-ink-soft leading-relaxed mb-[22px]">{tr('Le statut passera à « Clos » et l’incident sortira des incidents actifs.', 'The status will be set to "Closed" and it will leave the active incidents.')}</div>
             <div className="flex gap-2.5">
               <button onClick={() => setConfirmClose(false)} className="flex-1 h-[42px] rounded-[11px] text-[13.5px] font-semibold text-ink" style={{ border: '1px solid var(--border-strong)' }}>{tr('Annuler', 'Cancel')}</button>
-              <button onClick={closeIncident} disabled={updateIncident.isPending} className="flex-1 h-[42px] rounded-[11px] text-[13.5px] font-semibold text-white disabled:opacity-60" style={{ background: 'var(--critical)' }}>{tr('Clore', 'Close')}</button>
+              <button onClick={closeIncident} disabled={updateIncident.isPending} className="flex-1 h-[42px] rounded-[11px] text-[13.5px] font-semibold text-text-primary disabled:opacity-60" style={{ background: 'var(--critical)' }}>{tr('Clore', 'Close')}</button>
             </div>
           </div>
         </div>

@@ -42,10 +42,10 @@ const getDaysUntilDeadline = (dueDate: string): number => {
 };
 
 const getDeadlineColor = (daysLeft: number): string => {
-  if (daysLeft < 0) return 'text-red-400 border-red-500/50 bg-red-500/10';
-  if (daysLeft < 3) return 'text-red-400 border-red-500/50 bg-red-500/10';
-  if (daysLeft < 7) return 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10';
-  return 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10';
+  if (daysLeft < 0) return 'text-danger-text border-danger/50 bg-danger/10';
+  if (daysLeft < 3) return 'text-danger-text border-danger/50 bg-danger/10';
+  if (daysLeft < 7) return 'text-warning-text border-warning/50 bg-warning/10';
+  return 'text-success-text border-success/50 bg-success/10';
 };
 
 const getDeadlineLabel = (daysLeft: number): string => {
@@ -85,21 +85,21 @@ export const MitigationCard = ({
       className={cn(
         'p-4 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing',
         isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100',
-        isSelected ? 'border-blue-500 bg-blue-500/5' : 'border-zinc-700 bg-zinc-900/40 hover:border-zinc-600',
+        isSelected ? 'border-accent-400 bg-accent-500/5' : 'border-border-default bg-surface-1/40 hover:border-border-default',
       )}
       onClick={onClick}
     >
       {/* Header: Title + Risk Badge */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-white text-sm truncate">{mitigation.title}</h3>
+          <h3 className="font-semibold text-text-primary text-sm truncate">{mitigation.title}</h3>
         </div>
         <RiskBadge level={riskLevel} size="sm" />
       </div>
 
       {/* Risk context (optional) */}
       {mitigation.risk_title && (
-        <p className="text-xs text-zinc-400 mb-2 truncate">
+        <p className="text-xs text-text-secondary mb-2 truncate">
           Risque: {mitigation.risk_title}
         </p>
       )}
@@ -141,7 +141,7 @@ export const MitigationCard = ({
       </div>
 
       {/* Assigned user + Editing lock */}
-      <div className="flex items-center justify-between gap-2 pt-3 border-t border-zinc-800">
+      <div className="flex items-center justify-between gap-2 pt-3 border-t border-border-subtle">
         <div className="flex items-center gap-1">
           {mitigation.assigned_to_user ? (
             <UserAvatar
@@ -151,8 +151,8 @@ export const MitigationCard = ({
               tooltip={true}
             />
           ) : (
-            <div className="w-6 h-6 rounded-full border border-zinc-700 bg-zinc-800/50 flex items-center justify-center">
-              <span className="text-xs text-zinc-500">−</span>
+            <div className="w-6 h-6 rounded-full border border-border-default bg-surface-2/50 flex items-center justify-center">
+              <span className="text-xs text-text-muted">−</span>
             </div>
           )}
         </div>
@@ -162,7 +162,7 @@ export const MitigationCard = ({
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="flex items-center gap-1 text-xs text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded"
+            className="flex items-center gap-1 text-xs text-warning-text bg-warning/10 px-2 py-1 rounded"
             title={`Édité par ${mitigation.editing_lock.user_name}`}
           >
             <Lock size={12} />

@@ -99,13 +99,13 @@ export const Users = () => {
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
       case 'admin':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
+        return 'bg-danger/10 text-danger-text border-danger/20';
       case 'analyst':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        return 'bg-accent-500/10 text-info-text border-accent-400/20';
       case 'viewer':
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+        return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
       default:
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+        return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
     }
   };
 
@@ -125,11 +125,11 @@ export const Users = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <UsersIcon className="text-white" size={24} />
+                <UsersIcon className="text-text-primary" size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">User Management</h1>
-                <p className="text-sm text-zinc-400">Manage users and permissions</p>
+                <h1 className="text-2xl font-bold text-text-primary">User Management</h1>
+                <p className="text-sm text-text-secondary">Manage users and permissions</p>
               </div>
             </div>
             <Button className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
@@ -140,19 +140,19 @@ export const Users = () => {
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500" />
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted" />
               <input
                 type="text"
                 placeholder="Search by name, email, or username..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-surface-1/50 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="bg-zinc-900/50 border border-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="bg-surface-1/50 border border-border rounded-lg px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
@@ -171,8 +171,8 @@ export const Users = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-12"
           >
-            <UsersIcon size={48} className="mx-auto text-zinc-600 mb-4" />
-            <p className="text-zinc-400">No users found</p>
+            <UsersIcon size={48} className="mx-auto text-text-muted mb-4" />
+            <p className="text-text-secondary">No users found</p>
           </motion.div>
         ) : (
           <motion.div
@@ -190,13 +190,13 @@ export const Users = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-sm">
+                      <span className="text-text-primary font-bold text-sm">
                         {user.full_name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-medium text-white truncate">{user.full_name}</h3>
-                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                      <h3 className="font-medium text-text-primary truncate">{user.full_name}</h3>
+                      <div className="flex items-center gap-2 text-xs text-text-muted">
                         <span className="truncate">{user.email}</span>
                         <span>•</span>
                         <span className="flex-shrink-0">@{user.username}</span>
@@ -210,7 +210,7 @@ export const Users = () => {
                         <Shield size={12} className="inline-block mr-1" />
                         {user.role}
                       </span>
-                      <p className="text-xs text-zinc-500 mt-1">
+                      <p className="text-xs text-text-muted mt-1">
                         {user.last_login ? `Last: ${new Date(user.last_login).toLocaleDateString()}` : 'Never logged in'}
                       </p>
                     </div>
@@ -220,7 +220,7 @@ export const Users = () => {
                         value={user.role}
                         onChange={(e) => updateUserRole(user.id, e.target.value)}
                         disabled={user.id === currentUser?.id}
-                        className="bg-zinc-900/50 border border-border rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                        className="bg-surface-1/50 border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                       >
                         <option value="viewer">Viewer</option>
                         <option value="analyst">Analyst</option>
@@ -229,23 +229,23 @@ export const Users = () => {
 
                       <button
                         onClick={() => toggleUserStatus(user.id, user.is_active)}
-                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                        className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
                         title={user.is_active ? 'Disable user' : 'Enable user'}
                       >
                         {user.is_active ? (
-                          <Unlock size={16} className="text-green-500" />
+                          <Unlock size={16} className="text-success-text" />
                         ) : (
-                          <Lock size={16} className="text-yellow-500" />
+                          <Lock size={16} className="text-warning-text" />
                         )}
                       </button>
 
                       <button
                         onClick={() => deleteUser(user.id)}
                         disabled={user.id === currentUser?.id}
-                        className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 hover:bg-danger/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Delete user"
                       >
-                        <Trash2 size={16} className="text-red-500" />
+                        <Trash2 size={16} className="text-danger-text" />
                       </button>
                     </div>
                   </div>

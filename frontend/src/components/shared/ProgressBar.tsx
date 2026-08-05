@@ -41,24 +41,24 @@ export const ProgressBar = ({
   };
 
   const variantClasses = {
-    default: 'bg-blue-500',
-    success: 'bg-emerald-500',
-    warning: 'bg-yellow-500',
-    danger: 'bg-red-500',
+    default: 'bg-accent-500',
+    success: 'bg-success',
+    warning: 'bg-warning',
+    danger: 'bg-danger',
   };
 
   return (
     <div className={cn('w-full', className)}>
       {(label || showPercentage) && (
         <div className="flex justify-between items-center mb-2">
-          {label && <span className="text-xs font-medium text-zinc-400">{label}</span>}
+          {label && <span className="text-xs font-medium text-text-secondary">{label}</span>}
           {showPercentage && (
-            <span className="text-xs font-medium text-zinc-400">{percentage}%</span>
+            <span className="text-xs font-medium text-text-secondary">{percentage}%</span>
           )}
         </div>
       )}
       <div className={cn(
-        'w-full bg-zinc-700 rounded-full overflow-hidden',
+        'w-full bg-surface-3 rounded-full overflow-hidden',
         sizeClasses[size]
       )}>
         <motion.div

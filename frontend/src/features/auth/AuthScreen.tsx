@@ -90,13 +90,13 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
         <div className="absolute rounded-full" style={{ top: '-15%', right: '-10%', width: 420, height: 420, background: 'radial-gradient(circle,var(--accent-glow),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
         <div className="absolute rounded-full" style={{ bottom: '0%', left: '-15%', width: 380, height: 380, background: 'radial-gradient(circle,rgba(124,108,255,.4),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
         <div className="flex items-center gap-2.5 relative">
-          <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 3px 14px var(--accent-glow)' }}><OpenRiskLogo size={20} /></div>
-          <span className="disp text-[19px] font-bold text-white">OpenRisk</span>
+          <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 3px 14px var(--accent-glow)' }}><OpenRiskLogo size={20} /></div>
+          <span className="disp text-[19px] font-bold text-text-primary">OpenRisk</span>
         </div>
         <div className="relative flex-1 flex items-center justify-center">
           <div className="relative" style={{ width: 260, height: 260 }}>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 6px 30px var(--accent-glow)' }}><OpenRiskLogo size={30} /></div>
+              <div className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 6px 30px var(--accent-glow)' }}><OpenRiskLogo size={30} /></div>
             </div>
             {[0, 1, 2].map((i) => (
               <div key={i} className="absolute inset-0 rounded-full" style={{ border: '1px solid rgba(255,255,255,.12)', transform: `scale(${0.55 + i * 0.22})` }} />
@@ -108,7 +108,7 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
         </div>
         <div className="relative" style={{ minHeight: 96 }}>
           <div style={{ opacity: qShow ? 1 : 0, transform: qShow ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity .35s ease, transform .35s ease' }}>
-            <div className="text-[17px] font-medium text-white leading-relaxed" style={{ letterSpacing: '-.01em' }}>“{quote}”</div>
+            <div className="text-[17px] font-medium text-text-primary leading-relaxed" style={{ letterSpacing: '-.01em' }}>“{quote}”</div>
             <div className="text-[13px] mt-2.5" style={{ color: 'rgba(255,255,255,.5)' }}>— {author}</div>
           </div>
         </div>
@@ -136,7 +136,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 const inputCls = 'w-full h-11 px-3.5 rounded-[11px] text-[14px] text-ink outline-none focus:border-[var(--accent)]';
 const inputStyle: React.CSSProperties = { border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' };
-const primaryBtn = 'w-full h-[46px] rounded-xl text-[14px] font-semibold text-white';
+const primaryBtn = 'w-full h-[46px] rounded-xl text-[14px] font-semibold text-text-primary';
 const primaryStyle: React.CSSProperties = { background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 4px 16px var(--accent-glow)' };
 
 const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = [

@@ -92,7 +92,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-surface-overlay backdrop-blur-sm z-50"
           />
 
           {/* Modal */}
@@ -105,19 +105,19 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
             <div className="bg-surface border border-border rounded-xl shadow-xl overflow-hidden">
               {/* Header */}
               <div className="bg-gradient-to-r from-primary/20 to-primary/10 border-b border-border px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">Create New User</h2>
+                <h2 className="text-xl font-bold text-text-primary">Create New User</h2>
                 <button
                   onClick={onClose}
-                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  className="p-1 hover:bg-surface-1/10 rounded-lg transition-colors"
                 >
-                  <X size={20} className="text-zinc-400" />
+                  <X size={20} className="text-text-secondary" />
                 </button>
               </div>
 
               {/* Content */}
               <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Full Name *</label>
+                  <label className="text-sm font-medium text-text-primary block mb-2">Full Name *</label>
                   <Input
                     placeholder="John Doe"
                     value={formData.full_name}
@@ -127,7 +127,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Email *</label>
+                  <label className="text-sm font-medium text-text-primary block mb-2">Email *</label>
                   <Input
                     type="email"
                     placeholder="john@example.com"
@@ -138,7 +138,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Username *</label>
+                  <label className="text-sm font-medium text-text-primary block mb-2">Username *</label>
                   <Input
                     placeholder="johndoe"
                     value={formData.username}
@@ -148,7 +148,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Password *</label>
+                  <label className="text-sm font-medium text-text-primary block mb-2">Password *</label>
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -156,11 +156,11 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                     onChange={(e) => handleChange('password', e.target.value)}
                     disabled={isLoading}
                   />
-                  <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
+                  <p className="text-xs text-text-muted mt-1">Minimum 8 characters</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-white block mb-2">Confirm Password *</label>
+                  <label className="text-sm font-medium text-text-primary block mb-2">Confirm Password *</label>
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -172,12 +172,12 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Role *</label>
+                    <label className="text-sm font-medium text-text-primary block mb-2">Role *</label>
                     <select
                       value={formData.role}
                       onChange={(e) => handleChange('role', e.target.value)}
                       disabled={isLoading}
-                      className="w-full bg-zinc-900 border border-border rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                      className="w-full bg-surface-1 border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:ring-2 focus:ring-primary/50 outline-none"
                     >
                       <option value="viewer">Viewer</option>
                       <option value="analyst">Analyst</option>
@@ -186,7 +186,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Group</label>
+                    <label className="text-sm font-medium text-text-primary block mb-2">Group</label>
                     <Input
                       placeholder="Security Team"
                       value={formData.group}
@@ -196,15 +196,15 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                   </div>
                 </div>
 
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                  <p className="text-xs text-blue-300">
+                <div className="bg-accent-500/10 border border-accent-400/20 rounded-lg p-3">
+                  <p className="text-xs text-info-text">
                     💡 The user will be sent an email to verify their account and set a custom password.
                   </p>
                 </div>
               </form>
 
               {/* Footer */}
-              <div className="bg-white/5 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
+              <div className="bg-surface-1/5 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
                 <Button
                   variant="ghost"
                   onClick={onClose}

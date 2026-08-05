@@ -60,7 +60,7 @@ export const GamificationDashboard = ({
     <div className="space-y-6">
       {/* User Level Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className={`bg-gradient-to-br ${getLevelColor(userStats.level)} border-2 border-white/20`}>
+        <Card className={`bg-gradient-to-br ${getLevelColor(userStats.level)} border-2 border-border-strong/20`}>
           <div className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Level Circle */}
@@ -85,8 +85,8 @@ export const GamificationDashboard = ({
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="text-4xl font-bold text-white">{userStats.level}</div>
-                      <div className="text-xs text-white/70">Level</div>
+                      <div className="text-4xl font-bold text-text-primary">{userStats.level}</div>
+                      <div className="text-xs text-text-primary/70">Level</div>
                     </div>
                   </div>
                 </div>
@@ -95,31 +95,31 @@ export const GamificationDashboard = ({
               {/* XP Info */}
               <div className="space-y-4">
                 <div>
-                  <p className="text-white/80 text-sm mb-2">Total Experience</p>
-                  <p className="text-3xl font-bold text-white">{userStats.totalXP.toLocaleString()}</p>
-                  <p className="text-xs text-white/60 mt-1">XP</p>
+                  <p className="text-text-primary/80 text-sm mb-2">Total Experience</p>
+                  <p className="text-3xl font-bold text-text-primary">{userStats.totalXP.toLocaleString()}</p>
+                  <p className="text-xs text-text-primary/60 mt-1">XP</p>
                 </div>
                 <div>
-                  <p className="text-white/80 text-sm mb-2">Next Level</p>
-                  <p className="text-lg font-semibold text-white">{userStats.nextLevelXP.toLocaleString()} XP</p>
+                  <p className="text-text-primary/80 text-sm mb-2">Next Level</p>
+                  <p className="text-lg font-semibold text-text-primary">{userStats.nextLevelXP.toLocaleString()} XP</p>
                 </div>
               </div>
 
               {/* Stats */}
               <div className="space-y-4">
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                <div className="bg-surface-1/10 backdrop-blur-sm rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Target size={16} className="text-white/70" />
-                    <p className="text-white/80 text-sm">Risks Managed</p>
+                    <Target size={16} className="text-text-primary/70" />
+                    <p className="text-text-primary/80 text-sm">Risks Managed</p>
                   </div>
-                  <p className="text-2xl font-bold text-white">{userStats.risksManaged}</p>
+                  <p className="text-2xl font-bold text-text-primary">{userStats.risksManaged}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                <div className="bg-surface-1/10 backdrop-blur-sm rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Zap size={16} className="text-white/70" />
-                    <p className="text-white/80 text-sm">Mitigations Done</p>
+                    <Zap size={16} className="text-text-primary/70" />
+                    <p className="text-text-primary/80 text-sm">Mitigations Done</p>
                   </div>
-                  <p className="text-2xl font-bold text-white">{userStats.mitigationsDone}</p>
+                  <p className="text-2xl font-bold text-text-primary">{userStats.mitigationsDone}</p>
                 </div>
               </div>
             </div>
@@ -127,12 +127,12 @@ export const GamificationDashboard = ({
             {/* Progress Bar */}
             <div className="mt-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-white/80">Progress to Level {userStats.level + 1}</span>
-                <span className="text-sm font-semibold text-white">{userStats.progressPercent}%</span>
+                <span className="text-sm text-text-primary/80">Progress to Level {userStats.level + 1}</span>
+                <span className="text-sm font-semibold text-text-primary">{userStats.progressPercent}%</span>
               </div>
-              <div className="w-full h-3 bg-black/30 rounded-full overflow-hidden backdrop-blur-sm">
+              <div className="w-full h-3 bg-surface-overlay rounded-full overflow-hidden backdrop-blur-sm">
                 <motion.div
-                  className="h-full bg-white/80"
+                  className="h-full bg-surface-1/80"
                   initial={{ width: 0 }}
                   animate={{ width: `${userStats.progressPercent}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -144,15 +144,15 @@ export const GamificationDashboard = ({
       </motion.div>
 
       {/* Navigation Tabs */}
-      <div className="flex gap-3 border-b border-zinc-800">
+      <div className="flex gap-3 border-b border-border-subtle">
         {(['overview', 'achievements', 'leaderboard'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-6 py-3 font-medium text-sm transition-all border-b-2 ${
               activeTab === tab
-                ? 'text-blue-400 border-blue-400'
-                : 'text-zinc-400 border-transparent hover:text-zinc-300'
+                ? 'text-info-text border-accent-400'
+                : 'text-text-secondary border-transparent hover:text-text-secondary'
             }`}
           >
             {tab === 'overview' && '📊 Overview'}
@@ -173,55 +173,55 @@ export const GamificationDashboard = ({
         >
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-zinc-900/50 border-zinc-800 hover:border-blue-600/50 transition-colors">
+            <Card className="bg-surface-1/50 border-border-subtle hover:border-accent-400/50 transition-colors">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-zinc-400 text-sm">Your Rank</p>
-                  <Crown size={20} className="text-yellow-400 opacity-60" />
+                  <p className="text-text-secondary text-sm">Your Rank</p>
+                  <Crown size={20} className="text-warning-text opacity-60" />
                 </div>
-                <p className="text-3xl font-bold text-white">#{userRank}</p>
-                <p className="text-xs text-zinc-500 mt-2">Global Ranking</p>
+                <p className="text-3xl font-bold text-text-primary">#{userRank}</p>
+                <p className="text-xs text-text-muted mt-2">Global Ranking</p>
               </div>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800 hover:border-emerald-600/50 transition-colors">
+            <Card className="bg-surface-1/50 border-border-subtle hover:border-success/50 transition-colors">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-zinc-400 text-sm">Achievements</p>
-                  <Medal size={20} className="text-emerald-400 opacity-60" />
+                  <p className="text-text-secondary text-sm">Achievements</p>
+                  <Medal size={20} className="text-success-text opacity-60" />
                 </div>
-                <p className="text-3xl font-bold text-white">{userStats.achievements.length}</p>
-                <p className="text-xs text-zinc-500 mt-2">Unlocked</p>
+                <p className="text-3xl font-bold text-text-primary">{userStats.achievements.length}</p>
+                <p className="text-xs text-text-muted mt-2">Unlocked</p>
               </div>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800 hover:border-purple-600/50 transition-colors">
+            <Card className="bg-surface-1/50 border-border-subtle hover:border-purple-600/50 transition-colors">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-zinc-400 text-sm">Win Streak</p>
+                  <p className="text-text-secondary text-sm">Win Streak</p>
                   <TrendingUp size={20} className="text-purple-400 opacity-60" />
                 </div>
-                <p className="text-3xl font-bold text-white">7</p>
-                <p className="text-xs text-zinc-500 mt-2">Days Active</p>
+                <p className="text-3xl font-bold text-text-primary">7</p>
+                <p className="text-xs text-text-muted mt-2">Days Active</p>
               </div>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800 hover:border-orange-600/50 transition-colors">
+            <Card className="bg-surface-1/50 border-border-subtle hover:border-warning/50 transition-colors">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-zinc-400 text-sm">Badges</p>
-                  <Zap size={20} className="text-orange-400 opacity-60" />
+                  <p className="text-text-secondary text-sm">Badges</p>
+                  <Zap size={20} className="text-warning-text opacity-60" />
                 </div>
-                <p className="text-3xl font-bold text-white">12</p>
-                <p className="text-xs text-zinc-500 mt-2">Special</p>
+                <p className="text-3xl font-bold text-text-primary">12</p>
+                <p className="text-xs text-text-muted mt-2">Special</p>
               </div>
             </Card>
           </div>
 
           {/* Achievements Summary */}
-          <Card className="bg-zinc-900/50 border-zinc-800">
+          <Card className="bg-surface-1/50 border-border-subtle">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Recent Achievements</h3>
+              <h3 className="text-lg font-semibold text-text-primary mb-4">Recent Achievements</h3>
               <div className="space-y-3">
                 {userStats.achievements.slice(0, 5).map((achievement, index) => (
                   <motion.div
@@ -229,14 +229,14 @@ export const GamificationDashboard = ({
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-center gap-4 p-3 bg-zinc-800/50 rounded-lg hover:bg-zinc-700/50 transition-colors"
+                    className="flex items-center gap-4 p-3 bg-surface-2/50 rounded-lg hover:bg-surface-3/50 transition-colors"
                   >
                     <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-                      <Medal size={20} className="text-white" />
+                      <Medal size={20} className="text-text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm">{achievement.name}</p>
-                      <p className="text-xs text-zinc-400">{achievement.description}</p>
+                      <p className="text-text-primary font-medium text-sm">{achievement.name}</p>
+                      <p className="text-xs text-text-secondary">{achievement.description}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -264,17 +264,17 @@ export const GamificationDashboard = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <Card className="bg-zinc-900/50 border-zinc-800">
+          <Card className="bg-surface-1/50 border-border-subtle">
             <div className="p-6">
               <div className="flex items-center gap-2 mb-6">
-                <Users size={24} className="text-blue-400" />
-                <h3 className="text-lg font-semibold text-white">Global Leaderboard</h3>
+                <Users size={24} className="text-info-text" />
+                <h3 className="text-lg font-semibold text-text-primary">Global Leaderboard</h3>
               </div>
 
               {isLoading ? (
                 <div className="space-y-3">
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-12 bg-zinc-800/50 rounded-lg animate-pulse" />
+                    <div key={i} className="h-12 bg-surface-2/50 rounded-lg animate-pulse" />
                   ))}
                 </div>
               ) : (
@@ -289,8 +289,8 @@ export const GamificationDashboard = ({
                         transition={{ delay: index * 0.05 }}
                         className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
                           isCurrent
-                            ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-600/50'
-                            : 'bg-zinc-800/30 hover:bg-zinc-800/50'
+                            ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-accent-400/50'
+                            : 'bg-surface-2/30 hover:bg-surface-2/50'
                         }`}
                       >
                         {/* Rank */}
@@ -305,30 +305,30 @@ export const GamificationDashboard = ({
                             <div className="text-2xl">🥉</div>
                           )}
                           {user.rank > 3 && (
-                            <p className="text-lg font-bold text-zinc-400">#{user.rank}</p>
+                            <p className="text-lg font-bold text-text-secondary">#{user.rank}</p>
                           )}
                         </div>
 
                         {/* User Info */}
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div
-                            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 text-white font-semibold text-sm"
+                            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 text-text-primary font-semibold text-sm"
                           >
                             {user.username.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`font-medium ${isCurrent ? 'text-blue-400' : 'text-white'}`}>
+                            <p className={`font-medium ${isCurrent ? 'text-info-text' : 'text-text-primary'}`}>
                               {user.username}
-                              {isCurrent && <span className="text-xs text-blue-300 ml-2">(You)</span>}
+                              {isCurrent && <span className="text-xs text-info-text ml-2">(You)</span>}
                             </p>
-                            <p className="text-xs text-zinc-400">Level {user.level}</p>
+                            <p className="text-xs text-text-secondary">Level {user.level}</p>
                           </div>
                         </div>
 
                         {/* XP */}
                         <div className="text-right flex-shrink-0">
-                          <p className="text-lg font-bold text-white">{user.totalXP.toLocaleString()}</p>
-                          <p className="text-xs text-zinc-400">XP</p>
+                          <p className="text-lg font-bold text-text-primary">{user.totalXP.toLocaleString()}</p>
+                          <p className="text-xs text-text-secondary">XP</p>
                         </div>
                       </motion.div>
                     );

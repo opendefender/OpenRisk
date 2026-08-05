@@ -142,7 +142,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             />
           ) : (
             <span
-              className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-white"
+              className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-text-primary"
               style={{ background: item.badge.color ?? 'var(--critical)' }}
             >
               {item.badge.text}
@@ -158,7 +158,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       {mobileOpen && (
         <div
           onClick={onMobileClose}
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-surface-overlay backdrop-blur-sm z-40"
           aria-hidden="true"
         />
       )}
@@ -178,7 +178,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="px-[14px] pt-4 pb-2.5">
             <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
               <div
-                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-white"
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-text-primary"
                 style={{
                   background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
                   boxShadow: '0 2px 10px var(--accent-glow)',
@@ -197,7 +197,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
               >
                 <div
-                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-white"
+                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-text-primary"
                   style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
                 >
                   {orgInitials}
@@ -220,7 +220,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
                 onMobileClose?.();
               }}
-              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white transition-[filter] hover:brightness-110"
+              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-[filter] hover:brightness-110"
               style={{
                 background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
                 boxShadow: '0 3px 12px var(--accent-glow)',
@@ -328,7 +328,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 className={cn('flex items-center gap-2.5 min-w-0 rounded-[9px] py-1 pr-1.5 hover:bg-hover transition-colors', collapsed ? 'px-1' : 'flex-1 pl-1')}
               >
                 <div
-                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-text-primary shrink-0"
                   style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
                 >
                   {initials(user?.full_name)}

@@ -54,7 +54,7 @@ export function AuditDashboard() {
           ) : frameworks.length === 0 ? (
             <div className="py-8 text-center">
               <div className="text-[13px] text-ink-soft mb-3">{tr('Aucun référentiel — importez-en un pour démarrer.', 'No framework — import one to start.')}</div>
-              <button onClick={() => navigate('/compliance')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-white" style={{ background: 'var(--accent)' }}>
+              <button onClick={() => navigate('/compliance')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'var(--accent)' }}>
                 {tr('Ajouter un référentiel', 'Add a framework')}
               </button>
             </div>

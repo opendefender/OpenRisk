@@ -59,11 +59,11 @@ export const MitigationTableView = memo(function MitigationTableView({
   }, [mitigations, sortField, sortDir]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronsUpDown size={14} className="text-zinc-600" />;
+    if (sortField !== field) return <ChevronsUpDown size={14} className="text-text-muted" />;
     return sortDir === 'asc' ? (
-      <ChevronUp size={14} className="text-blue-400" />
+      <ChevronUp size={14} className="text-info-text" />
     ) : (
-      <ChevronDown size={14} className="text-blue-400" />
+      <ChevronDown size={14} className="text-info-text" />
     );
   };
 
@@ -77,7 +77,7 @@ export const MitigationTableView = memo(function MitigationTableView({
 
   if (mitigations.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-zinc-400">
+      <div className="flex items-center justify-center h-64 text-text-secondary">
         Aucun plan d'atténuation
       </div>
     );
@@ -86,67 +86,67 @@ export const MitigationTableView = memo(function MitigationTableView({
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-zinc-700 bg-zinc-900/50">
+        <thead className="border-b border-border-default bg-surface-1/50">
           <tr>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
               <button
                 onClick={() => handleSort('title')}
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-2 hover:text-text-primary transition-colors"
               >
                 Titre
                 <SortIcon field="title" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
               <button
                 onClick={() => handleSort('status')}
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-2 hover:text-text-primary transition-colors"
               >
                 Statut
                 <SortIcon field="status" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
               <button
                 onClick={() => handleSort('priority')}
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-2 hover:text-text-primary transition-colors"
               >
                 Priorité
                 <SortIcon field="priority" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
               <button
                 onClick={() => handleSort('progress')}
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-2 hover:text-text-primary transition-colors"
               >
                 Progression
                 <SortIcon field="progress" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
               <button
                 onClick={() => handleSort('due_date')}
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-2 hover:text-text-primary transition-colors"
               >
                 Deadline
                 <SortIcon field="due_date" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">Assigné</th>
-            <th className="text-left px-4 py-3 font-semibold text-zinc-300">Actions</th>
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">Assigné</th>
+            <th className="text-left px-4 py-3 font-semibold text-text-secondary">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-800">
+        <tbody className="divide-y divide-border-subtle">
           {sortedMitigations.map((mitigation) => (
             <motion.tr
               key={mitigation.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               onClick={() => onRowClick?.(mitigation)}
-              className="hover:bg-zinc-800/30 transition-colors cursor-pointer"
+              className="hover:bg-surface-2/30 transition-colors cursor-pointer"
             >
-              <td className="px-4 py-3 text-white">{mitigation.title}</td>
+              <td className="px-4 py-3 text-text-primary">{mitigation.title}</td>
               <td className="px-4 py-3">
                 <StatusDot
                   status={mitigation.status.toLowerCase() as any}
@@ -157,18 +157,18 @@ export const MitigationTableView = memo(function MitigationTableView({
               <td className="px-4 py-3">
                 <span className={cn(
                   'px-2 py-1 rounded text-xs font-medium',
-                  mitigation.priority === 'critical' ? 'bg-red-500/20 text-red-300' :
-                  mitigation.priority === 'high' ? 'bg-orange-500/20 text-orange-300' :
-                  mitigation.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                  'bg-emerald-500/20 text-emerald-300'
+                  mitigation.priority === 'critical' ? 'bg-danger/20 text-danger-text' :
+                  mitigation.priority === 'high' ? 'bg-warning/20 text-warning-text' :
+                  mitigation.priority === 'medium' ? 'bg-warning/20 text-warning-text' :
+                  'bg-success/20 text-success-text'
                 )}>
                   {mitigation.priority}
                 </span>
               </td>
-              <td className="px-4 py-3 text-zinc-300">
+              <td className="px-4 py-3 text-text-secondary">
                 {mitigation.progress_percentage}%
               </td>
-              <td className="px-4 py-3 text-zinc-300">
+              <td className="px-4 py-3 text-text-secondary">
                 {new Date(mitigation.due_date).toLocaleDateString('fr-FR')}
               </td>
               <td className="px-4 py-3">
@@ -180,7 +180,7 @@ export const MitigationTableView = memo(function MitigationTableView({
                     tooltip={true}
                   />
                 ) : (
-                  <span className="text-xs text-zinc-500">−</span>
+                  <span className="text-xs text-text-muted">−</span>
                 )}
               </td>
               <td className="px-4 py-3">

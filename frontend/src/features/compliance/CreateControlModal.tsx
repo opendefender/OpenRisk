@@ -66,7 +66,7 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 40 }}
@@ -75,7 +75,7 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
             transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
             className="fixed inset-x-0 top-1/2 z-50 mx-auto w-full max-w-lg -translate-y-1/2 transform px-4"
           >
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950/95 p-6 shadow-2xl shadow-black/40">
+            <div className="rounded-3xl border border-border-subtle bg-surface-0/95 p-6 shadow-2xl shadow-black/40">
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="rounded-2xl bg-primary/10 p-2 text-primary">
@@ -86,7 +86,7 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                  className="rounded-full p-2 text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -107,14 +107,14 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
                   disabled={isSubmitting}
                 />
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
                     {t('compliance.form.description')}
                   </label>
                   <textarea
                     {...register('description')}
                     rows={3}
                     disabled={isSubmitting}
-                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                    className="w-full rounded-lg border border-border-subtle bg-surface-1/50 px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                   />
                 </div>
 

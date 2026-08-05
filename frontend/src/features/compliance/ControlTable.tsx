@@ -8,10 +8,10 @@ import { useI18n } from '../../hooks/useI18n';
 import { CONTROL_STATUSES, type ComplianceControl, type ControlStatus } from '../../types/compliance';
 
 const STATUS_DOT: Record<ControlStatus, string> = {
-  not_implemented: 'bg-zinc-500',
-  in_progress: 'bg-yellow-500',
-  implemented: 'bg-emerald-500',
-  not_applicable: 'bg-zinc-700',
+  not_implemented: 'bg-surface-3',
+  in_progress: 'bg-warning',
+  implemented: 'bg-success',
+  not_applicable: 'bg-surface-3',
 };
 
 interface ControlTableProps {
@@ -24,9 +24,9 @@ export const ControlTable = ({ controls, onOpenControl, onStatusChange }: Contro
   const { t } = useI18n();
 
   return (
-    <div className="overflow-x-auto scrollbar-thin rounded-2xl border border-zinc-800">
+    <div className="overflow-x-auto scrollbar-thin rounded-2xl border border-border-subtle">
       <table className="w-full min-w-[560px] text-sm">
-        <thead className="bg-zinc-900/50 text-left text-xs uppercase tracking-wider text-zinc-500">
+        <thead className="bg-surface-1/50 text-left text-xs uppercase tracking-wider text-text-muted">
           <tr>
             <th className="px-4 py-3 font-medium">{t('compliance.referenceCode')}</th>
             <th className="px-4 py-3 font-medium">{t('common.name')}</th>
@@ -34,25 +34,25 @@ export const ControlTable = ({ controls, onOpenControl, onStatusChange }: Contro
             <th className="px-4 py-3 font-medium" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-800/70">
+        <tbody className="divide-y divide-border-subtle/70">
           {controls.map((control, index) => (
             <motion.tr
               key={control.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(index * 0.02, 0.3) }}
-              className="cursor-pointer transition-colors hover:bg-white/5"
+              className="cursor-pointer transition-colors hover:bg-surface-1/5"
               onClick={() => control.id && onOpenControl(control.id)}
             >
-              <td className="px-4 py-3 font-mono text-xs text-zinc-400">{control.reference_code || '—'}</td>
-              <td className="px-4 py-3 text-zinc-100">{control.name}</td>
+              <td className="px-4 py-3 font-mono text-xs text-text-secondary">{control.reference_code || '—'}</td>
+              <td className="px-4 py-3 text-text-primary">{control.name}</td>
               <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${STATUS_DOT[control.status ?? 'not_implemented']}`} />
                   <select
                     value={control.status ?? 'not_implemented'}
                     onChange={(e) => control.id && onStatusChange(control.id, e.target.value as ControlStatus)}
-                    className="rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 outline-none focus:ring-2 focus:ring-primary/40"
+                    className="rounded-lg border border-border-subtle bg-surface-0 px-2 py-1 text-xs text-text-primary outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     {CONTROL_STATUSES.map((status) => (
                       <option key={status} value={status}>
@@ -62,7 +62,7 @@ export const ControlTable = ({ controls, onOpenControl, onStatusChange }: Contro
                   </select>
                 </div>
               </td>
-              <td className="px-4 py-3 text-right text-xs text-zinc-500">→</td>
+              <td className="px-4 py-3 text-right text-xs text-text-muted">→</td>
             </motion.tr>
           ))}
         </tbody>

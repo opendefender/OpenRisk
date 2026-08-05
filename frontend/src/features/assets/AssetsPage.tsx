@@ -22,11 +22,11 @@ import type { Asset } from '../../types/asset';
 const TypeIcon = ({ type }: { type: string }) => {
   switch ((type || '').toLowerCase()) {
     case 'server':
-      return <Server size={16} className="text-blue-400" />;
+      return <Server size={16} className="text-info-text" />;
     case 'database':
-      return <Database size={16} className="text-emerald-400" />;
+      return <Database size={16} className="text-success-text" />;
     case 'laptop':
-      return <Laptop size={16} className="text-zinc-400" />;
+      return <Laptop size={16} className="text-text-secondary" />;
     default:
       return <HardDrive size={16} className="text-purple-400" />;
   }
@@ -65,8 +65,8 @@ export const AssetsPage = () => {
     <div className="p-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('assets.title')}</h1>
-          <p className="text-zinc-400 text-sm">{t('assets.description')}</p>
+          <h1 className="text-2xl font-bold text-text-primary">{t('assets.title')}</h1>
+          <p className="text-text-secondary text-sm">{t('assets.description')}</p>
         </div>
         <div className="flex items-center gap-4">
           <ViewToggle view={view} onViewChange={setView} />
@@ -79,8 +79,8 @@ export const AssetsPage = () => {
       {isLoading ? (
         <SkeletonTable rows={5} columns={5} />
       ) : error ? (
-        <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-6 text-center">
-          <p className="text-sm text-red-400">{t('errors.networkError')}</p>
+        <div className="rounded-2xl border border-red-900/40 bg-danger-surface p-6 text-center">
+          <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
         </div>
       ) : assets.length === 0 ? (
         <EmptyState
@@ -92,7 +92,7 @@ export const AssetsPage = () => {
       ) : view === 'table' ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto scrollbar-thin shadow-sm">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-white/5 text-zinc-400 font-medium uppercase text-xs">
+            <thead className="bg-surface-1/5 text-text-secondary font-medium uppercase text-xs">
               <tr>
                 <th className="px-6 py-4">{t('assets.form.name')}</th>
                 <th className="px-6 py-4">{t('assets.form.type')}</th>
@@ -101,11 +101,11 @@ export const AssetsPage = () => {
                 <th className="px-6 py-4 text-right">{t('common.actions', 'Actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border-subtle">
               {assets.map((asset) => (
-                <tr key={asset.id} className="hover:bg-white/5 transition-colors group">
-                  <td className="px-6 py-4 font-medium text-white">{asset.name}</td>
-                  <td className="px-6 py-4 text-zinc-400 flex items-center gap-2">
+                <tr key={asset.id} className="hover:bg-surface-1/5 transition-colors group">
+                  <td className="px-6 py-4 font-medium text-text-primary">{asset.name}</td>
+                  <td className="px-6 py-4 text-text-secondary flex items-center gap-2">
                     <TypeIcon type={asset.type ?? ''} /> {asset.type}
                   </td>
                   <td className="px-6 py-4">
@@ -113,11 +113,11 @@ export const AssetsPage = () => {
                   </td>
                   <td className="px-6 py-4">
                     {asset.risks && asset.risks.length > 0 ? (
-                      <span className="text-red-400 font-bold flex items-center gap-1">
-                        {asset.risks.length} <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-danger-text font-bold flex items-center gap-1">
+                        {asset.risks.length} <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                       </span>
                     ) : (
-                      <span className="text-zinc-600">-</span>
+                      <span className="text-text-muted">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
@@ -125,21 +125,21 @@ export const AssetsPage = () => {
                       <button
                         title={t('assets.history')}
                         onClick={() => asset.id && openHistoryDrawer(asset.id)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
                       >
                         <History size={14} />
                       </button>
                       <button
                         title={t('common.edit', 'Edit')}
                         onClick={() => asset.id && openEditModal(asset.id)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         title={t('common.delete', 'Delete')}
                         onClick={() => handleDelete(asset)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                        className="p-1.5 rounded-lg text-text-secondary hover:bg-danger/10 hover:text-danger-text transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -166,27 +166,27 @@ export const AssetsPage = () => {
                     <TypeIcon type={asset.type ?? ''} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-primary transition-colors">
+                    <h3 className="font-semibold text-text-primary group-hover:text-primary transition-colors">
                       {asset.name}
                     </h3>
-                    <p className="text-xs text-zinc-500">{asset.type}</p>
+                    <p className="text-xs text-text-muted">{asset.type}</p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3 mb-4 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400">{t('assets.form.criticality')}</span>
+                  <span className="text-xs text-text-secondary">{t('assets.form.criticality')}</span>
                   <CriticalityBadge level={asset.criticality ?? 'MEDIUM'} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400">{t('assets.activeRisks')}</span>
+                  <span className="text-xs text-text-secondary">{t('assets.activeRisks')}</span>
                   {asset.risks && asset.risks.length > 0 ? (
-                    <span className="text-red-400 font-bold flex items-center gap-1">
-                      {asset.risks.length} <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-danger-text font-bold flex items-center gap-1">
+                      {asset.risks.length} <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                     </span>
                   ) : (
-                    <span className="text-zinc-600">-</span>
+                    <span className="text-text-muted">-</span>
                   )}
                 </div>
               </div>

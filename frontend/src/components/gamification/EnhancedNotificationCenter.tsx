@@ -65,23 +65,23 @@ export const EnhancedNotificationCenter = () => {
     > = {
       success: {
         icon: Check,
-        color: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
-        textColor: 'text-emerald-300',
+        color: 'text-success-text',
+        bg: 'bg-success/10',
+        textColor: 'text-success-text',
         gradient: 'from-emerald-600 to-emerald-700',
       },
       error: {
         icon: AlertCircle,
-        color: 'text-red-400',
-        bg: 'bg-red-500/10',
-        textColor: 'text-red-300',
+        color: 'text-danger-text',
+        bg: 'bg-danger/10',
+        textColor: 'text-danger-text',
         gradient: 'from-red-600 to-red-700',
       },
       warning: {
         icon: AlertTriangle,
-        color: 'text-yellow-400',
-        bg: 'bg-yellow-500/10',
-        textColor: 'text-yellow-300',
+        color: 'text-warning-text',
+        bg: 'bg-warning/10',
+        textColor: 'text-warning-text',
         gradient: 'from-yellow-600 to-yellow-700',
       },
       achievement: {
@@ -93,23 +93,23 @@ export const EnhancedNotificationCenter = () => {
       },
       milestone: {
         icon: Zap,
-        color: 'text-blue-400',
-        bg: 'bg-blue-500/10',
-        textColor: 'text-blue-300',
+        color: 'text-info-text',
+        bg: 'bg-accent-500/10',
+        textColor: 'text-info-text',
         gradient: 'from-blue-600 to-blue-700',
       },
       info: {
         icon: Info,
-        color: 'text-blue-400',
-        bg: 'bg-blue-500/10',
-        textColor: 'text-blue-300',
+        color: 'text-info-text',
+        bg: 'bg-accent-500/10',
+        textColor: 'text-info-text',
         gradient: 'from-blue-600 to-blue-700',
       },
       default: {
         icon: Info,
-        color: 'text-gray-400',
-        bg: 'bg-gray-500/10',
-        textColor: 'text-gray-300',
+        color: 'text-text-secondary',
+        bg: 'bg-surface-3/10',
+        textColor: 'text-text-secondary',
         gradient: 'from-gray-600 to-gray-700',
       },
     };
@@ -182,22 +182,22 @@ export const EnhancedNotificationCenter = () => {
           setIsOpen(!isOpen);
           setShowSettings(false);
         }}
-        className="relative text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full group"
+        className="relative text-text-secondary hover:text-text-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full group"
       >
         <Bell size={20} />
 
         {/* Pulsing indicator for unread */}
         {unreadCount > 0 && (
           <>
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border border-background text-white text-xs flex items-center justify-center font-bold">
+            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full border border-background text-text-primary text-xs flex items-center justify-center font-bold">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full animate-pulse" />
           </>
         )}
 
         {/* Hover tooltip */}
-        <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-zinc-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+        <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-surface-1 text-text-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
           {unreadCount} unread
         </div>
       </motion.button>
@@ -221,13 +221,13 @@ export const EnhancedNotificationCenter = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              className="absolute right-0 mt-2 w-96 max-h-[600px] bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
+              className="absolute right-0 mt-2 w-96 max-h-[600px] bg-surface-1 border border-border-subtle rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-zinc-700 p-4 flex items-center justify-between flex-shrink-0">
+              <div className="bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-border-default p-4 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <Bell size={18} className="text-blue-400" />
-                  <h3 className="font-semibold text-white text-lg">Notifications</h3>
+                  <Bell size={18} className="text-info-text" />
+                  <h3 className="font-semibold text-text-primary text-lg">Notifications</h3>
                 </div>
                 <div className="flex items-center gap-2">
                   {notifications.length > 0 && (
@@ -235,7 +235,7 @@ export const EnhancedNotificationCenter = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         onClick={markAllAsRead}
-                        className="text-xs px-2 py-1 text-blue-400 hover:text-blue-300 transition-colors"
+                        className="text-xs px-2 py-1 text-info-text hover:text-info-text transition-colors"
                         title="Mark all as read"
                       >
                         Mark all read
@@ -243,7 +243,7 @@ export const EnhancedNotificationCenter = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         onClick={() => setShowSettings(!showSettings)}
-                        className="text-xs px-2 py-1 text-zinc-400 hover:text-white transition-colors"
+                        className="text-xs px-2 py-1 text-text-secondary hover:text-text-primary transition-colors"
                         title="Settings"
                       >
                         ⚙️
@@ -260,14 +260,14 @@ export const EnhancedNotificationCenter = () => {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="border-b border-zinc-700 bg-zinc-800/50 p-4 space-y-3"
+                    className="border-b border-border-default bg-surface-2/50 p-4 space-y-3"
                   >
-                    <h4 className="text-sm font-semibold text-white mb-3">Notification Preferences</h4>
+                    <h4 className="text-sm font-semibold text-text-primary mb-3">Notification Preferences</h4>
 
                     {Object.entries(preferences).map(([key, value]) => (
                       <label
                         key={key}
-                        className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
+                        className="flex items-center gap-3 cursor-pointer hover:bg-surface-1/5 p-2 rounded-lg transition-colors"
                       >
                         <input
                           type="checkbox"
@@ -278,16 +278,16 @@ export const EnhancedNotificationCenter = () => {
                               [key]: e.target.checked,
                             }))
                           }
-                          className="w-4 h-4 rounded border-zinc-600 cursor-pointer"
+                          className="w-4 h-4 rounded border-border-default cursor-pointer"
                         />
-                        <span className="text-sm text-zinc-300 capitalize">{key} notifications</span>
+                        <span className="text-sm text-text-secondary capitalize">{key} notifications</span>
                       </label>
                     ))}
 
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       onClick={requestNotificationPermission}
-                      className="w-full mt-4 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                      className="w-full mt-4 px-3 py-2 bg-accent-500 hover:bg-accent-500 text-text-primary text-sm rounded-lg transition-colors"
                     >
                       Enable Desktop Notifications
                     </motion.button>
@@ -301,13 +301,13 @@ export const EnhancedNotificationCenter = () => {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="p-8 text-center text-zinc-500"
+                    className="p-8 text-center text-text-muted"
                   >
                     <Bell size={32} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm">No notifications yet</p>
                   </motion.div>
                 ) : (
-                  <div className="divide-y divide-white/5">
+                  <div className="divide-y divide-border-subtle">
                     {notifications.map((notification, index) => {
                       const config = getNotificationConfig(notification.type);
                       const Icon = config.icon;
@@ -320,8 +320,8 @@ export const EnhancedNotificationCenter = () => {
                           exit={{ opacity: 0, x: -20 }}
                           transition={{ delay: index * 0.02 }}
                           onClick={() => handleNotificationClick(notification)}
-                          className={`p-4 hover:bg-white/5 transition-colors cursor-pointer group ${
-                            !notification.read ? 'bg-white/2' : ''
+                          className={`p-4 hover:bg-surface-1/5 transition-colors cursor-pointer group ${
+                            !notification.read ? 'bg-surface-1/2' : ''
                           }`}
                         >
                           <div className="flex gap-3">
@@ -335,13 +335,13 @@ export const EnhancedNotificationCenter = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
-                                  <p className="font-semibold text-white text-sm group-hover:text-blue-300 transition-colors">
+                                  <p className="font-semibold text-text-primary text-sm group-hover:text-info-text transition-colors">
                                     {notification.title}
                                   </p>
-                                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                                  <p className="text-xs text-text-secondary mt-1 line-clamp-2">
                                     {notification.message}
                                   </p>
-                                  <p className="text-xs text-zinc-600 mt-2">
+                                  <p className="text-xs text-text-muted mt-2">
                                     {new Date(notification.timestamp).toLocaleTimeString()}
                                   </p>
                                 </div>
@@ -350,7 +350,7 @@ export const EnhancedNotificationCenter = () => {
                                   <motion.div
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
-                                    className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"
+                                    className="w-2 h-2 bg-accent-500 rounded-full flex-shrink-0 mt-1"
                                   />
                                 )}
                               </div>
@@ -365,7 +365,7 @@ export const EnhancedNotificationCenter = () => {
                                       notification.action?.onClick();
                                       markAsRead(notification.id);
                                     }}
-                                    className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                    className="text-xs px-3 py-1 bg-accent-500 hover:bg-accent-500 text-text-primary rounded transition-colors"
                                   >
                                     {notification.action.label}
                                   </motion.button>
@@ -376,7 +376,7 @@ export const EnhancedNotificationCenter = () => {
                                     e.stopPropagation();
                                     removeNotification(notification.id);
                                   }}
-                                  className="text-xs px-2 py-1 text-zinc-500 hover:text-red-400 transition-colors ml-auto"
+                                  className="text-xs px-2 py-1 text-text-muted hover:text-danger-text transition-colors ml-auto"
                                 >
                                   <X size={14} />
                                 </motion.button>
@@ -395,17 +395,17 @@ export const EnhancedNotificationCenter = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="border-t border-white/5 p-3 flex gap-2 flex-shrink-0"
+                  className="border-t border-border-strong/5 p-3 flex gap-2 flex-shrink-0"
                 >
                   <button
                     onClick={markAllAsRead}
-                    className="flex-1 text-xs px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 rounded-lg transition-colors"
+                    className="flex-1 text-xs px-3 py-2 bg-accent-500/20 hover:bg-accent-500/30 text-info-text rounded-lg transition-colors"
                   >
                     Mark All as Read
                   </button>
                   <button
                     onClick={clearAll}
-                    className="flex-1 text-xs px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-300 rounded-lg transition-colors"
+                    className="flex-1 text-xs px-3 py-2 bg-danger/20 hover:bg-danger/30 text-danger-text rounded-lg transition-colors"
                   >
                     Clear All
                   </button>

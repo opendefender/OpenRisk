@@ -164,15 +164,15 @@ export const TokenManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-surface-0">
       {/* Header */}
-      <div className="border-b border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-6">
+      <div className="border-b border-border-subtle bg-gradient-to-b from-zinc-900 to-zinc-950 p-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
-            <Key className="w-8 h-8 text-amber-400" />
-            <h1 className="text-3xl font-bold text-white">API Tokens</h1>
+            <Key className="w-8 h-8 text-warning-text" />
+            <h1 className="text-3xl font-bold text-text-primary">API Tokens</h1>
           </div>
-          <p className="text-zinc-400">Manage your API tokens for programmatic access</p>
+          <p className="text-text-secondary">Manage your API tokens for programmatic access</p>
         </div>
       </div>
 
@@ -183,28 +183,28 @@ export const TokenManagement = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            className="bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
-            <div className="text-zinc-400 text-sm font-medium">Total Tokens</div>
-            <div className="text-2xl font-bold text-white mt-1">{tokens.length}</div>
+            <div className="text-text-secondary text-sm font-medium">Total Tokens</div>
+            <div className="text-2xl font-bold text-text-primary mt-1">{tokens.length}</div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            className="bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
-            <div className="text-zinc-400 text-sm font-medium">Active</div>
-            <div className="text-2xl font-bold text-green-400 mt-1">{activeTokens}</div>
+            <div className="text-text-secondary text-sm font-medium">Active</div>
+            <div className="text-2xl font-bold text-success-text mt-1">{activeTokens}</div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            className="bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
-            <div className="text-zinc-400 text-sm font-medium">Revoked</div>
-            <div className="text-2xl font-bold text-red-400 mt-1">
+            <div className="text-text-secondary text-sm font-medium">Revoked</div>
+            <div className="text-2xl font-bold text-danger-text mt-1">
               {tokens.filter(t => t.status === 'revoked').length}
             </div>
           </motion.div>
@@ -215,25 +215,25 @@ export const TokenManagement = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mb-6 bg-green-900/20 border border-green-500/50 rounded-lg p-4"
+            className="mb-6 bg-success-surface border border-success/50 rounded-lg p-4"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="font-semibold text-green-400 mb-2">New Token Created</h3>
-                <p className="text-sm text-zinc-400 mb-3">Save this token now. You won't be able to see it again!</p>
-                <div className="bg-zinc-900 rounded px-3 py-2 flex items-center justify-between">
-                  <code className="text-sm text-white break-all">{newTokenValue}</code>
+                <h3 className="font-semibold text-success-text mb-2">New Token Created</h3>
+                <p className="text-sm text-text-secondary mb-3">Save this token now. You won't be able to see it again!</p>
+                <div className="bg-surface-1 rounded px-3 py-2 flex items-center justify-between">
+                  <code className="text-sm text-text-primary break-all">{newTokenValue}</code>
                   <button
                     onClick={() => copyToClipboard(newTokenValue)}
-                    className="ml-3 p-1 hover:bg-zinc-800 rounded"
+                    className="ml-3 p-1 hover:bg-surface-2 rounded"
                   >
-                    <Copy className="w-4 h-4 text-green-400" />
+                    <Copy className="w-4 h-4 text-success-text" />
                   </button>
                 </div>
               </div>
               <button
                 onClick={() => setNewTokenValue('')}
-                className="text-zinc-400 hover:text-white ml-4"
+                className="text-text-secondary hover:text-text-primary ml-4"
               >
                 ✕
               </button>
@@ -257,11 +257,11 @@ export const TokenManagement = () => {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+            className="mb-6 bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
             <form onSubmit={handleCreateToken} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   Token Name *
                 </label>
                 <input
@@ -269,18 +269,18 @@ export const TokenManagement = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., CI/CD Pipeline, DataSync"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-400"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   Description
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="What is this token for?"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-400 resize-none"
                   rows={3}
                 />
               </div>
@@ -302,25 +302,25 @@ export const TokenManagement = () => {
 
         {/* Search */}
         <div className="mb-6 flex items-center gap-2">
-          <Search className="w-4 h-4 text-zinc-400" />
+          <Search className="w-4 h-4 text-text-secondary" />
           <input
             type="text"
             placeholder="Search tokens..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-surface-1 border border-border-subtle rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-400"
           />
         </div>
 
         {/* Tokens List */}
         {isLoading ? (
           <div className="text-center py-12">
-            <p className="text-zinc-400">Loading tokens...</p>
+            <p className="text-text-secondary">Loading tokens...</p>
           </div>
         ) : filteredTokens.length === 0 ? (
           <div className="text-center py-12">
-            <Key className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-            <p className="text-zinc-400">No tokens found</p>
+            <Key className="w-12 h-12 text-text-primary mx-auto mb-4" />
+            <p className="text-text-secondary">No tokens found</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -330,27 +330,27 @@ export const TokenManagement = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition"
+                className="bg-surface-1 border border-border-subtle rounded-lg p-4 hover:border-border-default transition"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-semibold text-white">{token.name}</h3>
+                      <h3 className="font-semibold text-text-primary">{token.name}</h3>
                       <span className={`text-xs px-2 py-1 rounded font-medium ${
                         token.status === 'active'
-                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          ? 'bg-success/10 text-success-text border border-success/20'
+                          : 'bg-danger/10 text-danger-text border border-danger/20'
                       }`}>
                         {token.status.charAt(0).toUpperCase() + token.status.slice(1)}
                       </span>
                       {token.token_prefix && (
-                        <span className="text-xs text-zinc-500 font-mono">{token.token_prefix}...</span>
+                        <span className="text-xs text-text-muted font-mono">{token.token_prefix}...</span>
                       )}
                     </div>
                     {token.description && (
-                      <p className="text-sm text-zinc-400 mb-3">{token.description}</p>
+                      <p className="text-sm text-text-secondary mb-3">{token.description}</p>
                     )}
-                    <div className="flex gap-4 text-xs text-zinc-500">
+                    <div className="flex gap-4 text-xs text-text-muted">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         Created: {formatDate(token.created_at)}
@@ -363,8 +363,8 @@ export const TokenManagement = () => {
                       )}
                       {token.expires_at && (
                         <div className={`flex items-center gap-1 ${
-                          isExpired(token.expires_at) ? 'text-red-500' :
-                          isExpiringSoon(token.expires_at) ? 'text-amber-500' : ''
+                          isExpired(token.expires_at) ? 'text-danger-text' :
+                          isExpiringSoon(token.expires_at) ? 'text-warning-text' : ''
                         }`}>
                           <Lock className="w-3 h-3" />
                           Expires: {formatDate(token.expires_at)}
@@ -375,12 +375,12 @@ export const TokenManagement = () => {
                     </div>
                     {(token.permissions && token.permissions.length > 0) && (
                       <div className="mt-3">
-                        <p className="text-xs text-zinc-400 mb-1">Permissions:</p>
+                        <p className="text-xs text-text-secondary mb-1">Permissions:</p>
                         <div className="flex flex-wrap gap-1">
                           {token.permissions.map((perm) => (
                             <span
                               key={perm}
-                              className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded px-2 py-1"
+                              className="text-xs bg-accent-500/10 text-info-text border border-accent-400/20 rounded px-2 py-1"
                             >
                               {perm}
                             </span>
@@ -394,14 +394,14 @@ export const TokenManagement = () => {
                       <>
                         <button
                           onClick={() => handleRotateToken(token.id)}
-                          className="p-2 text-blue-400 hover:bg-blue-500/10 rounded transition"
+                          className="p-2 text-info-text hover:bg-accent-500/10 rounded transition"
                           title="Rotate token"
                         >
                           <ChevronDown className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleRevokeToken(token.id)}
-                          className="p-2 text-amber-400 hover:bg-amber-500/10 rounded transition"
+                          className="p-2 text-warning-text hover:bg-warning/10 rounded transition"
                           title="Revoke token"
                         >
                           <Lock className="w-4 h-4" />
@@ -410,7 +410,7 @@ export const TokenManagement = () => {
                     )}
                     <button
                       onClick={() => handleDeleteToken(token.id)}
-                      className="p-2 text-red-400 hover:bg-red-500/10 rounded transition"
+                      className="p-2 text-danger-text hover:bg-danger/10 rounded transition"
                       title="Delete token"
                     >
                       <Trash2 className="w-4 h-4" />

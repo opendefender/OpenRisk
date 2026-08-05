@@ -322,7 +322,7 @@ export function AssetUniverse() {
           <div style={{ color: 'var(--accent)' }}><Atom size={46} /></div>
           <div className="text-[15px] font-semibold text-ink">{tr('Aucun actif à cartographier', 'No assets to map')}</div>
           <div className="text-[13px] text-ink-soft max-w-sm">{tr('Ajoutez des actifs à votre inventaire, puis reliez-les pour visualiser leurs dépendances.', 'Add assets to your inventory, then link them to visualise their dependencies.')}</div>
-          <button onClick={() => navigate('/assets')} className="mt-1 h-[36px] px-4 rounded-[10px] text-[12.5px] font-semibold text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>{tr("Aller à l'inventaire", 'Go to inventory')}</button>
+          <button onClick={() => navigate('/assets')} className="mt-1 h-[36px] px-4 rounded-[10px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>{tr("Aller à l'inventaire", 'Go to inventory')}</button>
         </div>
       )}
 
@@ -478,7 +478,7 @@ function AssetPanel({ asset, assets, dependencies, canEdit, busy, onClose, onSel
                 <option value="">{candidates.length ? tr('Choisir un actif cible…', 'Choose a target asset…') : tr('Aucun actif disponible', 'No asset available')}</option>
                 {candidates.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <button onClick={submitAdd} disabled={!target || busy} className="w-full h-9 rounded-lg text-[12.5px] font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-1.5" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+              <button onClick={submitAdd} disabled={!target || busy} className="w-full h-9 rounded-lg text-[12.5px] font-semibold text-text-primary disabled:opacity-50 flex items-center justify-center gap-1.5" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
                 <Plus size={14} /> {tr('Relier', 'Link')}
               </button>
             </div>
@@ -487,7 +487,7 @@ function AssetPanel({ asset, assets, dependencies, canEdit, busy, onClose, onSel
       </div>
 
       <div className="px-[18px] py-3.5" style={{ borderTop: '1px solid var(--border)' }}>
-        <button onClick={onView} className="w-full h-[38px] rounded-[10px] text-[12.5px] font-semibold text-white" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>{L.viewFull ?? tr("Voir dans l'inventaire", 'View in inventory')}</button>
+        <button onClick={onView} className="w-full h-[38px] rounded-[10px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>{L.viewFull ?? tr("Voir dans l'inventaire", 'View in inventory')}</button>
       </div>
     </div>
   );

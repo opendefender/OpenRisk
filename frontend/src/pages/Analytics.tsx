@@ -107,9 +107,9 @@ export default function Analytics() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block animate-spin">
-            <div className="h-8 w-8 border-4 border-blue-400 border-t-blue-600 rounded-full"></div>
+            <div className="h-8 w-8 border-4 border-accent-400 border-t-blue-600 rounded-full"></div>
           </div>
-          <p className="mt-4 text-gray-400">Loading analytics...</p>
+          <p className="mt-4 text-text-secondary">Loading analytics...</p>
         </div>
       </div>
     );
@@ -118,8 +118,8 @@ export default function Analytics() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
-          <p className="text-red-400">Error: {error}</p>
+        <div className="bg-danger-surface border border-danger rounded-lg p-4">
+          <p className="text-danger-text">Error: {error}</p>
         </div>
       </div>
     );
@@ -128,7 +128,7 @@ export default function Analytics() {
   if (!dashboard) {
     return (
       <div className="p-6">
-        <div className="text-gray-400">No data available</div>
+        <div className="text-text-secondary">No data available</div>
       </div>
     );
   }
@@ -158,8 +158,8 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Analytics Dashboard</h1>
-          <p className="text-gray-400 mt-2">
+          <h1 className="text-3xl font-bold text-text-primary">Analytics Dashboard</h1>
+          <p className="text-text-secondary mt-2">
             Last updated: {new Date(dashboard.timestamp).toLocaleString()}
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function Analytics() {
           <button
             onClick={fetchDashboard}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-500 text-text-primary rounded-lg transition disabled:opacity-50"
           >
             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
             Refresh
@@ -175,14 +175,14 @@ export default function Analytics() {
           <div className="flex gap-2">
             <button
               onClick={() => handleExport('json')}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+              className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success text-text-primary rounded-lg transition"
             >
               <Download size={18} />
               JSON
             </button>
             <button
               onClick={() => handleExport('csv')}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+              className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success text-text-primary rounded-lg transition"
             >
               <Download size={18} />
               CSV
@@ -227,8 +227,8 @@ export default function Analytics() {
       {/* Risk Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Risk Levels Pie Chart */}
-        <div className="bg-zinc-900 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Risk Distribution by Level</h2>
+        <div className="bg-surface-1 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-text-primary mb-4">Risk Distribution by Level</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -251,8 +251,8 @@ export default function Analytics() {
         </div>
 
         {/* Risk Status Distribution */}
-        <div className="bg-zinc-900 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Risk Status Distribution</h2>
+        <div className="bg-surface-1 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-text-primary mb-4">Risk Status Distribution</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={statusData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -266,8 +266,8 @@ export default function Analytics() {
       </div>
 
       {/* Trends */}
-      <div className="bg-zinc-900 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Risk Trends (30 days)</h2>
+      <div className="bg-surface-1 rounded-lg p-6">
+        <h2 className="text-xl font-bold text-text-primary mb-4">Risk Trends (30 days)</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={dashboard.trends}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -290,8 +290,8 @@ export default function Analytics() {
       </div>
 
       {/* Framework Analysis */}
-      <div className="bg-zinc-900 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Risks by Framework</h2>
+      <div className="bg-surface-1 rounded-lg p-6">
+        <h2 className="text-xl font-bold text-text-primary mb-4">Risks by Framework</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={frameworkData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -355,26 +355,26 @@ function MetricCard({
   icon: Icon,
 }: MetricCardProps) {
   return (
-    <div className={`bg-zinc-900 rounded-lg p-6 border ${alert ? 'border-red-700' : 'border-zinc-700'}`}>
+    <div className={`bg-surface-1 rounded-lg p-6 border ${alert ? 'border-danger' : 'border-border-default'}`}>
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-gray-400 text-sm font-medium">{title}</p>
-          <p className={`text-3xl font-bold mt-2 ${alert ? 'text-red-400' : 'text-white'}`}>
+          <p className="text-text-secondary text-sm font-medium">{title}</p>
+          <p className={`text-3xl font-bold mt-2 ${alert ? 'text-danger-text' : 'text-text-primary'}`}>
             {value}{suffix}
-            {maxValue && <span className="text-sm text-gray-400">/{maxValue}</span>}
+            {maxValue && <span className="text-sm text-text-secondary">/{maxValue}</span>}
           </p>
           {change !== undefined && (
-            <p className="text-sm text-green-400 mt-2">
+            <p className="text-sm text-success-text mt-2">
               +{change} {changeLabel}
             </p>
           )}
           {percentage && (
-            <p className="text-sm text-blue-400 mt-2">
+            <p className="text-sm text-info-text mt-2">
               {percentage}%
             </p>
           )}
         </div>
-        {Icon && <div className="text-gray-600"><Icon size={24} /></div>}
+        {Icon && <div className="text-text-muted"><Icon size={24} /></div>}
       </div>
     </div>
   );

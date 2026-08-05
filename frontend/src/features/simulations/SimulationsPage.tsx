@@ -113,9 +113,9 @@ export function SimulationsPage() {
             {[0, 1, 2].map((i) => (
               <div key={i} className="absolute inset-0 rounded-full" style={{ border: '2px solid var(--accent)', opacity: 0.3 - i * 0.08, animation: `or-pulse 1.6s ${i * 0.3}s infinite` }} />
             ))}
-            <div className="absolute rounded-2xl flex items-center justify-center text-white" style={{ inset: 26, background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', animation: 'or-float 2s ease-in-out infinite' }}><Cpu size={22} /></div>
+            <div className="absolute rounded-2xl flex items-center justify-center text-text-primary" style={{ inset: 26, background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', animation: 'or-float 2s ease-in-out infinite' }}><Cpu size={22} /></div>
           </div>
-          <div className="text-[15px] font-semibold text-white">{L.simRunning}</div>
+          <div className="text-[15px] font-semibold text-text-primary">{L.simRunning}</div>
         </div>
       )}
     </>

@@ -87,36 +87,36 @@ export default function AuditLogs() {
 
   const getResultIcon = (result: string) => {
     if (result === 'success') {
-      return <CheckCircle className="w-5 h-5 text-green-600" />;
+      return <CheckCircle className="w-5 h-5 text-success-text" />;
     } else {
-      return <AlertCircle className="w-5 h-5 text-red-600" />;
+      return <AlertCircle className="w-5 h-5 text-danger-text" />;
     }
   };
 
   const getActionBadgeColor = (action: string) => {
     const colors: { [key: string]: string } = {
-      login: 'bg-blue-100 text-blue-800',
-      login_failed: 'bg-red-100 text-red-800',
-      register: 'bg-green-100 text-green-800',
-      logout: 'bg-gray-100 text-gray-800',
+      login: 'bg-info-surface text-info-text',
+      login_failed: 'bg-danger-surface text-danger-text',
+      register: 'bg-success-surface text-success-text',
+      logout: 'bg-surface-sunken text-text-primary',
       token_refresh: 'bg-purple-100 text-purple-800',
-      role_change: 'bg-yellow-100 text-yellow-800',
-      user_delete: 'bg-red-100 text-red-800',
-      user_deactivate: 'bg-orange-100 text-orange-800',
-      user_activate: 'bg-green-100 text-green-800',
-      password_change: 'bg-indigo-100 text-indigo-800',
+      role_change: 'bg-warning-surface text-warning-text',
+      user_delete: 'bg-danger-surface text-danger-text',
+      user_deactivate: 'bg-warning-surface text-warning-text',
+      user_activate: 'bg-success-surface text-success-text',
+      password_change: 'bg-info-surface text-info-text',
     };
-    return colors[action] || 'bg-gray-100 text-gray-800';
+    return colors[action] || 'bg-surface-sunken text-text-primary';
   };
 
   if (loading && logs.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
+          <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
         </div>
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-400"></div>
         </div>
       </div>
     );
@@ -126,12 +126,12 @@ export default function AuditLogs() {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
+          <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-danger-surface border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-            <p className="text-red-800">{error}</p>
+            <AlertCircle className="w-5 h-5 text-danger-text mr-2" />
+            <p className="text-danger-text">{error}</p>
           </div>
         </div>
       </div>
@@ -141,28 +141,28 @@ export default function AuditLogs() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
+        <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
       </div>
 
       {error && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-warning-surface border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-            <p className="text-yellow-800">{error}</p>
+            <AlertCircle className="w-5 h-5 text-warning-text mr-2" />
+            <p className="text-warning-text">{error}</p>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+          <Filter className="w-5 h-5 text-text-muted" />
+          <h2 className="text-lg font-semibold text-text-primary">Filters</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-primary mb-2">
               Action
             </label>
             <select
@@ -171,7 +171,7 @@ export default function AuditLogs() {
                 setActionFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-accent-400 focus:border-transparent"
             >
               <option value="">All Actions</option>
               <option value="login">Login</option>
@@ -187,7 +187,7 @@ export default function AuditLogs() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-primary mb-2">
               Result
             </label>
             <select
@@ -196,7 +196,7 @@ export default function AuditLogs() {
                 setResultFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-accent-400 focus:border-transparent"
             >
               <option value="">All Results</option>
               <option value="success">Success</option>
@@ -207,36 +207,36 @@ export default function AuditLogs() {
       </div>
 
       {/* Audit Logs Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-surface-sunken border-b border-border-subtle">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
                   <Clock className="w-4 h-4 inline mr-2" />
                   Timestamp
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
                   Action
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
                   Result
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
                   IP Address
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
                   Details
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-border-subtle">
               {logs.map((log) => (
                 <tr
                   key={log.id}
-                  className="hover:bg-gray-50 transition-colors"
+                  className="hover:bg-surface-sunken transition-colors"
                 >
-                  <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm text-text-muted whitespace-nowrap">
                     {format(new Date(log.timestamp), 'MMM d, yyyy HH:mm:ss')}
                   </td>
                   <td className="px-6 py-4 text-sm">
@@ -254,15 +254,15 @@ export default function AuditLogs() {
                       <span className="capitalize">{log.result}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 font-mono">
+                  <td className="px-6 py-4 text-sm text-text-muted font-mono">
                     {log.ip_address || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-text-muted">
                     {log.error_message && (
-                      <div className="text-xs text-red-600">{log.error_message}</div>
+                      <div className="text-xs text-danger-text">{log.error_message}</div>
                     )}
                     {log.resource && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-text-muted">
                         Resource: {log.resource}
                       </div>
                     )}
@@ -275,8 +275,8 @@ export default function AuditLogs() {
 
         {logs.length === 0 && !loading && (
           <div className="px-6 py-12 text-center">
-            <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No audit logs found</p>
+            <Clock className="w-12 h-12 text-text-secondary mx-auto mb-4" />
+            <p className="text-text-muted">No audit logs found</p>
           </div>
         )}
       </div>
@@ -285,14 +285,14 @@ export default function AuditLogs() {
       {logs.length > 0 && (
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Items per page:</label>
+            <label className="text-sm text-text-muted">Items per page:</label>
             <select
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value));
                 setPage(1);
               }}
-              className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-1 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-accent-400 focus:border-transparent"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -305,17 +305,17 @@ export default function AuditLogs() {
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
-            <span className="px-4 py-2 text-sm text-gray-600">
+            <span className="px-4 py-2 text-sm text-text-muted">
               Page {page}
             </span>
             <button
               onClick={() => setPage(page + 1)}
               disabled={logs.length < limit}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>

@@ -44,20 +44,20 @@ export const GeneralTab = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-bold text-white mb-1">My Profile</h3>
-        <p className="text-zinc-400 text-sm">Manage your personal information and track your progress.</p>
+        <h3 className="text-2xl font-bold text-text-primary mb-1">My Profile</h3>
+        <p className="text-text-secondary text-sm">Manage your personal information and track your progress.</p>
       </div>
 
       {/* Gamification Section */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-        <h4 className="text-lg font-bold text-white mb-6">🎮 Your Profile</h4>
+      <div className="bg-surface-1/5 backdrop-blur-xl border border-border-strong/10 rounded-2xl p-6">
+        <h4 className="text-lg font-bold text-text-primary mb-6">🎮 Your Profile</h4>
         <UserLevelCard />
       </div>
 
       {/* Profile Information Section */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h4 className="text-lg font-bold text-white">Account Information</h4>
+          <h4 className="text-lg font-bold text-text-primary">Account Information</h4>
           <Button 
             variant={isEditing ? "secondary" : "ghost"}
             onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -72,20 +72,20 @@ export const GeneralTab = () => {
           </Button>
         </div>
 
-        <div className="flex items-center gap-6 pb-8 border-b border-white/5">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-glow relative group">
+        <div className="flex items-center gap-6 pb-8 border-b border-border-strong/5">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-text-primary shadow-glow relative group">
             {formData.full_name?.charAt(0) || 'U'}
-            <button className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera size={20} className="text-white" />
+            <button className="absolute inset-0 rounded-full bg-surface-overlay opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Camera size={20} className="text-text-primary" />
             </button>
           </div>
           <div>
-            <p className="text-sm text-white font-medium mb-2">{user?.role || 'User'}</p>
+            <p className="text-sm text-text-primary font-medium mb-2">{user?.role || 'User'}</p>
             <Button variant="secondary" className="text-sm">
               <Camera size={16} className="mr-2" />
               Change Avatar
             </Button>
-            <p className="text-xs text-zinc-500 mt-2">JPG, GIF or PNG. 1MB max.</p>
+            <p className="text-xs text-text-muted mt-2">JPG, GIF or PNG. 1MB max.</p>
           </div>
         </div>
 
@@ -124,9 +124,9 @@ export const GeneralTab = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-white">Bio</label>
+                <label className="text-sm font-medium text-text-primary">Bio</label>
                 <textarea 
-                  className="w-full bg-zinc-900 border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                  className="w-full bg-surface-1 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:ring-2 focus:ring-primary/50 outline-none resize-none"
                   placeholder="Tell us about yourself..."
                   value={formData.bio}
                   onChange={(e) => handleChange('bio', e.target.value)}
@@ -135,9 +135,9 @@ export const GeneralTab = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-white block mb-2">Timezone</label>
+                <label className="text-sm font-medium text-text-primary block mb-2">Timezone</label>
                 <select 
-                  className="w-full bg-zinc-900 border border-border rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                  className="w-full bg-surface-1 border border-border rounded-lg px-4 py-2 text-sm text-text-primary focus:ring-2 focus:ring-primary/50 outline-none"
                   value={formData.timezone}
                   onChange={(e) => handleChange('timezone', e.target.value)}
                 >
@@ -169,30 +169,30 @@ export const GeneralTab = () => {
       </div>
 
       {/* Preferences Section */}
-      <div className="space-y-6 border-t border-white/10 pt-8">
-        <h4 className="text-lg font-bold text-white">Preferences</h4>
+      <div className="space-y-6 border-t border-border-strong/10 pt-8">
+        <h4 className="text-lg font-bold text-text-primary">Preferences</h4>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
-              <p className="text-sm font-medium text-white">Email Notifications</p>
-              <p className="text-xs text-zinc-400">Receive risk alerts and updates</p>
+              <p className="text-sm font-medium text-text-primary">Email Notifications</p>
+              <p className="text-xs text-text-secondary">Receive risk alerts and updates</p>
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
           </div>
           
-          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
-              <p className="text-sm font-medium text-white">Desktop Notifications</p>
-              <p className="text-xs text-zinc-400">Get notified in real-time</p>
+              <p className="text-sm font-medium text-text-primary">Desktop Notifications</p>
+              <p className="text-xs text-text-secondary">Get notified in real-time</p>
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
-              <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
-              <p className="text-xs text-zinc-400">Enhance your account security</p>
+              <p className="text-sm font-medium text-text-primary">Two-Factor Authentication</p>
+              <p className="text-xs text-text-secondary">Enhance your account security</p>
             </div>
             <Button variant="ghost" className="text-sm">Enable</Button>
           </div>

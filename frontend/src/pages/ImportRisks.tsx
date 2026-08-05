@@ -187,11 +187,11 @@ export const ImportRisksPage = () => {
     <div className="max-w-5xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <Link to="/risks" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 hover:text-white transition-colors mb-3">
+        <Link to="/risks" className="inline-flex items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors mb-3">
           <ArrowLeft size={15} /> {t('risks.title')}
         </Link>
-        <h1 className="text-3xl font-bold text-white mb-2">{t('risks.import')}</h1>
-        <p className="text-zinc-400">{t('risks.dragDropHint')}</p>
+        <h1 className="text-3xl font-bold text-text-primary mb-2">{t('risks.import')}</h1>
+        <p className="text-text-secondary">{t('risks.dragDropHint')}</p>
       </div>
 
       {/* Main content area */}
@@ -211,26 +211,26 @@ export const ImportRisksPage = () => {
             className={cn(
               'relative border-2 border-dashed rounded-xl p-12 text-center',
               'transition-all duration-300 cursor-pointer',
-              dragState === 'dragging' && 'bg-blue-500/10 border-blue-500/50'
+              dragState === 'dragging' && 'bg-accent-500/10 border-accent-400/50'
             )}
             onClick={() => fileInputRef.current?.click()}
           >
             {dragState === 'processing' ? (
               <div className="flex flex-col items-center gap-4">
                 <div className="animate-spin">
-                  <Upload className="text-blue-500" size={48} />
+                  <Upload className="text-info-text" size={48} />
                 </div>
-                <p className="text-zinc-300">{t('common.loading')}</p>
+                <p className="text-text-secondary">{t('common.loading')}</p>
               </div>
             ) : (
               <>
                 <div className="flex justify-center gap-4 mb-4">
-                  <FileJson className="text-blue-400" size={32} />
-                  <FileText className="text-amber-400" size={32} />
-                  <FileSpreadsheet className="text-emerald-400" size={32} />
+                  <FileJson className="text-info-text" size={32} />
+                  <FileText className="text-warning-text" size={32} />
+                  <FileSpreadsheet className="text-success-text" size={32} />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{t('risks.dragDropHint')}</h3>
-                <p className="text-sm text-zinc-400">CSV, JSON, XLSX</p>
+                <h3 className="text-lg font-semibold text-text-primary mb-2">{t('risks.dragDropHint')}</h3>
+                <p className="text-sm text-text-secondary">CSV, JSON, XLSX</p>
               </>
             )}
 
@@ -263,7 +263,7 @@ export const ImportRisksPage = () => {
               className="space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">{t('risks.importPreview')}</h3>
+                <h3 className="text-lg font-semibold text-text-primary">{t('risks.importPreview')}</h3>
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -277,29 +277,29 @@ export const ImportRisksPage = () => {
               </div>
 
               {/* Preview Table */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg overflow-x-auto">
+              <div className="bg-surface-1/50 border border-border-subtle rounded-lg overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-zinc-700">
+                  <thead className="border-b border-border-default">
                     <tr>
                       {Object.keys(preview[0] || {})
                         .slice(0, 6)
                         .map((key) => (
                           <th
                             key={key}
-                            className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase"
+                            className="px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase"
                           >
                             {key}
                           </th>
                         ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-700">
+                  <tbody className="divide-y divide-border-subtle">
                     {preview.slice(0, 5).map((row, i) => (
-                      <tr key={i} className="hover:bg-zinc-800/50">
+                      <tr key={i} className="hover:bg-surface-2/50">
                         {Object.values(row)
                           .slice(0, 6)
                           .map((val, j) => (
-                            <td key={j} className="px-4 py-3 text-zinc-300 truncate max-w-xs">
+                            <td key={j} className="px-4 py-3 text-text-secondary truncate max-w-xs">
                               {String(val)}
                             </td>
                           ))}
@@ -332,11 +332,11 @@ export const ImportRisksPage = () => {
           className="space-y-6"
         >
           {importResult.success > 0 && (
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/50">
-              <CheckCircle2 size={24} className="text-emerald-400 flex-shrink-0" />
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-success/10 border border-success/50">
+              <CheckCircle2 size={24} className="text-success-text flex-shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">{t('messages.importCompleted')}</h4>
-                <p className="text-sm text-zinc-300">
+                <h4 className="font-semibold text-text-primary">{t('messages.importCompleted')}</h4>
+                <p className="text-sm text-text-secondary">
                   {interpolate(t('risks.successCount'), { count: importResult.success })}
                 </p>
               </div>
@@ -344,20 +344,20 @@ export const ImportRisksPage = () => {
           )}
 
           {importResult.errors.length > 0 && (
-            <div className="flex items-start gap-4 p-4 rounded-lg bg-red-500/10 border border-red-500/50">
-              <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex items-start gap-4 p-4 rounded-lg bg-danger/10 border border-danger/50">
+              <AlertCircle size={24} className="text-danger-text flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h4 className="font-semibold text-white">
+                <h4 className="font-semibold text-text-primary">
                   {interpolate(t('risks.errorCount'), { count: importResult.errors.length })}
                 </h4>
                 <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
                   {importResult.errors.slice(0, 5).map((err, i) => (
-                    <p key={i} className="text-xs text-zinc-300">
+                    <p key={i} className="text-xs text-text-secondary">
                       Row {err.row}: {err.message}
                     </p>
                   ))}
                   {importResult.errors.length > 5 && (
-                    <p className="text-xs text-zinc-400">
+                    <p className="text-xs text-text-secondary">
                       ...and {importResult.errors.length - 5} more
                     </p>
                   )}

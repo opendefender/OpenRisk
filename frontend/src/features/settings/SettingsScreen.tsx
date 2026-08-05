@@ -34,7 +34,7 @@ function Toggle({ on: initial, label }: { on: boolean; label?: string }) {
   const [on, setOn] = useState(initial);
   return (
     <button onClick={() => setOn((v) => !v)} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on} aria-label={label}>
-      <span className="absolute rounded-full bg-white" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+      <span className="absolute rounded-full bg-surface-1" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
     </button>
   );
 }
@@ -63,7 +63,7 @@ function SavedToggleRow({ label, sub, prefKey, tr }: { label: string; sub?: stri
       <div className="flex items-center gap-2.5 shrink-0">
         <span className="text-[11.5px] font-semibold transition-opacity" style={{ color: 'var(--low)', opacity: saved ? 1 : 0 }}>{tr('Enregistré ✓', 'Saved ✓')}</span>
         <button onClick={toggle} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on} aria-label={label}>
-          <span className="absolute rounded-full bg-white" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+          <span className="absolute rounded-full bg-surface-1" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
         </button>
       </div>
     </div>
@@ -410,7 +410,7 @@ function RbacTab({ tr }: { tr: Tr }) {
   const perms = [tr('Voir les risques', 'View risks'), tr('Créer / éditer', 'Create / edit'), tr('Supprimer', 'Delete'), tr('Gérer les membres', 'Manage members'), tr('Facturation', 'Billing')];
   const stdRoles: [string, number[]][] = [['Admin', [1, 1, 1, 1, 1]], ['Analyste', [1, 1, 1, 0, 0]], ['Lecteur', [1, 0, 0, 0, 0]]];
   const Dot = ({ on }: { on: boolean }) => on
-    ? <div className="w-[22px] h-[22px] rounded-[7px] inline-flex items-center justify-center" style={{ background: 'var(--accent)' }}><Check size={13} className="text-white" strokeWidth={3} /></div>
+    ? <div className="w-[22px] h-[22px] rounded-[7px] inline-flex items-center justify-center" style={{ background: 'var(--accent)' }}><Check size={13} className="text-text-primary" strokeWidth={3} /></div>
     : <div className="w-[22px] h-[22px] rounded-[7px] inline-block" style={{ border: '1.5px solid var(--border-strong)' }} />;
   return (
     <>

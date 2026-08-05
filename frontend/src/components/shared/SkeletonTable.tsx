@@ -36,13 +36,13 @@ export const SkeletonTable = ({
   return (
     <div className={cn('space-y-2', className)}>
       {/* Header */}
-      <div className="grid gap-4 px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg">
+      <div className="grid gap-4 px-4 py-3 bg-surface-1/30 border border-border-subtle rounded-lg">
         {Array.from({ length: columns }).map((_, i) => (
           <motion.div
             key={`header-${i}`}
             variants={pulseVariants}
             animate="animate"
-            className="h-4 bg-zinc-800 rounded w-full"
+            className="h-4 bg-surface-2 rounded w-full"
           />
         ))}
       </div>
@@ -51,7 +51,7 @@ export const SkeletonTable = ({
       {Array.from({ length: rows }).map((_, rowIdx) => (
         <div
           key={`row-${rowIdx}`}
-          className="grid gap-4 px-4 py-3 bg-zinc-900/20 border border-zinc-800/50 rounded-lg"
+          className="grid gap-4 px-4 py-3 bg-surface-1/20 border border-border-subtle/50 rounded-lg"
         >
           {Array.from({ length: columns }).map((_, colIdx) => (
             <motion.div
@@ -59,7 +59,7 @@ export const SkeletonTable = ({
               variants={pulseVariants}
               animate="animate"
               transition={{ delay: colIdx * 0.05 }}
-              className="h-4 bg-zinc-800/50 rounded w-full"
+              className="h-4 bg-surface-2/50 rounded w-full"
             />
           ))}
         </div>

@@ -43,16 +43,16 @@ export const UserLevelCard = () => {
 
   if (loading) {
     return (
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-8 animate-pulse">
-        <div className="h-48 bg-white/10 rounded-lg" />
+      <div className="bg-surface-1/5 backdrop-blur-xl border border-border-strong/10 rounded-xl p-8 animate-pulse">
+        <div className="h-48 bg-surface-1/10 rounded-lg" />
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-8">
-        <div className="flex items-center gap-3 text-orange-400">
+      <div className="bg-surface-1/5 backdrop-blur-xl border border-border-strong/10 rounded-xl p-8">
+        <div className="flex items-center gap-3 text-warning-text">
           <AlertCircle className="w-5 h-5" />
           <p className="text-sm">{error || 'Impossible de charger les données'}</p>
         </div>
@@ -69,7 +69,7 @@ export const UserLevelCard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl"
+        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-border-strong/20 rounded-2xl overflow-hidden shadow-2xl"
       >
         <div className={`h-32 bg-gradient-to-r ${levelGradient} opacity-20`} />
 
@@ -79,11 +79,11 @@ export const UserLevelCard = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className={`w-32 h-32 rounded-full bg-gradient-to-br ${levelGradient} flex items-center justify-center shadow-glow border-4 border-white/20 mb-6`}
+            className={`w-32 h-32 rounded-full bg-gradient-to-br ${levelGradient} flex items-center justify-center shadow-glow border-4 border-border-strong/20 mb-6`}
           >
             <div className="text-center">
-              <div className="text-5xl font-black text-white">{stats.level}</div>
-              <div className="text-xs uppercase tracking-wider text-white/80 mt-1">Level</div>
+              <div className="text-5xl font-black text-text-primary">{stats.level}</div>
+              <div className="text-xs uppercase tracking-wider text-text-primary/80 mt-1">Level</div>
             </div>
           </motion.div>
 
@@ -91,12 +91,12 @@ export const UserLevelCard = () => {
           <div className="space-y-4">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-bold text-white">Progression XP</h3>
-                <span className="text-sm text-zinc-400">
+                <h3 className="text-lg font-bold text-text-primary">Progression XP</h3>
+                <span className="text-sm text-text-secondary">
                   {stats.total_xp.toLocaleString()} / {stats.next_level_xp.toLocaleString()} XP
                 </span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden border border-white/20">
+              <div className="w-full bg-surface-1/10 rounded-full h-3 overflow-hidden border border-border-strong/20">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${stats.progress_percent}%` }}
@@ -104,7 +104,7 @@ export const UserLevelCard = () => {
                   className={`h-full bg-gradient-to-r ${levelGradient} rounded-full`}
                 />
               </div>
-              <p className="text-xs text-zinc-500 mt-2">
+              <p className="text-xs text-text-muted mt-2">
                 {Math.round(stats.progress_percent)}% vers le niveau {stats.level + 1}
               </p>
             </div>
@@ -115,20 +115,20 @@ export const UserLevelCard = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 text-center"
+                className="bg-surface-1/5 border border-border-strong/10 rounded-lg p-4 text-center"
               >
-                <div className="text-2xl font-bold text-blue-400">{stats.risks_managed}</div>
-                <div className="text-xs text-zinc-400 uppercase tracking-wide mt-1">Risques Gérés</div>
+                <div className="text-2xl font-bold text-info-text">{stats.risks_managed}</div>
+                <div className="text-xs text-text-secondary uppercase tracking-wide mt-1">Risques Gérés</div>
               </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 text-center"
+                className="bg-surface-1/5 border border-border-strong/10 rounded-lg p-4 text-center"
               >
-                <div className="text-2xl font-bold text-green-400">{stats.mitigations_done}</div>
-                <div className="text-xs text-zinc-400 uppercase tracking-wide mt-1">Atténuations</div>
+                <div className="text-2xl font-bold text-success-text">{stats.mitigations_done}</div>
+                <div className="text-xs text-text-secondary uppercase tracking-wide mt-1">Atténuations</div>
               </motion.div>
             </div>
           </div>
@@ -141,10 +141,10 @@ export const UserLevelCard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.3 }}
-          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+          className="bg-surface-1/5 backdrop-blur-xl border border-border-strong/10 rounded-2xl p-6"
         >
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-400" />
+          <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-warning-text" />
             Badges Débloqués
           </h3>
 
@@ -163,24 +163,24 @@ export const UserLevelCard = () => {
                     transition-all duration-300
                     ${
                       badge.unlocked
-                        ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-400/50 shadow-glow'
-                        : 'bg-white/5 border-white/10 opacity-50'
+                        ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-warning/50 shadow-glow'
+                        : 'bg-surface-1/5 border-border-strong/10 opacity-50'
                     }
                   `}
                 >
-                  <div className={badge.unlocked ? 'text-yellow-400' : 'text-zinc-600'}>
+                  <div className={badge.unlocked ? 'text-warning-text' : 'text-text-muted'}>
                     {getBadgeIcon(badge.icon)}
                   </div>
-                  <div className="text-xs font-semibold text-white line-clamp-2">{badge.name}</div>
+                  <div className="text-xs font-semibold text-text-primary line-clamp-2">{badge.name}</div>
                   {badge.unlocked && (
-                    <Star className="w-3 h-3 text-yellow-400 absolute top-1 right-1 fill-current" />
+                    <Star className="w-3 h-3 text-warning-text absolute top-1 right-1 fill-current" />
                   )}
                 </div>
 
                 {/* Tooltip */}
                 <div
                   className={`
-                    absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-zinc-900 border border-white/20 rounded-lg text-xs text-white whitespace-nowrap
+                    absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-surface-1 border border-border-strong/20 rounded-lg text-xs text-text-primary whitespace-nowrap
                     opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50
                     ${badge.unlocked ? '' : 'grayscale'}
                   `}
@@ -192,7 +192,7 @@ export const UserLevelCard = () => {
           </div>
 
           {stats.badges.filter((b) => !b.unlocked).length > 0 && (
-            <p className="text-xs text-zinc-500 mt-4">
+            <p className="text-xs text-text-muted mt-4">
               {stats.badges.filter((b) => !b.unlocked).length} badge(s) à déverrouiller
             </p>
           )}

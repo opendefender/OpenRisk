@@ -65,7 +65,7 @@ export function LeaderboardPage() {
             {ranks[i] === 1 && <div className="text-[26px] mb-0.5" style={{ animation: 'or-float 3s ease-in-out infinite' }}>👑</div>}
             <div className="relative mb-3">
               <div
-                className="rounded-full flex items-center justify-center font-bold text-white"
+                className="rounded-full flex items-center justify-center font-bold text-text-primary"
                 style={{
                   width: ranks[i] === 1 ? 72 : 60, height: ranks[i] === 1 ? 72 : 60,
                   fontSize: ranks[i] === 1 ? 24 : 20,

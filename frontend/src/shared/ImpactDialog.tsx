@@ -54,10 +54,10 @@ export function ImpactDialog({
 }: ImpactDialogProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--surface-overlay)' }} onClick={onClose}>
       <div
         className="w-full max-w-[460px] rounded-[16px] overflow-hidden"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--elev-4, 0 16px 48px rgba(0,0,0,.2))', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-overlay)', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -122,7 +122,7 @@ export function ImpactDialog({
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="h-[40px] px-4 rounded-[10px] text-[13px] font-semibold text-white"
+              className="h-[40px] px-4 rounded-[10px] text-[13px] font-semibold text-text-primary"
               style={{ background: 'var(--critical)', opacity: loading ? 0.7 : 1 }}
             >
               {loading ? '…' : confirmLabel}

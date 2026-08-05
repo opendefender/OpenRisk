@@ -64,7 +64,7 @@ export const MitigationGanttView = memo(function MitigationGanttView({
 
   if (mitigations.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-zinc-400">
+      <div className="flex items-center justify-center h-64 text-text-secondary">
         Aucun plan d'atténuation
       </div>
     );
@@ -76,10 +76,10 @@ export const MitigationGanttView = memo(function MitigationGanttView({
         {/* Header with dates */}
         <div className="flex mb-8">
           <div className="w-48 shrink-0" />
-          <div className="flex-1 relative h-8 bg-zinc-800/50 rounded-lg overflow-hidden border border-zinc-700">
+          <div className="flex-1 relative h-8 bg-surface-2/50 rounded-lg overflow-hidden border border-border-default">
             {/* Today indicator */}
             <motion.div
-              className="absolute top-0 bottom-0 w-1 bg-red-500 z-10"
+              className="absolute top-0 bottom-0 w-1 bg-danger z-10"
               style={{ left: `${getTodayPosition()}%` }}
             />
             
@@ -92,8 +92,8 @@ export const MitigationGanttView = memo(function MitigationGanttView({
                   <div
                     key={i}
                     className={cn(
-                      'flex-1 border-r border-zinc-700/50 text-xs text-zinc-500 px-1 py-1',
-                      i % 7 === 0 ? 'border-r border-zinc-600 font-semibold' : ''
+                      'flex-1 border-r border-border-default/50 text-xs text-text-muted px-1 py-1',
+                      i % 7 === 0 ? 'border-r border-border-default font-semibold' : ''
                     )}
                   >
                     {i % 7 === 0 && date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
@@ -118,14 +118,14 @@ export const MitigationGanttView = memo(function MitigationGanttView({
                 className="flex items-center gap-3"
                 onClick={() => onRowClick?.(mitigation)}
               >
-                <div className="w-48 shrink-0 truncate text-sm text-white hover:text-blue-400 transition-colors cursor-pointer">
+                <div className="w-48 shrink-0 truncate text-sm text-text-primary hover:text-info-text transition-colors cursor-pointer">
                   {mitigation.title}
                 </div>
-                <div className="flex-1 relative h-8 bg-zinc-800/30 rounded border border-zinc-700 overflow-hidden">
+                <div className="flex-1 relative h-8 bg-surface-2/30 rounded border border-border-default overflow-hidden">
                   <motion.div
                     className={cn(
                       'absolute top-0 bottom-0 rounded transition-colors',
-                      isOverdue ? 'bg-red-500/40 hover:bg-red-500/50' : 'bg-blue-500/40 hover:bg-blue-500/50'
+                      isOverdue ? 'bg-danger/40 hover:bg-danger/50' : 'bg-accent-500/40 hover:bg-accent-500/50'
                     )}
                     style={{
                       left: `${startPos}%`,
@@ -133,7 +133,7 @@ export const MitigationGanttView = memo(function MitigationGanttView({
                     }}
                     whileHover={{ scale: 1.1 }}
                   >
-                    <div className="h-full px-2 py-1 flex items-center text-xs text-white font-medium truncate">
+                    <div className="h-full px-2 py-1 flex items-center text-xs text-text-primary font-medium truncate">
                       {mitigation.progress_percentage}%
                     </div>
                   </motion.div>
@@ -144,17 +144,17 @@ export const MitigationGanttView = memo(function MitigationGanttView({
         </div>
 
         {/* Legend */}
-        <div className="mt-6 flex items-center gap-4 text-xs text-zinc-400">
+        <div className="mt-6 flex items-center gap-4 text-xs text-text-secondary">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500" />
+            <div className="w-3 h-3 bg-danger" />
             <span>En retard</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-500" />
+            <div className="w-3 h-3 bg-accent-500" />
             <span>En cours</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-red-500" />
+            <div className="w-1 h-4 bg-danger" />
             <span>Aujourd'hui</span>
           </div>
         </div>

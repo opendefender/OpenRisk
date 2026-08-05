@@ -71,13 +71,13 @@ const PermissionAnalyticsPage: React.FC = () => {
   }), [permissionStats, roleStats]);
 
   return (
-    <AdminOnly fallback={<div className="p-6 bg-red-50 rounded-lg">Permission Denied: Admin access required</div>}>
+    <AdminOnly fallback={<div className="p-6 bg-danger-surface rounded-lg">Permission Denied: Admin access required</div>}>
       <div className="w-full space-y-6 pb-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Permission Analytics</h1>
-            <p className="text-gray-600">Monitor and analyze RBAC usage patterns</p>
+            <h1 className="text-3xl font-bold text-text-primary">Permission Analytics</h1>
+            <p className="text-text-muted">Monitor and analyze RBAC usage patterns</p>
           </div>
           <div className="flex gap-2">
             {(['7d', '30d', '90d'] as const).map((range) => (
@@ -86,8 +86,8 @@ const PermissionAnalyticsPage: React.FC = () => {
                 onClick={() => setTimeRange(range)}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   timeRange === range
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-accent-500 text-text-primary'
+                    : 'bg-surface-sunken text-text-primary hover:bg-surface-3'
                 }`}
               >
                 {range}
@@ -101,14 +101,14 @@ const PermissionAnalyticsPage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Permissions</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalPermissions}</p>
+                <p className="text-sm text-text-muted">Total Permissions</p>
+                <p className="text-2xl font-bold text-text-primary">{stats.totalPermissions}</p>
               </div>
-              <Shield className="w-8 h-8 text-blue-600" />
+              <Shield className="w-8 h-8 text-info-text" />
             </div>
           </motion.div>
 
@@ -116,14 +116,14 @@ const PermissionAnalyticsPage: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Permissions Granted</p>
-                <p className="text-2xl font-bold text-green-600">{stats.grantedCount}</p>
+                <p className="text-sm text-text-muted">Permissions Granted</p>
+                <p className="text-2xl font-bold text-success-text">{stats.grantedCount}</p>
               </div>
-              <Users className="w-8 h-8 text-green-600" />
+              <Users className="w-8 h-8 text-success-text" />
             </div>
           </motion.div>
 
@@ -131,14 +131,14 @@ const PermissionAnalyticsPage: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Denial Rate</p>
-                <p className="text-2xl font-bold text-red-600">{stats.denialRate}%</p>
+                <p className="text-sm text-text-muted">Denial Rate</p>
+                <p className="text-2xl font-bold text-danger-text">{stats.denialRate}%</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-red-600" />
+              <AlertCircle className="w-8 h-8 text-danger-text" />
             </div>
           </motion.div>
 
@@ -146,11 +146,11 @@ const PermissionAnalyticsPage: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Roles</p>
+                <p className="text-sm text-text-muted">Active Roles</p>
                 <p className="text-2xl font-bold text-purple-600">{stats.activeRoles}/4</p>
               </div>
               <Lock className="w-8 h-8 text-purple-600" />
@@ -163,10 +163,10 @@ const PermissionAnalyticsPage: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+          className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
         >
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <TrendingUp className="w-5 h-5 text-info-text" />
             Permission Activity Trends
           </h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -189,7 +189,7 @@ const PermissionAnalyticsPage: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
           >
             <h2 className="text-lg font-semibold mb-4">Top Permissions</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -208,26 +208,26 @@ const PermissionAnalyticsPage: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
           >
             <h2 className="text-lg font-semibold mb-4">Role Statistics</h2>
             <div className="space-y-3">
               {roleStats.map((role) => (
-                <div key={role.roleName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={role.roleName} className="flex items-center justify-between p-3 bg-surface-sunken rounded-lg">
                   <div>
                     <p className="font-medium text-sm">{role.roleName}</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-text-muted">
                       {role.permissionCount} perms • {role.userCount} users
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="w-16 h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="w-16 h-8 bg-surface-sunken rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-600 transition-all"
+                        className="h-full bg-accent-500 transition-all"
                         style={{ width: `${role.usageRate}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">{role.usageRate}%</p>
+                    <p className="text-xs text-text-muted mt-1">{role.usageRate}%</p>
                   </div>
                 </div>
               ))}
@@ -240,7 +240,7 @@ const PermissionAnalyticsPage: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+          className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-6"
         >
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5 text-purple-600" />
@@ -250,23 +250,23 @@ const PermissionAnalyticsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Permission</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Granted</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Used</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Denied</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Coverage %</th>
+                <tr className="border-b border-border-subtle">
+                  <th className="text-left py-3 px-4 font-medium text-text-primary">Permission</th>
+                  <th className="text-right py-3 px-4 font-medium text-text-primary">Granted</th>
+                  <th className="text-right py-3 px-4 font-medium text-text-primary">Used</th>
+                  <th className="text-right py-3 px-4 font-medium text-text-primary">Denied</th>
+                  <th className="text-right py-3 px-4 font-medium text-text-primary">Coverage %</th>
                 </tr>
               </thead>
               <tbody>
                 {permissionStats.map((stat) => (
-                  <tr key={stat.permission} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{stat.permission}</td>
-                    <td className="py-3 px-4 text-right text-green-600">{stat.grantedCount}</td>
-                    <td className="py-3 px-4 text-right text-blue-600">{stat.usageCount}</td>
-                    <td className="py-3 px-4 text-right text-red-600">{stat.deniedCount}</td>
+                  <tr key={stat.permission} className="border-b border-border-subtle hover:bg-surface-sunken">
+                    <td className="py-3 px-4 font-medium text-text-primary">{stat.permission}</td>
+                    <td className="py-3 px-4 text-right text-success-text">{stat.grantedCount}</td>
+                    <td className="py-3 px-4 text-right text-info-text">{stat.usageCount}</td>
+                    <td className="py-3 px-4 text-right text-danger-text">{stat.deniedCount}</td>
                     <td className="py-3 px-4 text-right">
-                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                      <span className="inline-block px-2 py-1 bg-info-surface text-info-text rounded">
                         {((stat.usageCount / (stat.usageCount + stat.deniedCount)) * 100).toFixed(0)}%
                       </span>
                     </td>
@@ -282,10 +282,10 @@ const PermissionAnalyticsPage: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="bg-blue-50 border border-blue-200 rounded-lg p-6"
+          className="bg-info-surface border border-blue-200 rounded-lg p-6"
         >
-          <h3 className="font-semibold text-blue-900 mb-3">📊 Insights</h3>
-          <ul className="space-y-2 text-sm text-blue-800">
+          <h3 className="font-semibold text-info-text mb-3">📊 Insights</h3>
+          <ul className="space-y-2 text-sm text-info-text">
             <li>• Most used permission: {stats.mostUsedPermission.permission} ({stats.mostUsedPermission.usageCount} uses)</li>
             <li>• {stats.activeRoles} out of 4 roles show high activity (&gt;50% usage rate)</li>
             <li>• Denial rate is {stats.denialRate}% - monitor for access issues</li>

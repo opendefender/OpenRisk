@@ -57,17 +57,17 @@ export const FloatingBulkBar = ({
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold"
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-text-primary text-xs font-bold"
               >
                 {selectedCount}
               </motion.div>
-              <span className="text-sm text-zinc-300">
+              <span className="text-sm text-text-secondary">
                 {selectedCount} {selectedCount === 1 ? 'risque sélectionné' : 'risques sélectionnés'}
               </span>
             </div>
 
             {/* Center: Quick actions */}
-            <div className="flex items-center gap-2 border-l border-r border-zinc-700 px-4 py-2">
+            <div className="flex items-center gap-2 border-l border-r border-border-default px-4 py-2">
               {actions.map((action) => (
                 <motion.button
                   key={action.id}
@@ -78,8 +78,8 @@ export const FloatingBulkBar = ({
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                     action.variant === 'danger'
-                      ? 'hover:bg-red-500/20 text-red-400'
-                      : 'hover:bg-zinc-700 text-zinc-300'
+                      ? 'hover:bg-danger/20 text-danger-text'
+                      : 'hover:bg-surface-3 text-text-secondary'
                   )}
                   title={action.label}
                 >

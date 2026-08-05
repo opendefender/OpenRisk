@@ -22,10 +22,10 @@ interface TeamStats {
 }
 
 const levelColors: Record<number, { bg: string; text: string; icon: string }> = {
-  0: { bg: 'bg-zinc-500/10', text: 'text-zinc-400', icon: '👁️' },
-  3: { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: '🔍' },
+  0: { bg: 'bg-surface-3/10', text: 'text-text-secondary', icon: '👁️' },
+  3: { bg: 'bg-accent-500/10', text: 'text-info-text', icon: '🔍' },
   6: { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: '👨‍💼' },
-  9: { bg: 'bg-red-500/10', text: 'text-red-400', icon: '👑' },
+  9: { bg: 'bg-danger/10', text: 'text-danger-text', icon: '👑' },
 };
 
 export const RBACDashboardWidget = () => {
@@ -72,15 +72,15 @@ export const RBACDashboardWidget = () => {
       <div className={`rounded-lg border border-border p-4 ${colors.bg} backdrop-blur-sm`}>
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-sm font-medium text-zinc-400 mb-1">Your Role</div>
+            <div className="text-sm font-medium text-text-secondary mb-1">Your Role</div>
             <h3 className={`text-lg font-semibold ${colors.text}`}>{roleInfo.name}</h3>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-text-muted mt-1">
               Level {roleInfo.level} • {roleInfo.permissions_count} permissions
             </p>
           </div>
           <div className="text-2xl">{colors.icon}</div>
         </div>
-        <div className="mt-3 w-full h-1.5 bg-zinc-900/50 rounded-full overflow-hidden">
+        <div className="mt-3 w-full h-1.5 bg-surface-1/50 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all ${colors.bg}`}
             style={{ width: `${(roleInfo.level / 9) * 100}%` }}
@@ -93,20 +93,20 @@ export const RBACDashboardWidget = () => {
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg border border-border bg-surface/30 p-3 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-2">
-              <Users size={16} className="text-blue-400" />
-              <span className="text-xs font-medium text-zinc-400">Team Members</span>
+              <Users size={16} className="text-info-text" />
+              <span className="text-xs font-medium text-text-secondary">Team Members</span>
             </div>
-            <div className="text-2xl font-bold text-white">{teamStats.active_users}</div>
-            <p className="text-xs text-zinc-500 mt-1">{teamStats.total_users} total</p>
+            <div className="text-2xl font-bold text-text-primary">{teamStats.active_users}</div>
+            <p className="text-xs text-text-muted mt-1">{teamStats.total_users} total</p>
           </div>
 
           <div className="rounded-lg border border-border bg-surface/30 p-3 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} className="text-purple-400" />
-              <span className="text-xs font-medium text-zinc-400">Teams</span>
+              <span className="text-xs font-medium text-text-secondary">Teams</span>
             </div>
-            <div className="text-2xl font-bold text-white">{teamStats.teams_count}</div>
-            <p className="text-xs text-zinc-500 mt-1">
+            <div className="text-2xl font-bold text-text-primary">{teamStats.teams_count}</div>
+            <p className="text-xs text-text-muted mt-1">
               {teamStats.pending_invites > 0 ? `${teamStats.pending_invites} pending` : 'All accepted'}
             </p>
           </div>
@@ -116,7 +116,7 @@ export const RBACDashboardWidget = () => {
       {/* Quick Actions */}
       <div className="rounded-lg border border-dashed border-border bg-surface/20 p-3 text-center">
         <Shield size={16} className="inline-block mb-2 text-primary" />
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-text-secondary">
           Your access level determines what actions you can perform. 
           <a href="/settings?tab=rbac" className="text-primary hover:underline ml-1">
             View permissions →

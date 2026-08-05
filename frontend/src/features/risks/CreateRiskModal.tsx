@@ -136,7 +136,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
       console.error(err);
       toast.error(t('errors.failedToCreateRisk'), {
         description: t('errors.serverError'),
-        icon: <ShieldAlert className="w-4 h-4 text-red-500" />,
+        icon: <ShieldAlert className="w-4 h-4 text-danger-text" />,
       });
     }
   };
@@ -150,7 +150,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
           />
 
           <motion.div
@@ -191,7 +191,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
                     disabled={isSubmitting}
                   />
-                  {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
+                  {errors.description && <p className="text-xs text-danger-text">{errors.description.message}</p>}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">

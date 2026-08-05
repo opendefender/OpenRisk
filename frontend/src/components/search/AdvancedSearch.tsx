@@ -63,9 +63,9 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
         {/* Search Input */}
-        <div className="relative flex items-center bg-zinc-900 border border-zinc-700 rounded-lg focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20 transition-all">
+        <div className="relative flex items-center bg-surface-1 border border-border-default rounded-lg focus-within:border-accent-400 focus-within:ring-1 focus-within:ring-accent-400/20 transition-all">
           <Search
-            className="absolute left-3 text-zinc-400 pointer-events-none"
+            className="absolute left-3 text-text-secondary pointer-events-none"
             size={18}
           />
           <input
@@ -81,17 +81,17 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               }
             }}
             onKeyDown={handleKeyDown}
-            className="w-full bg-transparent pl-10 pr-10 py-2.5 text-white placeholder-zinc-400 outline-none"
+            className="w-full bg-transparent pl-10 pr-10 py-2.5 text-text-primary placeholder-zinc-400 outline-none"
             autoComplete="off"
           />
 
           {/* Right icons */}
           <div className="absolute right-3 flex items-center gap-2">
             {state.isLoading && (
-              <Loader className="animate-spin text-blue-500" size={16} />
+              <Loader className="animate-spin text-info-text" size={16} />
             )}
             {showShortcutHint && !state.query && (
-              <kbd className="hidden md:flex items-center gap-1 px-2 py-1 bg-zinc-800 rounded text-xs text-zinc-400 border border-zinc-700">
+              <kbd className="hidden md:flex items-center gap-1 px-2 py-1 bg-surface-2 rounded text-xs text-text-secondary border border-border-default">
                 <span>⌘</span>
                 <span>K</span>
               </kbd>
@@ -101,12 +101,12 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
         {/* Dropdown Results */}
         {state.isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-surface-1 border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
             {/* Results List */}
             {displayResults.length > 0 ? (
               <div className="max-h-96 overflow-y-auto">
                 {state.query.length >= 2 && state.results.length > 0 && (
-                  <div className="px-3 py-2 text-xs text-zinc-400 border-b border-zinc-800 flex items-center gap-2">
+                  <div className="px-3 py-2 text-xs text-text-secondary border-b border-border-subtle flex items-center gap-2">
                     <Zap size={14} />
                     <span>Search Results ({state.results.length})</span>
                   </div>
@@ -117,19 +117,19 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     key={result.id}
                     ref={index === state.selectedIndex ? selectedItemRef : null}
                     onClick={() => handleSelect(result)}
-                    className={`w-full text-left px-4 py-3 border-b border-zinc-800 last:border-b-0 transition-colors ${
+                    className={`w-full text-left px-4 py-3 border-b border-border-subtle last:border-b-0 transition-colors ${
                       index === state.selectedIndex
-                        ? 'bg-blue-500/20 border-l-2 border-l-blue-500'
-                        : 'hover:bg-zinc-800'
+                        ? 'bg-accent-500/20 border-l-2 border-l-blue-500'
+                        : 'hover:bg-surface-2'
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">
+                        <h3 className="text-text-primary font-medium truncate">
                           {result.title}
                         </h3>
                         {result.description && (
-                          <p className="text-xs text-zinc-400 truncate mt-1">
+                          <p className="text-xs text-text-secondary truncate mt-1">
                             {result.description}
                           </p>
                         )}
@@ -141,12 +141,12 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                           <div
                             className={`text-xs font-bold px-2 py-1 rounded ${
                               result.score >= 15
-                                ? 'bg-red-500/20 text-red-400'
+                                ? 'bg-danger/20 text-danger-text'
                                 : result.score >= 9
-                                  ? 'bg-yellow-500/20 text-yellow-400'
+                                  ? 'bg-warning/20 text-warning-text'
                                   : result.score >= 5
-                                    ? 'bg-orange-500/20 text-orange-400'
-                                    : 'bg-green-500/20 text-green-400'
+                                    ? 'bg-warning/20 text-warning-text'
+                                    : 'bg-success/20 text-success-text'
                             }`}
                           >
                             {result.score.toFixed(1)}
@@ -157,10 +157,10 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
                     {/* Metadata Row */}
                     {result.probability !== undefined && result.impact !== undefined && (
-                      <div className="flex items-center gap-4 mt-2 text-xs text-zinc-400">
+                      <div className="flex items-center gap-4 mt-2 text-xs text-text-secondary">
                         <span>📊 P:{result.probability} I:{result.impact}</span>
                         {result.matchScore !== undefined && (
-                          <span className="text-blue-400">
+                          <span className="text-info-text">
                             Match: {Math.round(result.matchScore * 100)}%
                           </span>
                         )}
@@ -171,14 +171,14 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
                 {/* Recent Searches Header */}
                 {state.query.length < 2 && state.recentSearches.length > 0 && (
-                  <div className="px-3 py-2 text-xs text-zinc-400 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="px-3 py-2 text-xs text-text-secondary border-b border-border-subtle flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Clock size={14} />
                       <span>Recent Searches</span>
                     </div>
                     <button
                       onClick={clearRecentSearches}
-                      className="text-zinc-500 hover:text-red-400 text-xs"
+                      className="text-text-muted hover:text-danger-text text-xs"
                     >
                       Clear
                     </button>
@@ -191,17 +191,17 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                       key={`recent-${result.id}`}
                       ref={index === state.selectedIndex ? selectedItemRef : null}
                       onClick={() => handleSelect(result)}
-                      className={`w-full text-left px-4 py-2 border-b border-zinc-800 last:border-b-0 transition-colors ${
+                      className={`w-full text-left px-4 py-2 border-b border-border-subtle last:border-b-0 transition-colors ${
                         index === state.selectedIndex
-                          ? 'bg-blue-500/20 border-l-2 border-l-blue-500'
-                          : 'hover:bg-zinc-800'
+                          ? 'bg-accent-500/20 border-l-2 border-l-blue-500'
+                          : 'hover:bg-surface-2'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-zinc-500" />
-                        <span className="text-white truncate">{result.title}</span>
+                        <Clock size={14} className="text-text-muted" />
+                        <span className="text-text-primary truncate">{result.title}</span>
                         {result.score !== undefined && (
-                          <span className="ml-auto text-xs text-zinc-400">
+                          <span className="ml-auto text-xs text-text-secondary">
                             {result.score.toFixed(1)}
                           </span>
                         )}
@@ -211,45 +211,45 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               </div>
             ) : state.isLoading ? (
               <div className="px-4 py-8 text-center">
-                <Loader className="animate-spin mx-auto text-blue-500 mb-2" />
-                <p className="text-sm text-zinc-400">Searching...</p>
+                <Loader className="animate-spin mx-auto text-info-text mb-2" />
+                <p className="text-sm text-text-secondary">Searching...</p>
               </div>
             ) : state.error ? (
               <div className="px-4 py-4 flex items-start gap-3">
-                <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={16} />
+                <AlertCircle className="text-danger-text flex-shrink-0 mt-0.5" size={16} />
                 <div>
-                  <p className="text-sm text-red-400">Search Error</p>
-                  <p className="text-xs text-zinc-400 mt-1">{state.error}</p>
+                  <p className="text-sm text-danger-text">Search Error</p>
+                  <p className="text-xs text-text-secondary mt-1">{state.error}</p>
                 </div>
               </div>
             ) : state.query.length >= 2 ? (
               <div className="px-4 py-8 text-center">
-                <AlertCircle className="mx-auto text-zinc-500 mb-2" size={20} />
-                <p className="text-sm text-zinc-400">No risks found</p>
+                <AlertCircle className="mx-auto text-text-muted mb-2" size={20} />
+                <p className="text-sm text-text-secondary">No risks found</p>
               </div>
             ) : (
               <div className="px-4 py-6">
-                <p className="text-sm text-zinc-400 mb-4">
+                <p className="text-sm text-text-secondary mb-4">
                   Start typing to search risks or view recent searches
                 </p>
                 <div className="space-y-2">
-                  <div className="text-xs text-zinc-500">
+                  <div className="text-xs text-text-muted">
                     <div className="font-semibold mb-2">Keyboard Shortcuts:</div>
                     <ul className="space-y-1">
                       <li>
-                        <kbd className="bg-zinc-800 px-2 py-1 rounded text-xs">
+                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">
                           ↓↑
                         </kbd>{' '}
                         Navigate
                       </li>
                       <li>
-                        <kbd className="bg-zinc-800 px-2 py-1 rounded text-xs">
+                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">
                           Enter
                         </kbd>{' '}
                         Select
                       </li>
                       <li>
-                        <kbd className="bg-zinc-800 px-2 py-1 rounded text-xs">
+                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">
                           Esc
                         </kbd>{' '}
                         Close
@@ -309,19 +309,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-zinc-400 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-surface-2 hover:bg-surface-3 rounded-lg text-sm text-text-secondary transition-colors"
       >
         <Zap size={16} />
         Commands
-        <kbd className="ml-auto text-xs bg-zinc-900 px-2 py-0.5 rounded">⌘/</kbd>
+        <kbd className="ml-auto text-xs bg-surface-1 px-2 py-0.5 rounded">⌘/</kbd>
       </button>
 
       {/* Command Palette Modal */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20">
-          <div className="w-full max-w-lg bg-zinc-900 rounded-lg shadow-xl border border-zinc-700 overflow-hidden">
+        <div className="fixed inset-0 bg-surface-overlay z-50 flex items-start justify-center pt-20">
+          <div className="w-full max-w-lg bg-surface-1 rounded-lg shadow-xl border border-border-default overflow-hidden">
             {/* Search Input */}
-            <div className="border-b border-zinc-700 p-3">
+            <div className="border-b border-border-default p-3">
               <input
                 autoFocus
                 type="text"
@@ -344,7 +344,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                     setIsOpen(false);
                   }
                 }}
-                className="w-full bg-transparent text-white outline-none text-sm"
+                className="w-full bg-transparent text-text-primary outline-none text-sm"
               />
             </div>
 
@@ -355,23 +355,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                   <button
                     key={cmd.id}
                     onClick={() => handleExecute(cmd)}
-                    className={`w-full text-left px-4 py-3 border-b border-zinc-800 last:border-b-0 transition-colors ${
+                    className={`w-full text-left px-4 py-3 border-b border-border-subtle last:border-b-0 transition-colors ${
                       index === selectedIndex
-                        ? 'bg-blue-500/20'
-                        : 'hover:bg-zinc-800'
+                        ? 'bg-accent-500/20'
+                        : 'hover:bg-surface-2'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-white font-medium">{cmd.label}</p>
+                        <p className="text-text-primary font-medium">{cmd.label}</p>
                         {cmd.description && (
-                          <p className="text-xs text-zinc-400 mt-1">
+                          <p className="text-xs text-text-secondary mt-1">
                             {cmd.description}
                           </p>
                         )}
                       </div>
                       {cmd.shortcut && (
-                        <kbd className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">
+                        <kbd className="text-xs bg-surface-2 px-2 py-1 rounded text-text-secondary">
                           {cmd.shortcut}
                         </kbd>
                       )}
@@ -379,7 +379,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                   </button>
                 ))
               ) : (
-                <div className="px-4 py-8 text-center text-zinc-400 text-sm">
+                <div className="px-4 py-8 text-center text-text-secondary text-sm">
                   No commands found
                 </div>
               )}

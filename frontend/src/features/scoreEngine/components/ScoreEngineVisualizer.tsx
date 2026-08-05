@@ -29,15 +29,15 @@ interface ScoreEngineVisualizerProps {
 const getRiskLevelColor = (level: string): string => {
   switch (level.toLowerCase()) {
     case 'critical':
-      return 'bg-red-500/10 border-red-500 text-red-700';
+      return 'bg-danger/10 border-danger text-danger-text';
     case 'high':
-      return 'bg-orange-500/10 border-orange-500 text-orange-700';
+      return 'bg-warning/10 border-warning text-warning-text';
     case 'medium':
-      return 'bg-yellow-500/10 border-yellow-500 text-yellow-700';
+      return 'bg-warning/10 border-warning text-warning-text';
     case 'low':
-      return 'bg-green-500/10 border-green-500 text-green-700';
+      return 'bg-success/10 border-success text-success-text';
     default:
-      return 'bg-gray-500/10 border-gray-500 text-gray-700';
+      return 'bg-surface-3/10 border-border-strong text-text-primary';
   }
 };
 
@@ -187,8 +187,8 @@ export const ScoreEngineVisualizer = ({
 
       {loading && (
         <div className="text-center py-4">
-          <div className="inline-flex items-center gap-2 text-gray-600">
-            <div className="w-4 h-4 bg-blue-500 rounded-full animate-bounce" />
+          <div className="inline-flex items-center gap-2 text-text-muted">
+            <div className="w-4 h-4 bg-accent-500 rounded-full animate-bounce" />
             <span>Calcul du score...</span>
           </div>
         </div>
@@ -200,10 +200,10 @@ export const ScoreEngineVisualizer = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4"
+          className="bg-surface-sunken dark:bg-surface-1 border border-border-subtle dark:border-border-subtle rounded-lg p-4"
         >
           <div className="flex items-center gap-2 mb-3">
-            <BarChart3 className="w-5 h-5 text-blue-600" />
+            <BarChart3 className="w-5 h-5 text-info-text" />
             <h4 className="font-semibold">Matrice de Risque</h4>
           </div>
 
@@ -219,7 +219,7 @@ export const ScoreEngineVisualizer = ({
             ))}
           </div>
 
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+          <p className="text-xs text-text-muted dark:text-text-secondary mt-3">
             Formule: <span className="font-mono">{matrix.formula}</span>
           </p>
         </motion.div>
@@ -231,39 +231,39 @@ export const ScoreEngineVisualizer = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4"
+          className="bg-surface-sunken dark:bg-surface-1 border border-border-subtle dark:border-border-subtle rounded-lg p-4"
         >
           <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-5 h-5 text-green-600" />
+            <TrendingUp className="w-5 h-5 text-success-text" />
             <h4 className="font-semibold">Statistiques Globales</h4>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Score Moyen</p>
+            <div className="bg-surface-1 dark:bg-surface-2 border border-border-subtle dark:border-border-default rounded-lg p-3">
+              <p className="text-xs text-text-muted dark:text-text-secondary mb-1">Score Moyen</p>
               <p className="text-2xl font-bold">{metrics.avg_score.toFixed(2)}</p>
             </div>
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Score Max</p>
+            <div className="bg-surface-1 dark:bg-surface-2 border border-border-subtle dark:border-border-default rounded-lg p-3">
+              <p className="text-xs text-text-muted dark:text-text-secondary mb-1">Score Max</p>
               <p className="text-2xl font-bold">{metrics.max_score.toFixed(2)}</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Distribution:</p>
+            <p className="text-xs font-semibold text-text-primary dark:text-text-secondary">Distribution:</p>
             {metrics.risk_stats.map((stat) => (
               <div key={stat.level} className="flex items-center justify-between text-sm">
                 <span className="capitalize">{stat.level}</span>
-                <div className="flex-1 mx-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div className="flex-1 mx-2 bg-surface-sunken dark:bg-surface-3 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full transition-all ${
                       stat.level === 'critical'
-                        ? 'bg-red-500'
+                        ? 'bg-danger'
                         : stat.level === 'high'
-                          ? 'bg-orange-500'
+                          ? 'bg-warning'
                           : stat.level === 'medium'
-                            ? 'bg-yellow-500'
-                            : 'bg-green-500'
+                            ? 'bg-warning'
+                            : 'bg-success'
                     }`}
                     style={{
                       width: `${Math.max(

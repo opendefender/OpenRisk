@@ -133,15 +133,15 @@ export const AIRiskInsights: React.FC = () => {
   const getAnomalySeverityColor = (severity: string) => {
     switch (severity) {
       case 'CRITICAL':
-        return 'bg-red-100 border-red-300 text-red-900';
+        return 'bg-danger-surface border-red-300 text-danger-text';
       case 'HIGH':
-        return 'bg-orange-100 border-orange-300 text-orange-900';
+        return 'bg-warning-surface border-orange-300 text-warning-text';
       case 'MEDIUM':
-        return 'bg-yellow-100 border-yellow-300 text-yellow-900';
+        return 'bg-warning-surface border-yellow-300 text-warning-text';
       case 'LOW':
-        return 'bg-green-100 border-green-300 text-green-900';
+        return 'bg-success-surface border-green-300 text-success-text';
       default:
-        return 'bg-gray-100 border-gray-300 text-gray-900';
+        return 'bg-surface-sunken border-border-subtle text-text-primary';
     }
   };
 
@@ -169,18 +169,18 @@ export const AIRiskInsights: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">🤖 AI Risk Intelligence</h1>
-          <p className="text-slate-300">ML-powered predictions and anomaly detection</p>
+          <h1 className="text-4xl font-bold text-text-primary mb-2">🤖 AI Risk Intelligence</h1>
+          <p className="text-text-secondary">ML-powered predictions and anomaly detection</p>
         </div>
 
         {/* Risk Predictions */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Risk Predictions</h2>
+          <h2 className="text-2xl font-bold text-text-primary mb-6">Risk Predictions</h2>
           <div className="space-y-4">
             {predictions.map((prediction) => (
               <div
                 key={prediction.riskID}
-                className="bg-slate-700 rounded-lg border border-slate-600 p-6 hover:border-slate-500 transition-all"
+                className="bg-surface-3 rounded-lg border border-border-default p-6 hover:border-border-strong transition-all"
               >
                 <div className="flex items-start gap-6">
                   {/* Risk Score Visualization */}
@@ -194,7 +194,7 @@ export const AIRiskInsights: React.FC = () => {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="3"
-                          className="text-slate-600"
+                          className="text-text-muted"
                         />
                         <circle
                           cx="50"
@@ -204,12 +204,12 @@ export const AIRiskInsights: React.FC = () => {
                           stroke="currentColor"
                           strokeWidth="3"
                           strokeDasharray={`${prediction.predictedScore * 2.83} 283`}
-                          className={`bg-gradient-to-r ${getRiskColor(prediction.predictedScore)} text-red-500`}
+                          className={`bg-gradient-to-r ${getRiskColor(prediction.predictedScore)} text-danger-text`}
                         />
                       </svg>
                       <div className="absolute text-center">
-                        <div className="text-3xl font-bold text-white">{prediction.predictedScore}</div>
-                        <div className="text-xs text-slate-400">Risk Score</div>
+                        <div className="text-3xl font-bold text-text-primary">{prediction.predictedScore}</div>
+                        <div className="text-xs text-text-secondary">Risk Score</div>
                       </div>
                     </div>
                   </div>
@@ -217,12 +217,12 @@ export const AIRiskInsights: React.FC = () => {
                   {/* Risk Details */}
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xl font-semibold text-white capitalize">
+                      <h3 className="text-xl font-semibold text-text-primary capitalize">
                         {prediction.riskID.replace('risk:', '').replace(/-/g, ' ')}
                       </h3>
-                      <div className="flex items-center gap-2 bg-slate-600 px-3 py-1 rounded-full">
-                        <span className="text-sm text-slate-300">Confidence:</span>
-                        <span className="text-sm font-semibold text-blue-300">
+                      <div className="flex items-center gap-2 bg-surface-3 px-3 py-1 rounded-full">
+                        <span className="text-sm text-text-secondary">Confidence:</span>
+                        <span className="text-sm font-semibold text-info-text">
                           {(prediction.confidence * 100).toFixed(0)}%
                         </span>
                       </div>
@@ -230,15 +230,15 @@ export const AIRiskInsights: React.FC = () => {
 
                     {/* Risk Factors */}
                     <div className="mb-4">
-                      <p className="text-sm font-semibold text-slate-300 mb-2">Contributing Factors:</p>
+                      <p className="text-sm font-semibold text-text-secondary mb-2">Contributing Factors:</p>
                       <div className="space-y-2">
                         {prediction.factors.map((factor, idx) => (
                           <div key={idx} className="flex items-center gap-3 text-sm">
                             <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                             <div>
-                              <span className="font-medium text-slate-100">{factor.name}</span>
-                              <span className="text-slate-400 ml-2">({(factor.impact * 100).toFixed(0)}% impact)</span>
-                              <p className="text-slate-500 text-xs mt-1">{factor.description}</p>
+                              <span className="font-medium text-text-primary">{factor.name}</span>
+                              <span className="text-text-secondary ml-2">({(factor.impact * 100).toFixed(0)}% impact)</span>
+                              <p className="text-text-muted text-xs mt-1">{factor.description}</p>
                             </div>
                           </div>
                         ))}
@@ -246,7 +246,7 @@ export const AIRiskInsights: React.FC = () => {
                     </div>
 
                     {/* Recommendation */}
-                    <div className="bg-slate-600 rounded px-4 py-3 text-slate-100">
+                    <div className="bg-surface-3 rounded px-4 py-3 text-text-primary">
                       {prediction.recommendation}
                     </div>
                   </div>
@@ -258,7 +258,7 @@ export const AIRiskInsights: React.FC = () => {
 
         {/* Anomalies Detected */}
         <div>
-          <h2 className="text-2xl font-bold text-white mb-6">Anomalies Detected</h2>
+          <h2 className="text-2xl font-bold text-text-primary mb-6">Anomalies Detected</h2>
           <div className="space-y-4">
             {anomalies.map((anomaly) => (
               <div
@@ -292,8 +292,8 @@ export const AIRiskInsights: React.FC = () => {
         </div>
 
         {/* AI Insights Footer */}
-        <div className="mt-8 bg-slate-700 rounded-lg p-4 border border-slate-600">
-          <p className="text-slate-300 text-sm">
+        <div className="mt-8 bg-surface-3 rounded-lg p-4 border border-border-default">
+          <p className="text-text-secondary text-sm">
             💡 <strong>AI Insight:</strong> The system has identified {predictions.length} critical risk areas and {anomalies.length} anomalies.
             Focus on the high-risk predictions to improve overall security posture.
           </p>

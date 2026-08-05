@@ -66,7 +66,7 @@ export const ScoreMeter = ({
             fill="none"
             stroke="currentColor"
             strokeWidth="8"
-            className="text-zinc-800/30"
+            className="text-text-primary/30"
           />
 
           {/* Animated progress circle */}
@@ -97,7 +97,7 @@ export const ScoreMeter = ({
             {score.toFixed(1)}
           </motion.div>
           {size !== 'sm' && (
-            <div className="text-xs text-zinc-400">/100</div>
+            <div className="text-xs text-text-secondary">/100</div>
           )}
         </div>
       </div>

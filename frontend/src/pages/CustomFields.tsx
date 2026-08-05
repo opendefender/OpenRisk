@@ -196,20 +196,20 @@ export default function CustomFields() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-zinc-950">
-        <Loader className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className="flex items-center justify-center h-screen bg-surface-0">
+        <Loader className="w-8 h-8 text-info-text animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-6">
+    <div className="min-h-screen bg-surface-0 text-text-primary p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Custom Fields</h1>
-            <p className="text-zinc-400 mt-2">Manage custom field definitions and templates</p>
+            <p className="text-text-secondary mt-2">Manage custom field definitions and templates</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -227,7 +227,7 @@ export default function CustomFields() {
               });
               setShowCreateModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-500 rounded-lg transition"
           >
             <Plus className="w-5 h-5" />
             New Field
@@ -235,13 +235,13 @@ export default function CustomFields() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-zinc-800">
+        <div className="flex gap-4 mb-6 border-b border-border-subtle">
           <button
             onClick={() => setActiveTab('fields')}
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'fields'
-                ? 'border-b-2 border-blue-500 text-blue-500'
-                : 'text-zinc-400 hover:text-white'
+                ? 'border-b-2 border-accent-400 text-info-text'
+                : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             Custom Fields ({fields.length})
@@ -250,8 +250,8 @@ export default function CustomFields() {
             onClick={() => setActiveTab('templates')}
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'templates'
-                ? 'border-b-2 border-blue-500 text-blue-500'
-                : 'text-zinc-400 hover:text-white'
+                ? 'border-b-2 border-accent-400 text-info-text'
+                : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             Templates ({templates.length})
@@ -266,10 +266,10 @@ export default function CustomFields() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-center py-12 bg-zinc-900 rounded-lg border border-zinc-800"
+                  className="text-center py-12 bg-surface-1 rounded-lg border border-border-subtle"
                 >
-                  <AlertCircle className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                  <p className="text-zinc-400">No custom fields yet</p>
+                  <AlertCircle className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                  <p className="text-text-secondary">No custom fields yet</p>
                 </motion.div>
               ) : (
                 fields.map((field) => (
@@ -279,7 +279,7 @@ export default function CustomFields() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition"
+                    className="bg-surface-1 border border-border-subtle rounded-lg p-4 hover:border-border-default transition"
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -288,15 +288,15 @@ export default function CustomFields() {
                             {fieldTypes.find((ft) => ft.value === field.type)?.icon}
                           </span>
                           <h3 className="text-lg font-semibold">{field.name}</h3>
-                          <span className="px-2 py-1 bg-zinc-800 text-xs rounded text-zinc-300">
+                          <span className="px-2 py-1 bg-surface-2 text-xs rounded text-text-secondary">
                             {field.type}
                           </span>
-                          <span className="px-2 py-1 bg-zinc-800 text-xs rounded text-zinc-300">
+                          <span className="px-2 py-1 bg-surface-2 text-xs rounded text-text-secondary">
                             {field.scope}
                           </span>
                         </div>
-                        <p className="text-sm text-zinc-400 mb-2">{field.description}</p>
-                        <div className="flex gap-4 text-xs text-zinc-500">
+                        <p className="text-sm text-text-secondary mb-2">{field.description}</p>
+                        <div className="flex gap-4 text-xs text-text-muted">
                           {field.is_required && (
                             <div className="flex items-center gap-1">
                               <CheckCircle className="w-4 h-4" />
@@ -319,7 +319,7 @@ export default function CustomFields() {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={() => handleEditField(field)}
-                          className="p-2 hover:bg-zinc-800 rounded transition"
+                          className="p-2 hover:bg-surface-2 rounded transition"
                         >
                           <Edit2 className="w-4 h-4" />
                         </motion.button>
@@ -327,7 +327,7 @@ export default function CustomFields() {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={() => handleDuplicateField(field)}
-                          className="p-2 hover:bg-zinc-800 rounded transition"
+                          className="p-2 hover:bg-surface-2 rounded transition"
                         >
                           <Copy className="w-4 h-4" />
                         </motion.button>
@@ -335,7 +335,7 @@ export default function CustomFields() {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={() => handleDeleteField(field.id)}
-                          className="p-2 hover:bg-red-900 rounded transition text-red-500"
+                          className="p-2 hover:bg-red-900 rounded transition text-danger-text"
                         >
                           <Trash2 className="w-4 h-4" />
                         </motion.button>
@@ -352,9 +352,9 @@ export default function CustomFields() {
         {activeTab === 'templates' && (
           <div className="grid gap-4">
             {templates.length === 0 ? (
-              <div className="text-center py-12 bg-zinc-900 rounded-lg border border-zinc-800">
-                <AlertCircle className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                <p className="text-zinc-400">No templates available</p>
+              <div className="text-center py-12 bg-surface-1 rounded-lg border border-border-subtle">
+                <AlertCircle className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                <p className="text-text-secondary">No templates available</p>
               </div>
             ) : (
               templates.map((template) => (
@@ -364,13 +364,13 @@ export default function CustomFields() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition"
+                  className="bg-surface-1 border border-border-subtle rounded-lg p-4 hover:border-border-default transition"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="text-lg font-semibold">{template.name}</h3>
-                      <p className="text-sm text-zinc-400">{template.description}</p>
-                      <span className="inline-block mt-2 px-2 py-1 bg-zinc-800 text-xs rounded text-zinc-300">
+                      <p className="text-sm text-text-secondary">{template.description}</p>
+                      <span className="inline-block mt-2 px-2 py-1 bg-surface-2 text-xs rounded text-text-secondary">
                         {template.framework}
                       </span>
                     </div>
@@ -379,7 +379,7 @@ export default function CustomFields() {
                     {template.fields.map((field) => (
                       <span
                         key={field.id}
-                        className="px-3 py-1 bg-blue-900/50 border border-blue-700/50 rounded-full text-sm text-blue-200"
+                        className="px-3 py-1 bg-info-surface border border-accent-400/50 rounded-full text-sm text-blue-200"
                       >
                         {field.name}
                       </span>
@@ -399,7 +399,7 @@ export default function CustomFields() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-surface-overlay flex items-center justify-center p-4 z-50"
             onClick={() => {
               setShowCreateModal(false);
               setEditingField(null);
@@ -410,7 +410,7 @@ export default function CustomFields() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="bg-surface-1 border border-border-subtle rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
             >
               <h2 className="text-xl font-bold mb-4">
                 {editingField ? 'Edit Field' : 'Create Custom Field'}
@@ -418,7 +418,7 @@ export default function CustomFields() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
                     Field Name *
                   </label>
                   <input
@@ -427,13 +427,13 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent-400"
                     placeholder="e.g., Department, Cost Center"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     Field Type *
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -445,8 +445,8 @@ export default function CustomFields() {
                         }
                         className={`p-3 border rounded text-center transition ${
                           formData.type === type.value
-                            ? 'bg-blue-600 border-blue-500'
-                            : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600'
+                            ? 'bg-accent-500 border-accent-400'
+                            : 'bg-surface-2 border-border-default hover:border-border-default'
                         }`}
                       >
                         <div className="text-xl mb-1">{type.icon}</div>
@@ -457,7 +457,7 @@ export default function CustomFields() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
                     Description
                   </label>
                   <textarea
@@ -465,14 +465,14 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 resize-none"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent-400 resize-none"
                     rows={3}
                     placeholder="Field description"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
                     Scope
                   </label>
                   <select
@@ -480,7 +480,7 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, scope: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent-400"
                   >
                     {scopes.map((scope) => (
                       <option key={scope} value={scope}>
@@ -500,7 +500,7 @@ export default function CustomFields() {
                     }
                     className="w-4 h-4 rounded"
                   />
-                  <label htmlFor="required" className="text-sm text-zinc-300">
+                  <label htmlFor="required" className="text-sm text-text-secondary">
                     Required
                   </label>
                 </div>
@@ -515,14 +515,14 @@ export default function CustomFields() {
                     }
                     className="w-4 h-4 rounded"
                   />
-                  <label htmlFor="searchable" className="text-sm text-zinc-300">
+                  <label htmlFor="searchable" className="text-sm text-text-secondary">
                     Searchable
                   </label>
                 </div>
 
                 {formData.type === 'TEXT' && (
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
                       Default Value
                     </label>
                     <input
@@ -531,7 +531,7 @@ export default function CustomFields() {
                       onChange={(e) =>
                         setFormData({ ...formData, default_value: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                      className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent-400"
                       placeholder="Optional default value"
                     />
                   </div>
@@ -544,7 +544,7 @@ export default function CustomFields() {
                     setShowCreateModal(false);
                     setEditingField(null);
                   }}
-                  className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded transition"
+                  className="flex-1 px-4 py-2 bg-surface-2 hover:bg-surface-3 rounded transition"
                 >
                   Cancel
                 </button>
@@ -552,7 +552,7 @@ export default function CustomFields() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleCreateField}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition font-medium"
+                  className="flex-1 px-4 py-2 bg-accent-500 hover:bg-accent-500 rounded transition font-medium"
                 >
                   {editingField ? 'Update' : 'Create'}
                 </motion.button>

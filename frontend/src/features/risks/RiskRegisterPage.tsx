@@ -413,7 +413,7 @@ function RiskMatrixView({ risks, onOpen }: { risks: UiRisk[]; onOpen: (id: strin
                           key={r.id}
                           onClick={() => onOpen(r.id)}
                           title={`${r.name} · ${r.score.toFixed(1)}`}
-                          className="w-5 h-5 rounded-full text-[9px] font-bold text-white flex items-center justify-center transition-transform hover:scale-110"
+                          className="w-5 h-5 rounded-full text-[9px] font-bold text-text-primary flex items-center justify-center transition-transform hover:scale-110"
                           style={{ background: col }}
                         >
                           {r.score.toFixed(0)}
@@ -554,7 +554,7 @@ function DrawerAI({ r }: { r: UiRisk }) {
       <button
         onClick={() => plan.mutate({ riskId: r.id, locale })}
         disabled={plan.isPending}
-        className="w-full h-11 rounded-[12px] flex items-center justify-center gap-2 text-white text-[13.5px] font-semibold disabled:opacity-60"
+        className="w-full h-11 rounded-[12px] flex items-center justify-center gap-2 text-text-primary text-[13.5px] font-semibold disabled:opacity-60"
         style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 2px 12px var(--accent-glow)' }}
       >
         {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
@@ -604,7 +604,7 @@ function DrawerAI({ r }: { r: UiRisk }) {
               {res.plan.actions.map((a, i) => (
                 <div key={i} className="p-3 rounded-[11px]" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: prioColor[a.priority] ?? 'var(--accent)' }}>{i + 1}</span>
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-text-primary shrink-0" style={{ background: prioColor[a.priority] ?? 'var(--accent)' }}>{i + 1}</span>
                     <span className="text-[13px] font-semibold text-ink flex-1">{a.title}</span>
                     <span className="text-[10.5px] font-semibold uppercase" style={{ color: prioColor[a.priority] ?? 'var(--accent)' }}>{a.priority}</span>
                   </div>
@@ -708,7 +708,7 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
         {field(L.col_owner, r.ownerName)}
         {field(L.col_mod, r.mod)}
       </div>
-      <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white transition-all hover:brightness-110" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+      <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-all hover:brightness-110" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
         <ShieldCheck size={16} /> {L.createMiti}
       </button>
     </div>
@@ -902,7 +902,7 @@ function DrawerLifecycle({ r }: { r: UiRisk }) {
               </button>
             )}
             {next && canTransition(current, next) && (
-              <button disabled={busy} onClick={() => go(next)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+              <button disabled={busy} onClick={() => go(next)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
                 {phaseLabel(next, lang)} <ArrowRight size={14} />
               </button>
             )}
@@ -1042,7 +1042,7 @@ function DrawerFinancial({ r }: { r: UiRisk }) {
               <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-3 w-full accent-[var(--accent)]" />
             </label>
           </div>
-          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
             <Coins size={16} /> {tr('Recalculer l’exposition', 'Recalculate exposure')}
           </button>
           <div className="text-[11px] text-ink-muted mt-2">{tr('SLE explicite prioritaire ; sinon composé depuis interruptions + amendes + perte de données ; sinon référence par criticité.', 'Explicit SLE wins; else composed from downtime + fines + data loss; else reference by criticality.')}</div>

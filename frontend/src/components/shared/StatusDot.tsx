@@ -27,20 +27,20 @@ interface StatusDotProps {
 }
 
 const STATUS_CONFIG: Record<string, { bg: string; label: string; textColor: string }> = {
-  open: { bg: 'bg-red-500', label: 'Ouvert', textColor: 'text-red-400' },
-  draft: { bg: 'bg-zinc-500', label: 'Brouillon', textColor: 'text-zinc-400' },
-  active: { bg: 'bg-red-500', label: 'Actif', textColor: 'text-red-400' },
-  in_progress: { bg: 'bg-blue-500', label: 'En cours', textColor: 'text-blue-400' },
-  planned: { bg: 'bg-blue-400', label: 'Planifié', textColor: 'text-blue-300' },
+  open: { bg: 'bg-danger', label: 'Ouvert', textColor: 'text-danger-text' },
+  draft: { bg: 'bg-surface-3', label: 'Brouillon', textColor: 'text-text-secondary' },
+  active: { bg: 'bg-danger', label: 'Actif', textColor: 'text-danger-text' },
+  in_progress: { bg: 'bg-accent-500', label: 'En cours', textColor: 'text-info-text' },
+  planned: { bg: 'bg-blue-400', label: 'Planifié', textColor: 'text-info-text' },
   review: { bg: 'bg-violet-500', label: 'En revue', textColor: 'text-violet-400' },
-  mitigated: { bg: 'bg-amber-500', label: 'Atténué', textColor: 'text-amber-400' },
+  mitigated: { bg: 'bg-warning', label: 'Atténué', textColor: 'text-warning-text' },
   accepted: { bg: 'bg-purple-500', label: 'Accepté', textColor: 'text-purple-400' },
-  closed: { bg: 'bg-emerald-500', label: 'Fermé', textColor: 'text-emerald-400' },
-  done: { bg: 'bg-emerald-500', label: 'Terminé', textColor: 'text-emerald-400' },
-  cancelled: { bg: 'bg-zinc-500', label: 'Annulé', textColor: 'text-zinc-400' },
+  closed: { bg: 'bg-success', label: 'Fermé', textColor: 'text-success-text' },
+  done: { bg: 'bg-success', label: 'Terminé', textColor: 'text-success-text' },
+  cancelled: { bg: 'bg-surface-3', label: 'Annulé', textColor: 'text-text-secondary' },
 };
 
-const DEFAULT_STATUS_CONFIG = { bg: 'bg-zinc-500', label: 'Inconnu', textColor: 'text-zinc-400' };
+const DEFAULT_STATUS_CONFIG = { bg: 'bg-surface-3', label: 'Inconnu', textColor: 'text-text-secondary' };
 
 const getStatusConfig = (status: Status) => STATUS_CONFIG[status?.toLowerCase()] ?? DEFAULT_STATUS_CONFIG;
 

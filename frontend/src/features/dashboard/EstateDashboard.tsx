@@ -72,7 +72,7 @@ export function EstateDashboard() {
           ) : critical.length === 0 ? (
             <div className="px-2 py-10 text-center">
               <div className="text-[13px] text-ink-soft mb-3">{tr('Aucun actif critique — ajoutez votre inventaire.', 'No critical asset — add your inventory.')}</div>
-              <button onClick={() => navigate('/assets')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-white" style={{ background: 'var(--accent)' }}>
+              <button onClick={() => navigate('/assets')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'var(--accent)' }}>
                 {tr('Nouvel actif', 'New asset')}
               </button>
             </div>
