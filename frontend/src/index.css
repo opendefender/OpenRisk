@@ -1,68 +1,18 @@
 /* Copyright (c) 2026 OpenDefender Contributors
    SPDX-License-Identifier: BUSL-1.1 */
 
+/* Design tokens — one source of truth for colour, applied via [data-theme] on
+   <html>. Must precede the Tailwind layers so utilities can resolve the vars.
+   The accent-variant blocks further down refine this scale; they stay in this
+   file because azure/iris is a product feature, not part of the base contract. */
+@import './styles/tokens.css';
+
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   OpenRisk design tokens — dc.html handoff (§11)
-   Driven by data-theme (dark|light) + data-variant (azure|iris)
-   set on <html> by the UI store. Everything reads CSS variables
-   so the whole app swaps theme/accent with zero per-component work.
-   ============================================================ */
-:root,
-:root[data-theme='dark'] {
-  /* dark neutrals (default) */
-  --bg-app: #08090d;
-  --bg-primary: #0c0d12;
-  --bg-secondary: #101117;
-  --bg-elevated: #15161e;
-  --bg-hover: #1b1c26;
-  --glass: rgba(18, 19, 26, 0.72);
-  --glass-strong: rgba(14, 15, 21, 0.9);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --border: #22232e;
-  --border-strong: #2e2f3c;
-  --text-primary: #f4f4f7;
-  --text-secondary: #9a9aa6;
-  --text-muted: #8b8b97; /* WCAG AA: ≥4.5:1 on dark surfaces (OR-BUG-011) */
-  /* semantic (identical in both themes) */
-  --critical: #ff453a;
-  --high: #ff9f0a;
-  --medium: #ffd426;
-  --low: #30d158;
-  --info: #64d2ff;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  color-scheme: dark;
-}
-
-:root[data-theme='light'] {
-  --bg-app: #eeeef1;
-  --bg-primary: #ffffff;
-  --bg-secondary: #fbfbfd;
-  --bg-elevated: #ffffff;
-  --bg-hover: #f2f2f5;
-  --glass: rgba(255, 255, 255, 0.72);
-  --glass-strong: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(0, 0, 0, 0.07);
-  --border: #e6e6ec;
-  --border-strong: #d4d4dc;
-  --text-primary: #161618;
-  --text-secondary: #65656d;
-  --text-muted: #6d6d77; /* WCAG AA: ≥4.5:1 on light surfaces (OR-BUG-011) */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 6px 22px rgba(20, 20, 40, 0.09);
-  --shadow-lg: 0 16px 48px rgba(20, 20, 40, 0.14);
-  color-scheme: light;
-}
-
-/* accent — azure (default) */
-:root,
 :root[data-variant='azure'] {
   --accent: #0a84ff;
   --accent-hover: #0060df;

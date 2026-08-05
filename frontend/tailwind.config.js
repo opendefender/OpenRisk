@@ -12,6 +12,39 @@ export default {
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
+        // ==== semantic tokens (src/styles/tokens.css) ====
+        // These are the utilities components should use. Every one resolves to
+        // a CSS variable, so a component written against them follows the theme
+        // with no per-component work — which is the whole point: a raw palette
+        // class like bg-zinc-900 is a constant and can never do that.
+        'surface-0': 'var(--surface-0)',
+        'surface-1': 'var(--surface-1)',
+        'surface-2': 'var(--surface-2)',
+        'surface-3': 'var(--surface-3)',
+        'surface-sunken': 'var(--surface-sunken)',
+        'surface-overlay': 'var(--surface-overlay)',
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
+        'text-muted': 'var(--text-muted)',
+        'text-inverse': 'var(--text-inverse)',
+        'border-subtle': 'var(--border-subtle)',
+        'border-default': 'var(--border-default)',
+        success: {
+          DEFAULT: 'var(--success)',
+          surface: 'var(--success-surface)',
+          text: 'var(--success-text)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          surface: 'var(--warning-surface)',
+          text: 'var(--warning-text)',
+        },
+        danger: {
+          DEFAULT: 'var(--danger)',
+          surface: 'var(--danger-surface)',
+          text: 'var(--danger-text)',
+        },
+
         // ---- surfaces (CSS-var backed, swap with theme) ----
         app: 'var(--bg-app)',
         panel: 'var(--bg-primary)',
@@ -46,21 +79,35 @@ export default {
         high: 'var(--high)',
         medium: 'var(--medium)',
         low: 'var(--low)',
-        info: 'var(--info)',
+        info: {
+          DEFAULT: 'var(--info)',
+          surface: 'var(--info-surface)',
+          text: 'var(--info-text)',
+        },
         risk: {
-          low: 'var(--low)',
-          medium: 'var(--medium)',
-          high: 'var(--high)',
-          critical: 'var(--critical)',
+          low: 'var(--risk-low)',
+          moderate: 'var(--risk-moderate)',
+          medium: 'var(--risk-moderate)', // alias, existing usage
+          high: 'var(--risk-high)',
+          critical: 'var(--risk-critical)',
+          extreme: 'var(--risk-extreme)',
         },
       },
       borderColor: {
-        DEFAULT: 'var(--border)',
+        DEFAULT: 'var(--border-default)',
+        subtle: 'var(--border-subtle)',
+        strong: 'var(--border-strong)',
+      },
+      borderRadius: {
+        token: 'var(--radius-md)',
+        'token-lg': 'var(--radius-lg)',
+        'token-xl': 'var(--radius-xl)',
       },
       boxShadow: {
         'card-sm': 'var(--shadow-sm)',
         'card-md': 'var(--shadow-md)',
         'card-lg': 'var(--shadow-lg)',
+        overlay: 'var(--shadow-overlay)',
         glow: '0 3px 12px var(--accent-glow)',
         'glow-lg': '0 8px 28px var(--accent-glow)',
         'glow-red': '0 0 20px rgba(255, 69, 58, 0.5)',

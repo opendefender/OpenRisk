@@ -5,6 +5,46 @@
     <link rel="icon" type="image/svg+xml" href="/openrisk.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenRisk — GRC</title>
+    <script>
+      // Theme, applied before the first paint.
+      //
+      // The store does this too, but only once its module has loaded and
+      // rehydrated. That leaves a window in which the document has no
+      // data-theme and renders with the dark defaults — a flash of the wrong
+      // theme on every cold load. Inline and synchronous is the only placement
+      // that runs early enough to prevent it.
+      //
+      // Deliberately tolerant: any failure (private mode, corrupt JSON,
+      // storage disabled) falls through to the OS preference rather than
+      // throwing and blocking the page.
+      (function () {
+        var root = document.documentElement;
+        var prefersDark = function () {
+          return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        };
+        try {
+          var mode = 'system';
+          var variant = 'azure';
+          var density = 'comfort';
+
+          var raw = localStorage.getItem('openrisk-ui');
+          if (raw) {
+            var s = (JSON.parse(raw) || {}).state || {};
+            // themeMode is the current key; `theme` is read as a fallback so a
+            // user upgrading from the previous build does not get one flash.
+            mode = s.themeMode || s.theme || 'system';
+            variant = s.variant || variant;
+            density = s.density || density;
+          }
+
+          root.setAttribute('data-theme', mode === 'system' ? (prefersDark() ? 'dark' : 'light') : mode);
+          root.setAttribute('data-variant', variant);
+          if (density !== 'comfort') root.setAttribute('data-density', density);
+        } catch (e) {
+          root.setAttribute('data-theme', prefersDark() ? 'dark' : 'light');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
