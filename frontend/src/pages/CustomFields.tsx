@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit2, Copy, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { getAccessToken } from '../lib/session';
 
 interface CustomField {
   id: string;
@@ -75,7 +76,7 @@ export default function CustomFields() {
   const fetchFields = async () => {
     try {
       const response = await fetch('/api/v1/custom-fields', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -91,7 +92,7 @@ export default function CustomFields() {
   const fetchTemplates = async () => {
     try {
       const response = await fetch('/api/v1/custom-fields/templates', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -118,7 +119,7 @@ export default function CustomFields() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${getAccessToken() ?? ''}`,
         },
         body: JSON.stringify(formData),
       });
@@ -151,7 +152,7 @@ export default function CustomFields() {
     try {
       const response = await fetch(`/api/v1/custom-fields/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
       });
 
       if (response.ok) {

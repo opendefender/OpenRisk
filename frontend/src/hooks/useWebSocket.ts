@@ -18,6 +18,7 @@ import type {
   TopRisk,
   MitigationProgress,
 } from '../types/dashboard.types';
+import { getAccessToken } from '../lib/session';
 
 interface WebSocketMessage {
   type: 'dashboard_update' | 'error' | 'pong' | 'connected';
@@ -82,7 +83,7 @@ export function useWebSocketDashboard(config: WebSocketConfig = {}): UseWebSocke
       try {
         const response = await fetch('/api/v1/dashboard/complete', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Authorization': `Bearer ${getAccessToken() ?? ''}`,
           },
         });
 
@@ -151,7 +152,7 @@ export function useWebSocketDashboard(config: WebSocketConfig = {}): UseWebSocke
     setReconnecting(true);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = getAccessToken();
       const wsUrl = `${mergedConfig.url}?token=${encodeURIComponent(token || '')}`;
 
       wsRef.current = new WebSocket(wsUrl);

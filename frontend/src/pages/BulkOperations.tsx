@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, Trash2, Play, Pause, RefreshCw, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { getAccessToken } from '../lib/session';
 
 interface BulkOperation {
   id: string;
@@ -75,7 +76,7 @@ export default function BulkOperations() {
   const fetchOperations = async () => {
     try {
       const response = await fetch('/api/v1/bulk-operations', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -93,7 +94,7 @@ export default function BulkOperations() {
       const response = await fetch(
         `/api/v1/bulk-operations/${operationId}/logs`,
         {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+          headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
         }
       );
       if (response.ok) {
@@ -118,7 +119,7 @@ export default function BulkOperations() {
         `/api/v1/bulk-operations/${operationId}/cancel`,
         {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+          headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
         }
       );
 
@@ -139,7 +140,7 @@ export default function BulkOperations() {
     try {
       const response = await fetch(`/api/v1/bulk-operations/${operationId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
       });
 
       if (response.ok) {

@@ -13,6 +13,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { getAccessToken } from '../../lib/session';
 
 // Matches the hardcoded baseURL in src/lib/api.ts.
 const API_BASE = 'http://localhost:8080/api/v1';
@@ -29,7 +30,7 @@ export function useMitigationEvents(onAutoCompleted?: (evt: MitigationAutoComple
   const qc = useQueryClient();
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
+    const token = getAccessToken();
     if (!token || typeof window.EventSource === 'undefined') return;
 
     const es = new EventSource(`${API_BASE}/mitigations/events?token=${encodeURIComponent(token)}`);

@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { api } from '../lib/api';
 import { decodeAccessToken, permitted } from '../lib/jwt';
+import { setAccessToken } from '../lib/session';
 
 interface User {
   id: string;
@@ -50,10 +51,16 @@ function withTokenClaims(user: User, token: string, businessRole?: string): User
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
+  // The cached profile is a paint optimisation only — it holds no credential.
+  // Authority for "is this session valid" belongs to the HttpOnly cookie, which
+  // the server validates on the first request after a reload.
   user: JSON.parse(localStorage.getItem('auth_user') || 'null'),
-  token: localStorage.getItem('auth_token'),
-  expiresIn: localStorage.getItem('auth_expires_in') ? parseInt(localStorage.getItem('auth_expires_in')!) : null,
-  isAuthenticated: !!localStorage.getItem('auth_token'),
+  token: null,
+  expiresIn: null,
+  // Optimistic: with the token no longer readable, a cached profile is the only
+  // client-side hint that a session cookie exists. A stale guess costs one 401,
+  // which the api client already turns into a redirect to /login.
+  isAuthenticated: !!localStorage.getItem('auth_user'),
 
   login: async (email, password) => {
     // Backend shape: { user: domain.User, token_pair: { access_token, refresh_token, expires_in }, organization }
@@ -64,10 +71,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const base: User = { ...data.user, role: data.user.role?.name ?? '', org_name: data.organization?.name };
     const user = withTokenClaims(base, data.token_pair.access_token, data.business_role);
 
-    localStorage.setItem('auth_token', data.token_pair.access_token);
-    localStorage.setItem('auth_refresh_token', data.token_pair.refresh_token);
+    // Tokens are NOT persisted: the durable credential is the HttpOnly cookie
+    // the backend set on this response. Only the display profile is cached.
+    setAccessToken(data.token_pair.access_token);
     localStorage.setItem('auth_user', JSON.stringify(user));
-    localStorage.setItem('auth_expires_in', data.token_pair.expires_in.toString());
 
     set({
       token: data.token_pair.access_token,
@@ -78,9 +85,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: () => {
+    // Ask the server to expire the cookies; script cannot clear HttpOnly ones.
+    // Fire-and-forget: local state must be cleared even if the call fails, or a
+    // network blip would leave the user apparently logged in.
+    void api.post('/auth/logout', {}).catch(() => undefined);
+
+    setAccessToken(null);
+    localStorage.removeItem('auth_user');
+    // Legacy keys from the pre-cookie era: removed so an old tab's token does
+    // not linger in storage after an upgrade.
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_refresh_token');
-    localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_expires_in');
     set({
       token: null,
@@ -92,12 +107,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   refreshToken: async () => {
     try {
-      const refresh_token = localStorage.getItem('auth_refresh_token');
-      const { data } = await api.post('/auth/refresh', { refresh_token });
+      // No body: the refresh token travels in its HttpOnly cookie, which is
+      // scoped to this endpoint.
+      const { data } = await api.post('/auth/refresh', {});
 
-      localStorage.setItem('auth_token', data.token_pair.access_token);
-      localStorage.setItem('auth_refresh_token', data.token_pair.refresh_token);
-      localStorage.setItem('auth_expires_in', data.token_pair.expires_in.toString());
+      setAccessToken(data.token_pair.access_token);
 
       // Re-derive permissions from the rotated token (a business-role change or a
       // re-scoped session takes effect here, mirroring the backend SessionResolver).
