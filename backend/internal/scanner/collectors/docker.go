@@ -7,38 +7,33 @@ package collectors
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"net/http"
 	"strings"
-
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	scanner "github.com/opendefender/openrisk/internal/scanner"
 )
 
-// Docker is a real Docker-Engine-SDK CloudCollector. It connects to a Docker
-// host (tcp:// with optional mTLS, or a unix socket) and enumerates containers
+// Docker is a real Docker-Engine CloudCollector. It connects to a Docker host
+// (tcp:// with optional mTLS, or a unix socket) and enumerates containers
 // (Container assets) and images, flagging containers attached to the host
 // network namespace.
+//
+// It speaks the Engine REST API directly rather than importing the Moby SDK —
+// see dockerapi.go for why.
 type Docker struct{}
 
 // NewDocker returns the Docker collector.
 func NewDocker() scanner.CloudCollector { return Docker{} }
 
 func (Docker) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery, errs chan<- error) {
-	cli, err := dockerClient(cfg.Credentials)
+	cli, err := newDockerAPI(cfg.Credentials)
 	if err != nil {
 		errs <- fmt.Errorf("docker: client: %w", err)
 		return
 	}
-	defer func() { _ = cli.Close() }()
 
-	containers, err := cli.ContainerList(ctx, container.ListOptions{All: true})
+	containers, err := cli.listContainers(ctx)
 	if err != nil {
 		errs <- fmt.Errorf("docker: list containers: %w", err)
 		return
@@ -47,7 +42,7 @@ func (Docker) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<-
 		emitContainer(c, assets, findings)
 	}
 
-	images, err := cli.ImageList(ctx, image.ListOptions{})
+	images, err := cli.listImages(ctx)
 	if err != nil {
 		// Images are secondary — surface the error but keep the container inventory.
 		errs <- fmt.Errorf("docker: list images: %w", err)
@@ -58,32 +53,7 @@ func (Docker) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<-
 	}
 }
 
-// dockerClient builds a Docker API client from the credential map: `host`
-// (required) plus optional PEM `ca_cert`/`client_cert`/`client_key` for mTLS.
-func dockerClient(creds map[string]string) (*client.Client, error) {
-	opts := []client.Opt{client.WithHost(creds["host"]), client.WithAPIVersionNegotiation()}
-	if creds["ca_cert"] != "" || creds["client_cert"] != "" {
-		tlsConf := &tls.Config{MinVersion: tls.VersionTLS12}
-		if ca := creds["ca_cert"]; ca != "" {
-			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM([]byte(ca)) {
-				return nil, fmt.Errorf("invalid ca_cert PEM")
-			}
-			tlsConf.RootCAs = pool
-		}
-		if creds["client_cert"] != "" && creds["client_key"] != "" {
-			pair, err := tls.X509KeyPair([]byte(creds["client_cert"]), []byte(creds["client_key"]))
-			if err != nil {
-				return nil, fmt.Errorf("invalid client cert/key: %w", err)
-			}
-			tlsConf.Certificates = []tls.Certificate{pair}
-		}
-		opts = append(opts, client.WithHTTPClient(&http.Client{Transport: &http.Transport{TLSClientConfig: tlsConf}}))
-	}
-	return client.NewClientWithOpts(opts...)
-}
-
-func emitContainer(c container.Summary, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery) {
+func emitContainer(c dockerContainer, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery) {
 	name := ""
 	if len(c.Names) > 0 {
 		name = strings.TrimPrefix(c.Names[0], "/")
@@ -121,7 +91,7 @@ func emitContainer(c container.Summary, assets chan<- scanner.AssetDiscovery, fi
 	}
 }
 
-func emitImage(im image.Summary, assets chan<- scanner.AssetDiscovery) {
+func emitImage(im dockerImage, assets chan<- scanner.AssetDiscovery) {
 	name := shortID(im.ID)
 	if len(im.RepoTags) > 0 && im.RepoTags[0] != "<none>:<none>" {
 		name = im.RepoTags[0]
