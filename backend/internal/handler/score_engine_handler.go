@@ -129,7 +129,7 @@ func (h *ScoreEngineHandler) CreateScoringConfig(c *fiber.Ctx) error {
 
 	// Create in service
 	if err := h.service.CreateConfig(config); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return serverError(c, "score engine request failed", err)
 	}
 
 	return c.Status(201).JSON(config)
@@ -179,7 +179,7 @@ func (h *ScoreEngineHandler) UpdateScoringConfig(c *fiber.Ctx) error {
 
 	// Apply updates
 	if err := h.service.UpdateConfig(id, updates); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return serverError(c, "score engine request failed", err)
 	}
 
 	updated := h.service.GetConfig(id)

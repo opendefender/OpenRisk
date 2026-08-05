@@ -103,7 +103,7 @@ func (h *VulnIntegrationHandler) SaveIntegration(c *fiber.Ctx) error {
 func (h *VulnIntegrationHandler) ListIntegrations(c *fiber.Ctx) error {
 	items, err := h.list.Execute(c.UserContext(), h.tenant(c))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "could not list integrations", "details": err.Error()})
+		return serverError(c, "could not list integrations", err)
 	}
 	return c.JSON(fiber.Map{"items": items})
 }
