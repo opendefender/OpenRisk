@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../hooks/useAuthStore';
 import { format } from 'date-fns';
 import { Clock, AlertCircle, CheckCircle, Filter } from 'lucide-react';
+import { getAccessToken } from '../lib/session';
 
 interface AuditLog {
   id: string;
@@ -51,7 +52,7 @@ export default function AuditLogs() {
 
       const response = await fetch(`/api/v1/audit-logs?${params}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
       });
 

@@ -8,6 +8,7 @@ import { ArrowUp, ArrowDown, Clock, User, AlertCircle, Loader, Filter } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'react-router';
 import { toast } from 'react-hot-toast';
+import { getAccessToken } from '../lib/session';
 
 interface TimelineEvent {
   id: string;
@@ -78,7 +79,7 @@ export default function RiskTimeline() {
     if (!riskId) return;
     try {
       const response = await fetch(`/api/v1/risks/${riskId}/timeline`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
       });
 
       if (response.ok) {

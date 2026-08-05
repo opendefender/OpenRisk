@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { Search, Star, Download, CheckCircle, AlertCircle, Trash2, Plus, RefreshCw, Eye, Code } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAccessToken } from '../lib/session';
 
 interface Connector {
   id: string;
@@ -62,7 +63,7 @@ export default function Marketplace() {
       try {
         const response = await fetch('/api/v1/marketplace/connectors', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            'Authorization': `Bearer ${getAccessToken() ?? ''}`
           }
         });
         const data = await response.json();
@@ -79,7 +80,7 @@ export default function Marketplace() {
       try {
         const response = await fetch('/api/v1/marketplace/apps', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            'Authorization': `Bearer ${getAccessToken() ?? ''}`
           }
         });
         const data = await response.json();
@@ -109,7 +110,7 @@ export default function Marketplace() {
       const response = await fetch('/api/v1/marketplace/apps', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${getAccessToken() ?? ''}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -139,7 +140,7 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${getAccessToken() ?? ''}`
         }
       });
 
@@ -156,7 +157,7 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}/${endpoint}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${getAccessToken() ?? ''}`
         }
       });
 
@@ -174,14 +175,14 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}/sync`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${getAccessToken() ?? ''}`
         }
       });
 
       // Refresh apps list
       const response = await fetch('/api/v1/marketplace/apps', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${getAccessToken() ?? ''}`
         }
       });
       const data = await response.json();
