@@ -322,7 +322,7 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={onClose}>
-      <div className="w-full max-w-[440px] rounded-[16px] p-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--elev-4)' }} onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-[440px] rounded-[16px] p-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-overlay)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-[16px] font-bold text-ink">{tr('Inviter un membre', 'Invite a member')}</div>
           <button onClick={onClose} className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover" aria-label={tr('Fermer', 'Close')}><X size={17} /></button>

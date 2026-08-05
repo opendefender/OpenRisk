@@ -121,10 +121,12 @@ const PAIRS = [
   { text: '--text-on-solid', surface: '--warning-solid', min: AA_NORMAL },
   { text: '--text-on-solid', surface: '--info-solid', min: AA_NORMAL },
   { text: '--text-on-solid', surface: '--accent-solid', min: AA_NORMAL },
-  // Risk chips are small but bold; AA large is the honest bar for a swatch
-  // used as a fill behind short labels.
+  // Risk colours are used as SMALL text inside a tinted chip, not just as a
+  // fill, so they are held to the normal AA bar on the raised surface. The
+  // large-text bar was too lenient and let --risk-moderate ship at 3.62:1
+  // against its chip tint, which axe caught on the live modal.
   ...['--risk-low', '--risk-moderate', '--risk-high', '--risk-critical', '--risk-extreme'].map(
-    (risk) => ({ text: risk, surface: '--surface-2', min: AA_LARGE }),
+    (risk) => ({ text: risk, surface: '--surface-2', min: AA_NORMAL }),
   ),
 ];
 

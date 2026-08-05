@@ -109,7 +109,10 @@
   --risk-moderate: #ffd426;
   --risk-high: #ff9f0a;
   --risk-critical: #ff453a;
-  --risk-extreme: #d70015;
+  /* Lighter than the light-theme extreme so it stays readable AS TEXT on a dark
+     surface; #d70015 measured 3.35:1 there. "Extreme" still reads as more
+     severe than critical through the deeper, less orange hue. */
+  --risk-extreme: #f2545f;
 
   /* elevation */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
@@ -196,7 +199,11 @@
 
   /* risk criticality scale */
   --risk-low: #1a7f3c;
-  --risk-moderate: #8a6d00;
+  /* Dark enough to clear 4.5:1 as small text on its own tinted chip, which is
+     how it is actually used. #8a6d00 measured 3.62:1 there — caught by axe on
+     the live create-risk modal, not by the token check, which was only holding
+     the risk scale to the AA-large bar. */
+  --risk-moderate: #6b5300;
   --risk-high: #9a5b00;
   --risk-critical: #c81e14;
   --risk-extreme: #96000d;

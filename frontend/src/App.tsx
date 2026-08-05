@@ -69,8 +69,15 @@ const RiskTimeline = lazy(() => import('./pages/RiskTimeline'));
  * Vérifie si le token existe, sinon redirige vers Login.
  */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = useAuthStore((state) => state.token);
-  if (!token) return <Navigate to="/login" replace />;
+  // Gate on isAuthenticated, not on the access token.
+  //
+  // Since the session moved to HttpOnly cookies the token is held in memory
+  // only, so it is null after every reload even though the session is valid.
+  // Gating on it logged the user out on any hard navigation. The cookie is the
+  // credential now, and the server is the authority: if it has expired, the
+  // first API call returns 401 and the axios interceptor redirects here.
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
