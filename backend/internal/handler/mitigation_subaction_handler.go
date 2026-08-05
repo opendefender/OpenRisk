@@ -284,15 +284,30 @@ func ReorderSubActions(c *fiber.Ctx) error {
 }
 
 // AutoCompleteMitigationSubAction (scanner webhook endpoint)
+//
+// The tenant comes from the authenticated session, never from the request.
+//
+// It used to be read from the payload, with the only other gate a key compiled
+// into the source ("internal-scanner-key", carrying a TODO to implement real
+// auth). Since the repository scopes correctly but *relative to the tenant it is
+// given*, naming another organisation in the body was enough to complete that
+// organisation's sub-action. In a GRC product that write is compliance
+// evidence, so it falsified another tenant's audit posture rather than merely
+// corrupting a row.
+//
+// The placeholder key is gone rather than replaced: a shared secret published in
+// the repository authenticates nobody, and leaving it in place would suggest a
+// control exists where none does. The route sits behind the JWT gate and a
+// mitigations:update permission (see main.go), which is the same authorisation
+// every other write on this resource requires.
 func AutoCompleteMitigationSubAction(c *fiber.Ctx) error {
-	// Verify internal API key (TODO: implement proper auth)
-	apiKey := c.Get("X-Internal-API-Key")
-	if apiKey != "internal-scanner-key" { // Placeholder
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
 		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
 	}
+	tenantID := ctx.OrganizationID
 
 	payload := struct {
-		TenantID     string `json:"tenant_id"`
 		SubActionID  string `json:"sub_action_id"`
 		ScannerJobID string `json:"scanner_job_id"`
 		Evidence     string `json:"evidence"`
@@ -300,11 +315,6 @@ func AutoCompleteMitigationSubAction(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
-	}
-
-	tenantID, err := uuid.Parse(payload.TenantID)
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid tenant_id"})
 	}
 
 	subactionID, err := uuid.Parse(payload.SubActionID)

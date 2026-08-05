@@ -787,8 +787,11 @@ func main() {
 	protected.Delete("/mitigations/:id/sub-actions/:aid", mitigationDelete, handlers.DeleteSubAction)
 	protected.Patch("/mitigations/:id/reorder-subactions", mitigationUpdate, handlers.ReorderSubActions)
 
-	// Scanner webhook for auto-completion (internal API key auth)
-	protected.Post("/scanner/mitigations/auto-complete", handlers.AutoCompleteMitigationSubAction)
+	// Scanner auto-completion. Guarded like every other mitigation write: the
+	// handler derives the tenant from the session, and this permission is the
+	// authorisation. It previously relied on a shared key compiled into the
+	// source, which authenticated nobody once the repository was public.
+	protected.Post("/scanner/mitigations/auto-complete", mitigationUpdate, handlers.AutoCompleteMitigationSubAction)
 
 	// Compliance Frameworks (M1 — see ROADMAP.md §3)
 	complianceRepo := repository.NewGormComplianceRepository(database.DB)

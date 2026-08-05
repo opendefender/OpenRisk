@@ -16,6 +16,17 @@
 // somebody has decided, in writing, how each route is isolated. That is a weaker
 // claim than an end-to-end probe and it is stated as such, but it is the part
 // that closes automatically over new code.
+//
+// Known blind spot: the gate tracks routes with an ID in the *path*, because
+// that is the surface where a caller names someone else's resource. A route that
+// takes the target id (or worse, the tenant) in the request *body* is an equally
+// good IDOR surface and is invisible here. That is not hypothetical —
+// POST /scanner/mitigations/auto-complete read its tenant from the payload and
+// let any authenticated user complete another tenant's sub-action; it is
+// unparameterised, so this gate never asked about it. It is now covered by
+// handler/mitigation_autocomplete_isolation_test. Detecting the shape statically
+// would mean parsing each handler's body struct, which is a larger change than
+// the gate warrants; until then, body-addressed writes need a probe by hand.
 package isolation
 
 import "strings"
