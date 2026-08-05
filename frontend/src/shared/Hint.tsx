@@ -63,7 +63,7 @@ export function Hint({ id, text, side = 'top', children }: HintProps) {
             background: 'var(--bg-elevated)',
             color: 'var(--text-primary)',
             border: '1px solid var(--border-strong)',
-            boxShadow: 'var(--elev-3, 0 8px 24px rgba(0,0,0,.12))',
+            boxShadow: 'var(--shadow-lg)',
             animation: 'or-fadein .15s ease',
           }}
         >
