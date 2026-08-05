@@ -109,7 +109,7 @@ export function DangerConfirm({
           <button onClick={onClose} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-ink-soft hover:bg-hover transition-colors disabled:opacity-60">
             {tr('Annuler', 'Cancel')}
           </button>
-          <button onClick={onConfirm} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary transition-[filter] hover:brightness-110 disabled:opacity-60" style={{ background: 'var(--critical)' }}>
+          <button onClick={onConfirm} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-on-solid transition-[filter] hover:brightness-110 disabled:opacity-60" style={{ background: 'var(--danger-solid)' }}>
             {confirmLabel}
           </button>
         </div>

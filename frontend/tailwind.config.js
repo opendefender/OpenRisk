@@ -43,7 +43,13 @@ export default {
           DEFAULT: 'var(--danger)',
           surface: 'var(--danger-surface)',
           text: 'var(--danger-text)',
+          solid: 'var(--danger-solid)',
         },
+        'success-solid': 'var(--success-solid)',
+        'warning-solid': 'var(--warning-solid)',
+        'info-solid': 'var(--info-solid)',
+        'accent-solid': 'var(--accent-solid)',
+        'text-on-solid': 'var(--text-on-solid)',
 
         // ---- surfaces (CSS-var backed, swap with theme) ----
         app: 'var(--bg-app)',

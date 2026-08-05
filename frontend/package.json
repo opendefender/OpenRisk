@@ -40,7 +40,9 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

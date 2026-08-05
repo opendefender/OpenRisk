@@ -91,6 +91,19 @@
   --info-surface: #0b2430;
   --info-text: #7edcff;
 
+  /* Solid fills for buttons and badges.
+     Distinct from the expressive colours above: --danger is tuned to be
+     readable AS TEXT on a neutral surface, which makes it too light to sit
+     UNDER text. These are dark enough that --text-on-solid clears 4.5:1, and
+     they are identical in both themes so a filled destructive button does not
+     change meaning when the theme flips. */
+  --danger-solid: #c81e14;
+  --success-solid: #1a7f3c;
+  --warning-solid: #9a5b00;
+  --info-solid: #0b6f96;
+  --accent-solid: #1f62e0;
+  --text-on-solid: #ffffff;
+
   /* risk criticality scale */
   --risk-low: #30d158;
   --risk-moderate: #ffd426;
@@ -171,6 +184,15 @@
   --info: #0b6f96;
   --info-surface: #e6f4fa;
   --info-text: #095b7b;
+
+  /* Solid fills — see the dark block. Deliberately the same values in both
+     themes: a destructive button should look destructive either way. */
+  --danger-solid: #c81e14;
+  --success-solid: #1a7f3c;
+  --warning-solid: #9a5b00;
+  --info-solid: #0b6f96;
+  --accent-solid: #1f62e0;
+  --text-on-solid: #ffffff;
 
   /* risk criticality scale */
   --risk-low: #1a7f3c;

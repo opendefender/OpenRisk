@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Overlay visual harness</title>
+    <script>
+      // The harness is driven by ?theme=light|dark so Playwright can request a
+      // theme without racing the store's rehydration. Applied here, before the
+      // first paint, for the same reason the app does it in index.html.
+      (function () {
+        var theme = new URLSearchParams(location.search).get('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-variant', 'azure');
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="harness-root"></div>
+    <script type="module" src="./harness.tsx"></script>
+  </body>
+</html>

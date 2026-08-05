@@ -113,6 +113,14 @@ const PAIRS = [
   { text: '--info-text', surface: '--surface-2', min: AA_NORMAL },
   // Inverse text sits on the accent fill of a primary button.
   { text: '--text-inverse', surface: '--accent-500', min: AA_NORMAL },
+  // Text on a solid semantic fill (destructive button, status badge). axe
+  // caught this pair missing: the button used --danger as a fill with the
+  // ordinary text token on top, which measured 3.1:1.
+  { text: '--text-on-solid', surface: '--danger-solid', min: AA_NORMAL },
+  { text: '--text-on-solid', surface: '--success-solid', min: AA_NORMAL },
+  { text: '--text-on-solid', surface: '--warning-solid', min: AA_NORMAL },
+  { text: '--text-on-solid', surface: '--info-solid', min: AA_NORMAL },
+  { text: '--text-on-solid', surface: '--accent-solid', min: AA_NORMAL },
   // Risk chips are small but bold; AA large is the honest bar for a swatch
   // used as a fill behind short labels.
   ...['--risk-low', '--risk-moderate', '--risk-high', '--risk-critical', '--risk-extreme'].map(

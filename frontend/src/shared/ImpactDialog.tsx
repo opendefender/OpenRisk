@@ -122,8 +122,8 @@ export function ImpactDialog({
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="h-[40px] px-4 rounded-[10px] text-[13px] font-semibold text-text-primary"
-              style={{ background: 'var(--critical)', opacity: loading ? 0.7 : 1 }}
+              className="h-[40px] px-4 rounded-[10px] text-[13px] font-semibold text-text-on-solid"
+              style={{ background: 'var(--danger-solid)', opacity: loading ? 0.7 : 1 }}
             >
               {loading ? '…' : confirmLabel}
             </button>
