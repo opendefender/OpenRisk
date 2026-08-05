@@ -6,8 +6,6 @@ package collectors
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,7 +17,7 @@ func TestDockerEmitContainer(t *testing.T) {
 	assets := make(chan scanner.AssetDiscovery, 4)
 	findings := make(chan scanner.FindingDiscovery, 4)
 
-	c := container.Summary{
+	c := dockerContainer{
 		ID:    "abc123def456",
 		Names: []string{"/web-proxy"},
 		Image: "nginx:1.25",
@@ -44,7 +42,7 @@ func TestDockerEmitContainer(t *testing.T) {
 func TestDockerEmitContainer_NoHostNetwork_NoFinding(t *testing.T) {
 	assets := make(chan scanner.AssetDiscovery, 4)
 	findings := make(chan scanner.FindingDiscovery, 4)
-	c := container.Summary{ID: "x", Names: []string{"/app"}, Image: "app:latest", State: "running"}
+	c := dockerContainer{ID: "x", Names: []string{"/app"}, Image: "app:latest", State: "running"}
 	c.HostConfig.NetworkMode = "bridge"
 	emitContainer(c, assets, findings)
 	close(assets)
@@ -56,7 +54,7 @@ func TestDockerEmitContainer_NoHostNetwork_NoFinding(t *testing.T) {
 
 func TestDockerEmitImage(t *testing.T) {
 	assets := make(chan scanner.AssetDiscovery, 4)
-	emitImage(image.Summary{ID: "sha256:deadbeefcafebabe0000", RepoTags: []string{"postgres:16"}}, assets)
+	emitImage(dockerImage{ID: "sha256:deadbeefcafebabe0000", RepoTags: []string{"postgres:16"}}, assets)
 	close(assets)
 
 	a := <-assets
