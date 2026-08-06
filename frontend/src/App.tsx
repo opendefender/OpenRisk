@@ -52,7 +52,6 @@ const ExecutiveDashboard = lazy(() => import('./features/analytics/ExecutiveDash
 const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
 const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
 const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
-const RolesAccessPage = lazy(() => import('./features/rbac/RolesAccessPage').then(m => ({ default: m.RolesAccessPage })));
 const LeaderboardPage = lazy(() => import('./features/gamification/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
 const WarRoom = lazy(() => import('./features/incidents/WarRoom').then(m => ({ default: m.WarRoom })));
 const IncidentsScreen = lazy(() => import('./features/incidents/IncidentsScreen').then(m => ({ default: m.IncidentsScreen })));

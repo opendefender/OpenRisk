@@ -20,6 +20,7 @@ import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { MembersPanel } from '../rbac/MembersPanel';
 import { relTime } from '../risks/riskMap';
 import { useUsers, useTokens, useCustomFields, useTenants } from './adminData';
 import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
@@ -161,7 +162,7 @@ export function SettingsScreen() {
         </div>
         <div className="flex-1 min-w-0 w-full">
           {tab === 'general' && <GeneralTab tr={tr} />}
-          {tab === 'members' && <MembersTab L={L} tr={tr} lang={lang} />}
+          {tab === 'members' && <MembersPanel />}
           {tab === 'tokens' && <TokensTab tr={tr} lang={lang} />}
           {tab === 'orgs' && <OrgsTab tr={tr} />}
           {tab === 'fields' && <CustomFieldsTab tr={tr} />}
