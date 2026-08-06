@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Imports des Stores & Hooks ---
@@ -14,7 +14,8 @@ import { usePermissions } from './hooks/usePermissions';
 import { useUIStore } from './store/uiStore';
 import { useHotkeys } from './shared/useHotkeys';
 import { ShortcutsOverlay } from './shared/ShortcutsOverlay';
-import { NAV_GROUPS } from './shared/navModel';
+import { permissionFor } from './shared/routeModel';
+import { AccessDenied } from './shared/AccessDenied';
 
 // --- App shell ---
 import { Sidebar } from './components/layout/Sidebar';
@@ -64,6 +65,10 @@ const AiAdvisor = lazy(() => import('./features/ai/AiAdvisor').then(m => ({ defa
 const EmergingRisksPage = lazy(() => import('./features/ai/EmergingRisksPage').then(m => ({ default: m.EmergingRisksPage })));
 const BoardReportPage = lazy(() => import('./features/reports/BoardReportPage').then(m => ({ default: m.BoardReportPage })));
 const RiskTimeline = lazy(() => import('./pages/RiskTimeline'));
+const AuditDetailPage = lazy(() => import('./features/compliance/AuditDetailPage').then(m => ({ default: m.AuditDetailPage })));
+const RemediationDetailPage = lazy(() => import('./features/compliance/RemediationDetailPage').then(m => ({ default: m.RemediationDetailPage })));
+const MitigationDetailPage = lazy(() => import('./features/mitigations/MitigationDetailPage').then(m => ({ default: m.MitigationDetailPage })));
+const ReportJobPage = lazy(() => import('./features/reports/ReportJobPage').then(m => ({ default: m.ReportJobPage })));
 
 /**
  * COMPOSANT 1: PROTECTION DE ROUTE
@@ -171,37 +176,32 @@ const DashboardLayout = () => {
   );
 };
 
-// path -> required permission, derived from the SAME nav model that filters the
-// sidebar, so the route guard, the nav filter, and the backend guard all agree.
-// Unmapped paths are allowed (fail-open to the backend, which still enforces).
-const PATH_PERMS: Record<string, string> = Object.fromEntries(
-  NAV_GROUPS.flatMap((g) => g.items)
-    .filter((i) => i.perm)
-    .map((i) => [i.path, i.perm as string])
-);
+/**
+ * Redirects the legacy flat framework URL to its nested home.
+ *
+ * /compliance/<uuid> predates /compliance/frameworks/<uuid>; links to it exist
+ * in saved reports and bookmarks. `replace` keeps it out of history so Back
+ * from the framework page returns to Compliance rather than re-triggering the
+ * redirect.
+ */
+function LegacyFrameworkRedirect() {
+  const { frameworkId } = useParams<{ frameworkId: string }>();
+  return <Navigate to={`/compliance/frameworks/${frameworkId ?? ''}`} replace />;
+}
 
 /**
- * Real per-route permission guard (frontend defense-in-depth over the backend
- * 403). Renders a friendly "access restricted" panel instead of a broken screen
- * when a user deep-links to a route they lack the permission for. Admins ('*')
- * always pass (usePermissions().can handles the wildcard).
+ * Per-route permission guard (frontend defence-in-depth over the backend 403).
+ *
+ * Permissions come from the route tree, the same declaration the breadcrumb
+ * reads, so the guard, the trail and the sidebar cannot disagree about what a
+ * page is. Unmapped paths fail open to the backend, which still enforces.
  */
 function RoutePermissionGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { can } = usePermissions();
-  const required = PATH_PERMS[pathname];
+  const required = permissionFor(pathname);
   if (required && !can(required)) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8" style={{ background: 'var(--bg-primary)' }}>
-        <div className="max-w-md text-center space-y-3">
-          <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Accès restreint</div>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            Vous n'avez pas la permission requise (<code>{required}</code>) pour accéder à cette page.
-            Contactez un administrateur si vous pensez qu'il s'agit d'une erreur.
-          </p>
-        </div>
-      </div>
-    );
+    return <AccessDenied permission={required} pathname={pathname} />;
   }
   return <>{children}</>;
 }
@@ -243,50 +243,101 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
+
+          {/* ---------------- Risks ---------------- */}
           <Route path="risks" element={<RiskRegisterPage />} />
-          <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
-          <Route path="mitigations" element={<MitigationsBoard />} />
-          <Route path="compliance" element={<ComplianceScreen />} />
-          <Route path="compliance/gap-analysis" element={<GapAnalysisPage />} />
-          <Route path="compliance/audits" element={<AuditsPage />} />
-          <Route path="compliance/remediations" element={<RemediationPage />} />
-          <Route path="compliance/:frameworkId" element={<FrameworkDetail />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
           <Route path="risks/weighting" element={<RiskWeightsSettings />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
-          <Route path="analytics" element={<ExecutiveDashboard />} />
-          <Route path="analytics/financial" element={<FinancialDashboard />} />
-          <Route path="leaderboard" element={<LeaderboardPage />} />
+          {/* Mitigations sit under Risks: a mitigation exists only to reduce a
+              risk, so its detail has an unambiguous parent to return to. */}
+          <Route path="risks/mitigations" element={<MitigationsBoard />} />
+          <Route path="risks/mitigations/:mitigationId" element={<MitigationDetailPage />} />
+
+          {/* ---------------- Threats ---------------- */}
+          <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
+          <Route path="threat-map" element={<ThreatIntel />} />
+          <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
+          <Route path="simulations" element={<SimulationsPage />} />
+
+          {/* ---------------- Incidents ---------------- */}
           <Route path="incidents" element={<IncidentsScreen />} />
           <Route path="incidents/:id/war-room" element={<WarRoom />} />
-          <Route path="automation" element={<AutomationPage />} />
-          <Route path="infrastructure" element={<InfrastructurePage />} />
-          <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />
-          <Route path="threat-map" element={<ThreatIntel />} />
-          <Route path="simulations" element={<SimulationsPage />} />
+
+          {/* ---------------- Compliance ----------------
+              Every sub-view is a route. They were reachable but had no rendered
+              way back; now each one's parent is declared in the route tree and
+              the breadcrumb derives from it. Static segments precede the
+              parameterised ones so /compliance/audits is never read as a
+              framework id. */}
+          <Route path="compliance" element={<ComplianceScreen />} />
+          <Route path="compliance/gaps" element={<GapAnalysisPage />} />
+          <Route path="compliance/audits" element={<AuditsPage />} />
+          <Route path="compliance/audits/:auditId" element={<AuditDetailPage />} />
+          <Route path="compliance/remediation" element={<RemediationPage />} />
+          <Route path="compliance/remediation/:planId" element={<RemediationDetailPage />} />
+          <Route path="compliance/frameworks/:frameworkId" element={<FrameworkDetail />} />
+          <Route path="compliance/frameworks/:frameworkId/gaps" element={<GapAnalysisPage />} />
+
+          {/* ---------------- Assets ---------------- */}
           <Route path="assets" element={<InventoryPage />} />
           <Route path="assets/universe" element={<AssetUniverse />} />
-          <Route path="reports" element={<ReportsScreen />} />
-          <Route path="reports/board" element={<BoardReportPage />} />
-          <Route path="recommendations" element={<AiAdvisor />} />
-          <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
-          <Route path="governance" element={<GovernancePage />} />
-          <Route path="settings/roles" element={<RolesAccessPage />} />
-          <Route path="settings" element={<SettingsScreen />} />
+          <Route path="infrastructure" element={<InfrastructurePage />} />
+          <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />
 
-          {/* Admin features consolidated into Settings — old routes redirect there
-              so existing deep links keep working. Risk-management / bulk-ops fold
-              into the Risk Register (which now carries the bulk action bar). */}
-          <Route path="users" element={<Navigate to="/settings" replace />} />
-          <Route path="roles" element={<Navigate to="/settings" replace />} />
+          {/* ---------------- Analytics ---------------- */}
+          <Route path="analytics/financial" element={<FinancialDashboard />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+
+          {/* ---------------- Reports ----------------
+              /reports/jobs/:id is where a generation request lands, which is what
+              stops Reports and Compliance pointing at each other. Static
+              segments first: /reports/jobs and /reports/board must not be eaten
+              by /reports/:reportId. */}
+          <Route path="reports" element={<ReportsScreen />} />
+          <Route path="reports/jobs/:jobId" element={<ReportJobPage />} />
+          <Route path="reports/board" element={<BoardReportPage />} />
+          <Route path="reports/:reportId" element={<BoardReportPage />} />
+          <Route path="recommendations" element={<AiAdvisor />} />
+
+          {/* ---------------- Automation / governance ---------------- */}
+          <Route path="automation" element={<AutomationPage />} />
+          <Route path="governance" element={<GovernancePage />} />
+          <Route path="governance/audit-trail" element={<GovernancePage />} />
+
+          {/* ---------------- Settings ---------------- */}
+          <Route path="settings" element={<SettingsScreen />} />
+          {/* Members owns invitations AND role assignment — one job, one screen.
+              Splitting them is why "Invite a member" landed on Roles. */}
+          <Route path="settings/members" element={<SettingsScreen />} />
+
+          {/* ---------------- Moves and legacy deep links ----------------
+              Permanent client-side redirects. `replace` keeps the old URL out of
+              the history stack, so Back from the new location goes where the
+              user came from rather than bouncing through the redirect. */}
+          <Route path="mitigations" element={<Navigate to="/risks/mitigations" replace />} />
+          <Route path="compliance/gap-analysis" element={<Navigate to="/compliance/gaps" replace />} />
+          <Route path="compliance/remediations" element={<Navigate to="/compliance/remediation" replace />} />
+          {/* Roles & access folded into Members (spec §5). */}
+          <Route path="roles" element={<Navigate to="/settings/members" replace />} />
+          <Route path="settings/roles" element={<Navigate to="/settings/members" replace />} />
+          {/* The Settings audit tab duplicated the governance audit trail; one
+              of the two had to be the real one, and governance owns it. */}
+          <Route path="settings/audit-log" element={<Navigate to="/governance/audit-trail" replace />} />
+          <Route path="audit-logs" element={<Navigate to="/governance/audit-trail" replace />} />
+          {/* The executive dashboard is a display mode of the dashboard, not a
+              report route (spec §5). */}
+          <Route path="analytics" element={<Navigate to="/?view=executive" replace />} />
+          <Route path="users" element={<Navigate to="/settings/members" replace />} />
           <Route path="tenants" element={<Navigate to="/settings" replace />} />
-          <Route path="audit-logs" element={<Navigate to="/settings" replace />} />
           <Route path="tokens" element={<Navigate to="/settings" replace />} />
           <Route path="marketplace" element={<Navigate to="/settings" replace />} />
           <Route path="custom-fields" element={<Navigate to="/settings" replace />} />
           <Route path="analytics/permissions" element={<Navigate to="/settings" replace />} />
           <Route path="risk-management" element={<Navigate to="/risks" replace />} />
           <Route path="bulk-operations" element={<Navigate to="/risks" replace />} />
+          {/* Legacy framework deep links: /compliance/<uuid> -> /compliance/frameworks/<uuid>. */}
+          <Route path="compliance/:frameworkId" element={<LegacyFrameworkRedirect />} />
         </Route>
 
         {/* Redirection par défaut */}
