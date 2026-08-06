@@ -205,7 +205,7 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
         {isLoading ? (
           <SkeletonRows rows={4} />
         ) : isError ? (
-          <EmptyState icon={Users} title={tr('Membres indisponibles', 'Members unavailable')} description={tr('Impossible de charger les membres.', 'Could not load members.')} />
+          <EmptyState variant="error" title={tr('Membres indisponibles', 'Members unavailable')} description={tr('Impossible de charger les membres. Réessayez ou contactez un administrateur.', 'Could not load members. Retry or contact an administrator.')} />
         ) : users.length === 0 ? (
           <EmptyState icon={Users} title={tr('Aucun membre', 'No members')} />
         ) : (
@@ -292,7 +292,7 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
         {isLoading ? (
           <SkeletonRows rows={3} />
         ) : isError ? (
-          <EmptyState icon={KeyRound} title={tr('Jetons indisponibles', 'Tokens unavailable')} />
+          <EmptyState variant="error" title={tr('Jetons indisponibles', 'Tokens unavailable')} description={tr('Impossible de charger vos jetons API.', 'Could not load your API tokens.')} />
         ) : tokens.length === 0 ? (
           <EmptyState icon={KeyRound} title={tr('Aucun jeton API', 'No API tokens')} description={tr('Créez un jeton pour authentifier vos intégrations et scripts.', 'Create a token to authenticate your integrations and scripts.')} />
         ) : (

@@ -189,7 +189,7 @@ function PostureDashboard() {
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
-          <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} onDetails={() => navigate('/risks')} />
+          <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} measured={kpis.total > 0} onDetails={() => navigate('/risks')} />
           <KpiGrid values={kpis} fmt={fmt} onOpen={() => navigate('/risks')} />
         </div>
 
@@ -210,9 +210,13 @@ function PostureDashboard() {
 };
 
 /* ---------------- Score hero ---------------- */
-function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void }) {
+// `measured` distinguishes "scored 100 because nothing is at risk" from "scored
+// 100 because nothing has been recorded". The API returns 100 for an empty
+// register, which on a fresh tenant reads as a perfect security posture.
+function ScoreHero({ score, measured, onDetails }: { score: number; measured: boolean; onDetails: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const val = Math.round(useCountUp(score));
   const cx = 110, cy = 112, r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
@@ -227,11 +231,11 @@ function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void 
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
           <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />
-          <path d={prog} fill="none" stroke={col} strokeWidth={14} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />
+          {measured && <path d={prog} fill="none" stroke={col} strokeWidth={14} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />}
         </svg>
         <div className="absolute left-0 right-0 text-center" style={{ top: '52px' }}>
-          <div className="disp mono text-[44px] font-bold text-ink leading-none">{val}</div>
-          <div className="text-[12px] text-ink-muted mt-0.5">/ 100</div>
+          <div className="disp mono text-[44px] font-bold text-ink leading-none">{measured ? val : '—'}</div>
+          <div className="text-[12px] text-ink-muted mt-0.5">{measured ? '/ 100' : tr('non mesuré', 'not measured')}</div>
         </div>
       </div>
       <div className="pt-1 pb-1.5" />
@@ -482,12 +486,21 @@ function TrendCard({ risks }: { risks: TrendRisk[] }) {
 /* ---------------- Recent activity ---------------- */
 function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: () => void }) {
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   return (
     <Card style={{ padding: '18px 14px' }}>
       <div className="text-[14px] font-semibold text-ink mb-2 px-2">{L.recentTitle}</div>
       <div>
         {risks.length === 0 && (
-          <div className="px-2 py-8 text-center text-[13px] text-ink-muted">{L.notifEmpty}</div>
+          <EmptyState
+            variant="first-use"
+            icon={ShieldAlert}
+            title={tr('Aucune activité récente', 'No recent activity')}
+            description={tr('Les derniers risques ajoutés ou mis à jour apparaîtront ici, du plus critique au moins critique.', 'The most recently added or updated risks appear here, most critical first.')}
+            primaryAction={<Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+            className="py-10"
+          />
         )}
         {risks.map((r) => (
           <button

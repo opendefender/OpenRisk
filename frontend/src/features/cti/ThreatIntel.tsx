@@ -131,7 +131,7 @@ export function ThreatIntel() {
           <SkeletonRows rows={6} />
         ) : isError ? (
           <EmptyState
-            icon={ShieldAlert}
+            variant="error"
             title={tr('Impossible de charger le flux', 'Could not load the feed')}
             description={tr('Réessayez ou synchronisez le flux.', 'Retry or sync the feed.')}
             primaryAction={<Btn label={tr('Réessayer', 'Retry')} onClick={() => refetch()} />}

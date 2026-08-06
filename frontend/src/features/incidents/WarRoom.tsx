@@ -89,7 +89,7 @@ export function WarRoom() {
     return (
       <div className="p-6">
         <button onClick={() => navigate('/incidents')} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-soft hover:text-ink transition-colors mb-4"><ArrowLeft size={15} /> {tr('Incidents', 'Incidents')}</button>
-        <EmptyState icon={AlertTriangle} title={tr('Incident introuvable', 'Incident not found')} />
+        <EmptyState variant="no-results" title={tr('Incident introuvable', 'Incident not found')} description={tr('Cet incident n’existe plus ou ne vous est pas accessible.', 'This incident no longer exists or is not accessible to you.')} />
       </div>
     );
   }

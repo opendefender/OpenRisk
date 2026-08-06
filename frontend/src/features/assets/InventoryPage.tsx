@@ -125,7 +125,7 @@ export function InventoryPage() {
             onRowClick={(a) => setEditing(a)}
             minWidth={720}
             initialSort={{ key: 'crit', dir: 'desc' }}
-            empty={<EmptyState icon={Boxes} title={tr('Aucun résultat', 'No results')} description={tr('Aucun actif ne correspond à ce filtre.', 'No asset matches this filter.')} />}
+            empty={<EmptyState variant="no-results" title={tr('Aucun résultat', 'No results')} description={tr('Aucun actif ne correspond à ce filtre. L’inventaire en contient d’autres.', 'No asset matches this filter. The inventory holds others.')} />}
           />
         )}
       </Card>

@@ -197,7 +197,12 @@ export function RiskRegisterPage() {
             primaryAction={<Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
           />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={Search} title={tr('Aucun résultat', 'No results')} description={tr('Aucun risque ne correspond à votre recherche.', 'No risk matches your search.')} />
+          <EmptyState
+            variant="no-results"
+            title={tr('Aucun résultat', 'No results')}
+            description={tr('Aucun risque ne correspond à votre recherche. Le registre en contient d’autres.', 'No risk matches your search. The register holds others.')}
+            primaryAction={<Btn label={tr('Effacer les filtres', 'Clear filters')} onClick={() => { setQuery(''); setTab('all'); }} />}
+          />
         ) : view === 'map' ? (
           <RiskMatrixView risks={filtered} onOpen={setDrawerId} />
         ) : (
