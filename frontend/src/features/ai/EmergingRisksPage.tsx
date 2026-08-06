@@ -4,8 +4,8 @@
 // Emerging-risk detection (spec §12.2): paste a threat-intel report, a news
 // snippet or logs, and the AI extracts candidate new risks (title, severity,
 // suggested probability/impact). Wired to POST /ai/emerging-risks; the tenant's
-// existing risk titles are de-duplicated server-side. Replaces the old fully
-// mocked AIRiskInsights page.
+// existing risk titles are de-duplicated server-side. Replaced the old fully
+// mocked AIRiskInsights page, which has since been deleted.
 
 import { useState } from 'react';
 import { Sparkles, Loader2, AlertTriangle } from 'lucide-react';

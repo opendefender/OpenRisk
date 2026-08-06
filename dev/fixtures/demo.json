@@ -1,0 +1,156 @@
+{
+  "_comment": "Demonstration dataset. Loaded ONLY by the Go seeder when DEMO_MODE=true (backend/internal/infrastructure/demoseed). Never shipped to the frontend, never imported by application code. Any tenant seeded from this file shows a permanent 'demonstration data' banner. Impact 0-10, probability 0-1 (Score Engine bounds).",
+  "assets": [
+    {
+      "name": "web-prod-01",
+      "type": "Server",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "db-core-01",
+      "type": "Database",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "backup-nas",
+      "type": "Storage",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "hr-laptop-fleet",
+      "type": "Laptop",
+      "criticality": "MEDIUM",
+      "owner": "demo@opendefender.io"
+    }
+  ],
+  "risks": [
+    {
+      "title": "Unpatched web framework on web-prod-01",
+      "description": "The public front end runs a framework release with known remote-code-execution CVEs. An exploit is publicly available.",
+      "probability": 0.8,
+      "impact": 9.0,
+      "criticality": "critical",
+      "status": "open",
+      "lifecycle_phase": "evaluated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "web",
+        "cve"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "OWASP"
+      ],
+      "asset": "web-prod-01",
+      "sle_xaf": 45000000,
+      "aro": 0.6,
+      "downtime_hours": 48,
+      "hourly_downtime_cost_xaf": 350000,
+      "remediation_cost_xaf": 8000000,
+      "mitigation_effectiveness": 0.75
+    },
+    {
+      "title": "Backup restoration never tested",
+      "description": "Nightly snapshots complete, but no restoration drill has been run. Recovery time is unverified.",
+      "probability": 0.35,
+      "impact": 8.0,
+      "criticality": "high",
+      "status": "in_progress",
+      "lifecycle_phase": "treated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "backup",
+        "continuity"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "backup-nas",
+      "sle_xaf": 30000000,
+      "aro": 0.25,
+      "remediation_cost_xaf": 2500000,
+      "mitigation_effectiveness": 0.8
+    },
+    {
+      "title": "Excessive database privileges for application account",
+      "description": "The portal's service account holds superuser rights on db-core-01; a portal compromise becomes a full data breach.",
+      "probability": 0.4,
+      "impact": 9.5,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "analyzed",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "iam",
+        "pii"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "RGPD"
+      ],
+      "asset": "db-core-01",
+      "sle_xaf": 60000000,
+      "aro": 0.3,
+      "fines_xaf": 20000000,
+      "remediation_cost_xaf": 1500000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Phishing exposure across the HR fleet",
+      "description": "HR endpoints handle payroll attachments daily; no simulated phishing campaign has been run this year.",
+      "probability": 0.55,
+      "impact": 5.0,
+      "criticality": "medium",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "phishing",
+        "endpoint"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "hr-laptop-fleet",
+      "sle_xaf": 8000000,
+      "aro": 0.9
+    },
+    {
+      "title": "Legacy TLS ciphers accepted on the portal",
+      "description": "The load balancer still negotiates TLS 1.0/1.1 for a handful of legacy clients.",
+      "probability": 0.2,
+      "impact": 3.5,
+      "criticality": "low",
+      "status": "mitigated",
+      "lifecycle_phase": "monitored",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "tls",
+        "web"
+      ],
+      "frameworks": [
+        "PCI-DSS"
+      ],
+      "asset": "web-prod-01"
+    }
+  ],
+  "incidents": [
+    {
+      "title": "Suspicious outbound traffic from web-prod-01",
+      "description": "Egress spike to an unfamiliar ASN observed overnight. Contained; forensics in progress.",
+      "type": "security_breach",
+      "severity": "high",
+      "status": "in_progress"
+    },
+    {
+      "title": "Payroll phishing attempt reported by HR",
+      "description": "An employee reported a credential-harvesting email impersonating the payroll provider. No credentials entered.",
+      "type": "phishing",
+      "severity": "medium",
+      "status": "resolved"
+    }
+  ]
+}

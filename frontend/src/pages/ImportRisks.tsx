@@ -22,7 +22,7 @@ import { useI18n, interpolate } from '../hooks/useI18n';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
 import { useRiskStore } from '../hooks/useRiskStore';
-import { EmptyState, SkeletonTable } from '../components/shared';
+import { SkeletonTable } from '../components/shared';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

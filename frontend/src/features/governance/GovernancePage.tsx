@@ -154,7 +154,12 @@ function AuditView() {
       {isLoading && events.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={6} /></Card>
       ) : events.length === 0 ? (
-        <EmptyState icon={FileClock} title={tr('Aucun évènement', 'No events')} sub={tr('Les mutations des entités auditées apparaîtront ici.', 'Mutations of audited entities will appear here.')} />
+        <EmptyState
+          variant="first-use"
+          icon={FileClock}
+          title={tr('La piste d’audit est vide', 'The audit trail is empty')}
+          description={tr('Chaque création, modification et suppression d’une entité auditée est enregistrée ici — qui, quoi, quand, et le détail Avant → Après. Elle se remplit dès votre première action.', 'Every create, update and delete on an audited entity is recorded here — who, what, when, and the before/after diff. It fills up with your first action.')}
+        />
       ) : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           {events.map((e) => <AuditRow key={e.id} e={e} />)}
@@ -241,7 +246,12 @@ function ApprovalsView() {
       {isLoading && requests.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={4} /></Card>
       ) : requests.length === 0 ? (
-        <EmptyState icon={ShieldCheck} title={tr('Rien à approuver', 'Nothing to approve')} sub={tr('Les demandes soumises via un workflow apparaissent ici.', 'Requests submitted through a workflow appear here.')} />
+        <EmptyState
+          variant="first-use"
+          icon={ShieldCheck}
+          title={tr('Rien à approuver', 'Nothing to approve')}
+          description={tr('Les demandes soumises via un workflow Maker-Checker atterrissent ici pour validation. Vous ne pouvez jamais approuver vos propres demandes.', 'Requests submitted through a Maker-Checker workflow land here for sign-off. You can never approve your own request.')}
+        />
       ) : (
         <div className="space-y-3">{requests.map((r) => <ApprovalCard key={r.id} req={r} />)}</div>
       )}
@@ -413,7 +423,12 @@ function DelegationsView() {
       {isLoading && delegations.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={3} /></Card>
       ) : delegations.length === 0 ? (
-        <EmptyState icon={UserPlus} title={tr('Aucune délégation', 'No delegations')} sub={tr('Créez une délégation temporaire de droits.', 'Create a temporary delegation of rights.')} />
+        <EmptyState
+          variant="first-use"
+          icon={UserPlus}
+          title={tr('Aucune délégation', 'No delegations')}
+          description={tr('Une délégation confie temporairement vos droits à un collègue — pendant un congé, par exemple. Elle expire d’elle-même à la date de fin.', 'A delegation temporarily hands your rights to a colleague — during leave, for instance. It expires on its own end date.')}
+        />
       ) : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           {delegations.map((d) => (
@@ -503,7 +518,12 @@ function WorkflowsView() {
       {isLoading && workflows.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={3} /></Card>
       ) : workflows.length === 0 ? (
-        <EmptyState icon={Scale} title={tr('Aucun workflow', 'No workflows')} sub={tr('Créez une chaîne Maker-Checker.', 'Create a Maker-Checker chain.')} />
+        <EmptyState
+          variant="first-use"
+          icon={Scale}
+          title={tr('Aucun workflow', 'No workflows')}
+          description={tr('Un workflow impose une chaîne d’approbations sur une action sensible (accepter un risque, par exemple) : à chaque étape, un rôle habilité doit signer.', 'A workflow enforces an approval chain over a sensitive action (accepting a risk, say): at each step an eligible role must sign off.')}
+        />
       ) : (
         <div className="space-y-3">
           {workflows.map((w) => (

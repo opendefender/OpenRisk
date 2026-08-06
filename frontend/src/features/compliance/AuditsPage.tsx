@@ -102,8 +102,8 @@ export function AuditsPage() {
           <EmptyState
             icon={CalendarClock}
             title={tr('Aucun audit', 'No audits yet')}
-            sub={tr('Planifiez votre premier audit de conformité (interne, externe, certification…).', 'Schedule your first compliance audit (internal, external, certification…).')}
-            cta={canWrite ? <Btn label={tr('Planifier un audit', 'Schedule audit')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
+            description={tr('Planifiez votre premier audit de conformité (interne, externe, certification…).', 'Schedule your first compliance audit (internal, external, certification…).')}
+            primaryAction={canWrite ? <Btn label={tr('Planifier un audit', 'Schedule audit')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
           />
         </Card>
       ) : (

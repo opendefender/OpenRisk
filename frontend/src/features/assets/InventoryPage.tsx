@@ -114,8 +114,8 @@ export function InventoryPage() {
           <EmptyState
             icon={Boxes}
             title={tr('Aucun actif inventorié', 'No assets yet')}
-            sub={tr('Ajoutez vos serveurs, bases de données et services pour cartographier votre surface d’attaque.', 'Add your servers, databases and services to map your attack surface.')}
-            cta={<Btn label={tr('Nouvel actif', 'New asset')} icon={Plus} primary onClick={() => setCreating(true)} />}
+            description={tr('Ajoutez vos serveurs, bases de données et services pour cartographier votre surface d’attaque.', 'Add your servers, databases and services to map your attack surface.')}
+            primaryAction={<Btn label={tr('Nouvel actif', 'New asset')} icon={Plus} primary onClick={() => setCreating(true)} />}
           />
         ) : (
           <DataTable
@@ -125,7 +125,7 @@ export function InventoryPage() {
             onRowClick={(a) => setEditing(a)}
             minWidth={720}
             initialSort={{ key: 'crit', dir: 'desc' }}
-            empty={<EmptyState icon={Boxes} title={tr('Aucun résultat', 'No results')} sub={tr('Aucun actif ne correspond à ce filtre.', 'No asset matches this filter.')} />}
+            empty={<EmptyState variant="no-results" title={tr('Aucun résultat', 'No results')} description={tr('Aucun actif ne correspond à ce filtre. L’inventaire en contient d’autres.', 'No asset matches this filter. The inventory holds others.')} />}
           />
         )}
       </Card>

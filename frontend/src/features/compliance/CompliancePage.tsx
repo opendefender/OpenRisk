@@ -8,7 +8,8 @@ import { motion } from 'framer-motion';
 import { ClipboardList, FileDown, Library, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
-import { EmptyState } from '../../components/shared/EmptyState';
+import { EmptyState } from '../../shared/EmptyState';
+import { Btn } from '../../shared/ui';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -122,10 +123,10 @@ export const CompliancePage = () => {
             <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
           ) : frameworks.length === 0 ? (
             <EmptyState
-              icon={<ShieldCheck size={24} />}
+              icon={ShieldCheck}
               title={t('compliance.noFrameworks')}
               description={t('compliance.noFrameworksDescription')}
-              action={isAdmin ? { label: t('compliance.catalog.buttonLabel'), onClick: openImportCatalogModal } : undefined}
+              primaryAction={isAdmin ? <Btn label={t('compliance.catalog.buttonLabel')} primary onClick={openImportCatalogModal} /> : undefined}
             />
           ) : (
             frameworks.map((framework, index) => (
@@ -169,7 +170,7 @@ export const CompliancePage = () => {
         {/* Controls panel */}
         <div className="space-y-4">
           {!selectedFrameworkId ? (
-            <EmptyState icon={<ShieldCheck size={28} />} title={t('compliance.selectFramework')} />
+            <EmptyState variant="no-results" icon={ShieldCheck} title={t('compliance.selectFramework')} />
           ) : (
             <>
               <ComplianceGauge progress={computeComplianceProgress(selectedFrameworkId, controls)} />
@@ -205,10 +206,10 @@ export const CompliancePage = () => {
                 </div>
               ) : controls.length === 0 ? (
                 <EmptyState
-                  icon={<ClipboardList size={28} />}
+                  icon={ClipboardList}
                   title={t('compliance.noControls')}
                   description={t('compliance.noControlsDescription')}
-                  action={{ label: t('compliance.addControl'), onClick: openCreateControlModal }}
+                  primaryAction={<Btn label={t('compliance.addControl')} primary onClick={openCreateControlModal} />}
                 />
               ) : (
                 <ControlTable controls={controls} onOpenControl={openControlDrawer} onStatusChange={handleStatusChange} />

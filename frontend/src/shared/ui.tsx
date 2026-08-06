@@ -271,22 +271,10 @@ export function SkeletonRows({ rows = 5, height = 44 }: { rows?: number; height?
   );
 }
 
-export function EmptyState({
-  icon: Icon, title, sub, cta,
-}: {
-  icon: LucideIcon; title: string; sub?: string; cta?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center text-center py-16 px-6" style={{ animation: 'or-fadein .3s ease' }}>
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-        <Icon size={30} strokeWidth={1.6} />
-      </div>
-      <div className="text-[15px] font-semibold text-ink mb-1.5">{title}</div>
-      {sub && <div className="text-[13px] text-ink-soft max-w-sm mb-5">{sub}</div>}
-      {cta}
-    </div>
-  );
-}
+// EmptyState lives in ./EmptyState — one component, four variants. Re-exported
+// here so the many screens that import their primitives from shared/ui keep a
+// single import, but there is no second implementation behind it.
+export { EmptyState, type EmptyStateProps, type EmptyStateVariant } from './EmptyState';
 
 export function ErrorState({ title, sub, onRetry, retryLabel }: { title: string; sub?: string; onRetry?: () => void; retryLabel?: string }) {
   return (

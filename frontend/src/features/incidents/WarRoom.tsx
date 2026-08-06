@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { Check, Plus, Send, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Check, Send, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Avatar, PreviewBadge, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { relTime } from '../risks/riskMap';
@@ -82,19 +82,6 @@ export function WarRoom() {
   const mention = (text: string) =>
     text.split(/(\s+)/).map((w, i) => (w.startsWith('@') ? <span key={i} className="font-semibold" style={{ color: 'var(--accent)' }}>{w}</span> : w));
 
-  // Responder roster + task board remain design fixtures (no collaboration backend).
-  const parts: [string, string, string, boolean, boolean][] = [
-    ['Amir Diallo', tr('RSSI · Commandant', 'CISO · Commander'), 'AD', true, false],
-    ['Fatou Sy', tr('Analyste SOC', 'SOC Analyst'), 'FS', true, true],
-    ['Kofi Mensah', tr('Ingénieur infra', 'Infra Engineer'), 'KM', true, false],
-    ['Léa Traoré', tr('Forensic', 'Forensics'), 'LT', false, false],
-  ];
-  const taskCols: [string, string, [string, string, string, boolean][]][] = [
-    [tr('Urgent', 'Urgent'), 'var(--critical)', [[tr('Isoler le système affecté', 'Isolate affected system'), 'KM', tr('en cours', 'ongoing'), false]]],
-    [tr('En cours', 'In progress'), 'var(--high)', [[tr('Analyse forensic', 'Forensic analysis'), 'LT', '—', false]]],
-    [tr('Résolu', 'Resolved'), 'var(--low)', []],
-  ];
-
   if (isLoading) {
     return <div className="p-6"><SkeletonRows rows={6} height={56} /></div>;
   }
@@ -102,7 +89,7 @@ export function WarRoom() {
     return (
       <div className="p-6">
         <button onClick={() => navigate('/incidents')} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-soft hover:text-ink transition-colors mb-4"><ArrowLeft size={15} /> {tr('Incidents', 'Incidents')}</button>
-        <EmptyState icon={AlertTriangle} title={tr('Incident introuvable', 'Incident not found')} />
+        <EmptyState variant="no-results" title={tr('Incident introuvable', 'Incident not found')} description={tr('Cet incident n’existe plus ou ne vous est pas accessible.', 'This incident no longer exists or is not accessible to you.')} />
       </div>
     );
   }
@@ -110,6 +97,21 @@ export function WarRoom() {
   const sev = sevMeta(incident.severity);
   const st = statusMeta(incident.status);
   const closed = incident.status === 'closed' || incident.status === 'resolved';
+
+  // Responders are the two people the incident record actually names. There is no
+  // participants table yet (see docs/ENDPOINTS.md "Planned"), so the roster shows
+  // who is really on the record rather than a cast of invented responders — it
+  // previously listed four hardcoded names on every incident in every tenant.
+  const initialsOf = (v: string) =>
+    v.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
+  const parts = [
+    incident.assigned_to
+      ? { name: incident.assigned_to, role: tr('Assigné', 'Assignee'), init: initialsOf(incident.assigned_to) }
+      : null,
+    incident.reported_by
+      ? { name: incident.reported_by, role: tr('Déclarant', 'Reporter'), init: initialsOf(incident.reported_by) }
+      : null,
+  ].filter((x): x is { name: string; role: string; init: string } => x !== null);
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 58px)' }}>
@@ -147,15 +149,16 @@ export function WarRoom() {
         {/* roster (fixture) */}
         <div className="w-[240px] shrink-0 overflow-y-auto p-4 hidden md:block" style={{ borderRight: '1px solid var(--border)' }}>
           <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-3.5">{tr('Participants', 'Responders')} · {parts.length}</div>
-          {parts.map(([name, role, init, online, typing]) => (
-            <div key={init} className="flex items-center gap-2.5 px-2 py-2 rounded-[10px] mb-0.5">
-              <div className="relative shrink-0">
-                <Avatar initials={init} size={34} />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full" style={{ background: online ? 'var(--low)' : 'var(--text-muted)', border: '2px solid var(--bg-primary)' }} />
-              </div>
+          {parts.length === 0 ? (
+            <div className="text-[12px] text-ink-muted px-2 py-3 leading-relaxed">
+              {tr('Personne n’est encore assigné à cet incident.', 'Nobody is assigned to this incident yet.')}
+            </div>
+          ) : parts.map((pp) => (
+            <div key={pp.role} className="flex items-center gap-2.5 px-2 py-2 rounded-[10px] mb-0.5">
+              <Avatar initials={pp.init} size={34} />
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-ink truncate">{name}</div>
-                <div className="text-[11px]" style={{ color: typing ? 'var(--accent)' : 'var(--text-muted)' }}>{typing ? tr('écrit…', 'typing…') : role}</div>
+                <div className="text-[13px] font-semibold text-ink truncate">{pp.name}</div>
+                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{pp.role}</div>
               </div>
             </div>
           ))}
@@ -200,27 +203,21 @@ export function WarRoom() {
           </div>
         </div>
 
-        {/* tasks (fixture) */}
+        {/* Task board. There is no incident-actions backend wired to this screen
+            yet, so it states that plainly rather than rendering a board of
+            invented tasks assigned to invented people. */}
         <div className="w-[290px] shrink-0 overflow-y-auto p-4 hidden lg:block" style={{ borderLeft: '1px solid var(--border)' }}>
-          <button className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5 mb-4" style={{ border: '1px solid var(--critical)', background: 'color-mix(in srgb,var(--critical) 8%,transparent)', color: 'var(--critical)' }}><Plus size={15} /> {tr('Tâche urgente', 'Urgent task')}</button>
-          {taskCols.map(([lbl, col, tasks]) => (
-            <div key={lbl} className="mb-4">
-              <div className="flex items-center gap-1.5 mb-2.5">
-                <span className="w-[7px] h-[7px] rounded-full" style={{ background: col }} />
-                <span className="text-[12px] font-semibold text-ink">{lbl}</span>
-                <span className="text-[11px] text-ink-muted">{tasks.length}</span>
-              </div>
-              {tasks.map((t2, i) => (
-                <div key={i} className="rounded-[10px] px-3 py-2.5 mb-2" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-                  <div className="text-[12.5px] font-medium text-ink mb-2 leading-snug" style={{ textDecoration: t2[3] ? 'line-through' : 'none', opacity: t2[3] ? 0.6 : 1 }}>{t2[0]}</div>
-                  <div className="flex items-center justify-between">
-                    <Avatar initials={t2[1]} size={22} />
-                    <span className="text-[11px] text-ink-muted">{t2[2]}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+          <div className="text-[12px] font-semibold text-ink mb-2">{tr('Tâches', 'Tasks')}</div>
+          <div className="text-[11.5px] text-ink-muted leading-relaxed mb-4">
+            {tr('Le suivi des tâches de réponse n’est pas encore disponible. Utilisez la chronologie pour tracer les actions.', 'Response task tracking is not available yet. Use the timeline to record actions.')}
+          </div>
+          <button
+            onClick={() => navigate('/mitigations')}
+            className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5"
+            style={{ border: '1px solid var(--border-strong)' }}
+          >
+            {tr('Voir les mitigations', 'View mitigations')}
+          </button>
         </div>
       </div>
 

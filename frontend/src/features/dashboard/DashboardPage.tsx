@@ -3,13 +3,17 @@
 //
 // Signature Dashboard (OpenRisk.dc.html §6.2). Score hero gauge + count-up KPIs,
 // 5×5 probability×impact heatmap, risk-trend sparklines, recent activity and the
-// War Room widget. Uses the real risk store where data exists and falls back to
-// the design's representative fixtures otherwise.
+// War Room widget.
+//
+// Every number here is real or absent. There are no fixtures and no fallbacks:
+// a widget with nothing to show renders an EmptyState explaining what would fill
+// it. Headline counters come from the /stats SQL aggregate rather than from the
+// risk store, which only ever holds one page of the register.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap,
+  ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap, Plus, Grid3x3,
   type LucideIcon,
 } from 'lucide-react';
 import { useRiskStore } from '../../hooks/useRiskStore';
@@ -18,7 +22,9 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
-import { useDashboardStats } from './useStats';
+import { useDashboardStats, type MatrixCell } from './useStats';
+import { EmptyState } from '../../shared/EmptyState';
+import { Btn, Skeleton } from '../../shared/ui';
 import { useFrameworks } from '../compliance/useCompliance';
 import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
@@ -106,7 +112,6 @@ function PostureDashboard() {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const risks = useRiskStore((s) => s.risks);
-  const total = useRiskStore((s) => s.total);
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
 
   useEffect(() => {
@@ -117,7 +122,7 @@ function PostureDashboard() {
   const critOf = (r: (typeof risks)[number]): Criticality =>
     (r.level?.toLowerCase() as Criticality) || scoreToCriticality(r.score);
 
-  const { stats } = useDashboardStats();
+  const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
   const user = useAuthStore((s) => s.user);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
@@ -125,13 +130,20 @@ function PostureDashboard() {
   const { isAdmin } = usePermissions();
   const frameworkCount = useFrameworks().frameworks?.length ?? 0;
   const sev = stats?.risks_by_severity ?? {};
+
+  // Every KPI is read straight off the server aggregate. These used to fall back
+  // to risks.filter(...).length over the risk store, which holds ONE PAGE of the
+  // register — so "12 en cours" meant "12 on the page you happen to be on" and
+  // silently disagreed with the register itself. There is no client-side count
+  // here on purpose; if the aggregate has not arrived, the honest answer is 0
+  // with a loading state, not a plausible-looking number derived from a page.
   const kpis = useMemo(() => ({
-    total: stats?.total_risks ?? (total || risks.length),
-    critical: (sev.CRITICAL ?? sev.critical) ?? risks.filter((r) => critOf(r) === 'critical').length,
-    mitig: risks.filter((r) => (r.mitigations?.length ?? 0) > 0 || /progress|active/i.test(r.status)).length,
-    resolved: stats?.mitigated_risks ?? risks.filter((r) => /mitigat|resolv|closed|done|accept/i.test(r.status)).length,
+    total: stats?.total_risks ?? 0,
+    critical: (sev.CRITICAL ?? sev.critical) ?? 0,
+    mitig: stats?.in_progress_risks ?? 0,
+    resolved: stats?.mitigated_risks ?? 0,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [stats, risks, total]);
+  }), [stats]);
 
   const recent: RecentRisk[] = useMemo(() => {
     return risks.slice(0, 5).map((r) => ({
@@ -177,13 +189,13 @@ function PostureDashboard() {
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
-          <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} onDetails={() => navigate('/risks')} />
+          <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} measured={kpis.total > 0} onDetails={() => navigate('/risks')} />
           <KpiGrid values={kpis} fmt={fmt} onOpen={() => navigate('/risks')} />
         </div>
 
         {/* row 2 — heatmap + trend */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
-          <HeatmapCard />
+          <HeatmapCard matrix={stats?.risk_matrix} loading={statsLoading} error={statsError} />
           <TrendCard risks={risks} />
         </div>
 
@@ -198,9 +210,13 @@ function PostureDashboard() {
 };
 
 /* ---------------- Score hero ---------------- */
-function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void }) {
+// `measured` distinguishes "scored 100 because nothing is at risk" from "scored
+// 100 because nothing has been recorded". The API returns 100 for an empty
+// register, which on a fresh tenant reads as a perfect security posture.
+function ScoreHero({ score, measured, onDetails }: { score: number; measured: boolean; onDetails: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const val = Math.round(useCountUp(score));
   const cx = 110, cy = 112, r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
@@ -215,11 +231,11 @@ function ScoreHero({ score, onDetails }: { score: number; onDetails: () => void 
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
           <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />
-          <path d={prog} fill="none" stroke={col} strokeWidth={14} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />
+          {measured && <path d={prog} fill="none" stroke={col} strokeWidth={14} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />}
         </svg>
         <div className="absolute left-0 right-0 text-center" style={{ top: '52px' }}>
-          <div className="disp mono text-[44px] font-bold text-ink leading-none">{val}</div>
-          <div className="text-[12px] text-ink-muted mt-0.5">/ 100</div>
+          <div className="disp mono text-[44px] font-bold text-ink leading-none">{measured ? val : '—'}</div>
+          <div className="text-[12px] text-ink-muted mt-0.5">{measured ? '/ 100' : tr('non mesuré', 'not measured')}</div>
         </div>
       </div>
       <div className="pt-1 pb-1.5" />
@@ -280,13 +296,20 @@ function KpiCard({
 }
 
 /* ---------------- Heatmap ---------------- */
-function HeatmapCard() {
+// The 25 cell counts come from the /stats risk_matrix aggregate, banded in SQL.
+// They used to be a hardcoded literal, which meant a brand-new tenant with an
+// empty register was shown a fully populated probability x impact matrix — the
+// single most trust-destroying thing the dashboard did.
+function HeatmapCard({ matrix, loading, error }: { matrix?: MatrixCell[]; loading: boolean; error: boolean }) {
   const L = useUIStrings();
-  const counts: Record<string, number> = {
-    '5-5': 4, '5-4': 2, '4-5': 3, '4-4': 1, '5-3': 1, '3-5': 2, '4-3': 2, '3-4': 3, '5-2': 0, '2-5': 1,
-    '3-3': 4, '4-2': 1, '2-4': 2, '5-1': 0, '1-5': 0, '2-3': 3, '3-2': 2, '2-2': 5, '1-4': 1, '4-1': 0,
-    '1-3': 2, '3-1': 1, '2-1': 2, '1-2': 3, '1-1': 6,
-  };
+  const lang = useUIStore((s) => s.lang);
+  const navigate = useNavigate();
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+
+  const counts: Record<string, number> = {};
+  for (const cell of matrix ?? []) counts[`${cell.impact}-${cell.probability}`] = cell.count;
+  const total = (matrix ?? []).reduce((n, c) => n + c.count, 0);
+
   const cellCol = (p: number, i: number) => {
     const v = p * i;
     return v >= 15 ? 'var(--critical)' : v >= 8 ? 'var(--high)' : v >= 4 ? 'var(--medium)' : 'var(--low)';
@@ -317,6 +340,43 @@ function HeatmapCard() {
       </div>
     );
   }
+  if (loading) {
+    return (
+      <Card style={{ padding: '18px 20px' }}>
+        <div className="text-[14px] font-semibold text-ink mb-4">{L.heatTitle}</div>
+        <Skeleton style={{ height: 260 }} />
+      </Card>
+    );
+  }
+  if (error) {
+    return (
+      <Card style={{ padding: '18px 20px' }}>
+        <div className="text-[14px] font-semibold text-ink">{L.heatTitle}</div>
+        <EmptyState
+          variant="error"
+          title={tr('Matrice indisponible', 'Matrix unavailable')}
+          description={tr('Impossible de charger la répartition probabilité × impact.', 'Could not load the probability × impact breakdown.')}
+          primaryAction={<Btn label={tr('Réessayer', 'Retry')} onClick={() => window.location.reload()} />}
+        />
+      </Card>
+    );
+  }
+  if (total === 0) {
+    return (
+      <Card style={{ padding: '18px 20px' }}>
+        <div className="text-[14px] font-semibold text-ink">{L.heatTitle}</div>
+        <EmptyState
+          variant="first-use"
+          icon={Grid3x3}
+          title={tr('Matrice vide', 'Empty matrix')}
+          description={tr('La matrice croise la probabilité et l’impact de chaque risque pour montrer où se concentre votre exposition. Elle se remplit dès votre premier risque.', 'The matrix plots every risk by probability and impact to show where your exposure concentrates. It fills in with your first risk.')}
+          primaryAction={<Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+          secondaryAction={<Btn label={tr('Importer', 'Import')} onClick={() => navigate('/risks/import')} />}
+        />
+      </Card>
+    );
+  }
+
   return (
     <Card style={{ padding: '18px 20px' }}>
       <div className="text-[14px] font-semibold text-ink mb-4">{L.heatTitle}</div>
@@ -426,12 +486,21 @@ function TrendCard({ risks }: { risks: TrendRisk[] }) {
 /* ---------------- Recent activity ---------------- */
 function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: () => void }) {
   const L = useUIStrings();
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   return (
     <Card style={{ padding: '18px 14px' }}>
       <div className="text-[14px] font-semibold text-ink mb-2 px-2">{L.recentTitle}</div>
       <div>
         {risks.length === 0 && (
-          <div className="px-2 py-8 text-center text-[13px] text-ink-muted">{L.notifEmpty}</div>
+          <EmptyState
+            variant="first-use"
+            icon={ShieldAlert}
+            title={tr('Aucune activité récente', 'No recent activity')}
+            description={tr('Les derniers risques ajoutés ou mis à jour apparaîtront ici, du plus critique au moins critique.', 'The most recently added or updated risks appear here, most critical first.')}
+            primaryAction={<Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+            className="py-10"
+          />
         )}
         {risks.map((r) => (
           <button

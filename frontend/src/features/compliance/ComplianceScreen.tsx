@@ -86,8 +86,8 @@ export function ComplianceScreen() {
           <EmptyState
             icon={ClipboardCheck}
             title={tr('Aucun référentiel', 'No frameworks yet')}
-            sub={tr('Importez un référentiel (ISO 27001, SOC 2, BCEAO…) ou créez le vôtre pour suivre votre conformité.', 'Import a framework (ISO 27001, SOC 2, BCEAO…) or create your own to track compliance.')}
-            cta={canCreate ? (
+            description={tr('Importez un référentiel (ISO 27001, SOC 2, BCEAO…) ou créez le vôtre pour suivre votre conformité.', 'Import a framework (ISO 27001, SOC 2, BCEAO…) or create your own to track compliance.')}
+            primaryAction={canCreate ? (
               <div className="flex gap-2.5">
                 <Btn label={tr('Importer un référentiel', 'Import a framework')} icon={Library} primary onClick={() => setModal('import')} />
                 <Btn label={tr('Créer', 'Create')} icon={Plus} onClick={() => setModal('create')} />

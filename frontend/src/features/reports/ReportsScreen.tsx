@@ -5,10 +5,12 @@
 // destinations/exports (Board report, Compliance PDFs, risk-register CSV export…),
 // plus a recent-reports list.
 
-import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, type LucideIcon } from 'lucide-react';
+import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, Plus, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { PageFrame, PageHeader, Card } from '../../shared/ui';
+import { PageFrame, PageHeader, Card, Btn, SkeletonRows } from '../../shared/ui';
+import { EmptyState } from '../../shared/EmptyState';
+import { useBoardReports } from './useBoardReports';
 import { PremiumPeek } from '../../shared/PremiumPeek';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
@@ -20,6 +22,8 @@ export function ReportsScreen() {
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { reports, isLoading: reportsLoading, error: reportsError } = useBoardReports();
+  const recent = (reports ?? []).slice(0, 5);
 
   const exportRegister = async () => {
     try {
@@ -52,11 +56,6 @@ export function ReportsScreen() {
     [tr('Registre d’incidents', 'Incident register'), tr('Tous les incidents en CSV', 'All incidents as CSV'), Siren, exportIncidents],
     [tr('Export du registre', 'Register export'), tr('Tous les risques en CSV', 'All risks as CSV'), ShieldAlert, exportRegister],
     [tr('Rapport Asset Universe', 'Asset Universe report'), tr('Cartographie et chemins d’attaque', 'Topology and attack paths'), Atom, () => navigate('/assets/universe')],
-  ];
-  const recent: [string, string, string][] = [
-    [tr('Synthèse exécutive — Juin 2026', 'Executive summary — June 2026'), 'PDF', tr('02 juil. 2026', 'Jul 02, 2026')],
-    [tr('Conformité ISO 27001', 'ISO 27001 compliance'), 'PDF', tr('28 juin 2026', 'Jun 28, 2026')],
-    [tr('Export du registre des risques', 'Risk register export'), 'CSV', tr('15 juin 2026', 'Jun 15, 2026')],
   ];
 
   return (
@@ -111,16 +110,46 @@ export function ReportsScreen() {
 
       <Card style={{ padding: '18px 22px' }}>
         <div className="text-[14px] font-semibold text-ink mb-3.5">{tr('Rapports récents', 'Recent reports')}</div>
-        {recent.map(([name, fmt, date], i) => (
-          <div key={name} className="flex items-center gap-3.5 py-3 px-1" style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}>
-            <div className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><FileText size={17} /></div>
-            <div className="flex-1">
-              <div className="text-[13.5px] font-medium text-ink">{name}</div>
-              <div className="text-[11.5px] text-ink-muted mt-0.5">{fmt} · {date}</div>
-            </div>
-            <button className="h-8 px-3 rounded-lg text-[12.5px] font-semibold text-ink" style={{ border: '1px solid var(--border-strong)' }}>{tr('Télécharger', 'Download')}</button>
-          </div>
-        ))}
+        {/* The tenant's actual generated board reports. This list used to be three
+            invented PDFs with invented dates, offering a Download button that did
+            nothing — a fresh tenant appeared to have a reporting history. */}
+        {reportsLoading ? (
+          <SkeletonRows rows={3} height={52} />
+        ) : reportsError ? (
+          <EmptyState
+            variant="error"
+            title={tr('Rapports indisponibles', 'Reports unavailable')}
+            description={tr('Impossible de charger vos rapports générés.', 'Could not load your generated reports.')}
+          />
+        ) : recent.length === 0 ? (
+          <EmptyState
+            variant="first-use"
+            icon={FileText}
+            title={tr('Aucun rapport généré', 'No reports yet')}
+            description={tr('Les rapports que vous générez sont archivés ici, prêts à être relus ou téléchargés. Commencez par un rapport Conseil.', 'Reports you generate are archived here, ready to review or download. Start with a board report.')}
+            primaryAction={<Btn label={tr('Générer un rapport Conseil', 'Generate a board report')} icon={Plus} primary onClick={() => navigate('/reports/board')} />}
+          />
+        ) : (
+          recent.map((r, i) => (
+            <button
+              key={r.id}
+              onClick={() => navigate(`/reports/board?focus=${r.id}`)}
+              className="w-full text-left flex items-center gap-3.5 py-3 px-1 hover:bg-hover transition-colors"
+              style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}
+            >
+              <div className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><FileText size={17} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13.5px] font-medium text-ink truncate">{r.title}</div>
+                <div className="text-[11.5px] text-ink-muted mt-0.5">
+                  {r.period_label} · {new Date(r.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </div>
+              </div>
+              <span className="text-[11.5px] font-semibold px-2 py-[3px] rounded-md shrink-0" style={{ color: 'var(--text-secondary)', background: 'var(--bg-hover)' }}>
+                {r.status === 'approved' ? tr('Approuvé', 'Approved') : tr('Brouillon', 'Draft')}
+              </span>
+            </button>
+          ))
+        )}
       </Card>
     </PageFrame>
   );

@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Download, FileText, Trash2, Upload } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
 import { Button } from '../../components/ui/Button';
-import { EmptyState } from '../../components/shared/EmptyState';
+import { EmptyState } from '../../shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -165,7 +165,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
               ))}
             </div>
           ) : evidences.length === 0 ? (
-            <EmptyState icon={<FileText size={28} />} title={t('compliance.evidence.noEvidence')} />
+            <EmptyState icon={FileText} title={t('compliance.evidence.noEvidence')} />
           ) : (
             <ul className="space-y-2">
               <AnimatePresence initial={false}>

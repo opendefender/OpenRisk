@@ -88,7 +88,7 @@ function Unavailable({ tr }: { tr: Tr }) {
       <EmptyState
         icon={Database}
         title={tr('Bientôt disponible', 'Not available yet')}
-        sub={tr('Ce module nécessite une migration de base de données (tables non provisionnées dans cet environnement).', 'This module needs a database migration (tables are not provisioned in this environment).')}
+        description={tr('Ce module nécessite une migration de base de données (tables non provisionnées dans cet environnement).', 'This module needs a database migration (tables are not provisioned in this environment).')}
       />
     </Card>
   );
@@ -205,7 +205,7 @@ function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: T
         {isLoading ? (
           <SkeletonRows rows={4} />
         ) : isError ? (
-          <EmptyState icon={Users} title={tr('Membres indisponibles', 'Members unavailable')} sub={tr('Impossible de charger les membres.', 'Could not load members.')} />
+          <EmptyState variant="error" title={tr('Membres indisponibles', 'Members unavailable')} description={tr('Impossible de charger les membres. Réessayez ou contactez un administrateur.', 'Could not load members. Retry or contact an administrator.')} />
         ) : users.length === 0 ? (
           <EmptyState icon={Users} title={tr('Aucun membre', 'No members')} />
         ) : (
@@ -292,9 +292,9 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
         {isLoading ? (
           <SkeletonRows rows={3} />
         ) : isError ? (
-          <EmptyState icon={KeyRound} title={tr('Jetons indisponibles', 'Tokens unavailable')} />
+          <EmptyState variant="error" title={tr('Jetons indisponibles', 'Tokens unavailable')} description={tr('Impossible de charger vos jetons API.', 'Could not load your API tokens.')} />
         ) : tokens.length === 0 ? (
-          <EmptyState icon={KeyRound} title={tr('Aucun jeton API', 'No API tokens')} sub={tr('Créez un jeton pour authentifier vos intégrations et scripts.', 'Create a token to authenticate your integrations and scripts.')} />
+          <EmptyState icon={KeyRound} title={tr('Aucun jeton API', 'No API tokens')} description={tr('Créez un jeton pour authentifier vos intégrations et scripts.', 'Create a token to authenticate your integrations and scripts.')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse" style={{ minWidth: 560 }}>
@@ -347,7 +347,7 @@ function CustomFieldsTab({ tr }: { tr: Tr }) {
       {isLoading ? (
         <SkeletonRows rows={3} />
       ) : fields.length === 0 ? (
-        <EmptyState icon={SlidersHorizontal} title={tr('Aucun champ personnalisé', 'No custom fields')} sub={tr('Ajoutez des champs sur mesure aux risques et aux actifs pour coller à votre méthodologie.', 'Add bespoke fields to risks and assets to match your methodology.')} cta={<Btn label={tr('Nouveau champ', 'New field')} icon={Plus} primary onClick={() => toast(tr('Éditeur de champs — bientôt', 'Field editor — coming soon'))} />} />
+        <EmptyState icon={SlidersHorizontal} title={tr('Aucun champ personnalisé', 'No custom fields')} description={tr('Ajoutez des champs sur mesure aux risques et aux actifs pour coller à votre méthodologie.', 'Add bespoke fields to risks and assets to match your methodology.')} primaryAction={<Btn label={tr('Nouveau champ', 'New field')} icon={Plus} primary onClick={() => toast(tr('Éditeur de champs — bientôt', 'Field editor — coming soon'))} />} />
       ) : (
         <div className="p-3 flex flex-col gap-2">
           {fields.map((f) => (

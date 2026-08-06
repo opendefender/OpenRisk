@@ -54,29 +54,34 @@ const (
 )
 
 // Notification represents a user notification
+// JSON tags are explicit because this type crosses the API boundary to the
+// notification bell. Without them encoding/json emits Go field names ("Subject",
+// "ReadAt") and, worse, serialises the User and Tenant relations — shipping a
+// whole user record inside every notification. Both relations are cut from the
+// payload; a caller that needs them can fetch them.
 type Notification struct {
-	ID            uuid.UUID              `gorm:"primaryKey"`
-	UserID        uuid.UUID              `gorm:"index"`
-	TenantID      uuid.UUID              `gorm:"index"`
-	Type          NotificationType       `gorm:"index"`
-	Channel       NotificationChannel    `gorm:"index"`
-	Status        NotificationStatus     `gorm:"index"`
-	Subject       string                 // Email subject or title
-	Message       string                 // Notification message
-	Description   string                 // Longer description
-	ResourceID    *uuid.UUID             // ID of the resource (risk, mitigation, etc.)
-	ResourceType  string                 // Type of resource (risk, mitigation, action)
-	Metadata      map[string]interface{} `gorm:"type:jsonb"` // Additional context
-	SentAt        *time.Time
-	DeliveredAt   *time.Time
-	ReadAt        *time.Time
-	FailureReason *string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID            uuid.UUID              `gorm:"primaryKey" json:"id"`
+	UserID        uuid.UUID              `gorm:"index" json:"user_id"`
+	TenantID      uuid.UUID              `gorm:"index" json:"tenant_id"`
+	Type          NotificationType       `gorm:"index" json:"type"`
+	Channel       NotificationChannel    `gorm:"index" json:"channel"`
+	Status        NotificationStatus     `gorm:"index" json:"status"`
+	Subject       string                 `json:"subject"`               // Email subject or title
+	Message       string                 `json:"message"`               // Notification message
+	Description   string                 `json:"description,omitempty"` // Longer description
+	ResourceID    *uuid.UUID             `json:"resource_id,omitempty"` // ID of the resource (risk, mitigation, etc.)
+	ResourceType  string                 `json:"resource_type,omitempty"`
+	Metadata      map[string]interface{} `gorm:"type:jsonb" json:"metadata,omitempty"`
+	SentAt        *time.Time             `json:"sent_at,omitempty"`
+	DeliveredAt   *time.Time             `json:"delivered_at,omitempty"`
+	ReadAt        *time.Time             `json:"read_at,omitempty"`
+	FailureReason *string                `json:"-"` // internal delivery diagnostics
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
 
-	// Relations
-	User   *User
-	Tenant *Tenant
+	// Relations. Never serialised — see the note above.
+	User   *User   `json:"-"`
+	Tenant *Tenant `json:"-"`
 }
 
 // TableName specifies table name for Notification

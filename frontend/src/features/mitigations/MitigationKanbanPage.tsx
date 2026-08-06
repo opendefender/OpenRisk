@@ -11,7 +11,7 @@ import {
   Draggable,
   type DropResult,
 } from '@hello-pangea/dnd';
-import { Plus, AlertCircle, Zap } from 'lucide-react';
+import { Plus, AlertCircle, Zap, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Mitigation, MitigationStatus } from '../../types/mitigation';
 import { mitigationService } from '../../services/mitigationService';
@@ -23,7 +23,8 @@ import { MitigationTableView } from './MitigationTableView';
 import { MitigationGanttView } from './MitigationGanttView';
 import { CreateMitigationModal } from './CreateMitigationModal';
 import { Button } from '../../components/ui/Button';
-import { EmptyState } from '../../components/shared/EmptyState';
+import { EmptyState } from '../../shared/EmptyState';
+import { Btn } from '../../shared/ui';
 import { useI18n } from '../../hooks/useI18n';
 import { cn } from '../../utils/cn';
 
@@ -179,13 +180,11 @@ export const MitigationKanbanPage = () => {
     return (
       <div className="flex-1 overflow-auto p-6">
         <EmptyState
-          icon={<AlertCircle size={48} />}
+          variant="error"
+          icon={AlertCircle}
           title="Erreur lors du chargement"
           description={error}
-          action={{
-            label: 'Réessayer',
-            onClick: () => window.location.reload(),
-          }}
+          primaryAction={<Btn label="Réessayer" onClick={() => window.location.reload()} />}
         />
       </div>
     );
@@ -219,13 +218,11 @@ export const MitigationKanbanPage = () => {
         ) : mitigations.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <EmptyState
-              icon="📋"
+              variant="first-use"
+              icon={ClipboardList}
               title="Aucun plan d'atténuation"
-              description="Créez votre premier plan pour commencer à gérer vos risques"
-              action={{
-                label: 'Créer un plan',
-                onClick: () => setIsCreateOpen(true),
-              }}
+              description="Un plan d'atténuation décrit comment vous réduisez un risque : les actions, qui les porte, pour quand. Créez le premier pour suivre la réduction de votre exposition."
+              primaryAction={<Btn label="Créer un plan" icon={Plus} primary onClick={() => setIsCreateOpen(true)} />}
             />
           </div>
         ) : viewMode === 'kanban' ? (

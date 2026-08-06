@@ -71,8 +71,8 @@ export function GapAnalysisPage() {
           <EmptyState
             icon={ShieldCheck}
             title={tr('Aucun référentiel suivi', 'No frameworks tracked')}
-            sub={tr('Importez un référentiel pour lancer une analyse d’écarts.', 'Import a framework to run a gap analysis.')}
-            cta={<Btn label={tr('Aller à la conformité', 'Go to compliance')} primary onClick={() => navigate('/compliance')} />}
+            description={tr('Importez un référentiel pour lancer une analyse d’écarts.', 'Import a framework to run a gap analysis.')}
+            primaryAction={<Btn label={tr('Aller à la conformité', 'Go to compliance')} primary onClick={() => navigate('/compliance')} />}
           />
         </Card>
       ) : totalGaps === 0 ? (
@@ -80,7 +80,7 @@ export function GapAnalysisPage() {
           <EmptyState
             icon={ShieldCheck}
             title={tr('Aucun écart — 100 % couvert', 'No gaps — 100% covered')}
-            sub={tr('Tous les contrôles applicables sont implémentés sur vos référentiels.', 'Every applicable control is implemented across your frameworks.')}
+            description={tr('Tous les contrôles applicables sont implémentés sur vos référentiels.', 'Every applicable control is implemented across your frameworks.')}
           />
         </Card>
       ) : (

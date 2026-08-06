@@ -127,8 +127,8 @@ export function IncidentsScreen() {
           <EmptyState
             icon={Siren}
             title={tr('Aucun incident', 'No incidents')}
-            sub={tr('Rien à signaler ici. Ouvrez un incident pour coordonner la réponse.', 'Nothing to report. Open an incident to coordinate the response.')}
-            cta={canWrite ? <Btn label={tr('Nouvel incident', 'New incident')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
+            description={tr('Rien à signaler ici. Ouvrez un incident pour coordonner la réponse.', 'Nothing to report. Open an incident to coordinate the response.')}
+            primaryAction={canWrite ? <Btn label={tr('Nouvel incident', 'New incident')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
           />
         ) : (
           <div className="overflow-x-auto">

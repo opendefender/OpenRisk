@@ -17,8 +17,11 @@ const SOURCES: VulnSource[] = [
   'nessus', 'openvas', 'qualys', 'ms_defender', 'aws_inspector', 'azure_defender', 'crowdstrike', 'manual',
 ];
 
-// A tiny sample per source so the user knows the expected native shape.
-const SAMPLE: Record<string, string> = {
+// One JSON snippet per source documenting the native payload shape that source
+// emits, so the user pasting an export knows what is expected. This is format
+// documentation for an input field, not tenant data: nothing here is ever
+// rendered as if it were a vulnerability the tenant has.
+const FORMAT_EXAMPLES: Record<string, string> = {
   nessus: `[{ "plugin_id": "156032", "plugin_name": "Apache Log4j RCE", "cvss3_base_score": 9.8, "cve": "CVE-2021-44228", "severity": 4, "host": "web-01", "solution": "Upgrade log4j" }]`,
   crowdstrike: `[{ "id": "cs-1", "cve": { "id": "CVE-2023-23397", "base_score": 9.1, "severity": "CRITICAL", "exploit_status": 90 }, "host_info": { "hostname": "pc-42" } }]`,
   manual: `[{ "title": "SMB legacy", "cve": "CVE-2017-0144", "cvss": 5.0, "kev": true, "host": "web-01" }]`,
@@ -79,11 +82,11 @@ export function IngestModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{tr('Findings (JSON du tableau exporté)', 'Findings (exported array JSON)')}</div>
-              {SAMPLE[source] && (
-                <button onClick={() => setRaw(SAMPLE[source])} className="text-[11.5px] font-semibold" style={{ color: 'var(--accent)' }}>{tr('Insérer un exemple', 'Insert sample')}</button>
+              {FORMAT_EXAMPLES[source] && (
+                <button onClick={() => setRaw(FORMAT_EXAMPLES[source])} className="text-[11.5px] font-semibold" style={{ color: 'var(--accent)' }}>{tr('Insérer un exemple', 'Insert sample')}</button>
               )}
             </div>
-            <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={10} spellCheck={false} placeholder={SAMPLE[source] ?? '[ { ... } ]'} className="w-full rounded-[10px] px-3 py-2.5 text-[12.5px] mono text-ink outline-none" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }} />
+            <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={10} spellCheck={false} placeholder={FORMAT_EXAMPLES[source] ?? '[ { ... } ]'} className="w-full rounded-[10px] px-3 py-2.5 text-[12.5px] mono text-ink outline-none" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }} />
             <div className="text-[11px] text-ink-muted mt-1.5">{tr('Collez le tableau de findings exporté par l’outil — la normalisation et la priorisation sont automatiques.', 'Paste the array of findings exported by the tool — normalisation and prioritisation are automatic.')}</div>
           </div>
         </div>

@@ -21,6 +21,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
+import { DemoBanner } from './shared/DemoBanner';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
@@ -145,6 +146,9 @@ const DashboardLayout = () => {
     <div className="flex h-screen bg-app text-ink overflow-hidden font-sans selection:bg-accent-soft">
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0" style={{ background: 'var(--bg-primary)' }}>
+        {/* Renders only when the server reports DEMO_MODE. Not dismissible by
+            design — see shared/DemoBanner. */}
+        <DemoBanner />
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main data-testid="app-main" className="flex-1 overflow-hidden relative flex flex-col">
           <Suspense fallback={<RouteFallback />}>

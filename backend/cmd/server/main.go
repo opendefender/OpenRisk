@@ -47,6 +47,7 @@ import (
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
 	"github.com/opendefender/openrisk/internal/infrastructure/email"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
@@ -277,6 +278,30 @@ func main() {
 	// Provision RBAC / tenant / audit tables (permissions, predefined roles, a Tenant
 	// per Organization, UserTenant per membership) so the Settings admin tabs are live.
 	handlers.SeedRBAC()
+
+	// Demonstration data (DEMO_MODE=true only). Fixtures live outside the binary in
+	// dev/fixtures/demo.json and are never embedded, so a production build cannot
+	// materialise them by accident. A seeded tenant advertises itself through
+	// /health's demo_mode flag, which drives a permanent banner in the UI — demo
+	// content is never allowed to pass for a customer's real posture.
+	if demoseed.Enabled() {
+		var demoAdmin domain.User
+		if err := database.DB.Where("email = ?", "admin@opendefender.io").First(&demoAdmin).Error; err != nil {
+			log.Printf("DEMO_MODE: no seed admin found, skipping demo data: %v", err)
+		} else if demoAdmin.DefaultOrgID == nil {
+			log.Println("DEMO_MODE: seed admin has no default organization, skipping demo data")
+		} else {
+			res, err := demoseed.Seed(database.DB, *demoAdmin.DefaultOrgID, demoAdmin.ID)
+			switch {
+			case err != nil:
+				log.Printf("DEMO_MODE: seeding failed: %v", err)
+			case res.Skipped:
+				log.Println("DEMO_MODE: tenant already contains data, demo fixtures not re-applied")
+			default:
+				log.Printf("DEMO_MODE: seeded %d assets, %d risks, %d incidents", res.Assets, res.Risks, res.Incidents)
+			}
+		}
+	}
 
 	// =========================================================================
 	// 3. SECURITY SERVICES INITIALIZATION
@@ -567,6 +592,10 @@ func main() {
 			"version": Version,
 			"commit":  Commit,
 			"db":      "CONNECTED",
+			// Drives the permanent "demonstration data" banner. Served from the
+			// backend rather than a frontend build flag so the two cannot disagree
+			// about whether the data on screen is real.
+			"demo_mode": demoseed.Enabled(),
 		})
 	})
 

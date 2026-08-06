@@ -5,12 +5,13 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import noRawColors from './eslint-rules/no-raw-colors.js'
+import noMockData from './eslint-rules/no-mock-data.js'
 
 /**
  * Local plugin. Kept in-repo rather than published: the rule encodes this
  * project's token vocabulary and has no meaning outside it.
  */
-const openrisk = { rules: { 'no-raw-colors': noRawColors } }
+const openrisk = { rules: { 'no-raw-colors': noRawColors, 'no-mock-data': noMockData } }
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -138,6 +139,25 @@ export default defineConfig([
     plugins: { openrisk },
     rules: {
       'openrisk/no-raw-colors': 'error',
+    },
+  },
+  {
+    // The mock guard, at error level: fabricated data fails the build.
+    //
+    // Scoped to application source only. Tests are excluded because mocking is
+    // what a unit test is for — the point of the rule is that a *screen* must
+    // never invent what it displays, not that the word "mock" is banned.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/**/__tests__/**',
+      'src/**/*.test.{ts,tsx}',
+      'src/**/*.spec.{ts,tsx}',
+      'src/test/**',
+      'src/utils/rbacTestUtils.ts',
+    ],
+    plugins: { openrisk },
+    rules: {
+      'openrisk/no-mock-data': 'error',
     },
   },
 ])
