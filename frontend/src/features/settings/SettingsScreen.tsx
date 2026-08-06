@@ -15,14 +15,13 @@ import {
   Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Laptop, Trash2, Copy, Database, PowerOff,
   type LucideIcon,
 } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
-import { ImpactDialog } from '../../shared/ImpactDialog';
+import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { MembersPanel } from '../rbac/MembersPanel';
 import { relTime } from '../risks/riskMap';
-import { useUsers, useTokens, useCustomFields, useTenants } from './adminData';
+import { useTokens, useCustomFields, useTenants } from './adminData';
 import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
@@ -178,103 +177,6 @@ export function SettingsScreen() {
 }
 
 /* ==================== real tabs ==================== */
-
-function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: Tr; lang: 'fr' | 'en' }) {
-  const { users, isLoading, isError, setStatus, remove } = useUsers();
-  const roleColor = (r: string) => (r === 'admin' || r === 'root' ? 'var(--accent)' : r ? 'var(--info)' : 'var(--text-muted)');
-  const th = (t: string) => <th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>;
-
-  // Revoking a member is important + irreversible → impact radiography (UX-11) with a
-  // non-destructive escape hatch (deactivate keeps the account + their ownership).
-  const [toRevoke, setToRevoke] = useState<{ id: string; name: string; active: boolean } | null>(null);
-  const confirmRevoke = () => {
-    if (!toRevoke) return;
-    const id = toRevoke.id;
-    setToRevoke(null);
-    remove.mutate(id, {
-      onSuccess: () => toast.success(tr('Membre révoqué', 'Member revoked')),
-      onError: () => toast.error(tr('Action échouée', 'Action failed')),
-    });
-  };
-  const deactivateInstead = () => {
-    if (!toRevoke) return;
-    const id = toRevoke.id;
-    setToRevoke(null);
-    setStatus.mutate({ id, is_active: false }, {
-      onSuccess: () => toast.success(tr('Membre désactivé', 'Member deactivated')),
-      onError: () => toast.error(tr('Action échouée', 'Action failed')),
-    });
-  };
-  const toggle = (id: string, active: boolean) =>
-    setStatus.mutate({ id, is_active: !active }, { onError: () => toast.error(tr('Action échouée', 'Action failed')) });
-
-  return (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[15px] font-semibold text-ink">{L.s_members} · {users.length}</div>
-        <Btn label={L.invite} icon={Plus} primary onClick={() => toast(tr('Invitation par e-mail — bientôt', 'Email invites — coming soon'))} />
-      </div>
-      <Card style={{ padding: '8px 8px 0', overflow: 'hidden' }}>
-        {isLoading ? (
-          <SkeletonRows rows={4} />
-        ) : isError ? (
-          <EmptyState variant="error" title={tr('Membres indisponibles', 'Members unavailable')} description={tr('Impossible de charger les membres. Réessayez ou contactez un administrateur.', 'Could not load members. Retry or contact an administrator.')} />
-        ) : users.length === 0 ? (
-          <EmptyState icon={Users} title={tr('Aucun membre', 'No members')} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 560 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}><tr>{th(L.member)}{th(L.role)}{th(L.status)}{th('')}</tr></thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar initials={(u.full_name || u.email).slice(0, 2).toUpperCase()} size={32} />
-                        <div><div className="text-[13.5px] font-medium text-ink">{u.full_name || u.username}</div><div className="text-[12px] text-ink-muted">{u.email}</div></div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3"><span className="text-[12px] font-semibold px-[9px] py-[3px] rounded-full capitalize" style={{ color: roleColor(u.role), background: `color-mix(in srgb,${roleColor(u.role)} 14%,transparent)` }}>{u.role || tr('—', '—')}</span></td>
-                    <td className="px-3 py-3">
-                      <button onClick={() => toggle(u.id, u.is_active)} className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-soft hover:text-ink transition-colors">
-                        <span className="w-[7px] h-[7px] rounded-full" style={{ background: u.is_active ? 'var(--low)' : 'var(--text-muted)' }} />{u.is_active ? L.active : tr('Inactif', 'Inactive')}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-right"><button onClick={() => setToRevoke({ id: u.id, name: u.full_name || u.email, active: u.is_active })} className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{L.revoke}</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-      <div className="text-[11.5px] text-ink-muted mt-2.5">{tr('Astuce : cliquez sur le statut pour activer / désactiver un membre.', 'Tip: click a status to enable / disable a member.')}</div>
-
-      <ImpactDialog
-        open={!!toRevoke}
-        title={tr('Révoquer ce membre ?', 'Revoke this member?')}
-        subject={toRevoke?.name ?? ''}
-        description={tr('Action irréversible. Voici ce qui se passe :', 'This cannot be undone. Here is what happens:')}
-        impacts={[
-          { label: tr('Perte immédiate de tout accès', 'Loses all access immediately') },
-          { label: tr('Actifs & risques dont il est responsable → sans responsable', 'Assets & risks they own → left unassigned') },
-        ]}
-        alternatives={toRevoke?.active ? [
-          {
-            label: tr('Désactiver le compte au lieu de révoquer', 'Deactivate the account instead'),
-            description: tr('Coupe l’accès mais garde le membre et ses responsabilités — réversible.', 'Cuts access but keeps the member and their ownership — reversible.'),
-            onClick: deactivateInstead,
-          },
-        ] : []}
-        confirmLabel={tr('Révoquer définitivement', 'Revoke permanently')}
-        cancelLabel={tr('Annuler', 'Cancel')}
-        loading={remove.isPending}
-        onConfirm={confirmRevoke}
-        onClose={() => setToRevoke(null)}
-      />
-    </>
-  );
-}
 
 function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   const { tokens, isLoading, isError, create, revoke } = useTokens();

@@ -48,7 +48,6 @@ const AuditsPage = lazy(() => import('./features/compliance/AuditsPage').then(m 
 const RemediationPage = lazy(() => import('./features/compliance/RemediationPage').then(m => ({ default: m.RemediationPage })));
 const InventoryPage = lazy(() => import('./features/assets/InventoryPage').then(m => ({ default: m.InventoryPage })));
 const AssetUniverse = lazy(() => import('./features/universe/AssetUniverse').then(m => ({ default: m.AssetUniverse })));
-const ExecutiveDashboard = lazy(() => import('./features/analytics/ExecutiveDashboard').then(m => ({ default: m.ExecutiveDashboard })));
 const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
 const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
 const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
