@@ -27,6 +27,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useRbacCatalog, useRbacMembers, useAssignBusinessRole, useInviteMember } from './useRbac';
 import type { BusinessRole, PermissionDef, MemberView, InviteMemberResult } from './rbacService';
 import { useOnboarding } from '../onboarding/onboardingStore';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 type Tab = 'roles' | 'members';
 
@@ -316,6 +317,8 @@ function MembersView() {
 // one-time temporary password to share.
 // ---------------------------------------------------------------------------
 function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacCatalog>['data']; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const invite = useInviteMember();

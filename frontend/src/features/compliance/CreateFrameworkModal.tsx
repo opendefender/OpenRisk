@@ -13,6 +13,7 @@ import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useFrameworks } from './useCompliance';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -27,6 +28,8 @@ interface CreateFrameworkModalProps {
 }
 
 export const CreateFrameworkModal = ({ isOpen, onClose }: CreateFrameworkModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
   const toast = useToast();
   const { createFramework } = useFrameworks();

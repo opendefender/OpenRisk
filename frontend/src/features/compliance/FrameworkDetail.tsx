@@ -21,6 +21,7 @@ import { ControlMappingsSection } from './ControlMappingsSection';
 import { AiEvidenceAnalysis } from '../ai/AiEvidenceAnalysis';
 import { relTime } from '../risks/riskMap';
 import { CONTROL_STATUSES, type ControlStatus, type ComplianceControl } from '../../types/compliance';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const STATUS_META: Record<string, { color: string; fr: string; en: string }> = {
   implemented: { color: 'var(--low)', fr: 'Implémenté', en: 'Implemented' },
@@ -271,6 +272,8 @@ function EvidenceButton({ count, onClick }: { count: number; onClick: () => void
 
 /* ---------------- evidence drawer ---------------- */
 function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { evidences, isLoading, createEvidence, deleteEvidence, downloadEvidence } = useEvidences(control.id);

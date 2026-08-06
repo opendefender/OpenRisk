@@ -6,6 +6,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect } from 'react';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 interface DrawerProps {
   isOpen: boolean;
@@ -16,6 +17,8 @@ interface DrawerProps {
 }
 
 export const Drawer = ({ isOpen, onClose, children, title, widthClassName = 'max-w-2xl' }: DrawerProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   // Lock body scroll quand ouvert
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
