@@ -5,7 +5,7 @@
 
 import { Clock, History, User } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
-import { EmptyState } from '../../components/shared/EmptyState';
+import { EmptyState } from '../../shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
 import { useAssets, useAssetHistory } from './useAssets';
 import { CriticalityBadge } from './CriticalityBadge';
@@ -51,7 +51,7 @@ export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps
         <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
       ) : !history || history.length === 0 ? (
         <EmptyState
-          icon={<History size={28} />}
+          icon={History}
           title={t('assets.noHistory')}
           description={t('assets.noHistoryDescription')}
         />

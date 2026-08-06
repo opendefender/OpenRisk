@@ -132,7 +132,7 @@ export function InfrastructurePage() {
             ) : error ? (
               <ErrorState title={tr('Chargement impossible', 'Could not load')} />
             ) : configs.length === 0 ? (
-              <EmptyState icon={Boxes} title={tr('Aucune configuration', 'No configurations yet')} sub={tr('Ajoutez un cloud ou un scan sur site pour commencer.', 'Add a cloud or on-prem scan to get started.')} cta={canWrite ? <Btn label={tr('Nouvelle config', 'New config')} icon={Plus} primary onClick={() => setDrawerProvider('aws')} /> : undefined} />
+              <EmptyState icon={Boxes} title={tr('Aucune configuration', 'No configurations yet')} description={tr('Ajoutez un cloud ou un scan sur site pour commencer.', 'Add a cloud or on-prem scan to get started.')} primaryAction={canWrite ? <Btn label={tr('Nouvelle config', 'New config')} icon={Plus} primary onClick={() => setDrawerProvider('aws')} /> : undefined} />
             ) : (
               <div>
                 {configs.map((c, i) => {
@@ -177,7 +177,7 @@ export function InfrastructurePage() {
           <Card style={{ padding: 0 }}>
             <SectionHead icon={Bug} title={tr('Scans récents', 'Recent scans')} />
             {jobs.length === 0 ? (
-              <EmptyState icon={Bug} title={tr('Aucun scan pour l’instant', 'No scans yet')} sub={tr('Lancez un scan depuis une configuration.', 'Run a scan from a configuration.')} />
+              <EmptyState icon={Bug} title={tr('Aucun scan pour l’instant', 'No scans yet')} description={tr('Lancez un scan depuis une configuration.', 'Run a scan from a configuration.')} />
             ) : (
               <div>
                 {jobs.slice(0, 8).map((j, i) => {
@@ -213,7 +213,7 @@ export function InfrastructurePage() {
             <SectionHead icon={Server} title={tr('Agents connectés', 'Connected agents')} right={<span className="text-[12px] font-semibold" style={{ color: onlineAgents.length ? 'var(--low)' : 'var(--text-muted)' }}>{onlineAgents.length}/{agents.length}</span>} />
             {agents.length === 0 ? (
               <div className="px-4 pb-5 pt-1">
-                <EmptyState icon={ShieldOff} title={tr('Aucun agent', 'No agents')} sub={tr('Déployez un agent depuis une config sur site.', 'Deploy one from an on-prem config.')} />
+                <EmptyState icon={ShieldOff} title={tr('Aucun agent', 'No agents')} description={tr('Déployez un agent depuis une config sur site.', 'Deploy one from an on-prem config.')} />
               </div>
             ) : (
               <div>

@@ -170,8 +170,8 @@ export function VulnerabilitiesPage() {
               <EmptyState
                 icon={Bug}
                 title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
-                sub={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
-                cta={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
+                description={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
+                primaryAction={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
               />
             }
           />

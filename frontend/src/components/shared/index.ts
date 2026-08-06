@@ -16,8 +16,6 @@ export type { } from './StatusDot';
 export { FloatingBulkBar } from './FloatingBulkBar';
 export type { } from './FloatingBulkBar';
 
-export { EmptyState } from './EmptyState';
-export type { } from './EmptyState';
 
 export { SkeletonTable } from './SkeletonTable';
 export type { } from './SkeletonTable';

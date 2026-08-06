@@ -75,8 +75,8 @@ export function MitigationsBoard() {
         <EmptyState
           icon={ShieldCheck}
           title={tr('Aucune mitigation', 'No mitigations yet')}
-          sub={tr('Créez une mitigation depuis un risque pour lancer son traitement.', 'Create a mitigation from a risk to start treating it.')}
-          cta={<Btn label={L.n_risks} onClick={() => navigate('/risks')} primary />}
+          description={tr('Créez une mitigation depuis un risque pour lancer son traitement.', 'Create a mitigation from a risk to start treating it.')}
+          primaryAction={<Btn label={L.n_risks} onClick={() => navigate('/risks')} primary />}
         />
       ) : view === 'kanban' ? (
         <div className="overflow-x-auto -mx-1 px-1">
@@ -387,7 +387,7 @@ function GanttView({ items, isLoading, statusColor }: { items: UiMiti[]; isLoadi
   }, [items, lang, DAY]);
 
   if (isLoading) return <div className="flex flex-col gap-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} style={{ height: 40 }} />)}</div>;
-  if (!hasDates) return <EmptyState icon={GanttChartSquare} title={tr('Aucune date planifiée', 'No scheduled dates')} sub={tr('Ajoutez une échéance aux plans pour les voir sur le Gantt.', 'Add due dates to plans to see them on the Gantt.')} />;
+  if (!hasDates) return <EmptyState icon={GanttChartSquare} title={tr('Aucune date planifiée', 'No scheduled dates')} description={tr('Ajoutez une échéance aux plans pour les voir sur le Gantt.', 'Add due dates to plans to see them on the Gantt.')} />;
 
   return (
     <div className="rounded-[14px] p-4 overflow-x-auto" style={{ border: '1px solid var(--border)' }}>

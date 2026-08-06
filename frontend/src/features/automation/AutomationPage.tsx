@@ -97,8 +97,8 @@ function RulesView({
     return (
       <EmptyState icon={Workflow}
         title={tr('Aucune automatisation', 'No automations')}
-        sub={tr('Chaînez des actions (scan, risque, ticket, alerte, SLA) déclenchées par un événement.', 'Chain actions (scan, risk, ticket, alert, SLA) triggered by an event.')}
-        cta={canWrite ? <Btn label={tr('Nouvelle règle', 'New rule')} icon={Plus} primary onClick={onNew} /> : undefined} />
+        description={tr('Chaînez des actions (scan, risque, ticket, alerte, SLA) déclenchées par un événement.', 'Chain actions (scan, risk, ticket, alert, SLA) triggered by an event.')}
+        primaryAction={canWrite ? <Btn label={tr('Nouvelle règle', 'New rule')} icon={Plus} primary onClick={onNew} /> : undefined} />
     );
 
   const toggle = async (r: AutomationRule) => {
@@ -208,7 +208,7 @@ function SLAView() {
         {isLoading && trackers.length === 0 ? (
           <SkeletonRows rows={5} />
         ) : trackers.length === 0 ? (
-          <EmptyState icon={Timer} title={tr('Aucun SLA en cours', 'No live SLA')} sub={tr('Les compteurs SLA démarrent quand une règle déclenche l’action « Démarrer un SLA ».', 'SLA countdowns start when a rule fires the “Start SLA” action.')} />
+          <EmptyState icon={Timer} title={tr('Aucun SLA en cours', 'No live SLA')} description={tr('Les compteurs SLA démarrent quand une règle déclenche l’action « Démarrer un SLA ».', 'SLA countdowns start when a rule fires the “Start SLA” action.')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]" style={{ minWidth: 640 }}>
@@ -272,7 +272,7 @@ function HistoryView() {
 
   if (isLoading && execs.length === 0) return <Card style={{ padding: 12 }}><SkeletonRows rows={5} /></Card>;
   if (execs.length === 0)
-    return <EmptyState icon={Activity} title={tr('Aucune exécution', 'No executions')} sub={tr('Les exécutions apparaissent quand une règle se déclenche.', 'Executions appear when a rule fires.')} />;
+    return <EmptyState icon={Activity} title={tr('Aucune exécution', 'No executions')} description={tr('Les exécutions apparaissent quand une règle se déclenche.', 'Executions appear when a rule fires.')} />;
 
   const stepColor = (s: string) => (s === 'success' ? 'var(--low)' : s === 'failed' ? 'var(--critical)' : 'var(--text-secondary)');
 

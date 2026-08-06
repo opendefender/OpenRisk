@@ -133,15 +133,15 @@ export function ThreatIntel() {
           <EmptyState
             icon={ShieldAlert}
             title={tr('Impossible de charger le flux', 'Could not load the feed')}
-            sub={tr('Réessayez ou synchronisez le flux.', 'Retry or sync the feed.')}
-            cta={<Btn label={tr('Réessayer', 'Retry')} onClick={() => refetch()} />}
+            description={tr('Réessayez ou synchronisez le flux.', 'Retry or sync the feed.')}
+            primaryAction={<Btn label={tr('Réessayer', 'Retry')} onClick={() => refetch()} />}
           />
         ) : list.length === 0 ? (
           <EmptyState
             icon={Globe}
             title={tr('Aucune CVE', 'No CVEs yet')}
-            sub={tr('Synchronisez NVD + CISA KEV pour peupler le flux.', 'Sync NVD + CISA KEV to populate the feed.')}
-            cta={<Btn label={tr('Synchroniser', 'Sync feed')} icon={Globe} primary onClick={onSync} />}
+            description={tr('Synchronisez NVD + CISA KEV pour peupler le flux.', 'Sync NVD + CISA KEV to populate the feed.')}
+            primaryAction={<Btn label={tr('Synchroniser', 'Sync feed')} icon={Globe} primary onClick={onSync} />}
           />
         ) : (
           list.map((v, i) => {

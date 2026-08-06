@@ -7,7 +7,8 @@ import { Database, Edit2, History, HardDrive, Laptop, Plus, Server, Trash2 } fro
 import { motion } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
-import { EmptyState } from '../../components/shared/EmptyState';
+import { EmptyState } from '../../shared/EmptyState';
+import { Btn } from '../../shared/ui';
 import { ViewToggle } from '../../components/ViewToggle';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
@@ -84,10 +85,11 @@ export const AssetsPage = () => {
         </div>
       ) : assets.length === 0 ? (
         <EmptyState
-          icon={<Server size={28} />}
+          variant="first-use"
+          icon={Server}
           title={t('assets.noAssets')}
           description={t('assets.noAssetsDescription')}
-          action={{ label: t('assets.createAsset'), onClick: openCreateModal }}
+          primaryAction={<Btn label={t('assets.createAsset')} icon={Plus} primary onClick={openCreateModal} />}
         />
       ) : view === 'table' ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto scrollbar-thin shadow-sm">

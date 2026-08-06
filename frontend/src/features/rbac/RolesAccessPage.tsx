@@ -201,7 +201,7 @@ function MembersView() {
         <EmptyState
           icon={Users}
           title={tr('Aucun membre', 'No members')}
-          sub={tr('Invitez votre premier membre pour collaborer.', 'Invite your first member to collaborate.')}
+          description={tr('Invitez votre premier membre pour collaborer.', 'Invite your first member to collaborate.')}
         />
         {modal}
       </>

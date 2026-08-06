@@ -154,7 +154,7 @@ function AuditView() {
       {isLoading && events.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={6} /></Card>
       ) : events.length === 0 ? (
-        <EmptyState icon={FileClock} title={tr('Aucun évènement', 'No events')} sub={tr('Les mutations des entités auditées apparaîtront ici.', 'Mutations of audited entities will appear here.')} />
+        <EmptyState icon={FileClock} title={tr('Aucun évènement', 'No events')} description={tr('Les mutations des entités auditées apparaîtront ici.', 'Mutations of audited entities will appear here.')} />
       ) : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           {events.map((e) => <AuditRow key={e.id} e={e} />)}
@@ -241,7 +241,7 @@ function ApprovalsView() {
       {isLoading && requests.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={4} /></Card>
       ) : requests.length === 0 ? (
-        <EmptyState icon={ShieldCheck} title={tr('Rien à approuver', 'Nothing to approve')} sub={tr('Les demandes soumises via un workflow apparaissent ici.', 'Requests submitted through a workflow appear here.')} />
+        <EmptyState icon={ShieldCheck} title={tr('Rien à approuver', 'Nothing to approve')} description={tr('Les demandes soumises via un workflow apparaissent ici.', 'Requests submitted through a workflow appear here.')} />
       ) : (
         <div className="space-y-3">{requests.map((r) => <ApprovalCard key={r.id} req={r} />)}</div>
       )}
@@ -413,7 +413,7 @@ function DelegationsView() {
       {isLoading && delegations.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={3} /></Card>
       ) : delegations.length === 0 ? (
-        <EmptyState icon={UserPlus} title={tr('Aucune délégation', 'No delegations')} sub={tr('Créez une délégation temporaire de droits.', 'Create a temporary delegation of rights.')} />
+        <EmptyState icon={UserPlus} title={tr('Aucune délégation', 'No delegations')} description={tr('Créez une délégation temporaire de droits.', 'Create a temporary delegation of rights.')} />
       ) : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           {delegations.map((d) => (
@@ -503,7 +503,7 @@ function WorkflowsView() {
       {isLoading && workflows.length === 0 ? (
         <Card style={{ padding: 12 }}><SkeletonRows rows={3} /></Card>
       ) : workflows.length === 0 ? (
-        <EmptyState icon={Scale} title={tr('Aucun workflow', 'No workflows')} sub={tr('Créez une chaîne Maker-Checker.', 'Create a Maker-Checker chain.')} />
+        <EmptyState icon={Scale} title={tr('Aucun workflow', 'No workflows')} description={tr('Créez une chaîne Maker-Checker.', 'Create a Maker-Checker chain.')} />
       ) : (
         <div className="space-y-3">
           {workflows.map((w) => (

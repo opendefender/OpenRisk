@@ -83,7 +83,7 @@ export function FinancialDashboard() {
         <EmptyState
           icon={Wallet}
           title={tr('Aucun risque à quantifier', 'No risk to quantify')}
-          sub={tr('Ajoutez des risques et renseignez leurs pertes (SLE, ARO, coût des interruptions) pour voir l’exposition financière.', 'Add risks and fill in their losses (SLE, ARO, downtime cost) to see financial exposure.')}
+          description={tr('Ajoutez des risques et renseignez leurs pertes (SLE, ARO, coût des interruptions) pour voir l’exposition financière.', 'Add risks and fill in their losses (SLE, ARO, downtime cost) to see financial exposure.')}
         />
       ) : (
         <>

@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Settings2, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Settings2, Plus, X, ShieldAlert } from 'lucide-react';
 import { useRisks } from './useRisks';
 import { useRiskUIStore } from './store';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -15,7 +15,9 @@ import { useSSE } from '../../hooks/useSSE';
 import { useI18n } from '../../hooks/useI18n';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { EmptyState, FloatingBulkBar, RiskBadge, ScoreMeter, StatusDot, SkeletonTable, UserAvatar } from '../../components/shared';
+import { FloatingBulkBar, RiskBadge, ScoreMeter, StatusDot, SkeletonTable, UserAvatar } from '../../components/shared';
+import { EmptyState } from '../../shared/EmptyState';
+import { Btn } from '../../shared/ui';
 import { CreateRiskModal } from './CreateRiskModal';
 import { RiskDrawer } from './RiskDrawer';
 import { type Risk } from '../../services/riskService';
@@ -305,10 +307,11 @@ export const RiskListPage = () => {
               <SkeletonTable rows={6} columns={8} />
             ) : risks.length === 0 ? (
               <EmptyState
-                icon="📌"
+                variant="first-use"
+                icon={ShieldAlert}
                 title={t('risks.noRisks')}
                 description={t('risks.noRisksDescription')}
-                action={{ label: t('risks.createFirstRisk'), onClick: openCreateModal }}
+                primaryAction={<Btn label={t('risks.createFirstRisk')} icon={Plus} primary onClick={openCreateModal} />}
               />
             ) : (
               <div className="rounded-3xl border border-border-subtle bg-surface-0/70 overflow-hidden">

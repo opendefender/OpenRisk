@@ -210,7 +210,7 @@ export function ScanPreviewPage() {
         )}
 
         {tab === 'mitigations' && (
-          mitigations.length === 0 ? <EmptyState icon={Wrench} title={tr('Aucune mitigation détectée', 'No auto-mitigations')} sub={tr('Comparé au scan précédent de cette config.', 'Compared against the previous scan of this config.')} /> : (
+          mitigations.length === 0 ? <EmptyState icon={Wrench} title={tr('Aucune mitigation détectée', 'No auto-mitigations')} description={tr('Comparé au scan précédent de cette config.', 'Compared against the previous scan of this config.')} /> : (
             <div>
               {mitigations.map((mit, i) => (
                 <div key={`${mit.asset_external_id}-${mit.cve ?? mit.title}-${i}`} className="flex items-start gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>

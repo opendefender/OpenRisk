@@ -82,8 +82,8 @@ export function RemediationPage() {
           <EmptyState
             icon={Wrench}
             title={tr('Aucun plan de remédiation', 'No remediation plans')}
-            sub={tr('Créez un plan pour corriger un écart de conformité, ou lancez-en un depuis l’analyse d’écarts.', 'Create a plan to close a compliance gap, or start one from the gap analysis.')}
-            cta={canWrite ? <Btn label={tr('Nouveau plan', 'New plan')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
+            description={tr('Créez un plan pour corriger un écart de conformité, ou lancez-en un depuis l’analyse d’écarts.', 'Create a plan to close a compliance gap, or start one from the gap analysis.')}
+            primaryAction={canWrite ? <Btn label={tr('Nouveau plan', 'New plan')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
           />
         </Card>
       ) : (
