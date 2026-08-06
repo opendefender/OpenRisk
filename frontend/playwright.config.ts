@@ -4,14 +4,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright configuration, currently serving the overlay visual-regression
- * suite (e2e/visual/overlays.spec.ts).
+ * Playwright configuration, serving two suites:
  *
- * The suite renders overlays against a static harness rather than the running
- * app: it is testing that a themed surface resolves its tokens correctly in
- * both themes, which needs no backend, no session and no seeded data. Coupling
- * it to a live API would make a theme regression indistinguishable from a
- * flaky login.
+ *   e2e/visual/overlays.spec.ts  renders overlays against a static harness. It
+ *     tests that a themed surface resolves its tokens correctly in both themes,
+ *     which needs no backend, no session and no seeded data — coupling it to a
+ *     live API would make a theme regression indistinguishable from a flaky
+ *     login.
+ *
+ *   e2e/empty-states.spec.ts     drives the real app against a real backend,
+ *     because the thing under test is what a brand-new tenant sees. It creates
+ *     its own tenant over the API and skips itself when the API is unreachable.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -36,6 +39,15 @@ export default defineConfig({
       animations: 'disabled',
       caret: 'hide',
     },
+  },
+
+  // Serves the app for the empty-states suite. Reuses an already-running `npm
+  // run dev` so the usual local loop is untouched; the visual suite ignores it.
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: true,
+    timeout: 120_000,
   },
 
   projects: [
