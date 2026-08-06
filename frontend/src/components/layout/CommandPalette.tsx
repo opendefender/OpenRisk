@@ -116,7 +116,7 @@ export const CommandPalette = () => {
         label: L[it.labelKey],
         icon: it.icon,
         run: () => {
-          navigate(it.path);
+          navigate(it.href ?? it.path);
           close();
         },
       }))

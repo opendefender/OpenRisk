@@ -23,7 +23,22 @@ export interface NavItem {
   key: string;
   labelKey: keyof UIStrings;
   icon: LucideIcon;
+  /** The pathname this item represents, used for active-state matching. */
   path: string;
+  /**
+   * Where clicking actually goes, when that differs from `path`. The executive
+   * view is a display mode of the dashboard (/?view=executive), so it navigates
+   * to a query string while still matching on "/" — keeping the query out of
+   * `path` is what stops `pathname === path` failing for every such item.
+   */
+  href?: string;
+  /**
+   * Disambiguates two items sharing a pathname: Dashboard and Executive both
+   * live at "/", and are told apart by ?view=. An item with `view` is active
+   * only when the param matches; an item without one is active only when the
+   * param is absent.
+   */
+  view?: string;
   badge?: { text: string; color?: string };
   /** Placeholder screen (no backend yet). */
   soon?: boolean;
@@ -59,7 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', badge: { text: '12' }, perm: 'risks:read' },
       { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
-      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', badge: { text: '3', color: 'var(--high)' }, perm: 'mitigations:read' },
+      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/risks/mitigations', badge: { text: '3', color: 'var(--high)' }, perm: 'mitigations:read' },
       { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
       { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
     ],
@@ -69,7 +84,7 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_monitor',
     items: [
       { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/', pinned: true },
-      { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/analytics', perm: 'risks:read' },
+      { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/', href: '/?view=executive', view: 'executive', perm: 'risks:read' },
       { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial', perm: 'risks:read' },
     ],
   },
@@ -95,7 +110,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'g_treat',
     items: [
-      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/mitigations', perm: 'mitigations:read' },
+      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/risks/mitigations', perm: 'mitigations:read' },
       { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
       { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
     ],
@@ -115,7 +130,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'g_admin',
     items: [
-      { key: 'roles', labelKey: 'n_roles', icon: Users, path: '/settings/roles', adminOnly: true },
+      { key: 'roles', labelKey: 'n_roles', icon: Users, path: '/settings/members', adminOnly: true },
       { key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' },
     ],
   },
@@ -165,7 +180,7 @@ const BUSINESS_ROLE_LANDING: Record<string, string> = {
   asset_owner: '/assets',
   risk_owner: '/risks',
   security_analyst: '/vulnerabilities',
-  executive: '/analytics',
+  executive: '/?view=executive',
   viewer: '/',
 };
 

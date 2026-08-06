@@ -15,7 +15,8 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useComplianceOverview, frameworkColorFor, type FrameworkWithProgress } from './complianceOverview';
-import { useComplianceReport, useFrameworks } from './useCompliance';
+import { useFrameworks } from './useCompliance';
+import { useGenerateReport } from '../reports/useReportJobs';
 import { CreateFrameworkDialog, ImportFrameworkDialog } from './ComplianceModals';
 import { ImpactDialog } from '../../shared/ImpactDialog';
 
@@ -25,7 +26,7 @@ export function ComplianceScreen() {
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { data: fws = [], isLoading } = useComplianceOverview();
-  const report = useComplianceReport();
+  const generate = useGenerateReport();
   const { deleteFramework } = useFrameworks();
 
   const hasPermission = useAuthStore((s) => s.hasPermission);
@@ -40,12 +41,15 @@ export function ComplianceScreen() {
   const gaps = fws.reduce((a, f) => a + Math.max(0, f.total - f.passed), 0);
   const overallColor = overall >= 70 ? 'var(--low)' : overall >= 40 ? 'var(--high)' : 'var(--critical)';
 
+  // Generating a report creates a job and lands the user on it
+  // (/reports/jobs/:id). It used to fire a blob download from here while the
+  // hero button navigated to /reports, whose Compliance tile navigated back —
+  // the round trip. There is now exactly one destination: the artifact.
   const download = (f: FrameworkWithProgress) => {
-    toast.promise(report.mutateAsync({ frameworkId: f.id, locale: lang }), {
-      loading: tr('Génération du rapport…', 'Generating report…'),
-      success: tr('Rapport téléchargé', 'Report downloaded'),
-      error: tr('Échec de la génération', 'Report generation failed'),
-    });
+    generate.mutate(
+      { kind: 'compliance_framework', params: { framework_id: f.id, locale: lang } },
+      { onError: () => toast.error(tr('Échec de la génération', 'Report generation failed')) },
+    );
   };
 
   // Important + irreversible → impact radiography (UX-11), not a bare confirm.
@@ -74,9 +78,9 @@ export function ComplianceScreen() {
 
       {/* Compliance hub nav — the module's sub-areas beyond frameworks. */}
       <div className="flex items-center gap-2 flex-wrap mb-4">
-        <HubLink icon={AlertTriangle} label={tr("Analyse d'écarts", 'Gap analysis')} onClick={() => navigate('/compliance/gap-analysis')} />
+        <HubLink icon={AlertTriangle} label={tr("Analyse d'écarts", 'Gap analysis')} onClick={() => navigate('/compliance/gaps')} />
         <HubLink icon={CalendarClock} label={tr('Audits', 'Audits')} onClick={() => navigate('/compliance/audits')} />
-        <HubLink icon={Wrench} label={tr('Plans de remédiation', 'Remediation plans')} onClick={() => navigate('/compliance/remediations')} />
+        <HubLink icon={Wrench} label={tr('Plans de remédiation', 'Remediation plans')} onClick={() => navigate('/compliance/remediation')} />
       </div>
 
       {isLoading ? (
@@ -112,8 +116,16 @@ export function ComplianceScreen() {
                   )}
                 </div>
                 <div className="flex gap-2.5 flex-wrap">
-                  <Btn label={L.genReport} icon={FileText} primary onClick={() => navigate('/reports')} />
-                  <Btn label={tr('Voir les écarts', 'View gaps')} icon={AlertTriangle} onClick={() => navigate('/compliance/gap-analysis')} />
+                  {/* Generates for the first framework when there is only one;
+                      with several, the per-card buttons are the unambiguous
+                      choice and this simply lists what has been generated. It
+                      must never navigate to /reports as a way of "generating". */}
+                  {fws.length === 1 ? (
+                    <Btn label={L.genReport} icon={FileText} primary disabled={generate.isPending} onClick={() => download(fws[0])} />
+                  ) : (
+                    <Btn label={tr('Rapports générés', 'Generated reports')} icon={FileText} onClick={() => navigate('/reports')} />
+                  )}
+                  <Btn label={tr('Voir les écarts', 'View gaps')} icon={AlertTriangle} onClick={() => navigate('/compliance/gaps')} />
                 </div>
               </div>
             </div>
@@ -124,7 +136,7 @@ export function ComplianceScreen() {
               const col = frameworkColorFor(f.name, i);
               return (
                 <Card key={f.id} style={{ padding: 18, animation: 'or-fadeup .4s ease both', animationDelay: `${Math.min(i * 0.04, 0.3)}s` }}>
-                  <button onClick={() => navigate(`/compliance/${f.id}`)} className="w-full flex items-center gap-3.5 mb-3.5 text-left group">
+                  <button onClick={() => navigate(`/compliance/frameworks/${f.id}`)} className="w-full flex items-center gap-3.5 mb-3.5 text-left group">
                     <RingGauge value={f.pct} size={56} color={col} thickness={6}>
                       <span className="mono text-[13px] font-bold text-ink">{f.pct}</span>
                     </RingGauge>
@@ -136,7 +148,7 @@ export function ComplianceScreen() {
                   </button>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigate(`/compliance/${f.id}`)}
+                      onClick={() => navigate(`/compliance/frameworks/${f.id}`)}
                       className="flex-1 h-8 rounded-[9px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
                       style={{ border: '1px solid var(--border-strong)' }}
                     >
@@ -144,7 +156,7 @@ export function ComplianceScreen() {
                     </button>
                     <button
                       onClick={() => download(f)}
-                      disabled={report.isPending}
+                      disabled={generate.isPending}
                       className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors disabled:opacity-60"
                       style={{ border: '1px solid var(--border-strong)' }}
                       title={L.exportPdf}
@@ -170,10 +182,10 @@ export function ComplianceScreen() {
       )}
 
       {modal === 'create' && (
-        <CreateFrameworkDialog onClose={() => setModal(null)} onCreated={(id) => navigate(`/compliance/${id}`)} />
+        <CreateFrameworkDialog onClose={() => setModal(null)} onCreated={(id) => navigate(`/compliance/frameworks/${id}`)} />
       )}
       {modal === 'import' && (
-        <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/${id}`)} />
+        <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/frameworks/${id}`)} />
       )}
 
       <ImpactDialog

@@ -27,7 +27,7 @@ export function AuditDashboard() {
     { label: tr('Référentiels', 'Frameworks'), val: frameworks.length, icon: Layers, col: 'var(--accent)', onClick: () => navigate('/compliance') },
     { label: tr('Couverture moy.', 'Avg. coverage'), val: avg, icon: ClipboardCheck, col: 'var(--low)', suffix: '%', onClick: () => navigate('/compliance') },
     { label: tr('Contrôles', 'Controls'), val: totalControls, icon: ListChecks, col: 'var(--high)', onClick: () => navigate('/compliance') },
-    { label: tr('Écarts', 'Gaps'), val: gaps, icon: AlertTriangle, col: 'var(--critical)', onClick: () => navigate('/compliance/gap-analysis') },
+    { label: tr('Écarts', 'Gaps'), val: gaps, icon: AlertTriangle, col: 'var(--critical)', onClick: () => navigate('/compliance/gaps') },
   ];
 
   return (
@@ -83,9 +83,9 @@ export function AuditDashboard() {
           <div className="text-[14px] font-semibold text-ink mb-4">{tr('Actions', 'Actions')}</div>
           <div className="space-y-2.5">
             {[
-              { label: tr('Analyse des écarts', 'Gap analysis'), sub: tr('Ce qui reste à implémenter', 'What is left to implement'), to: '/compliance/gap-analysis', icon: AlertTriangle, col: 'var(--critical)' },
+              { label: tr('Analyse des écarts', 'Gap analysis'), sub: tr('Ce qui reste à implémenter', 'What is left to implement'), to: '/compliance/gaps', icon: AlertTriangle, col: 'var(--critical)' },
               { label: tr('Audits', 'Audits'), sub: tr('Planifier & suivre', 'Plan & track'), to: '/compliance/audits', icon: ClipboardCheck, col: 'var(--accent)' },
-              { label: tr('Remédiations', 'Remediations'), sub: tr('Plans en cours', 'Open plans'), to: '/compliance/remediations', icon: ListChecks, col: 'var(--high)' },
+              { label: tr('Remédiations', 'Remediations'), sub: tr('Plans en cours', 'Open plans'), to: '/compliance/remediation', icon: ListChecks, col: 'var(--high)' },
             ].map((a) => {
               const Icon = a.icon;
               return (

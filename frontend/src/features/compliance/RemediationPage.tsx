@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // Remediation plans ("Plans de remédiation") — the actions that close compliance
-// gaps. Wired to /compliance/remediations. Create, assign a priority + due date,
+// gaps. Wired to /compliance/remediation. Create, assign a priority + due date,
 // and track status (open → in progress → completed). Plans link back to the
 // compliance control they remediate.
 
 import { useMemo, useState } from 'react';
 import { Wrench, Plus, Trash2, AlertCircle, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
@@ -114,7 +114,11 @@ export function RemediationPage() {
                     return (
                       <tr key={p.id} className="text-[13px] text-ink" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)', animation: 'or-fadeup .35s ease both', animationDelay: `${Math.min(i * 0.03, 0.25)}s` }}>
                         <td className="px-4 py-3">
-                          <div className="font-semibold">{p.title}</div>
+                          {/* A link, not a row click: the detail is a route, so
+                              it must be openable in a new tab and shareable. */}
+                          <Link to={`/compliance/remediation/${p.id}`} className="font-semibold text-ink hover:text-accent transition-colors">
+                            {p.title}
+                          </Link>
                           {p.description && <div className="text-[11.5px] text-ink-muted truncate max-w-[300px]" title={p.description}>{p.description}</div>}
                         </td>
                         <td className="px-4 py-3 text-ink-soft">

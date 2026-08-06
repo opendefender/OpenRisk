@@ -49,7 +49,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { can, isAdmin } = usePermissions();
@@ -89,6 +89,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
     let bestLen = -1;
     for (const it of ALL_NAV_ITEMS) {
       const p = it.path;
+      // Items sharing a pathname (Dashboard vs Executive, both "/") are told
+      // apart by ?view=; an item without a `view` is active only when the param
+      // is absent, so the two never light up together.
+      const viewParam = new URLSearchParams(search).get('view');
+      if ((it.view ?? null) !== (viewParam || null)) continue;
       const match = p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
       if (match && p.length > bestLen) {
         best = it.key;
@@ -96,7 +101,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       }
     }
     return best;
-  }, [pathname]);
+  }, [pathname, search]);
 
   // Security posture footer — real cyber score from the executive dashboard.
   const score = cyber ? Math.round(cyber.score) : undefined;
@@ -110,7 +115,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       <button
         key={item.key}
         data-testid={`nav-${item.key}`}
-        onClick={() => navigate(item.path)}
+        onClick={() => navigate(item.href ?? item.path)}
         title={L[item.labelKey]}
         className={cn(
           'w-full flex items-center gap-[11px] px-[11px] py-2 rounded-[9px] relative mb-0.5 transition-colors',
@@ -264,7 +269,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           {/* Security score footer — real cyber score; hidden until available. */}
           {!collapsed && score !== undefined && (
             <button
-              onClick={() => navigate('/analytics')}
+              onClick={() => navigate('/?view=executive')}
               className="w-full text-left px-[14px] py-3 border-t border-border hover:bg-hover transition-colors"
               title={tr('Voir le tableau exécutif', 'Open the executive dashboard')}
             >

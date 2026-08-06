@@ -6,11 +6,15 @@
 // plus a recent-reports list.
 
 import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, Plus, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Card, Btn, SkeletonRows } from '../../shared/ui';
 import { EmptyState } from '../../shared/EmptyState';
 import { useBoardReports } from './useBoardReports';
+import { useGenerateReport } from './useReportJobs';
+import { useFrameworks } from '../compliance/useCompliance';
+import { FrameworkPickerDialog } from './FrameworkPickerDialog';
 import { PremiumPeek } from '../../shared/PremiumPeek';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
@@ -23,6 +27,9 @@ export function ReportsScreen() {
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { reports, isLoading: reportsLoading, error: reportsError } = useBoardReports();
+  const { frameworks } = useFrameworks();
+  const generate = useGenerateReport();
+  const [picking, setPicking] = useState(false);
   const recent = (reports ?? []).slice(0, 5);
 
   const exportRegister = async () => {
@@ -50,9 +57,13 @@ export function ReportsScreen() {
   };
 
   const tpls: [string, string, LucideIcon, () => void][] = [
-    [tr('Synthèse exécutive', 'Executive summary'), tr('Vue d’ensemble de la posture pour le COMEX', 'Posture overview for the executive committee'), TrendingUp, () => navigate('/analytics')],
+    [tr('Synthèse exécutive', 'Executive summary'), tr('Vue d’ensemble de la posture pour le COMEX', 'Posture overview for the executive committee'), TrendingUp, () => navigate('/?view=executive')],
     [tr('Rapport Conseil', 'Board report'), tr('Reporting trimestriel de gouvernance', 'Quarterly governance reporting'), FileText, () => navigate('/reports/board')],
-    [tr('Conformité', 'Compliance'), tr('Rapport PDF détaillé par référentiel', 'Detailed PDF report per framework'), ClipboardCheck, () => navigate('/compliance')],
+    // The other half of the loop. This used to navigate to /compliance, whose
+    // "Generate report" button navigated straight back here — a closed circuit
+    // that never produced a PDF. It now picks a framework and generates, so the
+    // journey ends on the document.
+    [tr('Conformité', 'Compliance'), tr('Rapport PDF détaillé par référentiel', 'Detailed PDF report per framework'), ClipboardCheck, () => setPicking(true)],
     [tr('Registre d’incidents', 'Incident register'), tr('Tous les incidents en CSV', 'All incidents as CSV'), Siren, exportIncidents],
     [tr('Export du registre', 'Register export'), tr('Tous les risques en CSV', 'All risks as CSV'), ShieldAlert, exportRegister],
     [tr('Rapport Asset Universe', 'Asset Universe report'), tr('Cartographie et chemins d’attaque', 'Topology and attack paths'), Atom, () => navigate('/assets/universe')],
@@ -151,6 +162,19 @@ export function ReportsScreen() {
           ))
         )}
       </Card>
+      {picking && (
+        <FrameworkPickerDialog
+          frameworks={frameworks ?? []}
+          busy={generate.isPending}
+          onClose={() => setPicking(false)}
+          onPick={(id) =>
+            generate.mutate(
+              { kind: 'compliance_framework', params: { framework_id: id, locale: lang } },
+              { onSettled: () => setPicking(false) },
+            )
+          }
+        />
+      )}
     </PageFrame>
   );
 }
