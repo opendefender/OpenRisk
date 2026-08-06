@@ -34,6 +34,7 @@ import (
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
+	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	searchapp "github.com/opendefender/openrisk/internal/application/search"
@@ -193,6 +194,7 @@ func main() {
 		// M4 (second half) — monthly board-of-directors report (draft → approved),
 		// with a per-tenant posture snapshot and an editable AI/template narrative.
 		&domain.BoardReport{},
+		&domain.ReportJob{},
 		// RBAC + audit + multi-tenant tables. These back the Settings admin tabs
 		// (Roles / Organizations / Audit log). RoleEnhanced maps onto the existing
 		// "roles" table and only ADDS columns (tenant_id/level/is_predefined/...);
@@ -988,6 +990,31 @@ func main() {
 	protected.Post("/reports/board/:reportId/approve", boardApprove, boardHandler.Approve)
 	protected.Delete("/reports/board/:reportId", boardDelete, boardHandler.Delete)
 	protected.Get("/reports/board/:reportId/pdf", boardRead, boardHandler.DownloadPDF)
+
+	// ---------------------------------------------------------------------
+	// Report jobs — a generated report is an addressable artifact.
+	//
+	// This is what breaks the Compliance <-> Reports navigation loop: asking for
+	// a compliance report used to send the user to the Reports screen, whose
+	// Compliance tile sent them back, producing nothing. POST /reports/jobs
+	// renders the document and returns a job the client redirects to, so the
+	// request ends on the artifact instead of on the screen it started from.
+	//
+	// Guarded by the compliance read tier: a report reveals exactly the controls
+	// and evidence the caller may already read, so requiring more would lock
+	// auditors out of the one deliverable they exist to produce.
+	reportJobRepo := repository.NewGormReportJobRepository(database.DB)
+	reportJobUC := reportjob.New(
+		reportJobRepo,
+		reportjob.NewComplianceGenerator(generateReportUC),
+	)
+	reportJobHandler := handlers.NewReportJobHandler(reportJobUC)
+
+	// Static sub-path before the parameterised one (Fiber matches in order).
+	protected.Get("/reports/jobs", complianceControlRead, reportJobHandler.List)
+	protected.Post("/reports/jobs", complianceControlRead, reportJobHandler.Create)
+	protected.Get("/reports/jobs/:jobId", complianceControlRead, reportJobHandler.Get)
+	protected.Get("/reports/jobs/:jobId/download", complianceControlRead, reportJobHandler.Download)
 
 	// Assets (M3 — see ROADMAP.md §3). Previously these two routes bypassed
 	// RBAC entirely (any authenticated user, any role, could write inventory
