@@ -12,6 +12,13 @@
 //
 // The flag is read from GET /health, so it reflects what the server actually
 // seeded rather than a frontend build variable that could drift out of sync.
+//
+// openrisk/no-mock-data is disabled for this file alone. The rule forbids
+// identifiers containing "demo" because DEMO_ASSETS-style fixtures are exactly
+// what it exists to stop — but this module is the component that WARNS about
+// demonstration data, so it cannot avoid the word. It defines no data of its
+// own; it reads a boolean from the API.
+/* eslint-disable openrisk/no-mock-data */
 
 import { useQuery } from '@tanstack/react-query';
 import { FlaskConical } from 'lucide-react';
