@@ -90,16 +90,16 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-slate-900">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-md max-w-md w-full">
+      <div className="flex items-center justify-center min-h-screen bg-surface-sunken dark:bg-surface-1">
+        <div className="bg-surface-1 dark:bg-surface-2 p-8 rounded-lg shadow-md max-w-md w-full">
           <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-500" />
-            <h2 className="text-lg font-semibold text-red-600">Error Loading Dashboard</h2>
+            <AlertCircle className="w-6 h-6 text-danger-text" />
+            <h2 className="text-lg font-semibold text-danger-text">Error Loading Dashboard</h2>
           </div>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
+          <p className="text-text-muted dark:text-text-secondary mb-4">{error}</p>
           <button
             onClick={handleRefresh}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2"
+            className="w-full bg-accent-500 hover:bg-accent-500 text-text-primary py-2 rounded-lg font-medium flex items-center justify-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
             Try Again
@@ -112,15 +112,15 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
+      <div className="min-h-screen bg-surface-sunken dark:bg-surface-1 p-6">
         <div className="animate-pulse space-y-6">
-          <div className="h-12 bg-gray-200 dark:bg-slate-700 rounded w-full" />
+          <div className="h-12 bg-surface-sunken dark:bg-surface-3 rounded w-full" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 dark:bg-slate-700 rounded" />
+              <div key={i} className="h-32 bg-surface-sunken dark:bg-surface-3 rounded" />
             ))}
           </div>
-          <div className="h-64 bg-gray-200 dark:bg-slate-700 rounded" />
+          <div className="h-64 bg-surface-sunken dark:bg-surface-3 rounded" />
         </div>
       </div>
     );
@@ -128,9 +128,9 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
 
   if (!analyticsData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="flex items-center justify-center min-h-screen bg-surface-sunken dark:bg-surface-1">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-300">No data available</p>
+          <p className="text-text-muted dark:text-text-secondary">No data available</p>
         </div>
       </div>
     );
@@ -177,7 +177,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-surface-sunken dark:bg-surface-1">
       {/* Header with toolbar */}
       <div className="flex items-center justify-between">
         <AnalyticsDashboardToolbar
@@ -191,15 +191,15 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             {connected ? (
               <>
-                <Wifi className="w-4 h-4 text-green-500" />
-                <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                <Wifi className="w-4 h-4 text-success-text" />
+                <span className="text-xs font-medium text-success-text dark:text-success-text">
                   Live ({source})
                 </span>
               </>
             ) : (
               <>
-                <WifiOff className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                <WifiOff className="w-4 h-4 text-warning-text" />
+                <span className="text-xs font-medium text-warning-text dark:text-warning-text">
                   {loading ? 'Connecting...' : 'Polling'}
                 </span>
               </>
@@ -289,7 +289,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-80 text-gray-400">No data available</div>
+              <div className="flex items-center justify-center h-80 text-text-secondary">No data available</div>
             )}
           </ChartWidget>
 
@@ -316,7 +316,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-80 text-gray-400">No risks recorded</div>
+              <div className="flex items-center justify-center h-80 text-text-secondary">No risks recorded</div>
             )}
           </ChartWidget>
         </div>
@@ -343,7 +343,7 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-72 text-gray-400">No mitigations recorded</div>
+              <div className="flex items-center justify-center h-72 text-text-secondary">No mitigations recorded</div>
             )}
           </ChartWidget>
         </div>
@@ -354,42 +354,42 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
           <DataTableWidget title="Top Risks" rowCount={riskTableData.length}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-slate-700">
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Risk Name</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Score</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Severity</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Trend</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Mitigations</th>
+                <tr className="border-b border-border-subtle dark:border-border-default">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Risk Name</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Score</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Severity</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Trend</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Mitigations</th>
                 </tr>
               </thead>
               <tbody>
                 {riskTableData.map((risk) => (
-                  <tr key={risk.id} className="border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800">
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{risk.name}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{risk.score.toFixed(1)}</td>
+                  <tr key={risk.id} className="border-b border-border-subtle dark:border-border-subtle hover:bg-surface-sunken dark:hover:bg-surface-2">
+                    <td className="px-6 py-4 text-sm text-text-primary dark:text-text-primary">{risk.name}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-text-primary dark:text-text-primary">{risk.score.toFixed(1)}</td>
                     <td className="px-6 py-4 text-sm">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-white text-xs font-medium ${
+                        className={`inline-block px-3 py-1 rounded-full text-text-primary text-xs font-medium ${
                           risk.severity === 'critical'
-                            ? 'bg-red-500'
+                            ? 'bg-danger'
                             : risk.severity === 'high'
-                              ? 'bg-orange-500'
+                              ? 'bg-warning'
                               : risk.severity === 'medium'
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
+                                ? 'bg-warning'
+                                : 'bg-success'
                         }`}
                       >
                         {risk.severity}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{risk.status}</td>
+                    <td className="px-6 py-4 text-sm text-text-muted dark:text-text-secondary">{risk.status}</td>
                     <td className="px-6 py-4 text-sm">
-                      <span className={risk.trend_percent > 0 ? 'text-red-600' : 'text-green-600'}>
+                      <span className={risk.trend_percent > 0 ? 'text-danger-text' : 'text-success-text'}>
                         {risk.trend_percent > 0 ? '↑' : '↓'} {Math.abs(risk.trend_percent).toFixed(1)}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{risk.mitigation_count}</td>
+                    <td className="px-6 py-4 text-sm text-text-muted dark:text-text-secondary">{risk.mitigation_count}</td>
                   </tr>
                 ))}
               </tbody>
@@ -400,49 +400,49 @@ const RealTimeAnalyticsDashboard: React.FC = () => {
           <DataTableWidget title="Mitigation Progress" rowCount={mitigationTableData.length}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-slate-700">
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Mitigation</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Risk</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Progress</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Due Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Days Left</th>
+                <tr className="border-b border-border-subtle dark:border-border-default">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Mitigation</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Risk</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Progress</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Due Date</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary dark:text-text-primary">Days Left</th>
                 </tr>
               </thead>
               <tbody>
                 {mitigationTableData.map((mitigation) => (
-                  <tr key={mitigation.id} className="border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800">
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">{mitigation.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{mitigation.risk_name}</td>
+                  <tr key={mitigation.id} className="border-b border-border-subtle dark:border-border-subtle hover:bg-surface-sunken dark:hover:bg-surface-2">
+                    <td className="px-6 py-4 text-sm text-text-primary dark:text-text-primary">{mitigation.name}</td>
+                    <td className="px-6 py-4 text-sm text-text-muted dark:text-text-secondary">{mitigation.risk_name}</td>
                     <td className="px-6 py-4 text-sm">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-white text-xs font-medium ${
+                        className={`inline-block px-3 py-1 rounded-full text-text-primary text-xs font-medium ${
                           mitigation.status === 'completed'
-                            ? 'bg-green-500'
+                            ? 'bg-success'
                             : mitigation.status === 'in_progress'
-                              ? 'bg-blue-500'
+                              ? 'bg-accent-500'
                               : mitigation.days_remaining < 0
-                                ? 'bg-red-500'
-                                : 'bg-gray-500'
+                                ? 'bg-danger'
+                                : 'bg-surface-3'
                         }`}
                       >
                         {mitigation.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                      <div className="w-full bg-surface-sunken dark:bg-surface-3 rounded-full h-2">
                         <div
-                          className="bg-blue-600 h-2 rounded-full"
+                          className="bg-accent-500 h-2 rounded-full"
                           style={{ width: `${mitigation.progress}%` }}
                         />
                       </div>
-                      <span className="text-xs text-gray-600 dark:text-gray-400">{mitigation.progress}%</span>
+                      <span className="text-xs text-text-muted dark:text-text-secondary">{mitigation.progress}%</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-6 py-4 text-sm text-text-muted dark:text-text-secondary">
                       {new Date(mitigation.due_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span className={mitigation.days_remaining < 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                      <span className={mitigation.days_remaining < 0 ? 'text-danger-text font-medium' : 'text-text-muted'}>
                         {mitigation.days_remaining < 0
                           ? `Overdue ${Math.abs(mitigation.days_remaining)}d`
                           : `${mitigation.days_remaining}d`}

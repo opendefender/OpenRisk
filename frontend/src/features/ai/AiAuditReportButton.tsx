@@ -63,7 +63,7 @@ export function AiAuditReportButton({ auditId, title }: { auditId: string; title
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', animation: 'or-scalein .2s ease' }}
           >
             <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-              <div className="w-8 h-8 rounded-[9px] flex items-center justify-center text-white shrink-0" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}><Sparkles size={16} /></div>
+              <div className="w-8 h-8 rounded-[9px] flex items-center justify-center text-text-primary shrink-0" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}><Sparkles size={16} /></div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-semibold text-ink truncate">{tr('Rapport d’audit — IA', 'Audit report — AI')}</div>
                 <div className="text-[11.5px] text-ink-muted truncate">{title}</div>

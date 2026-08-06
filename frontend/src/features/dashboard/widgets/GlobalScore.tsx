@@ -20,14 +20,14 @@ export const GlobalScore = ({ score }: { score: number }) => {
           })}
         >
             <div className="flex flex-col items-center animate-fade-in">
-                <ShieldCheck size={28} className="text-zinc-400 mb-1" />
-                <span className="text-3xl font-bold text-white">{score}</span>
-                <span className="text-[10px] uppercase text-zinc-500 tracking-widest">Sec. Score</span>
+                <ShieldCheck size={28} className="text-text-secondary mb-1" />
+                <span className="text-3xl font-bold text-text-primary">{score}</span>
+                <span className="text-[10px] uppercase text-text-muted tracking-widest">Sec. Score</span>
             </div>
         </CircularProgressbarWithChildren>
       </div>
-      <p className="mt-4 text-center text-sm text-zinc-400">
-        Votre posture de sécurité est <span className="text-emerald-400 font-medium">optimale</span>.
+      <p className="mt-4 text-center text-sm text-text-secondary">
+        Votre posture de sécurité est <span className="text-success-text font-medium">optimale</span>.
       </p>
     </div>
   );

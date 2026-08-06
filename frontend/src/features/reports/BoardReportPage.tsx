@@ -43,8 +43,8 @@ function StatusBadge({ status }: { status: BoardReport['status'] }) {
       className={cn(
         'inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border',
         approved
-          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+          ? 'bg-success/10 text-success-text border-success/30'
+          : 'bg-warning/10 text-warning-text border-warning/30'
       )}
     >
       {approved ? <CheckCircle2 size={12} /> : <ScrollText size={12} />}
@@ -85,7 +85,7 @@ export const BoardReportPage = () => {
             <Sparkles size={22} className="text-primary" />
             Rapport du conseil
           </h2>
-          <p className="text-zinc-400 text-sm max-w-2xl">
+          <p className="text-text-secondary text-sm max-w-2xl">
             Une synthèse mensuelle, non technique, pour le conseil d'administration : posture de
             risque, conformité réglementaire et exposition financière estimée en FCFA. Généré en
             brouillon, relu, puis approuvé avant diffusion.
@@ -117,7 +117,7 @@ export const BoardReportPage = () => {
       </div>
 
       {generate.isError && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
+        <div className="mb-4 flex items-center gap-2 text-sm text-danger-text bg-danger/10 border border-danger/20 rounded-lg px-4 py-2">
           <AlertTriangle size={16} /> La génération a échoué. Réessayez.
         </div>
       )}
@@ -128,7 +128,7 @@ export const BoardReportPage = () => {
           {isLoading ? (
             <ListSkeleton />
           ) : error ? (
-            <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+            <div className="text-sm text-danger-text bg-danger/10 border border-danger/20 rounded-lg p-4">
               Erreur de chargement des rapports.
             </div>
           ) : reports.length === 0 ? (
@@ -160,7 +160,7 @@ export const BoardReportPage = () => {
           ) : (
             !isLoading &&
             reports.length > 0 && (
-              <div className="text-zinc-500 text-sm p-8 text-center">
+              <div className="text-text-muted text-sm p-8 text-center">
                 Sélectionnez un rapport pour le consulter.
               </div>
             )
@@ -189,25 +189,25 @@ function ReportCard({
       onClick={onSelect}
       className={cn(
         'w-full text-left bg-surface border rounded-xl p-4 transition-all',
-        active ? 'border-primary/60 ring-1 ring-primary/40' : 'border-border hover:border-zinc-600'
+        active ? 'border-primary/60 ring-1 ring-primary/40' : 'border-border hover:border-border-default'
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="font-semibold text-sm text-white truncate">{report.period_label}</span>
+        <span className="font-semibold text-sm text-text-primary truncate">{report.period_label}</span>
         <StatusBadge status={report.status} />
       </div>
-      <div className="flex items-center gap-4 text-xs text-zinc-400">
+      <div className="flex items-center gap-4 text-xs text-text-secondary">
         <span>
-          Conformité <span className="text-zinc-200 font-medium">{Math.round(report.overall_compliance_percent)}%</span>
+          Conformité <span className="text-text-primary font-medium">{Math.round(report.overall_compliance_percent)}%</span>
         </span>
         <span>
-          Risques <span className="text-zinc-200 font-medium">{report.risks_total}</span>
+          Risques <span className="text-text-primary font-medium">{report.risks_total}</span>
           {report.risks_critical > 0 && (
-            <span className="text-red-400"> ({report.risks_critical} crit.)</span>
+            <span className="text-danger-text"> ({report.risks_critical} crit.)</span>
           )}
         </span>
       </div>
-      <div className="mt-1 text-xs text-zinc-500">{formatFCFA(report.financial_exposure_fcfa)}</div>
+      <div className="mt-1 text-xs text-text-muted">{formatFCFA(report.financial_exposure_fcfa)}</div>
     </button>
   );
 }
@@ -217,8 +217,8 @@ function ListSkeleton() {
     <>
       {[0, 1, 2].map((i) => (
         <div key={i} className="bg-surface border border-border rounded-xl p-4 animate-pulse">
-          <div className="h-4 w-24 bg-white/10 rounded mb-3" />
-          <div className="h-3 w-40 bg-white/5 rounded" />
+          <div className="h-4 w-24 bg-surface-1/10 rounded mb-3" />
+          <div className="h-3 w-40 bg-surface-1/5 rounded" />
         </div>
       ))}
     </>
@@ -245,8 +245,8 @@ function EmptyList({ generating, onGenerate }: { generating: boolean; onGenerate
   }
   return (
     <div className="bg-surface border border-dashed border-border rounded-xl p-8 text-center">
-      <FileText size={40} className="mx-auto mb-3 text-zinc-600" />
-      <p className="text-sm text-zinc-400 mb-4">
+      <FileText size={40} className="mx-auto mb-3 text-text-muted" />
+      <p className="text-sm text-text-secondary mb-4">
         Aucun rapport pour l'instant. Générez le premier rapport du conseil en un clic.
       </p>
       <Button onClick={onGenerate} isLoading={generating}>
@@ -305,7 +305,7 @@ function ReportDetail({
   }
   if (error) {
     return (
-      <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+      <div className="text-sm text-danger-text bg-danger/10 border border-danger/20 rounded-lg p-4">
         Erreur de chargement du rapport.
       </div>
     );
@@ -340,8 +340,8 @@ function ReportDetail({
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-1">
           <div>
-            <h3 className="text-lg font-bold text-white">{report.title}</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">{provenanceLabel(report.generated_by_model)}</p>
+            <h3 className="text-lg font-bold text-text-primary">{report.title}</h3>
+            <p className="text-xs text-text-muted mt-0.5">{provenanceLabel(report.generated_by_model)}</p>
           </div>
           <StatusBadge status={report.status} />
         </div>
@@ -397,21 +397,21 @@ function ReportDetail({
 
           {report.frameworks_snapshot && report.frameworks_snapshot.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-2">Conformité par référentiel</h4>
+              <h4 className="text-sm font-semibold text-text-secondary mb-2">Conformité par référentiel</h4>
               <div className="space-y-2">
                 {report.frameworks_snapshot.map((f) => (
                   <div key={f.name + f.version} className="flex items-center gap-3">
-                    <span className="text-xs text-zinc-400 w-40 truncate">
+                    <span className="text-xs text-text-secondary w-40 truncate">
                       {f.name}
                       {f.version ? ` (${f.version})` : ''}
                     </span>
-                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-surface-1/5 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary rounded-full"
                         style={{ width: `${Math.min(100, Math.max(0, f.percent_complete))}%` }}
                       />
                     </div>
-                    <span className="text-xs text-zinc-400 w-24 text-right">
+                    <span className="text-xs text-text-secondary w-24 text-right">
                       {Math.round(f.percent_complete)}% ({f.implemented}/{f.applicable})
                     </span>
                   </div>
@@ -447,7 +447,7 @@ function ReportDetail({
         </div>
 
         {readOnly && (
-          <p className="text-xs text-zinc-500 mt-3">
+          <p className="text-xs text-text-muted mt-3">
             Ce rapport est approuvé et ne peut plus être modifié.
             {report.approved_at && ` Approuvé le ${new Date(report.approved_at).toLocaleString()}.`}
           </p>
@@ -471,27 +471,27 @@ function KpiTile({
   small?: boolean;
 }) {
   return (
-    <div className="bg-white/5 border border-border rounded-lg p-3">
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-1">{label}</div>
-      <div className={cn('font-bold', small ? 'text-base' : 'text-2xl', danger && 'text-red-400')}>
+    <div className="bg-surface-1/5 border border-border rounded-lg p-3">
+      <div className="text-[11px] uppercase tracking-wide text-text-muted mb-1">{label}</div>
+      <div className={cn('font-bold', small ? 'text-base' : 'text-2xl', danger && 'text-danger-text')}>
         {value}
       </div>
-      {sub && <div className="text-[11px] text-zinc-500 mt-0.5">{sub}</div>}
+      {sub && <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>}
     </div>
   );
 }
 
 function RiskChips({ report }: { report: BoardReport }) {
   const chips = [
-    { label: 'Critiques', count: report.risks_critical, color: 'bg-red-500' },
-    { label: 'Élevés', count: report.risks_high, color: 'bg-orange-500' },
-    { label: 'Moyens', count: report.risks_medium, color: 'bg-amber-500' },
-    { label: 'Faibles', count: report.risks_low, color: 'bg-emerald-500' },
+    { label: 'Critiques', count: report.risks_critical, color: 'bg-danger' },
+    { label: 'Élevés', count: report.risks_high, color: 'bg-warning' },
+    { label: 'Moyens', count: report.risks_medium, color: 'bg-warning' },
+    { label: 'Faibles', count: report.risks_low, color: 'bg-success' },
   ];
   return (
     <div className="flex flex-wrap gap-3">
       {chips.map((c) => (
-        <span key={c.label} className="inline-flex items-center gap-1.5 text-xs text-zinc-300">
+        <span key={c.label} className="inline-flex items-center gap-1.5 text-xs text-text-secondary">
           <span className={cn('w-2.5 h-2.5 rounded-sm', c.color)} />
           {c.label}: <span className="font-semibold">{c.count}</span>
         </span>
@@ -517,20 +517,20 @@ function Section({
     <div>
       <div className="flex items-center gap-2 mb-1.5">
         {title === 'Posture de risque' ? (
-          <ShieldAlert size={14} className="text-zinc-500" />
+          <ShieldAlert size={14} className="text-text-muted" />
         ) : (
-          <FileText size={14} className="text-zinc-500" />
+          <FileText size={14} className="text-text-muted" />
         )}
-        <h4 className="text-sm font-semibold text-zinc-300">{title}</h4>
+        <h4 className="text-sm font-semibold text-text-secondary">{title}</h4>
       </div>
       {readOnly ? (
-        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{value || '—'}</p>
+        <p className="text-sm text-text-secondary whitespace-pre-wrap leading-relaxed">{value || '—'}</p>
       ) : (
         <textarea
           value={value}
           onChange={onChange}
           rows={rows}
-          className="w-full bg-white/5 border border-border rounded-lg p-3 text-sm text-zinc-200 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full bg-surface-1/5 border border-border rounded-lg p-3 text-sm text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
       )}
     </div>

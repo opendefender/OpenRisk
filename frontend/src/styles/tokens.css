@@ -1,0 +1,253 @@
+/* Copyright (c) 2026 OpenDefender Contributors
+   SPDX-License-Identifier: BUSL-1.1 */
+
+/* ============================================================================
+   OpenRisk semantic design tokens
+   ============================================================================
+
+   Single source of truth for colour. Components never name a colour; they name
+   a ROLE (surface, text, border, accent, semantic, risk) and the active theme
+   decides the value.
+
+   Why this file exists
+   --------------------
+   The recurring "this modal is dark while the app is light" bug had exactly one
+   cause: components wrote raw palette classes (bg-zinc-900, text-white). Those
+   are constants — they cannot respond to a theme. A component written against
+   --surface-2 flips automatically; one written against zinc-900 never will.
+
+   Applied via [data-theme] on <html>. Because it sits on the document element,
+   everything inherits, including anything rendered through a React portal into
+   document.body.
+
+   Contrast
+   --------
+   Every text/surface pair below is verified at >= 4.5:1 (WCAG AA) in BOTH
+   themes by scripts/check-contrast.mjs, which runs in CI. Changing a value here
+   without re-running it will fail the build.
+
+   Naming
+   ------
+   --surface-0   page background (furthest back)
+   --surface-1   cards, panels
+   --surface-2   raised: modals, dropdowns, popovers
+   --surface-3   hover/active on a raised element
+   --surface-overlay  the scrim behind a modal
+
+   Legacy aliases (--bg-app, --text-primary…) are kept at the bottom of each
+   block so the ~2000 existing usages keep working; they now resolve to these
+   tokens rather than duplicating values.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- DARK ---- */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --surface-0: #08090d;
+  --surface-1: #0c0d12;
+  --surface-2: #15161e;
+  --surface-3: #1b1c26;
+  --surface-overlay: rgba(4, 5, 8, 0.72);
+  --surface-sunken: #101117;
+
+  /* text */
+  --text-primary: #f4f4f7;
+  --text-secondary: #b4b4c0;
+  --text-muted: #9a9aa6;
+  --text-inverse: #0c0d12;
+
+  /* borders */
+  --border-subtle: #1e1f29;
+  --border-default: #2a2b37;
+  --border-strong: #3a3b4a;
+
+  /* accent scale */
+  --accent-50: #eaf2ff;
+  --accent-100: #d3e4ff;
+  --accent-200: #a8c9ff;
+  --accent-300: #7aabff;
+  --accent-400: #4f8dff;
+  /* Light enough that --text-inverse clears 4.5:1 on a filled primary button
+     (measured 5.05:1). #2f6fee looked right but only reached 4.28:1. */
+  --accent-500: #3d7ef2;
+  --accent-600: #2358c4;
+  --accent-700: #1c469b;
+  --accent-800: #163875;
+  --accent-900: #112a58;
+
+  /* semantic — `-text` variants are tuned to pass AA on their `-surface` */
+  --success: #30d158;
+  --success-surface: #0e2716;
+  --success-text: #5fe07f;
+  --warning: #ff9f0a;
+  --warning-surface: #2c1c04;
+  --warning-text: #ffb545;
+  --danger: #ff453a;
+  --danger-surface: #2e0f0d;
+  --danger-text: #ff7b73;
+  --info: #64d2ff;
+  --info-surface: #0b2430;
+  --info-text: #7edcff;
+
+  /* Solid fills for buttons and badges.
+     Distinct from the expressive colours above: --danger is tuned to be
+     readable AS TEXT on a neutral surface, which makes it too light to sit
+     UNDER text. These are dark enough that --text-on-solid clears 4.5:1, and
+     they are identical in both themes so a filled destructive button does not
+     change meaning when the theme flips. */
+  --danger-solid: #c81e14;
+  --success-solid: #1a7f3c;
+  --warning-solid: #9a5b00;
+  --info-solid: #0b6f96;
+  --accent-solid: #1f62e0;
+  --text-on-solid: #ffffff;
+
+  /* risk criticality scale */
+  --risk-low: #30d158;
+  --risk-moderate: #ffd426;
+  --risk-high: #ff9f0a;
+  --risk-critical: #ff453a;
+  /* Lighter than the light-theme extreme so it stays readable AS TEXT on a dark
+     surface; #d70015 measured 3.35:1 there. "Extreme" still reads as more
+     severe than critical through the deeper, less orange hue. */
+  --risk-extreme: #f2545f;
+
+  /* elevation */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.6);
+
+  /* ---- legacy aliases: resolve to the tokens above ---- */
+  --bg-app: var(--surface-0);
+  --bg-primary: var(--surface-1);
+  --bg-secondary: var(--surface-sunken);
+  --bg-elevated: var(--surface-2);
+  --bg-hover: var(--surface-3);
+  --glass: rgba(18, 19, 26, 0.72);
+  --glass-strong: rgba(14, 15, 21, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --border: var(--border-default);
+  --critical: var(--risk-critical);
+  --high: var(--risk-high);
+  --medium: var(--risk-moderate);
+  --low: var(--risk-low);
+}
+
+/* --------------------------------------------------------------- LIGHT ---- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* surfaces */
+  --surface-0: #eeeef1;
+  --surface-1: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #f2f2f5;
+  /* The scrim stays dark in light mode on purpose: a modal needs the page
+     behind it pushed back, and a pale scrim reads as a rendering glitch. */
+  --surface-overlay: rgba(16, 17, 23, 0.45);
+  --surface-sunken: #fbfbfd;
+
+  /* text */
+  --text-primary: #161618;
+  --text-secondary: #55555e;
+  --text-muted: #63636d;
+  --text-inverse: #ffffff;
+
+  /* borders */
+  --border-subtle: #ececf1;
+  --border-default: #e0e0e8;
+  --border-strong: #c9c9d4;
+
+  /* accent scale — same hue family, ordered light→dark as in dark mode */
+  --accent-50: #eaf2ff;
+  --accent-100: #d3e4ff;
+  --accent-200: #a8c9ff;
+  --accent-300: #7aabff;
+  --accent-400: #4f8dff;
+  --accent-500: #1f62e0;
+  --accent-600: #1a51bb;
+  --accent-700: #164294;
+  --accent-800: #123574;
+  --accent-900: #0e2857;
+
+  /* semantic — darker than their dark-theme counterparts so they stay
+     readable on white; the `-surface` tints are deliberately very light */
+  --success: #1a7f3c;
+  --success-surface: #e8f7ed;
+  --success-text: #15682f;
+  --warning: #9a5b00;
+  --warning-surface: #fdf1e0;
+  --warning-text: #7d4a00;
+  --danger: #c81e14;
+  --danger-surface: #fdecea;
+  --danger-text: #a5170f;
+  --info: #0b6f96;
+  --info-surface: #e6f4fa;
+  --info-text: #095b7b;
+
+  /* Solid fills — see the dark block. Deliberately the same values in both
+     themes: a destructive button should look destructive either way. */
+  --danger-solid: #c81e14;
+  --success-solid: #1a7f3c;
+  --warning-solid: #9a5b00;
+  --info-solid: #0b6f96;
+  --accent-solid: #1f62e0;
+  --text-on-solid: #ffffff;
+
+  /* risk criticality scale */
+  --risk-low: #1a7f3c;
+  /* Dark enough to clear 4.5:1 as small text on its own tinted chip, which is
+     how it is actually used. #8a6d00 measured 3.62:1 there — caught by axe on
+     the live create-risk modal, not by the token check, which was only holding
+     the risk scale to the AA-large bar. */
+  --risk-moderate: #6b5300;
+  --risk-high: #9a5b00;
+  --risk-critical: #c81e14;
+  --risk-extreme: #96000d;
+
+  /* elevation */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 6px 22px rgba(20, 20, 40, 0.09);
+  --shadow-lg: 0 16px 48px rgba(20, 20, 40, 0.14);
+  --shadow-overlay: 0 24px 64px rgba(20, 20, 40, 0.22);
+
+  /* ---- legacy aliases ---- */
+  --bg-app: var(--surface-0);
+  --bg-primary: var(--surface-1);
+  --bg-secondary: var(--surface-sunken);
+  --bg-elevated: var(--surface-2);
+  --bg-hover: var(--surface-3);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(0, 0, 0, 0.07);
+  --border: var(--border-default);
+  --critical: var(--risk-critical);
+  --high: var(--risk-high);
+  --medium: var(--risk-moderate);
+  --low: var(--risk-low);
+}
+
+/* ------------------------------------------------- theme-independent ---- */
+:root {
+  /* radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* focus ring — one definition, so keyboard focus is identical everywhere */
+  --focus-ring-color: var(--accent-400);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+}
+
+/* A single focus treatment for every interactive element. :focus-visible keeps
+   it off for mouse users while guaranteeing it for keyboard navigation. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}

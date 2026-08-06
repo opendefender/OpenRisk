@@ -93,27 +93,27 @@ export const Register = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Effects */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-accent-500/20 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl relative z-10"
+        className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-border-strong/10 p-8 rounded-2xl shadow-2xl relative z-10"
       >
         <div className="flex justify-center mb-8">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
-            <Zap className="text-white" fill="currentColor" />
+            <Zap className="text-text-primary" fill="currentColor" />
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center text-white mb-2">Create Account</h1>
-        <p className="text-zinc-400 text-center mb-8 text-sm">Join OpenRisk to manage risks and mitigations</p>
+        <h1 className="text-2xl font-bold text-center text-text-primary mb-2">Create Account</h1>
+        <p className="text-text-secondary text-center mb-8 text-sm">Join OpenRisk to manage risks and mitigations</p>
 
         {errors.form && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
-            <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-400">{errors.form}</p>
+          <div className="mb-6 p-3 bg-danger/10 border border-danger/20 rounded-lg flex items-start gap-3">
+            <AlertCircle size={16} className="text-danger-text flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-danger-text">{errors.form}</p>
           </div>
         )}
 
@@ -172,7 +172,7 @@ export const Register = () => {
               }}
               error={errors.password}
             />
-            <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
+            <p className="text-xs text-text-muted mt-1">Minimum 8 characters</p>
           </div>
 
           <div>
@@ -195,13 +195,13 @@ export const Register = () => {
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-zinc-400">Already have an account? </span>
-          <Link to="/login" className="text-primary hover:text-blue-400 font-medium transition-colors">
+          <span className="text-text-secondary">Already have an account? </span>
+          <Link to="/login" className="text-primary hover:text-info-text font-medium transition-colors">
             Sign In
           </Link>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-500">
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-text-muted">
           <Lock size={12} />
           <span>End-to-end encrypted connection</span>
         </div>

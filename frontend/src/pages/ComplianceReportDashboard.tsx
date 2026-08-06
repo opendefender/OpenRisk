@@ -76,16 +76,16 @@ const ComplianceReportDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
-        <p className="text-gray-600">Loading compliance report...</p>
+      <div className="min-h-screen bg-surface-sunken p-8 flex items-center justify-center">
+        <p className="text-text-muted">Loading compliance report...</p>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <p className="text-gray-600">Failed to load compliance report</p>
+      <div className="min-h-screen bg-surface-sunken p-8">
+        <p className="text-text-muted">Failed to load compliance report</p>
       </div>
     );
   }
@@ -96,26 +96,26 @@ const ComplianceReportDashboard: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'compliant':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-success-surface text-success-text border-green-300';
       case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-warning-surface text-warning-text border-yellow-300';
       case 'non-compliant':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-danger-surface text-danger-text border-red-300';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-surface-sunken text-text-primary border-border-subtle';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'compliant':
-        return <CheckCircle size={20} className="text-green-600" />;
+        return <CheckCircle size={20} className="text-success-text" />;
       case 'warning':
-        return <AlertCircle size={20} className="text-yellow-600" />;
+        return <AlertCircle size={20} className="text-warning-text" />;
       case 'non-compliant':
-        return <AlertCircle size={20} className="text-red-600" />;
+        return <AlertCircle size={20} className="text-danger-text" />;
       default:
-        return <Shield size={20} className="text-gray-600" />;
+        return <Shield size={20} className="text-text-muted" />;
     }
   };
 
@@ -144,16 +144,16 @@ const ComplianceReportDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-surface-sunken p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Compliance Report</h1>
-          <p className="text-gray-600 mt-2">Multi-framework compliance dashboard</p>
+          <h1 className="text-4xl font-bold text-text-primary">Compliance Report</h1>
+          <p className="text-text-muted mt-2">Multi-framework compliance dashboard</p>
         </div>
 
         {/* Overall Score Card */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-white">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-text-primary">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">Overall Compliance Score</p>
@@ -167,16 +167,16 @@ const ComplianceReportDashboard: React.FC = () => {
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
           <div className="flex gap-4 flex-wrap items-center">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-text-primary mb-2">
                 Time Range
               </label>
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="rounded border-gray-300 border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-400"
               >
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
@@ -195,28 +195,28 @@ const ComplianceReportDashboard: React.FC = () => {
               onClick={() => setSelectedFramework(framework.name)}
               className={`rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
                 selectedFramework === framework.name
-                  ? 'ring-2 ring-blue-500 bg-blue-50'
-                  : 'bg-white hover:bg-gray-50'
+                  ? 'ring-2 ring-accent-400 bg-info-surface'
+                  : 'bg-surface-1 hover:bg-surface-sunken'
               }`}
             >
               <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">{framework.name}</h3>
+                <h3 className="text-lg font-bold text-text-primary">{framework.name}</h3>
                 {getStatusIcon(framework.status)}
               </div>
               <div className="mb-4">
                 <div className="flex items-baseline gap-1">
-                  <p className="text-3xl font-bold text-gray-900">{framework.score}</p>
-                  <p className="text-gray-600">/100</p>
+                  <p className="text-3xl font-bold text-text-primary">{framework.score}</p>
+                  <p className="text-text-muted">/100</p>
                 </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-surface-sunken rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
                     framework.score >= 80
-                      ? 'bg-green-500'
+                      ? 'bg-success'
                       : framework.score >= 60
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
+                        ? 'bg-warning'
+                        : 'bg-danger'
                   }`}
                   style={{ width: `${framework.score}%` }}
                 />
@@ -235,8 +235,8 @@ const ComplianceReportDashboard: React.FC = () => {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Framework Scores */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Framework Scores</h2>
+          <div className="bg-surface-1 rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold text-text-primary mb-4">Framework Scores</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={frameworkScores}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -249,8 +249,8 @@ const ComplianceReportDashboard: React.FC = () => {
           </div>
 
           {/* Compliance Status Distribution */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Compliance Status</h2>
+          <div className="bg-surface-1 rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold text-text-primary mb-4">Compliance Status</h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -275,8 +275,8 @@ const ComplianceReportDashboard: React.FC = () => {
 
         {/* Compliance Trend */}
         {report.trend.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Compliance Trend</h2>
+          <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
+            <h2 className="text-xl font-bold text-text-primary mb-4">Compliance Trend</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={report.trend}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -300,9 +300,9 @@ const ComplianceReportDashboard: React.FC = () => {
         {currentFramework && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Issues */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <AlertCircle size={24} className="text-red-600" />
+            <div className="bg-surface-1 rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold text-text-primary mb-4 flex items-center gap-2">
+                <AlertCircle size={24} className="text-danger-text" />
                 Issues Found
               </h2>
               {currentFramework.issues.length > 0 ? (
@@ -310,7 +310,7 @@ const ComplianceReportDashboard: React.FC = () => {
                   {currentFramework.issues.map((issue, idx) => (
                     <li
                       key={idx}
-                      className="flex gap-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+                      className="flex gap-3 p-3 bg-danger-surface border border-red-200 rounded text-danger-text text-sm"
                     >
                       <span className="flex-shrink-0">⚠</span>
                       <span>{issue}</span>
@@ -318,14 +318,14 @@ const ComplianceReportDashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-center py-4">No issues found</p>
+                <p className="text-text-muted text-center py-4">No issues found</p>
               )}
             </div>
 
             {/* Recommendations */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CheckCircle size={24} className="text-green-600" />
+            <div className="bg-surface-1 rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold text-text-primary mb-4 flex items-center gap-2">
+                <CheckCircle size={24} className="text-success-text" />
                 Recommendations
               </h2>
               {currentFramework.recommendations.length > 0 ? (
@@ -333,7 +333,7 @@ const ComplianceReportDashboard: React.FC = () => {
                   {currentFramework.recommendations.map((rec, idx) => (
                     <li
                       key={idx}
-                      className="flex gap-3 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm"
+                      className="flex gap-3 p-3 bg-success-surface border border-green-200 rounded text-success-text text-sm"
                     >
                       <span className="flex-shrink-0">✓</span>
                       <span>{rec}</span>
@@ -341,44 +341,44 @@ const ComplianceReportDashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-center py-4">No recommendations</p>
+                <p className="text-text-muted text-center py-4">No recommendations</p>
               )}
             </div>
           </div>
         )}
 
         {/* Recent Audit Events */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="bg-surface-1 rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-text-primary mb-4 flex items-center gap-2">
             <Clock size={24} />
             Recent Audit Events
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">User</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Action</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Resource</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Timestamp</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
+                <tr className="border-b border-border-subtle">
+                  <th className="text-left px-4 py-3 font-semibold text-text-primary">User</th>
+                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Action</th>
+                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Resource</th>
+                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Timestamp</th>
+                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {report.auditEvents.slice(0, 10).map((event) => (
-                  <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{event.user}</td>
-                    <td className="px-4 py-3 text-gray-600">{event.action}</td>
-                    <td className="px-4 py-3 text-gray-600">{event.resource}</td>
-                    <td className="px-4 py-3 text-gray-600 text-sm">
+                  <tr key={event.id} className="border-b border-border-subtle hover:bg-surface-sunken">
+                    <td className="px-4 py-3 text-text-primary">{event.user}</td>
+                    <td className="px-4 py-3 text-text-muted">{event.action}</td>
+                    <td className="px-4 py-3 text-text-muted">{event.resource}</td>
+                    <td className="px-4 py-3 text-text-muted text-sm">
                       {new Date(event.timestamp).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           event.status === 'success'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                            ? 'bg-success-surface text-success-text'
+                            : 'bg-danger-surface text-danger-text'
                         }`}
                       >
                         {event.status}

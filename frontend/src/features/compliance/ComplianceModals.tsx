@@ -157,7 +157,7 @@ export function FooterButtons({ onCancel, submitLabel, pending }: { onCancel: ()
       <button type="button" onClick={onCancel} className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold text-ink-soft hover:text-ink transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>
         {tr('Annuler', 'Cancel')}
       </button>
-      <button type="submit" disabled={pending} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition-all disabled:opacity-60" style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}>
+      <button type="submit" disabled={pending} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-60" style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}>
         {pending && <Loader2 size={15} className="animate-spin" />}
         {submitLabel}
       </button>

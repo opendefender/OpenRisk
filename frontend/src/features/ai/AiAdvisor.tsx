@@ -114,7 +114,7 @@ export function AiAdvisor() {
             x.role === 'ai' ? (
               <div key={i} className="flex gap-3.5">
                 <div
-                  className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white shrink-0"
+                  className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary shrink-0"
                   style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 2px 10px var(--accent-glow)' }}
                 >
                   <Sparkles size={18} />
@@ -152,7 +152,7 @@ export function AiAdvisor() {
           {ask.isPending && (
             <div className="flex gap-3.5 items-center">
               <div
-                className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white shrink-0"
+                className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary shrink-0"
                 style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
               >
                 <Sparkles size={18} />
@@ -195,7 +195,7 @@ export function AiAdvisor() {
             <button
               onClick={() => send()}
               disabled={ask.isPending}
-              className="w-12 h-12 rounded-[14px] flex items-center justify-center text-white shrink-0 disabled:opacity-60"
+              className="w-12 h-12 rounded-[14px] flex items-center justify-center text-text-primary shrink-0 disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
             >
               {ask.isPending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}

@@ -41,11 +41,11 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
   onDateRangeChange,
 }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-surface-1 border border-border-subtle rounded-lg p-4">
       <div className="space-y-4">
         {/* Period Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">Time Period</label>
+          <label className="block text-sm font-medium text-text-primary mb-3">Time Period</label>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
             {PERIOD_OPTIONS.map((option) => (
               <button
@@ -53,8 +53,8 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
                 onClick={() => onPeriodChange(option.value)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                   selectedPeriod === option.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-accent-500 text-text-primary'
+                    : 'bg-surface-sunken text-text-primary hover:bg-surface-sunken'
                 }`}
               >
                 {option.label}
@@ -68,26 +68,26 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">Start Date</label>
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-gray-400" />
+                  <Calendar size={16} className="text-text-secondary" />
                   <input
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => onDateRangeChange(e.target.value, dateRange.end)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">End Date</label>
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-gray-400" />
+                  <Calendar size={16} className="text-text-secondary" />
                   <input
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => onDateRangeChange(dateRange.start, e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400"
                   />
                 </div>
               </div>
@@ -98,7 +98,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
         {/* Metric Selection */}
         {onMetricsChange && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Metrics</label>
+            <label className="block text-sm font-medium text-text-primary mb-2">Metrics</label>
             <div className="space-y-2">
               {[
                 { id: 'risks', label: 'Risks' },
@@ -117,9 +117,9 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
                         onMetricsChange(selectedMetrics.filter((m) => m !== metric.id));
                       }
                     }}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-border-subtle text-info-text focus:ring-accent-400"
                   />
-                  <span className="text-sm text-gray-700">{metric.label}</span>
+                  <span className="text-sm text-text-primary">{metric.label}</span>
                 </label>
               ))}
             </div>

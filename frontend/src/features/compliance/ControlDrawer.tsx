@@ -66,13 +66,13 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
 
   return (
     <Drawer isOpen={isControlDrawerOpen} onClose={closeControlDrawer} title={control.name}>
-      <div className="flex gap-2 border-b border-zinc-800 pb-3 mb-6">
+      <div className="flex gap-2 border-b border-border-subtle pb-3 mb-6">
         {(['details', 'evidence'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveDrawerTab(tab)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeDrawerTab === tab ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-white/5'
+              activeDrawerTab === tab ? 'bg-primary text-text-primary' : 'text-text-secondary hover:bg-surface-1/5'
             }`}
           >
             {t(`compliance.tabs.${tab}`)}
@@ -83,27 +83,27 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
       {activeDrawerTab === 'details' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
               {t('compliance.referenceCode')}
             </label>
-            <p className="mt-1 font-mono text-sm text-zinc-300">{control.reference_code || '—'}</p>
+            <p className="mt-1 font-mono text-sm text-text-secondary">{control.reference_code || '—'}</p>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
               {t('compliance.form.description')}
             </label>
-            <p className="mt-1 text-sm text-zinc-300">{control.description || '—'}</p>
+            <p className="mt-1 text-sm text-text-secondary">{control.description || '—'}</p>
           </div>
           {control.source_reference && (
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
                 {t('compliance.form.sourceReference')}
               </label>
-              <p className="mt-1 text-sm italic text-zinc-400">{control.source_reference}</p>
+              <p className="mt-1 text-sm italic text-text-secondary">{control.source_reference}</p>
             </div>
           )}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
               {t('common.status')}
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -114,8 +114,8 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
                   disabled={updateControl.isPending}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50 ${
                     control.status === status
-                      ? 'border-primary bg-primary/20 text-white'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600'
+                      ? 'border-primary bg-primary/20 text-text-primary'
+                      : 'border-border-subtle bg-surface-1 text-text-secondary hover:border-border-default'
                   }`}
                 >
                   {t(`compliance.status.${status}`)}
@@ -128,7 +128,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
 
       {activeDrawerTab === 'evidence' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-          <div className="rounded-2xl border border-dashed border-zinc-700 p-5">
+          <div className="rounded-2xl border border-dashed border-border-default p-5">
             <input
               ref={fileInputRef}
               type="file"
@@ -143,7 +143,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('compliance.evidence.description')}
               rows={2}
-              className="mb-3 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-primary/40"
+              className="mb-3 w-full rounded-xl border border-border-subtle bg-surface-0 px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-primary/40"
             />
             <Button
               type="button"
@@ -161,7 +161,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
           {evidencesLoading ? (
             <div className="space-y-2">
               {[0, 1].map((i) => (
-                <div key={i} className="h-14 animate-pulse rounded-xl bg-zinc-900" />
+                <div key={i} className="h-14 animate-pulse rounded-xl bg-surface-1" />
               ))}
             </div>
           ) : evidences.length === 0 ? (
@@ -175,12 +175,12 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-0/60 px-4 py-3"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm text-zinc-100">{evidence.filename}</p>
+                      <p className="truncate text-sm text-text-primary">{evidence.filename}</p>
                       {evidence.description && (
-                        <p className="truncate text-xs text-zinc-500">{evidence.description}</p>
+                        <p className="truncate text-xs text-text-muted">{evidence.description}</p>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -190,7 +190,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
                           evidence.id &&
                           downloadEvidence.mutate({ id: evidence.id, filename: evidence.filename ?? 'evidence' })
                         }
-                        className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                        className="rounded-lg p-2 text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
                       >
                         <Download size={14} />
                       </button>
@@ -203,7 +203,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
                               onSuccess: () => toast.success(t('compliance.evidence.delete')),
                             })
                           }
-                          className="rounded-lg p-2 text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                          className="rounded-lg p-2 text-text-secondary hover:bg-danger/10 hover:text-danger-text transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>

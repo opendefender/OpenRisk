@@ -91,8 +91,8 @@ export const RBACTab = () => {
       <div className="flex items-center gap-3 mb-6">
         <Shield className="w-6 h-6 text-primary" />
         <div>
-          <h2 className="text-2xl font-bold text-white">Access Control</h2>
-          <p className="text-sm text-zinc-400">View your roles and permissions</p>
+          <h2 className="text-2xl font-bold text-text-primary">Access Control</h2>
+          <p className="text-sm text-text-secondary">View your roles and permissions</p>
         </div>
       </div>
 
@@ -103,7 +103,7 @@ export const RBACTab = () => {
           className={`px-4 py-2 font-medium transition-colors border-b-2 ${
             activeTab === 'roles'
               ? 'border-primary text-primary'
-              : 'border-transparent text-zinc-400 hover:text-white'
+              : 'border-transparent text-text-secondary hover:text-text-primary'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -116,7 +116,7 @@ export const RBACTab = () => {
           className={`px-4 py-2 font-medium transition-colors border-b-2 ${
             activeTab === 'permissions'
               ? 'border-primary text-primary'
-              : 'border-transparent text-zinc-400 hover:text-white'
+              : 'border-transparent text-text-secondary hover:text-text-primary'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export const RBACTab = () => {
           className="space-y-4"
         >
           {userRoles.length === 0 ? (
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-300">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-warning/10 border border-warning/20 text-warning-text">
               <AlertCircle size={20} />
               <p>You don't have any roles assigned. Contact your administrator.</p>
             </div>
@@ -149,8 +149,8 @@ export const RBACTab = () => {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{role.name}</h3>
-                      <p className="text-sm text-zinc-400">{role.description}</p>
+                      <h3 className="text-lg font-semibold text-text-primary">{role.name}</h3>
+                      <p className="text-sm text-text-secondary">{role.description}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {role.is_predefined ? (
@@ -158,20 +158,20 @@ export const RBACTab = () => {
                           System
                         </span>
                       ) : (
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-300">
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-success/10 text-success-text">
                           Custom
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-24 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="w-24 h-2 bg-surface-2 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary transition-all"
                         style={{ width: `${(role.level / 9) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-zinc-400">
+                    <span className="text-xs font-medium text-text-secondary">
                       Level {role.level}: {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Unknown'}
                     </span>
                   </div>
@@ -181,13 +181,13 @@ export const RBACTab = () => {
           )}
 
           {isAdmin && allRoles.length > 0 && (
-            <div className="mt-8 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <h4 className="text-sm font-semibold text-blue-300 mb-3">Admin - All Available Roles</h4>
+            <div className="mt-8 p-4 rounded-lg bg-accent-500/10 border border-accent-400/20">
+              <h4 className="text-sm font-semibold text-info-text mb-3">Admin - All Available Roles</h4>
               <div className="space-y-2">
                 {allRoles.map((role) => (
-                  <div key={role.id} className="flex items-center justify-between p-3 rounded bg-zinc-900/50">
-                    <span className="text-sm text-zinc-300">{role.name}</span>
-                    <span className="text-xs text-zinc-500">Level {role.level}</span>
+                  <div key={role.id} className="flex items-center justify-between p-3 rounded bg-surface-1/50">
+                    <span className="text-sm text-text-secondary">{role.name}</span>
+                    <span className="text-xs text-text-muted">Level {role.level}</span>
                   </div>
                 ))}
               </div>
@@ -204,7 +204,7 @@ export const RBACTab = () => {
           className="space-y-6"
         >
           {Object.keys(permissionsByResource).length === 0 ? (
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-300">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-warning/10 border border-warning/20 text-warning-text">
               <AlertCircle size={20} />
               <p>You don't have any permissions assigned.</p>
             </div>
@@ -212,15 +212,15 @@ export const RBACTab = () => {
             <div className="space-y-6">
               {Object.entries(permissionsByResource).map(([resource, actions]) => (
                 <div key={resource} className="border border-border rounded-lg p-6 bg-surface/50">
-                  <h3 className="text-lg font-semibold text-white mb-4 capitalize">{resource}</h3>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4 capitalize">{resource}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {actions.map((action) => (
                       <div
                         key={`${resource}:${action}`}
-                        className="flex items-center gap-2 p-3 rounded-lg bg-zinc-900/50 border border-border"
+                        className="flex items-center gap-2 p-3 rounded-lg bg-surface-1/50 border border-border"
                       >
-                        <Check size={16} className="text-green-400" />
-                        <span className="text-sm font-medium text-zinc-300">
+                        <Check size={16} className="text-success-text" />
+                        <span className="text-sm font-medium text-text-secondary">
                           {resource}:{action}
                         </span>
                       </div>
@@ -232,12 +232,12 @@ export const RBACTab = () => {
           )}
 
           {/* Permission Legend */}
-          <div className="mt-8 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
-            <h4 className="text-sm font-semibold text-white mb-3">Permission Format</h4>
-            <p className="text-xs text-zinc-400">
+          <div className="mt-8 p-4 rounded-lg bg-surface-1 border border-border-subtle">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">Permission Format</h4>
+            <p className="text-xs text-text-secondary">
               Permissions are formatted as <code className="text-primary">resource:action</code>. For example:
             </p>
-            <ul className="text-xs text-zinc-400 mt-2 space-y-1 ml-4 list-disc">
+            <ul className="text-xs text-text-secondary mt-2 space-y-1 ml-4 list-disc">
               <li><code className="text-primary">reports:read</code> - Ability to view reports</li>
               <li><code className="text-primary">audit:manage</code> - Ability to manage audit logs</li>
               <li><code className="text-primary">user:create</code> - Ability to create users</li>
@@ -248,10 +248,10 @@ export const RBACTab = () => {
       )}
 
       {/* Info Box */}
-      <div className="mt-8 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+      <div className="mt-8 p-4 rounded-lg bg-accent-500/5 border border-accent-400/20">
         <div className="flex gap-3">
-          <Shield className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-300">
+          <Shield className="w-5 h-5 text-info-text flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-info-text">
             <p className="font-medium mb-1">About Your Access</p>
             <p>Your roles and permissions determine what actions you can perform in OpenRisk. If you need additional access, contact your administrator.</p>
           </div>

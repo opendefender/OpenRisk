@@ -175,7 +175,7 @@ export function Avatar({ initials, size = 26, title }: { initials: string; size?
   return (
     <div
       title={title ?? initials}
-      className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
+      className="rounded-full flex items-center justify-center font-bold text-text-primary shrink-0"
       style={{
         width: size, height: size, fontSize: size * 0.4,
         background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',

@@ -167,7 +167,7 @@ export const CommandPalette = () => {
       onClick={() => setOpen(false)}
       className="fixed inset-0 z-[80] flex items-start justify-center"
       style={{
-        background: 'rgba(0,0,0,0.5)',
+        background: 'var(--surface-overlay)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
         paddingTop: '14vh',

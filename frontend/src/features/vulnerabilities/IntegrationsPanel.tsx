@@ -95,7 +95,7 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
               <button onClick={() => setView('ticketing')} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold inline-flex items-center gap-1.5" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
                 <Ticket size={15} /> {tr('Ticketing', 'Ticketing')}
               </button>
-              <button onClick={onImport} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+              <button onClick={onImport} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
                 <Upload size={15} /> {tr('Import manuel', 'Manual import')}
               </button>
             </div>
@@ -115,7 +115,7 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
 function Toggle({ on, onChange, disabled }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button type="button" disabled={disabled} onClick={() => onChange(!on)} className="relative w-[42px] h-[24px] rounded-full transition-colors disabled:opacity-50" style={{ background: on ? 'var(--accent)' : 'var(--border-strong)' }}>
-      <span className="absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white transition-all" style={{ left: on ? '21px' : '3px' }} />
+      <span className="absolute top-[3px] w-[18px] h-[18px] rounded-full bg-surface-1 transition-all" style={{ left: on ? '21px' : '3px' }} />
     </button>
   );
 }
@@ -286,7 +286,7 @@ function IntegrationForm({ source, meta, existing, canWrite, onDone }: {
               <PlayCircle size={14} /> {tr('Pull maintenant', 'Pull now')}
             </button>
           )}
-          <button onClick={() => submit(false)} disabled={save.isPending} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button onClick={() => submit(false)} disabled={save.isPending} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
             <Save size={15} /> {tr('Enregistrer', 'Save')}
           </button>
         </div>
@@ -369,7 +369,7 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
       </div>
       {canWrite && (
         <div className="px-5 py-3.5 flex justify-end" style={{ borderTop: '1px solid var(--border)' }}>
-          <button onClick={submit} disabled={save.isPending} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button onClick={submit} disabled={save.isPending} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
             <Save size={15} /> {tr('Enregistrer', 'Save')}
           </button>
         </div>

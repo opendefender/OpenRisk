@@ -67,7 +67,7 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 40 }}

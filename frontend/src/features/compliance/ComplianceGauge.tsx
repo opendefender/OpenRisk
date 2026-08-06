@@ -21,13 +21,13 @@ export const ComplianceGauge = ({ progress }: ComplianceGaugeProps) => {
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5"
+      className="rounded-2xl border border-border-subtle bg-surface-0/60 p-5"
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-zinc-300">
+        <span className="text-sm font-medium text-text-secondary">
           {t('compliance.progress').replace('{percent}', String(percent))}
         </span>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-text-muted">
           {progress.total} {t('compliance.controls')}
         </span>
       </div>

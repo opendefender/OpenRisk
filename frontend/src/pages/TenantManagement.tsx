@@ -133,13 +133,13 @@ export const TenantManagement = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-500/10 text-green-400 border-green-500/20';
+        return 'bg-success/10 text-success-text border-success/20';
       case 'suspended':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        return 'bg-warning/10 text-warning-text border-warning/20';
       case 'deleted':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
+        return 'bg-danger/10 text-danger-text border-danger/20';
       default:
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+        return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
     }
   };
 
@@ -147,9 +147,9 @@ export const TenantManagement = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Lock className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-          <p className="text-zinc-400">You need administrator privileges to access tenant management.</p>
+          <Lock className="w-16 h-16 text-danger-text mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-text-primary mb-2">Access Denied</h1>
+          <p className="text-text-secondary">You need administrator privileges to access tenant management.</p>
         </div>
       </div>
     );
@@ -172,8 +172,8 @@ export const TenantManagement = () => {
             <div className="flex items-center gap-3">
               <Building2 className="w-8 h-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold text-white">Tenant Management</h1>
-                <p className="text-sm text-zinc-400">Manage multi-tenant organizations</p>
+                <h1 className="text-2xl font-bold text-text-primary">Tenant Management</h1>
+                <p className="text-sm text-text-secondary">Manage multi-tenant organizations</p>
               </div>
             </div>
             <Button
@@ -192,24 +192,24 @@ export const TenantManagement = () => {
           {/* Tenants List */}
           <div className="lg:col-span-1">
             <div className="bg-surface border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Tenants ({tenants.length})</h2>
+              <h2 className="text-lg font-semibold text-text-primary mb-4">Tenants ({tenants.length})</h2>
 
               {/* Search */}
               <div className="relative mb-6">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
                 <input
                   type="text"
                   placeholder="Search tenants..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full pl-10 pr-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
                 />
               </div>
 
               {/* Tenants List */}
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {filteredTenants.length === 0 ? (
-                  <p className="text-center text-zinc-500 py-8">No tenants found</p>
+                  <p className="text-center text-text-muted py-8">No tenants found</p>
                 ) : (
                   filteredTenants.map((tenant) => (
                     <motion.button
@@ -219,15 +219,15 @@ export const TenantManagement = () => {
                       className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
                         selectedTenant?.id === tenant.id
                           ? 'bg-primary/10 border border-primary text-primary'
-                          : 'bg-zinc-900/50 hover:bg-zinc-800 text-white'
+                          : 'bg-surface-1/50 hover:bg-surface-2 text-text-primary'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="font-medium">{tenant.name}</div>
-                          <div className="text-xs text-zinc-400 font-mono">{tenant.slug}</div>
+                          <div className="text-xs text-text-secondary font-mono">{tenant.slug}</div>
                         </div>
-                        <ChevronRight size={16} className="text-zinc-400" />
+                        <ChevronRight size={16} className="text-text-secondary" />
                       </div>
                     </motion.button>
                   ))
@@ -248,12 +248,12 @@ export const TenantManagement = () => {
                 <div className="bg-surface border border-border rounded-lg p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-2">{selectedTenant.name}</h2>
-                      <p className="text-zinc-400 font-mono">{selectedTenant.slug}</p>
+                      <h2 className="text-2xl font-bold text-text-primary mb-2">{selectedTenant.name}</h2>
+                      <p className="text-text-secondary font-mono">{selectedTenant.slug}</p>
                     </div>
                     <button
                       onClick={() => handleDeleteTenant(selectedTenant.id, selectedTenant.name)}
-                      className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                      className="p-2 rounded-lg bg-danger/10 text-danger-text hover:bg-danger/20 transition-colors"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -261,7 +261,7 @@ export const TenantManagement = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm text-zinc-400 mb-1">Status</div>
+                      <div className="text-sm text-text-secondary mb-1">Status</div>
                       <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(
                         selectedTenant.status
                       )}`}>
@@ -269,8 +269,8 @@ export const TenantManagement = () => {
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-zinc-400 mb-1">Created</div>
-                      <div className="text-sm text-white">
+                      <div className="text-sm text-text-secondary mb-1">Created</div>
+                      <div className="text-sm text-text-primary">
                         {new Date(selectedTenant.created_at).toLocaleDateString()}
                       </div>
                     </div>
@@ -282,50 +282,50 @@ export const TenantManagement = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-surface border border-border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Users size={18} className="text-blue-400" />
-                        <span className="text-sm font-medium text-zinc-400">Total Users</span>
+                        <Users size={18} className="text-info-text" />
+                        <span className="text-sm font-medium text-text-secondary">Total Users</span>
                       </div>
-                      <div className="text-3xl font-bold text-white">{tenantStats.total_users}</div>
-                      <p className="text-xs text-zinc-500 mt-1">{tenantStats.active_users} active</p>
+                      <div className="text-3xl font-bold text-text-primary">{tenantStats.total_users}</div>
+                      <p className="text-xs text-text-muted mt-1">{tenantStats.active_users} active</p>
                     </div>
 
                     <div className="bg-surface border border-border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Settings size={18} className="text-purple-400" />
-                        <span className="text-sm font-medium text-zinc-400">Roles</span>
+                        <span className="text-sm font-medium text-text-secondary">Roles</span>
                       </div>
-                      <div className="text-3xl font-bold text-white">{tenantStats.total_roles}</div>
-                      <p className="text-xs text-zinc-500 mt-1">system + custom</p>
+                      <div className="text-3xl font-bold text-text-primary">{tenantStats.total_roles}</div>
+                      <p className="text-xs text-text-muted mt-1">system + custom</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-surface border border-dashed border-border rounded-lg p-4 text-center text-zinc-400">
+                  <div className="bg-surface border border-dashed border-border rounded-lg p-4 text-center text-text-secondary">
                     Loading statistics...
                   </div>
                 )}
 
                 {/* Tenant Settings */}
                 <div className="bg-surface border border-border rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Settings</h3>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Settings</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-zinc-300 mb-2">Tenant Name</label>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">Tenant Name</label>
                       <input
                         type="text"
                         value={selectedTenant.name}
                         disabled
-                        className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white opacity-50 cursor-not-allowed"
+                        className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary opacity-50 cursor-not-allowed"
                       />
-                      <p className="text-xs text-zinc-500 mt-1">Read-only for now</p>
+                      <p className="text-xs text-text-muted mt-1">Read-only for now</p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-zinc-300 mb-2">Slug</label>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">Slug</label>
                       <input
                         type="text"
                         value={selectedTenant.slug}
                         disabled
-                        className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white opacity-50 cursor-not-allowed font-mono"
+                        className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary opacity-50 cursor-not-allowed font-mono"
                       />
                     </div>
 
@@ -338,7 +338,7 @@ export const TenantManagement = () => {
                       </Button>
                       <Button
                         onClick={() => handleDeleteTenant(selectedTenant.id, selectedTenant.name)}
-                        className="flex-1 bg-red-500 hover:bg-red-600"
+                        className="flex-1 bg-danger hover:bg-danger"
                       >
                         Delete Tenant
                       </Button>
@@ -348,15 +348,15 @@ export const TenantManagement = () => {
 
                 {/* Tenant Members */}
                 <div className="bg-surface border border-border rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Members ({tenantStats?.total_users || 0})</h3>
-                  <p className="text-sm text-zinc-400">Member management coming in next phase</p>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Members ({tenantStats?.total_users || 0})</h3>
+                  <p className="text-sm text-text-secondary">Member management coming in next phase</p>
                 </div>
               </motion.div>
             ) : (
               <div className="flex items-center justify-center h-96 bg-surface border border-dashed border-border rounded-lg">
                 <div className="text-center">
-                  <Building2 className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                  <p className="text-zinc-400">Select a tenant to view details</p>
+                  <Building2 className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                  <p className="text-text-secondary">Select a tenant to view details</p>
                 </div>
               </div>
             )}
@@ -366,36 +366,36 @@ export const TenantManagement = () => {
 
       {/* Create Tenant Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-surface-overlay flex items-center justify-center z-50">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="bg-surface border border-border rounded-lg p-6 max-w-md w-full mx-4"
           >
-            <h2 className="text-xl font-bold text-white mb-6">Create New Tenant</h2>
+            <h2 className="text-xl font-bold text-text-primary mb-6">Create New Tenant</h2>
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">Tenant Name</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Tenant Name</label>
                 <input
                   type="text"
                   value={newTenantName}
                   onChange={(e) => setNewTenantName(e.target.value)}
                   placeholder="e.g., Acme Corporation"
-                  className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">Slug</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Slug</label>
                 <input
                   type="text"
                   value={newTenantSlug}
                   onChange={(e) => setNewTenantSlug(e.target.value.toLowerCase())}
                   placeholder="e.g., acme-corp"
-                  className="w-full px-4 py-2 bg-zinc-900 border border-border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-primary font-mono"
+                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary placeholder-zinc-500 focus:outline-none focus:border-primary font-mono"
                 />
-                <p className="text-xs text-zinc-500 mt-1">URL-friendly identifier (lowercase, hyphens only)</p>
+                <p className="text-xs text-text-muted mt-1">URL-friendly identifier (lowercase, hyphens only)</p>
               </div>
             </div>
 

@@ -74,8 +74,8 @@ export const UserAvatar = ({
       whileHover={onClick ? { scale: 1.1 } : undefined}
       whileTap={onClick ? { scale: 0.95 } : undefined}
       className={cn(
-        'rounded-full flex items-center justify-center font-medium text-white',
-        'bg-gradient-to-br border border-white/20',
+        'rounded-full flex items-center justify-center font-medium text-text-primary',
+        'bg-gradient-to-br border border-border-strong/20',
         bgColor,
         sizeClasses.container,
         onClick && 'cursor-pointer',
@@ -96,7 +96,7 @@ export const UserAvatar = ({
   return (
     <div className="group relative">
       {avatarContent}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-surface-1 border border-border-default rounded text-xs text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         {name}
       </div>
     </div>

@@ -24,7 +24,7 @@ function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; labe
       className="relative shrink-0"
       style={{ width: 40, height: 22, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }}
     >
-      <span className="absolute rounded-full bg-white" style={{ width: 18, height: 18, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+      <span className="absolute rounded-full bg-surface-1" style={{ width: 18, height: 18, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
     </button>
   );
 }

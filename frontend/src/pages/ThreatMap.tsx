@@ -33,7 +33,7 @@ export const ThreatMap = () => {
       case 'low':
         return 'from-blue-500 to-blue-600 text-blue-100';
       default:
-        return 'from-zinc-500 to-zinc-600 text-zinc-100';
+        return 'from-zinc-500 to-zinc-600 text-text-primary';
     }
   };
 
@@ -42,16 +42,16 @@ export const ThreatMap = () => {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2">Threat Intelligence Map</h2>
-        <p className="text-zinc-400">Global view of cyber threats and attacks targeting your organization</p>
+        <p className="text-text-secondary">Global view of cyber threats and attacks targeting your organization</p>
       </div>
 
       {/* Map Section */}
       <div className="bg-surface border border-border rounded-lg p-6 mb-6 h-96 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
         <div className="relative z-10 text-center">
-          <Globe size={64} className="mx-auto text-zinc-600 mb-4" />
-          <p className="text-zinc-400 mb-4">Interactive threat map visualization</p>
-          <p className="text-sm text-zinc-500">Map view would be rendered here with a mapping library</p>
+          <Globe size={64} className="mx-auto text-text-muted mb-4" />
+          <p className="text-text-secondary mb-4">Interactive threat map visualization</p>
+          <p className="text-sm text-text-muted">Map view would be rendered here with a mapping library</p>
           <Button className="mt-4">View Full Map</Button>
         </div>
       </div>
@@ -59,24 +59,24 @@ export const ThreatMap = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Total Threats</div>
+          <div className="text-text-secondary text-sm mb-2">Total Threats</div>
           <div className="text-3xl font-bold">{stats?.total_threats || threats.reduce((acc, t) => acc + t.threats, 0)}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Active Countries</div>
+          <div className="text-text-secondary text-sm mb-2">Active Countries</div>
           <div className="text-3xl font-bold">{filteredThreats.length}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Critical</div>
-          <div className="text-3xl font-bold text-red-400">
+          <div className="text-text-secondary text-sm mb-2">Critical</div>
+          <div className="text-3xl font-bold text-danger-text">
             {stats?.critical || 0}
           </div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-zinc-400 text-sm mb-2">Trend</div>
+          <div className="text-text-secondary text-sm mb-2">Trend</div>
           <div className="flex items-center gap-2">
-            <TrendingUp size={20} className="text-red-400" />
-            <span className="text-lg font-bold text-red-400">↑ {stats?.trend_percent || 0}%</span>
+            <TrendingUp size={20} className="text-danger-text" />
+            <span className="text-lg font-bold text-danger-text">↑ {stats?.trend_percent || 0}%</span>
           </div>
         </div>
       </div>
@@ -145,16 +145,16 @@ export const ThreatMap = () => {
           <h4 className="text-lg font-bold mb-4">Threat Details: {selectedThreat.country}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <p className="text-zinc-400 text-sm mb-2">Location</p>
+              <p className="text-text-secondary text-sm mb-2">Location</p>
               <p className="font-semibold">{selectedThreat.country}</p>
-              <p className="text-sm text-zinc-500">{selectedThreat.lat.toFixed(4)}°, {selectedThreat.lon.toFixed(4)}°</p>
+              <p className="text-sm text-text-muted">{selectedThreat.lat.toFixed(4)}°, {selectedThreat.lon.toFixed(4)}°</p>
             </div>
             <div>
-              <p className="text-zinc-400 text-sm mb-2">Active Threats</p>
+              <p className="text-text-secondary text-sm mb-2">Active Threats</p>
               <p className="font-semibold text-2xl">{selectedThreat.threats}</p>
             </div>
             <div>
-              <p className="text-zinc-400 text-sm mb-2">Severity Level</p>
+              <p className="text-text-secondary text-sm mb-2">Severity Level</p>
               <p className={`font-semibold capitalize px-3 py-1 rounded inline-block`}>{selectedThreat.severity}</p>
             </div>
           </div>

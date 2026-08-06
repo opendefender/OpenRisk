@@ -105,7 +105,7 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 40 }}
@@ -202,7 +202,7 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
                     <button
                       type="button"
                       onClick={() => setConfirmingDelete(true)}
-                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-danger-text hover:bg-danger/10 transition-colors"
                     >
                       <Trash2 size={15} />
                       <span>{t('common.delete', 'Delete')}</span>

@@ -130,31 +130,31 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="fixed inset-0 bg-black/60 z-[80]" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="fixed inset-0 bg-surface-overlay z-[80]" />
 
           <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="fixed inset-0 m-auto w-full max-w-lg h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-[90] overflow-hidden">
-            <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <div className="flex justify-between items-center mb-6 border-b border-border-strong/5 pb-4">
+              <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
                 <ShieldAlert className="text-primary" size={20} /> Modifier le Risque
               </h2>
-              <button onClick={handleClose} className="text-zinc-500 hover:text-white transition-colors"><X size={24} /></button>
+              <button onClick={handleClose} className="text-text-muted hover:text-text-primary transition-colors"><X size={24} /></button>
             </div>
 
             <form onSubmit={handleSubmit((data: any) => onSubmit(data))} className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]">
               <Input label="Titre" {...register('title')} error={errors.title?.message} disabled={isLoading} />
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Description</label>
-                <textarea {...register('description')} rows={4} disabled={isLoading} className={`w-full bg-zinc-900 border ${errors.description ? 'border-red-500' : 'border-border'} rounded-lg p-3 text-sm text-white focus:ring-2 focus:ring-primary/50 outline-none resize-none transition-colors ${isLoading ? 'opacity-70' : ''}`} />
-                {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description?.message}</p>}
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Description</label>
+                <textarea {...register('description')} rows={4} disabled={isLoading} className={`w-full bg-surface-1 border ${errors.description ? 'border-danger' : 'border-border'} rounded-lg p-3 text-sm text-text-primary focus:ring-2 focus:ring-primary/50 outline-none resize-none transition-colors ${isLoading ? 'opacity-70' : ''}`} />
+                {errors.description && <p className="text-xs text-danger-text mt-1">{errors.description?.message}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Impact (1-5)</label>
-                  <div className="flex bg-zinc-900 border border-border rounded-lg p-1">
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Impact (1-5)</label>
+                  <div className="flex bg-surface-1 border border-border rounded-lg p-1">
                     {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => setValue('impact', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('impact') === n ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'} ${isLoading ? 'opacity-70' : ''}`}>
+                      <button key={n} type="button" onClick={() => setValue('impact', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('impact') === n ? 'bg-primary text-text-primary' : 'text-text-secondary hover:bg-surface-2'} ${isLoading ? 'opacity-70' : ''}`}>
                         {n}
                       </button>
                     ))}
@@ -162,10 +162,10 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Probabilité (1-5)</label>
-                  <div className="flex bg-zinc-900 border border-border rounded-lg p-1">
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Probabilité (1-5)</label>
+                  <div className="flex bg-surface-1 border border-border rounded-lg p-1">
                     {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => setValue('probability', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('probability') === n ? 'bg-primary text-white' : 'text-zinc-400 hover:bg-zinc-800'} ${isLoading ? 'opacity-70' : ''}`}>
+                      <button key={n} type="button" onClick={() => setValue('probability', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('probability') === n ? 'bg-primary text-text-primary' : 'text-text-secondary hover:bg-surface-2'} ${isLoading ? 'opacity-70' : ''}`}>
                         {n}
                       </button>
                     ))}
@@ -175,13 +175,13 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               {/* Assets selector */}
               <div className="space-y-2 pt-2">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex justify-between">
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider flex justify-between">
                   Assets Affectés
-                  <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded-full">{selectedAssetIds.length} sélectionné(s)</span>
+                  <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">{selectedAssetIds.length} sélectionné(s)</span>
                 </label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg bg-zinc-900/30">
-                  {assets.length === 0 ? <div className="text-zinc-500 text-xs w-full text-center py-2">Aucun asset.</div> : assets.map(a => (
-                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} disabled={isLoading} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'} ${isLoading ? 'opacity-70' : ''}`}>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg bg-surface-1/30">
+                  {assets.length === 0 ? <div className="text-text-muted text-xs w-full text-center py-2">Aucun asset.</div> : assets.map(a => (
+                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} disabled={isLoading} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-accent-500/20 border-accent-400 text-info-text' : 'bg-surface-2 border-border-default text-text-secondary'} ${isLoading ? 'opacity-70' : ''}`}>
                       {a.name}
                     </button>
                   ))}
@@ -192,20 +192,20 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               {/* Frameworks selector */}
               <div className="space-y-2 pt-2">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex justify-between">
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider flex justify-between">
                   Frameworks
-                  <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded-full">{selectedFrameworks.length} sélectionné(s)</span>
+                  <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">{selectedFrameworks.length} sélectionné(s)</span>
                 </label>
                 <div className="flex flex-wrap gap-2 p-2">
                   {frameworksList.map(f => (
-                    <button key={f} type="button" onClick={() => toggleFramework(f)} disabled={isLoading} className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedFrameworks.includes(f) ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}>
+                    <button key={f} type="button" onClick={() => toggleFramework(f)} disabled={isLoading} className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedFrameworks.includes(f) ? 'bg-success/20 border-success text-success-text' : 'bg-surface-2 border-border-default text-text-secondary hover:border-border-strong'}`}>
                       {f}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/5 sticky bottom-0 bg-surface">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-strong/5 sticky bottom-0 bg-surface">
                 <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
                 <Button type="submit" isLoading={isLoading || isSubmitting}>Enregistrer</Button>
               </div>

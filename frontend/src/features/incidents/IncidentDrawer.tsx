@@ -186,7 +186,7 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
             <button
               onClick={save}
               disabled={!dirty || updateIncident.isPending}
-              className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
+              className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
               style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}
             >
               {updateIncident.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}

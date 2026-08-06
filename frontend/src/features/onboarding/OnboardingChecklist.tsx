@@ -202,7 +202,7 @@ export function OnboardingChecklist({ riskCount, frameworkCount, isAdmin, onCrea
       {complete && (
         <button
           onClick={dismiss}
-          className="mt-3.5 w-full h-[40px] rounded-[10px] text-[13px] font-semibold text-white"
+          className="mt-3.5 w-full h-[40px] rounded-[10px] text-[13px] font-semibold text-text-primary"
           style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
         >
           {tr('Terminer la prise en main', 'Finish onboarding')}

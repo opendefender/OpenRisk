@@ -34,18 +34,18 @@ const MetricCard: React.FC<MetricCardProps> = ({
   const getStatusColor = () => {
     switch (status) {
       case 'critical':
-        return 'border-l-4 border-red-500 bg-red-50';
+        return 'border-l-4 border-danger bg-danger-surface';
       case 'warning':
-        return 'border-l-4 border-yellow-500 bg-yellow-50';
+        return 'border-l-4 border-warning bg-warning-surface';
       default:
-        return 'border-l-4 border-blue-500 bg-blue-50';
+        return 'border-l-4 border-accent-400 bg-info-surface';
     }
   };
 
   const getTrendColor = () => {
-    if (trend === 'up') return isPositive ? 'text-green-600' : 'text-red-600';
-    if (trend === 'down') return isPositive ? 'text-red-600' : 'text-green-600';
-    return 'text-gray-600';
+    if (trend === 'up') return isPositive ? 'text-success-text' : 'text-danger-text';
+    if (trend === 'down') return isPositive ? 'text-danger-text' : 'text-success-text';
+    return 'text-text-muted';
   };
 
   return (
@@ -58,16 +58,16 @@ const MetricCard: React.FC<MetricCardProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+          <p className="text-sm font-medium text-text-muted">{title}</p>
+          {description && <p className="text-xs text-text-muted mt-1">{description}</p>}
         </div>
-        {status === 'critical' && <AlertCircle size={16} className="text-red-600 flex-shrink-0" />}
+        {status === 'critical' && <AlertCircle size={16} className="text-danger-text flex-shrink-0" />}
       </div>
 
       {/* Value */}
       <div className="flex items-baseline gap-2 mb-2">
-        <span className="text-3xl font-bold text-gray-900">{value}</span>
-        {unit && <span className="text-sm text-gray-600">{unit}</span>}
+        <span className="text-3xl font-bold text-text-primary">{value}</span>
+        {unit && <span className="text-sm text-text-muted">{unit}</span>}
       </div>
 
       {/* Change */}

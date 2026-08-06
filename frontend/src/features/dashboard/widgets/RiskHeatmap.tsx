@@ -23,7 +23,7 @@ const COLORS = {
 export const RiskHeatmap = () => {
   return (
     <div className="h-full w-full p-2">
-      <h3 className="text-sm font-medium text-zinc-400 mb-2 uppercase tracking-wider">Risk Heatmap</h3>
+      <h3 className="text-sm font-medium text-text-secondary mb-2 uppercase tracking-wider">Risk Heatmap</h3>
       <ResponsiveContainer width="100%" height="90%">
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
           <XAxis type="number" dataKey="x" name="Impact" unit="" domain={[0, 6]} tickCount={6} stroke="#52525b" />

@@ -92,7 +92,7 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[80] bg-surface-overlay backdrop-blur-sm"
           />
 
           <motion.div
@@ -120,7 +120,7 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Description</label>
                   <textarea {...register('description')} rows={4} className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40" disabled={isSubmitting} />
-                  {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
+                  {errors.description && <p className="text-xs text-danger-text">{errors.description.message}</p>}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">

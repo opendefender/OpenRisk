@@ -90,7 +90,7 @@ export function IngestModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
         <div className="px-5 py-4 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
           <button onClick={onClose} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>{tr('Annuler', 'Cancel')}</button>
-          <button onClick={submit} disabled={ingest.isPending || !raw.trim()} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button onClick={submit} disabled={ingest.isPending || !raw.trim()} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
             {ingest.isPending ? tr('Import…', 'Importing…') : tr('Importer', 'Import')}
           </button>
         </div>

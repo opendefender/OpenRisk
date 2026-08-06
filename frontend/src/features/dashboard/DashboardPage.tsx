@@ -522,7 +522,7 @@ function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
           <div className="text-[11px] text-ink-muted">{tr('Durée', 'Duration')}</div>
         </div>
       </div>
-      <button onClick={() => onJoin(inc.id)} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white" style={{ background: sevColor }}>
+      <button onClick={() => onJoin(inc.id)} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary" style={{ background: sevColor }}>
         <Zap size={16} /> {L.warJoin}
       </button>
     </div>

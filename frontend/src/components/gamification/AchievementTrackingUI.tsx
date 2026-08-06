@@ -29,11 +29,11 @@ interface AchievementTrackingUIProps {
 const AchievementIcon = ({ icon, rarity }: { icon: string; rarity: string }) => {
   const iconSize = 24;
   const rarityColors = {
-    common: 'text-gray-400',
-    uncommon: 'text-green-400',
-    rare: 'text-blue-400',
+    common: 'text-text-secondary',
+    uncommon: 'text-success-text',
+    rare: 'text-info-text',
     epic: 'text-purple-400',
-    legendary: 'text-yellow-400',
+    legendary: 'text-warning-text',
   };
 
   const iconMap: Record<string, any> = {
@@ -63,13 +63,13 @@ const getRarityColor = (rarity: string) => {
 
 const getRarityBorder = (rarity: string) => {
   const borders: Record<string, string> = {
-    common: 'border-gray-500',
-    uncommon: 'border-green-500',
-    rare: 'border-blue-500',
+    common: 'border-border-strong',
+    uncommon: 'border-success',
+    rare: 'border-accent-400',
     epic: 'border-purple-500',
-    legendary: 'border-yellow-500',
+    legendary: 'border-warning',
   };
-  return borders[rarity] || 'border-gray-500';
+  return borders[rarity] || 'border-border-strong';
 };
 
 const AchievementCard = ({ achievement, index }: { achievement: Achievement; index: number }) => {
@@ -88,14 +88,14 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
         className={`relative rounded-lg p-4 border-2 transition-all duration-300 ${
           achievement.unlocked
             ? `bg-gradient-to-br ${getRarityColor(achievement.rarity)} ${getRarityBorder(achievement.rarity)}`
-            : 'bg-zinc-900 border-zinc-700 opacity-60'
+            : 'bg-surface-1 border-border-default opacity-60'
         } ${isHovered && achievement.unlocked ? 'shadow-lg shadow-white/20 scale-105' : ''}`}
       >
         {/* Glow effect for unlocked achievements */}
         {achievement.unlocked && (
           <div
             className={`absolute inset-0 rounded-lg blur-xl opacity-20 ${
-              achievement.rarity === 'legendary' ? 'bg-yellow-500' : 'bg-blue-500'
+              achievement.rarity === 'legendary' ? 'bg-warning' : 'bg-accent-500'
             }`}
           />
         )}
@@ -103,7 +103,7 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
         <div className="relative z-10">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
-            <div className="p-3 rounded-lg bg-black/30 backdrop-blur-sm">
+            <div className="p-3 rounded-lg bg-surface-overlay backdrop-blur-sm">
               <AchievementIcon icon={achievement.icon} rarity={achievement.rarity} />
             </div>
             {achievement.unlocked && (
@@ -112,25 +112,25 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', delay: index * 0.05 + 0.2 }}
               >
-                <CheckCircle2 size={20} className="text-yellow-300" />
+                <CheckCircle2 size={20} className="text-warning-text" />
               </motion.div>
             )}
           </div>
 
           {/* Title & Description */}
-          <h3 className="font-semibold text-white text-sm mb-1">{achievement.name}</h3>
-          <p className="text-xs text-white/70 mb-3 line-clamp-2">{achievement.description}</p>
+          <h3 className="font-semibold text-text-primary text-sm mb-1">{achievement.name}</h3>
+          <p className="text-xs text-text-primary/70 mb-3 line-clamp-2">{achievement.description}</p>
 
           {/* Progress Bar */}
           {!achievement.unlocked && (
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-white/60">
+                <span className="text-xs font-medium text-text-primary/60">
                   {achievement.progress} / {achievement.maxProgress}
                 </span>
-                <span className="text-xs font-medium text-white/60">{Math.round(progressPercent)}%</span>
+                <span className="text-xs font-medium text-text-primary/60">{Math.round(progressPercent)}%</span>
               </div>
-              <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-sm">
+              <div className="w-full h-2 bg-surface-overlay rounded-full overflow-hidden backdrop-blur-sm">
                 <motion.div
                   className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
                   initial={{ width: 0 }}
@@ -143,13 +143,13 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
 
           {/* Unlocked Badge */}
           {achievement.unlocked && achievement.unlockedAt && (
-            <div className="text-xs text-white/60 text-center">
+            <div className="text-xs text-text-primary/60 text-center">
               Unlocked {new Date(achievement.unlockedAt).toLocaleDateString()}
             </div>
           )}
 
           {/* Rarity Label */}
-          <div className="text-xs font-semibold uppercase text-white/80 tracking-wide text-center mt-2">
+          <div className="text-xs font-semibold uppercase text-text-primary/80 tracking-wide text-center mt-2">
             {achievement.rarity}
           </div>
         </div>
@@ -178,37 +178,37 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-zinc-400 text-sm">Total Achievements</p>
-                <p className="text-3xl font-bold text-white mt-1">{totalCount}</p>
+                <p className="text-text-secondary text-sm">Total Achievements</p>
+                <p className="text-3xl font-bold text-text-primary mt-1">{totalCount}</p>
               </div>
               <Trophy size={32} className="text-purple-400 opacity-60" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border-emerald-700/50">
+        <Card className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border-success/50">
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-zinc-400 text-sm">Unlocked</p>
+                <p className="text-text-secondary text-sm">Unlocked</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <p className="text-3xl font-bold text-white">{unlockedCount}</p>
-                  <p className="text-sm text-zinc-400">({Math.round((unlockedCount / totalCount) * 100)}%)</p>
+                  <p className="text-3xl font-bold text-text-primary">{unlockedCount}</p>
+                  <p className="text-sm text-text-secondary">({Math.round((unlockedCount / totalCount) * 100)}%)</p>
                 </div>
               </div>
-              <CheckCircle2 size={32} className="text-emerald-400 opacity-60" />
+              <CheckCircle2 size={32} className="text-success-text opacity-60" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 border-yellow-700/50">
+        <Card className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 border-warning/50">
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-zinc-400 text-sm">Completion</p>
-                <p className="text-3xl font-bold text-white mt-1">{Math.round((unlockedCount / totalCount) * 100)}%</p>
+                <p className="text-text-secondary text-sm">Completion</p>
+                <p className="text-3xl font-bold text-text-primary mt-1">{Math.round((unlockedCount / totalCount) * 100)}%</p>
               </div>
-              <Flame size={32} className="text-yellow-400 opacity-60" />
+              <Flame size={32} className="text-warning-text opacity-60" />
             </div>
           </div>
         </Card>
@@ -222,8 +222,8 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
             onClick={() => setFilter(tab)}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
               filter === tab
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
-                : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                ? 'bg-accent-500 text-text-primary shadow-lg shadow-blue-500/50'
+                : 'bg-surface-1 text-text-secondary hover:bg-surface-2'
             }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -235,7 +235,7 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-32 bg-zinc-900 rounded-lg animate-pulse" />
+            <div key={i} className="h-32 bg-surface-1 rounded-lg animate-pulse" />
           ))}
         </div>
       ) : (
@@ -247,8 +247,8 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
               exit={{ opacity: 0 }}
               className="text-center py-12"
             >
-              <Star size={48} className="mx-auto text-zinc-600 mb-3 opacity-50" />
-              <p className="text-zinc-400">No achievements to display</p>
+              <Star size={48} className="mx-auto text-text-muted mb-3 opacity-50" />
+              <p className="text-text-secondary">No achievements to display</p>
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -261,19 +261,19 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
       )}
 
       {/* Category Breakdown */}
-      <Card className="bg-zinc-900/50 border-zinc-800">
+      <Card className="bg-surface-1/50 border-border-subtle">
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Achievements by Category</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Achievements by Category</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {['risks', 'mitigations', 'compliance', 'performance'].map((category) => {
               const categoryAchievements = achievements.filter((a) => a.category === category);
               const unlockedInCategory = categoryAchievements.filter((a) => a.unlocked).length;
               return (
-                <div key={category} className="bg-zinc-800/50 p-4 rounded-lg">
-                  <p className="text-zinc-400 text-sm capitalize mb-2">{category}</p>
+                <div key={category} className="bg-surface-2/50 p-4 rounded-lg">
+                  <p className="text-text-secondary text-sm capitalize mb-2">{category}</p>
                   <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-bold text-white">{unlockedInCategory}</p>
-                    <p className="text-sm text-zinc-400">/ {categoryAchievements.length}</p>
+                    <p className="text-2xl font-bold text-text-primary">{unlockedInCategory}</p>
+                    <p className="text-sm text-text-secondary">/ {categoryAchievements.length}</p>
                   </div>
                 </div>
               );

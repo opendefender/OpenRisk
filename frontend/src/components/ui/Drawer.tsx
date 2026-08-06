@@ -32,7 +32,7 @@ export const Drawer = ({ isOpen, onClose, children, title, widthClassName = 'max
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
           />
           
           {/* Panneau Latéral */}
@@ -45,8 +45,8 @@ export const Drawer = ({ isOpen, onClose, children, title, widthClassName = 'max
           >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
-              <h2 className="text-xl font-semibold text-white">{title}</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <h2 className="text-xl font-semibold text-text-primary">{title}</h2>
+              <button onClick={onClose} className="p-2 hover:bg-surface-1/10 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>

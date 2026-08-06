@@ -45,7 +45,7 @@ export function DangerConfirm({
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
       onClick={onClose}
     >
       <div
@@ -109,7 +109,7 @@ export function DangerConfirm({
           <button onClick={onClose} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-ink-soft hover:bg-hover transition-colors disabled:opacity-60">
             {tr('Annuler', 'Cancel')}
           </button>
-          <button onClick={onConfirm} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-white transition-[filter] hover:brightness-110 disabled:opacity-60" style={{ background: 'var(--critical)' }}>
+          <button onClick={onConfirm} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-on-solid transition-[filter] hover:brightness-110 disabled:opacity-60" style={{ background: 'var(--danger-solid)' }}>
             {confirmLabel}
           </button>
         </div>

@@ -190,12 +190,12 @@ export const RiskListPage = () => {
     // h-full + overflow-y-auto instead of min-h-screen: the page sits inside an
     // overflow-hidden layout main, so min-h-screen just overflowed and got clipped
     // (no scrollbar, content jumped). This makes the page its own scroll area.
-    <div className="h-full overflow-y-auto bg-background text-white">
+    <div className="h-full overflow-y-auto bg-background text-text-primary">
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold">{t('risks.title')}</h1>
-            <p className="text-sm text-zinc-400 max-w-2xl">{t('risks.description')}</p>
+            <p className="text-sm text-text-secondary max-w-2xl">{t('risks.description')}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={openCreateModal} variant="secondary" className="gap-2">
@@ -214,19 +214,19 @@ export const RiskListPage = () => {
                 initial={{ opacity: 0, x: -24 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -24 }}
-                className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-5 shadow-xl shadow-black/30"
+                className="rounded-3xl border border-border-subtle bg-surface-0/80 p-5 shadow-xl shadow-black/30"
               >
                 <div className="flex items-center justify-between gap-3 mb-5">
-                  <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-400">Filtres</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-text-secondary">Filtres</h2>
                   <button type="button" onClick={clearFilters} className="text-xs text-primary hover:text-primary/80">{t('filters.clearAll')}</button>
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">{t('filters.status')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">{t('filters.status')}</label>
                     <select
                       value={filters.status || ''}
                       onChange={(event) => setFilters({ status: event.target.value as any || undefined })}
-                      className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white"
+                      className="w-full rounded-2xl border border-border-subtle bg-surface-0 px-4 py-3 text-sm text-text-primary"
                     >
                       <option value="">Toutes</option>
                       <option value="open">{t('statuses.open')}</option>
@@ -237,11 +237,11 @@ export const RiskListPage = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">{t('filters.framework')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">{t('filters.framework')}</label>
                     <select
                       value={filters.framework || ''}
                       onChange={(event) => setFilters({ framework: event.target.value || undefined })}
-                      className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white"
+                      className="w-full rounded-2xl border border-border-subtle bg-surface-0 px-4 py-3 text-sm text-text-primary"
                     >
                       <option value="">Toutes</option>
                       <option value="iso27001">{t('frameworks.iso27001')}</option>
@@ -251,7 +251,7 @@ export const RiskListPage = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">{t('filters.scoreRange')}</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">{t('filters.scoreRange')}</label>
                     <div className="grid grid-cols-2 gap-3">
                       <Input
                         placeholder="Min"
@@ -277,7 +277,7 @@ export const RiskListPage = () => {
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-[1fr_220px] items-end">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -292,7 +292,7 @@ export const RiskListPage = () => {
                 <select
                   value={pageSize}
                   onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white"
+                  className="rounded-2xl border border-border-subtle bg-surface-0 px-4 py-3 text-sm text-text-primary"
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
@@ -311,10 +311,10 @@ export const RiskListPage = () => {
                 action={{ label: t('risks.createFirstRisk'), onClick: openCreateModal }}
               />
             ) : (
-              <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 overflow-hidden">
+              <div className="rounded-3xl border border-border-subtle bg-surface-0/70 overflow-hidden">
                 <div className="overflow-x-auto scrollbar-thin">
                 <div className="min-w-[960px]">
-                <div className="grid grid-cols-[48px_2fr_120px_120px_180px_140px_180px_120px] gap-0 bg-zinc-900 border-b border-zinc-800 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                <div className="grid grid-cols-[48px_2fr_120px_120px_180px_140px_180px_120px] gap-0 bg-surface-1 border-b border-border-subtle text-xs uppercase tracking-[0.18em] text-text-muted">
                   <div className="px-4 py-3">
                     <input
                       type="checkbox"
@@ -344,7 +344,7 @@ export const RiskListPage = () => {
                   <div className="px-4 py-3">{t('common.actions')}</div>
                 </div>
 
-                <div className="divide-y divide-zinc-800">
+                <div className="divide-y divide-border-subtle">
                   {risks.map((risk, index) => (
                     <motion.div
                       key={risk.id}
@@ -352,7 +352,7 @@ export const RiskListPage = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                      className={`grid grid-cols-[48px_2fr_120px_120px_180px_140px_180px_120px] items-center gap-0 px-4 py-4 text-sm text-zinc-200 transition-colors ${focusedIndex === index ? 'bg-white/5' : ''}`}
+                      className={`grid grid-cols-[48px_2fr_120px_120px_180px_140px_180px_120px] items-center gap-0 px-4 py-4 text-sm text-text-primary transition-colors ${focusedIndex === index ? 'bg-surface-1/5' : ''}`}
                       tabIndex={0}
                       onFocus={() => setFocusedIndex(index)}
                       onClick={() => openDrawer(risk.id)}
@@ -367,21 +367,21 @@ export const RiskListPage = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <div className="font-semibold text-white truncate">{risk.title}</div>
-                        <div className="text-xs text-zinc-500 truncate">{risk.description}</div>
+                        <div className="font-semibold text-text-primary truncate">{risk.title}</div>
+                        <div className="text-xs text-text-muted truncate">{risk.description}</div>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <ScoreMeter score={risk.score} maxScore={100} size="sm" showLabel={false} />
-                          <span className="text-xs text-zinc-400">{risk.score.toFixed(1)}</span>
+                          <span className="text-xs text-text-secondary">{risk.score.toFixed(1)}</span>
                         </div>
                       </div>
                       <div><StatusDot status={risk.status} size="sm" withLabel /></div>
-                      <div className="text-xs text-zinc-300 truncate">{risk.frameworks?.[0] ?? '-'}</div>
+                      <div className="text-xs text-text-secondary truncate">{risk.frameworks?.[0] ?? '-'}</div>
                       <div>
-                        {risk.assigned_to ? <UserAvatar name={risk.assigned_to} size="sm" tooltip={false} /> : <span className="text-xs text-zinc-500">-</span>}
+                        {risk.assigned_to ? <UserAvatar name={risk.assigned_to} size="sm" tooltip={false} /> : <span className="text-xs text-text-muted">-</span>}
                       </div>
-                      <div className="text-xs text-zinc-500">{risk.updated_at ? new Date(risk.updated_at).toLocaleDateString() : '-'}</div>
+                      <div className="text-xs text-text-muted">{risk.updated_at ? new Date(risk.updated_at).toLocaleDateString() : '-'}</div>
                       <div className="flex items-center gap-2">
                         <Button onClick={(event) => { event.stopPropagation(); openDrawer(risk.id); }} variant="ghost" className="text-xs py-1 px-2">{t('common.edit')}</Button>
                       </div>
@@ -395,12 +395,12 @@ export const RiskListPage = () => {
 
             {risks.length > 0 && (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-zinc-400">{total} risques trouvés</div>
+                <div className="text-sm text-text-secondary">{total} risques trouvés</div>
                 <div className="flex items-center gap-2">
                   <Button onClick={() => setPage(Math.max(1, page - 1))} variant="ghost" disabled={page === 1}>
                     <ChevronLeft size={16} />
                   </Button>
-                  <span className="text-sm text-zinc-300">{page} / {totalPages}</span>
+                  <span className="text-sm text-text-secondary">{page} / {totalPages}</span>
                   <Button onClick={() => setPage(Math.min(totalPages, page + 1))} variant="ghost" disabled={page === totalPages}>
                     <ChevronRight size={16} />
                   </Button>

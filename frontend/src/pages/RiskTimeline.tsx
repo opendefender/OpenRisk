@@ -45,7 +45,7 @@ const changeTypeColors: Record<string, { bg: string; text: string; icon: any }> 
   TAG_REMOVED: { bg: 'bg-red-900', text: 'text-red-200', icon: '❌' },
   DESCRIPTION_UPDATED: { bg: 'bg-cyan-900', text: 'text-cyan-200', icon: '📝' },
   LEVEL_CHANGED: { bg: 'bg-orange-900', text: 'text-orange-200', icon: '⚠️' },
-  DELETED: { bg: 'bg-gray-900', text: 'text-gray-200', icon: '🗑️' },
+  DELETED: { bg: 'bg-surface-1', text: 'text-text-primary', icon: '🗑️' },
 };
 
 export default function RiskTimeline() {
@@ -115,38 +115,38 @@ export default function RiskTimeline() {
     if (changeType === 'SCORE_CHANGE') {
       const oldScore = parseFloat(oldValue || '0');
       const newScore = parseFloat(newValue || '0');
-      if (newScore > oldScore) return <ArrowUp className="w-4 h-4 text-red-400" />;
-      if (newScore < oldScore) return <ArrowDown className="w-4 h-4 text-green-400" />;
+      if (newScore > oldScore) return <ArrowUp className="w-4 h-4 text-danger-text" />;
+      if (newScore < oldScore) return <ArrowDown className="w-4 h-4 text-success-text" />;
     }
     return null;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-zinc-950">
-        <Loader className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className="flex items-center justify-center h-screen bg-surface-0">
+        <Loader className="w-8 h-8 text-info-text animate-spin" />
       </div>
     );
   }
 
   if (!riskId) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-0 text-text-primary p-6 flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-          <p className="text-zinc-400">No risk selected. Please select a risk to view its timeline.</p>
+          <AlertCircle className="w-12 h-12 text-text-muted mx-auto mb-4" />
+          <p className="text-text-secondary">No risk selected. Please select a risk to view its timeline.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-6">
+    <div className="min-h-screen bg-surface-0 text-text-primary p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">{riskTitle}</h1>
-          <p className="text-zinc-400 mt-2">
+          <p className="text-text-secondary mt-2">
             View all changes and events for this risk
           </p>
         </div>
@@ -175,10 +175,10 @@ export default function RiskTimeline() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+              className="bg-surface-1 border border-border-subtle rounded-lg p-4"
             >
-              <div className="text-sm text-zinc-400 mb-1">{stat.label}</div>
-              <div className="text-2xl font-bold text-white">{stat.value}</div>
+              <div className="text-sm text-text-secondary mb-1">{stat.label}</div>
+              <div className="text-2xl font-bold text-text-primary">{stat.value}</div>
             </motion.div>
           ))}
         </div>
@@ -192,8 +192,8 @@ export default function RiskTimeline() {
                 onClick={() => setFilter(ct.value)}
                 className={`px-3 py-1 rounded text-sm transition ${
                   filter === ct.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                    ? 'bg-accent-500 text-text-primary'
+                    : 'bg-surface-2 text-text-secondary hover:bg-surface-3'
                 }`}
               >
                 {ct.label}
@@ -203,7 +203,7 @@ export default function RiskTimeline() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="ml-auto px-3 py-1 bg-zinc-800 border border-zinc-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
+            className="ml-auto px-3 py-1 bg-surface-2 border border-border-default rounded text-sm text-text-primary focus:outline-none focus:border-accent-400"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -216,10 +216,10 @@ export default function RiskTimeline() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-12 bg-zinc-900 rounded-lg border border-zinc-800"
+              className="text-center py-12 bg-surface-1 rounded-lg border border-border-subtle"
             >
-              <Clock className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-              <p className="text-zinc-400">No changes recorded for this risk</p>
+              <Clock className="w-12 h-12 text-text-muted mx-auto mb-3" />
+              <p className="text-text-secondary">No changes recorded for this risk</p>
             </motion.div>
           ) : (
             <AnimatePresence>
@@ -240,11 +240,11 @@ export default function RiskTimeline() {
                   >
                     {/* Timeline Line */}
                     {idx < sortedTimeline.length - 1 && (
-                      <div className="absolute left-6 top-12 w-0.5 h-12 bg-zinc-800" />
+                      <div className="absolute left-6 top-12 w-0.5 h-12 bg-surface-2" />
                     )}
 
                     {/* Event Card */}
-                    <div className="relative bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition cursor-pointer"
+                    <div className="relative bg-surface-1 border border-border-subtle rounded-lg p-4 hover:border-border-default transition cursor-pointer"
                       onClick={() =>
                         setExpandedEvent(
                           expandedEvent === event.id ? null : event.id
@@ -255,7 +255,7 @@ export default function RiskTimeline() {
                         {/* Timeline Dot */}
                         <div className="flex flex-col items-center">
                           <div
-                            className={`w-6 h-6 rounded-full border-4 border-zinc-900 flex items-center justify-center text-lg ${colors.bg}`}
+                            className={`w-6 h-6 rounded-full border-4 border-border-subtle flex items-center justify-center text-lg ${colors.bg}`}
                           >
                             {colors.icon}
                           </div>
@@ -273,7 +273,7 @@ export default function RiskTimeline() {
                                   event.new_value
                                 )}
                               </h3>
-                              <p className="text-sm text-zinc-400">
+                              <p className="text-sm text-text-secondary">
                                 {event.change_description}
                               </p>
                             </div>
@@ -287,16 +287,16 @@ export default function RiskTimeline() {
                             <div className="grid grid-cols-2 gap-4 my-3 text-sm">
                               {event.old_value && (
                                 <div>
-                                  <span className="text-zinc-400">Old Value</span>
-                                  <p className="font-mono text-red-400 text-xs break-all">
+                                  <span className="text-text-secondary">Old Value</span>
+                                  <p className="font-mono text-danger-text text-xs break-all">
                                     {event.old_value}
                                   </p>
                                 </div>
                               )}
                               {event.new_value && (
                                 <div>
-                                  <span className="text-zinc-400">New Value</span>
-                                  <p className="font-mono text-green-400 text-xs break-all">
+                                  <span className="text-text-secondary">New Value</span>
+                                  <p className="font-mono text-success-text text-xs break-all">
                                     {event.new_value}
                                   </p>
                                 </div>
@@ -305,7 +305,7 @@ export default function RiskTimeline() {
                           )}
 
                           {/* Meta Info */}
-                          <div className="flex gap-4 text-xs text-zinc-500">
+                          <div className="flex gap-4 text-xs text-text-muted">
                             <div className="flex items-center gap-1">
                               <User className="w-3 h-3" />
                               {event.changed_by || 'System'}
@@ -324,33 +324,33 @@ export default function RiskTimeline() {
                                   initial={{ opacity: 0, height: 0 }}
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
-                                  className="mt-4 pt-4 border-t border-zinc-800"
+                                  className="mt-4 pt-4 border-t border-border-subtle"
                                 >
-                                  <div className="text-xs text-zinc-400 mb-2 font-semibold">
+                                  <div className="text-xs text-text-secondary mb-2 font-semibold">
                                     Snapshot at Time of Change
                                   </div>
-                                  <div className="bg-zinc-800/50 rounded p-3 space-y-2 text-xs">
+                                  <div className="bg-surface-2/50 rounded p-3 space-y-2 text-xs">
                                     <div>
-                                      <span className="text-zinc-500">Title:</span>{' '}
-                                      <span className="text-white">
+                                      <span className="text-text-muted">Title:</span>{' '}
+                                      <span className="text-text-primary">
                                         {event.risk_snapshot.title}
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-zinc-500">Status:</span>{' '}
-                                      <span className="text-white">
+                                      <span className="text-text-muted">Status:</span>{' '}
+                                      <span className="text-text-primary">
                                         {event.risk_snapshot.status}
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-zinc-500">Score:</span>{' '}
-                                      <span className="text-white">
+                                      <span className="text-text-muted">Score:</span>{' '}
+                                      <span className="text-text-primary">
                                         {event.risk_snapshot.score}/10
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-zinc-500">Level:</span>{' '}
-                                      <span className="text-white">
+                                      <span className="text-text-muted">Level:</span>{' '}
+                                      <span className="text-text-primary">
                                         {event.risk_snapshot.level}
                                       </span>
                                     </div>

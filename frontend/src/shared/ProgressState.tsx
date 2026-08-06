@@ -46,7 +46,7 @@ export function ProgressState({ title, steps = [], activeStep = 0, stat, percent
                 <div key={i} className="flex items-center gap-2.5 text-[12.5px]" style={{ color: active ? 'var(--text-primary)' : done ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                   <span
                     className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] shrink-0"
-                    style={{ background: done ? 'var(--low)' : active ? 'var(--accent)' : 'var(--bg-hover)', color: done || active ? '#fff' : 'var(--text-muted)' }}
+                    style={{ background: done ? 'var(--low)' : active ? 'var(--accent)' : 'var(--bg-hover)', color: done || active ? 'var(--text-inverse)' : 'var(--text-muted)' }}
                   >
                     {done ? '✓' : i + 1}
                   </span>

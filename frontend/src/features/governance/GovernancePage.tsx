@@ -616,8 +616,8 @@ function ModalShell({ title, onClose, onSubmit, submitLabel, children }: { title
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="or-scalein w-full max-w-lg flex flex-col rounded-[14px]" style={{ maxHeight: '90vh', background: 'var(--surface, #fff)', border: '1px solid var(--border-strong)' }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--surface-overlay)' }} onClick={onClose}>
+      <div className="or-scalein w-full max-w-lg flex flex-col rounded-[14px]" style={{ maxHeight: '90vh', background: 'var(--surface-2)', border: '1px solid var(--border-strong)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
           <span className="text-[15px] font-semibold">{title}</span>
           <button onClick={onClose}><X size={18} /></button>

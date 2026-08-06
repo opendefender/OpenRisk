@@ -113,9 +113,9 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 z-40" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-surface-overlay z-40" />
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="fixed inset-0 m-auto w-full max-w-md h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-50 overflow-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">Modifier la mitigation</h3>
+            <h3 className="text-lg font-semibold text-text-primary mb-4">Modifier la mitigation</h3>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <Input label="Titre" {...register('title')} />
               <Input label="Assigné à" {...register('assignee')} />
@@ -129,7 +129,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
               </div>
               {/* Sub-actions checklist */}
               <div className="mt-3">
-                <h4 className="text-sm font-medium text-white mb-2">Checklist</h4>
+                <h4 className="text-sm font-medium text-text-primary mb-2">Checklist</h4>
                 <div className="space-y-2">
                   {mitigation?.sub_actions?.length ? mitigation.sub_actions.map((s: any) => (
                     <div key={s.id} className="flex items-center justify-between bg-muted p-2 rounded">
@@ -137,7 +137,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
                         <input type="checkbox" checked={s.completed} onChange={() => toggleSub(s)} />
                         <span className={s.completed ? 'line-through text-muted-foreground' : ''}>{s.title}</span>
                       </div>
-                      <button type="button" className="text-sm text-red-400" onClick={() => deleteSub(s)}>Supprimer</button>
+                      <button type="button" className="text-sm text-danger-text" onClick={() => deleteSub(s)}>Supprimer</button>
                     </div>
                   )) : <div className="text-xs text-muted-foreground">Aucune sous-action</div>}
                 </div>

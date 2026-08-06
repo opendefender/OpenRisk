@@ -318,7 +318,7 @@ function SimulatorCard({ rows, lang, tr }: { rows: TopRiskFinancial[]; lang: str
         <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-2 w-full accent-[var(--accent)]" />
       </label>
 
-      <button onClick={run} disabled={!riskId || sim.isPending} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+      <button onClick={run} disabled={!riskId || sim.isPending} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
         <Coins size={16} /> {tr('Calculer le ROSI', 'Compute ROSI')}
       </button>
 

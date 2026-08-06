@@ -41,7 +41,7 @@ export function AiEvidenceAnalysis({ evidenceId }: { evidenceId: string }) {
       {res && v && (
         <div className="mt-2 p-3 rounded-[11px] text-[12px]" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-fadeup .2s ease' }}>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-white" style={{ background: v.color }}>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-text-primary" style={{ background: v.color }}>
               {tr(v.fr, v.en)}
             </span>
             <span className="text-ink-muted text-[11px]">{tr('Confiance', 'Confidence')} {(res.confidence * 100).toFixed(0)}%</span>

@@ -57,7 +57,7 @@ export const AutoDetectedBadge = ({
       transition={{ duration: 0.2 }}
       className={cn(
         'group relative inline-flex items-center rounded-full border font-medium',
-        'bg-emerald-500/20 border-emerald-500/50 text-emerald-400',
+        'bg-success/20 border-success/50 text-success-text',
         sizeClasses[size],
         className
       )}
@@ -66,9 +66,9 @@ export const AutoDetectedBadge = ({
       <span>Auto</span>
       
       {/* Tooltip */}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-surface-1 border border-border-default rounded-lg text-xs text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
         {tooltipText}
-        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-zinc-900 border-r border-b border-zinc-700 rotate-45 -translate-y-1" />
+        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-surface-1 border-r border-b border-border-default rotate-45 -translate-y-1" />
       </div>
     </motion.div>
   );

@@ -36,7 +36,7 @@ export function PremiumPeek({ title, benefit, ctaLabel = 'Débloquer', onUpgrade
         <div className="text-[13px] text-ink-soft max-w-[42ch]">{benefit}</div>
         <button
           onClick={onUpgrade}
-          className="mt-1.5 h-[38px] px-4 rounded-[10px] text-[13px] font-semibold text-white inline-flex items-center gap-2"
+          className="mt-1.5 h-[38px] px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-2"
           style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}
         >
           <Sparkles size={15} /> {ctaLabel}

@@ -175,10 +175,10 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={cn('space-y-2', snapshot.isDraggingOver && 'bg-blue-500/10 rounded-lg p-2')}
+            className={cn('space-y-2', snapshot.isDraggingOver && 'bg-accent-500/10 rounded-lg p-2')}
           >
             {displaySubActions.length === 0 ? (
-              <div className="text-center py-8 text-zinc-500 text-sm">
+              <div className="text-center py-8 text-text-muted text-sm">
                 Aucune sous-action
               </div>
             ) : (
@@ -199,8 +199,8 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                         className={cn(
-                          'flex items-center gap-3 p-3 rounded-lg border border-zinc-700 bg-zinc-800/40 transition-all',
-                          snapshot.isDragging && 'bg-blue-500/20 shadow-lg',
+                          'flex items-center gap-3 p-3 rounded-lg border border-border-default bg-surface-2/40 transition-all',
+                          snapshot.isDragging && 'bg-accent-500/20 shadow-lg',
                           (subAction.depends_on?.length || 0) > 0 && 'border-l-2 border-l-yellow-500',
                           isReverting && 'opacity-50'
                         )}
@@ -208,22 +208,22 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         {/* Checkbox */}
                         <button
                           onClick={() => handleToggleCompleted(subAction)}
-                          className="flex-shrink-0 p-1 hover:bg-zinc-700 rounded transition-colors"
+                          className="flex-shrink-0 p-1 hover:bg-surface-3 rounded transition-colors"
                         >
                           {isCompleted ? (
-                            <CheckCircle2 size={20} className="text-emerald-500" />
+                            <CheckCircle2 size={20} className="text-success-text" />
                           ) : (
-                            <div className="w-5 h-5 border-2 border-zinc-600 rounded-full hover:border-zinc-500" />
+                            <div className="w-5 h-5 border-2 border-border-default rounded-full hover:border-border-strong" />
                           )}
                         </button>
 
                         {/* Title & Dependencies */}
                         <div className="flex-1 min-w-0">
-                          <p className={cn('text-sm font-medium truncate', isCompleted && 'line-through text-zinc-500')}>
+                          <p className={cn('text-sm font-medium truncate', isCompleted && 'line-through text-text-muted')}>
                             {subAction.title}
                           </p>
                           {(subAction.depends_on?.length || 0) > 0 && (
-                            <p className="text-xs text-yellow-600 mt-1">
+                            <p className="text-xs text-warning-text mt-1">
                               ⚠️ Dépend de {subAction.depends_on?.length || 0} autre(s)
                             </p>
                           )}
@@ -237,7 +237,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                               scanId={subAction.scanner_details?.scan_id || 'unknown'}
                             />
                           ) : (
-                            <span className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-400">
+                            <span className="text-xs px-2 py-1 rounded-full bg-accent-500/20 text-info-text">
                               Manuel
                             </span>
                           )}
@@ -260,7 +260,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         {(subAction.evidence_ids?.length || 0) > 0 && (
                           <a
                             href={`#evidence-${subAction.evidence_ids?.[0] || ''}`}
-                            className="text-xs text-blue-400 hover:text-blue-300"
+                            className="text-xs text-info-text hover:text-info-text"
                           >
                             Preuve
                           </a>
