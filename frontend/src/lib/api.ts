@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { CSRF_HEADER, getAccessToken, getCsrfToken } from './session';
+import { markApiFailure, markApiSuccess } from './connection';
 
 /**
  * API base URL.
@@ -60,8 +61,20 @@ api.interceptors.request.use((config) => {
 const TOKEN_ERROR_CODES = new Set(['TOKEN_EXPIRED', 'TOKEN_REVOKED', 'TOKEN_INVALID', 'UNAUTHORIZED']);
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Feeds the header's connection indicator with a real observation.
+    markApiSuccess();
+    return response;
+  },
   (error) => {
+    if (error.response) {
+      // The backend answered — the connection is fine even if the answer is 4xx.
+      markApiSuccess();
+    } else {
+      // No response at all: refused, timed out, DNS, CORS. That is a real
+      // connection fault, and the only thing the status dot may go amber for.
+      markApiFailure();
+    }
     if (error.response?.status === 401 && TOKEN_ERROR_CODES.has(error.response?.data?.code)) {
       window.location.href = '/login'; // Redirection forcée
     }

@@ -7,11 +7,12 @@
 // and a create dialog. The fixture War Room console lives at
 // /incidents/:id/war-room (Preview) and is reachable per-incident.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Siren, Plus, Trash2, Radio, ShieldAlert, CheckCircle2, Activity, X, Loader2, Download } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState, softFill } from '../../shared/ui';
+import { PageFrame, PageHeader, Btn, Card, EmptyState, softFill } from '../../shared/ui';
+import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { relTime } from '../risks/riskMap';
@@ -30,13 +31,17 @@ export function IncidentsScreen() {
   const hasRole = useAuthStore((s) => s.hasRole);
   const canWrite = hasRole('admin') || hasRole('analyst');
 
-  const [filter, setFilter] = useState<'' | IncidentStatus>('');
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  // URL-backed table state. GET /incidents has filters but no pagination, so the
+  // table runs in client mode over the loaded register.
+  const table = useTableState({ defaultSort: { key: 'reported', dir: 'desc' }, defaultPageSize: 50 });
+  const statusFilter = (table.state.filters.status?.[0] ?? '') as '' | IncidentStatus;
+
   const { data: stats } = useIncidentStats();
-  const { incidents, isLoading, updateIncident, deleteIncident } = useIncidents(filter ? { status: filter } : {});
+  const { incidents, isLoading, isError, refetch, updateIncident, deleteIncident } = useIncidents(statusFilter ? { status: statusFilter } : {});
 
   const setStatus = (inc: Incident, status: IncidentStatus) => {
     if (status === inc.status) return;
@@ -53,13 +58,13 @@ export function IncidentsScreen() {
     onCommit: (id) => deleteIncident.mutateAsync(Number(id)),
     message: (inc, lang) => (lang === 'fr' ? `Incident « ${inc.title} » supprimé` : `Incident "${inc.title}" deleted`),
   });
-  const visibleIncidents = incidents.filter((inc) => !pending.has(String(inc.id)));
+  const visibleIncidents = useMemo(() => incidents.filter((inc) => !pending.has(String(inc.id))), [incidents, pending]);
   const remove = (inc: Incident) => softDeleteIncident(inc);
 
   const exportCsv = async () => {
     setExporting(true);
     try {
-      const n = await exportIncidentsCsv(filter ? { status: filter } : {});
+      const n = await exportIncidentsCsv(statusFilter ? { status: statusFilter } : {});
       toast.success(tr(`${n} incident(s) exporté(s)`, `${n} incident(s) exported`));
     } catch {
       toast.error(tr('Export échoué', 'Export failed'));
@@ -80,6 +85,126 @@ export function IncidentsScreen() {
     { icon: ShieldAlert, label: tr('Critiques', 'Critical'), value: stats?.critical_incidents ?? 0, color: 'var(--high)' },
     { icon: CheckCircle2, label: tr('Taux de résolution', 'Resolution rate'), value: `${Math.round(stats?.resolution_rate ?? 0)}%`, color: 'var(--low)' },
   ];
+
+  /* --------------------------------------------------------------- facets */
+  const facets: Facet<Incident>[] = useMemo(() => [
+    {
+      // Single-choice: this facet is pushed to the API (?status=), which takes one.
+      key: 'status',
+      label: tr('Statut', 'Status'),
+      single: true,
+      options: STATUSES.map((st) => ({ value: st, label: tr(STATUS[st].fr, STATUS[st].en), color: STATUS[st].color })),
+      matches: () => true,
+    },
+    {
+      key: 'severity',
+      label: tr('Sévérité', 'Severity'),
+      options: SEVERITIES.map((sv) => ({ value: sv, label: tr(SEV[sv].fr, SEV[sv].en), color: SEV[sv].color })),
+      matches: (inc, selectedValues) => selectedValues.includes(inc.severity),
+    },
+    {
+      key: 'type',
+      label: tr('Type', 'Type'),
+      options: TYPES.map((ty) => ({ value: ty, label: ty.replace('_', ' ') })),
+      matches: (inc, selectedValues) => selectedValues.includes(inc.incident_type ?? ''),
+    },
+  ], [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* -------------------------------------------------------------- columns */
+  const columns: Column<Incident>[] = useMemo(() => [
+    {
+      key: 'title',
+      header: tr('Incident', 'Incident'),
+      frozen: true,
+      hideable: false,
+      sortValue: (inc) => inc.title.toLowerCase(),
+      exportValue: (inc) => inc.title,
+      render: (inc) => (
+        <>
+          <div className="text-[13.5px] font-medium text-ink">{inc.title}</div>
+          {inc.description && <div className="text-[12px] text-ink-muted mt-0.5 max-w-[420px] leading-snug truncate">{inc.description}</div>}
+        </>
+      ),
+    },
+    { key: 'type', header: tr('Type', 'Type'), sortValue: (inc) => inc.incident_type ?? '', exportValue: (inc) => inc.incident_type ?? '', render: (inc) => <span className="text-[12px] text-ink-soft capitalize">{inc.incident_type?.replace('_', ' ') || '—'}</span> },
+    {
+      key: 'severity',
+      header: tr('Sévérité', 'Severity'),
+      sortValue: (inc) => SEVERITIES.indexOf(inc.severity),
+      exportValue: (inc) => inc.severity,
+      render: (inc) => (
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: sevMeta(inc.severity).color, background: softFill(sevMeta(inc.severity).color, 15) }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: sevMeta(inc.severity).color }} />
+          {tr(sevMeta(inc.severity).fr, sevMeta(inc.severity).en)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: tr('Statut', 'Status'),
+      sortValue: (inc) => inc.status,
+      exportValue: (inc) => inc.status,
+      render: (inc) => (
+        <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+          <span className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none" style={{ background: statusMeta(inc.status).color }} />
+          <select
+            value={inc.status}
+            disabled={!canWrite}
+            aria-label={tr('Statut de l’incident', 'Incident status')}
+            onChange={(e) => setStatus(inc, e.target.value as IncidentStatus)}
+            className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 outline-none disabled:opacity-70"
+            style={{ color: statusMeta(inc.status).color, background: `color-mix(in srgb,${statusMeta(inc.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${statusMeta(inc.status).color} 30%,transparent)`, cursor: canWrite ? 'pointer' : 'not-allowed' }}
+          >
+            {STATUSES.map((st) => (
+              <option key={st} value={st} style={{ color: 'var(--text-primary)', background: 'var(--bg-elevated)' }}>{tr(STATUS[st].fr, STATUS[st].en)}</option>
+            ))}
+          </select>
+        </div>
+      ),
+    },
+    {
+      key: 'reported',
+      header: tr('Signalé', 'Reported'),
+      sortValue: (inc) => new Date(inc.created_at ?? 0).getTime(),
+      exportValue: (inc) => inc.created_at ?? '',
+      render: (inc) => (
+        <>
+          <div className="text-[12.5px] text-ink-soft">{relTime(inc.created_at, lang)}</div>
+          {inc.reported_by && <div className="text-[11.5px] text-ink-muted">{inc.reported_by}</div>}
+        </>
+      ),
+    },
+  ], [lang, canWrite]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* -------------------------------------------------------------- actions */
+  const rowActions: RowAction<Incident>[] = useMemo(() => [
+    { key: 'open', label: tr('Ouvrir', 'Open'), icon: Activity, onSelect: (inc) => setSelected(inc) },
+    { key: 'warroom', label: tr('War Room', 'War Room'), icon: Radio, onSelect: (inc) => navigate(`/incidents/${inc.id}/war-room`) },
+    { key: 'delete', label: tr('Supprimer', 'Delete'), icon: Trash2, danger: true, separatorBefore: true, hidden: () => !canWrite, onSelect: (inc) => remove(inc) },
+  ], [lang, canWrite, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const bulkActions: BulkAction<Incident>[] = useMemo(() => [
+    {
+      key: 'resolve',
+      label: tr('Marquer résolus', 'Mark resolved'),
+      icon: CheckCircle2,
+      hidden: !canWrite,
+      selectionOnly: true,
+      run: async ({ rows }) => {
+        await Promise.all(rows.map((inc) => updateIncident.mutateAsync({ id: inc.id, input: { status: 'resolved' } })));
+        toast.success(tr(`${rows.length} incident(s) résolu(s)`, `${rows.length} incident(s) resolved`));
+      },
+    },
+    {
+      key: 'delete',
+      label: tr('Supprimer', 'Delete'),
+      icon: Trash2,
+      danger: true,
+      hidden: !canWrite,
+      selectionOnly: true,
+      run: async ({ rows }) => { rows.forEach((inc) => remove(inc)); },
+    },
+  ], [lang, canWrite, updateIncident]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <PageFrame wide>
@@ -112,87 +237,35 @@ export function IncidentsScreen() {
         ))}
       </div>
 
-      {/* filters */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <Chip label={tr('Tous', 'All')} active={filter === ''} onClick={() => setFilter('')} />
-        {STATUSES.map((s) => (
-          <Chip key={s} label={tr(STATUS[s].fr, STATUS[s].en)} active={filter === s} onClick={() => setFilter(s)} color={STATUS[s].color} />
-        ))}
-      </div>
-
-      <Card style={{ padding: '8px 8px 4px', overflow: 'hidden' }}>
-        {isLoading ? (
-          <SkeletonRows rows={6} />
-        ) : incidents.length === 0 ? (
+      <DataTable
+        id="incidents"
+        ariaLabel={tr('Incidents', 'Incidents')}
+        rows={visibleIncidents}
+        columns={columns}
+        rowKey={(inc) => String(inc.id)}
+        api={table}
+        mode="client"
+        loading={isLoading}
+        error={isError}
+        onRetry={() => void refetch()}
+        facets={facets}
+        clientSearch={(inc, q) => `${inc.title} ${inc.description ?? ''} ${inc.reported_by ?? ''}`.toLowerCase().includes(q)}
+        searchPlaceholder={tr('Titre, description ou déclarant…', 'Title, description or reporter…')}
+        selectable={canWrite}
+        rowActions={rowActions}
+        bulkActions={bulkActions}
+        onRowClick={(inc) => setSelected(inc)}
+        exportFilename="incidents"
+        minWidth={880}
+        empty={
           <EmptyState
             icon={Siren}
             title={tr('Aucun incident', 'No incidents')}
             description={tr('Rien à signaler ici. Ouvrez un incident pour coordonner la réponse.', 'Nothing to report. Open an incident to coordinate the response.')}
             primaryAction={canWrite ? <Btn label={tr('Nouvel incident', 'New incident')} icon={Plus} primary onClick={() => setShowCreate(true)} /> : undefined}
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 820 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}>
-                <tr>
-                  {[tr('Incident', 'Incident'), tr('Type', 'Type'), tr('Sévérité', 'Severity'), tr('Statut', 'Status'), tr('Signalé', 'Reported'), ''].map((t, i) => (
-                    <th key={i} className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visibleIncidents.map((inc, i) => (
-                  <tr
-                    key={inc.id}
-                    onClick={() => setSelected(inc)}
-                    className="cursor-pointer transition-colors hover:bg-hover"
-                    style={{ borderBottom: '1px solid var(--border)', animation: 'or-fadeup .3s ease both', animationDelay: `${Math.min(i * 0.025, 0.4)}s` }}
-                  >
-                    <td className="px-3 py-3">
-                      <div className="text-[13.5px] font-medium text-ink">{inc.title}</div>
-                      {inc.description && <div className="text-[12px] text-ink-muted mt-0.5 max-w-[420px] leading-snug truncate">{inc.description}</div>}
-                    </td>
-                    <td className="px-3 py-3 align-top"><span className="text-[12px] text-ink-soft capitalize">{inc.incident_type?.replace('_', ' ') || '—'}</span></td>
-                    <td className="px-3 py-3 align-top">
-                      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: sevMeta(inc.severity).color, background: softFill(sevMeta(inc.severity).color, 15) }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: sevMeta(inc.severity).color }} />
-                        {tr(sevMeta(inc.severity).fr, sevMeta(inc.severity).en)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
-                      <div className="relative inline-flex items-center">
-                        <span className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none" style={{ background: statusMeta(inc.status).color }} />
-                        <select
-                          value={inc.status}
-                          disabled={!canWrite}
-                          onChange={(e) => setStatus(inc, e.target.value as IncidentStatus)}
-                          className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 outline-none disabled:opacity-70"
-                          style={{ color: statusMeta(inc.status).color, background: `color-mix(in srgb,${statusMeta(inc.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${statusMeta(inc.status).color} 30%,transparent)`, cursor: canWrite ? 'pointer' : 'not-allowed' }}
-                        >
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s} style={{ color: 'var(--text-primary)', background: 'var(--bg-elevated)' }}>{tr(STATUS[s].fr, STATUS[s].en)}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 align-top">
-                      <div className="text-[12.5px] text-ink-soft">{relTime(inc.created_at, lang)}</div>
-                      {inc.reported_by && <div className="text-[11.5px] text-ink-muted">{inc.reported_by}</div>}
-                    </td>
-                    <td className="px-3 py-3 align-top text-right" onClick={(e) => e.stopPropagation()}>
-                      {canWrite && (
-                        <button onClick={() => remove(inc)} className="w-8 h-8 rounded-lg inline-flex items-center justify-center transition-colors hover:bg-hover" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')} aria-label={tr('Supprimer', 'Delete')}>
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        }
+      />
 
       {showCreate && <CreateIncidentModal onClose={() => setShowCreate(false)} />}
       {selected && <IncidentDrawer incident={selected} canWrite={canWrite} onClose={() => setSelected(null)} />}

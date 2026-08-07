@@ -286,8 +286,29 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 	if q := c.Query("q"); q != "" {
 		query.Search = q
 	}
+	// Faceted filters. Each accepts a comma-separated list so the register's
+	// filter panel can combine several values of the same facet in one query
+	// (?status=open,in_progress&criticality=critical,high). All of them are
+	// applied ON TOP of the tenant predicate in the repository (RULE #2).
 	if status := c.Query("status"); status != "" {
-		query.Status = []string{status}
+		query.Status = csvValues(status)
+	}
+	if crit := c.Query("criticality"); crit != "" {
+		query.Criticality = csvValues(crit)
+	}
+	if phase := c.Query("phase"); phase != "" {
+		query.LifecyclePhase = csvValues(phase)
+	}
+	if source := c.Query("source"); source != "" {
+		query.Source = csvValues(source)
+	}
+	if framework := c.Query("framework"); framework != "" {
+		query.Framework = framework
+	}
+	if assignee := c.Query("assigned_to"); assignee != "" {
+		if id, err := uuid.Parse(assignee); err == nil {
+			query.AssignedTo = &id
+		}
 	}
 	if minScoreStr := c.Query("min_score"); minScoreStr != "" {
 		if v, err := strconv.ParseFloat(minScoreStr, 64); err == nil {
@@ -321,7 +342,7 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 
 	if sortBy != "" {
 		switch strings.ToLower(sortBy) {
-		case "score", "title", "created_at", "updated_at", "impact", "probability", "status", "source":
+		case "score", "name", "title", "created_at", "updated_at", "impact", "probability", "status", "criticality", "source":
 			query.SortBy = sortBy
 		case "newest":
 			query.SortBy = "created_at"

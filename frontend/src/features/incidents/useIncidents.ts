@@ -77,6 +77,9 @@ export function useIncidents(params: IncidentListParams = {}) {
       total: query.data?.total ?? 0,
       isLoading: query.isLoading,
       error: query.error,
+      // Surfaced so the register can offer a retry instead of an empty state.
+      isError: query.isError,
+      refetch: query.refetch,
       createIncident,
       updateIncident,
       deleteIncident,

@@ -5,11 +5,14 @@
 // with type-icon, criticality badge, derived score (max of linked risks), linked-risk
 // count and last-updated. Type-filter chips; create/edit modals; loading + empty states.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Atom, Plus, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, type LucideIcon } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Chip, Card, CritBadge, SkeletonRows, EmptyState } from '../../shared/ui';
-import { DataTable, type Column } from '../../shared/DataTable';
+import { toast } from 'sonner';
+import { Atom, Plus, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, History, Pencil, Trash2, type LucideIcon } from 'lucide-react';
+import { PageFrame, PageHeader, Btn, CritBadge, EmptyState } from '../../shared/ui';
+import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
+import { useAuthStore } from '../../hooks/useAuthStore';
+import { ImpactDialog } from '../../shared/ImpactDialog';
 import { critColor, scoreColor, softFill, type Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
@@ -33,38 +36,64 @@ const scoreOf = (a: Asset): number | null => {
   return Math.max(...rs.map((r) => r.score ?? 0));
 };
 const CRIT_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+const CRIT_LABEL_FR: Record<string, string> = { critical: 'Critique', high: 'Élevée', medium: 'Moyenne', low: 'Faible' };
+const CRIT_LABEL_EN: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+const t = (lang: 'fr' | 'en', fr: string, en: string) => (lang === 'fr' ? fr : en);
 
 export function InventoryPage() {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { assets, isLoading } = useAssets();
-  const [type, setType] = useState<string | null>(null);
+  const { assets, isLoading, isError, refetch, deleteAsset } = useAssets();
+  const canUpdate = useAuthStore((s) => s.hasPermission('assets:update'));
+  const canDelete = useAuthStore((s) => s.hasPermission('assets:delete'));
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Asset | undefined>(undefined);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Asset | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // Deep-link from universal search (/assets?focus=<id>) → open that asset's editor
-  // once it's present in the loaded list.
+  // GET /assets returns the whole inventory (no server pagination — the graph
+  // view needs every node), so the table filters, sorts and pages client-side.
+  const table = useTableState({ defaultSort: { key: 'crit', dir: 'desc' }, defaultPageSize: 50 });
+
+  // Deep-link from universal search (/assets?focus=<id>): derived from the URL,
+  // so it resolves as soon as the asset lands in the loaded list.
   const { focusId, clearFocus } = useFocusParam();
-  useEffect(() => {
-    if (!focusId) return;
-    const a = assets.find((x) => x.id === focusId);
-    if (a) {
-      setEditing(a);
-      clearFocus();
-    }
-  }, [focusId, assets, clearFocus]);
+  const focused = focusId ? assets.find((a) => a.id === focusId) : undefined;
+  const editTarget = editing ?? focused;
+  const closeEditor = () => { setEditing(undefined); clearFocus(); };
 
   const types = useMemo(() => [...new Set(assets.map((a) => a.type).filter(Boolean) as string[])], [assets]);
-  const rows = assets.filter((a) => !type || a.type === type);
 
-  // Kit adoption (docs/UI_ELEVATION §6): dense, sortable, density-aware DataTable with
-  // a frozen Asset column. Default sort surfaces the most critical assets first.
+  const facets: Facet<Asset>[] = useMemo(() => [
+    {
+      key: 'type',
+      label: t(lang, 'Type', 'Type'),
+      options: types.map((ty) => ({ value: ty, label: ty })),
+      matches: (a, selected) => selected.includes(a.type ?? ''),
+    },
+    {
+      key: 'criticality',
+      label: t(lang, 'Criticité', 'Criticality'),
+      options: (['critical', 'high', 'medium', 'low'] as const).map((c) => ({
+        value: c,
+        label: t(lang, CRIT_LABEL_FR[c], CRIT_LABEL_EN[c]),
+        color: critColor[c],
+      })),
+      matches: (a, selected) => selected.includes((a.criticality ?? 'LOW').toLowerCase()),
+    },
+  ], [types, lang]);
+
   const columns: Column<Asset>[] = useMemo(() => [
     {
-      key: 'name', header: tr('Actif', 'Asset'), frozen: true, sortValue: (a) => (a.name ?? '').toLowerCase(),
+      key: 'name',
+      header: t(lang, 'Actif', 'Asset'),
+      frozen: true,
+      hideable: false,
+      sortValue: (a) => (a.name ?? '').toLowerCase(),
+      exportValue: (a) => a.name ?? '',
       render: (a) => {
         const crit = ((a.criticality ?? 'LOW').toLowerCase()) as Criticality;
         const Icon = TYPE_ICON[a.type ?? 'Server'] ?? Server;
@@ -79,13 +108,47 @@ export function InventoryPage() {
         );
       },
     },
-    { key: 'type', header: 'Type', sortValue: (a) => a.type ?? '', render: (a) => <span className="text-[12.5px] text-ink-soft">{a.type ?? '—'}</span> },
-    { key: 'crit', header: L.col_crit, sortValue: (a) => CRIT_RANK[(a.criticality ?? 'LOW').toLowerCase()] ?? 0, render: (a) => <CritBadge crit={((a.criticality ?? 'LOW').toLowerCase()) as Criticality} /> },
-    { key: 'score', header: 'Score', align: 'right', sortValue: (a) => scoreOf(a) ?? -1, render: (a) => { const sc = scoreOf(a); return sc != null ? <span className="mono text-[14px] font-bold" style={{ color: scoreColor(sc) }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>; } },
-    { key: 'risks', header: tr('Risques', 'Risks'), align: 'right', sortValue: (a) => a.risks?.length ?? 0, render: (a) => <span className="text-[13px] text-ink">{a.risks?.length || '—'}</span> },
-    { key: 'mod', header: L.col_mod, sortValue: (a) => new Date(a.updated_at ?? 0).getTime(), render: (a) => <span className="text-[12px] text-ink-soft">{relTime(a.updated_at, lang)}</span> },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [lang]);
+    { key: 'type', header: 'Type', sortValue: (a) => a.type ?? '', exportValue: (a) => a.type ?? '', render: (a) => <span className="text-[12.5px] text-ink-soft">{a.type ?? '—'}</span> },
+    { key: 'crit', header: L.col_crit, sortValue: (a) => CRIT_RANK[(a.criticality ?? 'LOW').toLowerCase()] ?? 0, exportValue: (a) => a.criticality ?? '', render: (a) => <CritBadge crit={((a.criticality ?? 'LOW').toLowerCase()) as Criticality} /> },
+    { key: 'score', header: 'Score', align: 'right', sortValue: (a) => scoreOf(a) ?? -1, exportValue: (a) => scoreOf(a)?.toFixed(1) ?? '', render: (a) => { const sc = scoreOf(a); return sc != null ? <span className="mono text-[14px] font-bold" style={{ color: scoreColor(sc) }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>; } },
+    { key: 'risks', header: t(lang, 'Risques', 'Risks'), align: 'right', sortValue: (a) => a.risks?.length ?? 0, exportValue: (a) => a.risks?.length ?? 0, render: (a) => <span className="text-[13px] text-ink">{a.risks?.length || '—'}</span> },
+    { key: 'mod', header: L.col_mod, sortValue: (a) => new Date(a.updated_at ?? 0).getTime(), exportValue: (a) => a.updated_at ?? '', render: (a) => <span className="text-[12px] text-ink-soft">{relTime(a.updated_at, lang)}</span> },
+  ], [lang, L]);
+
+  const rowActions: RowAction<Asset>[] = useMemo(() => [
+    { key: 'edit', label: t(lang, 'Modifier', 'Edit'), icon: Pencil, hidden: () => !canUpdate, onSelect: (a) => setEditing(a) },
+    { key: 'history', label: t(lang, 'Historique', 'History'), icon: History, onSelect: (a) => setHistoryAssetId(a.id as string) },
+    { key: 'delete', label: t(lang, 'Supprimer', 'Delete'), icon: Trash2, danger: true, separatorBefore: true, hidden: () => !canDelete, onSelect: (a) => setToDelete(a) },
+  ], [lang, canUpdate, canDelete]);
+
+  const bulkActions: BulkAction<Asset>[] = useMemo(() => [
+    {
+      key: 'delete',
+      label: t(lang, 'Supprimer', 'Delete'),
+      icon: Trash2,
+      danger: true,
+      hidden: !canDelete,
+      selectionOnly: true,
+      run: async ({ ids }) => {
+        await Promise.all(ids.map((id) => deleteAsset.mutateAsync(id)));
+        toast.success(t(lang, `${ids.length} actif(s) supprimé(s)`, `${ids.length} asset(s) deleted`));
+      },
+    },
+  ], [lang, canDelete, deleteAsset]);
+
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      await deleteAsset.mutateAsync(toDelete.id as string);
+      toast.success(t(lang, 'Actif supprimé', 'Asset deleted'));
+      setToDelete(null);
+    } catch {
+      toast.error(t(lang, 'Suppression échouée', 'Delete failed'));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <PageFrame wide>
@@ -100,43 +163,60 @@ export function InventoryPage() {
         }
       />
 
-      {assets.length > 0 && (
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <Chip label={tr('Tous', 'All')} active={!type} onClick={() => setType(null)} />
-          {types.map((t) => <Chip key={t} label={t} active={type === t} onClick={() => setType(t)} />)}
-        </div>
-      )}
-
-      <Card style={{ padding: '8px 8px 0', overflow: 'hidden' }}>
-        {isLoading && assets.length === 0 ? (
-          <SkeletonRows rows={6} />
-        ) : assets.length === 0 ? (
+      <DataTable
+        id="assets"
+        ariaLabel={L.n_assets}
+        rows={assets}
+        columns={columns}
+        rowKey={(a) => a.id as string}
+        api={table}
+        mode="client"
+        loading={isLoading}
+        error={isError}
+        onRetry={() => void refetch()}
+        facets={facets}
+        clientSearch={(a, q) => `${a.name ?? ''} ${a.type ?? ''} ${a.owner ?? ''}`.toLowerCase().includes(q)}
+        searchPlaceholder={tr('Nom, type ou responsable…', 'Name, type or owner…')}
+        selectable
+        rowActions={rowActions}
+        bulkActions={bulkActions}
+        onRowClick={(a) => setEditing(a)}
+        exportFilename="inventaire-actifs"
+        minWidth={780}
+        empty={
           <EmptyState
             icon={Boxes}
             title={tr('Aucun actif inventorié', 'No assets yet')}
             description={tr('Ajoutez vos serveurs, bases de données et services pour cartographier votre surface d’attaque.', 'Add your servers, databases and services to map your attack surface.')}
             primaryAction={<Btn label={tr('Nouvel actif', 'New asset')} icon={Plus} primary onClick={() => setCreating(true)} />}
           />
-        ) : (
-          <DataTable
-            rows={rows}
-            columns={columns}
-            rowKey={(a) => a.id as string}
-            onRowClick={(a) => setEditing(a)}
-            minWidth={720}
-            initialSort={{ key: 'crit', dir: 'desc' }}
-            empty={<EmptyState variant="no-results" title={tr('Aucun résultat', 'No results')} description={tr('Aucun actif ne correspond à ce filtre. L’inventaire en contient d’autres.', 'No asset matches this filter. The inventory holds others.')} />}
-          />
-        )}
-      </Card>
+        }
+      />
 
       <CreateAssetModal isOpen={creating} onClose={() => setCreating(false)} />
       <EditAssetModal
-        asset={editing}
-        onClose={() => setEditing(undefined)}
-        onShowHistory={(id) => { setEditing(undefined); setHistoryAssetId(id); }}
+        asset={editTarget}
+        onClose={closeEditor}
+        onShowHistory={(id) => { closeEditor(); setHistoryAssetId(id); }}
       />
       <AssetHistoryDrawer assetId={historyAssetId} onClose={() => setHistoryAssetId(null)} />
+
+      <ImpactDialog
+        open={!!toDelete}
+        title={tr('Supprimer cet actif ?', 'Delete this asset?')}
+        subject={toDelete?.name ?? ''}
+        description={tr('Action irréversible. Voici ce qui sera supprimé :', 'This cannot be undone. Here is what will be removed:')}
+        impacts={toDelete ? [
+          { label: tr('Risques liés', 'Linked risks'), detail: String(toDelete.risks?.length ?? 0) },
+          { label: tr('Dépendances cartographiées', 'Mapped dependencies'), detail: tr('supprimées', 'removed') },
+          { label: tr('Historique des modifications', 'Change history'), detail: tr('conservé mais inaccessible', 'kept but unreachable') },
+        ] : []}
+        confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
+        cancelLabel={tr('Annuler', 'Cancel')}
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setToDelete(null)}
+      />
     </PageFrame>
   );
 }
