@@ -12,6 +12,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Clock, ShieldCheck, KanbanSquare, Rows3, GanttChartSquare, ChevronDown, Check, Loader2 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Avatar, Skeleton, EmptyState, softFill } from '../../shared/ui';
+import { DataTable, useTableState, type Column as TableColumn, type Facet, type RowAction } from '../../shared/datatable';
 import { critColor } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
@@ -29,7 +30,7 @@ export function MitigationsBoard() {
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { columns, items, isLoading } = useMitigations();
+  const { columns, items, isLoading, isError, refetch } = useMitigations();
   const [view, setView] = useState<View>('kanban');
 
   // Live scanner-driven auto-completions push over SSE → refresh the board so the
@@ -99,7 +100,7 @@ export function MitigationsBoard() {
           </div>
         </div>
       ) : view === 'table' ? (
-        <TableView items={items} isLoading={isLoading} statusLabel={statusLabel} statusColor={statusColor} onOpen={(m: UiMiti) => navigate(`/risks/mitigations/${m.id}`)} />
+        <TableView items={items} isLoading={isLoading} isError={isError} onRetry={refetch} statusLabel={statusLabel} statusColor={statusColor} onOpen={(m: UiMiti) => navigate(`/risks/mitigations/${m.id}`)} />
       ) : (
         <GanttView items={items} isLoading={isLoading} statusColor={statusColor} />
       )}
@@ -192,48 +193,128 @@ function InlineMitiStatus({ c, statusLabel, statusColor }: { c: UiMiti; statusLa
   );
 }
 
-function TableView({ items, isLoading, statusLabel, statusColor, onOpen }: { items: UiMiti[]; isLoading: boolean; statusLabel: Record<Column, string>; statusColor: Record<Column, string>; onOpen: (m: UiMiti) => void }) {
+// Table view — <DataTable> in client mode: GET /mitigations returns the board in
+// one page (200 max) because the Kanban and the Gantt need the whole set, so the
+// filtering, sorting and paging happen here rather than round-tripping.
+function TableView({
+  items, isLoading, isError, onRetry, statusLabel, statusColor, onOpen,
+}: {
+  items: UiMiti[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  statusLabel: Record<Column, string>;
+  statusColor: Record<Column, string>;
+  onOpen: (m: UiMiti) => void;
+}) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  if (isLoading) return <div className="flex flex-col gap-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} style={{ height: 44 }} />)}</div>;
+  const table = useTableState({ defaultSort: { key: 'due', dir: 'asc' }, defaultPageSize: 50 });
+
+  const facets: Facet<UiMiti>[] = useMemo(() => [
+    {
+      key: 'status',
+      label: lang === 'fr' ? 'Statut' : 'Status',
+      options: (['todo', 'progress', 'review', 'done'] as Column[]).map((col) => ({
+        value: col,
+        label: statusLabel[col],
+        color: statusColor[col],
+      })),
+      matches: (m, selected) => selected.includes(m.column),
+    },
+    {
+      key: 'priority',
+      label: lang === 'fr' ? 'Priorité' : 'Priority',
+      options: (['critical', 'high', 'medium', 'low'] as const).map((c) => ({ value: c, label: c, color: critColor[c] })),
+      matches: (m, selected) => selected.includes(m.crit),
+    },
+    {
+      key: 'overdue',
+      label: lang === 'fr' ? 'Échéance' : 'Deadline',
+      single: true,
+      options: [{ value: 'true', label: lang === 'fr' ? 'En retard' : 'Overdue', color: 'var(--critical)' }],
+      matches: (m, selected) => (selected.includes('true') ? m.overdue : true),
+    },
+  ], [lang, statusLabel, statusColor]);
+
+  const columns: TableColumn<UiMiti>[] = useMemo(() => [
+    {
+      key: 'title',
+      header: lang === 'fr' ? 'Plan' : 'Plan',
+      frozen: true,
+      hideable: false,
+      sortValue: (m) => m.title.toLowerCase(),
+      exportValue: (m) => m.title,
+      render: (m) => <span className="text-[13.5px] font-medium text-ink max-w-[300px] truncate inline-block">{m.title}</span>,
+    },
+    { key: 'risk', header: lang === 'fr' ? 'Risque' : 'Risk', sortValue: (m) => m.risk, exportValue: (m) => m.risk, render: (m) => <span className="mono text-[11.5px] text-ink-muted">{m.risk}</span> },
+    {
+      key: 'priority',
+      header: lang === 'fr' ? 'Priorité' : 'Priority',
+      sortValue: (m) => ({ critical: 4, high: 3, medium: 2, low: 1 })[m.crit] ?? 0,
+      exportValue: (m) => m.crit,
+      render: (m) => (
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: critColor[m.crit], background: softFill(critColor[m.crit], 15) }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: critColor[m.crit] }} />{m.crit}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: lang === 'fr' ? 'Statut' : 'Status',
+      sortValue: (m) => m.column,
+      exportValue: (m) => statusLabel[m.column],
+      render: (m) => <InlineMitiStatus c={m} statusLabel={statusLabel} statusColor={statusColor} />,
+    },
+    {
+      key: 'progress',
+      header: lang === 'fr' ? 'Avancement' : 'Progress',
+      sortValue: (m) => m.progress,
+      exportValue: (m) => `${m.progress}%`,
+      render: (m) => (
+        <div className="flex items-center gap-2 min-w-[120px]">
+          <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
+            <div className="h-full rounded" style={{ width: `${m.progress}%`, background: m.progress === 100 ? 'var(--low)' : 'var(--accent)' }} />
+          </div>
+          <span className="mono text-[11px] text-ink-muted w-8 text-right">{m.progress}%</span>
+        </div>
+      ),
+    },
+    {
+      key: 'due',
+      header: lang === 'fr' ? 'Échéance' : 'Due',
+      sortValue: (m) => (m.dueISO ? new Date(m.dueISO).getTime() : Number.MAX_SAFE_INTEGER),
+      exportValue: (m) => m.dueISO ?? '',
+      render: (m) => <span className="text-[12.5px] whitespace-nowrap" style={{ color: m.overdue ? 'var(--critical)' : 'var(--text-secondary)' }}>{m.deadline}</span>,
+    },
+    { key: 'owner', header: lang === 'fr' ? 'Resp.' : 'Owner', exportValue: (m) => m.owner, render: (m) => <Avatar initials={m.owner} size={24} /> },
+  ], [lang, statusLabel, statusColor]);
+
+  const rowActions: RowAction<UiMiti>[] = useMemo(() => [
+    { key: 'open', label: lang === 'fr' ? 'Ouvrir le plan' : 'Open plan', icon: ShieldCheck, onSelect: onOpen },
+  ], [lang, onOpen]);
+
   return (
-    <div className="rounded-[14px] overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse" style={{ minWidth: 780 }}>
-          <thead style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-            <tr>
-              {[tr('Plan', 'Plan'), tr('Risque', 'Risk'), tr('Priorité', 'Priority'), tr('Statut', 'Status'), tr('Avancement', 'Progress'), tr('Échéance', 'Due'), tr('Resp.', 'Owner')].map((t) => (
-                <th key={t} className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3.5 py-2.5">{t}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((c) => (
-              <tr key={c.id} onClick={() => onOpen(c)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }} className="hover:bg-hover transition-colors">
-                <td className="px-3.5 py-3 text-[13.5px] font-medium text-ink max-w-[300px] truncate">{c.title}</td>
-                <td className="px-3.5 py-3"><span className="mono text-[11.5px] text-ink-muted">{c.risk}</span></td>
-                <td className="px-3.5 py-3">
-                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: critColor[c.crit], background: softFill(critColor[c.crit], 15) }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: critColor[c.crit] }} />{c.crit}
-                  </span>
-                </td>
-                <td className="px-3.5 py-3"><InlineMitiStatus c={c} statusLabel={statusLabel} statusColor={statusColor} /></td>
-                <td className="px-3.5 py-3">
-                  <div className="flex items-center gap-2 min-w-[120px]">
-                    <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
-                      <div className="h-full rounded" style={{ width: `${c.progress}%`, background: c.progress === 100 ? 'var(--low)' : 'var(--accent)' }} />
-                    </div>
-                    <span className="mono text-[11px] text-ink-muted w-8 text-right">{c.progress}%</span>
-                  </div>
-                </td>
-                <td className="px-3.5 py-3 text-[12.5px] whitespace-nowrap" style={{ color: c.overdue ? 'var(--critical)' : 'var(--text-secondary)' }}>{c.deadline}</td>
-                <td className="px-3.5 py-3"><Avatar initials={c.owner} size={24} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DataTable
+      id="mitigations"
+      ariaLabel={lang === 'fr' ? 'Plans de mitigation' : 'Mitigation plans'}
+      rows={items}
+      columns={columns}
+      rowKey={(m) => m.id}
+      api={table}
+      mode="client"
+      loading={isLoading}
+      error={isError}
+      onRetry={onRetry}
+      facets={facets}
+      clientSearch={(m, q) => `${m.title} ${m.risk} ${m.owner}`.toLowerCase().includes(q)}
+      searchPlaceholder={tr('Plan, risque ou responsable…', 'Plan, risk or owner…')}
+      rowActions={rowActions}
+      onRowClick={onOpen}
+      exportFilename="mitigations"
+      minWidth={880}
+      empty={<EmptyState variant="first-use" icon={ShieldCheck} title={tr('Aucun plan de mitigation', 'No mitigation plan yet')} description={tr('Créez un plan depuis un risque pour organiser son traitement.', 'Create a plan from a risk to organise its treatment.')} />}
+    />
   );
 }
 

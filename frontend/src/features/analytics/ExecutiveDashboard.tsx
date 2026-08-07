@@ -11,6 +11,7 @@
 // they render in light + dark.
 
 import { useMemo } from 'react';
+import { toast } from 'sonner';
 import {
   LineChart, Line, BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -108,8 +109,21 @@ export function ExecutiveDashboard() {
         title={tr('Tableau de bord exécutif', 'Executive dashboard')}
         count={tr(`Généré le ${gen}`, `Generated ${gen}`)}
         actions={
-          <Btn label={tr('Actualiser', 'Refresh')} icon={RefreshCw} onClick={() => refetch()}
-            className={isFetching ? 'opacity-60' : ''} />
+          // "Actualiser" re-queries /analytics/executive. On a dashboard that
+          // already refetches every 60 s the new payload is often identical, so
+          // without a visible in-flight state the button reads as dead: it now
+          // disables + spins while fetching and confirms when the data lands.
+          <Btn
+            label={isFetching ? tr('Actualisation…', 'Refreshing…') : tr('Actualiser', 'Refresh')}
+            icon={RefreshCw}
+            disabled={isFetching}
+            className={isFetching ? '[&>svg]:animate-spin' : ''}
+            onClick={async () => {
+              const res = await refetch();
+              if (res.error) toast.error(tr('Actualisation impossible', 'Could not refresh'));
+              else toast.success(tr('Tableau de bord à jour', 'Dashboard up to date'));
+            }}
+          />
         }
       />
 

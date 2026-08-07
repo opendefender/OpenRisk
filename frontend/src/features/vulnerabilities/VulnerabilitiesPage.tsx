@@ -8,14 +8,17 @@
 // stats, filters, a detail drawer (status lifecycle + prioritisation breakdown),
 // an ingest modal and a connectors panel.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Bug, Search, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
+  Bug, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
   ChevronDown, Check, Loader2, Ticket, ExternalLink,
 } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Chip, Card, SkeletonRows, EmptyState } from '../../shared/ui';
-import { DataTable, type Column } from '../../shared/DataTable';
+import { PageFrame, PageHeader, Btn, Card, EmptyState } from '../../shared/ui';
+import {
+  DataTable, useTableState,
+  type BulkAction, type Column, type Facet, type RowAction,
+} from '../../shared/datatable';
 import { Term } from '../../shared/Term';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -28,79 +31,182 @@ import { IngestModal } from './IngestModal';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { safeExternalUrl } from '../../shared/safeUrl';
 
+const t = (lang: 'fr' | 'en', fr: string, en: string) => (lang === 'fr' ? fr : en);
+
 const cvssColor = (s: number) =>
   s >= 9 ? 'var(--critical)' : s >= 7 ? 'var(--high)' : s >= 4 ? 'var(--medium)' : 'var(--low)';
 
 export function VulnerabilitiesPage() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const canWrite = useAuthStore((s) => s.hasPermission('vulnerabilities:update'));
+  const canDelete = useAuthStore((s) => s.hasPermission('vulnerabilities:delete'));
 
-  const [tierFilter, setTierFilter] = useState<string | null>(null);
-  const [sevFilter, setSevFilter] = useState<string | null>(null);
-  const [kevOnly, setKevOnly] = useState(false);
-  const [query, setQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [ingestOpen, setIngestOpen] = useState(false);
-
-  // Deep-link from universal search (/vulnerabilities?focus=<id>) → open its drawer.
-  const { focusId, clearFocus } = useFocusParam();
-  useEffect(() => {
-    if (focusId) {
-      setDrawerId(focusId);
-      clearFocus();
-    }
-  }, [focusId, clearFocus]);
   const [connectorsOpen, setConnectorsOpen] = useState(false);
 
-  const params: VulnQueryParams = useMemo(() => {
-    const p: VulnQueryParams = { limit: 100, sort_by: 'priority_score', sort_dir: 'desc' };
-    if (tierFilter) p.tier = tierFilter;
-    if (sevFilter) p.severity = sevFilter;
-    if (kevOnly) p.kev = true;
-    if (query.trim()) p.q = query.trim();
-    return p;
-  }, [tierFilter, sevFilter, kevOnly, query]);
+  // URL-backed table state; the API does the sorting, filtering and paging.
+  const table = useTableState({ defaultSort: { key: 'priority_score', dir: 'desc' }, defaultPageSize: 50 });
+  const { state } = table;
 
-  const { data, isLoading } = useVulnerabilities(params);
+  const params: VulnQueryParams = useMemo(() => {
+    const p: VulnQueryParams = { page: state.page, limit: state.pageSize };
+    if (state.sort) {
+      p.sort_by = state.sort.key;
+      p.sort_dir = state.sort.dir;
+    }
+    if (state.q.trim()) p.q = state.q.trim();
+    const tier = state.filters.tier?.[0];
+    const severity = state.filters.severity?.[0];
+    const status = state.filters.status?.[0];
+    const source = state.filters.source?.[0];
+    if (tier) p.tier = tier;
+    if (severity) p.severity = severity;
+    if (status) p.status = status;
+    if (source) p.source = source;
+    if (state.filters.kev?.includes('true')) p.kev = true;
+    return p;
+  }, [state]);
+
+  const { data, isLoading, isError, refetch } = useVulnerabilities(params);
   const { data: stats } = useVulnStats();
-  const { remove } = useVulnMutations();
+  const { remove, updateStatus } = useVulnMutations();
   // Soft delete: hide the row immediately + Undo toast; the API delete defers.
   const { pending, remove: softDeleteVuln } = useSoftDelete<Vulnerability>({
     onCommit: (id) => remove.mutateAsync(id),
-    message: (v, lang) => (lang === 'fr' ? `Vulnérabilité « ${v.title} » supprimée` : `Vulnerability "${v.title}" deleted`),
+    message: (v, l) => (l === 'fr' ? `Vulnérabilité « ${v.title} » supprimée` : `Vulnerability "${v.title}" deleted`),
   });
-  const items = (data?.items ?? []).filter((v) => !pending.has(v.id));
-  const drawer = drawerId ? items.find((v) => v.id === drawerId) ?? null : null;
+  const items = useMemo(() => (data?.items ?? []).filter((v) => !pending.has(v.id)), [data, pending]);
 
-  // Kit adoption (docs/UI_ELEVATION §6): the bespoke table becomes a dense, sortable,
-  // density-aware DataTable with a frozen priority column. Sorting lets the user
-  // re-rank the page by CVSS / severity / asset beyond the default priority order.
-  const columns: Column<Vulnerability>[] = useMemo(() => {
-    const sevRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
-    return [
-      {
-        key: 'priority',
-        header: tr('Priorité', 'Priority'),
-        frozen: true,
-        sortValue: (v) => v.priority_score,
-        render: (v) => (
-          <div className="inline-flex items-center gap-2">
-            <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: '#12151c' }}>{v.priority_tier}</span>
-            <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
-            {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
-          </div>
-        ),
+  // Deep-link from universal search (/vulnerabilities?focus=<id>): the drawer is
+  // *derived* from the URL rather than copied into state by an effect, so the
+  // link resolves as soon as the row lands in the list — no render cascade.
+  const { focusId, clearFocus } = useFocusParam();
+  const activeId = drawerId ?? focusId;
+  const drawer = activeId ? items.find((v) => v.id === activeId) ?? null : null;
+  const closeDrawer = () => { setDrawerId(null); clearFocus(); };
+
+  /* --------------------------------------------------------------- facets */
+  // The backend takes one value per facet, so these are single-choice — the
+  // panel renders them as such rather than letting the user tick two values
+  // and silently applying one.
+  const facets: Facet<Vulnerability>[] = useMemo(() => [
+    {
+      key: 'tier',
+      label: t(lang, 'Priorité', 'Priority'),
+      single: true,
+      options: (['P1', 'P2', 'P3', 'P4'] as const).map((t) => ({ value: t, label: t, color: TIER_META[t].color })),
+    },
+    {
+      key: 'severity',
+      label: t(lang, 'Sévérité', 'Severity'),
+      single: true,
+      options: (['critical', 'high', 'medium', 'low'] as const).map((sev) => ({
+        value: sev,
+        label: pick(SEVERITY_META[sev].label, lang),
+        color: SEVERITY_META[sev].color,
+      })),
+    },
+    {
+      key: 'status',
+      label: t(lang, 'Statut', 'Status'),
+      single: true,
+      options: STATUS_ORDER.map((st) => ({ value: st, label: pick(STATUS_META[st].label, lang), color: STATUS_META[st].color })),
+    },
+    {
+      key: 'kev',
+      label: t(lang, 'Exploitation connue', 'Known exploitation'),
+      single: true,
+      options: [{ value: 'true', label: 'CISA-KEV', color: 'var(--critical)' }],
+    },
+  ], [lang]);
+
+  /* -------------------------------------------------------------- columns */
+  const columns: Column<Vulnerability>[] = useMemo(() => [
+    {
+      key: 'priority',
+      header: t(lang, 'Priorité', 'Priority'),
+      frozen: true,
+      hideable: false,
+      sortKey: 'priority_score',
+      exportValue: (v) => `${v.priority_tier} (${v.priority_score.toFixed(0)})`,
+      render: (v) => (
+        <div className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: 'var(--text-inverse)' }}>{v.priority_tier}</span>
+          <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
+          {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
+        </div>
+      ),
+    },
+    { key: 'cve', header: 'CVE', sortKey: 'cve_id', exportValue: (v) => v.cve_id || '', render: (v) => <span className="mono text-[12.5px] text-ink">{v.cve_id || '—'}</span> },
+    { key: 'title', header: t(lang, 'Titre', 'Title'), exportValue: (v) => v.title, render: (v) => <div className="text-[13px] text-ink max-w-[280px] truncate">{v.title}</div> },
+    { key: 'severity', header: t(lang, 'Sévérité', 'Severity'), sortKey: 'severity', exportValue: (v) => v.severity, render: (v) => <SevBadge sev={v.severity} lang={lang} /> },
+    { key: 'cvss', header: 'CVSS', align: 'right', sortKey: 'cvss_score', exportValue: (v) => (v.cvss_score ? v.cvss_score.toFixed(1) : ''), render: (v) => <span className="mono text-[13px] font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}</span> },
+    { key: 'asset', header: t(lang, 'Actif', 'Asset'), exportValue: (v) => v.asset_name || '', render: (v) => <span className="text-[12.5px] text-ink-soft">{v.asset_name || '—'}</span> },
+    { key: 'source', header: t(lang, 'Source', 'Source'), exportValue: (v) => v.source, render: (v) => <span className="text-[12px] text-ink-muted">{SOURCE_LABEL[v.source] ?? v.source}</span> },
+    {
+      key: 'status',
+      header: t(lang, 'Statut', 'Status'),
+      exportValue: (v) => v.status,
+      render: (v) => (canWrite ? <InlineVulnStatus v={v} /> : <StatusChip status={v.status} lang={lang} />),
+    },
+  ], [lang, canWrite]);
+
+  /* ---------------------------------------------------------- row actions */
+  const rowActions: RowAction<Vulnerability>[] = useMemo(() => [
+    { key: 'view', label: t(lang, 'Voir le détail', 'View details'), icon: ChevronRight, onSelect: (v) => setDrawerId(v.id) },
+    {
+      key: 'triage',
+      label: t(lang, 'Marquer « en remédiation »', 'Mark "in remediation"'),
+      icon: Zap,
+      hidden: () => !canWrite,
+      disabled: (v) => v.status === 'in_remediation',
+      onSelect: async (v) => {
+        try {
+          await updateStatus.mutateAsync({ id: v.id, status: 'in_remediation' });
+          toast.success(t(lang, 'Statut mis à jour', 'Status updated'));
+        } catch {
+          toast.error(t(lang, 'Échec', 'Failed'));
+        }
       },
-      { key: 'cve', header: 'CVE', sortValue: (v) => v.cve_id || '', render: (v) => <span className="mono text-[12.5px] text-ink">{v.cve_id || '—'}</span> },
-      { key: 'title', header: tr('Titre', 'Title'), render: (v) => <div className="text-[13px] text-ink max-w-[280px] truncate">{v.title}</div> },
-      { key: 'severity', header: tr('Sévérité', 'Severity'), sortValue: (v) => sevRank[v.severity] ?? 0, render: (v) => <SevBadge sev={v.severity} lang={lang} /> },
-      { key: 'cvss', header: 'CVSS', align: 'right', sortValue: (v) => v.cvss_score ?? 0, render: (v) => <span className="mono text-[13px] font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}</span> },
-      { key: 'asset', header: tr('Actif', 'Asset'), sortValue: (v) => v.asset_name || '', render: (v) => <span className="text-[12.5px] text-ink-soft">{v.asset_name || '—'}</span> },
-      { key: 'source', header: tr('Source', 'Source'), render: (v) => <span className="text-[12px] text-ink-muted">{SOURCE_LABEL[v.source] ?? v.source}</span> },
-      { key: 'status', header: tr('Statut', 'Status'), render: (v) => <StatusChip status={v.status} lang={lang} /> },
-    ];
-  }, [lang]);
+    },
+    {
+      key: 'delete',
+      label: t(lang, 'Supprimer', 'Delete'),
+      icon: Trash2,
+      danger: true,
+      separatorBefore: true,
+      hidden: () => !canDelete,
+      onSelect: (v) => softDeleteVuln(v),
+    },
+  ], [canWrite, canDelete, softDeleteVuln, updateStatus, lang]);
+
+  /* --------------------------------------------------------- bulk actions */
+  const bulkActions: BulkAction<Vulnerability>[] = useMemo(() => [
+    {
+      key: 'remediating',
+      label: t(lang, 'Marquer « en remédiation »', 'Mark "in remediation"'),
+      icon: Zap,
+      hidden: !canWrite,
+      selectionOnly: true,
+      run: async ({ ids }) => {
+        await Promise.all(ids.map((id) => updateStatus.mutateAsync({ id, status: 'in_remediation' })));
+        toast.success(t(lang, `${ids.length} vulnérabilité(s) mise(s) à jour`, `${ids.length} vulnerability(ies) updated`));
+      },
+    },
+    {
+      key: 'delete',
+      label: t(lang, 'Supprimer', 'Delete'),
+      icon: Trash2,
+      danger: true,
+      hidden: !canDelete,
+      selectionOnly: true,
+      run: async ({ rows }) => {
+        rows.forEach((v) => softDeleteVuln(v));
+      },
+    },
+  ], [canWrite, canDelete, softDeleteVuln, updateStatus, lang]);
 
   const kpi = (label: React.ReactNode, value: number | string, color: string, Icon: typeof Flame) => (
     <Card style={{ padding: '14px 16px', flex: 1, minWidth: 130 }}>
@@ -133,52 +239,37 @@ export function VulnerabilitiesPage() {
         {kpi(tr('Exploitables', 'Exploitable'), stats?.exploit_count ?? 0, 'var(--high)', Zap)}
       </div>
 
-      {/* filters */}
-      <div className="flex gap-2 mb-3 flex-wrap items-center">
-        <Chip label={tr('Toutes', 'All')} active={!tierFilter && !sevFilter && !kevOnly} onClick={() => { setTierFilter(null); setSevFilter(null); setKevOnly(false); }} />
-        {(['P1', 'P2', 'P3', 'P4'] as const).map((t) => (
-          <Chip key={t} label={t} active={tierFilter === t} onClick={() => setTierFilter(tierFilter === t ? null : t)} color={TIER_META[t].color} />
-        ))}
-        <span className="w-px h-5 mx-1" style={{ background: 'var(--border-strong)' }} />
-        {(['critical', 'high', 'medium', 'low'] as const).map((s) => (
-          <Chip key={s} label={pick(SEVERITY_META[s].label, lang)} active={sevFilter === s} onClick={() => setSevFilter(sevFilter === s ? null : s)} color={SEVERITY_META[s].color} />
-        ))}
-        <Chip label="CISA-KEV" active={kevOnly} onClick={() => setKevOnly((v) => !v)} color="var(--critical)" />
-        <button onClick={() => { setShowSearch((v) => !v); if (showSearch) setQuery(''); }} className="ml-auto h-8 px-2.5 rounded-[8px] text-[12.5px] inline-flex items-center gap-1.5" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-          {showSearch ? <X size={14} /> : <Search size={14} />} {tr('Rechercher', 'Search')}
-        </button>
-      </div>
-      {showSearch && (
-        <div className="mb-3 flex items-center gap-2.5 h-11 px-3.5 rounded-[12px]" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>
-          <Search size={16} className="text-ink-muted shrink-0" />
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr('CVE ou titre…', 'CVE or title…')} className="flex-1 bg-transparent text-[13.5px] text-ink outline-none" />
-        </div>
-      )}
-
-      <Card style={{ padding: '8px 8px 4px', overflow: 'hidden' }}>
-        {isLoading && items.length === 0 ? (
-          <SkeletonRows rows={6} />
-        ) : (
-          <DataTable
-            rows={items}
-            columns={columns}
-            rowKey={(v) => v.id}
-            onRowClick={(v) => setDrawerId(v.id)}
-            minWidth={900}
-            initialSort={{ key: 'priority', dir: 'desc' }}
-            empty={
-              <EmptyState
-                icon={Bug}
-                title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
-                description={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
-                primaryAction={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
-              />
-            }
+      <DataTable
+        id="vulnerabilities"
+        ariaLabel={tr('Vulnérabilités', 'Vulnerabilities')}
+        rows={items}
+        total={data?.total ?? items.length}
+        columns={columns}
+        rowKey={(v) => v.id}
+        api={table}
+        mode="server"
+        loading={isLoading}
+        error={isError}
+        onRetry={() => void refetch()}
+        facets={facets}
+        searchPlaceholder={tr('CVE, titre ou description…', 'CVE, title or description…')}
+        selectable
+        rowActions={rowActions}
+        bulkActions={bulkActions}
+        onRowClick={(v) => setDrawerId(v.id)}
+        exportFilename="vulnerabilites"
+        minWidth={960}
+        empty={
+          <EmptyState
+            icon={Bug}
+            title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
+            description={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
+            primaryAction={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
           />
-        )}
-      </Card>
+        }
+      />
 
-      {drawer && <VulnDrawer v={drawer} onClose={() => setDrawerId(null)} onDelete={() => { const d = drawer; setDrawerId(null); softDeleteVuln(d); }} />}
+      {drawer && <VulnDrawer v={drawer} onClose={closeDrawer} onDelete={() => { const d = drawer; closeDrawer(); softDeleteVuln(d); }} />}
       <IngestModal isOpen={ingestOpen} onClose={() => setIngestOpen(false)} />
       <IntegrationsPanel isOpen={connectorsOpen} onClose={() => setConnectorsOpen(false)} onImport={() => { setConnectorsOpen(false); setIngestOpen(true); }} />
     </PageFrame>

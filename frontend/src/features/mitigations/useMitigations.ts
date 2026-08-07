@@ -72,5 +72,6 @@ export function useMitigations() {
   const items = query.data ?? [];
   const columns: Record<Column, UiMiti[]> = { todo: [], progress: [], review: [], done: [] };
   for (const m of items) columns[m.column].push(m);
-  return { items, columns, isLoading: query.isLoading };
+  // isError/refetch let the table render a retry instead of an empty board.
+  return { items, columns, isLoading: query.isLoading, isError: query.isError, refetch: () => void query.refetch() };
 }

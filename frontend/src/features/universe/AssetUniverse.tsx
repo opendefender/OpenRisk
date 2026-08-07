@@ -12,6 +12,12 @@
 // It is now wired to REAL data: nodes come from /assets, edges from
 // /asset-dependencies. The side panel is a live dependency editor (add/remove
 // edges), gated by the `assets:update` permission.
+//
+// The toolbar's funnel used to be a <button> with no handler at all (it even
+// carried the tooltip of the *other* button). It is now a real criticality
+// filter: unticking a level drops those assets AND every edge that ends on one,
+// which is the only honest way to filter a graph — a dangling edge to a hidden
+// node would imply a dependency on nothing.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -93,10 +99,17 @@ export function AssetUniverse() {
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { selRef.current = selectedId; }, [selectedId]);
 
+  // Criticality filter (toolbar funnel). Empty set = show everything.
+  const [critFilter, setCritFilter] = useState<Criticality[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+
   // Build the graph from real data. gnodes = assets, glinks = dependencies whose
   // endpoints both resolve to a known asset.
   const { gnodes, glinks, sig } = useMemo(() => {
-    const gnodes: GNode[] = assets.map((a) => ({
+    const shown = critFilter.length
+      ? assets.filter((a) => critFilter.includes(critOf(a)))
+      : assets;
+    const gnodes: GNode[] = shown.map((a) => ({
       id: a.id as string,
       name: a.name ?? '—',
       type: a.type ?? '',
@@ -111,7 +124,7 @@ export function AssetUniverse() {
       .map((d) => [d.source_asset_id as string, d.target_asset_id as string] as [string, string]);
     const sig = gnodes.map((n) => n.id + n.crit).join('|') + '::' + glinks.map((l) => l.join('>')).join('|');
     return { gnodes, glinks, sig };
-  }, [assets, visibleDependencies]);
+  }, [assets, visibleDependencies, critFilter]);
 
   const selectedAsset = useMemo(() => assets.find((a) => a.id === selectedId), [assets, selectedId]);
 
@@ -304,7 +317,62 @@ export function AssetUniverse() {
           <span className="text-[12px] text-ink-soft whitespace-nowrap hidden sm:inline">{gnodes.length} {L.uniAssets} · {glinks.length} {L.uniLinks}</span>
         </div>
         <div className="flex gap-1.5 ml-auto">
-          <button title={tr('Réinitialiser la vue', 'Reset view')} className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-soft hover:bg-hover" style={{ border: '1px solid var(--border-strong)' }}><Filter size={16} /></button>
+          <div className="relative">
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              title={tr('Filtrer par criticité', 'Filter by criticality')}
+              aria-label={tr('Filtrer par criticité', 'Filter by criticality')}
+              aria-expanded={filterOpen}
+              data-testid="universe-filter"
+              className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-hover"
+              style={{
+                border: `1px solid ${critFilter.length ? 'var(--accent)' : 'var(--border-strong)'}`,
+                color: critFilter.length ? 'var(--accent)' : 'var(--text-secondary)',
+                background: critFilter.length ? 'var(--accent-soft)' : 'transparent',
+              }}
+            >
+              <Filter size={16} />
+            </button>
+            {filterOpen && (
+              <>
+                <div className="fixed inset-0 z-[59]" onClick={() => setFilterOpen(false)} aria-hidden="true" />
+                <div
+                  className="absolute right-0 top-11 z-[60] w-[212px] rounded-[12px] p-2 shadow-card-lg"
+                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+                  data-testid="universe-filter-panel"
+                >
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
+                    {tr('Criticité', 'Criticality')}
+                  </div>
+                  {(['critical', 'high', 'medium', 'low'] as Criticality[]).map((c) => {
+                    const on = critFilter.includes(c);
+                    return (
+                      <button
+                        key={c}
+                        role="checkbox"
+                        aria-checked={on}
+                        data-testid={`universe-filter-${c}`}
+                        onClick={() => setCritFilter((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))}
+                        className="w-full flex items-center gap-2 h-8 px-2 rounded-[8px] text-[12.5px] font-medium hover:bg-hover"
+                        style={{ color: on ? critColor[c] : 'var(--text-secondary)' }}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: on ? critColor[c] : 'transparent', border: `1.5px solid ${critColor[c]}` }} />
+                        <CritBadge crit={c} />
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCritFilter([])}
+                    disabled={critFilter.length === 0}
+                    className="mt-1 w-full h-8 rounded-[8px] text-[12px] font-semibold hover:bg-hover disabled:opacity-40"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {tr('Tout afficher', 'Show all')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={resetView} title={tr('Recentrer', 'Recenter')} className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-soft hover:bg-hover" style={{ border: '1px solid var(--border-strong)' }}><Atom size={16} /></button>
         </div>
       </div>
@@ -339,7 +407,10 @@ export function AssetUniverse() {
 
       {/* status bar */}
       <div className="absolute bottom-0 left-0 right-0 z-10 h-8 flex items-center gap-4 px-[18px] glass text-[11.5px] text-ink-soft" style={{ borderTop: '1px solid var(--border)' }}>
-        <span>{gnodes.length} {L.uniAssets}</span>
+        <span data-testid="universe-node-count">
+          {gnodes.length} {L.uniAssets}
+          {critFilter.length > 0 && ` / ${assets.length}`}
+        </span>
         <span style={{ color: 'var(--critical)' }}>{critCount} {tr('critiques/élevés', 'critical/high')}</span>
         <span>{glinks.length} {L.uniLinks}</span>
       </div>

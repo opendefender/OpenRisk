@@ -1,14 +1,22 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Global glass header (OpenRisk.dc.html §5): breadcrumb · ⌘K search · realtime
-// dot · language · voice · notifications · theme. Sticky, backdrop-blurred, sits
-// above the scrollable body. On < lg it collapses to a hamburger + brand.
+// Global glass header (OpenRisk.dc.html §5): breadcrumb · ⌘K search · connection
+// status · language · density · shortcuts · notifications · theme. Sticky,
+// backdrop-blurred, sits above the scrollable body. On < lg it collapses to a
+// hamburger + brand.
+//
+// Two controls were removed rather than kept as decoration (docs/ui/dead-controls.md):
+// the "Voice assistant" microphone (no speech feature exists anywhere in the
+// product) and the panel footer's "View all notifications" (there is no
+// all-notifications view; it merely closed the panel). The pulsing green dot,
+// which claimed "Realtime" on every tenant regardless of anything, is now a real
+// connection indicator driven by lib/connection.
 
-import { useState } from 'react';
+import { useSyncExternalStore, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Search, Bell, Sun, Moon, Mic, Menu,
+  Search, Bell, Sun, Moon, Menu,
   Rows2, Rows3, Rows4, Keyboard,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
@@ -17,6 +25,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { Hint } from '../../shared/Hint';
 import { categoryMeta, categoryForType, type NotifCategory } from '../../shared/notificationCategory';
 import { Breadcrumbs } from '../../shared/Breadcrumbs';
+import { getConnectionStatus, subscribeConnection, type ConnectionState } from '../../lib/connection';
 import { useNotifications, useUnreadCount, useNotificationActions } from '../../features/notifications/useNotifications';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, SkeletonRows } from '../../shared/ui';
@@ -81,10 +90,7 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
           <Search size={18} />
         </button>
 
-        {/* Realtime pulse */}
-        <div className="flex items-center px-2" title="Realtime">
-          <span className="w-[7px] h-[7px] rounded-full" style={{ background: 'var(--low)', animation: 'or-pulsedot 2.4s infinite' }} />
-        </div>
+        <ConnectionDot lang={lang} />
 
         <button onClick={toggleLang} className={iconBtn} title="Language" aria-label="Toggle language">
           <span className="mono text-[11px] font-semibold">{lang.toUpperCase()}</span>
@@ -118,10 +124,6 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
             <Keyboard size={18} strokeWidth={1.7} />
           </button>
         </Hint>
-
-        <button className={cn(iconBtn, 'hidden sm:flex')} title="Voice assistant" aria-label="Voice assistant">
-          <Mic size={18} strokeWidth={1.7} />
-        </button>
 
         {/* Notifications */}
         <div className="relative">
@@ -267,13 +269,38 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {shown.length > 0 && (
-          <button onClick={onClose} className="w-full py-[13px] text-[13px] font-semibold text-accent hover:brightness-110">
-            {L.notifViewAll}
-          </button>
-        )}
       </div>
     </>
+  );
+}
+
+/* ---------- connection status ---------- */
+// Reads lib/connection, which is fed by the browser's online/offline events and
+// by the outcome of every axios call. Green = the API answered; amber = a
+// request could not reach it; grey = the browser reports no network. It only
+// ever reports an observation, never an assumption.
+function ConnectionDot({ lang }: { lang: 'fr' | 'en' }) {
+  const status = useSyncExternalStore(subscribeConnection, getConnectionStatus, getConnectionStatus);
+  const meta: Record<ConnectionState, { color: string; label: [string, string]; pulse: boolean }> = {
+    online: { color: 'var(--low)', label: ['Connecté au serveur', 'Connected to the server'], pulse: true },
+    degraded: { color: 'var(--high)', label: ['Serveur injoignable', 'Server unreachable'], pulse: false },
+    offline: { color: 'var(--text-muted)', label: ['Hors ligne', 'Offline'], pulse: false },
+  };
+  const m = meta[status.state];
+  const label = m.label[lang === 'fr' ? 0 : 1];
+  return (
+    <div
+      className="flex items-center px-2"
+      title={label}
+      data-testid="connection-status"
+      data-state={status.state}
+    >
+      <span
+        className="w-[7px] h-[7px] rounded-full"
+        style={{ background: m.color, animation: m.pulse ? 'or-pulsedot 2.4s infinite' : 'none' }}
+      />
+      <span className="sr-only" role="status" aria-live="polite">{label}</span>
+    </div>
   );
 }
 
