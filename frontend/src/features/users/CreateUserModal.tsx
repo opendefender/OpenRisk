@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { toast } from 'sonner';
 import { api } from '../../lib/api';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ interface CreateUserModalProps {
 }
 
 export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',

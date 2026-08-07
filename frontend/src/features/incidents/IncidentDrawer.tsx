@@ -15,8 +15,11 @@ import { relTime } from '../risks/riskMap';
 import { useIncidents, useIncidentTimeline } from './useIncidents';
 import { SEV, STATUS, STATUSES, SEVERITIES, sevMeta, statusMeta } from './incidentMeta';
 import type { Incident, IncidentSeverity, IncidentStatus, UpdateIncidentInput } from './incidentService';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Incident; canWrite: boolean; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);

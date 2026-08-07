@@ -212,7 +212,7 @@ export function WarRoom() {
             {tr('Le suivi des tâches de réponse n’est pas encore disponible. Utilisez la chronologie pour tracer les actions.', 'Response task tracking is not available yet. Use the timeline to record actions.')}
           </div>
           <button
-            onClick={() => navigate('/mitigations')}
+            onClick={() => navigate('/risks/mitigations')}
             className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5"
             style={{ border: '1px solid var(--border-strong)' }}
           >

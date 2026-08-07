@@ -15,6 +15,7 @@ import type { Mitigation } from '../../types/mitigation';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const createMitigationSchema = z.object({
   title: z.string().min(3, 'Le titre doit comporter au moins 3 caractères'),
@@ -34,6 +35,8 @@ interface CreateMitigationModalProps {
 }
 
 export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: CreateMitigationModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
 
   const {

@@ -44,7 +44,7 @@ export function ExecDashboard() {
           grade={cyber?.grade}
           hint={tr('Note composite A–F sur 4 axes pondérés : conformité, risques, vulnérabilités, incidents.', 'Composite A–F grade over 4 weighted axes: compliance, risks, vulnerabilities, incidents.')}
           ctaLabel={tr('Voir Analytics', 'View analytics')}
-          onDetails={() => navigate('/analytics')}
+          onDetails={() => navigate('/?view=executive')}
         />
         <div className="grid grid-cols-2 gap-4">
           <StatCard label={tr('Exposition annuelle (ALE)', 'Annual exposure (ALE)')} value={money(fin?.total_ale?.xaf ?? 0)} col="var(--accent)" icon={Coins} onClick={() => navigate('/analytics/financial')} />
@@ -57,7 +57,7 @@ export function ExecDashboard() {
       <Card style={{ padding: '18px 20px' }}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-[14px] font-semibold text-ink">{tr('Indicateurs clés de risque (KRI)', 'Key risk indicators (KRI)')}</div>
-          <button onClick={() => navigate('/analytics')} className="text-[12px] font-semibold text-accent hover:underline">{tr('Détails', 'Details')}</button>
+          <button onClick={() => navigate('/?view=executive')} className="text-[12px] font-semibold text-accent hover:underline">{tr('Détails', 'Details')}</button>
         </div>
         {kris.length === 0 ? (
           <div className="py-8 text-center text-[13px] text-ink-muted">{tr('Indicateurs indisponibles.', 'Indicators unavailable.')}</div>

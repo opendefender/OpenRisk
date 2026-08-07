@@ -13,6 +13,7 @@ import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useControls } from './useCompliance';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const schema = z.object({
   reference_code: z.string().optional(),
@@ -28,6 +29,8 @@ interface CreateControlModalProps {
 }
 
 export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateControlModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
   const toast = useToast();
   const { createControl } = useControls(frameworkId);

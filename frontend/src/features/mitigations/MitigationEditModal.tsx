@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { api } from '../../lib/api';
 import { toast } from 'sonner';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 interface Props {
   isOpen: boolean;
@@ -19,6 +20,8 @@ interface Props {
 }
 
 export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Props) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm();
   const [newSubTitle, setNewSubTitle] = useState('');
 

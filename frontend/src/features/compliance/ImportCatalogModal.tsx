@@ -10,6 +10,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useCatalogs, useImportCatalogAsFramework } from './useCompliance';
 import type { ComplianceCatalogSummary } from '../../types/compliance';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 interface ImportCatalogModalProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ interface ImportCatalogModalProps {
 }
 
 export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalogModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
   const toast = useToast();
   const { data: catalogs, isLoading, error } = useCatalogs();

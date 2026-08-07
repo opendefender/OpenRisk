@@ -88,7 +88,6 @@ export default defineConfig([
       'src/features/notifications/NotificationCategoryPrefs.tsx',
       'src/features/onboarding/OnboardingChecklist.tsx',
       'src/features/onboarding/PersonalizeCard.tsx',
-      'src/features/rbac/RolesAccessPage.tsx',
       'src/features/risks/RiskDrawer.tsx',
       'src/features/risks/RiskListPage.tsx',
       'src/features/risks/RiskRegisterPage.tsx',

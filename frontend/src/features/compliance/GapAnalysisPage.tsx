@@ -3,7 +3,7 @@
 //
 // Gap analysis ("analyse d'écarts") — every unsatisfied control across the
 // tenant's frameworks, grouped by framework, with per-framework roll-ups. Wired
-// to GET /compliance/gap-analysis. The "Voir les écarts" CTA on ComplianceScreen
+// to GET /compliance/gaps. The "Voir les écarts" CTA on ComplianceScreen
 // lands here.
 
 import { useMemo, useState } from 'react';
@@ -121,7 +121,7 @@ export function GapAnalysisPage() {
             {grouped.map(([fwId, group], gi) => (
               <Card key={fwId} style={{ padding: 0, overflow: 'hidden', animation: 'or-fadeup .4s ease both', animationDelay: `${Math.min(gi * 0.04, 0.3)}s` }}>
                 <button
-                  onClick={() => navigate(`/compliance/${fwId}`)}
+                  onClick={() => navigate(`/compliance/frameworks/${fwId}`)}
                   className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left group hover:bg-hover transition-colors"
                   style={{ borderBottom: '1px solid var(--border)' }}
                 >

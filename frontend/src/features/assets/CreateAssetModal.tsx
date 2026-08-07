@@ -14,6 +14,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useAssets } from './useAssets';
 import { ASSET_CRITICALITIES, ASSET_TYPES } from '../../types/asset';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -29,6 +30,8 @@ interface CreateAssetModalProps {
 }
 
 export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
   const toast = useToast();
   const { createAsset } = useAssets();

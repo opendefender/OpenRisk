@@ -80,10 +80,13 @@ export function PageHeader({ title, count, actions, badge }: { title: string; co
 /* ---------------- controls ---------------- */
 
 export function Btn({
-  label, icon: Icon, onClick, primary, danger, className = '', type = 'button',
+  label, icon: Icon, onClick, primary, danger, className = '', type = 'button', disabled,
 }: {
   label?: string; icon?: LucideIcon; onClick?: () => void; primary?: boolean; danger?: boolean;
   className?: string; type?: 'button' | 'submit';
+  /** Disables the button and dims it — for actions in flight (a mutation's
+   *  isPending) so the same request cannot be fired twice. */
+  disabled?: boolean;
 }) {
   const base = 'h-9 rounded-[10px] text-[13px] font-semibold inline-flex items-center justify-center gap-[7px] transition-all shrink-0';
   const pad = label ? 'px-3.5' : 'w-9';
@@ -96,7 +99,8 @@ export function Btn({
     <button
       type={type}
       onClick={onClick}
-      className={`${base} ${pad} ${primary ? 'hover:brightness-110' : danger ? 'hover:brightness-110' : 'hover:bg-hover'} ${className}`}
+      disabled={disabled}
+      className={`${base} ${pad} ${primary ? 'hover:brightness-110' : danger ? 'hover:brightness-110' : 'hover:bg-hover'} disabled:opacity-60 disabled:pointer-events-none ${className}`}
       style={style}
     >
       {Icon && <Icon size={16} strokeWidth={1.8} />}

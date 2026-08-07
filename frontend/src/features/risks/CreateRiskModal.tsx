@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
 import { celebrate } from '../../shared/celebrate';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const createRiskSchema = z.object({
   title: z.string().min(5, 'Le nom doit comporter au moins 5 caractères').max(100),
@@ -60,6 +61,8 @@ const scoreColor = (score: number) => {
 };
 
 export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
   const { assets, fetchAssets, isLoading: assetsLoading } = useAssetStore();
 

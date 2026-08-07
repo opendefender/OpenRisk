@@ -11,7 +11,7 @@
 // risk store, which only ever holds one page of the register.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap, Plus, Grid3x3,
   type LucideIcon,
@@ -35,6 +35,7 @@ import { ExecDashboard } from './ExecDashboard';
 import { AuditDashboard } from './AuditDashboard';
 import { EstateDashboard } from './EstateDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
+import { ExecutiveDashboard } from '../analytics/ExecutiveDashboard';
 
 /* ---------------- helpers ---------------- */
 
@@ -86,9 +87,18 @@ interface RecentRisk {
 
 // The dashboard adapts to the member's GRC role (UX-2). Each persona renders its
 // own real-data view; admins and unmapped roles get the full posture dashboard.
+//
+// ?view=executive overrides the persona with the consolidated executive view.
+// That view used to live at /analytics, filed under Reports — which is why
+// people went looking for it beside the PDFs. It answers "how are we doing",
+// which is the dashboard's own question, so it is a display mode here rather
+// than a destination of its own. /analytics still redirects to ?view=executive
+// so existing links and bookmarks resolve.
 export const DashboardPage = () => {
   const businessRole = useAuthStore((s) => s.user?.business_role);
   const persona = personaFor(businessRole);
+  const [params] = useSearchParams();
+  if (params.get('view') === 'executive') return <ExecutiveDashboard />;
   switch (persona) {
     case 'analyst':
       return <AnalystDashboard />;

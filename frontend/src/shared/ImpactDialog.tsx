@@ -8,6 +8,7 @@
 
 import type { ReactNode } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useEscapeToClose } from './useBackTo';
 
 export interface ImpactItem {
   label: string;
@@ -52,6 +53,8 @@ export function ImpactDialog({
   onConfirm,
   onClose,
 }: ImpactDialogProps) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(open, onClose);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--surface-overlay)' }} onClick={onClose}>

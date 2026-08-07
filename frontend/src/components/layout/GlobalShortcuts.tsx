@@ -13,7 +13,7 @@ import { useUIStore } from '../../store/uiStore';
 
 // G-then-key jump targets.
 const GOTO: Record<string, string> = {
-  d: '/', r: '/risks', v: '/vulnerabilities', m: '/mitigations',
+  d: '/', r: '/risks', v: '/vulnerabilities', m: '/risks/mitigations',
   i: '/incidents', c: '/compliance', a: '/assets', s: '/settings',
 };
 

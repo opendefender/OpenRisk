@@ -12,6 +12,7 @@ import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { scannerService, type ScanConfig, type RegistrationTokenResponse } from './scannerService';
 import { safeExternalUrl } from '../../shared/safeUrl';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 function detectOS(): 'windows' | 'macos' | 'linux' {
   const p = `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
@@ -21,6 +22,8 @@ function detectOS(): 'windows' | 'macos' | 'linux' {
 }
 
 export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const [data, setData] = useState<RegistrationTokenResponse | null>(null);

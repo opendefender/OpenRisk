@@ -18,6 +18,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useAssets } from './useAssets';
 import { ASSET_CRITICALITIES, ASSET_TYPES, type Asset } from '../../types/asset';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -36,6 +37,8 @@ interface EditAssetModalProps {
 }
 
 export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModalProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(true, onClose);
   const { t } = useI18n();
   const toast = useToast();
   const lang = useUIStore((s) => s.lang);

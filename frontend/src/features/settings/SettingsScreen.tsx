@@ -8,25 +8,25 @@
 // aren't migrated yet (roles/tenants/audit) degrade to an honest unavailable state.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useSearchParams, useNavigate, useLocation } from 'react-router';
 import { toast } from 'sonner';
 import {
-  Settings as SettingsIcon, Users, Lock, KeyRound, Building2, ScrollText, SlidersHorizontal, Plug,
+  Settings as SettingsIcon, Users, KeyRound, Building2, SlidersHorizontal, Plug,
   Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Laptop, Trash2, Copy, Database, PowerOff,
   type LucideIcon,
 } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card, Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
-import { ImpactDialog } from '../../shared/ImpactDialog';
+import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { MembersPanel } from '../rbac/MembersPanel';
 import { relTime } from '../risks/riskMap';
-import { useUsers, useTokens, useCustomFields, useRoles, useAuditLogs, useTenants } from './adminData';
+import { useTokens, useCustomFields, useTenants } from './adminData';
 import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 
-type TabKey = 'general' | 'members' | 'rbac' | 'tokens' | 'orgs' | 'audit' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
+type TabKey = 'general' | 'members' | 'tokens' | 'orgs' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
 
 /* ---- reusable bits ---- */
@@ -94,31 +94,45 @@ function Unavailable({ tr }: { tr: Tr }) {
   );
 }
 
-const TAB_KEYS: TabKey[] = ['general', 'members', 'rbac', 'tokens', 'orgs', 'audit', 'fields', 'integrations', 'notif', 'security', 'billing', 'danger'];
+const TAB_KEYS: TabKey[] = ['general', 'members', 'tokens', 'orgs', 'fields', 'integrations', 'notif', 'security', 'billing', 'danger'];
 
 export function SettingsScreen() {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr: Tr = (fr, en) => (lang === 'fr' ? fr : en);
-  // Deep-linkable tab via ?tab= (e.g. the onboarding "Invite" CTA opens Members).
-  const [params, setParams] = useSearchParams();
+  // Members is a route of its own (/settings/members) because things link TO it
+  // — the onboarding CTA, the access-denied screen, /roles. A tab reachable only
+  // by query string is not a place you can send someone. Other tabs stay on
+  // ?tab= until they earn the same need.
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [params] = useSearchParams();
   const paramTab = params.get('tab');
-  const [tab, setTab] = useState<TabKey>(TAB_KEYS.includes(paramTab as TabKey) ? (paramTab as TabKey) : 'general');
+  const routeTab: TabKey | null = pathname === '/settings/members' ? 'members' : null;
+  const [tab, setTab] = useState<TabKey>(
+    routeTab ?? (TAB_KEYS.includes(paramTab as TabKey) ? (paramTab as TabKey) : 'general'),
+  );
   useEffect(() => {
+    if (routeTab) { setTab(routeTab); return; }
     if (paramTab && TAB_KEYS.includes(paramTab as TabKey)) setTab(paramTab as TabKey);
-  }, [paramTab]);
+  }, [paramTab, routeTab]);
   const selectTab = (k: TabKey) => {
     setTab(k);
-    setParams((prev) => { const n = new URLSearchParams(prev); n.set('tab', k); return n; }, { replace: true });
+    if (k === 'members') { navigate('/settings/members'); return; }
+    // Leaving Members must leave its URL too, or the route would force the tab
+    // straight back on the next render.
+    const base = pathname === '/settings/members' ? '/settings' : pathname;
+    navigate(`${base}?tab=${k}`, { replace: pathname !== '/settings/members' });
   };
 
   const tabs: [TabKey, string, LucideIcon][] = [
     ['general', L.s_general, SettingsIcon],
+    // Members owns invitations AND access. They are one job — "give this person
+    // the right access" — and splitting them across two screens is why "Invite a
+    // member" used to land on Roles & permissions.
     ['members', L.s_members, Users],
-    ['rbac', L.s_rbac, Lock],
     ['tokens', tr('Jetons API', 'API Tokens'), KeyRound],
     ['orgs', tr('Organisations', 'Organizations'), Building2],
-    ['audit', tr('Journal d’audit', 'Audit log'), ScrollText],
     ['fields', tr('Champs personnalisés', 'Custom fields'), SlidersHorizontal],
     ['integrations', L.s_integrations, Plug],
     ['notif', L.s_notif, Siren],
@@ -147,11 +161,9 @@ export function SettingsScreen() {
         </div>
         <div className="flex-1 min-w-0 w-full">
           {tab === 'general' && <GeneralTab tr={tr} />}
-          {tab === 'members' && <MembersTab L={L} tr={tr} lang={lang} />}
-          {tab === 'rbac' && <RbacTab tr={tr} />}
+          {tab === 'members' && <MembersPanel />}
           {tab === 'tokens' && <TokensTab tr={tr} lang={lang} />}
           {tab === 'orgs' && <OrgsTab tr={tr} />}
-          {tab === 'audit' && <AuditTab tr={tr} lang={lang} />}
           {tab === 'fields' && <CustomFieldsTab tr={tr} />}
           {tab === 'integrations' && <IntegrationsTab tr={tr} />}
           {tab === 'notif' && <NotifTab tr={tr} />}
@@ -165,103 +177,6 @@ export function SettingsScreen() {
 }
 
 /* ==================== real tabs ==================== */
-
-function MembersTab({ L, tr, lang }: { L: ReturnType<typeof useUIStrings>; tr: Tr; lang: 'fr' | 'en' }) {
-  const { users, isLoading, isError, setStatus, remove } = useUsers();
-  const roleColor = (r: string) => (r === 'admin' || r === 'root' ? 'var(--accent)' : r ? 'var(--info)' : 'var(--text-muted)');
-  const th = (t: string) => <th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>;
-
-  // Revoking a member is important + irreversible → impact radiography (UX-11) with a
-  // non-destructive escape hatch (deactivate keeps the account + their ownership).
-  const [toRevoke, setToRevoke] = useState<{ id: string; name: string; active: boolean } | null>(null);
-  const confirmRevoke = () => {
-    if (!toRevoke) return;
-    const id = toRevoke.id;
-    setToRevoke(null);
-    remove.mutate(id, {
-      onSuccess: () => toast.success(tr('Membre révoqué', 'Member revoked')),
-      onError: () => toast.error(tr('Action échouée', 'Action failed')),
-    });
-  };
-  const deactivateInstead = () => {
-    if (!toRevoke) return;
-    const id = toRevoke.id;
-    setToRevoke(null);
-    setStatus.mutate({ id, is_active: false }, {
-      onSuccess: () => toast.success(tr('Membre désactivé', 'Member deactivated')),
-      onError: () => toast.error(tr('Action échouée', 'Action failed')),
-    });
-  };
-  const toggle = (id: string, active: boolean) =>
-    setStatus.mutate({ id, is_active: !active }, { onError: () => toast.error(tr('Action échouée', 'Action failed')) });
-
-  return (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[15px] font-semibold text-ink">{L.s_members} · {users.length}</div>
-        <Btn label={L.invite} icon={Plus} primary onClick={() => toast(tr('Invitation par e-mail — bientôt', 'Email invites — coming soon'))} />
-      </div>
-      <Card style={{ padding: '8px 8px 0', overflow: 'hidden' }}>
-        {isLoading ? (
-          <SkeletonRows rows={4} />
-        ) : isError ? (
-          <EmptyState variant="error" title={tr('Membres indisponibles', 'Members unavailable')} description={tr('Impossible de charger les membres. Réessayez ou contactez un administrateur.', 'Could not load members. Retry or contact an administrator.')} />
-        ) : users.length === 0 ? (
-          <EmptyState icon={Users} title={tr('Aucun membre', 'No members')} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 560 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}><tr>{th(L.member)}{th(L.role)}{th(L.status)}{th('')}</tr></thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar initials={(u.full_name || u.email).slice(0, 2).toUpperCase()} size={32} />
-                        <div><div className="text-[13.5px] font-medium text-ink">{u.full_name || u.username}</div><div className="text-[12px] text-ink-muted">{u.email}</div></div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3"><span className="text-[12px] font-semibold px-[9px] py-[3px] rounded-full capitalize" style={{ color: roleColor(u.role), background: `color-mix(in srgb,${roleColor(u.role)} 14%,transparent)` }}>{u.role || tr('—', '—')}</span></td>
-                    <td className="px-3 py-3">
-                      <button onClick={() => toggle(u.id, u.is_active)} className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-soft hover:text-ink transition-colors">
-                        <span className="w-[7px] h-[7px] rounded-full" style={{ background: u.is_active ? 'var(--low)' : 'var(--text-muted)' }} />{u.is_active ? L.active : tr('Inactif', 'Inactive')}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-right"><button onClick={() => setToRevoke({ id: u.id, name: u.full_name || u.email, active: u.is_active })} className="text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}>{L.revoke}</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-      <div className="text-[11.5px] text-ink-muted mt-2.5">{tr('Astuce : cliquez sur le statut pour activer / désactiver un membre.', 'Tip: click a status to enable / disable a member.')}</div>
-
-      <ImpactDialog
-        open={!!toRevoke}
-        title={tr('Révoquer ce membre ?', 'Revoke this member?')}
-        subject={toRevoke?.name ?? ''}
-        description={tr('Action irréversible. Voici ce qui se passe :', 'This cannot be undone. Here is what happens:')}
-        impacts={[
-          { label: tr('Perte immédiate de tout accès', 'Loses all access immediately') },
-          { label: tr('Actifs & risques dont il est responsable → sans responsable', 'Assets & risks they own → left unassigned') },
-        ]}
-        alternatives={toRevoke?.active ? [
-          {
-            label: tr('Désactiver le compte au lieu de révoquer', 'Deactivate the account instead'),
-            description: tr('Coupe l’accès mais garde le membre et ses responsabilités — réversible.', 'Cuts access but keeps the member and their ownership — reversible.'),
-            onClick: deactivateInstead,
-          },
-        ] : []}
-        confirmLabel={tr('Révoquer définitivement', 'Revoke permanently')}
-        cancelLabel={tr('Annuler', 'Cancel')}
-        loading={remove.isPending}
-        onConfirm={confirmRevoke}
-        onClose={() => setToRevoke(null)}
-      />
-    </>
-  );
-}
 
 function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   const { tokens, isLoading, isError, create, revoke } = useTokens();
@@ -363,26 +278,6 @@ function CustomFieldsTab({ tr }: { tr: Tr }) {
   );
 }
 
-function AuditTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
-  const { logs, isLoading, isError } = useAuditLogs();
-  if (isError) return <Unavailable tr={tr} />;
-  return (
-    <Card style={{ padding: '8px 14px' }}>
-      {isLoading ? <SkeletonRows rows={5} /> : logs.length === 0 ? (
-        <EmptyState icon={ScrollText} title={tr('Journal vide', 'No audit entries')} />
-      ) : (
-        logs.slice(0, 50).map((e, i) => (
-          <div key={e.id ?? i} className="flex items-center gap-3 py-2.5 px-1" style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}>
-            <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: 'var(--accent)' }} />
-            <div className="flex-1 min-w-0"><div className="text-[13px] text-ink">{e.action ?? '—'} <span className="text-ink-muted">· {e.resource ?? ''}</span></div><div className="text-[11.5px] text-ink-muted">{e.actor ?? e.user_email ?? ''}</div></div>
-            <span className="text-[11.5px] text-ink-muted">{relTime(e.created_at ?? e.timestamp, lang)}</span>
-          </div>
-        ))
-      )}
-    </Card>
-  );
-}
-
 function OrgsTab({ tr }: { tr: Tr }) {
   const { tenants, isLoading, isError } = useTenants();
   if (isError) return <Unavailable tr={tr} />;
@@ -401,68 +296,6 @@ function OrgsTab({ tr }: { tr: Tr }) {
         </div>
       )}
     </Card>
-  );
-}
-
-function RbacTab({ tr }: { tr: Tr }) {
-  const { roles, isLoading } = useRoles();
-  const levelColor = (lvl: number) => (lvl >= 9 ? 'var(--accent)' : lvl >= 6 ? 'var(--high)' : lvl >= 3 ? 'var(--info)' : 'var(--text-muted)');
-  const perms = [tr('Voir les risques', 'View risks'), tr('Créer / éditer', 'Create / edit'), tr('Supprimer', 'Delete'), tr('Gérer les membres', 'Manage members'), tr('Facturation', 'Billing')];
-  const stdRoles: [string, number[]][] = [['Admin', [1, 1, 1, 1, 1]], ['Analyste', [1, 1, 1, 0, 0]], ['Lecteur', [1, 0, 0, 0, 0]]];
-  const Dot = ({ on }: { on: boolean }) => on
-    ? <div className="w-[22px] h-[22px] rounded-[7px] inline-flex items-center justify-center" style={{ background: 'var(--accent)' }}><Check size={13} className="text-text-primary" strokeWidth={3} /></div>
-    : <div className="w-[22px] h-[22px] rounded-[7px] inline-block" style={{ border: '1.5px solid var(--border-strong)' }} />;
-  return (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[15px] font-semibold text-ink">{tr('Rôles & permissions', 'Roles & permissions')}</div>
-        <Btn label={tr('Créer un rôle', 'Create role')} icon={Plus} primary onClick={() => toast(tr('Éditeur de rôles — bientôt', 'Role editor — coming soon'))} />
-      </div>
-
-      {/* real roles from /rbac/roles */}
-      <Card style={{ padding: 8, marginBottom: 16 }}>
-        {isLoading ? (
-          <SkeletonRows rows={4} />
-        ) : roles.length === 0 ? (
-          <EmptyState icon={Lock} title={tr('Aucun rôle', 'No roles')} />
-        ) : (
-          <div className="flex flex-col gap-1.5 p-1.5">
-            {roles.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]" style={{ border: '1px solid var(--border)' }}>
-                <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: `color-mix(in srgb,${levelColor(r.level)} 14%,transparent)`, color: levelColor(r.level) }}><Lock size={16} /></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13.5px] font-semibold text-ink">{r.name}</span>
-                    {r.is_predefined && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-[.04em]" style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}>{tr('système', 'system')}</span>}
-                  </div>
-                  <div className="text-[12px] text-ink-muted truncate">{r.description}</div>
-                </div>
-                <span className="text-[11.5px] font-semibold px-2 py-[3px] rounded-full shrink-0" style={{ color: levelColor(r.level), background: `color-mix(in srgb,${levelColor(r.level)} 14%,transparent)` }}>{tr('Niveau', 'Level')} {r.level}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      <div className="text-[12px] font-semibold text-ink-soft mb-2 px-1">{tr('Matrice de permissions', 'Permission matrix')}</div>
-      <Card style={{ padding: '10px 16px', overflow: 'hidden' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse" style={{ minWidth: 460 }}>
-            <thead style={{ borderBottom: '1px solid var(--border)' }}>
-              <tr><th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-2.5 pb-3">{tr('Permission', 'Permission')}</th>{stdRoles.map((r) => <th key={r[0]} className="text-center text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-2.5 pb-3">{r[0]}</th>)}</tr>
-            </thead>
-            <tbody>
-              {perms.map((p, i) => (
-                <tr key={p} style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}>
-                  <td className="px-2.5 py-3 text-[13.5px] text-ink">{p}</td>
-                  {stdRoles.map((r) => <td key={r[0]} className="px-2.5 py-3 text-center"><Dot on={!!r[1][i]} /></td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </>
   );
 }
 

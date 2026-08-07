@@ -17,6 +17,7 @@ import type {
   AutomationRule, AutomationTrigger, AutomationAction, AutomationActionType,
   NotifyChannel, RuleInput,
 } from './automationService';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const TRIGGERS: AutomationTrigger[] = [
   'vulnerability_detected', 'risk_score_updated', 'risk_created', 'incident_created', 'manual',
@@ -34,6 +35,8 @@ const inputStyle = { border: '1px solid var(--border-strong)', background: 'var(
 export function RuleEditorModal({
   rule, isOpen, onClose,
 }: { rule: AutomationRule | null; isOpen: boolean; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { createRule, updateRule } = useAutomationMutations();

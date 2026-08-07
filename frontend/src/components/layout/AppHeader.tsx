@@ -5,18 +5,18 @@
 // dot · language · voice · notifications · theme. Sticky, backdrop-blurred, sits
 // above the scrollable body. On < lg it collapses to a hamburger + brand.
 
-import { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
-  Search, Bell, Sun, Moon, Mic, Menu, ChevronRight,
+  Search, Bell, Sun, Moon, Mic, Menu,
   Rows2, Rows3, Rows4, Keyboard,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { Hint } from '../../shared/Hint';
-import { ALL_NAV_ITEMS } from '../../shared/navModel';
 import { categoryMeta, categoryForType, type NotifCategory } from '../../shared/notificationCategory';
+import { Breadcrumbs } from '../../shared/Breadcrumbs';
 import { useNotifications, useUnreadCount, useNotificationActions } from '../../features/notifications/useNotifications';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, SkeletonRows } from '../../shared/ui';
@@ -42,23 +42,8 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
     compact: { Icon: Rows4, label: lang === 'fr' ? 'Densité : Compact' : 'Density: Compact' },
     spacious: { Icon: Rows2, label: lang === 'fr' ? 'Densité : Spacieux' : 'Density: Spacious' },
   }[density];
-  const { pathname } = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadCount = useUnreadCount();
-
-  const breadcrumb = useMemo(() => {
-    let best = '';
-    let bestLen = -1;
-    for (const it of ALL_NAV_ITEMS) {
-      const p = it.path;
-      const match = p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
-      if (match && p.length > bestLen) {
-        best = L[it.labelKey];
-        bestLen = p.length;
-      }
-    }
-    return best || L.soon;
-  }, [pathname, L]);
 
   return (
     <header
@@ -69,12 +54,9 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         <Menu size={18} />
       </button>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[13px] min-w-0">
-        <span className="text-ink-muted hidden sm:inline">{L.brandShort}</span>
-        <ChevronRight size={13} className="text-ink-muted hidden sm:inline shrink-0" />
-        <span className="text-ink font-medium whitespace-nowrap truncate">{breadcrumb}</span>
-      </div>
+      {/* Breadcrumb — a real clickable trail derived from the route tree, so
+          every page at depth >= 2 renders its own way back. */}
+      <Breadcrumbs />
 
       <div className="flex-1" />
 

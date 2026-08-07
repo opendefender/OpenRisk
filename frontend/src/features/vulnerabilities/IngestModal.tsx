@@ -12,6 +12,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useVulnMutations } from './useVulnerabilities';
 import type { VulnSource } from './vulnerabilityService';
 import { SOURCE_LABEL } from './vulnMeta';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 const SOURCES: VulnSource[] = [
   'nessus', 'openvas', 'qualys', 'ms_defender', 'aws_inspector', 'azure_defender', 'crowdstrike', 'manual',
@@ -28,6 +29,8 @@ const FORMAT_EXAMPLES: Record<string, string> = {
 };
 
 export function IngestModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { ingest } = useVulnMutations();

@@ -1,20 +1,33 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Roles & access (Tenant Admin). Two views:
-//  - Roles: the business-role catalog with its permission matrix — what each GRC
-//    job role (RSSI, Risk Manager, Auditor, …) can do, grouped by domain.
-//  - Members: the tenant's members with their org role + business role, and an
-//    inline selector to (re)assign a business role. Admin-gated (route + nav).
+// Members & access, rendered inside Settings › Members.
+//
+// This was a page of its own at /settings/roles, which is how "Invite a member"
+// came to land on a screen called "Roles & permissions": inviting someone and
+// deciding what they can do were filed apart, even though they are one job. The
+// invite lives here now, with the member list and the role assignment, and
+// Settings › Members is the single place that answers "who has access".
+//
+// Two views remain, as a local toggle rather than two destinations:
+//  - Members: the tenant's members with org role + business role, an inline
+//    selector to (re)assign, and the invite action.
+//  - Roles: the business-role catalog and its permission matrix — reference
+//    material for the assignment, not a separate errand.
+//
+// ?action=invite opens the invite dialog on arrival, so anything that wants to
+// send a user here to invite somebody can link straight to the action.
 
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { ShieldCheck, Users, KeyRound, UserPlus, X, Copy } from 'lucide-react';
-import { PageFrame, PageHeader, Card, Chip, SkeletonRows, EmptyState } from '../../shared/ui';
+import { Card, Chip, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useRbacCatalog, useRbacMembers, useAssignBusinessRole, useInviteMember } from './useRbac';
 import type { BusinessRole, PermissionDef, MemberView, InviteMemberResult } from './rbacService';
 import { useOnboarding } from '../onboarding/onboardingStore';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 type Tab = 'roles' | 'members';
 
@@ -30,42 +43,42 @@ const GROUP_LABELS: Record<string, { fr: string; en: string }> = {
   reports: { fr: 'Rapports', en: 'Reports' },
 };
 
-export function RolesAccessPage() {
-  const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const [tab, setTab] = useState<Tab>('roles');
-
-  const TabBtn = ({ id, label }: { id: Tab; label: string }) => (
+// Declared at module scope: a component defined inside a render is a NEW type
+// on every render, so React unmounts and remounts it, discarding focus and any
+// state it holds.
+function TabBtn({ id, label, tab, onSelect }: { id: Tab; label: string; tab: Tab; onSelect: (t: Tab) => void }) {
+  return (
     <button
-      onClick={() => setTab(id)}
+      onClick={() => onSelect(id)}
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
         background: tab === id ? 'var(--accent)' : 'transparent',
-        color: tab === id ? '#fff' : 'var(--text-secondary)',
+        color: tab === id ? 'var(--text-on-solid)' : 'var(--text-secondary)',
         border: tab === id ? 'none' : '1px solid var(--border-strong)',
       }}
     >
       {label}
     </button>
   );
+}
+
+export function MembersPanel() {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  // Members first: it is what people come here to do. The permission matrix is
+  // reference material behind it.
+  const [tab, setTab] = useState<Tab>('members');
 
   return (
-    <PageFrame wide>
-      <PageHeader
-        title={tr('Rôles & accès', 'Roles & access')}
-        count={tr(
-          'Rôles métiers GRC · matrice de permissions · affectation',
-          'GRC business roles · permission matrix · assignment'
-        )}
-      />
+    <>
       <div className="flex gap-2 mb-4 flex-wrap">
-        <TabBtn id="roles" label={tr('Rôles & permissions', 'Roles & permissions')} />
-        <TabBtn id="members" label={tr('Membres', 'Members')} />
+        <TabBtn id="members" label={tr('Membres', 'Members')} tab={tab} onSelect={setTab} />
+        <TabBtn id="roles" label={tr('Rôles & permissions', 'Roles & permissions')} tab={tab} onSelect={setTab} />
       </div>
 
       {tab === 'roles' && <RolesView />}
       {tab === 'members' && <MembersView />}
-    </PageFrame>
+    </>
   );
 }
 
@@ -151,7 +164,26 @@ function MembersView() {
   const { data: catalog } = useRbacCatalog();
   const { data: members = [], isLoading } = useRbacMembers();
   const assign = useAssignBusinessRole();
-  const [inviteOpen, setInviteOpen] = useState(false);
+  // ?action=invite opens the dialog on arrival (spec §3), so anything that wants
+  // to send a user here to invite somebody can link straight to the action.
+  //
+  // Derived from the URL rather than synced into state by an effect: the URL is
+  // already the source of truth, and mirroring it into state means two things
+  // that can disagree. Closing clears the param (replace, so Back does not
+  // re-open it) and the local flag together.
+  const [params, setParams] = useSearchParams();
+  const [manualInvite, setManualInvite] = useState(false);
+  const inviteOpen = manualInvite || params.get('action') === 'invite';
+  const closeInvite = () => {
+    setManualInvite(false);
+    if (params.get('action')) {
+      setParams((prev) => {
+        const n = new URLSearchParams(prev);
+        n.delete('action');
+        return n;
+      }, { replace: true });
+    }
+  };
 
   const roleLabel = (key: string): string => {
     const r = catalog?.business_roles.find((b) => b.key === key);
@@ -176,7 +208,8 @@ function MembersView() {
   const inviteBar = (
     <div className="flex justify-end mb-3">
       <button
-        onClick={() => setInviteOpen(true)}
+        onClick={() => setManualInvite(true)}
+        data-testid="invite-member"
         className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-text-primary inline-flex items-center gap-1.5"
         style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}
       >
@@ -184,7 +217,7 @@ function MembersView() {
       </button>
     </div>
   );
-  const modal = inviteOpen && <InviteModal catalog={catalog} onClose={() => setInviteOpen(false)} />;
+  const modal = inviteOpen && <InviteModal catalog={catalog} onClose={closeInvite} />;
 
   if (isLoading)
     return (
@@ -284,6 +317,8 @@ function MembersView() {
 // one-time temporary password to share.
 // ---------------------------------------------------------------------------
 function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacCatalog>['data']; onClose: () => void }) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const invite = useInviteMember();
@@ -321,7 +356,7 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--surface-overlay)' }} onClick={onClose}>
       <div className="w-full max-w-[440px] rounded-[16px] p-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-overlay)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-[16px] font-bold text-ink">{tr('Inviter un membre', 'Invite a member')}</div>
@@ -371,7 +406,7 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
 
 function RoleBadge({ role }: { role: MemberView['org_role'] }) {
   const map: Record<string, { label: string; color: string }> = {
-    root: { label: 'Root', color: 'var(--crit, #dc2626)' },
+    root: { label: 'Root', color: 'var(--critical)' },
     admin: { label: 'Admin', color: 'var(--accent)' },
     user: { label: 'User', color: 'var(--text-secondary)' },
   };

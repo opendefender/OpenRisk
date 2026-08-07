@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import { CalendarClock, Plus, Trash2, Wand2, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
@@ -78,7 +78,7 @@ export function AuditsPage() {
       loading: tr('Génération des plans…', 'Generating plans…'),
       success: (r) => {
         const msg = tr(`${r.created} plan(s) créé(s), ${r.skipped} déjà couvert(s)`, `${r.created} plan(s) created, ${r.skipped} already covered`);
-        if (r.created > 0) setTimeout(() => navigate('/compliance/remediations'), 600);
+        if (r.created > 0) setTimeout(() => navigate('/compliance/remediation'), 600);
         return msg;
       },
       error: tr('Génération échouée', 'Generation failed'),
@@ -133,7 +133,11 @@ export function AuditsPage() {
                   {shown.map((a, i) => (
                     <tr key={a.id} className="text-[13px] text-ink" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)', animation: 'or-fadeup .35s ease both', animationDelay: `${Math.min(i * 0.03, 0.25)}s` }}>
                       <td className="px-4 py-3">
-                        <div className="font-semibold">{a.title}</div>
+                        {/* A link, not a row click: the detail is a route, so it
+                            must be openable in a new tab and shareable. */}
+                        <Link to={`/compliance/audits/${a.id}`} className="font-semibold text-ink hover:text-accent transition-colors">
+                          {a.title}
+                        </Link>
                         {a.scope && <div className="text-[11.5px] text-ink-muted truncate max-w-[280px]" title={a.scope}>{a.scope}</div>}
                       </td>
                       <td className="px-4 py-3 text-ink-soft">{lang === 'fr' ? TYPE_LABEL[a.type]?.fr : TYPE_LABEL[a.type]?.en}</td>

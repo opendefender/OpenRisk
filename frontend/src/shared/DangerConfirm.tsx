@@ -11,6 +11,7 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, X, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
+import { useEscapeToClose } from './useBackTo';
 
 export interface DangerAlternative {
   label: string;
@@ -39,6 +40,8 @@ interface DangerConfirmProps {
 export function DangerConfirm({
   open, onClose, title, subject, intro, impact, alternatives, confirmLabel, onConfirm, busy,
 }: DangerConfirmProps) {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(open, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   if (!open) return null;

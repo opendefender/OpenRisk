@@ -14,6 +14,7 @@ import { Button } from '../../components/ui/Button';
 import { ProgressBar } from '../../components/shared/ProgressBar';
 import { useI18n } from '../../hooks/useI18n';
 import { cn } from '../../utils/cn';
+import { useEscapeToClose } from '../../shared/useBackTo';
 
 interface MitigationDetailDrawerProps {
   isOpen: boolean;
@@ -41,6 +42,8 @@ export const MitigationDetailDrawer = ({
   mitigation,
   onClose,
 }: MitigationDetailDrawerProps) => {
+  // Esc closes this overlay (spec §2).
+  useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'overview' | 'sub-actions' | 'evidence' | 'timeline' | 'ai'>('overview');
   const [isEditingDescription, setIsEditingDescription] = useState(false);
