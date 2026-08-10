@@ -63,7 +63,12 @@ const (
 // key may be recorded many times (a tenant creates many risks) and the read model
 // only ever looks at the FIRST occurrence per key.
 type ActivationEvent struct {
-	ID         uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	// No `default:gen_random_uuid()` on purpose: it is Postgres-only, and it made
+	// AutoMigrate unusable against the sqlite the repository tests run on — which
+	// would have forced hand-written test DDL, the very thing that has drifted
+	// from the models twice in this codebase. Every writer assigns the id in Go;
+	// migration 0043 still declares the DB-level default for raw inserts.
+	ID         uuid.UUID          `gorm:"type:uuid;primaryKey" json:"id"`
 	TenantID   uuid.UUID          `gorm:"type:uuid;not null;index:idx_activation_tenant_key,priority:1" json:"tenant_id"`
 	UserID     *uuid.UUID         `gorm:"type:uuid;index" json:"user_id,omitempty"`
 	EventKey   ActivationEventKey `gorm:"type:varchar(64);not null;index:idx_activation_tenant_key,priority:2" json:"event_key"`
@@ -83,7 +88,7 @@ func (ActivationEvent) TableName() string { return "activation_events" }
 // a step. This is what makes the burst idempotent across reloads and devices —
 // the client never decides, it only obeys the `celebrate` flag the server sets.
 type ActivationCelebration struct {
-	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	TenantID     uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
 	UserID       uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_activation_celebration,priority:1" json:"user_id"`
 	StepKey      string    `gorm:"type:varchar(64);not null;uniqueIndex:idx_activation_celebration,priority:2" json:"step_key"`
@@ -319,7 +324,7 @@ func (s OnboardingStepKey) Index() int {
 
 // OnboardingProgress is one user's resumable wizard state.
 type OnboardingProgress struct {
-	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
 	UserID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
 
