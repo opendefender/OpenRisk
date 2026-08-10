@@ -102,7 +102,11 @@ func issueSSOSession(c *fiber.Ctx, user *domain.User, provider string) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": fmt.Sprintf("failed to onboard user: %v", err)})
 	}
 
-	pair, err := ssoTokenManager.IssueSession(c.UserContext(), user.ID, c.Get("X-Device-Fingerprint"))
+	pair, err := ssoTokenManager.IssueSession(c.UserContext(), user.ID, coreauth.DeviceContext{
+		Fingerprint: c.Get("X-Device-Fingerprint"),
+		IP:          c.IP(),
+		UserAgent:   c.Get("User-Agent"),
+	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
 	}

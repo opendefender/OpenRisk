@@ -4,9 +4,15 @@
 // Threat Intel (OpenRisk.dc.html §6.11): headline stats + a LIVE CVE feed from
 // NVD + CISA KEV (enriched with MITRE ATT&CK). "Sync feed" pulls the sources;
 // "Match assets" intersects CPEs and auto-creates risks.
+//
+// Both buttons always had handlers, but neither showed that it was working: a
+// feed sync takes seconds and the page looked frozen, so the button read as
+// dead. They now disable while in flight, swap their icon for a spinner, and
+// report what actually happened — including "0 new CVEs", which is a result,
+// not a silence.
 
 import { useMemo, useState } from 'react';
-import { Globe, Crosshair, ShieldAlert, Search } from 'lucide-react';
+import { Globe, Crosshair, ShieldAlert, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { critColor, type Criticality } from '../../shared/riskColors';
@@ -57,6 +63,8 @@ export function ThreatIntel() {
       onError: () => toast.error(tr('Échec de la synchronisation', 'Sync failed')),
     });
   };
+  const syncing = sync.isPending;
+  const matching = match.isPending;
   const onMatch = () => {
     match.mutate(undefined, {
       onSuccess: (r) => toast.success(
@@ -84,8 +92,21 @@ export function ThreatIntel() {
         count={stats ? String(stats.total) : null}
         actions={
           <div className="flex items-center gap-2">
-            <Btn label={tr('Matcher les actifs', 'Match assets')} icon={Crosshair} onClick={onMatch} />
-            <Btn label={tr('Synchroniser', 'Sync feed')} icon={Globe} primary onClick={onSync} />
+            <Btn
+              label={matching ? tr('Analyse des actifs…', 'Matching assets…') : tr('Matcher les actifs', 'Match assets')}
+              icon={matching ? Loader2 : Crosshair}
+              onClick={onMatch}
+              disabled={matching || syncing}
+              className={matching ? '[&>svg]:animate-spin' : ''}
+            />
+            <Btn
+              label={syncing ? tr('Synchronisation…', 'Syncing…') : tr('Synchroniser', 'Sync feed')}
+              icon={syncing ? Loader2 : Globe}
+              primary
+              onClick={onSync}
+              disabled={syncing || matching}
+              className={syncing ? '[&>svg]:animate-spin' : ''}
+            />
           </div>
         }
       />
@@ -141,7 +162,7 @@ export function ThreatIntel() {
             icon={Globe}
             title={tr('Aucune CVE', 'No CVEs yet')}
             description={tr('Synchronisez NVD + CISA KEV pour peupler le flux.', 'Sync NVD + CISA KEV to populate the feed.')}
-            primaryAction={<Btn label={tr('Synchroniser', 'Sync feed')} icon={Globe} primary onClick={onSync} />}
+            primaryAction={<Btn label={syncing ? tr('Synchronisation…', 'Syncing…') : tr('Synchroniser', 'Sync feed')} icon={syncing ? Loader2 : Globe} primary onClick={onSync} disabled={syncing} />}
           />
         ) : (
           list.map((v, i) => {

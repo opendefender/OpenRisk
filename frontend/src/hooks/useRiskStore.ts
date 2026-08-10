@@ -80,6 +80,9 @@ interface RiskFilters {
 interface RiskStore {
   risks: Risk[];
   isLoading: boolean;
+  /** True when the last fetch failed — the register renders a retry state
+   *  instead of an empty table pretending the tenant has no risks. */
+  error: boolean;
   // pagination
   total: number;
   page: number;
@@ -123,6 +126,7 @@ interface RiskStore {
 export const useRiskStore = create<RiskStore>((set, get) => ({
   risks: [],
   isLoading: false,
+  error: false,
   total: 0,
   page: 1,
   pageSize: 20,
@@ -138,7 +142,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   },
 
   fetchRisks: async (params) => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: false });
     try {
       const response = await api.get('/risks', { params });
 
@@ -151,10 +155,11 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
         // Fallback
         set({ risks: [], total: 0 });
       }
-    } catch (error) {
-      console.error('Failed to fetch risks', error);
-      // In production, set an error state or show a toast
-      set({ risks: [], total: 0 });
+    } catch (err) {
+      console.error('Failed to fetch risks', err);
+      // A failed fetch is NOT an empty register: surface it so the table can
+      // offer a retry instead of showing a reassuring "no risks yet".
+      set({ risks: [], total: 0, error: true });
     } finally {
       set({ isLoading: false });
     }

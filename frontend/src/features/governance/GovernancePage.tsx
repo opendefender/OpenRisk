@@ -10,10 +10,11 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Scale, Search, Download, ChevronRight, ChevronDown, Plus, Trash2, Check, X,
+  Scale, Download, ChevronRight, ChevronDown, Plus, Trash2, Check, X,
   UserPlus, ShieldCheck, Clock, ArrowRight, FileClock,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, Chip } from '../../shared/ui';
+import { DataTable, useTableState, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import {
@@ -25,6 +26,12 @@ import type {
 } from './governanceService';
 
 type Tab = 'audit' | 'approvals' | 'delegations' | 'workflows';
+
+// Facet vocabularies for the audit trail. They mirror the values the API filters
+// on; a value listed here that the API does not know would simply return zero
+// rows, which is why they are kept next to the query rather than inlined in JSX.
+const AUDIT_ACTIONS: AuditAction[] = ['create', 'update', 'delete', 'submit', 'approve', 'reject', 'delegate', 'revoke', 'export'];
+const AUDIT_ENTITIES = ['asset', 'compliance_control', 'delegation', 'approval_request', 'audit_events'];
 
 const ACTION_COLOR: Record<AuditAction, string> = {
   create: 'var(--good, #16a34a)', update: 'var(--accent)', delete: 'var(--crit, #dc2626)',
@@ -93,20 +100,32 @@ export function GovernancePage() {
 // ---------------------------------------------------------------------------
 // Audit trail — interactive journal with before→after diff + CSV export.
 // ---------------------------------------------------------------------------
+// The audit trail is the one table where "what changed" matters as much as
+// "what happened", so the Before → After diff moved from an inline expander into
+// a drawer: <DataTable> owns the row, the drawer owns the detail. Server-side
+// paging (limit/offset), facets and search all round-trip to the API.
 function AuditView() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const [search, setSearch] = useState('');
-  const [entityType, setEntityType] = useState('');
-  const [action, setAction] = useState('');
-  const filter = useMemo(
-    () => ({ search: search || undefined, entity_type: entityType || undefined, action: action || undefined, limit: 100 }),
-    [search, entityType, action],
-  );
-  const { data, isLoading } = useAuditEvents(filter);
-  const events = data?.events ?? [];
+  const [detail, setDetail] = useState<AuditEvent | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const table = useTableState({ defaultPageSize: 50 });
+  const { state } = table;
+
+  const filter = useMemo(() => ({
+    search: state.q.trim() || undefined,
+    entity_type: state.filters.entity_type?.[0],
+    action: state.filters.action?.[0],
+    limit: state.pageSize,
+    offset: (state.page - 1) * state.pageSize,
+  }), [state]);
+
+  const { data, isLoading, isError, refetch } = useAuditEvents(filter);
+  const events = useMemo(() => data?.events ?? [], [data]);
 
   const exportCsv = async () => {
+    setExporting(true);
     try {
       const blob = await governanceService.exportAuditCsv(filter);
       const url = URL.createObjectURL(blob);
@@ -115,99 +134,141 @@ function AuditView() {
       a.download = 'audit-trail.csv';
       a.click();
       URL.revokeObjectURL(url);
+      toast.success(tr('Piste d’audit exportée', 'Audit trail exported'));
     } catch {
       toast.error(tr('Échec de l’export', 'Export failed'));
+    } finally {
+      setExporting(false);
     }
   };
 
-  const ACTIONS: AuditAction[] = ['create', 'update', 'delete', 'submit', 'approve', 'reject', 'delegate', 'revoke', 'export'];
+  const facets: Facet<AuditEvent>[] = useMemo(() => [
+    {
+      key: 'action',
+      label: tr('Action', 'Action'),
+      single: true,
+      options: AUDIT_ACTIONS.map((a) => ({ value: a, label: a, color: ACTION_COLOR[a] })),
+    },
+    {
+      key: 'entity_type',
+      label: tr('Entité', 'Entity'),
+      single: true,
+      options: AUDIT_ENTITIES.map((e) => ({ value: e, label: e })),
+    },
+  ], [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const columns: Column<AuditEvent>[] = useMemo(() => [
+    {
+      key: 'action',
+      header: tr('Action', 'Action'),
+      hideable: false,
+      exportValue: (e) => e.action,
+      render: (e) => (
+        <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: 'var(--text-inverse)', background: ACTION_COLOR[e.action] }}>{e.action}</span>
+      ),
+    },
+    {
+      key: 'summary',
+      header: tr('Résumé', 'Summary'),
+      frozen: true,
+      exportValue: (e) => e.summary || `${e.action} ${e.entity_type}`,
+      render: (e) => <span className="text-[13px] block max-w-[420px] truncate">{e.summary || `${e.action} ${e.entity_type}`}</span>,
+    },
+    { key: 'entity', header: tr('Entité', 'Entity'), exportValue: (e) => e.entity_type, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.entity_type}</span> },
+    {
+      key: 'actor',
+      header: tr('Acteur', 'Actor'),
+      exportValue: (e) => e.actor_email || e.actor_id || 'system',
+      render: (e) => <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>{e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))}</span>,
+    },
+    { key: 'ip', header: 'IP', defaultHidden: true, exportValue: (e) => e.ip_address ?? '', render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.ip_address ?? '—'}</span> },
+    { key: 'when', header: tr('Quand', 'When'), exportValue: (e) => e.created_at, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{fmt(e.created_at)}</span> },
+  ], [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rowActions: RowAction<AuditEvent>[] = useMemo(() => [
+    { key: 'diff', label: tr('Voir le détail', 'View details'), icon: FileClock, onSelect: (e) => setDetail(e) },
+  ], [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="space-y-3">
-      <Card style={{ padding: 12 }}>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-[220px] px-2.5 h-9 rounded-[9px]" style={{ border: '1px solid var(--border-strong)' }}>
-            <Search size={15} style={{ color: 'var(--text-secondary)' }} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={tr('Rechercher (résumé, entité…)', 'Search (summary, entity…)')}
-              className="bg-transparent outline-none text-[13px] flex-1"
-            />
-          </div>
-          <select value={entityType} onChange={(e) => setEntityType(e.target.value)} className="h-9 px-2.5 rounded-[9px] text-[12.5px] bg-transparent" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-            <option value="">{tr('Toutes entités', 'All entities')}</option>
-            <option value="asset">asset</option>
-            <option value="compliance_control">compliance_control</option>
-            <option value="delegation">delegation</option>
-            <option value="approval_request">approval_request</option>
-            <option value="audit_events">audit_events</option>
-          </select>
-          <select value={action} onChange={(e) => setAction(e.target.value)} className="h-9 px-2.5 rounded-[9px] text-[12.5px] bg-transparent" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-            <option value="">{tr('Toutes actions', 'All actions')}</option>
-            {ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <Btn label={tr('Exporter CSV', 'Export CSV')} icon={Download} onClick={exportCsv} />
-        </div>
-      </Card>
-
-      {isLoading && events.length === 0 ? (
-        <Card style={{ padding: 12 }}><SkeletonRows rows={6} /></Card>
-      ) : events.length === 0 ? (
-        <EmptyState
-          variant="first-use"
-          icon={FileClock}
-          title={tr('La piste d’audit est vide', 'The audit trail is empty')}
-          description={tr('Chaque création, modification et suppression d’une entité auditée est enregistrée ici — qui, quoi, quand, et le détail Avant → Après. Elle se remplit dès votre première action.', 'Every create, update and delete on an audited entity is recorded here — who, what, when, and the before/after diff. It fills up with your first action.')}
-        />
-      ) : (
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
-          {events.map((e) => <AuditRow key={e.id} e={e} />)}
-        </Card>
-      )}
-    </div>
+    <>
+      <DataTable
+        id="audit-trail"
+        ariaLabel={tr('Piste d’audit', 'Audit trail')}
+        rows={events}
+        total={data?.total ?? events.length}
+        columns={columns}
+        rowKey={(e) => e.id}
+        api={table}
+        mode="server"
+        loading={isLoading}
+        error={isError}
+        onRetry={() => void refetch()}
+        facets={facets}
+        searchPlaceholder={tr('Rechercher (résumé, entité…)', 'Search (summary, entity…)')}
+        rowActions={rowActions}
+        onRowClick={(e) => setDetail(e)}
+        toolbarExtra={<Btn label={exporting ? tr('Export…', 'Exporting…') : tr('Exporter CSV', 'Export CSV')} icon={Download} onClick={exportCsv} disabled={exporting} />}
+        minWidth={900}
+        empty={
+          <EmptyState
+            variant="first-use"
+            icon={FileClock}
+            title={tr('La piste d’audit est vide', 'The audit trail is empty')}
+            description={tr('Chaque création, modification et suppression d’une entité auditée est enregistrée ici — qui, quoi, quand, et le détail Avant → Après. Elle se remplit dès votre première action.', 'Every create, update and delete on an audited entity is recorded here — who, what, when, and the before/after diff. It fills up with your first action.')}
+          />
+        }
+      />
+      {detail && <AuditDetailDrawer e={detail} onClose={() => setDetail(null)} />}
+    </>
   );
 }
 
-function AuditRow({ e }: { e: AuditEvent }) {
+// Before → After, field by field.
+function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const [open, setOpen] = useState(false);
   const changed = e.changed_fields ?? [];
-  const hasDiff = (e.before || e.after) && (e.action === 'update' || e.action === 'create' || e.action === 'delete');
 
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
-      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-3 px-4 py-2.5 text-left">
-        {hasDiff ? (open ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : <span style={{ width: 14 }} />}
-        <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: '#fff', background: ACTION_COLOR[e.action] }}>{e.action}</span>
-        <span className="text-[13px] flex-1 min-w-0 truncate">{e.summary || `${e.action} ${e.entity_type}`}</span>
-        <span className="text-[12px] mono hidden md:inline" style={{ color: 'var(--text-secondary)' }}>{e.entity_type}</span>
-        <span className="text-[12px] hidden lg:inline" style={{ color: 'var(--text-secondary)' }}>{e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))}</span>
-        <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{fmt(e.created_at)}</span>
-      </button>
+    <div className="fixed inset-0 z-[70] flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
+      <div
+        onClick={(ev) => ev.stopPropagation()}
+        className="h-full flex flex-col"
+        style={{ width: 'min(94vw,560px)', background: 'var(--bg-secondary)', borderLeft: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)' }}
+      >
+        <div className="px-[22px] pt-5 pb-3.5 flex items-start gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex-1">
+            <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: 'var(--text-inverse)', background: ACTION_COLOR[e.action] }}>{e.action}</span>
+            <div className="disp text-[16px] font-bold text-ink leading-snug mt-2">{e.summary || `${e.action} ${e.entity_type}`}</div>
+            <div className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+              {e.entity_type} · {e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))} · {fmt(e.created_at)}
+            </div>
+            {e.ip_address && <div className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>IP {e.ip_address}{e.user_agent ? ` · ${e.user_agent}` : ''}</div>}
+          </div>
+          <button onClick={onClose} aria-label={tr('Fermer', 'Close')} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}>
+            <X size={18} />
+          </button>
+        </div>
 
-      {open && hasDiff && (
-        <div className="px-10 pb-3 pt-1 text-[12.5px]">
-          {e.ip_address && <div className="mb-2" style={{ color: 'var(--text-secondary)' }}>IP {e.ip_address}{e.user_agent ? ` · ${e.user_agent}` : ''}</div>}
+        <div className="flex-1 overflow-y-auto px-[22px] py-5 text-[12.5px]">
           {changed.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-2">
               {changed.map((f) => (
                 <div key={f} className="flex items-start gap-2 flex-wrap">
                   <span className="mono font-semibold" style={{ minWidth: 140 }}>{f}</span>
-                  <span className="mono px-1.5 rounded" style={{ background: 'color-mix(in srgb, var(--crit, #dc2626) 12%, transparent)', textDecoration: 'line-through', opacity: 0.8 }}>{renderVal(e.before?.[f])}</span>
+                  <span className="mono px-1.5 rounded" style={{ background: 'color-mix(in srgb, var(--critical) 12%, transparent)', textDecoration: 'line-through', opacity: 0.8 }}>{renderVal(e.before?.[f])}</span>
                   <ArrowRight size={12} style={{ marginTop: 3, color: 'var(--text-secondary)' }} />
-                  <span className="mono px-1.5 rounded" style={{ background: 'color-mix(in srgb, var(--good, #16a34a) 14%, transparent)' }}>{renderVal(e.after?.[f])}</span>
+                  <span className="mono px-1.5 rounded" style={{ background: 'color-mix(in srgb, var(--low) 14%, transparent)' }}>{renderVal(e.after?.[f])}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <pre className="text-[11.5px] mono overflow-x-auto p-2 rounded" style={{ background: 'var(--surface-2, rgba(127,127,127,0.06))' }}>
+            <pre className="text-[11.5px] mono overflow-x-auto p-2 rounded" style={{ background: 'var(--bg-hover)' }}>
               {JSON.stringify(e.after ?? e.before ?? {}, null, 2)}
             </pre>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

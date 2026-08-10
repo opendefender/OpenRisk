@@ -50,8 +50,13 @@ describe('App Integration', () => {
     // App renders its own <BrowserRouter>; don't double-wrap.
     render(<App />);
 
-    // Login screen heading (locale-robust: EN "Welcome to OpenRisk" / FR "Bienvenue sur OpenRisk").
-    expect(screen.getByText(/Welcome to OpenRisk|Bienvenue sur OpenRisk/)).toBeInTheDocument();
+    // Assert on the form itself, not on its heading. The previous version matched
+    // the marketing copy verbatim, so an ordinary wording change broke a test
+    // that is supposed to be about routing — and these ids are locale-independent
+    // by construction.
+    expect(screen.getByTestId('login-email')).toBeInTheDocument();
+    expect(screen.getByTestId('login-password')).toBeInTheDocument();
+    expect(screen.getByTestId('login-submit')).toBeInTheDocument();
   });
 
   it('should render Dashboard when authenticated', async () => {

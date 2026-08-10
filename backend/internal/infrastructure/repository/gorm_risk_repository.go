@@ -79,13 +79,20 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 
 	// Apply filters
 	if query.Search != "" {
-		// Use PostgreSQL full-text search for better performance
-		// tsvector on (name || ' ' || description) with 'french' language
+		// Full-text search (tsvector on name+description) OR'd with a prefix-ish
+		// ILIKE. The tsvector alone is lexeme-exact: typing "log" matched nothing
+		// while "Log4Shell" sat in the register, which made the register's search
+		// box look broken. The ILIKE arm only ever ADDS rows, so full-text ranking
+		// behaviour for real words is unchanged. Both arms are bound parameters.
+		like := "%" + query.Search + "%"
 		db = db.Where(
-			"to_tsvector(?, name || ' ' || COALESCE(description, '')) @@ plainto_tsquery(?, ?)",
+			"(to_tsvector(?, name || ' ' || COALESCE(description, '')) @@ plainto_tsquery(?, ?) OR name ILIKE ? OR title ILIKE ? OR COALESCE(description, '') ILIKE ?)",
 			query.SearchLanguage,
 			query.SearchLanguage,
 			query.Search,
+			like,
+			like,
+			like,
 		)
 	}
 
@@ -97,6 +104,11 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 	// Criticality filter
 	if len(query.Criticality) > 0 {
 		db = db.Where("criticality IN ?", query.Criticality)
+	}
+
+	// Lifecycle phase filter (ISO 31000)
+	if len(query.LifecyclePhase) > 0 {
+		db = db.Where("lifecycle_phase IN ?", query.LifecyclePhase)
 	}
 
 	// Framework filter (single framework)

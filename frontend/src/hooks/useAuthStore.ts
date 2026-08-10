@@ -26,12 +26,40 @@ interface User {
   timezone?: string;
 }
 
+/**
+ * What /auth/login answered.
+ *
+ * Login does not always produce a session. It stops short in two cases, and the
+ * caller has to be able to tell them apart:
+ *
+ *   - `mfa_required` — an authenticator is enrolled; complete the challenge.
+ *   - `mfa_enrollment_required` — the role MANDATES MFA and nothing is enrolled;
+ *     enrol first, which completes the login in the same step.
+ *
+ * Both carry a short-lived, permission-less token that only the corresponding
+ * endpoint accepts. Previously this store typed login as Promise<void> and read
+ * `data.user` unconditionally, so an MFA-enabled account hit a TypeError and
+ * could not sign in from the SPA at all.
+ */
+export type LoginOutcome =
+  | { status: 'signed_in' }
+  | { status: 'mfa_required'; mfa_token: string }
+  | { status: 'mfa_enrollment_required'; mfa_token: string };
+
 interface AuthStore {
   user: User | null;
   token: string | null;
   expiresIn: number | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginOutcome>;
+  /**
+   * Adopts a session minted by a second-factor step.
+   *
+   * The MFA challenge and mandated enrolment both end by setting the same
+   * session cookies /auth/login does and returning the pair in the body, so this
+   * finishes the job login would otherwise have done.
+   */
+  adoptSession: (accessToken: string) => Promise<void>;
   logout: () => void;
   refreshToken: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
@@ -66,6 +94,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // Backend shape: { user: domain.User, token_pair: { access_token, refresh_token, expires_in }, organization }
     // domain.User.role is a nested Role object (or absent) — flatten to the role name this store expects.
     const { data } = await api.post('/auth/login', { email, password });
+
+    // No session yet: a second factor stands between the password and the app.
+    if (data.mfa_required && data.mfa_token) {
+      return { status: 'mfa_required', mfa_token: data.mfa_token };
+    }
+    if (data.mfa_enrollment_required && data.mfa_token) {
+      return { status: 'mfa_enrollment_required', mfa_token: data.mfa_token };
+    }
     // Flatten the nested Role object and fold in the JWT permissions/roles + the
     // business_role the backend returns, so RBAC gating works on the client.
     const base: User = { ...data.user, role: data.user.role?.name ?? '', org_name: data.organization?.name };
@@ -82,6 +118,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       expiresIn: data.token_pair.expires_in,
       isAuthenticated: true
     });
+
+    return { status: 'signed_in' };
+  },
+
+  adoptSession: async (accessToken: string) => {
+    setAccessToken(accessToken);
+
+    // The MFA responses carry the token pair but not the profile, so read it
+    // back. Permissions still come from the token, exactly as at login.
+    const { data } = await api.get('/auth/me');
+    const base: User = { ...data, role: data.role?.name ?? '' };
+    const user = withTokenClaims(base, accessToken);
+
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    set({ token: accessToken, user, isAuthenticated: true });
   },
 
   logout: () => {

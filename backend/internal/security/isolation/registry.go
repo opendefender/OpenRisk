@@ -91,6 +91,10 @@ var decisions = []Decision{
 	// --- Caller's own identity -------------------------------------------
 	{"/api/v1/auth/pat/{id}", SelfScoped,
 		"PAT CRUD is scoped to the authenticated owner via claims, not the path"},
+	{"/api/v1/auth/sessions/{id}", SelfScoped,
+		"session revocation is scoped to the authenticated owner: GormSessionRepository.Revoke " +
+			"filters id AND user_id, so a foreign session id affects 0 rows and reads back as " +
+			"not-found rather than forbidden (covered by TestRevoke_CrossUser_IsNotFound)"},
 
 	// --- Covered by automated isolation tests -----------------------------
 	{"/api/v1/assets/{id}", Covered,

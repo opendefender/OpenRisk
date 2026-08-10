@@ -69,7 +69,7 @@ export function useTokens() {
     mutationFn: (id: string) => api.post(`/tokens/${id}/revoke`),
     onSuccess: invalidate,
   });
-  return { tokens: query.data ?? [], isLoading: query.isLoading, isError: query.isError, create, revoke };
+  return { tokens: query.data ?? [], isLoading: query.isLoading, isError: query.isError, refetch: query.refetch, create, revoke };
 }
 
 /* ---------------- Custom Fields (/custom-fields) ---------------- */

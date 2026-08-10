@@ -1,20 +1,26 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Risk Register (OpenRisk.dc.html §6.3) — wired to the real /risks store. Criticality
-// chips, a filter/search bar, a dense table with multi-select + floating bulk bar
-// (real bulk delete), a per-row action menu (view/edit/export/delete), and a
-// right-side detail drawer with Details / Score / Mitigations tabs. From the drawer
-// you can edit the risk, export it, and create a linked mitigation plan.
+// Risk Register (OpenRisk.dc.html §6.3) — wired to the real /risks store.
+//
+// The register is the app's most demanding table, so it is the reference
+// migration onto <DataTable> (shared/datatable): server-side sort + pagination,
+// faceted filters mirrored in the URL with saved views, instant search kept
+// distinct from those filters, page-vs-all-results selection driving a
+// permission-aware bulk bar, a portalled row menu that cannot be clipped, a
+// per-user column layout and CSV export of the selection or of the current
+// view. The right-side drawer (Details / Lifecycle / Score / Financial / …)
+// is unchanged.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { Filter, Upload, Plus, X, MoreHorizontal, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Search, Rows3, LayoutGrid, Check, ChevronDown, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
+import { Upload, Plus, X, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Rows3, LayoutGrid, Check, ChevronDown, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
 import {
-  PageFrame, PageHeader, Btn, Chip, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
+  PageFrame, PageHeader, Btn, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
   SkeletonRows, EmptyState, softFill, type RiskStatus,
 } from '../../shared/ui';
+import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { scoreColor, critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
@@ -35,10 +41,11 @@ import { SmartRiskRadar } from './components/SmartRiskRadar';
 import { useTreatmentPlan } from '../ai/useAi';
 import { useQueryClient } from '@tanstack/react-query';
 
-type Tab = 'all' | 'critical' | 'high' | 'review';
+/* -------------------------------------------------------------- CSV export */
 
 // exportRiskCsv downloads a single risk as CSV (client-side — no per-risk export
-// endpoint). Mirrors the incident/risk-register CSV UX.
+// endpoint). Multi-row export goes through <DataTable>'s own exporter, which
+// respects the user's visible columns and their order.
 function exportRiskCsv(r: UiRisk) {
   const cols: [string, string | number][] = [
     ['id', r.id], ['name', r.name], ['description', r.desc ?? ''], ['asset', r.asset],
@@ -67,43 +74,57 @@ export function RiskRegisterPage() {
   const risks = useRiskStore((s) => s.risks);
   const total = useRiskStore((s) => s.total);
   const isLoading = useRiskStore((s) => s.isLoading);
+  const loadError = useRiskStore((s) => s.error);
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
   const deleteRisk = useRiskStore((s) => s.deleteRisk);
+  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  const canDelete = useAuthStore((s) => s.hasPermission('risks:delete'));
 
-  const [tab, setTab] = useState<Tab>('all');
   const [view, setView] = useState<'table' | 'map'>('table');
-  const [sel, setSel] = useState<string[]>([]);
   const [drawerId, setDrawerId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [query, setQuery] = useState('');
-  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<UiRisk | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { fetchRisks().catch(() => {}); }, [fetchRisks]);
+  // Table state lives in the URL: ?q=&sort=score:desc&page=2&f.criticality=critical
+  const table = useTableState({ defaultSort: { key: 'score', dir: 'desc' }, defaultPageSize: 50 });
+  const { state } = table;
+
+  // Sort, pagination AND filtering are server-side: the register is the one
+  // table that routinely holds thousands of rows, and paging 50 of them is the
+  // difference between a snappy page and a 4 MB response.
+  const params = useMemo(() => {
+    const p: Record<string, string | number> = { page: state.page, limit: state.pageSize };
+    if (state.q.trim()) p.q = state.q.trim();
+    if (state.sort) {
+      p.sort_by = state.sort.key;
+      p.sort_dir = state.sort.dir;
+    }
+    for (const [key, values] of Object.entries(state.filters)) {
+      if (values.length) p[key] = values.join(',');
+    }
+    return p;
+  }, [state]);
+
+  const reload = useCallback(() => { void fetchRisks(params).catch(() => {}); }, [fetchRisks, params]);
+  useEffect(() => { reload(); }, [reload]);
 
   const ui: UiRisk[] = useMemo(() => risks.map((r) => mapRisk(r, lang)), [risks, lang]);
-  const critCount = ui.filter((r) => r.crit === 'critical').length;
-  const highCount = ui.filter((r) => r.crit === 'high').length;
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    // No soft-delete filter here: this page deletes through DangerConfirm (an
-    // impact radiography the user confirms), so a row disappears only once the
-    // deletion has actually been committed.
-    return ui
-      .filter((r) => (tab === 'all' ? true : tab === 'critical' ? r.crit === 'critical' : tab === 'high' ? r.crit === 'high' : r.status === 'open'))
-      .filter((r) => (q ? `${r.name} ${r.asset} ${r.fw} ${r.ownerName}`.toLowerCase().includes(q) : true));
-  }, [ui, tab, query]);
   const drawer = drawerId ? ui.find((r) => r.id === drawerId) ?? null : null;
 
-  const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  // Deep-link from universal search (/risks?focus=<id>) → open that risk's drawer.
+  const { focusId, clearFocus } = useFocusParam();
+  useEffect(() => {
+    if (focusId && ui.some((r) => r.id === focusId)) {
+      setDrawerId(focusId);
+      clearFocus();
+    }
+  }, [focusId, ui, clearFocus]);
 
+  /* ------------------------------------------------------------- deletion */
   // Important + irreversible (a risk carries linked mitigation plans + history) →
   // impact radiography (UX-11), not a bare confirm.
-  const removeRisk = (r: UiRisk) => { setMenuFor(null); setToDelete(r); };
   const confirmDeleteRisk = async () => {
     const r = toDelete;
     if (!r) return;
@@ -120,23 +141,139 @@ export function RiskRegisterPage() {
     }
   };
 
-  const bulkDelete = async () => {
-    if (!sel.length) return;
-    setBusy(true);
-    try {
-      await Promise.all(sel.map((id) => deleteRisk(id)));
-      toast.success(tr(`${sel.length} risque(s) supprimé(s)`, `${sel.length} risk(s) deleted`));
-      setSel([]);
-    } catch {
-      toast.error(tr('Suppression échouée', 'Delete failed'));
-    } finally {
-      setBusy(false);
-    }
-  };
+  /* --------------------------------------------------------------- facets */
+  const facets: Facet<UiRisk>[] = useMemo(() => [
+    {
+      key: 'criticality',
+      label: tr('Criticité', 'Criticality'),
+      options: [
+        { value: 'critical', label: L.critical, color: 'var(--critical)' },
+        { value: 'high', label: L.high, color: 'var(--high)' },
+        { value: 'medium', label: L.medium, color: 'var(--medium)' },
+        { value: 'low', label: L.low, color: 'var(--low)' },
+      ],
+    },
+    {
+      key: 'status',
+      label: tr('Statut', 'Status'),
+      options: [
+        { value: 'open', label: tr('Ouvert', 'Open') },
+        { value: 'in_progress', label: tr('En cours', 'In progress') },
+        { value: 'mitigated', label: tr('Atténué', 'Mitigated') },
+        { value: 'accepted', label: tr('Accepté', 'Accepted') },
+      ],
+    },
+    {
+      key: 'phase',
+      label: tr('Phase (ISO 31000)', 'Phase (ISO 31000)'),
+      options: PHASE_ORDER.map((p) => ({ value: p, label: phaseLabel(p, lang) })),
+    },
+    {
+      key: 'source',
+      label: tr('Origine', 'Source'),
+      options: [
+        { value: 'manual', label: tr('Manuel', 'Manual') },
+        { value: 'cti_auto', label: tr('CTI (auto)', 'CTI (auto)') },
+        { value: 'scan_auto', label: tr('Scanner (auto)', 'Scanner (auto)') },
+        { value: 'import', label: tr('Import', 'Import') },
+      ],
+    },
+  ], [L, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const th = (t: string, w?: string) => (
-    <th className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]" style={{ width: w }}>{t}</th>
-  );
+  /* -------------------------------------------------------------- columns */
+  const columns: Column<UiRisk>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: L.col_name,
+      sortKey: 'name',
+      hideable: false,
+      frozen: true,
+      exportValue: (r) => r.name,
+      render: (r) => (
+        <>
+          <div className="text-[13.5px] font-medium text-ink max-w-[340px] truncate">{r.name}</div>
+          <div className="mono text-[11px] text-ink-muted mt-0.5">#{r.id.slice(0, 8)} · {r.asset}</div>
+        </>
+      ),
+    },
+    {
+      key: 'score',
+      header: L.col_score,
+      sortKey: 'score',
+      align: 'right',
+      exportValue: (r) => r.score.toFixed(1),
+      render: (r) => <span className="mono text-[15px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span>,
+    },
+    {
+      key: 'criticality',
+      header: L.col_crit,
+      sortKey: 'criticality',
+      exportValue: (r) => r.crit,
+      render: (r) => <CritBadge crit={r.crit} />,
+    },
+    {
+      key: 'status',
+      header: L.col_status,
+      sortKey: 'status',
+      exportValue: (r) => r.status,
+      render: (r) => (canUpdate ? <InlineStatus risk={r} /> : <StatusPill status={r.status} />),
+    },
+    {
+      key: 'phase',
+      header: tr('Phase', 'Phase'),
+      defaultHidden: true,
+      exportValue: (r) => r.phase,
+      render: (r) => <PhasePill phase={r.phase} lang={lang} />,
+    },
+    {
+      key: 'framework',
+      header: L.col_fw,
+      exportValue: (r) => r.fw,
+      render: (r) => (r.fw !== '—' ? <FwBadge fw={r.fw} /> : <span className="text-ink-muted text-[12px]">—</span>),
+    },
+    {
+      key: 'owner',
+      header: L.col_owner,
+      exportValue: (r) => r.ownerName,
+      render: (r) => (r.owner !== '—' ? <Avatar initials={r.owner} title={r.ownerName} /> : <span className="text-ink-muted text-[12px]">—</span>),
+    },
+    {
+      key: 'updated',
+      header: L.col_mod,
+      sortKey: 'updated_at',
+      exportValue: (r) => r.raw.updated_at ?? r.raw.created_at ?? '',
+      render: (r) => <span className="text-[12px] text-ink-soft whitespace-nowrap">{r.mod}</span>,
+    },
+  ], [L, lang, canUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---------------------------------------------------------- row actions */
+  const rowActions: RowAction<UiRisk>[] = useMemo(() => [
+    { key: 'view', label: tr('Voir', 'View'), icon: Eye, onSelect: (r) => setDrawerId(r.id) },
+    { key: 'edit', label: L.edit, icon: Pencil, hidden: () => !canUpdate, onSelect: (r) => setEditRaw(r.raw) },
+    { key: 'mitigate', label: L.createMiti, icon: ShieldCheck, hidden: () => !canUpdate, onSelect: (r) => setMitiRiskId(r.id) },
+    { key: 'export', label: tr('Exporter CSV', 'Export CSV'), icon: Download, onSelect: (r) => exportRiskCsv(r) },
+    { key: 'delete', label: L.del, icon: Trash2, danger: true, separatorBefore: true, hidden: () => !canDelete, onSelect: (r) => setToDelete(r) },
+  ], [L, canUpdate, canDelete]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* --------------------------------------------------------- bulk actions */
+  const bulkActions: BulkAction<UiRisk>[] = useMemo(() => [
+    {
+      key: 'delete',
+      label: L.del,
+      icon: Trash2,
+      danger: true,
+      hidden: !canDelete,
+      // Per-id API: refuse to pretend we can delete "all N results" in one go.
+      selectionOnly: true,
+      run: async ({ ids }) => {
+        await Promise.all(ids.map((id) => deleteRisk(id)));
+        toast.success(tr(`${ids.length} risque(s) supprimé(s)`, `${ids.length} risk(s) deleted`));
+        reload();
+      },
+    },
+  ], [L, canDelete, deleteRisk, reload]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const critCount = ui.filter((r) => r.crit === 'critical').length;
 
   return (
     <PageFrame wide>
@@ -158,114 +295,74 @@ export function RiskRegisterPage() {
                 </button>
               ))}
             </div>
-            <Btn label={L.filters} icon={showSearch ? X : Filter} onClick={() => { setShowSearch((v) => !v); if (showSearch) setQuery(''); }} />
             <Btn label={L.importCsv} icon={Upload} onClick={() => navigate('/risks/import')} />
             <Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />
           </>
         }
       />
 
-      {showSearch && (
-        <div className="mb-3 flex items-center gap-2.5 h-11 px-3.5 rounded-[12px]" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', animation: 'or-fadeup .2s ease' }}>
-          <Search size={16} className="text-ink-muted shrink-0" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={tr('Rechercher par nom, actif, référentiel, responsable…', 'Search by name, asset, framework, owner…')}
-            className="flex-1 bg-transparent text-[13.5px] text-ink outline-none"
-          />
-          {query && <button onClick={() => setQuery('')} className="text-ink-muted hover:text-ink transition-colors"><X size={15} /></button>}
-        </div>
-      )}
-
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <Chip label={L.all} active={tab === 'all'} onClick={() => setTab('all')} />
-        <Chip label={`${L.critical} · ${critCount}`} active={tab === 'critical'} onClick={() => setTab('critical')} color="var(--critical)" />
-        <Chip label={`${L.high} · ${highCount}`} active={tab === 'high'} onClick={() => setTab('high')} color="var(--high)" />
-        <Chip label={L.pendingReview} active={tab === 'review'} onClick={() => setTab('review')} />
-      </div>
-
-      <Card style={{ padding: '8px 8px 4px', overflow: 'hidden' }}>
-        {isLoading && ui.length === 0 ? (
-          <SkeletonRows rows={6} />
-        ) : ui.length === 0 ? (
-          <EmptyState
-            icon={ShieldAlert}
-            title={tr('Aucun risque pour le moment', 'No risks yet')}
-            description={tr('Créez votre premier risque pour commencer à cartographier votre exposition.', 'Create your first risk to start mapping your exposure.')}
-            primaryAction={<Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
-          />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            variant="no-results"
-            title={tr('Aucun résultat', 'No results')}
-            description={tr('Aucun risque ne correspond à votre recherche. Le registre en contient d’autres.', 'No risk matches your search. The register holds others.')}
-            primaryAction={<Btn label={tr('Effacer les filtres', 'Clear filters')} onClick={() => { setQuery(''); setTab('all'); }} />}
-          />
-        ) : view === 'map' ? (
-          <RiskMatrixView risks={filtered} onOpen={setDrawerId} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse or-den-rows" style={{ minWidth: 820 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}>
-                <tr>
-                  {th('', '34px')}{th(L.col_name)}{th(L.col_score)}{th(L.col_crit)}{th(L.col_status)}{th(L.col_fw)}{th(L.col_owner)}{th(L.col_mod)}{th('')}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => {
-                  const checked = sel.includes(r.id);
-                  return (
-                    <tr key={r.id} onClick={() => setDrawerId(r.id)} className="cursor-pointer transition-colors hover:bg-hover">
-                      <td className="px-3 py-[13px]" onClick={(e) => { e.stopPropagation(); toggle(r.id); }}>
-                        <div className="w-[17px] h-[17px] rounded-[5px] flex items-center justify-center" style={{ border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border-strong)'}`, background: checked ? 'var(--accent)' : 'transparent' }}>
-                          {checked && <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>}
-                        </div>
-                      </td>
-                      <td className="px-3 py-[13px]">
-                        <div className="text-[13.5px] font-medium text-ink max-w-[340px] truncate">{r.name}</div>
-                        <div className="mono text-[11px] text-ink-muted mt-0.5">#{r.id.slice(0, 8)} · {r.asset}</div>
-                      </td>
-                      <td className="px-3 py-[13px]"><span className="mono text-[15px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span></td>
-                      <td className="px-3 py-[13px]"><CritBadge crit={r.crit} /></td>
-                      <td className="px-3 py-[13px]"><InlineStatus risk={r} /></td>
-                      <td className="px-3 py-[13px]">{r.fw !== '—' ? <FwBadge fw={r.fw} /> : <span className="text-ink-muted text-[12px]">—</span>}</td>
-                      <td className="px-3 py-[13px]">{r.owner !== '—' ? <Avatar initials={r.owner} title={r.ownerName} /> : <span className="text-ink-muted text-[12px]">—</span>}</td>
-                      <td className="px-3 py-[13px] text-[12px] text-ink-soft whitespace-nowrap">{r.mod}</td>
-                      <td className="px-3 py-[13px] relative" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => setMenuFor(menuFor === r.id ? null : r.id)}
-                          className="w-7 h-7 rounded-[7px] flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"
-                          aria-label={tr('Actions', 'Actions')}
-                        >
-                          <MoreHorizontal size={17} />
-                        </button>
-                        {menuFor === r.id && (
-                          <RowMenu
-                            onView={() => { setMenuFor(null); setDrawerId(r.id); }}
-                            onEdit={() => { setMenuFor(null); setEditRaw(r.raw); }}
-                            onExport={() => { setMenuFor(null); exportRiskCsv(r); }}
-                            onDelete={() => removeRisk(r)}
-                            onClose={() => setMenuFor(null)}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {sel.length > 0 && (
-        <div className="fixed bottom-6 z-[60] glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3.5" style={{ left: 'calc(50% + 100px)', transform: 'translateX(-50%)', animation: 'or-fadeup .2s ease' }}>
-          <span className="text-[13px] font-semibold text-ink">{sel.length} {tr(`sélectionné${sel.length > 1 ? 's' : ''}`, 'selected')}</span>
-          <span className="w-px h-5" style={{ background: 'var(--border-strong)' }} />
-          <button onClick={bulkDelete} disabled={busy} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold disabled:opacity-60" style={{ background: 'color-mix(in srgb,var(--critical) 14%,transparent)', color: 'var(--critical)' }}>{L.del}</button>
-        </div>
+      {view === 'map' ? (
+        <Card style={{ padding: '8px 8px 4px', overflow: 'hidden' }}>
+          {isLoading && ui.length === 0 ? (
+            <SkeletonRows rows={6} />
+          ) : ui.length === 0 ? (
+            <EmptyState
+              icon={ShieldAlert}
+              title={tr('Aucun risque pour le moment', 'No risks yet')}
+              description={tr('Créez votre premier risque pour commencer à cartographier votre exposition.', 'Create your first risk to start mapping your exposure.')}
+              primaryAction={<Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+            />
+          ) : (
+            <RiskMatrixView risks={ui} onOpen={setDrawerId} />
+          )}
+        </Card>
+      ) : (
+        <DataTable
+          id="risks"
+          ariaLabel={L.riskTitle}
+          rows={ui}
+          total={total}
+          columns={columns}
+          rowKey={(r) => r.id}
+          api={table}
+          mode="server"
+          loading={isLoading}
+          error={loadError}
+          onRetry={reload}
+          facets={facets}
+          searchPlaceholder={tr('Rechercher par nom ou description…', 'Search by name or description…')}
+          selectable
+          rowActions={rowActions}
+          bulkActions={bulkActions}
+          onRowClick={(r) => setDrawerId(r.id)}
+          exportFilename="risques"
+          minWidth={880}
+          toolbarExtra={
+            // A shortcut onto the SAME url-backed facet the panel writes — not a
+            // second, divergent filter state.
+            <button
+              type="button"
+              onClick={() => table.toggleFilter('criticality', 'critical')}
+              data-testid="quick-critical"
+              className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0"
+              style={
+                (state.filters.criticality ?? []).includes('critical')
+                  ? { background: softFill('var(--critical)', 16), color: 'var(--critical)', border: '1px solid transparent' }
+                  : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
+              }
+            >
+              <ShieldAlert size={14} /> {L.critical}{critCount ? ` · ${critCount}` : ''}
+            </button>
+          }
+          empty={
+            <EmptyState
+              icon={ShieldAlert}
+              title={tr('Aucun risque pour le moment', 'No risks yet')}
+              description={tr('Créez votre premier risque pour commencer à cartographier votre exposition.', 'Create your first risk to start mapping your exposure.')}
+              primaryAction={<Btn label={L.newRisk} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+            />
+          }
+        />
       )}
 
       {drawer && (
@@ -282,13 +379,13 @@ export function RiskRegisterPage() {
         isOpen={!!editRaw}
         risk={editRaw}
         onClose={() => setEditRaw(null)}
-        onSuccess={() => { setEditRaw(null); void fetchRisks(); }}
+        onSuccess={() => { setEditRaw(null); reload(); }}
       />
       <CreateMitigationModal
         isOpen={!!mitiRiskId}
         riskId={mitiRiskId ?? undefined}
         onClose={() => setMitiRiskId(null)}
-        onCreated={() => { setMitiRiskId(null); void fetchRisks(); toast.success(tr('Plan de mitigation lié au risque', 'Mitigation plan linked to the risk')); }}
+        onCreated={() => { setMitiRiskId(null); reload(); toast.success(tr('Plan de mitigation lié au risque', 'Mitigation plan linked to the risk')); }}
       />
 
       <ImpactDialog
@@ -439,30 +536,6 @@ function RiskMatrixView({ risks, onOpen }: { risks: UiRisk[]; onOpen: (id: strin
         </div>
       </div>
     </div>
-  );
-}
-
-/* ---------------- row action menu ---------------- */
-function RowMenu({ onView, onEdit, onExport, onDelete, onClose }: { onView: () => void; onEdit: () => void; onExport: () => void; onDelete: () => void; onClose: () => void }) {
-  const L = useUIStrings();
-  const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const item = (icon: React.ReactNode, label: string, onClick: () => void, danger?: boolean) => (
-    <button onClick={onClick} className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium hover:bg-hover transition-colors" style={{ color: danger ? 'var(--critical)' : 'var(--text-primary)' }}>
-      {icon} {label}
-    </button>
-  );
-  return (
-    <>
-      <div className="fixed inset-0 z-[64]" onClick={onClose} aria-hidden="true" />
-      <div className="absolute right-2 top-9 z-[65] w-[176px] rounded-[11px] overflow-hidden shadow-card-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}>
-        {item(<Eye size={15} />, tr('Voir', 'View'), onView)}
-        {item(<Pencil size={15} />, L.edit, onEdit)}
-        {item(<Download size={15} />, tr('Exporter CSV', 'Export CSV'), onExport)}
-        <div style={{ borderTop: '1px solid var(--border)' }} />
-        {item(<Trash2 size={15} />, L.del, onDelete, true)}
-      </div>
-    </>
   );
 }
 

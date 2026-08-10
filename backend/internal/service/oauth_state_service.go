@@ -18,11 +18,25 @@ var (
 	ErrOAuthStateProviderMismatch = errors.New("oauth provider mismatch")
 )
 
-// OAuthState represents a stored OAuth state with expiration
+// OAuthState represents a stored OAuth state with expiration.
+//
+// It also carries the PKCE code verifier for the flow. The verifier is the half
+// of the PKCE pair that must NOT travel through the browser: only its S256 hash
+// goes out in the authorization URL, and the verifier is produced here again at
+// token-exchange time. Parking it beside the state is what makes that possible
+// without a round trip through the user agent.
 type OAuthState struct {
 	State     string
 	Provider  string
 	ExpiresAt time.Time
+
+	// CodeVerifier is the PKCE secret (RFC 7636). Never rendered anywhere.
+	CodeVerifier string
+	// ReturnTo is where to send the browser once the flow completes.
+	ReturnTo string
+	// Locale is the language the user started the flow in, so an error lands in
+	// the language they were reading.
+	Locale string
 }
 
 // OAuthStateService manages OAuth state storage for CSRF protection
@@ -43,45 +57,63 @@ func NewOAuthStateService() *OAuthStateService {
 	return service
 }
 
-// StoreState stores an OAuth state value with expiration
+// StoreState stores an OAuth state value with expiration.
 func (s *OAuthStateService) StoreState(state, provider string, duration time.Duration) {
+	s.StoreFlow(&OAuthState{State: state, Provider: provider}, duration)
+}
+
+// StoreFlow stores a full flow record (state + PKCE verifier + return context).
+//
+// NOTE — this store is in-process. It is correct for a single replica and for
+// development, and it is what the deployment currently runs. Behind more than
+// one replica, a callback landing on a different instance than the one that
+// started the flow would find no state and be refused: the failure is a clean
+// "state validation failed", never a silent bypass. Moving it to Redis (the
+// project already runs one) is the fix when horizontal scaling arrives.
+func (s *OAuthStateService) StoreFlow(flow *OAuthState, duration time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.states[state] = &OAuthState{
-		State:     state,
-		Provider:  provider,
-		ExpiresAt: time.Now().Add(duration),
-	}
+	flow.ExpiresAt = time.Now().Add(duration)
+	s.states[flow.State] = flow
 }
 
-// ValidateState validates an OAuth state and removes it from storage
-// Returns the provider if valid, or error message if invalid/expired
+// ValidateState validates an OAuth state and removes it from storage.
+// Returns the provider if valid, or an error if invalid/expired.
 func (s *OAuthStateService) ValidateState(state, expectedProvider string) (string, error) {
+	flow, err := s.ConsumeFlow(state, expectedProvider)
+	if err != nil {
+		return "", err
+	}
+	return flow.Provider, nil
+}
+
+// ConsumeFlow validates a state and returns the whole flow record, removing it.
+//
+// Single-use: the record is deleted whether validation succeeds or fails on
+// expiry/provider mismatch. A state that could be replayed would defeat the CSRF
+// binding it exists to provide.
+func (s *OAuthStateService) ConsumeFlow(state, expectedProvider string) (*OAuthState, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	oauthState, exists := s.states[state]
 	if !exists {
-		return "", ErrOAuthStateNotFound
+		return nil, ErrOAuthStateNotFound
 	}
 
-	// Check expiration
-	if time.Now().After(oauthState.ExpiresAt) {
-		delete(s.states, state)
-		return "", ErrOAuthStateExpired
-	}
-
-	// Validate provider matches
-	if oauthState.Provider != expectedProvider {
-		delete(s.states, state)
-		return "", ErrOAuthStateProviderMismatch
-	}
-
-	// Remove state after validation (one-time use)
+	// Remove up front: this record is single-use regardless of the verdict.
 	delete(s.states, state)
 
-	return oauthState.Provider, nil
+	if time.Now().After(oauthState.ExpiresAt) {
+		return nil, ErrOAuthStateExpired
+	}
+
+	if oauthState.Provider != expectedProvider {
+		return nil, ErrOAuthStateProviderMismatch
+	}
+
+	return oauthState, nil
 }
 
 // cleanupExpiredStates periodically removes expired states

@@ -29,6 +29,21 @@ const (
 	AuditActionPatCreate AuditAction = "pat_create"
 	AuditActionPatRevoke AuditAction = "pat_revoke"
 	AuditActionPatUse    AuditAction = "pat_use"
+
+	// Password reset. Both halves are recorded, and failures carry a reason
+	// ("rate_limited", "invalid_token", "weak_password"), because a burst of
+	// invalid-token attempts is what a reset-link brute force looks like.
+	AuditActionPasswordResetRequest AuditAction = "password_reset_request"
+	AuditActionPasswordResetConfirm AuditAction = "password_reset_confirm"
+
+	// Session management.
+	AuditActionSessionRevoke    AuditAction = "session_revoke"
+	AuditActionSessionRevokeAll AuditAction = "session_revoke_all"
+
+	// OAuth account linking — the branch where an address already belongs to a
+	// different provider is a genuine security event, not just a UX dead end.
+	AuditActionOAuthLink     AuditAction = "oauth_link"
+	AuditActionOAuthConflict AuditAction = "oauth_conflict"
 )
 
 // AuditService handles authentication audit logging

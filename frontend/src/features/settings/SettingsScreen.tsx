@@ -12,17 +12,20 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router';
 import { toast } from 'sonner';
 import {
   Settings as SettingsIcon, Users, KeyRound, Building2, SlidersHorizontal, Plug,
-  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Laptop, Trash2, Copy, Database, PowerOff,
+  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Trash2, Copy, Database, PowerOff,
   type LucideIcon,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { SessionsPanel } from '../auth/SessionsPanel';
 import { MembersPanel } from '../rbac/MembersPanel';
 import { relTime } from '../risks/riskMap';
-import { useTokens, useCustomFields, useTenants } from './adminData';
+import { api } from '../../lib/api';
+import { useTokens, useCustomFields, useTenants, type ApiToken } from './adminData';
 import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
+import { DataTable, useTableState, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 
@@ -178,11 +181,20 @@ export function SettingsScreen() {
 
 /* ==================== real tabs ==================== */
 
+// The token prefix cell used to render a Copy glyph that copied nothing. Module
+// scope keeps the handler stable so the columns memo survives.
+function copyPrefix(prefix: string, tr: Tr) {
+  navigator.clipboard?.writeText(prefix)
+    .then(() => toast.success(tr('Préfixe copié', 'Prefix copied')))
+    .catch(() => toast.error(tr('Copie impossible', 'Could not copy')));
+}
+
 function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
-  const { tokens, isLoading, isError, create, revoke } = useTokens();
+  const { tokens, isLoading, isError, refetch, create, revoke } = useTokens();
   const [name, setName] = useState('');
   // Revoking a token breaks any integration using it → impact-radiography confirm.
   const [revokingToken, setRevokingToken] = useState<null | { id: string; name: string; lastUsed?: string | null }>(null);
+  const table = useTableState({ defaultSort: { key: 'created', dir: 'desc' }, defaultPageSize: 25, urlPrefix: 'tok_' });
 
   const doCreate = () => {
     const n = name.trim() || tr('Nouveau jeton', 'New token');
@@ -197,42 +209,90 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
     });
   };
 
+  const facets: Facet<ApiToken>[] = useMemo(() => [
+    {
+      key: 'state',
+      label: tr('État', 'State'),
+      single: true,
+      options: [
+        { value: 'active', label: tr('Actifs', 'Active'), color: 'var(--low)' },
+        { value: 'revoked', label: tr('Révoqués', 'Revoked'), color: 'var(--critical)' },
+      ],
+      matches: (t, selected) => (selected.includes('revoked') ? !!t.revoked : !t.revoked),
+    },
+  ], [tr]);
+
+  const columns: Column<ApiToken>[] = useMemo(() => [
+    {
+      key: 'name',
+      header: tr('Nom', 'Name'),
+      frozen: true,
+      hideable: false,
+      sortValue: (t) => t.name.toLowerCase(),
+      exportValue: (t) => t.name,
+      render: (t) => (
+        <span className="text-[13.5px] font-medium text-ink" style={{ opacity: t.revoked ? 0.55 : 1 }}>
+          {t.name}{t.revoked ? ` · ${tr('révoqué', 'revoked')}` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'prefix',
+      header: tr('Préfixe', 'Prefix'),
+      exportValue: (t) => t.token_prefix ?? '',
+      render: (t) => (t.token_prefix ? (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); copyPrefix(t.token_prefix as string, tr); }}
+          className="mono text-[12px] text-ink-soft inline-flex items-center gap-1.5 rounded px-1 -mx-1 hover:bg-hover"
+          title={tr('Copier le préfixe', 'Copy prefix')}
+        >
+          {t.token_prefix}… <Copy size={12} className="text-ink-muted" />
+        </button>
+      ) : <span className="text-ink-muted text-[12px]">—</span>),
+    },
+    { key: 'created', header: tr('Créé', 'Created'), sortValue: (t) => new Date(t.created_at ?? 0).getTime(), exportValue: (t) => t.created_at ?? '', render: (t) => <span className="text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</span> },
+    { key: 'used', header: tr('Dernière util.', 'Last used'), sortValue: (t) => new Date(t.last_used_at ?? 0).getTime(), exportValue: (t) => t.last_used_at ?? '', render: (t) => <span className="text-[12px] text-ink-soft">{t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}</span> },
+  ], [tr, lang]);
+
+  const rowActions: RowAction<ApiToken>[] = useMemo(() => [
+    {
+      key: 'revoke',
+      label: tr('Révoquer', 'Revoke'),
+      icon: Trash2,
+      danger: true,
+      hidden: (t) => !!t.revoked,
+      onSelect: (t) => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at }),
+    },
+  ], [tr]);
+
   return (
     <>
       <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Nom du jeton (ex. CI/CD)', 'Token name (e.g. CI/CD)')} className="flex-1 min-w-[200px] h-9 px-3.5 rounded-[10px] text-[13px] text-ink outline-none" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} />
-        <Btn label={tr('Générer un jeton', 'Generate token')} icon={Plus} primary onClick={doCreate} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Nom du jeton (ex. CI/CD)', 'Token name (e.g. CI/CD)')} aria-label={tr('Nom du jeton', 'Token name')} className="flex-1 min-w-[200px] h-9 px-3.5 rounded-[10px] text-[13px] text-ink outline-none" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} />
+        <Btn label={tr('Générer un jeton', 'Generate token')} icon={Plus} primary onClick={doCreate} disabled={create.isPending} />
       </div>
-      <Card style={{ padding: '8px 8px 0', overflow: 'hidden' }}>
-        {isLoading ? (
-          <SkeletonRows rows={3} />
-        ) : isError ? (
-          <EmptyState variant="error" title={tr('Jetons indisponibles', 'Tokens unavailable')} description={tr('Impossible de charger vos jetons API.', 'Could not load your API tokens.')} />
-        ) : tokens.length === 0 ? (
-          <EmptyState icon={KeyRound} title={tr('Aucun jeton API', 'No API tokens')} description={tr('Créez un jeton pour authentifier vos intégrations et scripts.', 'Create a token to authenticate your integrations and scripts.')} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 560 }}>
-              <thead style={{ borderBottom: '1px solid var(--border)' }}>
-                <tr>{[tr('Nom', 'Name'), tr('Préfixe', 'Prefix'), tr('Créé', 'Created'), tr('Dernière util.', 'Last used'), ''].map((t, i) => <th key={i} className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>)}</tr>
-              </thead>
-              <tbody>
-                {tokens.map((t) => (
-                  <tr key={t.id} style={{ borderBottom: '1px solid var(--border)', opacity: t.revoked ? 0.5 : 1 }}>
-                    <td className="px-3 py-3 text-[13.5px] font-medium text-ink">{t.name}</td>
-                    <td className="px-3 py-3"><span className="mono text-[12px] text-ink-soft inline-flex items-center gap-1.5">{t.token_prefix ? `${t.token_prefix}…` : '—'}{t.token_prefix && <Copy size={12} className="text-ink-muted" />}</span></td>
-                    <td className="px-3 py-3 text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</td>
-                    <td className="px-3 py-3 text-[12px] text-ink-soft">{t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}</td>
-                    <td className="px-3 py-3 text-right">
-                      {!t.revoked && <button onClick={() => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at })} className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: 'var(--critical)' }}><Trash2 size={13} /> {tr('Révoquer', 'Revoke')}</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+
+      <DataTable
+        id="api-tokens"
+        ariaLabel={tr('Jetons API', 'API tokens')}
+        rows={tokens}
+        columns={columns}
+        rowKey={(t) => t.id}
+        api={table}
+        mode="client"
+        loading={isLoading}
+        error={isError}
+        onRetry={() => void refetch()}
+        facets={facets}
+        clientSearch={(t, q) => `${t.name} ${t.token_prefix ?? ''}`.toLowerCase().includes(q)}
+        searchPlaceholder={tr('Nom ou préfixe…', 'Name or prefix…')}
+        rowActions={rowActions}
+        exportFilename="jetons-api"
+        minWidth={620}
+        pageSizeOptions={[10, 25, 50]}
+        empty={<EmptyState icon={KeyRound} title={tr('Aucun jeton API', 'No API tokens')} description={tr('Créez un jeton pour authentifier vos intégrations et scripts.', 'Create a token to authenticate your integrations and scripts.')} />}
+      />
 
       <DangerConfirm
         open={!!revokingToken}
@@ -386,17 +446,7 @@ function NotifTab({ tr }: { tr: Tr }) {
   );
 }
 
-// Minimal, honest browser label from the UA — no invented device history.
-function currentDeviceLabel(): string {
-  if (typeof navigator === 'undefined') return 'Session';
-  const ua = navigator.userAgent;
-  const browser = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
-  const os = /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : '';
-  return os ? `${browser} · ${os}` : browser;
-}
-
 function SecurityTab({ tr }: { tr: Tr }) {
-  const user = useAuthStore((s) => s.user);
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
@@ -408,16 +458,12 @@ function SecurityTab({ tr }: { tr: Tr }) {
           )}
         </div>
       </Card>
+      {/* Real device list, backed by GET/DELETE /auth/sessions. This card used to
+          show only the current device and a "multi-device history will arrive"
+          note; the sessions API now exists, so it lists every signed-in device
+          and can revoke them. */}
       <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('Session active', 'Active session')}</Title>
-        <div className="flex items-center gap-3 py-2">
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><Laptop size={18} /></div>
-          <div className="flex-1">
-            <div className="text-[13.5px] font-medium text-ink">{currentDeviceLabel()}</div>
-            <div className="text-[12px] mt-0.5" style={{ color: 'var(--low)' }}>{tr('Session actuelle', 'Current session')} · {user?.email}</div>
-          </div>
-        </div>
-        <div className="text-[11.5px] text-ink-muted mt-1.5">{tr('L’historique multi-appareils arrivera avec la gestion des sessions.', 'Multi-device history will arrive with session management.')}</div>
+        <SessionsPanel />
       </Card>
     </>
   );
@@ -440,12 +486,78 @@ function BillingTab({ tr }: { tr: Tr }) {
   );
 }
 
+// The danger zone shipped a "Delete organization" button wired to nothing: the
+// single most destructive control in the product was a <button> with no onClick.
+// It now calls DELETE /rbac/tenants/:id for real, behind an impact radiography,
+// and signs the user out afterwards — there is nothing left to be signed in to.
 function DangerTab({ L, tr }: { L: ReturnType<typeof useUIStrings>; tr: Tr }) {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const tenantId = user?.tenant_id;
+
+  const deleteOrg = async () => {
+    if (!tenantId) return;
+    setBusy(true);
+    try {
+      await api.delete(`/rbac/tenants/${tenantId}`);
+      toast.success(tr('Organisation supprimée', 'Organization deleted'));
+      logout();
+      navigate('/login');
+    } catch {
+      // Owner-only on the backend; an admin who is not the owner gets a 403.
+      toast.error(tr(
+        'Suppression refusée — seul le propriétaire de l’organisation peut la supprimer.',
+        'Deletion refused — only the organization owner can delete it.',
+      ));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="rounded-[16px] p-[22px]" style={{ border: '1px solid rgba(255,69,58,.35)', background: 'color-mix(in srgb,var(--critical) 5%,transparent)' }}>
       <div className="text-[15px] font-semibold mb-1.5" style={{ color: 'var(--critical)' }}>{L.s_danger}</div>
       <div className="text-[13px] text-ink-soft mb-[18px]">{tr('Ces actions sont irréversibles.', 'These actions are irreversible.')}</div>
-      <button className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold" style={{ border: '1px solid rgba(255,69,58,.4)', color: 'var(--critical)' }}>{tr('Supprimer l’organisation', 'Delete organization')}</button>
+      <button
+        onClick={() => setConfirming(true)}
+        disabled={!tenantId}
+        data-testid="delete-org"
+        title={tenantId ? undefined : tr('Organisation inconnue — reconnectez-vous.', 'Unknown organization — sign in again.')}
+        className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:pointer-events-none"
+        style={{ border: '1px solid rgba(255,69,58,.4)', color: 'var(--critical)' }}
+      >
+        {tr('Supprimer l’organisation', 'Delete organization')}
+      </button>
+
+      <DangerConfirm
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={tr('Supprimer l’organisation ?', 'Delete this organization?')}
+        subject={user?.org_name || tenantId}
+        intro={tr(
+          'Toute l’organisation est supprimée : risques, actifs, preuves de conformité, incidents et journaux d’audit. Les membres perdent immédiatement leur accès. Cette action est irréversible.',
+          'The whole organization goes: risks, assets, compliance evidence, incidents and audit logs. Members lose access immediately. This cannot be undone.',
+        )}
+        impact={[
+          { label: tr('Membres', 'Members'), value: tr('déconnectés immédiatement', 'signed out immediately') },
+          { label: tr('Registres (risques, actifs, incidents)', 'Registers (risks, assets, incidents)'), value: tr('supprimés', 'deleted') },
+          { label: tr('Piste d’audit', 'Audit trail'), value: tr('supprimée', 'deleted') },
+          { label: tr('Jetons API', 'API tokens'), value: tr('invalidés', 'invalidated') },
+        ]}
+        alternatives={[
+          {
+            label: tr('Exporter vos registres avant de supprimer', 'Export your registers first'),
+            description: tr('Chaque registre a un bouton « Exporter la vue » (CSV).', 'Every register has an "Export view" (CSV) button.'),
+            onClick: () => { setConfirming(false); navigate('/risks'); },
+          },
+        ]}
+        confirmLabel={tr('Supprimer définitivement l’organisation', 'Permanently delete the organization')}
+        onConfirm={deleteOrg}
+        busy={busy}
+      />
     </div>
   );
 }

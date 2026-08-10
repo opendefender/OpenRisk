@@ -89,19 +89,20 @@ type RiskRepository interface {
 // Sanitize() must be called before use to prevent SQL injection.
 type RiskQuery struct {
 	// Filtering
-	Search        string     // Full-text search on title + description (PostgreSQL tsvector 'french')
-	Status        []string   // Filter by statuses (OR condition)
-	Criticality   []string   // Filter by criticality levels
-	Framework     string     // Filter by single framework (iso27001|cobac|bceao|etc.)
-	AssetID       *uuid.UUID // Filter by linked asset
-	AssignedTo    *uuid.UUID // Filter by assigned person
-	Tags          []string   // Filter by tags (OR condition)
-	DateFrom      *time.Time // Created date range start
-	DateTo        *time.Time // Created date range end
-	Source        []string   // Filter by source (manual|cti_auto|scan_auto|etc.)
-	MinScore      *float64   // Score range (new system: 0.0-30.0)
-	MaxScore      *float64
-	TreatmentPlan []string // accept|mitigate|transfer|avoid
+	Search         string     // Full-text search on title + description (PostgreSQL tsvector 'french')
+	Status         []string   // Filter by statuses (OR condition)
+	Criticality    []string   // Filter by criticality levels
+	LifecyclePhase []string   // Filter by ISO 31000 lifecycle phase (OR condition)
+	Framework      string     // Filter by single framework (iso27001|cobac|bceao|etc.)
+	AssetID        *uuid.UUID // Filter by linked asset
+	AssignedTo     *uuid.UUID // Filter by assigned person
+	Tags           []string   // Filter by tags (OR condition)
+	DateFrom       *time.Time // Created date range start
+	DateTo         *time.Time // Created date range end
+	Source         []string   // Filter by source (manual|cti_auto|scan_auto|etc.)
+	MinScore       *float64   // Score range (new system: 0.0-30.0)
+	MaxScore       *float64
+	TreatmentPlan  []string // accept|mitigate|transfer|avoid
 
 	// Pagination
 	Page  int // 1-indexed, validated in Sanitize()
@@ -195,6 +196,7 @@ func (q *RiskQuery) Sanitize() {
 		"impact":      true,
 		"probability": true,
 		"assigned_to": true,
+		"source":      true,
 	}
 	if !allowed[q.SortBy] {
 		q.SortBy = "created_at"

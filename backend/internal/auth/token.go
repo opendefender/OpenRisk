@@ -28,19 +28,43 @@ const (
 	RefreshTokenTTL = 30 * 24 * time.Hour
 	// MFAChallengeTTL — window to complete an MFA challenge after password check.
 	MFAChallengeTTL = 5 * time.Minute
+	// MFAEnrollmentTTL — window to enrol an authenticator when a role requires
+	// MFA. Longer than a challenge because enrolling means installing an app,
+	// scanning a QR code and saving recovery codes, not typing six digits.
+	MFAEnrollmentTTL = 15 * time.Minute
 )
 
-// RefreshToken represents a refresh token stored in database
+// RefreshToken represents a refresh token stored in database.
+//
+// A row here IS a session: it is the credential that keeps a device signed in.
+// That is why IPAddress and UserAgent are recorded alongside it — the device
+// list in Settings is a projection of this table, and "unknown device, unknown
+// location" is not something a user can act on.
 type RefreshToken struct {
 	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID            uuid.UUID  `gorm:"type:uuid;index;not null" json:"user_id"`
 	TenantID          uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
 	TokenHash         string     `gorm:"type:varchar(64);uniqueIndex;not null" json:"token_hash"` // SHA256 hash
-	DeviceFingerprint string     `gorm:"type:varchar(255)" json:"device_fingerprint"`
+	DeviceFingerprint string     `gorm:"type:varchar(255);index" json:"device_fingerprint"`
+	IPAddress         string     `gorm:"type:varchar(64)"  json:"ip_address,omitempty"`
+	UserAgent         string     `gorm:"type:varchar(512)" json:"user_agent,omitempty"`
 	ExpiresAt         time.Time  `gorm:"index;not null" json:"expires_at"`
 	LastUsedAt        *time.Time `json:"last_used_at,omitempty"`
 	CreatedAt         time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+// DeviceContext describes where a session is being created from.
+//
+// Grouped into a struct rather than three positional strings: the call sites
+// already pass a fingerprint, and "one more string argument" is how
+// GenerateTokenPair(ctx, id, id, map, slice, slice, string, string, string)
+// happens. Every field is optional — clients that send nothing still get a
+// session, they just get a vaguer entry in the device list.
+type DeviceContext struct {
+	Fingerprint string
+	IP          string
+	UserAgent   string
 }
 
 // TableName specifies the table name
@@ -86,7 +110,7 @@ func (tm *TokenManager) SetSessionResolver(r SessionResolver) {
 }
 
 // GenerateTokenPair generates a new access (RS256, 15 min) + refresh (30 day) pair.
-func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID uuid.UUID, orgRoles map[uuid.UUID]string, permissions []string, featureFlags []string, deviceFingerprint string) (*TokenPair, error) {
+func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID uuid.UUID, orgRoles map[uuid.UUID]string, permissions []string, featureFlags []string, device DeviceContext) (*TokenPair, error) {
 	// Generate refresh token (opaque string) and hash it for storage.
 	refreshTokenValue, err := generateRefreshToken()
 	if err != nil {
@@ -98,7 +122,9 @@ func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID 
 		UserID:            userID,
 		TenantID:          tenantID,
 		TokenHash:         tokenHash,
-		DeviceFingerprint: deviceFingerprint,
+		DeviceFingerprint: device.Fingerprint,
+		IPAddress:         device.IP,
+		UserAgent:         truncateUA(device.UserAgent),
 		ExpiresAt:         time.Now().Add(RefreshTokenTTL),
 	}
 	if err := tm.db.WithContext(ctx).Create(refreshToken).Error; err != nil {
@@ -119,7 +145,7 @@ func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID 
 // IssueSession resolves the user's current claims and issues a full token pair.
 // Used by OAuth2/SAML (and available to any post-authentication flow) so their
 // result is byte-for-byte identical to password login.
-func (tm *TokenManager) IssueSession(ctx context.Context, userID uuid.UUID, deviceFingerprint string) (*TokenPair, error) {
+func (tm *TokenManager) IssueSession(ctx context.Context, userID uuid.UUID, device DeviceContext) (*TokenPair, error) {
 	if tm.resolver == nil {
 		return nil, fmt.Errorf("session resolver not configured")
 	}
@@ -127,7 +153,7 @@ func (tm *TokenManager) IssueSession(ctx context.Context, userID uuid.UUID, devi
 	if err != nil {
 		return nil, err
 	}
-	return tm.GenerateTokenPair(ctx, userID, sc.TenantID, sc.OrgRoles, sc.Permissions, sc.FeatureFlags, deviceFingerprint)
+	return tm.GenerateTokenPair(ctx, userID, sc.TenantID, sc.OrgRoles, sc.Permissions, sc.FeatureFlags, device)
 }
 
 // GenerateMFAChallengeToken issues a short-lived, permission-less RS256 token of
@@ -141,11 +167,26 @@ func (tm *TokenManager) GenerateMFAChallengeToken(userID, tenantID uuid.UUID) (s
 	return token, nil
 }
 
+// GenerateMFAEnrollmentToken issues a short-lived, permission-less RS256 token of
+// type MFA_ENROLLMENT.
+//
+// Issued when a role that requires MFA signs in with a correct password but has
+// no verified secret yet. It is accepted only by the enrolment endpoints, and
+// only ever minted for an account with NO verified secret — so it cannot be used
+// to replace an existing authenticator (see pkg/auth.TokenTypeMFAEnrollment).
+func (tm *TokenManager) GenerateMFAEnrollmentToken(userID, tenantID uuid.UUID) (string, error) {
+	token, _, err := authpkg.GenerateTypedToken(tm.rsaKeys, userID, tenantID, nil, nil, nil, MFAEnrollmentTTL, authpkg.TokenTypeMFAEnrollment)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate MFA enrollment token: %w", err)
+	}
+	return token, nil
+}
+
 // RefreshTokenPair rotates a refresh token: it validates and then DELETES the
 // presented token (single-use / reuse prevention), re-resolves the user's current
 // claims, and issues a brand-new pair. Presenting a rotated token again fails
 // (record not found), which is what makes rotation meaningful.
-func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue string, deviceFingerprint string) (*TokenPair, error) {
+func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue string, device DeviceContext) (*TokenPair, error) {
 	tokenHash := hashToken(refreshTokenValue)
 
 	var refreshToken RefreshToken
@@ -159,7 +200,7 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	// Bind the token to its originating device: if both sides present a
 	// fingerprint they must match (correct comparison — previously the stored
 	// fingerprint was compared against the raw token value and always failed).
-	if deviceFingerprint != "" && refreshToken.DeviceFingerprint != "" && refreshToken.DeviceFingerprint != deviceFingerprint {
+	if device.Fingerprint != "" && refreshToken.DeviceFingerprint != "" && refreshToken.DeviceFingerprint != device.Fingerprint {
 		return nil, fmt.Errorf("device fingerprint mismatch")
 	}
 
@@ -189,11 +230,20 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 		orgRoles, permissions, featureFlags = sc.OrgRoles, sc.Permissions, sc.FeatureFlags
 	}
 
-	fp := deviceFingerprint
-	if fp == "" {
-		fp = refreshToken.DeviceFingerprint
+	// Carry forward whatever the rotating request did not restate, so a device
+	// keeps its identity in the session list across refreshes instead of
+	// degrading to blanks every 15 minutes.
+	next := device
+	if next.Fingerprint == "" {
+		next.Fingerprint = refreshToken.DeviceFingerprint
 	}
-	return tm.GenerateTokenPair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, fp)
+	if next.IP == "" {
+		next.IP = refreshToken.IPAddress
+	}
+	if next.UserAgent == "" {
+		next.UserAgent = refreshToken.UserAgent
+	}
+	return tm.GenerateTokenPair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, next)
 }
 
 // RevokeRefreshToken revokes a refresh token
@@ -227,6 +277,20 @@ func generateRefreshToken() (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
+
+// truncateUA bounds a User-Agent to the column width. Browsers send ~120 chars;
+// anything near the limit is a client trying to write past it.
+func truncateUA(ua string) string {
+	const max = 512
+	if len(ua) <= max {
+		return ua
+	}
+	return ua[:max]
+}
+
+// HashToken exposes the storage digest so callers holding a refresh token can
+// identify its session row without the manager handing out the row itself.
+func HashToken(token string) string { return hashToken(token) }
 
 // hashToken returns the SHA-256 hex digest used to store/look up refresh tokens.
 func hashToken(token string) string {

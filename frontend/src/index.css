@@ -234,6 +234,32 @@
     opacity: 1;
   }
 }
+/* Slow continuous rotation for the auth screen's orbit visual. Applied to whole
+   SVG groups so the browser composites one transform per ring rather than
+   animating each node. Periods are 12–30s: ambient, never attention-seeking. */
+@keyframes or-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Error feedback on an auth field. Deliberately small (4px) and short (300ms) —
+   it has to read as "that was rejected", not as the form throwing a tantrum.
+   Killed outright by the reduced-motion block below, where the static red
+   border carries the message on its own. */
+@keyframes or-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

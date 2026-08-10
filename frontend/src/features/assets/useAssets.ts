@@ -70,6 +70,10 @@ export function useAssets() {
       assets: query.data ?? [],
       isLoading: query.isLoading,
       error: query.error,
+      // Exposed so the inventory table can render a real error state with a
+      // retry, instead of an empty inventory that looks like a fresh tenant.
+      isError: query.isError,
+      refetch: query.refetch,
       createAsset,
       updateAsset,
       deleteAsset,
