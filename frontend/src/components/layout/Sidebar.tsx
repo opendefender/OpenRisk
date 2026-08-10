@@ -13,7 +13,8 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
 import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
-import { useExecutiveDashboard } from '../../features/analytics/useExecutive';
+import { useScore } from '../../hooks/useScore';
+import { bandColor, bandLabel } from '../../services/scoreService';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -57,8 +58,12 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   // Real org identity + posture — replaces the former hardcoded fixtures.
   const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
   const orgInitials = initials(orgName, 'OR');
-  const { data: exec } = useExecutiveDashboard();
-  const cyber = exec?.cyber_score;
+  // The canonical tenant score — the SAME query key the dashboard hero and the
+  // dedicated page use, so all three render one object from one fetch. The
+  // sidebar used to read cyber_score off the executive dashboard while the hero
+  // read stats.global_risk_score: two quantities, two scales, opposite
+  // directions, both labelled "score".
+  const { data: tenantScore } = useScore('tenant');
 
   // Role-aware navigation: only surface screens the member can actually reach
   // (same permission gates the API enforces), so each business role sees a menu
@@ -103,10 +108,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
     return best;
   }, [pathname, search]);
 
-  // Security posture footer — real cyber score from the executive dashboard.
-  const score = cyber ? Math.round(cyber.score) : undefined;
-  const scoreColor =
-    score === undefined ? 'var(--text-muted)' : score >= 70 ? 'var(--low)' : score >= 45 ? 'var(--high)' : 'var(--critical)';
+  // Posture footer. No thresholds live here any more: the band comes from the
+  // server alongside the value, and bandColor maps a BAND (never a number) to a
+  // token — so this cannot disagree with the server about where a cut lies.
+  const score = tenantScore ? Math.round(tenantScore.value) : undefined;
+  const scoreColor = bandColor(tenantScore?.band);
 
   const navItem = (item: NavItem) => {
     const active = item.key === activeKey;
@@ -278,8 +284,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             >
               <div className="flex items-center justify-between mb-[7px]">
                 <span className="text-[10.5px] text-ink-soft font-medium">
-                  {L.globalScore}
-                  {cyber?.grade ? ` · ${cyber.grade}` : ''}
+                  {L.globalScore} · {bandLabel(tenantScore?.band, lang)}
                 </span>
                 <span className="mono text-[12px] font-semibold" style={{ color: scoreColor }}>
                   {score}/100

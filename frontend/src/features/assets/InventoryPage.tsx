@@ -13,7 +13,7 @@ import { PageFrame, PageHeader, Btn, CritBadge, EmptyState } from '../../shared/
 import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { ImpactDialog } from '../../shared/ImpactDialog';
-import { critColor, scoreColor, softFill, type Criticality } from '../../shared/riskColors';
+import { critColor, softFill, type Criticality } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAssets } from './useAssets';
@@ -110,7 +110,7 @@ export function InventoryPage() {
     },
     { key: 'type', header: 'Type', sortValue: (a) => a.type ?? '', exportValue: (a) => a.type ?? '', render: (a) => <span className="text-[12.5px] text-ink-soft">{a.type ?? '—'}</span> },
     { key: 'crit', header: L.col_crit, sortValue: (a) => CRIT_RANK[(a.criticality ?? 'LOW').toLowerCase()] ?? 0, exportValue: (a) => a.criticality ?? '', render: (a) => <CritBadge crit={((a.criticality ?? 'LOW').toLowerCase()) as Criticality} /> },
-    { key: 'score', header: 'Score', align: 'right', sortValue: (a) => scoreOf(a) ?? -1, exportValue: (a) => scoreOf(a)?.toFixed(1) ?? '', render: (a) => { const sc = scoreOf(a); return sc != null ? <span className="mono text-[14px] font-bold" style={{ color: scoreColor(sc) }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>; } },
+    { key: 'score', header: 'Score', align: 'right', sortValue: (a) => scoreOf(a) ?? -1, exportValue: (a) => scoreOf(a)?.toFixed(1) ?? '', render: (a) => { const sc = scoreOf(a); return sc != null ? <span className="mono text-[14px] font-bold" style={{ color: critColor[(a.criticality?.toLowerCase() as Criticality) || 'low'] }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>; } },
     { key: 'risks', header: t(lang, 'Risques', 'Risks'), align: 'right', sortValue: (a) => a.risks?.length ?? 0, exportValue: (a) => a.risks?.length ?? 0, render: (a) => <span className="text-[13px] text-ink">{a.risks?.length || '—'}</span> },
     { key: 'mod', header: L.col_mod, sortValue: (a) => new Date(a.updated_at ?? 0).getTime(), exportValue: (a) => a.updated_at ?? '', render: (a) => <span className="text-[12px] text-ink-soft">{relTime(a.updated_at, lang)}</span> },
   ], [lang, L]);

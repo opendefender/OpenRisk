@@ -21,7 +21,7 @@ import {
   SkeletonRows, EmptyState, softFill, type RiskStatus,
 } from '../../shared/ui';
 import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
-import { scoreColor, critColor } from '../../shared/riskColors';
+import { critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
 import { ProgressState } from '../../shared/ProgressState';
@@ -202,7 +202,9 @@ export function RiskRegisterPage() {
       sortKey: 'score',
       align: 'right',
       exportValue: (r) => r.score.toFixed(1),
-      render: (r) => <span className="mono text-[15px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span>,
+      // Coloured by the SERVER's criticality, not by a client threshold on the
+      // number — the two used to be computed from different cut points.
+      render: (r) => <span className="mono text-[15px] font-bold" style={{ color: critColor[r.crit] }}>{r.score.toFixed(1)}</span>,
     },
     {
       key: 'criticality',
@@ -418,8 +420,12 @@ export function RiskRegisterPage() {
 // Standard 5×5 GRC risk map: Impact (x, 1→5) × Probability (y, 5→1). Each risk is
 // bucketed from its real prob (0–1) and impact (0–10); the cell tint is the cell's
 // own severity (prob-bucket × impact-bucket), and each risk chip opens its drawer.
-function cellCrit(p: number, i: number): Criticality {
-  const v = p * i;
+// NOTE: this is NOT a score band. It tints the 5×5 grid's own cells from their
+// coordinates (bucket × bucket, 1–25) so the map reads as a heat map; no risk's
+// score, and no risk's label, is derived from it. Kept local and named for what
+// it is, so it cannot be mistaken for the scoring model in docs/scoring/.
+function cellCrit(pBucket: number, iBucket: number): Criticality {
+  const v = pBucket * iBucket; // 1..25, the grid's own coordinates
   return v >= 15 ? 'critical' : v >= 8 ? 'high' : v >= 4 ? 'medium' : 'low';
 }
 /* ---------------- inline status editor (ghost edit + autosave) ---------------- */
@@ -738,7 +744,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
             <CritBadge crit={r.crit} />
             <StatusPill status={r.status} />
             <PhasePill phase={r.phase} lang={lang} />
-            <span className="mono text-[13px] font-bold ml-auto" style={{ color: scoreColor(r.score) }}>Score {r.score.toFixed(1)}</span>
+            <span className="mono text-[13px] font-bold ml-auto" style={{ color: critColor[r.crit] }}>Score {r.score.toFixed(1)}</span>
           </div>
           <div className="flex gap-2 mt-3.5">
             <Btn label={L.edit} icon={Pencil} onClick={onEdit} />
@@ -825,7 +831,7 @@ function DrawerScore({ r }: { r: UiRisk }) {
           <span>{r.prob.toFixed(1)}</span><span className="mx-2 text-ink-muted">×</span>
           <span>{r.impact.toFixed(1)}</span><span className="mx-2 text-ink-muted">×</span>
           <span>{r.ac.toFixed(1)}</span><span className="mx-2.5 text-ink-muted">=</span>
-          <span className="text-[22px] font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span>
+          <span className="text-[22px] font-bold" style={{ color: critColor[r.crit] }}>{r.score.toFixed(1)}</span>
         </div>
         <div className="text-[12px] text-ink-muted mt-2">{lang === 'fr' ? 'Probabilité × Impact × Criticité de l’actif' : 'Probability × Impact × Asset criticality'}</div>
       </div>

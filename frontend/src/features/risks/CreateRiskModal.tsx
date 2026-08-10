@@ -17,6 +17,9 @@ import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
 import { FieldHelp } from '../../shared/FieldHelp';
+import { useScorePreview } from '../../hooks/useScore';
+import { bandColor, bandLabel } from '../../services/scoreService';
+import { ScoreExplainerButton } from '../../shared/ScoreExplainer';
 import { useUIStore } from '../../store/uiStore';
 import {
   useInvalidateActivation,
@@ -50,21 +53,14 @@ const frameworkOptions = [
   { value: 'OWASP', label: 'OWASP' },
 ];
 
-// The instant score is P(0–1) × Impact(1–10) × AssetCriticality(0.1–3), so it lives
-// on the 0–30 scale — the label must use the Score Engine bands (≥7 critical, ≥4 high,
-// ≥2 medium), not the 0–100 thresholds that left it stuck on "Bas".
-const scoreLabel = (score: number) => {
-  if (score >= 7) return 'Critique';
-  if (score >= 4) return 'Élevé';
-  if (score >= 2) return 'Moyen';
-  return 'Bas';
-};
-const scoreColor = (score: number) => {
-  if (score >= 7) return 'var(--critical)';
-  if (score >= 4) return 'var(--high)';
-  if (score >= 2) return 'var(--medium)';
-  return 'var(--low)';
-};
+// The live score USED TO BE COMPUTED HERE — a multiplication plus its own band
+// thresholds (≥7 critical / ≥4 high / ≥2 medium), which is the reported bug in
+// miniature: the number on the 0–30 engine scale, the label from a second set of
+// cuts, and neither agreeing with the register beside it.
+//
+// It now calls POST /score/preview, debounced 300 ms: the SAME model, on the same
+// scale, with the band the server assigns. A preview computed by a different
+// formula is a lie told at exactly the moment the user is deciding.
 
 export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalProps) => {
   // Esc closes this overlay (spec §2).
@@ -110,9 +106,13 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const watchedAssetIds = watch('asset_ids') ?? [];
   const watchedFramework = watch('framework');
 
-  const score = useMemo(() => {
-    return Number((watchedProbability * watchedImpact * watchedCriticality).toFixed(1));
-  }, [watchedImpact, watchedProbability, watchedCriticality]);
+  // The live figure comes from the server's model, debounced at 300 ms.
+  const { data: preview } = useScorePreview({
+    scope: 'risk',
+    probability: watchedProbability,
+    impact: watchedImpact,
+    asset_criticality: watchedCriticality,
+  }, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -298,10 +298,25 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-border bg-hover p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-ink-muted">Score instantané (Probabilité × Impact × Criticité)</p>
-                      <p className="text-3xl font-semibold text-ink">{score}</p>
+                      <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.18em] text-ink-muted">
+                        Score en direct
+                        <ScoreExplainerButton score={preview} />
+                      </p>
+                      <p className="text-3xl font-semibold text-ink">
+                        {preview ? preview.value.toFixed(1) : '—'}
+                        <span className="text-sm text-ink-muted"> / 100</span>
+                      </p>
                     </div>
-                    <div className="rounded-3xl px-4 py-2 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${scoreColor(score)} 16%, transparent)`, color: scoreColor(score) }}>{scoreLabel(score)}</div>
+                    {/* Band and colour are the server's, exactly as received. */}
+                    <div
+                      className="rounded-3xl px-4 py-2 text-xs font-semibold"
+                      style={{
+                        background: `color-mix(in srgb, ${bandColor(preview?.band)} 16%, transparent)`,
+                        color: bandColor(preview?.band),
+                      }}
+                    >
+                      {bandLabel(preview?.band, lang)}
+                    </div>
                   </div>
                 </motion.div>
 

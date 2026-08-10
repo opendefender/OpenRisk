@@ -24,15 +24,20 @@ export const frameworkColor: Record<string, string> = {
   ANSSI: '#ff453a',
 };
 
-/** Score → color threshold (Score Engine: ≥7 critical · ≥4 high · ≥2 medium · <2 low). */
-export function scoreColor(s: number): string {
-  return s >= 7 ? 'var(--critical)' : s >= 4 ? 'var(--high)' : s >= 2 ? 'var(--medium)' : 'var(--low)';
-}
-
-/** Numeric score → criticality bucket. */
-export function scoreToCriticality(s: number): Criticality {
-  return s >= 7 ? 'critical' : s >= 4 ? 'high' : s >= 2 ? 'medium' : 'low';
-}
+// scoreColor(number) and scoreToCriticality(number) USED TO LIVE HERE.
+//
+// They were two of the four incompatible number→band mappings shipping at once
+// (≥7/≥4/≥2 here, ≥15/≥8/≥4 in RiskRegisterPage, ≥15/≥9/≥5 in the shipped audit
+// badges, ≥40 in MitigationCard), each calibrated for a different scale than the
+// number displayed beside it. They are deleted, not fixed: as long as the client
+// CAN derive a band from a number, some screen eventually will, with its own
+// thresholds.
+//
+// The band now arrives from the server with the value it describes. Map a BAND to
+// a colour with bandColor() in services/scoreService.ts — it takes a band, never
+// a number, so it cannot disagree about where a boundary lies.
+//
+// See docs/scoring/SCORE_MODEL.md.
 
 /** A translucent fill of a token color (works with var(--…) or hex). */
 export function softFill(color: string, pct = 14): string {

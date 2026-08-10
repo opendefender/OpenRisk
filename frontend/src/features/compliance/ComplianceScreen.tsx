@@ -39,6 +39,7 @@ export function ComplianceScreen() {
   const overall = fws.length ? Math.round(fws.reduce((a, f) => a + f.pct, 0) / fws.length) : 0;
   const totalControls = fws.reduce((a, f) => a + f.total, 0);
   const gaps = fws.reduce((a, f) => a + Math.max(0, f.total - f.passed), 0);
+  // Compliance COVERAGE (0–100, higher is better) — not a risk score band.
   const overallColor = overall >= 70 ? 'var(--low)' : overall >= 40 ? 'var(--high)' : 'var(--critical)';
 
   // Generating a report creates a job and lands the user on it

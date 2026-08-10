@@ -24,12 +24,21 @@ interface MitigationCardProps {
   onToggleSelect?: () => void;
 }
 
-const getRiskLevel = (score?: number): 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' => {
-  if (!score) return 'LOW';
-  if (score >= 80) return 'CRITICAL';
-  if (score >= 60) return 'HIGH';
-  if (score >= 40) return 'MEDIUM';
-  return 'LOW';
+// The card USED TO derive a band here from mitigation.risk_score with its own
+// 80/60/40 cuts — a fifth threshold table, on a fourth scale, disagreeing with
+// the three others. The plan's own priority is a server field and says the same
+// thing without the arithmetic. See docs/scoring/SCORE_MODEL.md.
+const getRiskLevel = (priority?: string): 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' => {
+  switch ((priority ?? '').toLowerCase()) {
+    case 'critical':
+      return 'CRITICAL';
+    case 'high':
+      return 'HIGH';
+    case 'medium':
+      return 'MEDIUM';
+    default:
+      return 'LOW';
+  }
 };
 
 const getDaysUntilDeadline = (dueDate: string): number => {
@@ -65,7 +74,7 @@ export const MitigationCard = ({
   const daysLeft = useMemo(() => getDaysUntilDeadline(mitigation.due_date), [mitigation.due_date]);
   const deadlineColor = useMemo(() => getDeadlineColor(daysLeft), [daysLeft]);
   const deadlineLabel = useMemo(() => getDeadlineLabel(daysLeft), [daysLeft]);
-  const riskLevel = useMemo(() => getRiskLevel(mitigation.risk_score), [mitigation.risk_score]);
+  const riskLevel = useMemo(() => getRiskLevel(mitigation.priority), [mitigation.priority]);
 
   const completedSubActions = mitigation.sub_actions?.filter((s) => s.status === 'DONE')?.length ?? 0;
   const totalSubActions = mitigation.sub_actions?.length ?? 0;

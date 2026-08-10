@@ -52,6 +52,8 @@ export function GapAnalysisPage() {
   const totalGaps = data?.total_gaps ?? 0;
   const totalControls = data?.total_controls ?? 0;
   const coverage = totalControls > 0 ? Math.round(((totalControls - totalGaps) / totalControls) * 100) : 100;
+  // Compliance COVERAGE (0–100, higher is better) — the opposite direction to a
+  // risk score, and a different quantity. Not a score band.
   const gaugeColor = coverage >= 70 ? 'var(--low)' : coverage >= 40 ? 'var(--high)' : 'var(--critical)';
 
   return (

@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Clock, AlertTriangle } from 'lucide-react';
-import { critColor, scoreColor, softFill, type Criticality } from './riskColors';
+import { critColor, softFill, type Criticality } from './riskColors';
 import { useUIStrings } from './uiStrings';
 
 /* ---------------- math + motion ---------------- */
@@ -200,7 +200,9 @@ export function FwBadge({ fw }: { fw: string }) {
 }
 
 export function ScoreText({ score }: { score: number }) {
-  return <span className="mono text-[15px] font-bold" style={{ color: scoreColor(score) }}>{score.toFixed(1)}</span>;
+  // Neutral ink: a bare number with no criticality alongside it must not be
+  // given a band colour here, or this becomes a fifth threshold table.
+  return <span className="mono text-[15px] font-bold text-ink">{score.toFixed(1)}</span>;
 }
 
 /** Semicircular gauge with a big centered value (used by score hero + compliance). */
@@ -302,5 +304,5 @@ export function PreviewBadge({ label }: { label: string }) {
   );
 }
 
-export { critColor, scoreColor, softFill };
+export { critColor, softFill };
 export { Clock };

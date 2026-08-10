@@ -10,8 +10,8 @@
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
 } from 'recharts';
-import { scoreColor } from '../../../shared/riskColors';
 import type { FactorKey, SmartRiskScore } from '../smartScoreService';
+import { critColor } from '../../../shared/riskColors';
 
 // Bilingual short labels for the radar spokes, keyed by the stable FactorKey.
 const FACTOR_LABELS: Record<FactorKey, [string, string]> = {
@@ -30,12 +30,12 @@ function factorLabel(key: FactorKey, lang: 'fr' | 'en'): string {
   return l ? l[lang === 'fr' ? 0 : 1] : key;
 }
 
-// Smart-score criticality band → CSS colour var (matches the 0–100 thresholds).
-function smartColor(score: number): string {
-  if (score >= 75) return 'var(--critical)';
-  if (score >= 50) return 'var(--high)';
-  if (score >= 25) return 'var(--medium)';
-  return 'var(--low)';
+// The smart model returns its OWN criticality band alongside its score. Use it.
+// Re-deriving the band from the number here would be a second threshold table
+// that drifts the first time the backend re-tunes a boundary — the exact defect
+// this codebase carried in four places. See docs/scoring/SCORE_MODEL.md.
+function smartColor(criticality: SmartRiskScore['criticality']): string {
+  return critColor[criticality] ?? 'var(--text-muted)';
 }
 
 export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr' | 'en' }) {
@@ -45,7 +45,7 @@ export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr
     factor: factorLabel(f.key, lang),
     value: Math.round(f.value * 100),
   }));
-  const accent = smartColor(data.score);
+  const accent = smartColor(data.criticality);
   // Ranked breakdown (biggest contributor first).
   const ranked = [...data.factors].sort((a, b) => b.contribution - a.contribution);
   const maxContribution = Math.max(...data.factors.map((f) => f.contribution), 1);
@@ -114,7 +114,10 @@ export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr
                 className="h-full rounded-full"
                 style={{
                   width: `${(f.contribution / maxContribution) * 100}%`,
-                  background: scoreColor(f.value * 10),
+                  // The smart model ships its own 0–1 factor values; tint by
+                  // magnitude with the accent ramp rather than by a band, so no
+                  // second set of thresholds is introduced here.
+                  background: 'var(--accent)',
                 }}
               />
             </div>
