@@ -27,7 +27,7 @@ import {
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { CritBadge, softFill } from '../../shared/ui';
-import { scoreColor, critColor, type Criticality } from '../../shared/riskColors';
+import { critColor, type Criticality } from '../../shared/riskColors';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useNavigate } from 'react-router';
 import { useAssets } from '../assets/useAssets';
@@ -520,7 +520,7 @@ function AssetPanel({ asset, assets, dependencies, canEdit, busy, onClose, onSel
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><X size={16} /></button>
         </div>
         <div className="flex items-center gap-3 mt-3.5 p-3 rounded-xl" style={{ background: 'var(--bg-hover)' }}>
-          <span className="mono text-[26px] font-bold" style={{ color: scoreColor(score) }}>{score.toFixed(1)}</span>
+          <span className="mono text-[26px] font-bold" style={{ color: critColor[(asset.criticality?.toLowerCase() as Criticality) ?? 'low'] }}>{score.toFixed(1)}</span>
           <span className="text-[12px] text-ink-soft leading-tight">{L.aggScore ?? tr('Score agrégé', 'Aggregate score')}</span>
         </div>
       </div>

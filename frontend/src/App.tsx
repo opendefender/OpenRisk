@@ -71,6 +71,7 @@ const AuditDetailPage = lazy(() => import('./features/compliance/AuditDetailPage
 const RemediationDetailPage = lazy(() => import('./features/compliance/RemediationDetailPage').then(m => ({ default: m.RemediationDetailPage })));
 const MitigationDetailPage = lazy(() => import('./features/mitigations/MitigationDetailPage').then(m => ({ default: m.MitigationDetailPage })));
 const ReportJobPage = lazy(() => import('./features/reports/ReportJobPage').then(m => ({ default: m.ReportJobPage })));
+const ScorePage = lazy(() => import('./features/score/ScorePage').then(m => ({ default: m.ScorePage })));
 
 // --- Signup wizard (spec §4). Route-split like every other feature: it is shown
 //     once per user, so it has no business sitting in the shell bundle. ---
@@ -343,6 +344,9 @@ function App() {
           <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />
 
           {/* ---------------- Analytics ---------------- */}
+          {/* The dedicated score page. Reads the same query key as the dashboard
+              hero and the sidebar footer, so all three render one object. */}
+          <Route path="score" element={<ScorePage />} />
           <Route path="analytics/financial" element={<FinancialDashboard />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
 

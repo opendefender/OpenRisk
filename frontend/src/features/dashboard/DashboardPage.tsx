@@ -20,8 +20,10 @@ import { useRiskStore } from '../../hooks/useRiskStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useUIStrings } from '../../shared/uiStrings';
-import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
+import { critColor, frameworkColor, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats, type MatrixCell } from './useStats';
+import { useScore } from '../../hooks/useScore';
+import { ScoreGauge } from '../../shared/ScoreGauge';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, Skeleton } from '../../shared/ui';
 import { useIncidents } from '../incidents/useIncidents';
@@ -128,9 +130,14 @@ function PostureDashboard() {
   }, []);
 
   const critOf = (r: (typeof risks)[number]): Criticality =>
-    (r.level?.toLowerCase() as Criticality) || scoreToCriticality(r.score);
+    // The server's criticality, or nothing. Deriving a band from the number
+    // here is the mapping that drifted away from the number itself.
+    (r.level?.toLowerCase() as Criticality) || 'low';
 
   const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
+  // The canonical tenant score — the same query key the sidebar and /score use,
+  // so the three render one object from one fetch and cannot disagree.
+  const { data: tenantScore, isLoading: scoreLoading } = useScore('tenant');
   const user = useAuthStore((s) => s.user);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
@@ -192,7 +199,17 @@ function PostureDashboard() {
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
-          <ScoreHero score={Math.round(stats?.global_risk_score ?? 0)} measured={kpis.total > 0} onDetails={() => navigate('/risks')} />
+          {/* One score, one source. This used to read stats.global_risk_score
+              while the sidebar read analytics/executive → cyber_score.score:
+              two quantities on two scales pointing in opposite directions,
+              both labelled "score". Both now read the same query key. */}
+          <ScoreGauge
+            score={tenantScore}
+            loading={scoreLoading}
+            title={L.globalScore}
+            ctaLabel={L.viewDetails}
+            onDetails={() => navigate('/score')}
+          />
           <KpiGrid values={kpis} fmt={fmt} onOpen={() => navigate('/risks')} />
         </div>
 
@@ -211,47 +228,6 @@ function PostureDashboard() {
     </div>
   );
 };
-
-/* ---------------- Score hero ---------------- */
-// `measured` distinguishes "scored 100 because nothing is at risk" from "scored
-// 100 because nothing has been recorded". The API returns 100 for an empty
-// register, which on a fresh tenant reads as a perfect security posture.
-function ScoreHero({ score, measured, onDetails }: { score: number; measured: boolean; onDetails: () => void }) {
-  const L = useUIStrings();
-  const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const val = Math.round(useCountUp(score));
-  const cx = 110, cy = 112, r = 76;
-  const track = arcPath(cx, cy, r, -115, 115);
-  const prog = arcPath(cx, cy, r, -115, -115 + 230 * (val / 100));
-  const col = val >= 70 ? 'var(--low)' : val >= 45 ? 'var(--high)' : 'var(--critical)';
-  return (
-    <Card>
-      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
-        {L.globalScore}
-        <InfoHint text={lang === 'fr' ? '0–100 : plus le score est élevé, meilleure est votre posture de sécurité.' : '0–100: the higher the score, the stronger your security posture.'} />
-      </div>
-      <div className="relative flex justify-center">
-        <svg viewBox="0 0 220 150" width="220" height="150">
-          <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />
-          {measured && <path d={prog} fill="none" stroke={col} strokeWidth={14} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />}
-        </svg>
-        <div className="absolute left-0 right-0 text-center" style={{ top: '52px' }}>
-          <div className="disp mono text-[44px] font-bold text-ink leading-none">{measured ? val : '—'}</div>
-          <div className="text-[12px] text-ink-muted mt-0.5">{measured ? '/ 100' : tr('non mesuré', 'not measured')}</div>
-        </div>
-      </div>
-      <div className="pt-1 pb-1.5" />
-      <button
-        onClick={onDetails}
-        className="mx-[22px] mb-5 mt-2 h-[34px] rounded-[9px] text-[12.5px] font-semibold text-ink hover:bg-hover transition-colors"
-        style={{ width: 'calc(100% - 44px)', border: '1px solid var(--border-strong)', background: 'transparent' }}
-      >
-        {L.viewDetails}
-      </button>
-    </Card>
-  );
-}
 
 /* ---------------- KPI grid ---------------- */
 function KpiGrid({
@@ -313,8 +289,12 @@ function HeatmapCard({ matrix, loading, error }: { matrix?: MatrixCell[]; loadin
   for (const cell of matrix ?? []) counts[`${cell.impact}-${cell.probability}`] = cell.count;
   const total = (matrix ?? []).reduce((n, c) => n + c.count, 0);
 
-  const cellCol = (p: number, i: number) => {
-    const v = p * i;
+  // Tints the 5×5 grid's own cells from their COORDINATES (bucket × bucket,
+  // 1–25) so the map reads as a heat map. No risk's score and no risk's label is
+  // derived from it — it is a legend for the grid, not a score band. Named and
+  // commented so it is never mistaken for one (see docs/scoring/SCORE_MODEL.md).
+  const cellCol = (pBucket: number, iBucket: number) => {
+    const v = pBucket * iBucket; // 1..25, the grid's own coordinates
     return v >= 15 ? 'var(--critical)' : v >= 8 ? 'var(--high)' : v >= 4 ? 'var(--medium)' : 'var(--low)';
   };
   const rows = [];
@@ -409,7 +389,7 @@ function TrendCard({ risks }: { risks: TrendRisk[] }) {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const [range, setRange] = useState<'7' | '30' | '90'>('30');
   const days = Number(range);
-  const bandOf = (r: TrendRisk): Criticality => ((r.level?.toLowerCase() as Criticality) || scoreToCriticality(r.score));
+  const bandOf = (r: TrendRisk): Criticality => (r.level?.toLowerCase() as Criticality) || 'low';
   const series = useMemo(() => {
     const end0 = new Date(); end0.setHours(23, 59, 59, 999);
     const crit: number[] = [], high: number[] = [], med: number[] = [];
@@ -527,7 +507,7 @@ function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: ()
                 {r.fw}
               </span>
             )}
-            <span className="mono text-[13px] font-bold w-[34px] text-right" style={{ color: scoreColor(r.score) }}>
+            <span className="mono text-[13px] font-bold w-[34px] text-right" style={{ color: critColor[r.crit] }}>
               {r.score.toFixed(1)}
             </span>
           </button>

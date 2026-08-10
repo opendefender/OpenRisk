@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router';
 import { ShieldAlert, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore } from '../../hooks/useRiskStore';
-import { critColor, scoreColor, scoreToCriticality, type Criticality } from '../../shared/riskColors';
+import { critColor, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats } from './useStats';
 import { DashboardShell, PersonaHeader, KpiRow, Card, ScoreHero, type KpiSpec } from './shared';
 
@@ -28,7 +28,10 @@ export function ViewerDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const critOf = (r: (typeof risks)[number]): Criticality => (r.level?.toLowerCase() as Criticality) || scoreToCriticality(r.score);
+  // The server's criticality, or nothing. No client fallback from the number:
+  // that is the mapping that drifted from the value beside it.
+  const critOf = (r: (typeof risks)[number]): Criticality =>
+    (r.level?.toLowerCase() as Criticality) || 'low';
   const sev = stats?.risks_by_severity ?? {};
 
   const kpis: KpiSpec[] = [
@@ -73,7 +76,7 @@ export function ViewerDashboard() {
                   <div className="text-[13px] font-medium text-ink truncate">{r.title}</div>
                   <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">{r.assets?.[0]?.name ?? '—'}</div>
                 </div>
-                <span className="mono text-[13px] font-bold w-[34px] text-right" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span>
+                <span className="mono text-[13px] font-bold w-[34px] text-right" style={{ color: critColor[critOf(r)] }}>{r.score.toFixed(1)}</span>
               </button>
             );
           })

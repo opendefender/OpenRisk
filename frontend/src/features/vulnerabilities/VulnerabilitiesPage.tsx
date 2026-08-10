@@ -33,6 +33,9 @@ import { safeExternalUrl } from '../../shared/safeUrl';
 
 const t = (lang: 'fr' | 'en', fr: string, en: string) => (lang === 'fr' ? fr : en);
 
+// CVSS, NOT the OpenRisk score. CVSS is an external 0–10 scale defined by FIRST
+// and its severity cuts (9/7/4) are part of that standard, not ours. Kept local
+// and named so it is never mistaken for a score band — see docs/scoring/.
 const cvssColor = (s: number) =>
   s >= 9 ? 'var(--critical)' : s >= 7 ? 'var(--high)' : s >= 4 ? 'var(--medium)' : 'var(--low)';
 

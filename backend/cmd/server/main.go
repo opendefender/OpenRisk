@@ -1786,6 +1786,31 @@ func main() {
 	protected.Get("/search", searchHandler.Search)
 
 	// =========================================================================
+	// SCORE — the single authority for every number this product calls a "score"
+	//
+	// The dashboard hero, the sidebar footer, the dedicated page, the register
+	// rows and the asset drawer all read THIS endpoint. They cannot disagree,
+	// because there is no second source to disagree with — and the band always
+	// travels with the value, computed from it server-side, so a label can never
+	// drift from the number it describes.
+	//
+	// The calculation itself lives in internal/domain/scoring and nowhere else:
+	// no formula, no threshold and no band mapping exists in the frontend.
+	// =========================================================================
+	scoreHandler := newScoreHandler(
+		riskRepo, assetRepo, vulnRepo,
+		repository.NewGormMitigationRepository(database.DB),
+		getGapAnalysisUC, incidentService,
+	)
+	// Readable by any authenticated member: a posture score is what the product
+	// is FOR, and the underlying detail is already gated per source.
+	protected.Get("/score", scoreHandler.GetScore)
+	protected.Get("/score/model", scoreHandler.GetScoreModel)
+	// Live preview for forms (debounced client-side). Persists nothing, so it
+	// carries no write permission.
+	protected.Post("/score/preview", scoreHandler.PreviewScore)
+
+	// =========================================================================
 	// ACTIVATION & ONBOARDING — the newcomer journey (signup → Aha in < 8 min)
 	//
 	// Activation state is DERIVED FROM SERVER EVENTS, never from client state:

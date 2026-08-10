@@ -113,6 +113,14 @@ See `docs/openapi.yaml` for schemas. Perms: `compliance:{frameworks,controls,evi
 - API tokens: `GET/POST /api/v1/tokens` · `GET/PUT/DELETE /api/v1/tokens/:id` · `POST /api/v1/tokens/:id/{revoke,rotate}`.
 - Audit: `GET /api/v1/audit-logs` · `/audit-logs/action/:action` · `/audit-logs/user/:user_id`.
 
+## Score (the single authority)
+The calculation lives **only** in `backend/internal/domain/scoring/`. There is no scoring formula, threshold or band mapping in the frontend — see `docs/scoring/SCORE_MODEL.md`.
+- `GET /api/v1/score?scope=tenant|risk|asset&id=<uuid>` — the canonical score. **The band is computed with the value, server-side, and travels with it**, which is what makes label/value desynchronisation structurally impossible. Returns `value` · `band` · `band_label_i18n_key` · `inherent`/`residual` (+ their bands) · `mitigation_effectiveness` · `computed_at` · `formula_version` · `inputs` (the assumptions used) · `breakdown` (`factor`/`weight`/`raw`/`contribution`, contributions summing to the value). `id` required for risk/asset. Any authenticated member.
+- `POST /api/v1/score/preview` — live figure for a form (client debounces 300 ms). Runs the **same** model; persists nothing.
+- `GET /api/v1/score/model` — the model's self-description (scale, band boundaries, per-scope weights, input bounds), so the explainer states the assumptions without the client carrying a second copy of the thresholds.
+
+Scale **0–100, higher is worse**. Bands: `low` [0,25) · `medium` [25,50) · `high` [50,75) · `critical` [75,100], floors inclusive. Formula version **2.1**.
+
 ## Activation & onboarding (the newcomer journey)
 Activation state is **derived from server events**, never from client state — there is deliberately **no endpoint that lets a client declare a step complete**. The only writes are the celebration acknowledgement and the wizard's own answers.
 - `GET /api/v1/activation/state` — the checklist: steps (with FR/EN copy, deep link, order), `completed` + `completed_at` (the FIRST occurrence of the step's single event key), `percent`, `aha_reached_at`, `time_to_aha_seconds`, and `celebrate` (the server's once-per-step-per-user instruction to fire the burst). Any authenticated member.

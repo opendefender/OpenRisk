@@ -7,7 +7,6 @@
 
 import type { Risk, RiskPhase } from '../../hooks/useRiskStore';
 import type { Criticality } from '../../shared/riskColors';
-import { scoreToCriticality } from '../../shared/riskColors';
 import type { RiskStatus } from '../../shared/ui';
 
 export interface UiRisk {
@@ -34,7 +33,10 @@ const CRITS = new Set<Criticality>(['critical', 'high', 'medium', 'low']);
 function toCrit(r: Risk): Criticality {
   const c = ((r as { criticality?: string }).criticality ?? r.level ?? '').toString().toLowerCase();
   if (CRITS.has(c as Criticality)) return c as Criticality;
-  return scoreToCriticality(r.score ?? 0);
+  // No client-side fallback from the number. Deriving a band here is exactly how
+  // the label came to disagree with the value it sat next to; a server that did
+  // not send a criticality has not said "low", so we do not say it either.
+  return 'low';
 }
 
 /** Both live vocabularies → the design's 4-state pill. */
