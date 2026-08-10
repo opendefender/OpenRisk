@@ -58,10 +58,49 @@ func (r *GormActivationRepository) RecordEvent(ctx context.Context, event *domai
 	return r.db.WithContext(ctx).Create(event).Error
 }
 
-// firstOccurrenceRow is the projection of the aggregate read below.
-type firstOccurrenceRow struct {
-	EventKey string
-	FirstAt  time.Time
+// MIN(occurred_at) loses the column's declared type: Postgres hands back a
+// timestamp, sqlite (which the repository tests run on) hands back TEXT. Scanning
+// it strictly into a time.Time fails on sqlite — which would mean the tests could
+// never exercise the production query, and the query would only ever be proven on
+// the engine nobody tests against. asTime normalises whatever the driver gives.
+
+// asTime normalises whatever the driver returned for an aggregated timestamp.
+// Unparseable values are dropped rather than defaulting to the zero time, which
+// would date a completed step to year 1 and make it look like the oldest event
+// the tenant ever had.
+func asTime(v any) (time.Time, bool) {
+	switch t := v.(type) {
+	case time.Time:
+		return t, true
+	case *time.Time:
+		if t == nil {
+			return time.Time{}, false
+		}
+		return *t, true
+	case []byte:
+		return parseDriverTime(string(t))
+	case string:
+		return parseDriverTime(t)
+	}
+	return time.Time{}, false
+}
+
+// parseDriverTime accepts the layouts the supported drivers emit for a timestamp
+// rendered as text.
+func parseDriverTime(raw string) (time.Time, bool) {
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999 -0700 MST",
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+	} {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.UTC(), true
+		}
+	}
+	return time.Time{}, false
 }
 
 // FirstOccurrences returns the earliest occurrence per event key for one tenant,
@@ -75,19 +114,32 @@ func (r *GormActivationRepository) FirstOccurrences(ctx context.Context, tenantI
 		return out, nil
 	}
 
-	var rows []firstOccurrenceRow
-	err := r.db.WithContext(ctx).
+	// Raw rows rather than a struct scan: the aggregate's type is engine-dependent
+	// (see firstOccurrenceRow), and GORM's struct scan rejects an `any` field
+	// outright. database/sql scans into an interface on every driver.
+	rows, err := r.db.WithContext(ctx).
 		Model(&domain.ActivationEvent{}).
 		Select("event_key, MIN(occurred_at) AS first_at").
 		Where("tenant_id = ?", tenantID).
 		Group("event_key").
-		Scan(&rows).Error
+		Rows()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read activation events: %w", err)
 	}
+	defer func() { _ = rows.Close() }()
 
-	for _, row := range rows {
-		out[domain.ActivationEventKey(row.EventKey)] = row.FirstAt
+	for rows.Next() {
+		var key string
+		var raw any
+		if err := rows.Scan(&key, &raw); err != nil {
+			return nil, fmt.Errorf("failed to read activation events: %w", err)
+		}
+		if at, ok := asTime(raw); ok {
+			out[domain.ActivationEventKey(key)] = at
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read activation events: %w", err)
 	}
 	return out, nil
 }
@@ -176,8 +228,8 @@ func (r *GormActivationRepository) BackfillExistingMembers(ctx context.Context) 
 	// Existing members are past onboarding by definition — they were using the
 	// product before it existed.
 	if err := r.db.WithContext(ctx).Exec(`
-		INSERT INTO onboarding_progress (tenant_id, user_id, current_step, completed, completed_at)
-		SELECT om.organization_id, om.user_id, 'team', true, now()
+		INSERT INTO onboarding_progress (id, tenant_id, user_id, current_step, completed, completed_at)
+		SELECT gen_random_uuid(), om.organization_id, om.user_id, 'team', true, now()
 		FROM organization_members om
 		ON CONFLICT (user_id) DO NOTHING
 	`).Error; err != nil {
@@ -187,8 +239,8 @@ func (r *GormActivationRepository) BackfillExistingMembers(ctx context.Context) 
 	// A signup anchor per organization, so time-to-Aha has an honest t0 for
 	// tenants that predate the metric (their organization's creation date).
 	if err := r.db.WithContext(ctx).Exec(`
-		INSERT INTO activation_events (tenant_id, user_id, event_key, occurred_at)
-		SELECT o.id, o.owner_id, ?, o.created_at
+		INSERT INTO activation_events (id, tenant_id, user_id, event_key, occurred_at)
+		SELECT gen_random_uuid(), o.id, o.owner_id, ?, o.created_at
 		FROM organizations o
 		WHERE NOT EXISTS (
 			SELECT 1 FROM activation_events ae
