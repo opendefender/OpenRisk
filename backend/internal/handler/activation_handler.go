@@ -1,0 +1,201 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License v3.0 (see LICENSE).
+
+// Activation & onboarding handler — the endpoints behind the newcomer journey.
+//
+// Everything here is tenant-scoped from the request context and reads/writes the
+// SERVER's activation state. There is deliberately no endpoint that lets a client
+// declare a step complete: steps are ticked by domain events only, which is what
+// makes the checklist trustworthy.
+package handler
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+
+	appactivation "github.com/opendefender/openrisk/internal/application/activation"
+	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
+)
+
+// ActivationHandler serves the activation checklist and the onboarding wizard.
+type ActivationHandler struct {
+	state      *appactivation.GetStateUseCase
+	celebrated *appactivation.MarkCelebratedUseCase
+	onboarding *appactivation.OnboardingUseCase
+}
+
+// NewActivationHandler wires the handler.
+func NewActivationHandler(
+	state *appactivation.GetStateUseCase,
+	celebrated *appactivation.MarkCelebratedUseCase,
+	onboarding *appactivation.OnboardingUseCase,
+) *ActivationHandler {
+	return &ActivationHandler{state: state, celebrated: celebrated, onboarding: onboarding}
+}
+
+// identity resolves (tenant, user) from the request context.
+func (h *ActivationHandler) identity(c *fiber.Ctx) (uuid.UUID, uuid.UUID, bool) {
+	mw := middleware.GetContext(c)
+	if mw == nil || mw.OrganizationID == uuid.Nil {
+		return uuid.Nil, uuid.Nil, false
+	}
+	return mw.OrganizationID, mw.UserID, true
+}
+
+// GetActivationState GET /activation/state
+//
+// The single source of truth for the get-started panel: the steps with their
+// copy, their completion, their deep links, and the server's instruction to
+// celebrate. The panel renders this and holds no logic of its own.
+func (h *ActivationHandler) GetActivationState(c *fiber.Ctx) error {
+	tenantID, userID, ok := h.identity(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	state, err := h.state.Execute(c.UserContext(), tenantID, userID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(state)
+}
+
+type celebratedInput struct {
+	StepKey string `json:"step_key"`
+}
+
+// MarkCelebrated POST /activation/celebrated
+//
+// Acknowledges that the user has seen a step's celebration. Idempotent by
+// construction (unique on user+step), which is what stops the burst from firing
+// again on the next render, the next reload, or the next device.
+func (h *ActivationHandler) MarkCelebrated(c *fiber.Ctx) error {
+	tenantID, userID, ok := h.identity(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	var in celebratedInput
+	if err := c.BodyParser(&in); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if err := h.celebrated.Execute(c.UserContext(), tenantID, userID, in.StepKey); err != nil {
+		return writeAppError(c, err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// GetOnboardingState GET /onboarding/state
+//
+// Drives both the wizard (which step to show, with which answers) and the route
+// guard (`completed`). Never 404s: a newcomer's first call returns an empty,
+// valid state.
+func (h *ActivationHandler) GetOnboardingState(c *fiber.Ctx) error {
+	tenantID, userID, ok := h.identity(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	state, err := h.onboarding.GetState(c.UserContext(), tenantID, userID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(state)
+}
+
+// canEditOrganization reports whether the caller may write the tenant's
+// Organization row (org role admin/root, or a wildcard permission).
+func canEditOrganization(c *fiber.Ctx) bool {
+	claims := middleware.GetUserClaims(c)
+	if claims == nil {
+		return false
+	}
+	if claims.HasPermission("*") {
+		return true
+	}
+	for _, role := range claims.OrgRoles {
+		if role == "admin" || role == "root" {
+			return true
+		}
+	}
+	return false
+}
+
+type saveStepInput struct {
+	// Answers is the step's raw payload, stored verbatim so the form repopulates
+	// exactly as the user left it when they come back.
+	Answers map[string]interface{} `json:"answers"`
+	// Next optionally names the step to move to; it may point backwards.
+	Next string `json:"next"`
+}
+
+// SaveOnboardingStep PUT /onboarding/steps/:step
+func (h *ActivationHandler) SaveOnboardingStep(c *fiber.Ctx) error {
+	tenantID, userID, ok := h.identity(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	step, err := domain.ParseOnboardingStep(c.Params("step"))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+
+	var in saveStepInput
+	if err := c.BodyParser(&in); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	state, err := h.onboarding.SaveStep(c.UserContext(), tenantID, userID, appactivation.SaveStepInput{
+		Step:    step,
+		Answers: domain.JSONMap(in.Answers),
+		Next:    in.Next,
+		// Only an admin/root may have their organization answers written back to
+		// the Organization row. A member invited into an existing tenant still
+		// walks the wizard — their answers are stored and still drive their
+		// suggestions, but they cannot rename the company through it.
+		CanEditOrganization: canEditOrganization(c),
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(state)
+}
+
+// CompleteOnboarding POST /onboarding/complete — lifts the route guard.
+func (h *ActivationHandler) CompleteOnboarding(c *fiber.Ctx) error {
+	tenantID, userID, ok := h.identity(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	state, err := h.onboarding.Complete(c.UserContext(), tenantID, userID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(state)
+}
+
+// GetOnboardingSuggestions GET /onboarding/suggestions
+//
+// Sector/goal-driven content: the sector and goal option lists, the three
+// pre-filled first-risk drafts, and the suggested frameworks. Query overrides
+// (?industry=&country=&goal=) let the wizard preview a choice before saving it.
+//
+// Nothing here creates anything — these are drafts the user opens, edits and
+// validates. We never auto-create a risk (spec §5).
+func (h *ActivationHandler) GetOnboardingSuggestions(c *fiber.Ctx) error {
+	tenantID, userID, ok := h.identity(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	out := h.onboarding.GetSuggestions(
+		c.UserContext(), tenantID, userID,
+		c.Query("industry"), c.Query("country"), c.Query("goal"),
+	)
+	return c.JSON(out)
+}

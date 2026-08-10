@@ -185,3 +185,32 @@ groups:
         annotations:
           summary: "Upcoming mitigations due"
           description: "{{ $value }} mitigations are due in the next 7 days"
+
+      # ===== ACTIVATION / TIME-TO-AHA ALERTS =====
+      # The product promise is "a newcomer reaches the Aha moment in under
+      # 8 minutes" (first cyber score on their own data, with at least one
+      # compliance gap identified). The alert fires at 12 minutes so there is
+      # headroom between the target and the page — an alert set at the target
+      # fires on every ordinary bad day and gets muted.
+      - alert: SlowTimeToAha
+        expr: histogram_quantile(0.5, sum(rate(openrisk_time_to_aha_seconds_bucket[6h])) by (le)) > 720
+        for: 30m
+        labels:
+          severity: warning
+          team: product
+        annotations:
+          summary: "Median time-to-Aha above 12 minutes"
+          description: "P50 time-to-Aha is {{ $value | humanizeDuration }} (target < 8 min, alert > 12 min). New signups are not reaching first value: check the onboarding wizard, the framework import and the guided first risk."
+
+      # An empty numerator here means signups are happening but nobody is
+      # activating — a harder failure than a slow P50, and invisible to the
+      # quantile alert above (a histogram with no observations has no quantile).
+      - alert: NoActivationDespiteSignups
+        expr: increase(openrisk_activation_events_total{event_key="signup"}[6h]) > 0 and increase(openrisk_aha_reached_total[6h]) == 0
+        for: 1h
+        labels:
+          severity: warning
+          team: product
+        annotations:
+          summary: "Signups with zero Aha moments"
+          description: "{{ $value }} signups in the last 6h and not one reached the Aha moment."

@@ -19,13 +19,11 @@ import {
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { usePermissions } from '../../hooks/usePermissions';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, scoreColor, scoreToCriticality, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats, type MatrixCell } from './useStats';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, Skeleton } from '../../shared/ui';
-import { useFrameworks } from '../compliance/useCompliance';
 import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 import { InfoHint } from '../../shared/InfoHint';
@@ -137,8 +135,6 @@ function PostureDashboard() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
   const greeting = `${tr('Bonjour', 'Hello')}${firstName ? `, ${firstName}` : ''}`;
-  const { isAdmin } = usePermissions();
-  const frameworkCount = useFrameworks().frameworks?.length ?? 0;
   const sev = stats?.risks_by_severity ?? {};
 
   // Every KPI is read straight off the server aggregate. These used to fall back
@@ -188,14 +184,11 @@ function PostureDashboard() {
           </button>
         </div>
 
-        {/* Guided onboarding (UX-01/07/17/32): drives the user to the Aha moment
-            then to personalization. Auto-ticks steps from real data. */}
-        <OnboardingChecklist
-          riskCount={kpis.total}
-          frameworkCount={frameworkCount}
-          isAdmin={isAdmin()}
-          onCreateRisk={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-        />
+        {/* Get-started panel. It takes no props on purpose: the steps, their
+            completion and the celebration all come from GET /activation/state.
+            Deriving them here from local counts is what used to make it tick
+            unreliably and fire confetti at random. */}
+        <OnboardingChecklist />
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">

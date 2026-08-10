@@ -17,12 +17,15 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 
+	appactivation "github.com/opendefender/openrisk/internal/application/activation"
 	appai "github.com/opendefender/openrisk/internal/application/ai"
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/application/auth"
@@ -261,6 +264,13 @@ func main() {
 		&domain.Delegation{},
 		&domain.ApprovalWorkflow{},
 		&domain.ApprovalRequest{},
+		// Activation & onboarding (migration 0043). The server-side source of
+		// truth for the newcomer journey: an append-only event log written by the
+		// domain use cases, a per-user celebration ledger that makes the burst
+		// idempotent, and the resumable signup wizard state the route guard reads.
+		&domain.ActivationEvent{},
+		&domain.ActivationCelebration{},
+		&domain.OnboardingProgress{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -469,6 +479,16 @@ func main() {
 	// 5. API ROUTES
 	// =========================================================================
 
+	// Prometheus scrape endpoint, mounted on the root app (outside /api/v1 and
+	// outside the auth gate, as a scrape target must be). It exposes the DEFAULT
+	// registry, which is where pkg/monitoring registers its metrics at import
+	// time — including openrisk_time_to_aha_seconds, the histogram behind the
+	// SlowTimeToAha alert (deployment/monitoring/alerts.yml).
+	//
+	// Until now the codebase declared Prometheus metrics but never served them in
+	// the exposition format, so nothing could scrape them.
+	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
+
 	api := app.Group("/api/v1")
 
 	// Baseline per-IP quota across the whole API (audit finding F-03: only 2 of
@@ -578,6 +598,24 @@ func main() {
 	// uniform response exists to prevent.
 	securityMailer := authmail.NewAsync(authmail.New(emailTransport))
 
+	// --- Activation (the newcomer journey) ------------------------------------
+	// The server-side source of truth for "how far into the product is this
+	// tenant?". Domain use cases below get `WithActivation(activationRecorder)`;
+	// the recorder is best-effort and nil-safe, so noting a milestone can never
+	// fail the business action that produced it.
+	activationRepo := repository.NewGormActivationRepository(database.DB)
+	// Existing members were using the product before onboarding existed: mark them
+	// done so the new route guard cannot lock them out of their own workspace.
+	// Idempotent; migration 0043 does the same in SQL for migrate-only deploys.
+	if err := activationRepo.BackfillExistingMembers(context.Background()); err != nil {
+		log.Printf("Warning: activation backfill failed (existing users may see the onboarding wizard): %v", err)
+	}
+	activationRecorder := appactivation.NewRecorder(activationRepo)
+	ahaRecorder := appactivation.NewAhaRecorder(activationRepo)
+	// Legacy handlers that build their own use cases inline (mitigation) read the
+	// recorder from this package seam — see internal/handler/activation_wiring.go.
+	handlers.SetActivationRecorder(activationRecorder)
+
 	// --- Sessions -------------------------------------------------------------
 	sessionRepo := repository.NewGormSessionRepository(database.DB)
 	passwordResetRepo := repository.NewGormPasswordResetRepository(database.DB)
@@ -590,7 +628,9 @@ func main() {
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
 		RequireMFAForRoles("admin", "root")
-	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher)
+	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
+		// Anchors t0 for the time-to-Aha histogram.
+		WithActivation(activationRecorder)
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
 
@@ -816,7 +856,7 @@ func main() {
 
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
-	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo)
+	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).WithActivation(activationRecorder)
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
@@ -935,7 +975,7 @@ func main() {
 	listMappingsUC := compliance.NewListControlMappingsUseCase(controlMappingRepo, complianceRepo)
 	deleteMappingUC := compliance.NewDeleteControlMappingUseCase(controlMappingRepo)
 	listCatalogsUC := compliance.NewListCatalogsUseCase()
-	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo)
+	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo).WithActivation(activationRecorder)
 	// M4 — official compliance report (PDF). Reuses userRepo/orgRepo (declared
 	// above) to resolve the "generated by" and organization identity lines.
 	generateReportUC := compliance.NewGenerateComplianceReportUseCase(complianceRepo, orgRepo, userRepo)
@@ -1055,7 +1095,7 @@ func main() {
 	}
 	generateBoardUC := board.NewGenerateBoardReportUseCase(
 		boardRepo, riskRepo, complianceRepo, orgRepo, boardAdvisor, board.DefaultExposureModel(),
-	)
+	).WithActivation(activationRecorder)
 	getBoardUC := board.NewGetBoardReportUseCase(boardRepo)
 	listBoardUC := board.NewListBoardReportsUseCase(boardRepo)
 	updateBoardUC := board.NewUpdateBoardReportUseCase(boardRepo)
@@ -1110,7 +1150,7 @@ func main() {
 	// data) — now gated the same way as risks/compliance.
 	assetRepo := repository.NewGormAssetRepository(database.DB)
 	assetDepRepo := repository.NewGormAssetDependencyRepository(database.DB)
-	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo)
+	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo).WithActivation(activationRecorder)
 	getAssetUC := assetapp.NewGetAssetUseCase(assetRepo)
 	listAssetsUC := assetapp.NewListAssetsUseCase(assetRepo)
 	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo)
@@ -1445,6 +1485,7 @@ func main() {
 	// existing tenant-scoped sources; every source is nil-safe in the use case.
 	executiveDashboardHandler := newExecutiveDashboardHandler(
 		financialSummaryUseCase, riskRepo, getGapAnalysisUC, vulnRepo, incidentService, riskQuantifier,
+		ahaRecorder,
 	)
 	protected.Get("/analytics/executive",
 		middleware.RequirePermission("risks:read"), executiveDashboardHandler.GetExecutiveDashboard)
@@ -1551,7 +1592,7 @@ func main() {
 		apprbac.NewAssignBusinessRoleUseCase(memberRBACRepo),
 		// Invite reuses the shared user repo + password hasher to provision a real
 		// member (user + organization_member) in the tenant (OR-BUG-003).
-		apprbac.NewInviteMemberUseCase(userRepo, passwordHasher),
+		apprbac.NewInviteMemberUseCase(userRepo, passwordHasher).WithActivation(activationRecorder),
 	)
 	protected.Get("/rbac/business-roles", businessRoleHandler.GetCatalog)
 	protected.Get("/rbac/members", adminRole, businessRoleHandler.ListMembers)
@@ -1743,6 +1784,35 @@ func main() {
 			WithMembers(memberRBACRepo),
 	)
 	protected.Get("/search", searchHandler.Search)
+
+	// =========================================================================
+	// ACTIVATION & ONBOARDING — the newcomer journey (signup → Aha in < 8 min)
+	//
+	// Activation state is DERIVED FROM SERVER EVENTS, never from client state:
+	// there is deliberately no endpoint that lets the client declare a step done.
+	// The only writes are (a) acknowledging that a celebration was shown, and
+	// (b) the wizard's own answers.
+	// =========================================================================
+	onboardingUC := appactivation.NewOnboardingUseCase(activationRepo, activationRecorder).
+		WithOrgUpdater(orgRepo).
+		WithProfileUpdater(userRepo)
+	activationHandler := handlers.NewActivationHandler(
+		appactivation.NewGetStateUseCase(activationRepo),
+		appactivation.NewMarkCelebratedUseCase(activationRepo),
+		onboardingUC,
+	)
+	// Readable by any authenticated member: the get-started panel is not a
+	// privileged view, and gating it behind a permission would hide the product's
+	// own instructions from exactly the people who need them most.
+	protected.Get("/activation/state", activationHandler.GetActivationState)
+	protected.Post("/activation/celebrated", activationHandler.MarkCelebrated)
+
+	// Wizard. Static sub-paths before any ":param" route (the Fiber trap this
+	// codebase has hit repeatedly).
+	protected.Get("/onboarding/state", activationHandler.GetOnboardingState)
+	protected.Get("/onboarding/suggestions", activationHandler.GetOnboardingSuggestions)
+	protected.Post("/onboarding/complete", activationHandler.CompleteOnboarding)
+	protected.Put("/onboarding/steps/:step", activationHandler.SaveOnboardingStep)
 
 	// The periodic sync worker (NVD 1h / CISA 6h + post-sync matching) runs in
 	// production. In dev it stays off by default to avoid hitting the feeds on every

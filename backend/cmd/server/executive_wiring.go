@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 
+	appactivation "github.com/opendefender/openrisk/internal/application/activation"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/dashboard"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -51,6 +52,7 @@ func newExecutiveDashboardHandler(
 	vulnRepo *repository.GormVulnerabilityRepository,
 	incidentSvc *service.IncidentService,
 	quantifier *crq.Quantifier,
+	aha *appactivation.AhaRecorder,
 ) *handlers.ExecutiveDashboardHandler {
 	uc := dashboard.NewGetExecutiveDashboardUseCase().
 		WithFinancial(financialUC).
@@ -58,6 +60,11 @@ func newExecutiveDashboardHandler(
 		WithCompliance(gapUC).
 		WithVulnerabilities(vulnRepo).
 		WithIncidents(incidentSourceAdapter{svc: incidentSvc}).
-		WithQuantifier(quantifier)
+		WithQuantifier(quantifier).
+		// The Aha moment (spec §7) is detected exactly where the cyber score is
+		// computed: this is the only place that knows both that a score was
+		// produced from the tenant's own data AND how many compliance gaps were
+		// identified while producing it.
+		WithActivation(aha)
 	return handlers.NewExecutiveDashboardHandler(uc)
 }

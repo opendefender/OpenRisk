@@ -26,7 +26,7 @@ import { Card, Chip, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useRbacCatalog, useRbacMembers, useAssignBusinessRole, useInviteMember } from './useRbac';
 import type { BusinessRole, PermissionDef, MemberView, InviteMemberResult } from './rbacService';
-import { useOnboarding } from '../onboarding/onboardingStore';
+import { useInvalidateActivation } from '../onboarding/useActivation';
 import { useEscapeToClose } from '../../shared/useBackTo';
 
 type Tab = 'roles' | 'members';
@@ -322,7 +322,8 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const invite = useInviteMember();
-  const markInvited = useOnboarding((s) => s.markInvited);
+  // The server records member.invited; this only asks the checklist to re-read it.
+  const refreshActivation = useInvalidateActivation();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState(''); // '' = no preset; '__admin__' = full admin; else preset key
@@ -337,7 +338,7 @@ function InviteModal({ catalog, onClose }: { catalog: ReturnType<typeof useRbacC
     invite.mutate(input, {
       onSuccess: (res) => {
         setResult(res);
-        markInvited(); // completes the onboarding "invite a teammate" step
+        refreshActivation(); // the server already ticked the step; re-read it
       },
       onError: (err) => {
         const status = (err as { response?: { status?: number; data?: { error?: string } } })?.response;

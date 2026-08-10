@@ -38,14 +38,31 @@ type CreateRiskInput struct {
 	MitigationEffectiveness *float64 // [0,1]
 }
 
+// ActivationRecorder notes product milestones so activation state is derived from
+// SERVER events instead of client guesses. Narrow and satisfied structurally by
+// application/activation.Recorder, so this package does not import it.
+//
+// It returns nothing on purpose: noting "this was their first risk" must never be
+// able to fail the creation of the risk.
+type ActivationRecorder interface {
+	Record(ctx context.Context, tenantID uuid.UUID, key string, payload map[string]interface{})
+}
+
 // CreateRiskUseCase handles the creation of a new risk.
 type CreateRiskUseCase struct {
-	riskRepo domain.RiskRepository
+	riskRepo   domain.RiskRepository
+	activation ActivationRecorder
 }
 
 // NewCreateRiskUseCase creates a new CreateRiskUseCase.
 func NewCreateRiskUseCase(riskRepo domain.RiskRepository) *CreateRiskUseCase {
 	return &CreateRiskUseCase{riskRepo: riskRepo}
+}
+
+// WithActivation attaches the optional activation recorder. Nil-safe.
+func (uc *CreateRiskUseCase) WithActivation(rec ActivationRecorder) *CreateRiskUseCase {
+	uc.activation = rec
+	return uc
 }
 
 // Execute creates a new risk within the specified organization.
@@ -109,6 +126,16 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 	// 4. Persist
 	if err := uc.riskRepo.Create(ctx, risk); err != nil {
 		return nil, domain.NewInternalError(fmt.Sprintf("failed to create risk: %v", err))
+	}
+
+	// 5. Note the activation milestone. Every creation records an event; only the
+	// FIRST one ticks the checklist (the read model takes MIN(occurred_at)), so
+	// no counting or de-duplication is needed here.
+	if uc.activation != nil {
+		uc.activation.Record(ctx, orgID, string(domain.ActivationRiskCreated), map[string]interface{}{
+			"risk_id": risk.ID.String(),
+			"source":  string(risk.Source),
+		})
 	}
 
 	return risk, nil

@@ -32,12 +32,28 @@ type RegisterOutput struct {
 	Message      string
 }
 
+// ActivationRecorder anchors t0 for the time-to-Aha metric. Narrow port,
+// satisfied structurally by application/activation.Recorder; nil-safe.
+//
+// RecordOnce rather than Record: signup happens exactly once per tenant, and a
+// duplicate row here would corrupt every subsequent time-to-Aha measurement.
+type ActivationRecorder interface {
+	RecordOnce(ctx context.Context, tenantID uuid.UUID, key string, payload map[string]interface{}) bool
+}
+
 // RegisterUseCase handles user registration
 type RegisterUseCase struct {
 	userRepo       UserRepository
 	orgRepo        OrganizationRepository
 	notifyService  notify.Service
 	passwordHasher PasswordHasher
+	activation     ActivationRecorder
+}
+
+// WithActivation attaches the optional activation recorder.
+func (uc *RegisterUseCase) WithActivation(rec ActivationRecorder) *RegisterUseCase {
+	uc.activation = rec
+	return uc
 }
 
 // NewRegisterUseCase creates a new register use case
@@ -142,6 +158,15 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 	if err := uc.userRepo.CreateOrganizationMember(ctx, member); err != nil {
 		// This is not critical for registration success, log and continue
 		fmt.Printf("Warning: failed to create organization membership: %v\n", err)
+	}
+
+	// Anchor t0 for time-to-Aha. Recorded here rather than at first login so the
+	// clock starts when the account is created — which is when the newcomer's
+	// eight minutes actually start.
+	if uc.activation != nil {
+		uc.activation.RecordOnce(ctx, org.ID, string(domain.ActivationSignup), map[string]interface{}{
+			"user_id": user.ID.String(),
+		})
 	}
 
 	// Send welcome email

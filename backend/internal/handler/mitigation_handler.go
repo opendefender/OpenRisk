@@ -90,6 +90,12 @@ func CreateMitigation(c *fiber.Ctx) error {
 	repo := repository.NewGormMitigationRepository(database.DB)
 	subRepo := repository.NewGormMitigationSubActionRepository(database.DB)
 	useCase := mitigation.NewCreateMitigationPlanUseCase(repo, subRepo)
+	// Activation is recorded inside the use case; this legacy handler builds its
+	// own dependencies, so the recorder is carried in via the package seam
+	// (see activation_wiring.go). Nil-safe when unwired.
+	if rec := ActivationRecorderInstance(); rec != nil {
+		useCase = useCase.WithActivation(rec)
+	}
 
 	input := mitigation.CreateMitigationPlanInput{
 		TenantID:    ctx.OrganizationID,
@@ -104,7 +110,7 @@ func CreateMitigation(c *fiber.Ctx) error {
 		SubActions:  subActions,
 	}
 
-	output, err := useCase.Execute(input)
+	output, err := useCase.ExecuteContext(c.UserContext(), input)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}

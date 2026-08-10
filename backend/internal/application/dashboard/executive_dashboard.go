@@ -169,6 +169,17 @@ const (
 // GetExecutiveDashboardUseCase consolidates the tenant's posture. Every source is
 // optional: pass nil to omit that slice. Build with New… then attach sources via
 // the With… options.
+// AhaRecorder is told, on every score computation, whether this one qualifies as
+// the tenant's Aha moment (spec §7: a cyber score on the tenant's OWN data, with
+// at least one compliance gap identified). The rule itself lives in
+// application/activation — this package only reports what it observed, so the two
+// stay decoupled and no import cycle is possible.
+//
+// Optional and nil-safe, like every other source here.
+type AhaRecorder interface {
+	MaybeRecordAha(ctx context.Context, tenantID uuid.UUID, scoreComputed bool, ownDataPoints, complianceGaps int)
+}
+
 type GetExecutiveDashboardUseCase struct {
 	financial  FinancialSource
 	risks      RiskSource
@@ -176,6 +187,13 @@ type GetExecutiveDashboardUseCase struct {
 	vulns      VulnSource
 	incidents  IncidentSource
 	quantifier *crq.Quantifier
+	activation AhaRecorder
+}
+
+// WithActivation attaches the optional Aha recorder.
+func (uc *GetExecutiveDashboardUseCase) WithActivation(rec AhaRecorder) *GetExecutiveDashboardUseCase {
+	uc.activation = rec
+	return uc
 }
 
 // NewGetExecutiveDashboardUseCase builds the use case with no sources attached.
@@ -341,6 +359,26 @@ func (uc *GetExecutiveDashboardUseCase) Execute(ctx context.Context, tenantID uu
 		{key: "vulnerabilities", label: "Vulnérabilités", weight: weightVuln, value: vulnV, present: vulnOK},
 		{key: "incidents", label: "Incidents", weight: weightIncident, value: incV, present: incOK},
 	})
+
+	// --- Aha moment (spec §7) -----------------------------------------------
+	// This is the honest place to detect it: it is the exact moment a cyber score
+	// exists, computed from this tenant's own records, and we already know how
+	// many compliance gaps were identified while computing the compliance axis.
+	if uc.activation != nil {
+		totalRisks := critCount + highCount + distTotal(out.RiskDistribution)
+		ownDataPoints := totalRisks
+		if incAnalytics != nil {
+			ownDataPoints += incAnalytics.Total
+		}
+		gaps := complAxisTotal - complAxisImpl
+		if gaps < 0 {
+			gaps = 0
+		}
+		// "Computed" means at least one axis was really present — a score built
+		// from zero sources is a number, not a measurement.
+		scoreComputed := complOK || riskOK || vulnOK || incOK
+		uc.activation.MaybeRecordAha(ctx, tenantID, scoreComputed, ownDataPoints, gaps)
+	}
 
 	return out, nil
 }

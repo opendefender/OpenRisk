@@ -20,13 +20,26 @@ type CreateAssetInput struct {
 	Owner       string
 }
 
+// ActivationRecorder notes the "connected an asset" milestone. Narrow port,
+// satisfied structurally by application/activation.Recorder; nil-safe.
+type ActivationRecorder interface {
+	Record(ctx context.Context, tenantID uuid.UUID, key string, payload map[string]interface{})
+}
+
 // CreateAssetUseCase handles registering a new asset for a tenant.
 type CreateAssetUseCase struct {
-	repo domain.AssetRepository
+	repo       domain.AssetRepository
+	activation ActivationRecorder
 }
 
 func NewCreateAssetUseCase(repo domain.AssetRepository) *CreateAssetUseCase {
 	return &CreateAssetUseCase{repo: repo}
+}
+
+// WithActivation attaches the optional activation recorder.
+func (uc *CreateAssetUseCase) WithActivation(rec ActivationRecorder) *CreateAssetUseCase {
+	uc.activation = rec
+	return uc
 }
 
 func (uc *CreateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, input CreateAssetInput) (*domain.Asset, error) {
@@ -51,6 +64,13 @@ func (uc *CreateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 
 	if err := uc.repo.Create(ctx, assetEntity); err != nil {
 		return nil, domain.NewInternalError(err.Error())
+	}
+
+	if uc.activation != nil {
+		uc.activation.Record(ctx, tenantID, string(domain.ActivationAssetConnected), map[string]interface{}{
+			"asset_id": assetEntity.ID.String(),
+			"type":     assetEntity.Type,
+		})
 	}
 	return assetEntity, nil
 }

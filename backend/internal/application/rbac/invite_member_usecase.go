@@ -52,14 +52,27 @@ type InviteMemberResult struct {
 // (OR-BUG-003). It reuses the same create sequence as registration
 // (user + organization_member) so the invited member can actually sign in and
 // its role resolves at login.
+// ActivationRecorder notes the "invited a teammate" milestone. Narrow port,
+// satisfied structurally by application/activation.Recorder; nil-safe.
+type ActivationRecorder interface {
+	Record(ctx context.Context, tenantID uuid.UUID, key string, payload map[string]interface{})
+}
+
 type InviteMemberUseCase struct {
-	users  UserProvisioner
-	hasher PasswordHasher
+	users      UserProvisioner
+	hasher     PasswordHasher
+	activation ActivationRecorder
 }
 
 // NewInviteMemberUseCase builds the use case.
 func NewInviteMemberUseCase(users UserProvisioner, hasher PasswordHasher) *InviteMemberUseCase {
 	return &InviteMemberUseCase{users: users, hasher: hasher}
+}
+
+// WithActivation attaches the optional activation recorder.
+func (uc *InviteMemberUseCase) WithActivation(rec ActivationRecorder) *InviteMemberUseCase {
+	uc.activation = rec
+	return uc
 }
 
 var emailRe = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
@@ -141,6 +154,15 @@ func (uc *InviteMemberUseCase) Execute(ctx context.Context, tenantID uuid.UUID, 
 		return nil, err
 	}
 	member.User = user
+
+	if uc.activation != nil {
+		// No email address in the payload: activation telemetry has no business
+		// carrying a personal identifier (RULE #6 in spirit).
+		uc.activation.Record(ctx, tenantID, string(domain.ActivationMemberInvited), map[string]interface{}{
+			"member_id": user.ID.String(),
+			"org_role":  string(member.Role),
+		})
+	}
 
 	return &InviteMemberResult{
 		Member: MemberView{

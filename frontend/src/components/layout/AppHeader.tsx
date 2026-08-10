@@ -16,7 +16,7 @@
 import { useSyncExternalStore, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Search, Bell, Sun, Moon, Menu,
+  Search, Bell, Sun, Moon, Menu, LifeBuoy,
   Rows2, Rows3, Rows4, Keyboard,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
@@ -71,6 +71,7 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
 
       {/* ⌘K search trigger */}
       <button
+        data-tour="search"
         onClick={() => setCmdkOpen(true)}
         className="hidden sm:flex items-center gap-[9px] h-[34px] px-3 rounded-[9px] text-ink-muted min-w-[230px] text-[13px] transition-colors"
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
@@ -105,6 +106,25 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         >
           <button onClick={cycleDensity} className={cn(iconBtn, 'hidden sm:flex')} title={densityMeta.label} aria-label={densityMeta.label}>
             <densityMeta.Icon size={18} strokeWidth={1.7} />
+          </button>
+        </Hint>
+
+        {/* Replays the 3-coach-mark product tour (spec §8). A tour you cannot
+            replay is a tour you have to get right first time — and that nobody
+            can consult when they actually have the question. */}
+        <Hint
+          id="header-tour"
+          side="bottom"
+          text={lang === 'fr' ? 'Revoir la visite guidée' : 'Replay the product tour'}
+        >
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('openrisk:tour'))}
+            className={cn(iconBtn, 'hidden sm:flex')}
+            title={lang === 'fr' ? 'Visite guidée' : 'Product tour'}
+            aria-label={lang === 'fr' ? 'Revoir la visite guidée' : 'Replay the product tour'}
+            data-testid="replay-tour"
+          >
+            <LifeBuoy size={18} strokeWidth={1.7} />
           </button>
         </Hint>
 
