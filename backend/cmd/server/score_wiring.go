@@ -59,7 +59,7 @@ func newScoreHandler(
 	riskRepo *repository.GormRiskRepository,
 	assetRepo *repository.GormAssetRepository,
 	vulnRepo *repository.GormVulnerabilityRepository,
-	mitigationRepo *repository.GormMitigationRepository,
+	mitigationRepo repository.MitigationRepository,
 	gapUC *compliance.GetGapAnalysisUseCase,
 	incidentSvc *service.IncidentService,
 ) *handlers.ScoreHandler {

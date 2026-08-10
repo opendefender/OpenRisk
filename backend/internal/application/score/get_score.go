@@ -322,8 +322,8 @@ func (uc *UseCase) assetScore(ctx context.Context, tenantID, assetID uuid.UUID) 
 
 	if uc.vulns != nil {
 		page, err := uc.vulns.List(ctx, tenantID, domain.VulnerabilityQuery{
-			AssetID:  &assetID,
-			PageSize: 200,
+			AssetID: &assetID,
+			Limit:   200,
 		})
 		if err == nil && page != nil {
 			in.HasVulnData = true
