@@ -12,13 +12,14 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router';
 import { toast } from 'sonner';
 import {
   Settings as SettingsIcon, Users, KeyRound, Building2, SlidersHorizontal, Plug,
-  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Laptop, Trash2, Copy, Database, PowerOff,
+  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Trash2, Copy, Database, PowerOff,
   type LucideIcon,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { SessionsPanel } from '../auth/SessionsPanel';
 import { MembersPanel } from '../rbac/MembersPanel';
 import { relTime } from '../risks/riskMap';
 import { api } from '../../lib/api';
@@ -445,17 +446,7 @@ function NotifTab({ tr }: { tr: Tr }) {
   );
 }
 
-// Minimal, honest browser label from the UA — no invented device history.
-function currentDeviceLabel(): string {
-  if (typeof navigator === 'undefined') return 'Session';
-  const ua = navigator.userAgent;
-  const browser = /Edg/.test(ua) ? 'Edge' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Browser';
-  const os = /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : '';
-  return os ? `${browser} · ${os}` : browser;
-}
-
 function SecurityTab({ tr }: { tr: Tr }) {
-  const user = useAuthStore((s) => s.user);
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
@@ -467,16 +458,12 @@ function SecurityTab({ tr }: { tr: Tr }) {
           )}
         </div>
       </Card>
+      {/* Real device list, backed by GET/DELETE /auth/sessions. This card used to
+          show only the current device and a "multi-device history will arrive"
+          note; the sessions API now exists, so it lists every signed-in device
+          and can revoke them. */}
       <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('Session active', 'Active session')}</Title>
-        <div className="flex items-center gap-3 py-2">
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><Laptop size={18} /></div>
-          <div className="flex-1">
-            <div className="text-[13.5px] font-medium text-ink">{currentDeviceLabel()}</div>
-            <div className="text-[12px] mt-0.5" style={{ color: 'var(--low)' }}>{tr('Session actuelle', 'Current session')} · {user?.email}</div>
-          </div>
-        </div>
-        <div className="text-[11.5px] text-ink-muted mt-1.5">{tr('L’historique multi-appareils arrivera avec la gestion des sessions.', 'Multi-device history will arrive with session management.')}</div>
+        <SessionsPanel />
       </Card>
     </>
   );

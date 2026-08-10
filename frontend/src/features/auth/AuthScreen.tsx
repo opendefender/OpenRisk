@@ -1,143 +1,30 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Auth (OpenRisk.dc.html §6.1): split-screen 45/55 — animated orbit + Schneier
-// quote on the left, Login / Register / MFA forms on the right. The Login form is
-// wired to the real auth store; Register/MFA are the design flow.
+// Sign in / register, plus the two MFA legs (challenge and mandated enrolment).
+//
+// The split-screen shell, motion policy and language switcher live in
+// AuthLayout; this file is the forms.
 
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { Eye, EyeOff, Sun, Moon, Languages } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
+
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { landingForBusinessRole } from '../../shared/navModel';
 import { useUIStore } from '../../store/uiStore';
-import { useUIStrings } from '../../shared/uiStrings';
-import { OpenRiskLogo } from '../../shared/Logo';
+import { authCopy, providerLabel, type OAuthErrorCode } from './authStrings';
+import { challengeMFA, setupMFA, verifyMFA } from './authService';
+import { AuthLayout } from './AuthLayout';
+import { cascade, usePrefersReducedMotion } from './motion';
+import { PasswordStrength } from './PasswordStrength';
+import { ErrorBanner, Label, Shake } from './fields';
+import { inputCls, inputStyle, primaryBtn, primaryStyle } from './formStyles';
 
 type View = 'login' | 'register';
-
-const ORBIT_NODES: [string, number, number][] = [
-  ['#ff453a', 20, 40], ['#ff9f0a', 210, 70], ['#30d158', 40, 200], ['#64d2ff', 200, 190], ['#7c6cff', 120, 10],
-];
-
-// Real, attributed quotes on cybersecurity, risk and science — rotated on the
-// login hero to keep the sign-in screen alive without inventing anything. Each
-// entry carries a French and an English rendering, picked from the UI language.
-const QUOTES: { fr: string; en: string; author: string }[] = [
-  { fr: 'La sécurité est un processus, pas un produit.', en: 'Security is a process, not a product.', author: 'Bruce Schneier' },
-  { fr: 'Le seul système vraiment sûr est éteint, coulé dans un bloc de béton et scellé dans une pièce blindée sous bonne garde.', en: 'The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards.', author: 'Gene Spafford' },
-  { fr: 'Les amateurs piratent des systèmes, les professionnels piratent des personnes.', en: 'Amateurs hack systems, professionals hack people.', author: 'Bruce Schneier' },
-  { fr: 'Il y a deux types d’entreprises : celles qui ont été piratées, et celles qui ne le savent pas encore.', en: 'There are two types of companies: those that have been hacked, and those that don’t yet know they have been hacked.', author: 'John Chambers' },
-  { fr: 'Il faut 20 ans pour bâtir une réputation et quelques minutes de cyber-incident pour la ruiner.', en: 'It takes 20 years to build a reputation and a few minutes of cyber-incident to ruin it.', author: 'Stéphane Nappo' },
-  { fr: 'La complexité est le pire ennemi de la sécurité.', en: 'Complexity is the worst enemy of security.', author: 'Bruce Schneier' },
-  { fr: 'Avec assez d’yeux, tous les bugs deviennent évidents.', en: 'Given enough eyeballs, all bugs are shallow.', author: 'Linus’s Law — Eric S. Raymond' },
-  { fr: 'En Dieu nous croyons. Tous les autres doivent apporter des données.', en: 'In God we trust. All others must bring data.', author: 'W. Edwards Deming' },
-  { fr: 'Le risque vient de ne pas savoir ce que l’on fait.', en: 'Risk comes from not knowing what you’re doing.', author: 'Warren Buffett' },
-  { fr: 'Mieux vaut prévenir que guérir.', en: 'An ounce of prevention is worth a pound of cure.', author: 'Benjamin Franklin' },
-  { fr: 'La mesure de l’intelligence, c’est la capacité de changer.', en: 'The measure of intelligence is the ability to change.', author: 'Albert Einstein' },
-  { fr: 'Ce que l’on anticipe arrive rarement ; ce que l’on attend le moins arrive généralement.', en: 'What we anticipate seldom occurs; what we least expect generally happens.', author: 'Benjamin Disraeli' },
-];
-
-export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
-  const [view, setView] = useState<View>(initialView);
-  const L = useUIStrings();
-  const theme = useUIStore((s) => s.theme);
-  const toggleTheme = useUIStore((s) => s.toggleTheme);
-  const lang = useUIStore((s) => s.lang);
-  const toggleLang = useUIStore((s) => s.toggleLang);
-
-  const [qi, setQi] = useState(() => Math.floor(Math.random() * QUOTES.length));
-  const [qShow, setQShow] = useState(true);
-  useEffect(() => {
-    const t = setInterval(() => {
-      setQShow(false);
-      setTimeout(() => { setQi((i) => (i + 1) % QUOTES.length); setQShow(true); }, 350);
-    }, 7000);
-    return () => clearInterval(t);
-  }, []);
-  const q = QUOTES[qi];
-  const quote = lang === 'fr' ? q.fr : q.en;
-  const author = q.author;
-
-  return (
-    <div className="flex w-full relative" style={{ height: '100vh' }}>
-      {/* Language + theme toggles — available before sign-in */}
-      <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
-        <button
-          onClick={toggleLang}
-          className="h-10 px-3 rounded-[11px] flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
-          title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}
-          aria-label="Toggle language"
-        >
-          <Languages size={17} /><span className="mono text-[12px] font-semibold uppercase">{lang}</span>
-        </button>
-        <button
-          onClick={toggleTheme}
-          className="w-10 h-10 rounded-[11px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
-          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-      </div>
-      {/* left */}
-      <div className="relative overflow-hidden flex-col justify-between p-11 hidden md:flex" style={{ flex: '0 0 45%', background: 'linear-gradient(150deg,#0a0b12,#111225)' }}>
-        <div className="absolute rounded-full" style={{ top: '-15%', right: '-10%', width: 420, height: 420, background: 'radial-gradient(circle,var(--accent-glow),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
-        <div className="absolute rounded-full" style={{ bottom: '0%', left: '-15%', width: 380, height: 380, background: 'radial-gradient(circle,rgba(124,108,255,.4),transparent 70%)', filter: 'blur(30px)', opacity: 0.5 }} />
-        <div className="flex items-center gap-2.5 relative">
-          <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 3px 14px var(--accent-glow)' }}><OpenRiskLogo size={20} /></div>
-          <span className="disp text-[19px] font-bold text-text-primary">OpenRisk</span>
-        </div>
-        <div className="relative flex-1 flex items-center justify-center">
-          <div className="relative" style={{ width: 260, height: 260 }}>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 6px 30px var(--accent-glow)' }}><OpenRiskLogo size={30} /></div>
-            </div>
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="absolute inset-0 rounded-full" style={{ border: '1px solid rgba(255,255,255,.12)', transform: `scale(${0.55 + i * 0.22})` }} />
-            ))}
-            {ORBIT_NODES.map(([c, x, y], i) => (
-              <div key={i} className="absolute rounded-full" style={{ left: x, top: y, width: 14, height: 14, background: c, boxShadow: `0 0 12px ${c}`, animation: `or-float ${4 + i}s ease-in-out infinite` }} />
-            ))}
-          </div>
-        </div>
-        <div className="relative" style={{ minHeight: 96 }}>
-          <div style={{ opacity: qShow ? 1 : 0, transform: qShow ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity .35s ease, transform .35s ease' }}>
-            <div className="text-[17px] font-medium text-text-primary leading-relaxed" style={{ letterSpacing: '-.01em' }}>“{quote}”</div>
-            <div className="text-[13px] mt-2.5" style={{ color: 'rgba(255,255,255,.5)' }}>— {author}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* right */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 relative" style={{ background: 'var(--bg-app)' }}>
-        <div className="w-full max-w-[380px]" style={{ animation: 'or-fadeup .4s ease' }}>
-          {view === 'login' && <LoginForm onRegister={() => setView('register')} />}
-          {view === 'register' && <RegisterForm onLogin={() => setView('login')} />}
-        </div>
-        {/* Product / company relationship — OpenRisk is the product, OpenDefender the company. */}
-        <div className="absolute bottom-5 left-0 right-0 text-center text-[11.5px] text-ink-muted">
-          {lang === 'fr' ? 'Un produit ' : 'A product by '}
-          <span className="font-semibold text-ink-soft">OpenDefender</span>
-          {lang === 'fr' ? '' : ''} · <span className="opacity-70">© {new Date().getFullYear()}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-[12.5px] font-medium text-ink-soft mb-[7px]">{children}</label>;
-}
-const inputCls = 'w-full h-11 px-3.5 rounded-[11px] text-[14px] text-ink outline-none focus:border-[var(--accent)]';
-const inputStyle: React.CSSProperties = { border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' };
-const primaryBtn = 'w-full h-[46px] rounded-xl text-[14px] font-semibold text-text-primary';
-const primaryStyle: React.CSSProperties = { background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 4px 16px var(--accent-glow)' };
 
 const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = [
   { id: 'google', label: 'Google' },
@@ -145,120 +32,482 @@ const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = 
   { id: 'azure', label: 'Microsoft' },
 ];
 
+export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
+  const [view, setView] = useState<View>(initialView);
+  return (
+    <AuthLayout>
+      {view === 'login' ? (
+        <LoginForm onRegister={() => setView('register')} />
+      ) : (
+        <RegisterForm onLogin={() => setView('login')} />
+      )}
+    </AuthLayout>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sign in
+// ---------------------------------------------------------------------------
+
 function LoginForm({ onRegister }: { onRegister: () => void }) {
-  const L = useUIStrings();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const copy = authCopy(lang);
+  const reduced = usePrefersReducedMotion();
   const login = useAuthStore((s) => s.login);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  // Bumped on every failure so the shake fires again even for an identical
+  // message — otherwise retyping the same wrong password gives no feedback.
+  const [errorNonce, setErrorNonce] = useState(0);
 
-  // Real OAuth2/OIDC sign-in. The backend starts the flow at
-  // /auth/oauth2/login/:provider (google | github | azure) and 302-redirects to
-  // the provider; if the provider isn't configured server-side it replies 400,
-  // so we probe first and surface an honest message instead of a JSON dead-end.
-  const oauth = async (provider: 'google' | 'github' | 'azure', label: string) => {
-    const url = `${api.defaults.baseURL ?? ''}/auth/oauth2/login/${provider}`;
-    try {
-      const res = await fetch(url, { redirect: 'manual' });
-      if (res.type === 'opaqueredirect' || res.status === 0 || (res.status >= 300 && res.status < 400)) {
-        window.location.href = url;
-      } else if (res.status === 400) {
-        toast.error(tr(`Connexion ${label} indisponible — le fournisseur n'est pas configuré côté serveur.`, `${label} sign-in unavailable — the provider isn't configured on the server.`));
-      } else {
-        window.location.href = url;
-      }
-    } catch {
-      window.location.href = url;
+  // Second-factor state, when login stops short of a session.
+  const [mfa, setMfa] = useState<{ token: string; enrolling: boolean } | null>(null);
+
+  // --- OAuth failures come back as ?error= on this URL --------------------
+  // The backend redirects here rather than rendering JSON at a URL the browser
+  // navigated to, which would be an unstyled dead end with no way back.
+  const oauthError = useMemo(() => {
+    const code = params.get('error') as OAuthErrorCode | null;
+    if (!code) return '';
+    if (code === 'provider_conflict') {
+      const existing = params.get('existing_provider');
+      // Naming the provider that DOES own the address is what makes this
+      // recoverable — a bare refusal strands someone on their own account.
+      return existing ? copy.oauthConflictWith(providerLabel(existing)) : copy.oauth.provider_conflict;
     }
+    return copy.oauth[code] ?? copy.oauth.internal;
+  }, [params, copy]);
+
+  useEffect(() => {
+    if (!oauthError) return;
+    setError(oauthError);
+    setErrorNonce((n) => n + 1);
+    // Clear the query so a reload doesn't resurrect a stale failure.
+    const next = new URLSearchParams(params);
+    ['error', 'provider', 'existing_provider', 'lang'].forEach((k) => next.delete(k));
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oauthError]);
+
+  const fail = (message: string) => {
+    setError(message);
+    setErrorNonce((n) => n + 1);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setBusy(true);
+    setError('');
     try {
-      await login(email, password);
-      toast.success('Welcome back to OpenRisk');
-      // Land each GRC business role on a screen relevant to its job (mirrors the
-      // backend default landing); admins/root land on the main dashboard.
-      const businessRole = useAuthStore.getState().user?.business_role;
-      navigate(landingForBusinessRole(businessRole));
+      const result = await login(email, password);
+
+      // Login can stop short of a session in two ways: an enrolled second factor
+      // to challenge, or a role that mandates MFA with nothing enrolled yet.
+      if (result.status === 'mfa_required') {
+        setMfa({ token: result.mfa_token, enrolling: false });
+        return;
+      }
+      if (result.status === 'mfa_enrollment_required') {
+        setMfa({ token: result.mfa_token, enrolling: true });
+        return;
+      }
+
+      toast.success(copy.signInTitle);
+      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch {
-      toast.error('Incorrect email or password. Please check and try again.');
+      fail(copy.signInFailed);
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
+  // Full-page navigation: the OAuth flow is a browser redirect, and the backend
+  // now answers /login/:provider with a 302 straight to the provider.
+  const startOAuth = (provider: string) => {
+    const base = api.defaults.baseURL ?? '';
+    window.location.href = `${base}/auth/oauth2/login/${provider}?lang=${lang}`;
+  };
+
+  if (mfa) {
+    return mfa.enrolling ? (
+      <MFAEnrollment token={mfa.token} />
+    ) : (
+      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} />
+    );
+  }
+
   return (
-    <form onSubmit={submit}>
-      <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{L.welcome}</h1>
-      <div className="text-[14px] text-ink-soft mb-[26px]">{L.welcomeSub}</div>
-      <div className="mb-[15px]"><Label>{L.email}</Label><input data-testid="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus className={inputCls} style={inputStyle} /></div>
-      <div className="mb-[15px]">
-        <Label>{L.password}</Label>
-        <div className="relative">
-          <input data-testid="login-password" type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} style={inputStyle} />
-          <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted" aria-label="Toggle password">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
-        </div>
+    <form onSubmit={submit} noValidate>
+      <div style={cascade(0, reduced)}>
+        <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{copy.signInTitle}</h1>
+        <div className="text-[14px] text-ink-soft mb-[26px]">{copy.signInSubtitle}</div>
       </div>
-      <div className="flex items-center justify-between my-1 mb-5">
-        <label className="flex items-center gap-[7px] text-[12.5px] text-ink-soft cursor-pointer"><input type="checkbox" style={{ accentColor: 'var(--accent)' }} />{L.rememberMe}</label>
-        <a href="#" onClick={(e) => e.preventDefault()} className="text-[12.5px] font-medium">{L.forgot}</a>
+
+      <ErrorBanner>{error}</ErrorBanner>
+
+      <div className="mb-[15px]" style={cascade(1, reduced)}>
+        <Label htmlFor="login-email">{copy.email}</Label>
+        <Shake errorKey={errorNonce}>
+          <input
+            id="login-email"
+            data-testid="login-email"
+            type="email"
+            autoComplete="username"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputCls}
+            style={inputStyle(Boolean(error))}
+          />
+        </Shake>
       </div>
-      <button data-testid="login-submit" type="submit" disabled={loading} className={primaryBtn} style={{ ...primaryStyle, opacity: loading ? 0.7 : 1 }}>{loading ? '…' : L.signin}</button>
-      <div className="flex items-center gap-3 my-[18px]"><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /><span className="text-[12px] text-ink-muted">{L.orSep}</span><div className="flex-1 h-px" style={{ background: 'var(--border)' }} /></div>
-      <div className="grid grid-cols-3 gap-2.5 mb-2">
+
+      <div className="mb-[15px]" style={cascade(2, reduced)}>
+        <Label htmlFor="login-password">{copy.password}</Label>
+        <Shake errorKey={errorNonce}>
+          <div className="relative">
+            <input
+              id="login-password"
+              data-testid="login-password"
+              type={show ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputCls}
+              style={inputStyle(Boolean(error))}
+            />
+            <button
+              type="button"
+              onClick={() => setShow((v) => !v)}
+              className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted"
+              aria-label={copy.password}
+            >
+              {show ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
+        </Shake>
+      </div>
+
+      <div className="flex items-center justify-between my-1 mb-5" style={cascade(3, reduced)}>
+        <label className="flex items-center gap-[7px] text-[12.5px] text-ink-soft cursor-pointer">
+          <input type="checkbox" style={{ accentColor: 'var(--accent)' }} />
+          {copy.rememberMe}
+        </label>
+        {/* Was an href="#" with preventDefault — a control that looked live and
+            did nothing. It now goes to the real flow. */}
+        <Link to="/forgot-password" data-testid="forgot-password-link" className="text-[12.5px] font-medium">
+          {copy.forgotPassword}
+        </Link>
+      </div>
+
+      <div style={cascade(4, reduced)}>
+        <button
+          type="submit"
+          data-testid="login-submit"
+          disabled={busy}
+          className={primaryBtn}
+          style={{ ...primaryStyle, opacity: busy ? 0.7 : 1 }}
+        >
+          {busy ? copy.signingIn : copy.signIn}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3 my-[18px]" style={cascade(5, reduced)}>
+        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+        <span className="text-[12px] text-ink-muted">{copy.orContinueWith}</span>
+        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5 mb-2" style={cascade(6, reduced)}>
         {OAUTH_PROVIDERS.map((p) => (
-          <button key={p.id} type="button" onClick={() => oauth(p.id, p.label)} className="h-11 rounded-[11px] text-[12.5px] font-semibold text-ink flex items-center justify-center gap-2 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>{p.label}</button>
+          <button
+            key={p.id}
+            type="button"
+            data-testid={`oauth-${p.id}`}
+            onClick={() => startOAuth(p.id)}
+            className="h-11 rounded-[11px] text-[12.5px] font-semibold text-ink flex items-center justify-center gap-2 hover:bg-hover transition-colors"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          >
+            {p.label}
+          </button>
         ))}
       </div>
-      <div className="text-center text-[13px] text-ink-soft mt-[18px]">{L.noAccount}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onRegister(); }} className="font-semibold">{L.createAccount}</a></div>
+
+      <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(7, reduced)}>
+        {copy.noAccount}{' '}
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            onRegister();
+          }}
+          className="font-semibold"
+        >
+          {copy.createAccount}
+        </a>
+      </div>
     </form>
   );
 }
 
-// Real registration (UX-01/UX-02/UX-13): the strict minimum — full name, email,
-// password (3 fields). Username + a personal workspace name are derived so the
-// user isn't asked to qualify before their account exists. On success we create
-// the account (POST /auth/register → org + membership), then log in and land.
-function RegisterForm({ onLogin }: { onLogin: () => void }) {
-  const L = useUIStrings();
+// ---------------------------------------------------------------------------
+// MFA — challenge
+// ---------------------------------------------------------------------------
+
+function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void }) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
+  const copy = authCopy(lang);
+  const reduced = usePrefersReducedMotion();
+  const adoptSession = useAuthStore((s) => s.adoptSession);
+
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [nonce, setNonce] = useState(0);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const result = await challengeMFA(code.trim(), token);
+      // The challenge sets the session cookies server-side and returns the pair;
+      // adopt it so the store has the user and permissions.
+      if (result.token_pair?.access_token) {
+        await adoptSession(result.token_pair.access_token);
+      }
+      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
+    } catch {
+      setError(copy.mfaInvalid);
+      setNonce((n) => n + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <div style={cascade(0, reduced)}>
+        <div
+          className="w-11 h-11 rounded-[13px] flex items-center justify-center mb-4"
+          style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+        >
+          <ShieldCheck size={22} />
+        </div>
+        <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{copy.mfaTitle}</h1>
+        <p className="text-[14px] text-ink-soft mb-[26px] leading-relaxed">{copy.mfaSubtitle}</p>
+      </div>
+
+      <ErrorBanner>{error}</ErrorBanner>
+
+      <div className="mb-[18px]" style={cascade(1, reduced)}>
+        <Label htmlFor="mfa-code">{copy.mfaCode}</Label>
+        <Shake errorKey={nonce}>
+          <input
+            id="mfa-code"
+            data-testid="mfa-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className={`${inputCls} mono tracking-[0.3em] text-center`}
+            style={inputStyle(Boolean(error))}
+          />
+        </Shake>
+        <p className="text-[11.5px] text-ink-muted mt-1.5">{copy.mfaUseBackup}</p>
+      </div>
+
+      <div style={cascade(2, reduced)}>
+        <button
+          type="submit"
+          data-testid="mfa-submit"
+          disabled={busy || !code.trim()}
+          className={primaryBtn}
+          style={{ ...primaryStyle, opacity: busy || !code.trim() ? 0.6 : 1 }}
+        >
+          {busy ? copy.signingIn : copy.mfaSubmit}
+        </button>
+      </div>
+
+      <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(3, reduced)}>
+        <button type="button" onClick={onCancel} className="font-semibold">
+          {copy.backToSignIn}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MFA — mandated enrolment
+// ---------------------------------------------------------------------------
+
+/**
+ * Enrolment for a role that requires MFA.
+ *
+ * Reached with an MFA_ENROLLMENT token: the password is proved but no session
+ * exists, and none will until an authenticator is verified. Confirming the code
+ * completes the login in the same step, so the user is not asked for the
+ * password they typed a minute ago.
+ */
+function MFAEnrollment({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const lang = useUIStore((s) => s.lang);
+  const copy = authCopy(lang);
+  const reduced = usePrefersReducedMotion();
+  const adoptSession = useAuthStore((s) => s.adoptSession);
+
+  const [secret, setSecret] = useState('');
+  const [qr, setQr] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [nonce, setNonce] = useState(0);
+
+  useEffect(() => {
+    setupMFA(token)
+      .then((r) => {
+        setSecret(r.secret);
+        setQr(r.qr_code);
+        setBackupCodes(r.backup_codes ?? []);
+      })
+      .catch(() => setError(copy.registerFailed));
+  }, [token, copy.registerFailed]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const result = await verifyMFA(code.trim(), token);
+      // Mandated enrolment completes the login: the server issues the session in
+      // the same response, so the user is not asked for their password again.
+      if (result.token_pair?.access_token) {
+        await adoptSession(result.token_pair.access_token);
+      }
+      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
+    } catch {
+      setError(copy.mfaInvalid);
+      setNonce((n) => n + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <div style={cascade(0, reduced)}>
+        <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{copy.mfaEnrolTitle}</h1>
+        <p className="text-[14px] text-ink-soft mb-5 leading-relaxed">{copy.mfaEnrolSubtitle}</p>
+      </div>
+
+      <ErrorBanner>{error}</ErrorBanner>
+
+      {qr && (
+        <div className="mb-4" style={cascade(1, reduced)}>
+          <p className="text-[12.5px] text-ink-soft mb-2">{copy.mfaEnrolScan}</p>
+          <div className="flex justify-center p-3 rounded-[13px]" style={{ background: '#fff' }}>
+            <img src={qr} alt="" width={168} height={168} />
+          </div>
+          <p className="text-[11.5px] text-ink-muted mt-2">{copy.mfaEnrolManual}</p>
+          <code className="mono text-[12px] text-ink break-all">{secret}</code>
+        </div>
+      )}
+
+      {backupCodes.length > 0 && (
+        <div
+          className="mb-4 p-3 rounded-[11px]"
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          data-testid="backup-codes"
+        >
+          <div className="text-[12.5px] font-semibold text-ink mb-1">{copy.mfaEnrolBackupTitle}</div>
+          <p className="text-[11.5px] text-ink-muted mb-2 leading-snug">{copy.mfaEnrolBackupBody}</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {backupCodes.map((c) => (
+              <code key={c} className="mono text-[12px] text-ink">
+                {c}
+              </code>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-[18px]" style={cascade(2, reduced)}>
+        <Label htmlFor="enrol-code">{copy.mfaCode}</Label>
+        <Shake errorKey={nonce}>
+          <input
+            id="enrol-code"
+            data-testid="mfa-enrol-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className={`${inputCls} mono tracking-[0.3em] text-center`}
+            style={inputStyle(Boolean(error))}
+          />
+        </Shake>
+      </div>
+
+      <button
+        type="submit"
+        data-testid="mfa-enrol-submit"
+        disabled={busy || !code.trim()}
+        className={primaryBtn}
+        style={{ ...primaryStyle, opacity: busy || !code.trim() ? 0.6 : 1 }}
+      >
+        {busy ? copy.signingIn : copy.mfaEnrolConfirm}
+      </button>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Register
+// ---------------------------------------------------------------------------
+
+function RegisterForm({ onLogin }: { onLogin: () => void }) {
+  const navigate = useNavigate();
+  const lang = useUIStore((s) => s.lang);
+  const copy = authCopy(lang);
+  const reduced = usePrefersReducedMotion();
   const login = useAuthStore((s) => s.login);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [nonce, setNonce] = useState(0);
+  // Comes from the shared policy meter, which defers to the server.
+  const [acceptable, setAcceptable] = useState(false);
 
-  // Enforce a genuinely strong password: ≥ 8 chars AND at least 3 of the 4
-  // character classes (lowercase, UPPERCASE, digit, symbol). Blocks weak passwords.
-  const checks = {
-    len: password.length >= 8,
-    lower: /[a-z]/.test(password),
-    upper: /[A-Z]/.test(password),
-    digit: /[0-9]/.test(password),
-    special: /[^a-zA-Z0-9]/.test(password),
-  };
-  const classCount = [checks.lower, checks.upper, checks.digit, checks.special].filter(Boolean).length;
-  const strongEnough = checks.len && classCount >= 3;
-  const strength = checks.len ? Math.min(4, 1 + classCount) : Math.min(1, classCount);
+  const canSubmit = Boolean(fullName.trim()) && acceptable && !busy;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) return toast.error(tr('Indiquez votre nom.', 'Please enter your name.'));
-    if (!strongEnough) return toast.error(tr('Mot de passe trop faible : au moins 8 caractères et 3 types parmi minuscule, MAJUSCULE, chiffre et symbole.', 'Password too weak: at least 8 characters and 3 of lowercase, UPPERCASE, digit and symbol.'));
-    setLoading(true);
+    if (!fullName.trim()) {
+      setError(copy.registerNameRequired);
+      setNonce((n) => n + 1);
+      return;
+    }
+
+    setBusy(true);
+    setError('');
     try {
       const local = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_.-]/g, '');
       const username = local.length >= 3 ? local : `${local || 'user'}${Date.now().toString().slice(-4)}`;
-      const company = fullName.trim() ? `${fullName.trim()}${tr(' — espace', ' — workspace')}` : `${username} workspace`;
+      const company = `${fullName.trim()}${lang === 'fr' ? ' — espace' : ' — workspace'}`;
+
       await api.post('/auth/register', {
         email: email.trim(),
         username,
@@ -266,51 +515,124 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
         full_name: fullName.trim(),
         company_name: company,
       });
-      // Account exists → sign in and land. Qualification comes later (UX-13).
+
       await login(email.trim(), password);
-      toast.success(tr('Compte créé — bienvenue sur OpenRisk !', 'Account created — welcome to OpenRisk!'));
-      const businessRole = useAuthStore.getState().user?.business_role;
-      navigate(landingForBusinessRole(businessRole));
+      toast.success(copy.registerTitle);
+      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
       if (status === 409) {
-        toast.error(tr('Un compte existe déjà avec cet email. Connectez-vous.', 'An account already exists for this email. Please sign in.'));
+        setError(copy.registerEmailExists);
       } else if (status === 400) {
         const msg = axios.isAxiosError(err) ? (err.response?.data as { error?: string })?.error : undefined;
-        toast.error(msg || tr('Vérifiez vos informations et réessayez.', 'Please check your details and try again.'));
+        setError(msg || copy.registerFailed);
       } else {
-        toast.error(tr("La création du compte a échoué. Réessayez dans un instant.", "We couldn't create your account. Please try again shortly."));
+        setError(copy.registerFailed);
       }
+      setNonce((n) => n + 1);
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <form onSubmit={submit}>
-      <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{L.registerTitle}</h1>
-      <div className="text-[14px] text-ink-soft mb-[26px]">{L.registerSub}</div>
-      <div className="mb-[15px]"><Label>{tr('Nom complet', 'Full name')}</Label><input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus className={inputCls} style={inputStyle} /></div>
-      <div className="mb-[15px]"><Label>{L.email}</Label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} style={inputStyle} /></div>
-      <div className="mb-[15px]">
-        <Label>{L.password}</Label>
-        <div className="relative">
-          <input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} style={inputStyle} />
-          <button type="button" onClick={() => setShow((v) => !v)} className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted" aria-label={tr('Afficher le mot de passe', 'Toggle password')}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>
-        </div>
+    <form onSubmit={submit} noValidate>
+      <div style={cascade(0, reduced)}>
+        <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{copy.registerTitle}</h1>
+        <div className="text-[14px] text-ink-soft mb-[26px]">{copy.registerSubtitle}</div>
       </div>
-      <div className="flex gap-1.5 mb-2">{[0, 1, 2, 3].map((i) => <div key={i} className="flex-1 h-1 rounded" style={{ background: i < strength ? (strongEnough ? 'var(--low)' : 'var(--high)') : 'var(--bg-hover)' }} />)}</div>
-      {password.length > 0 && !strongEnough && (
-        <div className="text-[11.5px] text-ink-muted mb-[18px] leading-snug">
-          {tr('Requis : ', 'Required: ')}
-          <span style={{ color: checks.len ? 'var(--low)' : 'var(--text-muted)' }}>{tr('8+ caractères', '8+ characters')}</span>
-          {' · '}
-          <span style={{ color: classCount >= 3 ? 'var(--low)' : 'var(--text-muted)' }}>{tr('3 types (minuscule, MAJ, chiffre, symbole)', '3 classes (lower, UPPER, digit, symbol)')}</span>
+
+      <ErrorBanner>{error}</ErrorBanner>
+
+      <div className="mb-[15px]" style={cascade(1, reduced)}>
+        <Label htmlFor="reg-name">{copy.fullName}</Label>
+        <Shake errorKey={nonce}>
+          <input
+            id="reg-name"
+            data-testid="register-name"
+            value={fullName}
+            autoFocus
+            onChange={(e) => setFullName(e.target.value)}
+            className={inputCls}
+            style={inputStyle(false)}
+          />
+        </Shake>
+      </div>
+
+      <div className="mb-[15px]" style={cascade(2, reduced)}>
+        <Label htmlFor="reg-email">{copy.email}</Label>
+        <input
+          id="reg-email"
+          data-testid="register-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={inputCls}
+          style={inputStyle(false)}
+        />
+      </div>
+
+      <div className="mb-[18px]" style={cascade(3, reduced)}>
+        <Label htmlFor="reg-password">{copy.password}</Label>
+        <div className="relative">
+          <input
+            id="reg-password"
+            data-testid="register-password"
+            type={show ? 'text' : 'password'}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputCls}
+            style={inputStyle(false)}
+          />
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            className="absolute right-2.5 top-[11px] w-[26px] h-[22px] flex items-center justify-center text-ink-muted"
+            aria-label={copy.password}
+          >
+            {show ? <EyeOff size={17} /> : <Eye size={17} />}
+          </button>
         </div>
-      )}
-      {(password.length === 0 || strongEnough) && <div className="mb-[18px]" />}
-      <button type="submit" disabled={loading || !strongEnough || !fullName.trim()} className={primaryBtn} style={{ ...primaryStyle, opacity: (loading || !strongEnough || !fullName.trim()) ? 0.6 : 1 }}>{loading ? '…' : L.createAccount}</button>
-      <div className="text-center text-[13px] text-ink-soft mt-[18px]">{L.haveAccount}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onLogin(); }} className="font-semibold">{L.signinLink}</a></div>
+        {/* Same meter, same policy, same server as the reset screen. The old form
+            enforced 8 characters here while the server required 12 — a mismatch
+            users met as a rejection after they thought they were done. */}
+        <PasswordStrength
+          password={password}
+          email={email}
+          name={fullName}
+          onVerdict={setAcceptable}
+        />
+      </div>
+
+      <div style={cascade(4, reduced)}>
+        <button
+          type="submit"
+          data-testid="register-submit"
+          disabled={!canSubmit}
+          className={primaryBtn}
+          style={{ ...primaryStyle, opacity: canSubmit ? 1 : 0.6 }}
+        >
+          {busy ? copy.signingIn : copy.createAccount}
+        </button>
+      </div>
+
+      <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(5, reduced)}>
+        {copy.haveAccount}{' '}
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            onLogin();
+          }}
+          className="font-semibold"
+        >
+          {copy.signInLink}
+        </a>
+      </div>
     </form>
   );
 }
+
+export default AuthScreen;

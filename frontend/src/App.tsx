@@ -30,6 +30,8 @@ import { CreateRiskModal } from './features/risks/CreateRiskModal';
 
 // --- Public auth screen stays eager (first paint / login path) ---
 import { AuthScreen } from './features/auth/AuthScreen';
+import { ForgotPasswordScreen } from './features/auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './features/auth/ResetPasswordScreen';
 
 // --- Feature pages are route-split with React.lazy so the initial bundle only
 //     carries the shell + auth; each screen's chunk loads on navigation. This
@@ -231,6 +233,10 @@ function App() {
         {/* Routes Publiques */}
         <Route path="/login" element={<AuthScreen initialView="login" />} />
         <Route path="/register" element={<AuthScreen initialView="register" />} />
+        {/* Password reset. Both are public: someone locked out has no session,
+            and the reset link in the email lands directly on /reset-password. */}
+        <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+        <Route path="/reset-password" element={<ResetPasswordScreen />} />
 
         {/* Routes Protégées (Layout Global) */}
         <Route
