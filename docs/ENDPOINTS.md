@@ -113,6 +113,19 @@ See `docs/openapi.yaml` for schemas. Perms: `compliance:{frameworks,controls,evi
 - API tokens: `GET/POST /api/v1/tokens` · `GET/PUT/DELETE /api/v1/tokens/:id` · `POST /api/v1/tokens/:id/{revoke,rotate}`.
 - Audit: `GET /api/v1/audit-logs` · `/audit-logs/action/:action` · `/audit-logs/user/:user_id`.
 
+## Activation & onboarding (the newcomer journey)
+Activation state is **derived from server events**, never from client state — there is deliberately **no endpoint that lets a client declare a step complete**. The only writes are the celebration acknowledgement and the wizard's own answers.
+- `GET /api/v1/activation/state` — the checklist: steps (with FR/EN copy, deep link, order), `completed` + `completed_at` (the FIRST occurrence of the step's single event key), `percent`, `aha_reached_at`, `time_to_aha_seconds`, and `celebrate` (the server's once-per-step-per-user instruction to fire the burst). Any authenticated member.
+- `POST /api/v1/activation/celebrated` — `{step_key}`; acknowledges a shown celebration. Idempotent (unique on user+step), so a double call is a no-op, not a 500. Returns 204; 400 on an unknown step key.
+- `GET /api/v1/onboarding/state` — the resumable wizard state and, crucially, `completed`, which the frontend route guard reads. Never 404s: a newcomer's first call returns a valid empty state.
+- `PUT /api/v1/onboarding/steps/:step` — save one step (`organization|profile|goal|framework|team`). Body `{answers, next}`; `next` **may point backwards** (correcting an answer is a supported move). Answers are stored verbatim so the form repopulates exactly as left.
+- `POST /api/v1/onboarding/complete` — lifts the route guard. Idempotent: `completed_at` does not move on a repeat submit.
+- `GET /api/v1/onboarding/suggestions[?industry=&country=&goal=]` — sector/goal-driven content: sector + goal option lists, the **three pre-filled first-risk drafts**, and the suggested framework catalog keys. Query params preview a choice before it is saved. **Creates nothing** (spec §5: the first risk is guided, never automatic).
+
+**Events emitted by the domain** (`activation_events`, append-only): `signup` (t0 anchor, at registration) · `profile.completed` · `risk.created` · `framework.imported` · `asset.connected` · `mitigation.created` · `member.invited` · `report.generated` · `aha.reached`. Each checklist step maps to **exactly one** key (`domain.ValidateActivationSteps` enforces the bijection — this is what stops one import from striking two rows through).
+
+**Metrics**: `GET /metrics` (root app, outside `/api/v1` and outside the auth gate) now serves the real Prometheus exposition format, including `openrisk_time_to_aha_seconds` (histogram), `openrisk_activation_events_total{event_key}` and `openrisk_aha_reached_total`. Alerts `SlowTimeToAha` (P50 > 12 min) and `NoActivationDespiteSignups` live in `deployment/monitoring/alerts.yml`.
+
 ## Other modules
 - Custom fields: `GET/POST /api/v1/custom-fields` · `GET/PATCH/DELETE /custom-fields/:id` · `GET /custom-fields/scope/:scope` · `POST /custom-fields/templates/:id/apply`.
 - Bulk ops: `GET/POST /api/v1/bulk-operations` · `GET /bulk-operations/:id`.

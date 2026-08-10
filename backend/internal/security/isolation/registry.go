@@ -135,6 +135,8 @@ var decisions = []Decision{
 		"application/vulnerability integrations_test covers status/ticket subpaths"},
 	{"/api/v1/rbac/members/{id}/business-role", Covered,
 		"application/rbac business_role_usecases_test: update scoped to id+org"},
+	{"/api/v1/onboarding/steps/{id}", Covered,
+		"the :step param is a wizard step NAME from a closed vocabulary (domain.ParseOnboardingStep rejects anything else), never an entity id — there is no id in this path to forge. The row it writes is keyed by the caller's own (tenant, user) from the request context: gorm_activation_repository_test TestOnboardingProgress_MissingAndIsolated asserts a cross-tenant Get reads back nil, and application/activation TestWizard_OrganizationWriteRequiresPermission asserts a non-admin cannot write the organization through it"},
 
 	// --- Unreachable ------------------------------------------------------
 	{"/api/v1/marketplace/*", Unreachable,

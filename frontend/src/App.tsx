@@ -16,6 +16,7 @@ import { useHotkeys } from './shared/useHotkeys';
 import { ShortcutsOverlay } from './shared/ShortcutsOverlay';
 import { permissionFor } from './shared/routeModel';
 import { AccessDenied } from './shared/AccessDenied';
+import { OnboardingGuard, OnboardingCompletedRedirect } from './features/onboarding/OnboardingGuard';
 
 // --- App shell ---
 import { Sidebar } from './components/layout/Sidebar';
@@ -23,6 +24,7 @@ import { AppHeader } from './components/layout/AppHeader';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { DemoBanner } from './shared/DemoBanner';
+import { ProductTour } from './features/onboarding/ProductTour';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
@@ -69,6 +71,15 @@ const AuditDetailPage = lazy(() => import('./features/compliance/AuditDetailPage
 const RemediationDetailPage = lazy(() => import('./features/compliance/RemediationDetailPage').then(m => ({ default: m.RemediationDetailPage })));
 const MitigationDetailPage = lazy(() => import('./features/mitigations/MitigationDetailPage').then(m => ({ default: m.MitigationDetailPage })));
 const ReportJobPage = lazy(() => import('./features/reports/ReportJobPage').then(m => ({ default: m.ReportJobPage })));
+
+// --- Signup wizard (spec §4). Route-split like every other feature: it is shown
+//     once per user, so it has no business sitting in the shell bundle. ---
+const OnboardingWizard = lazy(() => import('./features/onboarding/wizard/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
+const OrganizationStep = lazy(() => import('./features/onboarding/wizard/steps').then(m => ({ default: m.OrganizationStep })));
+const ProfileStep = lazy(() => import('./features/onboarding/wizard/steps').then(m => ({ default: m.ProfileStep })));
+const GoalStep = lazy(() => import('./features/onboarding/wizard/steps').then(m => ({ default: m.GoalStep })));
+const FrameworkStep = lazy(() => import('./features/onboarding/wizard/steps').then(m => ({ default: m.FrameworkStep })));
+const TeamStep = lazy(() => import('./features/onboarding/wizard/steps').then(m => ({ default: m.TeamStep })));
 
 /**
  * COMPOSANT 1: PROTECTION DE ROUTE
@@ -124,6 +135,18 @@ const DashboardLayout = () => {
   const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
 
+  // The activation checklist's primary step deep-links to /risks?guided=1. Honour
+  // it by opening the create-risk modal (which offers the three sector drafts),
+  // then strip the parameter so a reload or a Back does not reopen it.
+  const location = useLocation();
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).has('guided')) return;
+    setNewRiskOpen(true);
+    const next = new URLSearchParams(location.search);
+    next.delete('guided');
+    navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
+  }, [location.search, location.pathname, navigate]);
+
   // The sidebar quick action and command palette dispatch this to open the modal.
   // A header button dispatches openrisk:shortcuts to reveal the shortcuts overlay.
   useEffect(() => {
@@ -166,6 +189,9 @@ const DashboardLayout = () => {
 
       {/* Global shell overlays */}
       <CommandPalette />
+      {/* Three non-blocking coach marks, shown once and replayable from the
+          header's help button (spec §8). It never covers the app. */}
+      <ProductTour />
       <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} lang={lang} />
       <CreateRiskModal
         isOpen={newRiskOpen}
@@ -238,11 +264,38 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
         <Route path="/reset-password" element={<ResetPasswordScreen />} />
 
+        {/* Signup wizard — authenticated but OUTSIDE the app shell: the point of
+            these five screens is that nothing else competes for attention. The
+            guard sends anyone who has already finished back to the app. */}
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<RouteFallback />}>
+                <OnboardingCompletedRedirect>
+                  <OnboardingWizard />
+                </OnboardingCompletedRedirect>
+              </Suspense>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/onboarding/organization" replace />} />
+          <Route path="organization" element={<OrganizationStep />} />
+          <Route path="profile" element={<ProfileStep />} />
+          <Route path="goal" element={<GoalStep />} />
+          <Route path="framework" element={<FrameworkStep />} />
+          <Route path="team" element={<TeamStep />} />
+        </Route>
+
         {/* Routes Protégées (Layout Global) */}
         <Route
           element={
             <ProtectedRoute>
-              <DashboardLayout />
+              {/* No /dashboard (nor any other app route) until onboarding is
+                  finished — the server's onboarding.completed is the authority. */}
+              <OnboardingGuard>
+                <DashboardLayout />
+              </OnboardingGuard>
             </ProtectedRoute>
           }
         >

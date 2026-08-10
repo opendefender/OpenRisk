@@ -31,12 +31,25 @@ type ImportCatalogResult struct {
 // ImportCatalogUseCase bulk-creates controls for a tenant from a static regulatory catalog
 // (e.g. ISO 27001:2022's 93 Annex A controls), rather than requiring an admin to enter each
 // one by hand via CreateControlUseCase. See ROADMAP.md M2.
+// ActivationRecorder notes the "imported a framework" milestone. Narrow port,
+// satisfied structurally by application/activation.Recorder; nil-safe.
+type ActivationRecorder interface {
+	Record(ctx context.Context, tenantID uuid.UUID, key string, payload map[string]interface{})
+}
+
 type ImportCatalogUseCase struct {
-	repo domain.ComplianceRepository
+	repo       domain.ComplianceRepository
+	activation ActivationRecorder
 }
 
 func NewImportCatalogUseCase(repo domain.ComplianceRepository) *ImportCatalogUseCase {
 	return &ImportCatalogUseCase{repo: repo}
+}
+
+// WithActivation attaches the optional activation recorder.
+func (uc *ImportCatalogUseCase) WithActivation(rec ActivationRecorder) *ImportCatalogUseCase {
+	uc.activation = rec
+	return uc
 }
 
 func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID, input ImportCatalogInput) (*ImportCatalogResult, error) {
@@ -92,6 +105,18 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 			return nil, err
 		}
 		result.Imported++
+	}
+
+	// ONE event for the whole import, whatever the number of controls. This is
+	// precisely the bug that struck two checklist rows through at once: the panel
+	// used to derive two steps from the same import. Here, one import → one event
+	// → one step (domain.ValidateActivationSteps enforces the bijection).
+	if uc.activation != nil && result.Imported > 0 {
+		uc.activation.Record(ctx, tenantID, string(domain.ActivationFrameworkImported), map[string]interface{}{
+			"framework_id": input.FrameworkID.String(),
+			"catalog_key":  input.CatalogKey,
+			"imported":     result.Imported,
+		})
 	}
 
 	return result, nil

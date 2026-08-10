@@ -1,0 +1,95 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package domain
+
+import "testing"
+
+// The invariant that fixes the "two items struck through after a single import"
+// bug: a step maps to EXACTLY ONE event key, and no key is shared. If someone
+// adds a step later and reuses an event key, this fails before it ships.
+func TestActivationSteps_OneEventKeyPerStep(t *testing.T) {
+	if err := ValidateActivationSteps(); err != nil {
+		t.Fatalf("activation step catalog is invalid: %v", err)
+	}
+
+	steps := ActivationSteps()
+	if len(steps) == 0 {
+		t.Fatal("no activation steps defined")
+	}
+
+	byEvent := map[ActivationEventKey][]string{}
+	for _, s := range steps {
+		byEvent[s.EventKey] = append(byEvent[s.EventKey], s.Key)
+	}
+	for event, owners := range byEvent {
+		if len(owners) != 1 {
+			t.Errorf("event %q ticks %d steps (%v); it must tick exactly one", event, len(owners), owners)
+		}
+	}
+}
+
+// aha.reached and signup are outcomes/anchors, not checklist steps — binding a
+// step to them would put an un-actionable row in the panel.
+func TestActivationSteps_ExcludeNonStepEvents(t *testing.T) {
+	for _, s := range ActivationSteps() {
+		if s.EventKey == ActivationAhaReached || s.EventKey == ActivationSignup {
+			t.Errorf("step %q must not be bound to the non-step event %q", s.Key, s.EventKey)
+		}
+	}
+}
+
+// ActivationSteps hands out a copy: a caller mutating the result must not be able
+// to corrupt the catalog for everyone else.
+func TestActivationSteps_ReturnsCopy(t *testing.T) {
+	first := ActivationSteps()
+	first[0].Key = "mutated"
+	if ActivationSteps()[0].Key == "mutated" {
+		t.Error("ActivationSteps leaked the underlying slice")
+	}
+}
+
+func TestParseOnboardingStep(t *testing.T) {
+	for _, want := range OnboardingStepOrder {
+		got, err := ParseOnboardingStep(string(want))
+		if err != nil || got != want {
+			t.Errorf("ParseOnboardingStep(%q) = (%q, %v)", want, got, err)
+		}
+	}
+	if _, err := ParseOnboardingStep("dashboard"); err == nil {
+		t.Error("an unknown step must be rejected")
+	}
+}
+
+func TestOnboardingStep_Index(t *testing.T) {
+	if OnboardingStepOrganization.Index() != 0 {
+		t.Error("organization must be the first step")
+	}
+	if OnboardingStepTeam.Index() != len(OnboardingStepOrder)-1 {
+		t.Error("team must be the last step")
+	}
+}
+
+// Answers round-trip per step, and reading an absent step is safe (a resumed
+// wizard reads steps the user has not reached yet on every render).
+func TestOnboardingProgress_StepAnswers(t *testing.T) {
+	var p OnboardingProgress
+	if got := p.StepAnswers(OnboardingStepProfile); len(got) != 0 {
+		t.Errorf("empty progress should yield no answers, got %v", got)
+	}
+
+	p.SetStepAnswers(OnboardingStepProfile, JSONMap{"full_name": "Awa", "language": "fr"})
+	got := p.StepAnswers(OnboardingStepProfile)
+	if got["full_name"] != "Awa" || got["language"] != "fr" {
+		t.Errorf("answers did not round-trip: %v", got)
+	}
+	if len(p.StepAnswers(OnboardingStepGoal)) != 0 {
+		t.Error("an unset step must read back empty, not panic")
+	}
+
+	// A second write replaces that step only.
+	p.SetStepAnswers(OnboardingStepGoal, JSONMap{"goal": "pass_audit"})
+	if p.StepAnswers(OnboardingStepProfile)["full_name"] != "Awa" {
+		t.Error("writing one step clobbered another")
+	}
+}

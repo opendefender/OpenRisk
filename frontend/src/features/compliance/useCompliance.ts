@@ -6,6 +6,7 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { complianceService } from '../../services/complianceService';
+import { ACTIVATION_QUERY_KEY } from '../onboarding/useActivation';
 import type {
   ComplianceControl,
   ComplianceFramework,
@@ -123,6 +124,9 @@ export function useImportCatalogAsFramework() {
       queryClient.invalidateQueries({ queryKey: controlsQueryKey(framework.id) });
       queryClient.invalidateQueries({ queryKey: progressQueryKey(framework.id) });
       queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
+      // The server recorded framework.imported; re-read the checklist so the
+      // step ticks now rather than on the next full reload.
+      queryClient.invalidateQueries({ queryKey: ACTIVATION_QUERY_KEY });
     },
   });
 }

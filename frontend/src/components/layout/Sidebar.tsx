@@ -115,6 +115,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       <button
         key={item.key}
         data-testid={`nav-${item.key}`}
+        // Anchor for the product tour's third coach mark (features/onboarding/ProductTour).
+        data-tour={`nav-${item.key}`}
         onClick={() => navigate(item.href ?? item.path)}
         title={L[item.labelKey]}
         className={cn(
@@ -221,6 +223,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           {/* Quick action */}
           <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
             <button
+              data-tour="new-risk"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
                 onMobileClose?.();

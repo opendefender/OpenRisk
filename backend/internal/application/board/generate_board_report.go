@@ -27,13 +27,26 @@ import (
 // TemplateAdvisor, so a board report is always producible — and records honestly,
 // in GeneratedByModel, which one actually wrote the prose.
 type GenerateBoardReportUseCase struct {
-	reports  domain.BoardReportRepository
-	risks    RiskPostureSource
-	comp     domain.ComplianceRepository
-	orgs     OrganizationLookup
-	advisor  ai.Advisor
-	exposure ExposureModel
-	fallback ai.Advisor
+	reports    domain.BoardReportRepository
+	risks      RiskPostureSource
+	comp       domain.ComplianceRepository
+	orgs       OrganizationLookup
+	advisor    ai.Advisor
+	exposure   ExposureModel
+	fallback   ai.Advisor
+	activation ActivationRecorder
+}
+
+// ActivationRecorder notes the "generated a report" milestone. Narrow port,
+// satisfied structurally by application/activation.Recorder; nil-safe.
+type ActivationRecorder interface {
+	RecordFor(ctx context.Context, tenantID, userID uuid.UUID, key string, payload map[string]interface{})
+}
+
+// WithActivation attaches the optional activation recorder.
+func (uc *GenerateBoardReportUseCase) WithActivation(rec ActivationRecorder) *GenerateBoardReportUseCase {
+	uc.activation = rec
+	return uc
 }
 
 func NewGenerateBoardReportUseCase(
@@ -143,6 +156,15 @@ func (uc *GenerateBoardReportUseCase) Execute(
 
 	if err := uc.reports.Create(ctx, report); err != nil {
 		return nil, err
+	}
+
+	if uc.activation != nil {
+		uc.activation.RecordFor(ctx, tenantID, requestedBy,
+			string(domain.ActivationReportGenerated), map[string]interface{}{
+				"report_id": report.ID.String(),
+				"kind":      "board_report",
+				"period":    period,
+			})
 	}
 	return report, nil
 }

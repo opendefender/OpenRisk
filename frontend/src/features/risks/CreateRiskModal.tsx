@@ -8,15 +8,21 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Zap, Database, ShieldAlert } from 'lucide-react';
+import { X, Zap, Database, ShieldAlert, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssetStore } from '../../hooks/useAssetStore';
 import { riskService, type Risk } from '../../services/riskService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
-import { celebrate } from '../../shared/celebrate';
 import { useEscapeToClose } from '../../shared/useBackTo';
+import { FieldHelp } from '../../shared/FieldHelp';
+import { useUIStore } from '../../store/uiStore';
+import {
+  useInvalidateActivation,
+  useOnboardingSuggestions,
+} from '../onboarding/useActivation';
+import type { RiskSuggestion } from '../../services/activationService';
 
 const createRiskSchema = z.object({
   title: z.string().min(5, 'Le nom doit comporter au moins 5 caractères').max(100),
@@ -64,7 +70,15 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   // Esc closes this overlay (spec §2).
   useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
+  const lang = useUIStore((st) => st.lang);
   const { assets, fetchAssets, isLoading: assetsLoading } = useAssetStore();
+
+  // Sector-driven help + first-risk suggestions (spec §5/§6). The sector comes
+  // from the onboarding answers; with none, the suggestions fall back to the
+  // generic trio and the help to generic examples.
+  const { data: suggestions } = useOnboardingSuggestions();
+  const sector = suggestions?.industry ?? '';
+  const refreshActivation = useInvalidateActivation();
 
   const {
     register,
@@ -90,6 +104,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const watchedImpact = watch('impact');
   const watchedProbability = watch('probability');
   const watchedCriticality = watch('assetCriticality');
+  const watchedTitle = watch('title');
+  const watchedDescription = watch('description');
   const watchedTags = watch('tags') ?? [];
   const watchedAssetIds = watch('asset_ids') ?? [];
   const watchedFramework = watch('framework');
@@ -127,8 +143,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
         source: 'manual',
       };
       const created = await riskService.createRisk(payload);
-      // Micro-victory (UX-32): celebrate the very first risk once.
-      celebrate('first_risk');
+      // No client-side celebration here. The server records risk.created; the
+      // checklist re-reads it and decides whether this is a milestone worth a
+      // burst. Firing confetti from the client is what made it fire at random.
+      refreshActivation();
       toast.success(t('messages.riskCreatedSuccess'), {
         description: 'Le risque a été créé et le score est calculé en backend.',
         icon: <Zap className="w-4 h-4 text-primary" />,
@@ -179,6 +197,24 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
+                {/* Guided first risk (spec §5). Three drafts drawn from the
+                    sector chosen at signup. We do NOT create anything: clicking
+                    one fills the form, and the user adjusts and validates it —
+                    which is the difference between "the product made a risk" and
+                    "I made my first risk". Only shown while the form is untouched
+                    so it never gets in the way of someone who knows what to type. */}
+                <SuggestionPicker
+                  suggestions={suggestions?.risks ?? []}
+                  visible={!watchedTitle?.trim() && !watchedDescription?.trim()}
+                  lang={lang}
+                  onPick={(sugg) => {
+                    setValue('title', sugg.title, { shouldValidate: true });
+                    setValue('description', sugg.description, { shouldValidate: true });
+                    setValue('probability', sugg.probability, { shouldValidate: true });
+                    setValue('impact', sugg.impact, { shouldValidate: true });
+                    if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
+                  }}
+                />
                 <Input
                   label={t('risks.riskName')}
                   {...register('title')}
@@ -199,7 +235,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.probability')}</label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      {t('risks.probability')}
+                      <FieldHelp field="probability" lang={lang} sector={sector} />
+                    </label>
                     <input
                       type="range"
                       min={0}
@@ -216,7 +255,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.impact')}</label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      {t('risks.impact')}
+                      <FieldHelp field="impact" lang={lang} sector={sector} />
+                    </label>
                     <input
                       type="range"
                       min={1}
@@ -233,7 +275,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskAssetCriticality')}</label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      {t('risks.riskAssetCriticality')}
+                      <FieldHelp field="asset_criticality" lang={lang} sector={sector} />
+                    </label>
                     <input
                       type="range"
                       min={0.1}
@@ -334,5 +379,64 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
       </AnimatePresence>
     );
 };
+
+/**
+ * The three pre-filled first-risk drafts (spec §5).
+ *
+ * Clicking one fills the form; it does not submit, and it does not create
+ * anything. The user still has to look at the numbers and press save — which is
+ * exactly the point: they must feel this is THEIR risk, not one the product
+ * invented on their behalf.
+ */
+function SuggestionPicker({
+  suggestions,
+  visible,
+  lang,
+  onPick,
+}: {
+  suggestions: RiskSuggestion[];
+  visible: boolean;
+  lang: 'fr' | 'en';
+  onPick: (s: RiskSuggestion) => void;
+}) {
+  if (!visible || suggestions.length === 0) return null;
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+
+  return (
+    <div className="rounded-3xl border border-border bg-hover p-4" data-testid="risk-suggestions">
+      <div className="flex items-center gap-2 mb-1">
+        <Sparkles size={15} className="text-primary" />
+        <span className="text-sm font-semibold text-ink">
+          {tr('Partir d’un risque courant de votre secteur', 'Start from a common risk in your sector')}
+        </span>
+      </div>
+      <p className="text-xs text-ink-muted mb-3">
+        {tr(
+          'Nous remplissons le formulaire ; à vous d’ajuster les valeurs et de valider.',
+          'We fill the form in; you adjust the values and confirm.',
+        )}
+      </p>
+      <div className="grid gap-2">
+        {suggestions.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            data-testid={`risk-suggestion-${s.key}`}
+            onClick={() => onPick(s)}
+            className="text-left rounded-2xl border border-border bg-elevated px-3.5 py-3 transition-colors hover:border-primary"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[13.5px] font-semibold text-ink">{s.title}</span>
+              <span className="mono shrink-0 text-[11px] text-ink-muted">
+                P {s.probability.toFixed(2)} · I {s.impact}
+              </span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-ink-soft">{s.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default CreateRiskModal;

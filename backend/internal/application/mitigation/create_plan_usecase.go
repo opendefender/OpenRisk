@@ -6,6 +6,7 @@
 package mitigation
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -14,10 +15,17 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
+// ActivationRecorder notes the "planned a treatment" milestone. Narrow port,
+// satisfied structurally by application/activation.Recorder; nil-safe.
+type ActivationRecorder interface {
+	RecordFor(ctx context.Context, tenantID, userID uuid.UUID, key string, payload map[string]interface{})
+}
+
 // CreateMitigationPlanUseCase creates a new mitigation plan with optional subactions
 type CreateMitigationPlanUseCase struct {
-	mitigationRepo    repository.MitigationRepository
-	subactionRepo     repository.MitigationSubActionRepository
+	mitigationRepo repository.MitigationRepository
+	subactionRepo  repository.MitigationSubActionRepository
+	activation     ActivationRecorder
 }
 
 func NewCreateMitigationPlanUseCase(
@@ -25,9 +33,15 @@ func NewCreateMitigationPlanUseCase(
 	subactionRepo repository.MitigationSubActionRepository,
 ) *CreateMitigationPlanUseCase {
 	return &CreateMitigationPlanUseCase{
-		mitigationRepo:    mitigationRepo,
-		subactionRepo:     subactionRepo,
+		mitigationRepo: mitigationRepo,
+		subactionRepo:  subactionRepo,
 	}
+}
+
+// WithActivation attaches the optional activation recorder.
+func (uc *CreateMitigationPlanUseCase) WithActivation(rec ActivationRecorder) *CreateMitigationPlanUseCase {
+	uc.activation = rec
+	return uc
 }
 
 type CreateMitigationPlanInput struct {
@@ -52,8 +66,18 @@ type CreateMitigationPlanOutput struct {
 	Error error
 }
 
-// Execute creates a mitigation plan
+// Execute creates a mitigation plan.
+//
+// Kept context-free for its existing callers; ExecuteContext is the variant that
+// can attribute the activation event to the request. This use case predates the
+// ctx-first convention used elsewhere in the application layer.
 func (uc *CreateMitigationPlanUseCase) Execute(input CreateMitigationPlanInput) (*CreateMitigationPlanOutput, error) {
+	return uc.ExecuteContext(context.Background(), input)
+}
+
+// ExecuteContext creates a mitigation plan and records the activation milestone
+// against the request context.
+func (uc *CreateMitigationPlanUseCase) ExecuteContext(ctx context.Context, input CreateMitigationPlanInput) (*CreateMitigationPlanOutput, error) {
 	// Validate inputs
 	if input.TenantID == uuid.Nil {
 		return nil, fmt.Errorf("tenant_id is required")
@@ -111,5 +135,15 @@ func (uc *CreateMitigationPlanUseCase) Execute(input CreateMitigationPlanInput) 
 		}
 	}
 	
+	// The actor is taken from the input rather than the context: this use case's
+	// caller already resolved it, and CreatedBy is a required field above.
+	if uc.activation != nil {
+		uc.activation.RecordFor(ctx, input.TenantID, input.CreatedBy,
+			string(domain.ActivationMitigationCreated), map[string]interface{}{
+				"mitigation_id": mitigation.ID.String(),
+				"risk_id":       input.RiskID.String(),
+			})
+	}
+
 	return &CreateMitigationPlanOutput{ID: mitigation.ID}, nil
 }
