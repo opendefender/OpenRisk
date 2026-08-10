@@ -22,6 +22,26 @@ type Handler struct {
 	logoutUseCase   *auth.LogoutUseCase
 	passwordHasher  auth.PasswordHasher
 	audit           *coreauth.AuditService // L7: full-fidelity auth audit trail (optional)
+	// newDeviceNotifier warns on sign-in from an unrecognised device. Optional.
+	newDeviceNotifier *auth.NotifyNewDeviceUseCase
+}
+
+// WithNewDeviceNotifier enables the new-device sign-in alert.
+func (h *Handler) WithNewDeviceNotifier(n *auth.NotifyNewDeviceUseCase) *Handler {
+	h.newDeviceNotifier = n
+	return h
+}
+
+// resolveRequestLocale picks the language for security email triggered by this
+// request, so a notice lands in the language the user was working in.
+func resolveRequestLocale(c *fiber.Ctx) string {
+	if l := c.Get("X-Locale"); l == "en" || l == "fr" {
+		return l
+	}
+	if len(c.Get("Accept-Language")) >= 2 && c.Get("Accept-Language")[:2] == "en" {
+		return "en"
+	}
+	return "fr"
 }
 
 // NewHandler creates a new auth handler
@@ -107,6 +127,8 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		Email:             req.Email,
 		Password:          req.Password,
 		DeviceFingerprint: req.DeviceFingerprint,
+		IP:                c.IP(),
+		UserAgent:         c.Get("User-Agent"),
 	})
 
 	if err != nil {
@@ -132,11 +154,34 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	// L4 — MFA mandate: the role requires a second factor and none is enrolled.
+	// Still no session: the client must complete /auth/mfa/setup + /auth/mfa/verify
+	// with the mfa_token, which is an MFA_ENROLLMENT token accepted only there.
+	if result.MFAEnrollmentRequired {
+		var tenantID *uuid.UUID
+		if result.Organization != nil {
+			tenantID = &result.Organization.ID
+		}
+		h.logAudit(c, &result.User.ID, tenantID, coreauth.AuditActionLogin, true, strptr("mfa_enrollment_required"))
+		return c.JSON(fiber.Map{
+			"mfa_enrollment_required": true,
+			"mfa_token":               result.MFAToken,
+			"user_id":                 result.User.ID,
+		})
+	}
+
 	var tenantID *uuid.UUID
 	if result.Organization != nil {
 		tenantID = &result.Organization.ID
 	}
 	h.logAudit(c, &result.User.ID, tenantID, coreauth.AuditActionLogin, true, nil)
+
+	// Warn about a sign-in from a device this account has not used before. Fired
+	// after the session is confirmed and best-effort throughout: a mail problem
+	// must never fail a legitimate login.
+	if h.newDeviceNotifier != nil {
+		h.newDeviceNotifier.Execute(c.UserContext(), result.User, req.DeviceFingerprint, c.IP(), c.Get("User-Agent"), resolveRequestLocale(c))
+	}
 
 	csrfToken, err := h.issueSessionCookies(c, result.TokenPair)
 	if err != nil {

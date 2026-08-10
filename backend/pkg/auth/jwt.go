@@ -53,9 +53,20 @@ func (c *Claims) HasPermission(required string) bool {
 // TokenTypeMFARequired marks the short-lived token issued between a successful
 // password check and MFA challenge completion — it grants no permissions and is
 // only accepted by MFATokenMiddleware.
+// TokenTypeMFAEnrollment marks the short-lived token issued when a role that
+// REQUIRES MFA signs in without having enrolled yet.
+//
+// Enrollment is a separate type from MFA_REQUIRED, and the distinction is
+// load-bearing rather than tidiness. If enrolment were reachable with an
+// MFA_REQUIRED token, anyone holding a stolen password could take the challenge
+// token that password earns them, register a fresh authenticator over the
+// victim's, verify it, and be handed a session — bypassing the victim's MFA
+// entirely. The enrolment token is therefore minted ONLY when the account has no
+// verified secret, so it can never overwrite one.
 const (
-	TokenTypeAccess      = ""
-	TokenTypeMFARequired = "MFA_REQUIRED"
+	TokenTypeAccess        = ""
+	TokenTypeMFARequired   = "MFA_REQUIRED"
+	TokenTypeMFAEnrollment = "MFA_ENROLLMENT"
 )
 
 // GenerateAccessToken génère un JWT d'accès signé RS256 (Type standard, vide).

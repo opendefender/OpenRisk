@@ -8,6 +8,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +22,11 @@ type LoginInput struct {
 	Email             string
 	Password          string
 	DeviceFingerprint string // For security tracking
+	// IP and UserAgent are recorded on the session so Settings → Sessions can
+	// show something a person recognises, and so the new-device alert has
+	// something to report.
+	IP        string
+	UserAgent string
 }
 
 // LoginOutput represents the output of successful login.
@@ -32,6 +38,10 @@ type LoginOutput struct {
 	Organization *domain.Organization
 	MFARequired  bool
 	MFAToken     string
+	// MFAEnrollmentRequired is set when the account's role mandates MFA but no
+	// authenticator is enrolled yet. TokenPair is nil and MFAToken carries an
+	// MFA_ENROLLMENT token that only the enrolment endpoints accept.
+	MFAEnrollmentRequired bool
 	// BusinessRole is the member's GRC job-role preset (rssi/dsi/…), surfaced so
 	// the frontend can pick a role-appropriate landing screen. Empty for
 	// root/admin members.
@@ -44,6 +54,8 @@ type LoginUseCase struct {
 	tokenManager   *auth.TokenManager
 	passwordHasher auth.PasswordHasher
 	mfaRepo        repository.MFARepository // optional; when set, verified MFA is enforced
+	// requireMFARoles are org roles that may not hold a session without MFA.
+	requireMFARoles map[string]bool
 }
 
 // NewLoginUseCase creates a new login use case
@@ -53,6 +65,21 @@ func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager, p
 		tokenManager:   tokenManager,
 		passwordHasher: passwordHasher,
 	}
+}
+
+// RequireMFAForRoles makes MFA mandatory for the named org roles.
+//
+// Wired with admin + root: those accounts can change anyone's permissions, read
+// every tenant's risk register and mint API tokens, so a password alone is not a
+// proportionate gate. Members keep MFA optional — mandating it for everyone in a
+// product sold into organisations that may not all have authenticators is how
+// you get shared accounts.
+func (uc *LoginUseCase) RequireMFAForRoles(roles ...string) *LoginUseCase {
+	uc.requireMFARoles = make(map[string]bool, len(roles))
+	for _, r := range roles {
+		uc.requireMFARoles[strings.ToLower(r)] = true
+	}
+	return uc
 }
 
 // WithMFA enables MFA enforcement: if the authenticating user has a verified MFA
@@ -126,7 +153,9 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		if mErr != nil {
 			return nil, fmt.Errorf("failed to check MFA status: %w", mErr)
 		}
-		if mfaSecret != nil && mfaSecret.IsVerified {
+		enrolled := mfaSecret != nil && mfaSecret.IsVerified
+
+		if enrolled {
 			mfaToken, tErr := uc.tokenManager.GenerateMFAChallengeToken(user.ID, org.ID)
 			if tErr != nil {
 				return nil, fmt.Errorf("failed to issue MFA challenge: %w", tErr)
@@ -136,6 +165,23 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 				Organization: org,
 				MFARequired:  true,
 				MFAToken:     mfaToken,
+			}, nil
+		}
+
+		// Role mandates MFA but nothing is enrolled: stop here too. Handing out a
+		// full session with a "please enrol soon" banner would make the
+		// requirement advisory, and an advisory MFA requirement is not one.
+		if member != nil && uc.mfaRequiredFor(string(member.Role)) {
+			enrollToken, tErr := uc.tokenManager.GenerateMFAEnrollmentToken(user.ID, org.ID)
+			if tErr != nil {
+				return nil, fmt.Errorf("failed to issue MFA enrollment token: %w", tErr)
+			}
+			return &LoginOutput{
+				User:                  user,
+				Organization:          org,
+				MFAEnrollmentRequired: true,
+				MFAToken:              enrollToken,
+				BusinessRole:          businessRole,
 			}, nil
 		}
 	}
@@ -148,7 +194,11 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		orgRoles,
 		permissions,
 		[]string{}, // feature flags - can be extended
-		input.DeviceFingerprint,
+		auth.DeviceContext{
+			Fingerprint: input.DeviceFingerprint,
+			IP:          input.IP,
+			UserAgent:   input.UserAgent,
+		},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
@@ -168,6 +218,14 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		Organization: org,
 		BusinessRole: businessRole,
 	}, nil
+}
+
+// mfaRequiredFor reports whether an org role may not hold a session without MFA.
+func (uc *LoginUseCase) mfaRequiredFor(role string) bool {
+	if len(uc.requireMFARoles) == 0 {
+		return false
+	}
+	return uc.requireMFARoles[strings.ToLower(role)]
 }
 
 // UserRepository interface for user operations

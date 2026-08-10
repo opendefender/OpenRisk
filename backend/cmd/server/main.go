@@ -45,6 +45,7 @@ import (
 	handlers "github.com/opendefender/openrisk/internal/handler"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
+	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
@@ -66,7 +67,9 @@ import (
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/crq"
 	"github.com/opendefender/openrisk/pkg/cti"
+	"github.com/opendefender/openrisk/pkg/hibp"
 	"github.com/opendefender/openrisk/pkg/notify"
+	"github.com/opendefender/openrisk/pkg/pwpolicy"
 	"github.com/opendefender/openrisk/pkg/scoring"
 	"github.com/opendefender/openrisk/pkg/storage"
 )
@@ -165,6 +168,10 @@ func main() {
 		&domain.PersonalAccessToken{},
 		&domain.OAuthProvider{},
 		&domain.AuthAuditLog{},
+		// Password reset (migration 0042). Rows are written for every request,
+		// including ones for addresses with no account — see the migration for why
+		// that is what keeps the rate limiter from leaking account existence.
+		&domain.PasswordResetToken{},
 		&domain.Risk{},
 		// Smart Risk Calculation (spec §8) — per-tenant configurable weights for the
 		// eight-factor multifactor score. The smart-score columns themselves live on
@@ -553,8 +560,36 @@ func main() {
 	}
 	mfaKey := sha256.Sum256([]byte(mfaKeyRaw)) // 32 bytes for AES-256-GCM
 
-	// Initialize use cases. Login enforces MFA when the user has a verified secret.
-	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).WithMFA(mfaRepo)
+	// --- Password policy (server-authoritative) ------------------------------
+	// One policy object shared by registration, reset and the live strength meter,
+	// so the rule the browser previews is byte-for-byte the rule the server
+	// enforces. Breach checking is opt-out via PASSWORD_HIBP_DISABLED for
+	// air-gapped installs; disabled, the local gates (12 chars, three classes,
+	// zxcvbn >= 3) still apply.
+	passwordPolicy := pwpolicy.New()
+	if os.Getenv("PASSWORD_HIBP_DISABLED") != "true" {
+		passwordPolicy = passwordPolicy.WithBreachChecker(hibp.New())
+	}
+
+	// --- Account-security email ----------------------------------------------
+	// Wrapped in authmail.Async so a reset request costs the same whether or not
+	// the address has an account. Sending inline would make "account exists"
+	// measurable through response latency, reinstating the enumeration the
+	// uniform response exists to prevent.
+	securityMailer := authmail.NewAsync(authmail.New(emailTransport))
+
+	// --- Sessions -------------------------------------------------------------
+	sessionRepo := repository.NewGormSessionRepository(database.DB)
+	passwordResetRepo := repository.NewGormPasswordResetRepository(database.DB)
+	oauthLinkRepo := repository.NewGormOAuthLinkRepository(database.DB)
+
+	// Initialize use cases. Login enforces MFA when the user has a verified secret,
+	// and REQUIRES it for admin/root: those accounts can change permissions across
+	// the tenant and mint API tokens, so a password alone is not a proportionate
+	// gate. Members keep MFA optional.
+	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
+		WithMFA(mfaRepo).
+		RequireMFAForRoles("admin", "root")
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher)
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
@@ -567,6 +602,24 @@ func main() {
 	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit)
 	patHandler := authhandler.NewPATHandler(patService, authAudit)
 
+	// Password reset use cases + handler.
+	requestResetUseCase := auth.NewRequestPasswordResetUseCase(userRepo, passwordResetRepo, securityMailer)
+	confirmResetUseCase := auth.NewConfirmPasswordResetUseCase(
+		userRepo, passwordResetRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
+	)
+	passwordHandler := authhandler.NewPasswordHandler(
+		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
+	)
+
+	// Session (device) management use cases + handler.
+	listSessionsUseCase := auth.NewListSessionsUseCase(sessionRepo)
+	revokeSessionUseCase := auth.NewRevokeSessionUseCase(sessionRepo)
+	revokeOtherSessionsUseCase := auth.NewRevokeOtherSessionsUseCase(sessionRepo)
+	sessionHandler := authhandler.NewSessionHandler(
+		listSessionsUseCase, revokeSessionUseCase, revokeOtherSessionsUseCase, authAudit,
+	)
+	newDeviceNotifier := auth.NewNotifyNewDeviceUseCase(sessionRepo, securityMailer)
+
 	// Initialize Clean Architecture auth handler
 	cleanAuthHandler := authhandler.NewHandler(
 		loginUseCase,
@@ -575,7 +628,14 @@ func main() {
 		logoutUseCase,
 		passwordHasher,
 		authAudit,
-	)
+	).WithNewDeviceNotifier(newDeviceNotifier)
+
+	// OAuth identity resolution: known link → verified-email link → provision.
+	// No provisioner is wired, so an identity with no OpenRisk account is refused
+	// rather than silently admitted — SSO here signs EXISTING members in, it does
+	// not create tenants. See internal/application/auth/oauth_link.go.
+	oauthResolveUseCase := auth.NewResolveOAuthIdentityUseCase(userRepo, oauthLinkRepo)
+	handlers.ConfigureOAuth2Resolver(oauthResolveUseCase, appBaseURL)
 
 	// Initialize legacy auth handler (for backward compatibility)
 	authHandler := handlers.NewAuthHandler()
@@ -627,6 +687,18 @@ func main() {
 	// RC1. They minted HS256 sessions signed with JWT_SECRET that the RS256 gate
 	// rejected anyway (dead but dangerous surface). /auth/login (RS256) is the sole
 	// session-issuing path. The legacy handler is retained only for /users/me below.
+
+	// --- Password reset (public) ---
+	// Both legs sit behind the per-IP auth limiter on top of the per-address cap
+	// the use case enforces: the address cap stops targeting one account, the IP
+	// limiter stops sweeping many.
+	//
+	// /password/check is unauthenticated by necessity — it serves the strength
+	// meter on the registration and reset screens, where there is no session. It
+	// discloses nothing: the caller already knows the password they typed.
+	api.Post("/auth/password/forgot", authRateLimit, passwordHandler.ForgotPassword)
+	api.Post("/auth/password/reset", authRateLimit, passwordHandler.ResetPassword)
+	api.Post("/auth/password/check", authRateLimit, passwordHandler.CheckPassword)
 
 	// --- OAuth2 Routes ---
 	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
@@ -708,10 +780,27 @@ func main() {
 		return c.Next()
 	})
 
-	// --- MFA enrollment (L4) — full session required ---
-	protected.Post("/auth/mfa/setup", mfaHandler.Setup)
-	protected.Post("/auth/mfa/verify", mfaHandler.Verify)
+	// --- MFA enrollment (L4) ---
+	// Registered on `api` with MFAEnrollmentMiddleware rather than under
+	// `protected`, because enrolment must be reachable in two states: by a
+	// signed-in user turning MFA on from Settings (full access token), and by an
+	// admin whose role MANDATES MFA and who therefore holds no session yet
+	// (MFA_ENROLLMENT token). The middleware accepts exactly those two types and
+	// refuses MFA_REQUIRED — see internal/middleware/mfa_enrollment.go for why
+	// that exclusion is what stops a stolen password overwriting a victim's
+	// authenticator.
+	//
+	// Disabling MFA stays under `protected`: it needs a real session and the
+	// account password.
+	mfaEnrollmentGuard := middleware.MFAEnrollmentMiddleware(rsaKeys, jtiBlacklistChecker)
+	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
+	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
 	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+
+	// --- Sessions / devices (L3) — full session required ---
+	protected.Get("/auth/sessions", sessionHandler.ListSessions)
+	protected.Delete("/auth/sessions/others", sessionHandler.RevokeOtherSessions)
+	protected.Delete("/auth/sessions/:id", sessionHandler.RevokeSession)
 
 	// --- Personal Access Tokens (L5) management — full session required ---
 	protected.Post("/auth/pat", patHandler.Create)

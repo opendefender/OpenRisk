@@ -16,6 +16,9 @@ import (
 type RefreshTokenInput struct {
 	RefreshToken      string
 	DeviceFingerprint string
+	// IP and UserAgent keep the session's device entry current across rotations.
+	IP        string
+	UserAgent string
 }
 
 // RefreshTokenOutput represents the output of token refresh
@@ -43,7 +46,11 @@ func (uc *RefreshTokenUseCase) Execute(ctx context.Context, input RefreshTokenIn
 	}
 
 	// Refresh the token pair
-	tokenPair, err := uc.tokenManager.RefreshTokenPair(ctx, input.RefreshToken, input.DeviceFingerprint)
+	tokenPair, err := uc.tokenManager.RefreshTokenPair(ctx, input.RefreshToken, auth.DeviceContext{
+		Fingerprint: input.DeviceFingerprint,
+		IP:          input.IP,
+		UserAgent:   input.UserAgent,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}

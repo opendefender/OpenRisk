@@ -96,7 +96,49 @@ func (h *MFAHandler) Verify(c *fiber.Ctx) error {
 	if err != nil {
 		return mapAuthError(c, err)
 	}
+	if h.audit != nil {
+		_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaVerify, true, nil)
+	}
+
+	// Mandated enrolment: the caller reached this with an MFA_ENROLLMENT token and
+	// therefore holds no session — their login is still half-finished. Now that an
+	// authenticator is verified, complete it here rather than sending them back to
+	// re-enter the password they already proved a minute ago.
+	//
+	// Voluntary enrolment from Settings arrives with a full access token and keeps
+	// the session it already has; issuing a second one would pointlessly rotate it.
+	if enrolling, _ := c.Locals("mfa_enrollment_token").(bool); enrolling {
+		return h.issueSessionResponse(c, userID, "")
+	}
+
 	return c.JSON(out)
+}
+
+// issueSessionResponse mints the access+refresh pair and sets the session
+// cookies. Shared by the MFA challenge and by mandated enrolment so both produce
+// a response byte-identical to /auth/login.
+func (h *MFAHandler) issueSessionResponse(c *fiber.Ctx, userID uuid.UUID, deviceFingerprint string) error {
+	fp := deviceFingerprint
+	if fp == "" {
+		fp = c.Get("X-Device-Fingerprint")
+	}
+	pair, err := h.tokens.IssueSession(c.UserContext(), userID, coreauth.DeviceContext{
+		Fingerprint: fp,
+		IP:          c.IP(),
+		UserAgent:   c.Get("User-Agent"),
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
+	}
+
+	csrfToken, err := middleware.IssueSessionCookies(
+		c, pair.AccessToken, pair.RefreshToken,
+		coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL,
+	)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
+	}
+	return c.JSON(LoginResponse{TokenPair: pair, CSRFToken: csrfToken})
 }
 
 // Disable turns MFA off for the current user.
@@ -150,7 +192,11 @@ func (h *MFAHandler) Challenge(c *fiber.Ctx) error {
 	if fp == "" {
 		fp = c.Get("X-Device-Fingerprint")
 	}
-	pair, err := h.tokens.IssueSession(c.UserContext(), userID, fp)
+	pair, err := h.tokens.IssueSession(c.UserContext(), userID, coreauth.DeviceContext{
+		Fingerprint: fp,
+		IP:          c.IP(),
+		UserAgent:   c.Get("User-Agent"),
+	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
 	}
