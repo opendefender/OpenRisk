@@ -123,15 +123,16 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		MitigationEffectiveness: input.MitigationEffectiveness,
 	}
 
-	// Set status (default to DRAFT)
+	// Enter the lifecycle. SetState is the ONLY way status and phase are
+	// written, so the three can no longer disagree. A risk created without an
+	// explicit status starts at DRAFT (unchanged behaviour) and its first
+	// transition is DRAFT → IDENTIFIED; one created with a status is placed at
+	// whatever state that status means.
 	if input.Status != "" {
-		risk.Status = input.Status
+		risk.SetState(domain.RiskStateFromLegacy(input.Status, ""))
 	} else {
-		risk.Status = domain.StatusDraft
+		risk.SetState(domain.StateDraft)
 	}
-
-	// A newly created risk enters the lifecycle at "Identifier" (ISO 31000).
-	risk.LifecyclePhase = domain.PhaseIdentified
 
 	// Ownership: apply what the caller asked for, then guarantee an owner. The
 	// creator is the fallback — a risk with no responsable is unactionable, and

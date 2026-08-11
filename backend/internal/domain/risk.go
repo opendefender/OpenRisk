@@ -185,10 +185,17 @@ type Risk struct {
 	Status RiskStatus `gorm:"type:varchar(20);default:'open';index" json:"status"` // open|in_progress|mitigated|accepted|closed
 	Level  string     `gorm:"size:20;default:'medium';index" json:"level"`         // Legacy: CRITICAL|HIGH|MEDIUM|LOW
 
-	// ISO 31000 lifecycle phase (orthogonal to Status). Drives the register
-	// "Cycle de vie" stepper: Identifier → Analyser → Évaluer → Traiter →
-	// Surveiller → Clôturer. Defaults to 'identified' on creation.
+	// Deprecated as a WRITABLE field: derived from LifecycleState. The column
+	// stays (and stays correct) so the phase facet and any legacy reader keep
+	// working — but nothing sets it independently any more.
 	LifecyclePhase RiskPhase `gorm:"type:varchar(20);default:'identified';index" json:"lifecycle_phase"`
+
+	// LifecycleState is the SINGLE source of truth for where a risk stands:
+	// DRAFT → IDENTIFIED → ASSESSED → TREATMENT_PLANNED → IN_TREATMENT →
+	// (RESIDUAL_ACCEPTED | MITIGATED) → CLOSED ↘ REOPENED ↗. Status and
+	// LifecyclePhase above are derived from it on every write (SetState), which
+	// is what stops the three from drifting apart.
+	LifecycleState RiskState `gorm:"type:varchar(24);default:'draft';index" json:"lifecycle_state"`
 
 	// Ownership & Assignment — the three accountability slots (owner_id /
 	// assignee_id / reviewer_id) are embedded from domain.Ownership so every
@@ -337,6 +344,33 @@ func (r *Risk) AfterSave(tx *gorm.DB) error {
 
 // OwnershipBlock implements OwnedEntity.
 func (r *Risk) OwnershipBlock() *Ownership { return &r.Ownership }
+
+// State returns the canonical lifecycle state, reconstructing it from the two
+// legacy fields for any row written before the column existed. Never empty.
+func (r *Risk) State() RiskState {
+	if r == nil {
+		return StateDraft
+	}
+	if IsRiskState(r.LifecycleState) {
+		return r.LifecycleState
+	}
+	return RiskStateFromLegacy(r.Status, r.LifecyclePhase)
+}
+
+// SetState moves the risk to a state and re-derives the two legacy fields from
+// it. This is the ONLY supported way to change where a risk stands: writing
+// Status or LifecyclePhase directly is what let them disagree.
+//
+// It performs no validation — the use case owns the guards, because they need
+// data (mitigations, approvals) the domain must not reach for.
+func (r *Risk) SetState(s RiskState) {
+	if r == nil {
+		return
+	}
+	r.LifecycleState = s
+	r.Status = s.DerivedStatus()
+	r.LifecyclePhase = s.DerivedPhase()
+}
 
 // RiskDetail is a DTO for API responses with enriched data
 // Includes calculated fields and related data

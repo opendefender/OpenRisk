@@ -81,7 +81,7 @@ func newTenantRiskApp(t *testing.T) *tenantRiskApp {
 		applicationrisk.NewUpdateRiskUseCase(riskRepo),
 		applicationrisk.NewDeleteRiskUseCase(riskRepo),
 		applicationrisk.NewMarkRiskReviewedUseCase(riskRepo),
-		applicationrisk.NewTransitionPhaseUseCase(riskRepo),
+		applicationrisk.NewTransitionRiskStateUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
 	)
@@ -270,6 +270,7 @@ const risksTableDDL = `CREATE TABLE IF NOT EXISTS risks (
 	probability_legacy INTEGER,
 	status TEXT,
 	level TEXT,
+	lifecycle_state TEXT,
 	lifecycle_phase TEXT,
 	created_by TEXT,
 	assigned_to TEXT,

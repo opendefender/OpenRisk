@@ -895,8 +895,17 @@ func main() {
 	}
 	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
 	markReviewedUseCase := risk.NewMarkRiskReviewedUseCase(riskRepo)
-	transitionPhaseUseCase := risk.NewTransitionPhaseUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionPhaseUseCase, redisClientInstance, riskQuantifier)
+	// The lifecycle FSM enforces its guards server-side. Its two inspectors are
+	// wired here so "IN_TREATMENT needs an active mitigation", "MITIGATED needs
+	// every sub-action done" and "RESIDUAL_ACCEPTED needs a validated Governance
+	// approval" are answered from real data rather than trusted from the client.
+	transitionStateUseCase := risk.NewTransitionRiskStateUseCase(riskRepo).
+		WithMitigations(newMitigationInspector(
+			repository.NewGormMitigationRepository(database.DB),
+			repository.NewGormMitigationSubActionRepository(database.DB),
+		)).
+		WithApprovals(newApprovalChecker(repository.NewGormApprovalRepository(database.DB)))
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier)
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
 	// (portfolio ALE, worst-case, residual, remediation budget, ROSI). Reuses the
@@ -932,6 +941,9 @@ func main() {
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
 	protected.Post("/risks/:id/transition", riskUpdate, riskHandler.TransitionPhase)
+	// The stepper's contract: what can this risk become next, and what is in the
+	// way. Read-only, so it rides the read permission.
+	protected.Get("/risks/:id/transitions", middleware.RequirePermission("risks:read"), riskHandler.ListTransitions)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
 
 	// Mitigation Plans (CRUD). NOTE: this whole module previously used

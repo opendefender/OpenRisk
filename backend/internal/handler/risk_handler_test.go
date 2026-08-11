@@ -125,7 +125,8 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 		probability_legacy INTEGER,
 		status TEXT,
 		level TEXT,
-		lifecycle_phase TEXT,
+		lifecycle_state TEXT,
+	lifecycle_phase TEXT,
 		created_by TEXT,
 		assigned_to TEXT,
 		owner_id TEXT,
@@ -193,7 +194,7 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 		applicationrisk.NewUpdateRiskUseCase(riskRepo),
 		applicationrisk.NewDeleteRiskUseCase(riskRepo),
 		applicationrisk.NewMarkRiskReviewedUseCase(riskRepo),
-		applicationrisk.NewTransitionPhaseUseCase(riskRepo),
+		applicationrisk.NewTransitionRiskStateUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
 	)
