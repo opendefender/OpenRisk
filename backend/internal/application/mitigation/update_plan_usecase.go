@@ -81,13 +81,9 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 			return fmt.Errorf("invalid status: %s", *input.Status)
 		}
 		mitigation.Status = *input.Status
-		// Keep the coarse progress in sync with the terminal states so the board
-		// bar and the status agree (sub-actions still drive intermediate values).
-		if *input.Status == domain.MitigationDone {
-			mitigation.Progress = 100
-		} else if *input.Status == domain.MitigationPlanned {
-			mitigation.Progress = 0
-		}
+		// Progress is NOT set here. It is derived from the sub-actions (or, with
+		// no sub-actions, from this very status) by RecalculateProgress below.
+		// Writing it here is what let the bar and the checklist disagree.
 	}
 	if input.Priority != nil {
 		mitigation.Priority = *input.Priority
@@ -96,6 +92,12 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 		mitigation.AssignedTo = *input.AssignedTo
 	}
 	if input.DueDate != nil {
+		// A moved deadline restarts the D-7 / D-1 schedule: a postponed plan
+		// should be nudged again, not stay silent because the old date's
+		// reminders were already sent.
+		if mitigation.DueDate == nil || !mitigation.DueDate.Equal(*input.DueDate) {
+			mitigation.ClearReminders()
+		}
 		mitigation.DueDate = input.DueDate
 	}
 
@@ -117,6 +119,12 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 
 	if err := uc.mitigationRepo.Update(input.TenantID.String(), mitigation); err != nil {
 		return err
+	}
+
+	// Recompute server-side after every mutation. The client never supplies
+	// progress, and never gets to.
+	if _, err := uc.mitigationRepo.RecalculateProgress(input.TenantID.String(), mitigation.ID); err != nil {
+		return fmt.Errorf("failed to recalculate progress: %w", err)
 	}
 
 	if uc.ownership != nil && len(changes) > 0 {

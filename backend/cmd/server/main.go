@@ -1750,6 +1750,23 @@ func main() {
 		}
 	}, zeroLogger)
 	go riskReviewWorker.Start(context.Background())
+
+	// Mitigation deadlines: D-7 and D-1 nudges to whoever is doing the work.
+	// Hourly sweep — day-granularity reminders do not need a per-minute tick, and
+	// the "past the threshold and not yet sent" rule means a missed tick (deploy,
+	// restart) still sends the nudge instead of silently skipping it.
+	mitigationDueWorker := workers.NewMitigationDueWorker(
+		repository.NewGormMitigationDueRepository(database.DB),
+		func(ctx context.Context, tenantID, userID, mitigationID uuid.UUID, subject, message string) {
+			if err := notificationUseCase.NotifyInApp(userID, tenantID,
+				domain.NotificationTypeMitigationDeadline, subject, message, &mitigationID, "mitigation"); err != nil {
+				zeroLogger.Warn().Err(err).Msg("mitigation due: in-app notification failed")
+			}
+			if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			}
+		}, zeroLogger)
+	go mitigationDueWorker.Start(context.Background())
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 
 	// Remediation auto-detection: after a scan, a finding (CVE) that is no longer

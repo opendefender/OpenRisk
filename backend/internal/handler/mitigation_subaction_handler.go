@@ -77,6 +77,13 @@ func CreateSubAction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	// Adding a step changes the denominator: a plan that read 100 % with no
+	// checklist must drop the moment one appears. Progress is recomputed on
+	// EVERY mutation of the plan or its steps, never assumed to still hold.
+	if _, err := mitigationRepo.RecalculateProgress(ctx.OrganizationID.String(), subaction.MitigationID); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to recalculate progress"})
+	}
+
 	return c.Status(201).JSON(subaction)
 }
 
@@ -226,8 +233,22 @@ func DeleteSubAction(c *fiber.Ctx) error {
 	}
 
 	subactionRepo := repository.NewGormMitigationSubActionRepository(database.DB)
+	// Read the parent BEFORE deleting: afterwards there is nothing to recompute
+	// from. GetByIDWithMitigation is tenant-scoped, so this also refuses a
+	// sub-action belonging to another organisation.
+	_, parent, err := subactionRepo.GetByIDWithMitigation(ctx.OrganizationID.String(), uuid.MustParse(subactionID))
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Subaction not found"})
+	}
 	if err := subactionRepo.Delete(ctx.OrganizationID.String(), uuid.MustParse(subactionID)); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Removing a step changes the denominator too — deleting the last open one
+	// legitimately completes the plan.
+	mitigationRepo := repository.NewGormMitigationRepository(database.DB)
+	if _, err := mitigationRepo.RecalculateProgress(ctx.OrganizationID.String(), parent.ID); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to recalculate progress"})
 	}
 
 	return c.SendStatus(204)
