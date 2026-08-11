@@ -60,7 +60,13 @@ type Mitigation struct {
 	Status      MitigationStatus   `gorm:"type:varchar(20);default:'PLANNED'" json:"status"`
 	Priority    MitigationPriority `gorm:"type:varchar(20);default:'medium'" json:"priority"`
 
-	// Multi-user assignment (JSONB array)
+	// Ownership — responsable / exécutant / validateur. Same embedded block as
+	// Risk, Incident, RemediationPlan and ControlEvidence.
+	Ownership `gorm:"embedded"`
+
+	// Deprecated: multi-user assignment (JSONB array). Superseded by
+	// Ownership.AssigneeID, which migration 0044 backfills from its first
+	// element. Kept so existing readers keep working.
 	AssignedTo UUIDArray `gorm:"type:jsonb;default:'[]'::jsonb" json:"assigned_to"`
 
 	// Progress: 0-100 (calculated from subactions)
@@ -95,3 +101,6 @@ type Mitigation struct {
 	Risk       *Risk                 `json:"risk,omitempty" gorm:"foreignKey:ID;references:RiskID"`
 	SubActions []MitigationSubAction `json:"sub_actions,omitempty" gorm:"foreignKey:MitigationID;constraint:OnDelete:CASCADE"`
 }
+
+// OwnershipBlock implements OwnedEntity.
+func (m *Mitigation) OwnershipBlock() *Ownership { return &m.Ownership }

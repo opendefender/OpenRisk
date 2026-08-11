@@ -190,11 +190,21 @@ type Risk struct {
 	// Surveiller → Clôturer. Defaults to 'identified' on creation.
 	LifecyclePhase RiskPhase `gorm:"type:varchar(20);default:'identified';index" json:"lifecycle_phase"`
 
-	// Ownership & Assignment
-	CreatedBy  uuid.UUID  `gorm:"type:uuid;not null;index" json:"created_by"`
-	AssignedTo *uuid.UUID `gorm:"type:uuid;index" json:"assigned_to"` // Person responsible for mitigation
-	ReviewerID *uuid.UUID `gorm:"type:uuid;index" json:"reviewer_id"` // Person responsible for final validation
-	Owner      string     `json:"owner"`                              // Legacy: Email or UserID
+	// Ownership & Assignment — the three accountability slots (owner_id /
+	// assignee_id / reviewer_id) are embedded from domain.Ownership so every
+	// actionable entity carries the exact same block. `reviewer_id` used to be
+	// declared here by hand; it now comes from the embed with an identical
+	// column and JSON key.
+	Ownership `gorm:"embedded"`
+
+	CreatedBy uuid.UUID `gorm:"type:uuid;not null;index" json:"created_by"`
+	// Deprecated: superseded by Ownership.AssigneeID. Kept (and backfilled FROM,
+	// migration 0044) so pre-existing filters and the RiskQuery.AssignedTo facet
+	// keep answering while callers migrate.
+	AssignedTo *uuid.UUID `gorm:"type:uuid;index" json:"assigned_to"`
+	// Deprecated: free-text owner (email or user id). Superseded by
+	// Ownership.OwnerID; kept for legacy readers.
+	Owner string `json:"owner"`
 
 	// Asset Association
 	AssetID *uuid.UUID `gorm:"type:uuid;index" json:"asset_id"` // Linked asset if risk is asset-specific
@@ -324,6 +334,9 @@ func (r *Risk) AfterSave(tx *gorm.DB) error {
 
 	return tx.Create(&history).Error
 }
+
+// OwnershipBlock implements OwnedEntity.
+func (r *Risk) OwnershipBlock() *Ownership { return &r.Ownership }
 
 // RiskDetail is a DTO for API responses with enriched data
 // Includes calculated fields and related data
