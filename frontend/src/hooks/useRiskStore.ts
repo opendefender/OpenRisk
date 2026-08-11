@@ -51,6 +51,13 @@ export interface Risk {
   assigned_to?: string;
   source: string; // Important pour l'étape d'intégration (THEHIVE, etc.)
   mitigations?: Mitigation[]; // Important pour le drawer de détails
+  /**
+   * Server-computed count of this risk's mitigation plans. The register and the
+   * drawer derive "Créer une mitigation" vs "Voir les mitigations (n)" from it,
+   * so the button reflects what EXISTS rather than what happened in this
+   * session — the previous version reverted to "Créer" on every reload.
+   */
+  mitigations_count?: number;
   created_at?: string;
   updated_at?: string;
   level?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';

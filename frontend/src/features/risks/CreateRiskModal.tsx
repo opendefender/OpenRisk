@@ -3,15 +3,20 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Zap, Database, ShieldAlert, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAssetStore } from '../../hooks/useAssetStore';
 import { riskService, type Risk } from '../../services/riskService';
+import { taxonomyService } from '../../services/taxonomyService';
+import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
+import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
+import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useI18n } from '../../hooks/useI18n';
@@ -33,8 +38,8 @@ const createRiskSchema = z.object({
   impact: z.number().min(1).max(10),
   probability: z.number().min(0).max(1),
   assetCriticality: z.number().min(0.1).max(3),
-  framework: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  category_id: z.string().optional(),
   asset_ids: z.array(z.string()).optional(),
 });
 
@@ -45,13 +50,6 @@ interface CreateRiskModalProps {
   onClose: () => void;
   onCreated?: (risk: Risk) => void;
 }
-
-const frameworkOptions = [
-  { value: 'ISO27001', label: 'ISO 27001' },
-  { value: 'CIS', label: 'CIS' },
-  { value: 'NIST', label: 'NIST' },
-  { value: 'OWASP', label: 'OWASP' },
-];
 
 // The live score USED TO BE COMPUTED HERE — a multiplication plus its own band
 // thresholds (≥7 critical / ≥4 high / ≥2 medium), which is the reported bug in
@@ -91,8 +89,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
       impact: 5,
       probability: 0.5,
       assetCriticality: 1.5,
-      framework: '',
       tags: [],
+      category_id: '',
       asset_ids: [],
     },
   });
@@ -103,8 +101,14 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
   const watchedTags = watch('tags') ?? [];
+  // Mappings live OUTSIDE the zod form: they are written after the risk exists
+  // (they reference its id), and the import drawer must be able to open over
+  // the form without unmounting it.
+  const [mappings, setMappings] = useState<MappingDraft[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const { data: categories } = useRiskCategories();
+  const queryClient = useQueryClient();
   const watchedAssetIds = watch('asset_ids') ?? [];
-  const watchedFramework = watch('framework');
 
   // The live figure comes from the server's model, debounced at 300 ms.
   const { data: preview } = useScorePreview({
@@ -137,12 +141,31 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
         probability: values.probability,
         impact: values.impact,
         asset_criticality: values.assetCriticality,
-        framework: values.framework || undefined,
         tags: values.tags,
+        category_id: values.category_id || undefined,
         asset_ids: values.asset_ids,
         source: 'manual',
       };
       const created = await riskService.createRisk(payload);
+      // Mappings are written after the risk exists — they reference its id. A
+      // failure here must NOT lose the risk that was just created, so each one
+      // is best-effort and reported separately.
+      const failed: string[] = [];
+      for (const m of mappings) {
+        try {
+          await taxonomyService.createMapping(created.id, {
+            framework_id: m.framework_id,
+            control_id: m.control_id ?? null,
+          });
+        } catch {
+          failed.push(m.label);
+        }
+      }
+      if (failed.length) {
+        toast.warning(
+          `Risque créé, mais ${failed.length} mapping(s) n'ont pas pu être enregistrés : ${failed.join(', ')}. Rattachez-les depuis « Risques non mappés ».`,
+        );
+      }
       // No client-side celebration here. The server records risk.created; the
       // checklist re-reads it and decides whether this is a milestone worth a
       // burst. Firing confetti from the client is what made it fire at random.
@@ -320,20 +343,41 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
                 </motion.div>
 
+                {/* Classification — three separate concepts, three separate
+                    fields. Conflating them is what put a user's label in the
+                    "Référentiel" column wearing a framework badge. */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                    Catégorie
+                  </label>
+                  <select
+                    {...register('category_id')}
+                    className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Non classé</option>
+                    {(categories ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-ink-muted">
+                    Vocabulaire contrôlé, configuré par votre organisation — à ne pas confondre avec les étiquettes libres.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                    {t('risks.riskFramework')}
+                  </label>
+                  <ComplianceMappingField
+                    value={mappings}
+                    onChange={setMappings}
+                    disabled={isSubmitting}
+                    onImportFramework={() => setImportOpen(true)}
+                  />
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskFramework')}</label>
-                    <select
-                      {...register('framework')}
-                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Sélectionnez un cadre</option>
-                      {frameworkOptions.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="space-y-2">
                     <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskAssets')}</label>
                     <div className="rounded-3xl border border-border bg-app p-3 min-h-[120px] overflow-y-auto">
@@ -389,6 +433,19 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
               </form>
             </div>
           </motion.div>
+
+          {/* The import drawer opens OVER the form. The form is never unmounted,
+              so a half-written risk survives the detour — losing it to fix a
+              missing framework would be the worse bug. */}
+          {importOpen ? (
+            <ImportFrameworkDialog
+              onClose={() => setImportOpen(false)}
+              onImported={() => {
+                setImportOpen(false);
+                void queryClient.invalidateQueries({ queryKey: IMPORTED_FRAMEWORKS_KEY });
+              }}
+            />
+          ) : null}
         </>
         )}
       </AnimatePresence>

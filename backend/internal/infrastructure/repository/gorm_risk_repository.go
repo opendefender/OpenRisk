@@ -66,6 +66,7 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 		}
 		return nil, fmt.Errorf("failed to get risk: %w", err)
 	}
+	risk.CountMitigations()
 	return &risk, nil
 }
 
@@ -211,6 +212,9 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list risks: %w", err)
+	}
+	for i := range risks {
+		risks[i].CountMitigations()
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(query.Limit)))

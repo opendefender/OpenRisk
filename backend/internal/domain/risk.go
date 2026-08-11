@@ -304,6 +304,13 @@ type Risk struct {
 
 	// Relations (loaded via Preload)
 	Mitigations []Mitigation `gorm:"foreignKey:RiskID" json:"mitigations,omitempty"`
+
+	// MitigationsCount is computed, NOT persisted: the count of the plans above.
+	// The UI derives its "Créer une mitigation" vs "Voir les mitigations (n)"
+	// button from it, so that button reflects what EXISTS rather than what the
+	// user did in this session — a state the previous version got wrong the
+	// moment you reloaded the page.
+	MitigationsCount int `gorm:"-" json:"mitigations_count"`
 	Assets      []*Asset     `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
 
 	// Computed Fields (NOT persisted, populated by handlers/use cases)
@@ -366,6 +373,14 @@ func (r *Risk) AfterSave(tx *gorm.DB) error {
 
 // OwnershipBlock implements OwnedEntity.
 func (r *Risk) OwnershipBlock() *Ownership { return &r.Ownership }
+
+// CountMitigations fills the computed count from the preloaded relation.
+// Called by the repository after every read that preloads Mitigations.
+func (r *Risk) CountMitigations() {
+	if r != nil {
+		r.MitigationsCount = len(r.Mitigations)
+	}
+}
 
 // State returns the canonical lifecycle state, reconstructing it from the two
 // legacy fields for any row written before the column existed. Never empty.

@@ -40,7 +40,11 @@ import { useRiskSmartScore } from './useSmartScore';
 import { SmartRiskRadar } from './components/SmartRiskRadar';
 import { useTreatmentPlan } from '../ai/useAi';
 import { LifecycleStepper } from './LifecycleStepper';
-import { useRiskCategories } from './useTaxonomy';
+import { useRiskCategories, useRiskMappings, useCreateMapping, useDeleteMapping } from './useTaxonomy';
+import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
+import { OwnershipFields } from '../../shared/UserPicker';
+import { ownershipPatch, type OwnershipRole } from '../../services/ownershipService';
+import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import { useQueryClient } from '@tanstack/react-query';
 
 /* -------------------------------------------------------------- CSV export */
@@ -344,7 +348,19 @@ export function RiskRegisterPage() {
   const rowActions: RowAction<UiRisk>[] = useMemo(() => [
     { key: 'view', label: tr('Voir', 'View'), icon: Eye, onSelect: (r) => setDrawerId(r.id) },
     { key: 'edit', label: L.edit, icon: Pencil, hidden: () => !canUpdate, onSelect: (r) => setEditRaw(r.raw) },
-    { key: 'mitigate', label: L.createMiti, icon: ShieldCheck, hidden: () => !canUpdate, onSelect: (r) => setMitiRiskId(r.id) },
+    {
+      key: 'mitigate',
+      // Same derivation in the row menu: offering "create" on a risk that
+      // already has three plans is how duplicates get made.
+      label: L.createMiti,
+      icon: ShieldCheck,
+      hidden: () => !canUpdate,
+      onSelect: (r) => {
+        const n = r.raw.mitigations_count ?? r.raw.mitigations?.length ?? 0;
+        if (n > 0) navigate(`/risks/mitigations?risk_id=${r.id}`);
+        else setMitiRiskId(r.id);
+      },
+    },
     { key: 'export', label: tr('Exporter CSV', 'Export CSV'), icon: Download, onSelect: (r) => exportRiskCsv(r) },
     { key: 'delete', label: L.del, icon: Trash2, danger: true, separatorBefore: true, hidden: () => !canDelete, onSelect: (r) => setToDelete(r) },
   ], [L, canUpdate, canDelete]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -900,24 +916,146 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
 function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const navigate = useNavigate();
+  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  const updateRisk = useRiskStore((s) => s.updateRisk);
+  const { data: mappings } = useRiskMappings(r.id);
+  const deleteMapping = useDeleteMapping(r.id);
+  const createMapping = useCreateMapping(r.id);
+  const [mappingDrafts, setMappingDrafts] = useState<MappingDraft[]>([]);
+  const [savingOwner, setSavingOwner] = useState(false);
+  const mitiCount = r.raw.mitigations_count ?? r.raw.mitigations?.length ?? 0;
+
   const field = (lbl: string, val: string) => (
     <div className="mb-4">
       <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">{lbl}</div>
       <div className="text-[13.5px] text-ink">{val}</div>
     </div>
   );
+
+  // Assignment saves immediately. It is a one-field decision with an obvious
+  // undo (pick someone else), so a Save button would only add a step people
+  // forget — which is how "j'ai assigné mais rien ne s'est passé" happens.
+  const assign = async (role: OwnershipRole, userId: string | null) => {
+    setSavingOwner(true);
+    try {
+      await updateRisk(r.id, ownershipPatch({ [role]: userId }));
+      toast.success(userId ? tr('Affectation enregistrée', 'Assignment saved') : tr('Affectation retirée', 'Assignment removed'));
+    } catch {
+      toast.error(tr("L'affectation a échoué.", 'The assignment failed.'));
+    } finally {
+      setSavingOwner(false);
+    }
+  };
+
+  const addMappings = async () => {
+    for (const d of mappingDrafts) {
+      try {
+        await createMapping.mutateAsync({ framework_id: d.framework_id, control_id: d.control_id ?? null });
+      } catch {
+        toast.error(tr(`Impossible de rattacher ${d.label}`, `Could not map ${d.label}`));
+      }
+    }
+    setMappingDrafts([]);
+  };
+
   return (
     <div className="px-[22px] py-5">
       {field('Description', r.desc || '—')}
       <div className="grid grid-cols-2 gap-x-5">
         {field(lang === 'fr' ? 'Actif concerné' : 'Asset', r.asset)}
-        {field('Framework', r.fw)}
-        {field(L.col_owner, r.ownerName)}
+        {field(L.col_category, r.categoryName || '—')}
         {field(L.col_mod, r.mod)}
+        {field(L.col_tags, r.tags.length ? r.tags.join(', ') : '—')}
       </div>
-      <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-all hover:brightness-110" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
-        <ShieldCheck size={16} /> {L.createMiti}
-      </button>
+
+      {/* Ownership — three slots, one picker, available right here rather than
+          behind an edit modal. */}
+      <div className="mb-5">
+        <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2">
+          {tr('Responsabilités', 'Ownership')}
+        </div>
+        <OwnershipFields
+          value={r.raw}
+          onChange={assign}
+          permission="risks:update"
+          disabled={!canUpdate || savingOwner}
+        />
+      </div>
+
+      {/* Compliance references — real controls, each one clickable through. */}
+      <div className="mb-5">
+        <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2">
+          {L.col_fw}
+        </div>
+        {(mappings ?? []).length === 0 ? (
+          <p className="text-[12.5px] text-ink-muted mb-2">
+            {tr('Ce risque n’est rattaché à aucun contrôle.', 'This risk is not linked to any control.')}
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {(mappings ?? []).map((m) => (
+              <span
+                key={m.id}
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
+                style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent)' }}
+              >
+                <button type="button" onClick={() => navigate(mappingHref(m))} className="hover:underline">
+                  {mappingLabel(m)}
+                </button>
+                {canUpdate ? (
+                  <button
+                    type="button"
+                    onClick={() => deleteMapping.mutate(m.id)}
+                    aria-label={tr('Retirer', 'Remove')}
+                    className="opacity-70 hover:opacity-100"
+                  >
+                    <X size={11} />
+                  </button>
+                ) : null}
+              </span>
+            ))}
+          </div>
+        )}
+        {canUpdate ? (
+          <>
+            <ComplianceMappingField
+              value={mappingDrafts}
+              onChange={setMappingDrafts}
+              onImportFramework={() => navigate('/compliance')}
+              disabled={createMapping.isPending}
+            />
+            {mappingDrafts.length > 0 ? (
+              <button
+                type="button"
+                onClick={addMappings}
+                className="mt-2 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--text-primary))' }}
+              >
+                {tr('Rattacher', 'Map')}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+
+      {/* §6: the button is DERIVED from what exists, not from what the user did
+          a moment ago. Once a plan exists, "Créer une mitigation" is the wrong
+          offer — the useful one is to go and look at it. */}
+      {mitiCount > 0 ? (
+        <button
+          onClick={() => navigate(`/risks/mitigations?risk_id=${r.id}`)}
+          className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold transition-all hover:brightness-110"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
+          <ShieldCheck size={16} /> {tr(`Voir les mitigations (${mitiCount})`, `View mitigations (${mitiCount})`)}
+        </button>
+      ) : (
+        <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-all hover:brightness-110" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <ShieldCheck size={16} /> {L.createMiti}
+        </button>
+      )}
     </div>
   );
 }
