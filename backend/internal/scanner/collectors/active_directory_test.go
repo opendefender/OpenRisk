@@ -24,7 +24,7 @@ func (fakeLDAP) Search(req *ldap.SearchRequest) (*ldap.SearchResult, error) {
 		return &ldap.SearchResult{Entries: []*ldap.Entry{
 			ldap.NewEntry("CN=SRV01,DC=corp", map[string][]string{
 				"cn": {"SRV01"}, "dNSHostName": {"srv01.corp.local"},
-				"operatingSystem": {"Windows Server 2008 R2 Standard"},
+				"operatingSystem":   {"Windows Server 2008 R2 Standard"},
 				"distinguishedName": {"CN=SRV01,DC=corp"}, "userAccountControl": {"4096"},
 			}),
 		}}, nil

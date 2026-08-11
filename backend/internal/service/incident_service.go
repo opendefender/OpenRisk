@@ -12,8 +12,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )

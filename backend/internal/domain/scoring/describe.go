@@ -26,7 +26,7 @@ type BandRange struct {
 
 // ScopeModel describes one scope's factors and their weights.
 type ScopeModel struct {
-	Scope   Scope             `json:"scope"`
+	Scope   Scope              `json:"scope"`
 	Factors []ScopeModelFactor `json:"factors"`
 }
 
@@ -39,10 +39,10 @@ type ScopeModelFactor struct {
 
 // ModelDescription is the payload of GET /score/model.
 type ModelDescription struct {
-	FormulaVersion string      `json:"formula_version"`
-	MinValue       float64     `json:"min_value"`
-	MaxValue       float64     `json:"max_value"`
-	Bands          []BandRange `json:"bands"`
+	FormulaVersion string       `json:"formula_version"`
+	MinValue       float64      `json:"min_value"`
+	MaxValue       float64      `json:"max_value"`
+	Bands          []BandRange  `json:"bands"`
 	Scopes         []ScopeModel `json:"scopes"`
 	// InputBounds documents the accepted range of every raw input, so a form can
 	// validate against the model rather than against a hard-coded guess.

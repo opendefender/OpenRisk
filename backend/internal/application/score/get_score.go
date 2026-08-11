@@ -94,15 +94,15 @@ func New() *UseCase {
 	return &UseCase{now: func() time.Time { return time.Now().UTC() }}
 }
 
-func (uc *UseCase) WithRiskCounts(s RiskCounter) *UseCase     { uc.riskCounts = s; return uc }
-func (uc *UseCase) WithRisk(s RiskReader) *UseCase            { uc.risk = s; return uc }
-func (uc *UseCase) WithRisks(s RiskLister) *UseCase           { uc.risks = s; return uc }
-func (uc *UseCase) WithAssets(s AssetReader) *UseCase         { uc.assets = s; return uc }
-func (uc *UseCase) WithCompliance(s ComplianceCounter) *UseCase { uc.compliance = s; return uc }
-func (uc *UseCase) WithVulnStats(s VulnStatsReader) *UseCase  { uc.vulnStats = s; return uc }
-func (uc *UseCase) WithVulns(s VulnListReader) *UseCase       { uc.vulns = s; return uc }
+func (uc *UseCase) WithRiskCounts(s RiskCounter) *UseCase           { uc.riskCounts = s; return uc }
+func (uc *UseCase) WithRisk(s RiskReader) *UseCase                  { uc.risk = s; return uc }
+func (uc *UseCase) WithRisks(s RiskLister) *UseCase                 { uc.risks = s; return uc }
+func (uc *UseCase) WithAssets(s AssetReader) *UseCase               { uc.assets = s; return uc }
+func (uc *UseCase) WithCompliance(s ComplianceCounter) *UseCase     { uc.compliance = s; return uc }
+func (uc *UseCase) WithVulnStats(s VulnStatsReader) *UseCase        { uc.vulnStats = s; return uc }
+func (uc *UseCase) WithVulns(s VulnListReader) *UseCase             { uc.vulns = s; return uc }
 func (uc *UseCase) WithIncidents(s IncidentPressureReader) *UseCase { uc.incidents = s; return uc }
-func (uc *UseCase) WithMitigations(s MitigationReader) *UseCase { uc.mitigation = s; return uc }
+func (uc *UseCase) WithMitigations(s MitigationReader) *UseCase     { uc.mitigation = s; return uc }
 
 // Execute computes the score for one scope.
 //

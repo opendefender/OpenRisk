@@ -71,9 +71,9 @@ type ComplianceAudit struct {
 	ID       uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
 
-	Title       string     `gorm:"size:255;not null" json:"title"`
-	FrameworkID *uuid.UUID `gorm:"type:uuid;index" json:"framework_id"` // nil = program-wide
-	Type        AuditType  `gorm:"type:varchar(24);not null;default:'internal'" json:"type"`
+	Title       string      `gorm:"size:255;not null" json:"title"`
+	FrameworkID *uuid.UUID  `gorm:"type:uuid;index" json:"framework_id"` // nil = program-wide
+	Type        AuditType   `gorm:"type:varchar(24);not null;default:'internal'" json:"type"`
 	Status      AuditStatus `gorm:"type:varchar(24);not null;default:'planned';index" json:"status"`
 
 	Auditor string `gorm:"size:255" json:"auditor"` // auditor name or firm

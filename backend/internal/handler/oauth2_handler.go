@@ -103,7 +103,7 @@ func InitializeOAuth2() *OAuth2Config {
 			// Microsoft Graph delegated scopes. ".default" asks for whatever the
 			// app registration was granted, which for a sign-in app is not
 			// guaranteed to include the profile — name these explicitly instead.
-			Scopes: []string{"openid", "profile", "email", "User.Read"},
+			Scopes:   []string{"openid", "profile", "email", "User.Read"},
 			Endpoint: microsoft.AzureADEndpoint(os.Getenv("OAUTH2_AZURE_TENANT_ID")),
 		},
 	}

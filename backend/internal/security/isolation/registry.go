@@ -151,6 +151,15 @@ var decisions = []Decision{
 		"handler/risk_isolation_test TestRiskIsolation_CrossTenantAccessIsRefused/transition_phase"},
 	{"/api/v1/risks/{id}/review", Covered,
 		"handler/risk_isolation_test TestRiskIsolation_CrossTenantAccessIsRefused/mark_reviewed"},
+	{"/api/v1/risks/{id}/transitions", Covered,
+		"application/risk transition_state_test TestAvailableTransitions_NotFound: an id outside the tenant reads back as not-found through the same GetByID(tenant) path"},
+	// The controlled category vocabulary. Both write routes go through
+	// GormRiskCategoryRepository, which puts tenant_id in the WHERE clause of the
+	// UPDATE and of the DELETE (and of the risk detach inside the same
+	// transaction), so a forged id from another organisation affects 0 rows and
+	// surfaces as not-found.
+	{"/api/v1/risk-categories/{id}", Covered,
+		"repository/gorm_risk_taxonomy_repository_test TestRiskCategoryRepo_CrossTenantUpdateAndDeleteRefused"},
 	{"/api/v1/risks/*", Pending,
 		"financial/smart-score/simulate/mitigations subpaths lack cross-tenant assertions"},
 	{"/api/v1/mitigations/*", Pending,

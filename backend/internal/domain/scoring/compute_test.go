@@ -55,9 +55,9 @@ func TestBounds_TenantAndAssetAlwaysInRange(t *testing.T) {
 				}, at))
 
 				assertResultSane(t, ComputeAsset(AssetInput{
-					Criticality:        float64(a),
-					MaxLinkedRiskScore: float64(b * 13),
-					HasLinkedRisks:     true,
+					Criticality:         float64(a),
+					MaxLinkedRiskScore:  float64(b * 13),
+					HasLinkedRisks:      true,
 					OpenVulnerabilities: c, MaxCVSS: float64(a), HasVulnData: true,
 					InternetFacing: a%2 == 0, HasExposureData: true,
 				}, at))

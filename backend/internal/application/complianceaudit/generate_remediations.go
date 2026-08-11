@@ -25,9 +25,9 @@ type GenerateRemediationsResult struct {
 // audit is completed. It is idempotent: a gap that already has a non-cancelled
 // remediation plan is skipped, so re-running never duplicates.
 type GenerateRemediationsFromAuditUseCase struct {
-	auditRepo      domain.ComplianceAuditRepository
+	auditRepo       domain.ComplianceAuditRepository
 	remediationRepo domain.RemediationPlanRepository
-	complianceRepo domain.ComplianceRepository
+	complianceRepo  domain.ComplianceRepository
 }
 
 func NewGenerateRemediationsFromAuditUseCase(

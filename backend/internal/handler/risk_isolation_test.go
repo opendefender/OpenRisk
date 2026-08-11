@@ -270,6 +270,7 @@ const risksTableDDL = `CREATE TABLE IF NOT EXISTS risks (
 	probability_legacy INTEGER,
 	status TEXT,
 	level TEXT,
+	category_id TEXT,
 	lifecycle_state TEXT,
 	lifecycle_phase TEXT,
 	created_by TEXT,

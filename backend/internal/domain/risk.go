@@ -216,10 +216,32 @@ type Risk struct {
 	// Asset Association
 	AssetID *uuid.UUID `gorm:"type:uuid;index" json:"asset_id"` // Linked asset if risk is asset-specific
 
-	// Classification & Context
-	Tags       pq.StringArray `gorm:"type:text[];default:'{}'" json:"tags"`        // Labels (network, cloud, etc.)
-	Frameworks pq.StringArray `gorm:"type:text[];default:'{}'" json:"frameworks"`  // ISO27001|NIST-CSF|DORA|CIS|COBAC|BCEAO|OWASP|SOC2|GDPR|...
-	ControlIDs pq.StringArray `gorm:"type:text[];default:'{}'" json:"control_ids"` // Links to compliance controls
+	// Classification — three separate concepts, three separate columns. See
+	// risk_taxonomy.go for why conflating them was the "étiquette affichée comme
+	// framework" bug.
+
+	// Tags are free text, authored by the user, unbounded → column "Étiquettes".
+	Tags pq.StringArray `gorm:"type:text[];default:'{}'" json:"tags"`
+
+	// CategoryID points at the tenant's CONTROLLED vocabulary → column
+	// "Catégorie". Nullable: a risk may be unclassified, and forcing a category
+	// at creation would just push people to pick the first entry.
+	CategoryID *uuid.UUID    `gorm:"type:uuid;index" json:"category_id"`
+	Category   *RiskCategory `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+
+	// ControlMappings are references to REAL compliance controls → column
+	// "Référentiel". Loaded by the list/get use cases, never stored inline.
+	ControlMappings []RiskControlMapping `gorm:"-" json:"control_mappings,omitempty"`
+
+	// Deprecated (migration 0046): free-text framework names, populated by a
+	// hard-coded dropdown and never checked against the tenant's imported
+	// frameworks. Frozen — no longer read or written. Superseded by
+	// ControlMappings; the column is kept for one release so a rollback is
+	// possible, and dropped in a later migration.
+	Frameworks pq.StringArray `gorm:"type:text[];default:'{}'" json:"frameworks"`
+	// Deprecated: never written by anything but duplicate_risk, never read.
+	// Migrated into risk_control_mappings by 0046 where resolvable.
+	ControlIDs pq.StringArray `gorm:"type:text[];default:'{}'" json:"control_ids"`
 
 	// Treatment & Mitigation
 	TreatmentPlan   RiskTreatment `gorm:"type:varchar(20);default:'mitigate'" json:"treatment_plan"` // accept|mitigate|transfer|avoid
@@ -236,13 +258,13 @@ type Risk struct {
 	// explicitly it is composed from these: downtime cost + fines + data loss +
 	// other. RemediationCost + MitigationEffectiveness drive ROSI. All XAF, all
 	// optional; the engine (pkg/crq) degrades gracefully to the reference model.
-	DowntimeHours           *float64 `gorm:"type:numeric(10,2)" json:"downtime_hours"`            // business hours lost per incident
-	HourlyDowntimeCostXAF   *float64 `gorm:"type:numeric(16,2)" json:"hourly_downtime_cost_xaf"`  // cost per hour of downtime
-	DataLossCostXAF         *float64 `gorm:"type:numeric(16,2)" json:"data_loss_cost_xaf"`        // data recovery / breach cost
-	FinesXAF                *float64 `gorm:"type:numeric(16,2)" json:"fines_xaf"`                 // regulatory fines
-	OtherDirectCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"other_direct_cost_xaf"`     // any other direct per-incident cost
-	RemediationCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"remediation_cost_xaf"`      // budget to deploy the control
-	MitigationEffectiveness *float64 `gorm:"type:numeric(5,4)" json:"mitigation_effectiveness"`   // [0,1] share of ALE removed
+	DowntimeHours           *float64 `gorm:"type:numeric(10,2)" json:"downtime_hours"`           // business hours lost per incident
+	HourlyDowntimeCostXAF   *float64 `gorm:"type:numeric(16,2)" json:"hourly_downtime_cost_xaf"` // cost per hour of downtime
+	DataLossCostXAF         *float64 `gorm:"type:numeric(16,2)" json:"data_loss_cost_xaf"`       // data recovery / breach cost
+	FinesXAF                *float64 `gorm:"type:numeric(16,2)" json:"fines_xaf"`                // regulatory fines
+	OtherDirectCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"other_direct_cost_xaf"`    // any other direct per-incident cost
+	RemediationCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"remediation_cost_xaf"`     // budget to deploy the control
+	MitigationEffectiveness *float64 `gorm:"type:numeric(5,4)" json:"mitigation_effectiveness"`  // [0,1] share of ALE removed
 
 	// Computed, NOT persisted — filled by the handler via pkg/crq before responding.
 	ALEXAF   float64 `gorm:"-" json:"ale_xaf"`   // annual loss expectancy (XAF)

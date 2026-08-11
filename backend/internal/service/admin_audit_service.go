@@ -67,16 +67,16 @@ func (s *AdminAuditService) LogAdminAction(
 
 	// Create audit event
 	event := &domain.AdminAuditEvent{
-		ID:            uuid.New(),
-		AdminUserID:   adminUserID,
-		Action:        action,
-		ResourceType:  resourceType,
-		ResourceID:    resourceID,
-		OldValue:      oldJSON,
-		NewValue:      newJSON,
-		IPAddress:     parsedIP,
-		UserAgent:     userAgent,
-		RequestID:     requestID,
+		ID:           uuid.New(),
+		AdminUserID:  adminUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		OldValue:     oldJSON,
+		NewValue:     newJSON,
+		IPAddress:    parsedIP,
+		UserAgent:    userAgent,
+		RequestID:    requestID,
 	}
 
 	// Log to append-only audit trail (RULE #7: never UPDATE or DELETE)

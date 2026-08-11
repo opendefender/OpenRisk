@@ -104,10 +104,10 @@ func TestCreateActionAssignedNotification(t *testing.T) {
 		Subject:  "New Action Assigned",
 		Message:  "An action has been assigned to you",
 		Metadata: map[string]interface{}{
-			"action_id":    actionID.String(),
-			"assigned_by":  assignedByID.String(),
-			"priority":     "HIGH",
-			"due_date":     time.Now().AddDate(0, 0, 7).Format(time.RFC3339),
+			"action_id":   actionID.String(),
+			"assigned_by": assignedByID.String(),
+			"priority":    "HIGH",
+			"due_date":    time.Now().AddDate(0, 0, 7).Format(time.RFC3339),
 		},
 	}
 
@@ -146,19 +146,19 @@ func TestCreateNotificationPreference(t *testing.T) {
 	tenantID := uuid.New()
 
 	prefs := &domain.NotificationPreference{
-		ID:                           uuid.New(),
-		UserID:                       userID,
-		TenantID:                     tenantID,
-		EmailOnMitigationDeadline:    true,
-		EmailOnCriticalRisk:          true,
-		EmailOnActionAssigned:        false,
-		EmailDeadlineAdvanceDays:     3,
-		SlackEnabled:                 true,
-		SlackOnCriticalRisk:          true,
-		WebhookEnabled:               false,
-		DisableAllNotifications:      false,
-		EnableSoundNotifications:     true,
-		EnableDesktopNotifications:   true,
+		ID:                         uuid.New(),
+		UserID:                     userID,
+		TenantID:                   tenantID,
+		EmailOnMitigationDeadline:  true,
+		EmailOnCriticalRisk:        true,
+		EmailOnActionAssigned:      false,
+		EmailDeadlineAdvanceDays:   3,
+		SlackEnabled:               true,
+		SlackOnCriticalRisk:        true,
+		WebhookEnabled:             false,
+		DisableAllNotifications:    false,
+		EnableSoundNotifications:   true,
+		EnableDesktopNotifications: true,
 	}
 
 	assert.NotNil(t, prefs)
@@ -267,13 +267,13 @@ func TestBulkNotificationCreation(t *testing.T) {
 // Test: Notification Metadata
 func TestNotificationMetadata(t *testing.T) {
 	metadata := map[string]interface{}{
-		"risk_id":      "risk-123",
-		"severity":     "CRITICAL",
-		"likelihood":   "HIGH",
-		"impact":       "SEVERE",
-		"mitigations":  []string{"m1", "m2"},
-		"assigned_to":  "user@example.com",
-		"due_date":     time.Now().AddDate(0, 0, 7),
+		"risk_id":     "risk-123",
+		"severity":    "CRITICAL",
+		"likelihood":  "HIGH",
+		"impact":      "SEVERE",
+		"mitigations": []string{"m1", "m2"},
+		"assigned_to": "user@example.com",
+		"due_date":    time.Now().AddDate(0, 0, 7),
 	}
 
 	notif := &domain.Notification{
@@ -289,7 +289,7 @@ func TestNotificationMetadata(t *testing.T) {
 // Test: Preference Channels
 func TestPreferenceChannels(t *testing.T) {
 	prefs := &domain.NotificationPreference{
-		ID:             uuid.New(),
+		ID:                  uuid.New(),
 		EmailOnCriticalRisk: true,
 		SlackEnabled:        true,
 		WebhookEnabled:      false,

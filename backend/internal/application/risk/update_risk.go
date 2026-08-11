@@ -30,6 +30,9 @@ type UpdateRiskInput struct {
 	// Without that distinction, saving a form that omits the reviewer would
 	// silently unassign the reviewer.
 	Ownership domain.OwnershipPatch
+	// CategoryID is tri-state via NullableUUID for the same reason ownership is:
+	// omitting it must not clear it.
+	Category domain.NullableUUID
 	// CRQ monetary inputs (XAF). Pointers so a partial update can set or clear them.
 	SLEXAF *float64
 	ARO    *float64
@@ -112,6 +115,9 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 	}
 	if input.Owner != nil {
 		risk.Owner = *input.Owner
+	}
+	if input.Category.Present {
+		risk.CategoryID = input.Category.Value
 	}
 	if input.SLEXAF != nil {
 		if *input.SLEXAF < 0 {

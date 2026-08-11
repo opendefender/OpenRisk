@@ -142,9 +142,29 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		db = db.Where("reviewer_id = ?", *query.ReviewedBy)
 	}
 
-	// Tags filter (OR condition)
+	// Tags filter (OR condition) — free text, unrelated to categories.
 	if len(query.Tags) > 0 {
 		db = db.Where("tags && ?", pq.Array(query.Tags))
+	}
+
+	// Category filter — the CONTROLLED vocabulary.
+	if len(query.CategoryIDs) > 0 {
+		db = db.Where("category_id IN ?", query.CategoryIDs)
+	}
+
+	// Compliance filters run against the real mappings, never against the frozen
+	// free-text `frameworks` column.
+	if query.FrameworkID != nil {
+		db = db.Where(`EXISTS (
+			SELECT 1 FROM risk_control_mappings m
+			WHERE m.risk_id = risks.id AND m.tenant_id = risks.tenant_id
+			  AND m.framework_id = ? AND m.deleted_at IS NULL)`, *query.FrameworkID)
+	}
+	if query.Unmapped {
+		db = db.Where(`NOT EXISTS (
+			SELECT 1 FROM risk_control_mappings m
+			WHERE m.risk_id = risks.id AND m.tenant_id = risks.tenant_id
+			  AND m.deleted_at IS NULL)`)
 	}
 
 	// Date range filter

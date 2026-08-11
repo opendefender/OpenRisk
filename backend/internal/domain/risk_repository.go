@@ -100,13 +100,19 @@ type RiskQuery struct {
 	ReviewedBy     *uuid.UUID // Filter by reviewer (validateur)
 	// InvolvedUser backs the "Mes risques" filter: owner OR assignee OR reviewer.
 	InvolvedUser *uuid.UUID
-	Tags           []string   // Filter by tags (OR condition)
-	DateFrom       *time.Time // Created date range start
-	DateTo         *time.Time // Created date range end
-	Source         []string   // Filter by source (manual|cti_auto|scan_auto|etc.)
-	MinScore       *float64   // Score range (new system: 0.0-30.0)
-	MaxScore       *float64
-	TreatmentPlan  []string // accept|mitigate|transfer|avoid
+	Tags         []string    // Filter by tags (OR condition) — free text
+	CategoryIDs  []uuid.UUID // Filter by controlled category (OR condition)
+	// FrameworkID filters on the RISK↔CONTROL mappings, not on the frozen
+	// free-text `frameworks` column.
+	FrameworkID *uuid.UUID
+	// Unmapped true keeps only risks with no control mapping at all.
+	Unmapped      bool
+	DateFrom      *time.Time // Created date range start
+	DateTo        *time.Time // Created date range end
+	Source        []string   // Filter by source (manual|cti_auto|scan_auto|etc.)
+	MinScore      *float64   // Score range (new system: 0.0-30.0)
+	MaxScore      *float64
+	TreatmentPlan []string // accept|mitigate|transfer|avoid
 
 	// Pagination
 	Page  int // 1-indexed, validated in Sanitize()

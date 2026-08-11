@@ -8,8 +8,8 @@ package service
 import (
 	"math"
 
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
 
 // Badge Definition
@@ -23,13 +23,13 @@ type Badge struct {
 
 // UserStats : Profil du joueur
 type UserStats struct {
-	TotalXP        int     `json:"total_xp"`
-	Level          int     `json:"level"`
-	NextLevelXP    int     `json:"next_level_xp"`
-	Progress       float64 `json:"progress_percent"` // 0-100
-	RisksManaged   int64   `json:"risks_managed"`
-	MitigationsDone int64  `json:"mitigations_done"`
-	Badges         []Badge `json:"badges"`
+	TotalXP         int     `json:"total_xp"`
+	Level           int     `json:"level"`
+	NextLevelXP     int     `json:"next_level_xp"`
+	Progress        float64 `json:"progress_percent"` // 0-100
+	RisksManaged    int64   `json:"risks_managed"`
+	MitigationsDone int64   `json:"mitigations_done"`
+	Badges          []Badge `json:"badges"`
 }
 
 type GamificationService struct{}
@@ -41,12 +41,12 @@ func NewGamificationService() *GamificationService {
 // GetUserStats calcule tout le profil de jeu à la volée
 func (s *GamificationService) GetUserStats(userID string, tenantID string) (*UserStats, error) {
 	stats := &UserStats{Badges: []Badge{}}
-	
+
 	// 1. Calculer les métriques brutes depuis la DB
 	// (Note: Dans un vrai SaaS scalable, on incrmenterait des compteurs. Ici on compte à la volée pour la fiabilité)
 	var riskCount int64
 	database.DB.Model(&domain.Risk{}).Where("owner = ? AND tenant_id = ?", userID, tenantID).Count(&riskCount) // Simplification: owner est string ici
-	
+
 	// On compte les mitigations "DONE"
 	// Note: Idéalement, Mitigation devrait avoir un "CompletedBy". On assume que c'est l'assignee ou via logs.
 	// Pour ce commit, on compte globalement les mitigations finies pour l'exemple.
@@ -73,10 +73,10 @@ func (s *GamificationService) GetUserStats(userID string, tenantID string) (*Use
 	// Calcul progression vers prochain niveau
 	currentLevelBaseXP := math.Pow(float64(stats.Level-1), 2) * 100
 	nextLevelBaseXP := math.Pow(float64(stats.Level), 2) * 100
-	
+
 	rangeXP := nextLevelBaseXP - currentLevelBaseXP
 	currentXPInLevel := float64(xp) - currentLevelBaseXP
-	
+
 	if rangeXP > 0 {
 		stats.Progress = (currentXPInLevel / rangeXP) * 100
 	} else {

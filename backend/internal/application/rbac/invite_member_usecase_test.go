@@ -21,8 +21,12 @@ type fakeUsers struct {
 func newFakeUsers() *fakeUsers {
 	return &fakeUsers{byEmail: map[string]*domain.User{}, byUser: map[string]*domain.User{}}
 }
-func (f *fakeUsers) GetByEmail(_ context.Context, e string) (*domain.User, error)    { return f.byEmail[e], nil }
-func (f *fakeUsers) GetByUsername(_ context.Context, u string) (*domain.User, error) { return f.byUser[u], nil }
+func (f *fakeUsers) GetByEmail(_ context.Context, e string) (*domain.User, error) {
+	return f.byEmail[e], nil
+}
+func (f *fakeUsers) GetByUsername(_ context.Context, u string) (*domain.User, error) {
+	return f.byUser[u], nil
+}
 func (f *fakeUsers) Create(_ context.Context, u *domain.User) error {
 	u.ID = uuid.New()
 	f.created = append(f.created, u)
@@ -106,7 +110,7 @@ func TestInviteMember_Conflict(t *testing.T) {
 func TestInviteMember_Validation(t *testing.T) {
 	uc := NewInviteMemberUseCase(newFakeUsers(), fakeHasher{})
 	cases := []InviteMemberInput{
-		{Email: "not-an-email", FullName: "X"},                                        // bad email
+		{Email: "not-an-email", FullName: "X"},                                         // bad email
 		{Email: "ok@example.com", FullName: ""},                                        // no name
 		{Email: "ok@example.com", FullName: "X", BusinessRole: "does_not_exist"},       // bad preset
 		{Email: "ok@example.com", FullName: "X", MemberRole: domain.MemberRole("god")}, // bad role

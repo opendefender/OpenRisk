@@ -15,17 +15,17 @@ import (
 
 // ScoringConfig représente la configuration de calcul de score personnalisée
 type ScoringConfig struct {
-	ID                    string
-	TenantID              string
-	Name                  string
-	Description           string
-	BaseFormula           string // "impact*probability", "sqrt(impact*probability)", etc.
-	WeightingFactors      map[string]float64
-	RiskMatrixThresholds  map[string]int // "low", "medium", "high", "critical" -> score threshold
-	AssetCriticalityMult  map[domain.AssetCriticality]float64
-	IsDefault             bool
-	CreatedAt             string
-	UpdatedAt             string
+	ID                   string
+	TenantID             string
+	Name                 string
+	Description          string
+	BaseFormula          string // "impact*probability", "sqrt(impact*probability)", etc.
+	WeightingFactors     map[string]float64
+	RiskMatrixThresholds map[string]int // "low", "medium", "high", "critical" -> score threshold
+	AssetCriticalityMult map[domain.AssetCriticality]float64
+	IsDefault            bool
+	CreatedAt            string
+	UpdatedAt            string
 }
 
 // ScoreEngineService gère le calcul de score avec configurations personnalisées
@@ -49,10 +49,10 @@ func (s *ScoreEngineService) DefaultScoringConfig() *ScoringConfig {
 		ID:          "default",
 		BaseFormula: "impact*probability",
 		WeightingFactors: map[string]float64{
-			"impact":       1.0,
-			"probability":  1.0,
-			"criticality":  1.0,
-			"trend":        0.0,
+			"impact":      1.0,
+			"probability": 1.0,
+			"criticality": 1.0,
+			"trend":       0.0,
 		},
 		RiskMatrixThresholds: map[string]int{
 			"low":      5,

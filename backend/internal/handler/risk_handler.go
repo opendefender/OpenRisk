@@ -188,6 +188,14 @@ func (h *RiskHandler) ListTransitions(c *fiber.Ctx) error {
 	return c.JSON(view)
 }
 
+// deref reads an optional string field as a plain one ("" when absent).
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 // quantify fills a risk's computed CRQ fields (ALE in XAF + USD, basis) from its
 // SLE/ARO (or the reference model). Safe on nil.
 func (h *RiskHandler) quantify(r *domain.Risk) {
@@ -209,6 +217,9 @@ type CreateRiskInput struct {
 	Tags        []string `json:"tags"`
 	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
 	Frameworks  []string `json:"frameworks"`
+	// CategoryID is the tenant's CONTROLLED classification. Optional — a risk
+	// stays creatable without one, exactly like the compliance mapping.
+	CategoryID *string `json:"category_id" validate:"omitempty,uuid4"`
 	// Ownership — responsable / exécutant / validateur, as picked in <UserPicker>.
 	// Embedded so the three keys sit at the top level of the payload.
 	domain.OwnershipPatch
@@ -235,6 +246,8 @@ type UpdateRiskInput struct {
 	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
 	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
 	Frameworks  []string `json:"frameworks" validate:"omitempty,dive,required"`
+	// Category is tri-state like ownership: absent leaves it, null clears it.
+	Category domain.NullableUUID `json:"category_id"`
 	// Ownership — tri-state: a key absent from the body leaves the slot alone,
 	// an explicit null unassigns it. Embedded so the three keys sit at the top
 	// level of the payload.
@@ -279,6 +292,11 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		createdBy = mwCtx.UserID
 	}
 
+	categoryID, err := parseOptionalUUID(deref(input.CategoryID))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
+
 	ucInput := risk.CreateRiskInput{
 		Title:       input.Title,
 		Description: input.Description,
@@ -287,6 +305,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
 		Ownership:   input.OwnershipPatch,
+		CategoryID:  categoryID,
 		CreatedBy:   createdBy,
 		SLEXAF:      input.SLEXAF,
 		ARO:         input.ARO,
@@ -416,6 +435,24 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 	if tag := c.Query("tag"); tag != "" {
 		query.Tags = []string{tag}
 	}
+	// Taxonomy facets: the CONTROLLED category, and the real compliance mapping.
+	// `framework` above still filters the frozen free-text column for old
+	// clients; `framework_id` is the one that means anything.
+	if cats := c.Query("category_id"); cats != "" {
+		for _, raw := range csvValues(cats) {
+			if id, err := uuid.Parse(raw); err == nil {
+				query.CategoryIDs = append(query.CategoryIDs, id)
+			}
+		}
+	}
+	if fw := c.Query("framework_id"); fw != "" {
+		if id, err := uuid.Parse(fw); err == nil {
+			query.FrameworkID = &id
+		}
+	}
+	if c.Query("unmapped") == "true" {
+		query.Unmapped = true
+	}
 
 	// Page & Limit
 	if pageStr := c.Query("page"); pageStr != "" {
@@ -517,6 +554,7 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		Tags:               input.Tags,
 		Frameworks:         input.Frameworks,
 		Ownership:          input.OwnershipPatch,
+		Category:           input.Category,
 		Actor:              actorID,
 		Locale:             c.Query("locale", "fr"),
 		SLEXAF:             input.SLEXAF,

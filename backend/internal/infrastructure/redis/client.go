@@ -22,9 +22,11 @@ type Client struct {
 
 // NewClient initialise le client Redis depuis les variables d'env.
 // Env vars:
-//   REDIS_URL (ex: redis://localhost:6379) — obligatoire
-//   REDIS_PASSWORD (optionnel)
-//   REDIS_DB (optionnel, défaut: 0)
+//
+//	REDIS_URL (ex: redis://localhost:6379) — obligatoire
+//	REDIS_PASSWORD (optionnel)
+//	REDIS_DB (optionnel, défaut: 0)
+//
 // Teste la connexion au démarrage (Ping).
 // Panic si connexion impossible (fail-fast au boot, pas en runtime).
 func NewClient(redisURL string) *Client {

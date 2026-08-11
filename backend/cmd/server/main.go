@@ -177,6 +177,11 @@ func main() {
 		// that is what keeps the rate limiter from leaking account existence.
 		&domain.PasswordResetToken{},
 		&domain.Risk{},
+		// Risk taxonomy (spec §3): the tenant's CONTROLLED category vocabulary and
+		// the risk↔compliance-control references. tags need no table — they are a
+		// free array on the risk, which is the whole point of the distinction.
+		&domain.RiskCategory{},
+		&domain.RiskControlMapping{},
 		// Smart Risk Calculation (spec §8) — per-tenant configurable weights for the
 		// eight-factor multifactor score. The smart-score columns themselves live on
 		// domain.Risk above. Additive; the classic Score Engine is untouched.
@@ -878,11 +883,16 @@ func main() {
 
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
+	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
 		WithActivation(activationRecorder).
 		WithOwnership(ownershipService)
-	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo)
-	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
+	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
+		WithMappings(riskControlMappingRepo).
+		WithOwnership(ownershipService)
+	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
+		WithMappings(riskControlMappingRepo).
+		WithOwnership(ownershipService)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).WithOwnership(ownershipService)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
@@ -919,6 +929,20 @@ func main() {
 	protected.Get("/risks",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskListGET(riskHandler.GetRisks))
+	// --- Risk taxonomy (spec §3): three separate concepts, three separate
+	// columns. tags stay a free array on the risk; categories are the tenant's
+	// CONTROLLED vocabulary; control mappings are references to real compliance
+	// controls (what the "Référentiel" column may render, and nothing else).
+	riskTaxonomyHandler := handlers.NewRiskTaxonomyHandler(
+		risk.NewCategoryUseCase(repository.NewGormRiskCategoryRepository(database.DB)),
+		risk.NewControlMappingUseCase(riskControlMappingRepo, riskRepo).
+			WithControls(repository.NewGormComplianceRepository(database.DB)),
+	)
+	// FIBER TRAP: the static path must be registered BEFORE /risks/:id, or
+	// "unmapped" is parsed as a uuid and 400s. Same trap as /compliance and
+	// /asset-dependencies.
+	protected.Get("/risks/unmapped",
+		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListUnmappedRisks)
 	protected.Get("/risks/:id",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
@@ -945,6 +969,25 @@ func main() {
 	// way. Read-only, so it rides the read permission.
 	protected.Get("/risks/:id/transitions", middleware.RequirePermission("risks:read"), riskHandler.ListTransitions)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
+
+	// A risk's references to compliance controls. Reading rides risks:read;
+	// writing rides risks:update, because mapping a risk IS editing the risk.
+	protected.Get("/risks/:id/control-mappings",
+		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListRiskMappings)
+	protected.Post("/risks/:id/control-mappings", riskUpdate, riskTaxonomyHandler.CreateRiskMapping)
+	protected.Delete("/risks/:id/control-mappings/:mappingId", riskUpdate, riskTaxonomyHandler.DeleteRiskMapping)
+
+	// The controlled category vocabulary. Any member may read it (the register
+	// renders it); only an admin curates it — a vocabulary anyone can extend is
+	// a tag list with extra steps.
+	protected.Get("/risk-categories",
+		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListCategories)
+	protected.Post("/risk-categories",
+		middleware.RequireRole("admin", "root"), riskTaxonomyHandler.CreateCategory)
+	protected.Patch("/risk-categories/:id",
+		middleware.RequireRole("admin", "root"), riskTaxonomyHandler.UpdateCategory)
+	protected.Delete("/risk-categories/:id",
+		middleware.RequireRole("admin", "root"), riskTaxonomyHandler.DeleteCategory)
 
 	// Mitigation Plans (CRUD). NOTE: this whole module previously used
 	// middleware.RequireRole ("writerRole"), which reads c.Locals("role") — a flat

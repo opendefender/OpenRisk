@@ -27,7 +27,11 @@ type CreateRiskInput struct {
 	// When no owner is supplied the creator becomes the owner: a risk nobody
 	// answers for is how a register rots, and the creator is the only defensible
 	// default at this point.
-	Ownership  domain.OwnershipPatch
+	Ownership domain.OwnershipPatch
+	// CategoryID points at the tenant's controlled vocabulary. Optional: a risk
+	// may be unclassified, and forcing a pick at creation only teaches people to
+	// choose the first entry.
+	CategoryID *uuid.UUID
 	Source     string // parsed into domain.RiskSource in Execute()
 	ExternalID string
 	CreatedBy  uuid.UUID // the authenticated user creating the risk
@@ -106,6 +110,7 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		Tags:           input.Tags,
 		Frameworks:     input.Frameworks,
 		Owner:          input.Owner,
+		CategoryID:     input.CategoryID,
 		Source:         source,
 		ExternalID:     input.ExternalID,
 		TenantID:       orgID,
