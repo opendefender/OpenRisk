@@ -384,10 +384,9 @@ func TestAvailableTransitions_ExposesBlockersRatherThanHidingThem(t *testing.T) 
 		t.Fatalf("going back to re-plan must stay available: %+v", back)
 	}
 
-	// Nothing forward is allowed, so the view still points at the natural next
-	// step and carries its reason — the stepper must have something to show.
+	// The view points at the NEAREST rung forward and carries its reason.
 	if view.Next == "" || view.BlockedReason == "" {
-		t.Fatalf("a fully blocked risk must still report its next step and why: %+v", view)
+		t.Fatalf("a blocked risk must still report its next step and why: %+v", view)
 	}
 }
 
@@ -410,6 +409,39 @@ func TestAvailableTransitions_AllowedWhenGuardsAreSatisfied(t *testing.T) {
 	}
 	if view.Next != domain.StateMitigated {
 		t.Fatalf("the natural next step from treatment is mitigated, got %q", view.Next)
+	}
+}
+
+// The "next step" must be the NEAREST rung forward, not the first one that
+// happens to be allowed.
+//
+// From TREATMENT_PLANNED, IN_TREATMENT is blocked on the mitigation guard while
+// CLOSED (early closure) is always allowed. Announcing "next: Clôturé" would
+// point the user at abandoning the risk and hide the actual blocker — which is
+// exactly what the first implementation did, visible the moment it was run.
+func TestAvailableTransitions_NextIsTheNearestRungNotTheFirstAllowedOne(t *testing.T) {
+	repo, tenant, id := newFixture(domain.StateTreatmentPlanned)
+	view, err := NewTransitionRiskStateUseCase(repo).
+		WithMitigations(&fakeInspector{plans: nil}). // no mitigation → in_treatment blocked
+		AvailableTransitions(context.Background(), tenant, id, "fr")
+	if err != nil {
+		t.Fatalf("AvailableTransitions: %v", err)
+	}
+	if view.Next != domain.StateInTreatment {
+		t.Fatalf("next = %q, want in_treatment (closed is further along the spine)", view.Next)
+	}
+	if view.BlockedReason == "" {
+		t.Fatal("the nearest step is blocked, so its reason must be surfaced")
+	}
+	// Early closure is still offered as an option — it is just not "next".
+	var sawClosed bool
+	for _, o := range view.Options {
+		if o.To == domain.StateClosed {
+			sawClosed = o.Allowed
+		}
+	}
+	if !sawClosed {
+		t.Fatal("early closure must remain available as an option")
 	}
 }
 

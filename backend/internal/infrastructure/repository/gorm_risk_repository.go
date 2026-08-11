@@ -58,6 +58,10 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Preload("Mitigations").
 		Preload("Assets").
+		// The controlled category is what the "Catégorie" column renders. Without
+		// this the column shipped dead: the row carried category_id but no name,
+		// so a classified risk read as unclassified.
+		Preload("Category").
 		First(&risk).Error
 
 	if err != nil {
@@ -208,6 +212,10 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		Limit(query.Limit).
 		Preload("Mitigations").
 		Preload("Assets").
+		// The controlled category is what the "Catégorie" column renders. Without
+		// this the column shipped dead: the row carried category_id but no name,
+		// so a classified risk read as unclassified.
+		Preload("Category").
 		Find(&risks).Error
 
 	if err != nil {

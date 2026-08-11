@@ -131,21 +131,28 @@ func (uc *TransitionRiskStateUseCase) AvailableTransitions(ctx context.Context, 
 			opt.Guard = guard
 		}
 		view.Options = append(view.Options, opt)
-		if opt.Allowed && opt.IsForward && view.Next == "" {
-			view.Next = target
-			view.NextLabel = opt.Label
-		}
 	}
-	// The natural next step, even when blocked, so the stepper can show it greyed
-	// out with its reason instead of showing nothing.
-	if view.Next == "" {
-		for _, opt := range view.Options {
-			if opt.IsForward {
-				view.Next = opt.To
-				view.NextLabel = opt.Label
-				view.BlockedReason = opt.Reason
-				break
-			}
+
+	// The "natural next step" is the NEAREST rung forward on the spine — blocked
+	// or not — never merely the first allowed one.
+	//
+	// Getting this wrong is visible: from TREATMENT_PLANNED the options are
+	// IN_TREATMENT (blocked on the mitigation guard) and CLOSED (early closure,
+	// always allowed). Picking the first *allowed* forward option made the
+	// stepper announce "next: Clôturé" and hide the blocker entirely — pointing
+	// the user at abandoning the risk instead of telling them a mitigation is
+	// missing. Nearest-first says IN_TREATMENT and surfaces its reason.
+	best := -1
+	for _, opt := range view.Options {
+		if !opt.IsForward {
+			continue
+		}
+		idx := opt.To.StepIndex()
+		if best == -1 || idx < best {
+			best = idx
+			view.Next = opt.To
+			view.NextLabel = opt.Label
+			view.BlockedReason = opt.Reason // empty when it is allowed
 		}
 	}
 	return view, nil

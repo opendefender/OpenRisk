@@ -98,6 +98,11 @@ func newLifecycleHarness(t *testing.T) *lifecycleHarness {
 		"order" INTEGER DEFAULT 0, due_date DATETIME,
 		created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 	);`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE risk_categories (
+		id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT, slug TEXT, description TEXT,
+		color TEXT, sort_order INTEGER, active BOOLEAN,
+		created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
+	);`).Error)
 	require.NoError(t, db.Exec(`CREATE TABLE approval_requests (
 		id TEXT PRIMARY KEY, tenant_id TEXT, workflow_id TEXT, workflow_name TEXT,
 		entity_type TEXT, entity_id TEXT, action TEXT, title TEXT, description TEXT,
@@ -233,6 +238,14 @@ func (h *lifecycleHarness) do(t *testing.T, method, path string, body interface{
 	return resp.StatusCode, out
 }
 
+// get re-reads the whole risk through the API.
+func (h *lifecycleHarness) get(t *testing.T) map[string]interface{} {
+	t.Helper()
+	code, body := h.do(t, http.MethodGet, "/api/v1/risks/"+h.riskID, nil)
+	require.Equal(t, http.StatusOK, code)
+	return body
+}
+
 // state re-reads the risk through the API, so the assertion is on what a client
 // would actually see.
 func (h *lifecycleHarness) state(t *testing.T) (string, string, string) {
@@ -272,11 +285,18 @@ func TestRiskLifecycle_EndToEnd_WithResidualAcceptance(t *testing.T) {
 	h := newLifecycleHarness(t)
 
 	// --- 1. Create --------------------------------------------------------
+	categoryID := uuid.New()
+	require.NoError(t, h.db.Exec(
+		`INSERT INTO risk_categories (id, tenant_id, name, slug, color, sort_order, active) VALUES (?, ?, ?, ?, ?, 0, 1)`,
+		categoryID, h.tenantID, "Cybersécurité", "cybersecurite", "critical").Error)
+
 	code, created := h.do(t, http.MethodPost, "/api/v1/risks", map[string]interface{}{
 		"title":       "Exposition du bucket S3 de production",
 		"description": "Bucket accessible publiquement, contenant des exports clients.",
 		"impact":      8.0,
 		"probability": 0.6,
+		"tags":        []string{"cloud", "production"},
+		"category_id": categoryID.String(),
 	})
 	require.Equal(t, http.StatusCreated, code, "creation must succeed: %v", created)
 	h.riskID, _ = created["id"].(string)
@@ -289,6 +309,19 @@ func TestRiskLifecycle_EndToEnd_WithResidualAcceptance(t *testing.T) {
 
 	// The creator becomes the owner: a risk nobody answers for is unactionable.
 	require.Equal(t, h.userID.String(), created["owner_id"], "the creator must own the risk by default")
+
+	// The controlled category comes back RESOLVED, not merely as an id: it is
+	// what the register's "Catégorie" column renders, and returning only the id
+	// made a classified risk read as unclassified. Found by running the app.
+	read := h.get(t)
+	category, ok := read["category"].(map[string]interface{})
+	require.True(t, ok, "the category relation must be preloaded: %v", read["category"])
+	require.Equal(t, "Cybersécurité", category["name"])
+
+	// …and the tags stay in their own field, never leaking into the compliance
+	// reference — the "étiquette affichée comme framework" bug.
+	require.Equal(t, []interface{}{"cloud", "production"}, read["tags"])
+	require.Empty(t, read["control_mappings"], "an unmapped risk has NO compliance reference, not a tag standing in for one")
 
 	// --- 2. Draft → Identified → Assessed → Treatment planned -------------
 	for _, to := range []string{"identified", "assessed", "treatment_planned"} {
