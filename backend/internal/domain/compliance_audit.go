@@ -71,9 +71,9 @@ type ComplianceAudit struct {
 	ID       uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
 
-	Title       string     `gorm:"size:255;not null" json:"title"`
-	FrameworkID *uuid.UUID `gorm:"type:uuid;index" json:"framework_id"` // nil = program-wide
-	Type        AuditType  `gorm:"type:varchar(24);not null;default:'internal'" json:"type"`
+	Title       string      `gorm:"size:255;not null" json:"title"`
+	FrameworkID *uuid.UUID  `gorm:"type:uuid;index" json:"framework_id"` // nil = program-wide
+	Type        AuditType   `gorm:"type:varchar(24);not null;default:'internal'" json:"type"`
 	Status      AuditStatus `gorm:"type:varchar(24);not null;default:'planned';index" json:"status"`
 
 	Auditor string `gorm:"size:255" json:"auditor"` // auditor name or firm
@@ -175,9 +175,14 @@ type RemediationPlan struct {
 	Priority RemediationPriority `gorm:"type:varchar(16);not null;default:'medium'" json:"priority"`
 	Status   RemediationStatus   `gorm:"type:varchar(24);not null;default:'open';index" json:"status"`
 
+	// Deprecated: superseded by Ownership.AssigneeID (backfilled by migration
+	// 0044). Kept so existing remediation filters keep answering.
 	AssignedTo  *uuid.UUID `gorm:"type:uuid;index" json:"assigned_to"`
 	DueDate     *time.Time `json:"due_date"`
 	CompletedAt *time.Time `json:"completed_at"`
+
+	// Ownership — responsable / exécutant / validateur.
+	Ownership `gorm:"embedded"`
 
 	CreatedBy *uuid.UUID `gorm:"type:uuid" json:"created_by"`
 
@@ -192,6 +197,9 @@ type RemediationPlan struct {
 }
 
 func (RemediationPlan) TableName() string { return "remediation_plans" }
+
+// OwnershipBlock implements OwnedEntity.
+func (r *RemediationPlan) OwnershipBlock() *Ownership { return &r.Ownership }
 
 // RemediationFilter narrows a remediation list query. Zero-value fields are
 // ignored (no filter on that dimension).

@@ -41,12 +41,12 @@ func (uc *CompleteSubActionUseCase) Execute(input CompleteSubActionInput) error 
 	if input.TenantID == uuid.Nil || input.SubActionID == uuid.Nil || input.CompletedBy == uuid.Nil {
 		return fmt.Errorf("tenant_id, sub_action_id, and completed_by are required")
 	}
-	
+
 	subaction, mitigation, err := uc.subactionRepo.GetByIDWithMitigation(input.TenantID.String(), input.SubActionID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Validate dependencies before completing
 	canComplete, err := uc.subactionRepo.CanComplete(input.TenantID.String(), input.SubActionID)
 	if err != nil {
@@ -55,7 +55,7 @@ func (uc *CompleteSubActionUseCase) Execute(input CompleteSubActionInput) error 
 	if !canComplete {
 		return domain.ErrConflict
 	}
-	
+
 	now := time.Now()
 	source := domain.CompletionManual
 	subaction.Completed = true
@@ -63,19 +63,19 @@ func (uc *CompleteSubActionUseCase) Execute(input CompleteSubActionInput) error 
 	subaction.CompletedBy = &input.CompletedBy
 	subaction.CompletedSource = &source
 	subaction.UpdatedAt = now
-	
+
 	if err := uc.subactionRepo.Update(input.TenantID.String(), subaction); err != nil {
 		return err
 	}
-	
+
 	// Recalculate progress
 	progress, err := uc.mitigationRepo.RecalculateProgress(input.TenantID.String(), mitigation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to recalculate progress: %w", err)
 	}
-	
+
 	// Emit event for progress change (handled by events publisher)
 	_ = progress // Progress event published separately via Redis
-	
+
 	return nil
 }

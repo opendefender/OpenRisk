@@ -18,7 +18,9 @@ type mockRuleRepo struct {
 	triggeredID uuid.UUID
 }
 
-func newMockRuleRepo() *mockRuleRepo { return &mockRuleRepo{rules: map[uuid.UUID]*domain.AutomationRule{}} }
+func newMockRuleRepo() *mockRuleRepo {
+	return &mockRuleRepo{rules: map[uuid.UUID]*domain.AutomationRule{}}
+}
 
 func (m *mockRuleRepo) add(r *domain.AutomationRule) { m.rules[r.ID] = r }
 
@@ -75,7 +77,9 @@ func (m *mockRuleRepo) RecordTriggered(_ context.Context, id, _ uuid.UUID, _ tim
 
 // ---- in-memory execution repo ----
 
-type mockExecRepo struct{ execs map[uuid.UUID]*domain.AutomationExecution }
+type mockExecRepo struct {
+	execs map[uuid.UUID]*domain.AutomationExecution
+}
 
 func newMockExecRepo() *mockExecRepo {
 	return &mockExecRepo{execs: map[uuid.UUID]*domain.AutomationExecution{}}
@@ -117,7 +121,9 @@ func (m *mockExecRepo) ListByRule(_ context.Context, ruleID, tenantID uuid.UUID,
 
 // ---- in-memory sla repo ----
 
-type mockSLARepo struct{ trackers map[uuid.UUID]*domain.SLATracker }
+type mockSLARepo struct {
+	trackers map[uuid.UUID]*domain.SLATracker
+}
 
 func newMockSLARepo() *mockSLARepo { return &mockSLARepo{trackers: map[uuid.UUID]*domain.SLATracker{}} }
 

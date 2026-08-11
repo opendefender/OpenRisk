@@ -28,8 +28,8 @@ func (m *mockAuditRepo) GetAuditByID(_ context.Context, _, _ uuid.UUID) (*domain
 func (m *mockAuditRepo) ListAudits(context.Context, uuid.UUID) ([]domain.ComplianceAudit, error) {
 	return nil, nil
 }
-func (m *mockAuditRepo) UpdateAudit(context.Context, *domain.ComplianceAudit) error   { return nil }
-func (m *mockAuditRepo) DeleteAudit(context.Context, uuid.UUID, uuid.UUID) error       { return nil }
+func (m *mockAuditRepo) UpdateAudit(context.Context, *domain.ComplianceAudit) error { return nil }
+func (m *mockAuditRepo) DeleteAudit(context.Context, uuid.UUID, uuid.UUID) error    { return nil }
 
 type mockRemediationRepo struct {
 	existing []domain.RemediationPlan
@@ -46,15 +46,21 @@ func (m *mockRemediationRepo) GetRemediationByID(context.Context, uuid.UUID, uui
 func (m *mockRemediationRepo) ListRemediations(context.Context, uuid.UUID, domain.RemediationFilter) ([]domain.RemediationPlan, error) {
 	return m.existing, nil
 }
-func (m *mockRemediationRepo) UpdateRemediation(context.Context, *domain.RemediationPlan) error { return nil }
-func (m *mockRemediationRepo) DeleteRemediation(context.Context, uuid.UUID, uuid.UUID) error    { return nil }
+func (m *mockRemediationRepo) UpdateRemediation(context.Context, *domain.RemediationPlan) error {
+	return nil
+}
+func (m *mockRemediationRepo) DeleteRemediation(context.Context, uuid.UUID, uuid.UUID) error {
+	return nil
+}
 
 // mockComplianceRepo stubs the whole port; only ListControlsByFramework carries data.
 type mockComplianceRepo struct {
 	controls []domain.ComplianceControl
 }
 
-func (m *mockComplianceRepo) CreateFramework(context.Context, *domain.ComplianceFramework) error { return nil }
+func (m *mockComplianceRepo) CreateFramework(context.Context, *domain.ComplianceFramework) error {
+	return nil
+}
 func (m *mockComplianceRepo) GetFrameworkByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceFramework, error) {
 	return nil, nil
 }
@@ -62,19 +68,25 @@ func (m *mockComplianceRepo) ListFrameworks(context.Context, uuid.UUID) ([]domai
 	return nil, nil
 }
 func (m *mockComplianceRepo) DeleteFramework(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (m *mockComplianceRepo) CreateControl(context.Context, *domain.ComplianceControl) error { return nil }
+func (m *mockComplianceRepo) CreateControl(context.Context, *domain.ComplianceControl) error {
+	return nil
+}
 func (m *mockComplianceRepo) GetControlByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceControl, error) {
 	return nil, nil
 }
 func (m *mockComplianceRepo) ListControlsByFramework(context.Context, uuid.UUID, uuid.UUID) ([]domain.ComplianceControl, error) {
 	return m.controls, nil
 }
-func (m *mockComplianceRepo) UpdateControl(context.Context, *domain.ComplianceControl) error { return nil }
-func (m *mockComplianceRepo) DeleteControl(context.Context, uuid.UUID, uuid.UUID) error       { return nil }
+func (m *mockComplianceRepo) UpdateControl(context.Context, *domain.ComplianceControl) error {
+	return nil
+}
+func (m *mockComplianceRepo) DeleteControl(context.Context, uuid.UUID, uuid.UUID) error { return nil }
 func (m *mockComplianceRepo) DeleteControlsByFramework(context.Context, uuid.UUID, uuid.UUID) (int64, error) {
 	return 0, nil
 }
-func (m *mockComplianceRepo) CreateEvidence(context.Context, *domain.ControlEvidence) error { return nil }
+func (m *mockComplianceRepo) CreateEvidence(context.Context, *domain.ControlEvidence) error {
+	return nil
+}
 func (m *mockComplianceRepo) GetEvidenceByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ControlEvidence, error) {
 	return nil, nil
 }

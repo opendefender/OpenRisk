@@ -95,10 +95,10 @@ type Result struct {
 	// Inherent is the exposure before any mitigation credit; Residual is what
 	// remains once applied mitigations are taken into account. Auditors ask for
 	// both, and a product that shows only one is answering half the question.
-	Inherent         float64 `json:"inherent"`
-	InherentBand     Band    `json:"inherent_band"`
-	Residual         float64 `json:"residual"`
-	ResidualBand     Band    `json:"residual_band"`
+	Inherent     float64 `json:"inherent"`
+	InherentBand Band    `json:"inherent_band"`
+	Residual     float64 `json:"residual"`
+	ResidualBand Band    `json:"residual_band"`
 	// MitigationEffectiveness ∈ [0,1] is the reduction applied to get Residual.
 	MitigationEffectiveness float64 `json:"mitigation_effectiveness"`
 

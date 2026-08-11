@@ -163,6 +163,15 @@ func (h *ComplianceHandler) GetFramework(c *fiber.Ctx) error {
 
 // ListFrameworks godoc
 func (h *ComplianceHandler) ListFrameworks(c *fiber.Ctx) error {
+	// ?imported=true narrows to frameworks that actually carry controls — what
+	// the risk form's compliance selector needs. Anything else is not mappable.
+	if c.Query("imported") == "true" {
+		frameworks, err := h.listFrameworksUC.ExecuteImported(c.UserContext(), tenantID(c))
+		if err != nil {
+			return writeAppError(c, err)
+		}
+		return c.JSON(frameworks)
+	}
 	frameworks, err := h.listFrameworksUC.Execute(c.UserContext(), tenantID(c))
 	if err != nil {
 		return writeAppError(c, err)

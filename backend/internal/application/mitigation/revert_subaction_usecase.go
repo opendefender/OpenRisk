@@ -40,17 +40,17 @@ func (uc *RevertSubActionUseCase) Execute(input RevertSubActionInput) error {
 	if input.TenantID == uuid.Nil || input.SubActionID == uuid.Nil || input.RevertedBy == uuid.Nil {
 		return fmt.Errorf("tenant_id, sub_action_id, and reverted_by are required")
 	}
-	
+
 	subaction, mitigation, err := uc.subactionRepo.GetByIDWithMitigation(input.TenantID.String(), input.SubActionID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Can only revert if currently completed
 	if !subaction.Completed {
 		return fmt.Errorf("subaction is not completed, cannot revert")
 	}
-	
+
 	now := time.Now()
 	subaction.Completed = false
 	subaction.CompletedAt = nil
@@ -58,19 +58,19 @@ func (uc *RevertSubActionUseCase) Execute(input RevertSubActionInput) error {
 	subaction.CompletedSource = nil
 	subaction.AutoDetectedAt = nil // Clear auto-detection marker
 	subaction.UpdatedAt = now
-	
+
 	if err := uc.subactionRepo.Update(input.TenantID.String(), subaction); err != nil {
 		return err
 	}
-	
+
 	// Recalculate progress (will go down from 100)
 	progress, err := uc.mitigationRepo.RecalculateProgress(input.TenantID.String(), mitigation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to recalculate progress: %w", err)
 	}
-	
+
 	// Event mitigation.reverted published separately via Redis
 	_ = progress
-	
+
 	return nil
 }

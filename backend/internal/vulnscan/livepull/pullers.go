@@ -140,8 +140,8 @@ type qualysXML struct {
 	Response struct {
 		HostList struct {
 			Hosts []struct {
-				IP        string `xml:"IP"`
-				DNS       string `xml:"DNS"`
+				IP         string `xml:"IP"`
+				DNS        string `xml:"DNS"`
 				Detections struct {
 					Detection []struct {
 						QID      string `xml:"QID"`

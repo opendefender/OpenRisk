@@ -6,6 +6,8 @@
 // open/in_progress/…) and the criticality/level fields into the design's tokens.
 
 import type { Risk, RiskPhase } from '../../hooks/useRiskStore';
+import type { RiskControlMapping } from '../../services/taxonomyService';
+import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import type { Criticality } from '../../shared/riskColors';
 import type { RiskStatus } from '../../shared/ui';
 
@@ -19,7 +21,15 @@ export interface UiRisk {
   impact: number;
   ac: number;
   asset: string;
+  /** Free-text labels → colonne « Étiquettes ». */
+  tags: string[];
+  /** The controlled vocabulary → colonne « Catégorie ». Empty when unclassified. */
+  categoryName: string;
+  categoryColor: string;
+  /** Real compliance references → colonne « Référentiel ». Empty when unmapped. */
+  mappings: RiskControlMapping[];
   fw: string;
+  fwHref: string;
   status: RiskStatus;
   phase: RiskPhase;
   owner: string;
@@ -78,7 +88,11 @@ export function relTime(iso?: string, lang: 'fr' | 'en' = 'fr'): string {
 
 export function mapRisk(r: Risk, lang: 'fr' | 'en'): UiRisk {
   const rr = r as Risk & { name?: string; owner?: string; asset_id?: string; updated_at?: string };
-  const ownerName = rr.owner || r.assigned_to || '';
+  // The owner is now a real user id resolved server-side; the legacy free-text
+  // fields are only a fallback for rows written before migration 0044.
+  const ownerName = r.owner_email || r.assignee_email || rr.owner || r.assigned_to || '';
+  const mappings = r.control_mappings ?? [];
+  const primary = mappings[0];
   return {
     id: r.id,
     raw: r,
@@ -89,7 +103,21 @@ export function mapRisk(r: Risk, lang: 'fr' | 'en'): UiRisk {
     impact: r.impact ?? 0,
     ac: (r as { asset_criticality?: number }).asset_criticality ?? 1,
     asset: r.assets?.[0]?.name ?? '—',
-    fw: r.frameworks?.[0] ?? r.tags?.[0] ?? '—',
+    tags: r.tags ?? [],
+    categoryName: r.category?.name ?? '',
+    categoryColor: r.category?.color ?? 'neutral',
+    mappings,
+    // The "Référentiel" column renders a REAL reference or nothing at all.
+    //
+    // It used to read `frameworks[0] ?? tags[0]`, so a user's free-text label was
+    // rendered with a framework badge whenever the (also free-text) frameworks
+    // array was empty. Both halves of that were wrong: a tag is not a framework,
+    // and neither was the string in `frameworks`, which came from a hard-coded
+    // dropdown that never consulted the tenant's imported frameworks. An empty
+    // cell says "not mapped", which is true; the old fallback said "ISO 27001"
+    // on the strength of a label somebody typed.
+    fw: primary ? mappingLabel(primary) : '—',
+    fwHref: primary ? mappingHref(primary) : '',
     status: toRiskStatus(r.status),
     phase: (r.lifecycle_phase ?? 'identified'),
     owner: initialsOf(ownerName),

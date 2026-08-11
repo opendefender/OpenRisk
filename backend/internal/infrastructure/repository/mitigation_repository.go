@@ -122,6 +122,14 @@ func (r *GormMitigationRepository) List(tenantID string, filters map[string]inte
 	if riskID, ok := filters["risk_id"]; ok {
 		query = query.Where("risk_id = ?", riskID)
 	}
+	// "Mes mitigations": any of the three accountability slots. The legacy jsonb
+	// array is OR'd in so rows assigned before migration 0044 still answer.
+	if user, ok := filters["involved_user"]; ok {
+		query = query.Where(
+			"(owner_id = ? OR assignee_id = ? OR reviewer_id = ? OR assigned_to @> ?)",
+			user, user, user, fmt.Sprintf(`["%v"]`, user),
+		)
+	}
 
 	result := query.Order("created_at DESC").Find(&mitigations)
 
@@ -180,40 +188,62 @@ func (r *GormMitigationRepository) ListByRiskID(tenantID string, riskID uuid.UUI
 	return r.List(tenantID, map[string]interface{}{"risk_id": riskID})
 }
 
-// RecalculateProgress calculates progress from subactions (completed / total non-deleted)
+// RecalculateProgress recomputes a plan's progress from its sub-actions and
+// persists it. This is the ONLY writer of `progress`: no endpoint accepts the
+// field, so the bar and the checklist cannot disagree.
+//
+// Previously this returned 0 for a plan with no sub-actions regardless of its
+// status — which is exactly the reported "progression bloquée à 0 %": a plan
+// somebody marked DONE still read 0 %. The rule now lives in
+// domain.ComputeMitigationProgress, is pure, and is tested there.
+//
+// Tenant-scoped: the UPDATE carries tenant_id, so a mitigation id from another
+// organisation touches no rows.
 func (r *GormMitigationRepository) RecalculateProgress(tenantID string, mitigationID uuid.UUID) (int, error) {
-	var total int64
-	var completed int64
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return 0, fmt.Errorf("invalid tenant_id: %w", err)
+	}
 
-	// Count total non-deleted subactions
+	var m domain.Mitigation
+	if err := r.db.
+		Where("id = ? AND tenant_id = ? AND deleted_at IS NULL", mitigationID, tenantUUID).
+		First(&m).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, domain.NewNotFoundError("mitigation", mitigationID)
+		}
+		return 0, err
+	}
+
+	var total, completed int64
 	r.db.Model(&domain.MitigationSubAction{}).
 		Where("mitigation_id = ? AND deleted_at IS NULL", mitigationID).
 		Count(&total)
-
-	if total == 0 {
-		// No subactions yet, return 0 or 100 depending on business logic
-		// Here: 0 for not started
-		return 0, nil
+	if total > 0 {
+		r.db.Model(&domain.MitigationSubAction{}).
+			Where("mitigation_id = ? AND deleted_at IS NULL AND completed = ?", mitigationID, true).
+			Count(&completed)
 	}
 
-	// Count completed subactions
-	r.db.Model(&domain.MitigationSubAction{}).
-		Where("mitigation_id = ? AND deleted_at IS NULL AND completed = ?", mitigationID, true).
-		Count(&completed)
+	progress := domain.ComputeMitigationProgress(m.Status, int(total), int(completed))
 
-	progress := int((completed * 100) / total)
-
-	// Update mitigation progress
-	m := &domain.Mitigation{ID: mitigationID}
-	newStatus := domain.MitigationInProgress
-	if progress == 100 {
-		newStatus = domain.MitigationReview
+	updates := map[string]interface{}{"progress": progress}
+	// Advance the status when the checklist says the work is done, so the board
+	// column and the bar agree. The plan lands in REVIEW rather than DONE: a
+	// human still signs it off, and the risk lifecycle's MITIGATED guard reads
+	// the sub-actions directly either way.
+	if total > 0 && progress == 100 &&
+		m.Status != domain.MitigationDone && m.Status != domain.MitigationCancelled {
+		updates["status"] = domain.MitigationReview
+	} else if total > 0 && progress > 0 && m.Status == domain.MitigationPlanned {
+		updates["status"] = domain.MitigationInProgress
 	}
 
-	r.db.Model(m).Updates(map[string]interface{}{
-		"progress": progress,
-		"status":   newStatus,
-	})
+	if err := r.db.Model(&domain.Mitigation{}).
+		Where("id = ? AND tenant_id = ?", mitigationID, tenantUUID).
+		Updates(updates).Error; err != nil {
+		return 0, err
+	}
 
 	return progress, nil
 }

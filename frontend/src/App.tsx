@@ -42,6 +42,7 @@ const SettingsScreen = lazy(() => import('./features/settings/SettingsScreen').t
 const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const ImportRisksPage = lazy(() => import('./features/risks/ImportRisksPage').then(m => ({ default: m.ImportRisksPage })));
 const RiskRegisterPage = lazy(() => import('./features/risks/RiskRegisterPage').then(m => ({ default: m.RiskRegisterPage })));
+const UnmappedRisksPage = lazy(() => import('./features/risks/UnmappedRisksPage').then(m => ({ default: m.UnmappedRisksPage })));
 const RiskWeightsSettings = lazy(() => import('./features/risks/RiskWeightsSettings').then(m => ({ default: m.RiskWeightsSettings })));
 const VulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/VulnerabilitiesPage').then(m => ({ default: m.VulnerabilitiesPage })));
 const MitigationsBoard = lazy(() => import('./features/mitigations/MitigationsBoard').then(m => ({ default: m.MitigationsBoard })));
@@ -305,6 +306,9 @@ function App() {
           {/* ---------------- Risks ---------------- */}
           <Route path="risks" element={<RiskRegisterPage />} />
           <Route path="risks/import" element={<ImportRisksPage />} />
+          {/* The compliance-mapping backlog. Mapping stays optional at creation;
+              this is where it gets caught up. */}
+          <Route path="risks/unmapped" element={<UnmappedRisksPage />} />
           <Route path="risks/weighting" element={<RiskWeightsSettings />} />
           <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
           {/* Mitigations sit under Risks: a mitigation exists only to reduce a

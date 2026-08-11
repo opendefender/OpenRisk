@@ -31,7 +31,9 @@ type CreateAuditInput struct {
 	ScheduledEnd   *time.Time
 }
 
-type CreateAuditUseCase struct{ repo domain.ComplianceAuditRepository }
+type CreateAuditUseCase struct {
+	repo domain.ComplianceAuditRepository
+}
 
 func NewCreateAuditUseCase(repo domain.ComplianceAuditRepository) *CreateAuditUseCase {
 	return &CreateAuditUseCase{repo: repo}
@@ -69,7 +71,9 @@ func (uc *CreateAuditUseCase) Execute(ctx context.Context, tenantID, createdBy u
 
 // -------------------- List --------------------
 
-type ListAuditsUseCase struct{ repo domain.ComplianceAuditRepository }
+type ListAuditsUseCase struct {
+	repo domain.ComplianceAuditRepository
+}
 
 func NewListAuditsUseCase(repo domain.ComplianceAuditRepository) *ListAuditsUseCase {
 	return &ListAuditsUseCase{repo: repo}
@@ -81,7 +85,9 @@ func (uc *ListAuditsUseCase) Execute(ctx context.Context, tenantID uuid.UUID) ([
 
 // -------------------- Get --------------------
 
-type GetAuditUseCase struct{ repo domain.ComplianceAuditRepository }
+type GetAuditUseCase struct {
+	repo domain.ComplianceAuditRepository
+}
 
 func NewGetAuditUseCase(repo domain.ComplianceAuditRepository) *GetAuditUseCase {
 	return &GetAuditUseCase{repo: repo}
@@ -116,7 +122,9 @@ type UpdateAuditInput struct {
 	ScheduledEnd    *time.Time
 }
 
-type UpdateAuditUseCase struct{ repo domain.ComplianceAuditRepository }
+type UpdateAuditUseCase struct {
+	repo domain.ComplianceAuditRepository
+}
 
 func NewUpdateAuditUseCase(repo domain.ComplianceAuditRepository) *UpdateAuditUseCase {
 	return &UpdateAuditUseCase{repo: repo}
@@ -192,7 +200,9 @@ func (uc *UpdateAuditUseCase) Execute(ctx context.Context, tenantID, id uuid.UUI
 
 // -------------------- Delete --------------------
 
-type DeleteAuditUseCase struct{ repo domain.ComplianceAuditRepository }
+type DeleteAuditUseCase struct {
+	repo domain.ComplianceAuditRepository
+}
 
 func NewDeleteAuditUseCase(repo domain.ComplianceAuditRepository) *DeleteAuditUseCase {
 	return &DeleteAuditUseCase{repo: repo}

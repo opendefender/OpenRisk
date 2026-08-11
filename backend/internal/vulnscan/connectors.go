@@ -11,8 +11,8 @@ import "github.com/opendefender/openrisk/internal/domain"
 type ConnectorInfo struct {
 	Source   domain.VulnSource `json:"source"`
 	Label    string            `json:"label"`
-	Category string            `json:"category"` // network_scanner | edr | cloud
-	Ingest   bool              `json:"ingest"`   // findings can be imported/normalised
+	Category string            `json:"category"`  // network_scanner | edr | cloud
+	Ingest   bool              `json:"ingest"`    // findings can be imported/normalised
 	LivePull bool              `json:"live_pull"` // API polling implemented (vs import-only)
 	Notes    string            `json:"notes"`
 }

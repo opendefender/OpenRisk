@@ -22,8 +22,8 @@ const (
 	NotificationTypeRiskResolved       NotificationType = "risk_resolved"
 	NotificationTypeScanComplete       NotificationType = "scan_complete"
 	NotificationTypeRiskReview         NotificationType = "risk_review"
-	NotificationTypeAutomation         NotificationType = "automation"     // SOAR engine alert (spec §10)
-	NotificationTypeSLABreach          NotificationType = "sla_breach"      // SLA escalation notice
+	NotificationTypeAutomation         NotificationType = "automation" // SOAR engine alert (spec §10)
+	NotificationTypeSLABreach          NotificationType = "sla_breach" // SLA escalation notice
 )
 
 const (

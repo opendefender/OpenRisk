@@ -64,7 +64,8 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 		CREATE TABLE control_evidences (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, control_id TEXT NOT NULL,
 			filename TEXT NOT NULL DEFAULT '', url TEXT NOT NULL DEFAULT '', description TEXT,
-			uploaded_by TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
+			uploaded_by TEXT, owner_id TEXT, assignee_id TEXT, reviewer_id TEXT,
+			created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
 	require.NoError(t, db.Exec(`

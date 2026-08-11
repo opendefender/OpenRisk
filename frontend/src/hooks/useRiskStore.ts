@@ -6,6 +6,8 @@
 import { create } from 'zustand';
 import { api } from '../lib/api';
 import type { Asset } from './useAssetStore';
+import type { RiskControlMapping } from '../services/taxonomyService';
+import type { RiskState } from '../features/risks/useLifecycle';
 
 export interface Mitigation {
   id: string;
@@ -15,7 +17,8 @@ export interface Mitigation {
   assignee?: string;
 }
 
-// The six ISO 31000 lifecycle phases surfaced in the register's "Cycle de vie" stepper.
+// The six ISO 31000 lifecycle phases. DERIVED server-side from lifecycle_state
+// and kept only so existing filters and pills keep working — nothing writes them.
 export type RiskPhase = 'identified' | 'analyzed' | 'evaluated' | 'treated' | 'monitored' | 'closed';
 
 export interface Risk {
@@ -26,16 +29,42 @@ export interface Risk {
   impact: number;
   probability: number;
   status: string;
+  // --- Classification: three separate concepts (see services/taxonomyService).
+  /** Free text, user-authored → colonne « Étiquettes ». */
   tags: string[];
+  /** The tenant's CONTROLLED vocabulary → colonne « Catégorie ». */
+  category_id?: string | null;
+  category?: { id: string; name: string; slug: string; color: string } | null;
+  /** Real compliance references → colonne « Référentiel ». */
+  control_mappings?: RiskControlMapping[];
   assets?: Asset[]; // Important pour l'association Risk-Asset
+  /** @deprecated free-text framework names, frozen by migration 0046. */
   frameworks?: string[];
+  // --- Ownership (migration 0044): responsable / exécutant / validateur.
+  owner_id?: string | null;
+  assignee_id?: string | null;
+  reviewer_id?: string | null;
+  owner_email?: string;
+  assignee_email?: string;
+  reviewer_email?: string;
+  /** @deprecated superseded by assignee_id. */
   assigned_to?: string;
   source: string; // Important pour l'étape d'intégration (THEHIVE, etc.)
   mitigations?: Mitigation[]; // Important pour le drawer de détails
+  /**
+   * Server-computed count of this risk's mitigation plans. The register and the
+   * drawer derive "Créer une mitigation" vs "Voir les mitigations (n)" from it,
+   * so the button reflects what EXISTS rather than what happened in this
+   * session — the previous version reverted to "Créer" on every reload.
+   */
+  mitigations_count?: number;
   created_at?: string;
   updated_at?: string;
   level?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  // ISO 31000 lifecycle phase (orthogonal to status).
+  // The single canonical lifecycle. status and lifecycle_phase are derived from
+  // it server-side; this is the one that means anything.
+  lifecycle_state?: RiskState;
+  /** @deprecated derived from lifecycle_state. */
   lifecycle_phase?: RiskPhase;
   // Cyber Risk Quantification (CRQ). Inputs in XAF; ALE returned in XAF + USD.
   sle_xaf?: number | null;

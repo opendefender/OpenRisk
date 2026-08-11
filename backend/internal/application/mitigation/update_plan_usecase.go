@@ -6,6 +6,7 @@
 package mitigation
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -17,10 +18,17 @@ import (
 // UpdateMitigationPlanUseCase updates a mitigation plan
 type UpdateMitigationPlanUseCase struct {
 	mitigationRepo repository.MitigationRepository
+	ownership      OwnershipManager
 }
 
 func NewUpdateMitigationPlanUseCase(mitigationRepo repository.MitigationRepository) *UpdateMitigationPlanUseCase {
 	return &UpdateMitigationPlanUseCase{mitigationRepo: mitigationRepo}
+}
+
+// WithOwnership attaches the optional ownership manager. Nil-safe.
+func (uc *UpdateMitigationPlanUseCase) WithOwnership(m OwnershipManager) *UpdateMitigationPlanUseCase {
+	uc.ownership = m
+	return uc
 }
 
 type UpdateMitigationPlanInput struct {
@@ -32,6 +40,12 @@ type UpdateMitigationPlanInput struct {
 	Priority    *domain.MitigationPriority
 	AssignedTo  *domain.UUIDArray
 	DueDate     *time.Time
+	// Ownership is the tri-state patch of responsable / exécutant / validateur.
+	Ownership domain.OwnershipPatch
+	// Actor is the authenticated user, so nobody is notified of assigning
+	// something to themselves.
+	Actor  uuid.UUID
+	Locale string
 }
 
 // validMitigationStatus reports whether s is a known lifecycle status.
@@ -50,12 +64,12 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 	if input.TenantID == uuid.Nil || input.PlanID == uuid.Nil {
 		return fmt.Errorf("tenant_id and plan_id are required")
 	}
-	
+
 	mitigation, err := uc.mitigationRepo.GetByID(input.TenantID.String(), input.PlanID)
 	if err != nil {
 		return err
 	}
-	
+
 	if input.Title != nil {
 		mitigation.Title = *input.Title
 	}
@@ -67,13 +81,9 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 			return fmt.Errorf("invalid status: %s", *input.Status)
 		}
 		mitigation.Status = *input.Status
-		// Keep the coarse progress in sync with the terminal states so the board
-		// bar and the status agree (sub-actions still drive intermediate values).
-		if *input.Status == domain.MitigationDone {
-			mitigation.Progress = 100
-		} else if *input.Status == domain.MitigationPlanned {
-			mitigation.Progress = 0
-		}
+		// Progress is NOT set here. It is derived from the sub-actions (or, with
+		// no sub-actions, from this very status) by RecalculateProgress below.
+		// Writing it here is what let the bar and the checklist disagree.
 	}
 	if input.Priority != nil {
 		mitigation.Priority = *input.Priority
@@ -82,10 +92,48 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 		mitigation.AssignedTo = *input.AssignedTo
 	}
 	if input.DueDate != nil {
+		// A moved deadline restarts the D-7 / D-1 schedule: a postponed plan
+		// should be nudged again, not stay silent because the old date's
+		// reminders were already sent.
+		if mitigation.DueDate == nil || !mitigation.DueDate.Equal(*input.DueDate) {
+			mitigation.ClearReminders()
+		}
 		mitigation.DueDate = input.DueDate
 	}
-	
+
+	changes, err := applyOwnership(context.Background(), uc.ownership, input.TenantID, &mitigation.Ownership, input.Ownership, input.Actor)
+	if err != nil {
+		return err
+	}
+	// Mirror onto the legacy jsonb array so the Kanban's existing avatar strip
+	// keeps rendering the person the picker just chose.
+	if input.Ownership.Assignee.Present {
+		if mitigation.AssigneeID != nil {
+			mitigation.AssignedTo = domain.UUIDArray{*mitigation.AssigneeID}
+		} else {
+			mitigation.AssignedTo = domain.UUIDArray{}
+		}
+	}
+
 	mitigation.UpdatedAt = time.Now()
-	
-	return uc.mitigationRepo.Update(input.TenantID.String(), mitigation)
+
+	if err := uc.mitigationRepo.Update(input.TenantID.String(), mitigation); err != nil {
+		return err
+	}
+
+	// Recompute server-side after every mutation. The client never supplies
+	// progress, and never gets to.
+	if _, err := uc.mitigationRepo.RecalculateProgress(input.TenantID.String(), mitigation.ID); err != nil {
+		return fmt.Errorf("failed to recalculate progress: %w", err)
+	}
+
+	if uc.ownership != nil && len(changes) > 0 {
+		uc.ownership.Notify(context.Background(), input.TenantID, changes, domain.OwnershipSubject{
+			ResourceType: "mitigation",
+			ResourceID:   mitigation.ID,
+			Title:        mitigation.Title,
+			Locale:       input.Locale,
+		})
+	}
+	return nil
 }

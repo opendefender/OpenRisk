@@ -58,6 +58,10 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Preload("Mitigations").
 		Preload("Assets").
+		// The controlled category is what the "Catégorie" column renders. Without
+		// this the column shipped dead: the row carried category_id but no name,
+		// so a classified risk read as unclassified.
+		Preload("Category").
 		First(&risk).Error
 
 	if err != nil {
@@ -66,6 +70,7 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 		}
 		return nil, fmt.Errorf("failed to get risk: %w", err)
 	}
+	risk.CountMitigations()
 	return &risk, nil
 }
 
@@ -121,14 +126,50 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		db = db.Where("asset_id = ?", *query.AssetID)
 	}
 
-	// Assigned to filter
+	// Assigned to filter. The legacy `assigned_to` column and the new
+	// `assignee_id` slot are OR'd: a row assigned before migration 0044 through
+	// the old column must still answer this facet.
 	if query.AssignedTo != nil {
-		db = db.Where("assigned_to = ?", *query.AssignedTo)
+		db = db.Where("(assigned_to = ? OR assignee_id = ?)", *query.AssignedTo, *query.AssignedTo)
 	}
 
-	// Tags filter (OR condition)
+	// "Mes risques" — any of the three accountability slots. This is the whole
+	// point of splitting them: a single filter can now mean "anything I answer
+	// for, work on, or must validate".
+	if query.InvolvedUser != nil {
+		u := *query.InvolvedUser
+		db = db.Where("(owner_id = ? OR assignee_id = ? OR reviewer_id = ? OR assigned_to = ?)", u, u, u, u)
+	}
+	if query.OwnedBy != nil {
+		db = db.Where("owner_id = ?", *query.OwnedBy)
+	}
+	if query.ReviewedBy != nil {
+		db = db.Where("reviewer_id = ?", *query.ReviewedBy)
+	}
+
+	// Tags filter (OR condition) — free text, unrelated to categories.
 	if len(query.Tags) > 0 {
 		db = db.Where("tags && ?", pq.Array(query.Tags))
+	}
+
+	// Category filter — the CONTROLLED vocabulary.
+	if len(query.CategoryIDs) > 0 {
+		db = db.Where("category_id IN ?", query.CategoryIDs)
+	}
+
+	// Compliance filters run against the real mappings, never against the frozen
+	// free-text `frameworks` column.
+	if query.FrameworkID != nil {
+		db = db.Where(`EXISTS (
+			SELECT 1 FROM risk_control_mappings m
+			WHERE m.risk_id = risks.id AND m.tenant_id = risks.tenant_id
+			  AND m.framework_id = ? AND m.deleted_at IS NULL)`, *query.FrameworkID)
+	}
+	if query.Unmapped {
+		db = db.Where(`NOT EXISTS (
+			SELECT 1 FROM risk_control_mappings m
+			WHERE m.risk_id = risks.id AND m.tenant_id = risks.tenant_id
+			  AND m.deleted_at IS NULL)`)
 	}
 
 	// Date range filter
@@ -171,10 +212,17 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		Limit(query.Limit).
 		Preload("Mitigations").
 		Preload("Assets").
+		// The controlled category is what the "Catégorie" column renders. Without
+		// this the column shipped dead: the row carried category_id but no name,
+		// so a classified risk read as unclassified.
+		Preload("Category").
 		Find(&risks).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list risks: %w", err)
+	}
+	for i := range risks {
+		risks[i].CountMitigations()
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(query.Limit)))

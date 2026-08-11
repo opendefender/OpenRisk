@@ -41,10 +41,19 @@ func NewAssistantQueryUseCase(assistant llm.Assistant) *AssistantQueryUseCase {
 	return &AssistantQueryUseCase{assistant: assistant}
 }
 
-func (uc *AssistantQueryUseCase) WithRisks(r RiskLister) *AssistantQueryUseCase        { uc.risks = r; return uc }
-func (uc *AssistantQueryUseCase) WithCompliance(c ComplianceReader) *AssistantQueryUseCase { uc.compliance = c; return uc }
-func (uc *AssistantQueryUseCase) WithVulns(v VulnLister) *AssistantQueryUseCase         { uc.vulns = v; return uc }
-func (uc *AssistantQueryUseCase) WithOrgs(o OrgLookup) *AssistantQueryUseCase           { uc.orgs = o; return uc }
+func (uc *AssistantQueryUseCase) WithRisks(r RiskLister) *AssistantQueryUseCase {
+	uc.risks = r
+	return uc
+}
+func (uc *AssistantQueryUseCase) WithCompliance(c ComplianceReader) *AssistantQueryUseCase {
+	uc.compliance = c
+	return uc
+}
+func (uc *AssistantQueryUseCase) WithVulns(v VulnLister) *AssistantQueryUseCase {
+	uc.vulns = v
+	return uc
+}
+func (uc *AssistantQueryUseCase) WithOrgs(o OrgLookup) *AssistantQueryUseCase { uc.orgs = o; return uc }
 
 // QueryInput is the user's turn plus prior conversation.
 type QueryInput struct {

@@ -24,16 +24,24 @@ type Incident struct {
 	Source         string         `json:"source"`                   // internal, external, third_party
 	ExternalID     string         `gorm:"index" json:"external_id"` // external system ref (TheHive, OpenCTI, etc)
 	ReportedBy     string         `json:"reported_by"`              // user who reported
-	AssignedTo     string         `json:"assigned_to"`              // assigned team member
+	AssignedTo     string         `json:"assigned_to"`              // Deprecated: free-text member, superseded by Ownership.AssigneeID
 	RiskID         *uint          `gorm:"index" json:"risk_id"`     // linked risk
 	ImpactedAssets datatypes.JSON `gorm:"type:jsonb" json:"impacted_assets"`
 	Timeline       datatypes.JSON `gorm:"type:jsonb" json:"timeline"` // array of events
 	Resolution     string         `gorm:"type:text" json:"resolution"`
 	ResolvedAt     *time.Time     `json:"resolved_at"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+
+	// Ownership — responsable / exécutant / validateur. Same embedded block as
+	// Risk, Mitigation, RemediationPlan and ControlEvidence.
+	Ownership `gorm:"embedded"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
+
+// OwnershipBlock implements OwnedEntity.
+func (i *Incident) OwnershipBlock() *Ownership { return &i.Ownership }
 
 // IncidentTimeline represents an event in incident timeline
 type IncidentTimeline struct {

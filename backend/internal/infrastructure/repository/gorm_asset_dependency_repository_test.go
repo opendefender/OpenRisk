@@ -96,9 +96,9 @@ func TestDepRepo_DeleteByAsset(t *testing.T) {
 	ctx := context.Background()
 	tenant := uuid.New()
 	hub, a, b := uuid.New(), uuid.New(), uuid.New()
-	require.NoError(t, repo.Create(ctx, newDep(tenant, hub, a, domain.DepDependsOn)))   // hub → a
-	require.NoError(t, repo.Create(ctx, newDep(tenant, b, hub, domain.DepConnectsTo)))  // b → hub (incoming)
-	require.NoError(t, repo.Create(ctx, newDep(tenant, a, b, domain.DepRunsOn)))        // unrelated to hub
+	require.NoError(t, repo.Create(ctx, newDep(tenant, hub, a, domain.DepDependsOn)))  // hub → a
+	require.NoError(t, repo.Create(ctx, newDep(tenant, b, hub, domain.DepConnectsTo))) // b → hub (incoming)
+	require.NoError(t, repo.Create(ctx, newDep(tenant, a, b, domain.DepRunsOn)))       // unrelated to hub
 
 	require.NoError(t, repo.DeleteByAsset(ctx, hub, tenant))
 
@@ -113,7 +113,7 @@ func TestDepRepo_ListByAsset_BothDirections(t *testing.T) {
 	ctx := context.Background()
 	tenant := uuid.New()
 	x, y, z := uuid.New(), uuid.New(), uuid.New()
-	require.NoError(t, repo.Create(ctx, newDep(tenant, x, y, domain.DepDependsOn))) // x → y
+	require.NoError(t, repo.Create(ctx, newDep(tenant, x, y, domain.DepDependsOn)))  // x → y
 	require.NoError(t, repo.Create(ctx, newDep(tenant, z, x, domain.DepConnectsTo))) // z → x
 
 	got, err := repo.ListByAsset(ctx, x, tenant)

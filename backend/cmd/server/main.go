@@ -36,6 +36,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
+	"github.com/opendefender/openrisk/internal/application/ownership"
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -176,6 +177,11 @@ func main() {
 		// that is what keeps the rate limiter from leaking account existence.
 		&domain.PasswordResetToken{},
 		&domain.Risk{},
+		// Risk taxonomy (spec §3): the tenant's CONTROLLED category vocabulary and
+		// the risk↔compliance-control references. tags need no table — they are a
+		// free array on the risk, which is the whole point of the distinction.
+		&domain.RiskCategory{},
+		&domain.RiskControlMapping{},
 		// Smart Risk Calculation (spec §8) — per-tenant configurable weights for the
 		// eight-factor multifactor score. The smart-score columns themselves live on
 		// domain.Risk above. Additive; the classic Score Engine is untouched.
@@ -854,12 +860,40 @@ func main() {
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
 
+	// --- Generalised ownership (responsable / exécutant / validateur) ---
+	// One service backs the <UserPicker> for every entity: it decides who may be
+	// assigned (active members of THIS tenant), applies the tri-state patch, and
+	// notifies the newly assigned. Its dependencies are stateless wrappers over
+	// database.DB, so instantiating them here (ahead of the RBAC and notification
+	// blocks further down) costs nothing and keeps the risk module's wiring local.
+	ownershipMembers := repository.NewGormMemberRBACRepository(database.DB)
+	ownershipService := ownership.NewService().
+		WithMembers(ownershipMembers).
+		WithUsers(repository.NewGormUserRepository(database.DB)).
+		WithNotifier(notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB)))
+	ownershipHandler := handlers.NewOwnershipHandler(ownership.NewListAssignableUseCase(ownershipMembers))
+	// Legacy handlers (mitigation, incident) build their use cases inline and
+	// cannot receive this through the constructor — same seam as the activation
+	// recorder above.
+	handlers.SetOwnershipService(ownershipService)
+	// Any authenticated member may see who they can assign work to — the picker
+	// is useless otherwise, and it exposes nothing an org chart would not.
+	protected.Get("/ownership/assignable", ownershipHandler.ListAssignable)
+	protected.Get("/ownership/me", ownershipHandler.Me)
+
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
-	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).WithActivation(activationRecorder)
-	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo)
-	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
-	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
+	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
+	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
+		WithActivation(activationRecorder).
+		WithOwnership(ownershipService)
+	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
+		WithMappings(riskControlMappingRepo).
+		WithOwnership(ownershipService)
+	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
+		WithMappings(riskControlMappingRepo).
+		WithOwnership(ownershipService)
+	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).WithOwnership(ownershipService)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
@@ -871,8 +905,17 @@ func main() {
 	}
 	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
 	markReviewedUseCase := risk.NewMarkRiskReviewedUseCase(riskRepo)
-	transitionPhaseUseCase := risk.NewTransitionPhaseUseCase(riskRepo)
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionPhaseUseCase, redisClientInstance, riskQuantifier)
+	// The lifecycle FSM enforces its guards server-side. Its two inspectors are
+	// wired here so "IN_TREATMENT needs an active mitigation", "MITIGATED needs
+	// every sub-action done" and "RESIDUAL_ACCEPTED needs a validated Governance
+	// approval" are answered from real data rather than trusted from the client.
+	transitionStateUseCase := risk.NewTransitionRiskStateUseCase(riskRepo).
+		WithMitigations(newMitigationInspector(
+			repository.NewGormMitigationRepository(database.DB),
+			repository.NewGormMitigationSubActionRepository(database.DB),
+		)).
+		WithApprovals(newApprovalChecker(repository.NewGormApprovalRepository(database.DB)))
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier)
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
 	// (portfolio ALE, worst-case, residual, remediation budget, ROSI). Reuses the
@@ -886,6 +929,20 @@ func main() {
 	protected.Get("/risks",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskListGET(riskHandler.GetRisks))
+	// --- Risk taxonomy (spec §3): three separate concepts, three separate
+	// columns. tags stay a free array on the risk; categories are the tenant's
+	// CONTROLLED vocabulary; control mappings are references to real compliance
+	// controls (what the "Référentiel" column may render, and nothing else).
+	riskTaxonomyHandler := handlers.NewRiskTaxonomyHandler(
+		risk.NewCategoryUseCase(repository.NewGormRiskCategoryRepository(database.DB)),
+		risk.NewControlMappingUseCase(riskControlMappingRepo, riskRepo).
+			WithControls(repository.NewGormComplianceRepository(database.DB)),
+	)
+	// FIBER TRAP: the static path must be registered BEFORE /risks/:id, or
+	// "unmapped" is parsed as a uuid and 400s. Same trap as /compliance and
+	// /asset-dependencies.
+	protected.Get("/risks/unmapped",
+		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListUnmappedRisks)
 	protected.Get("/risks/:id",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
@@ -908,7 +965,29 @@ func main() {
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
 	protected.Post("/risks/:id/transition", riskUpdate, riskHandler.TransitionPhase)
+	// The stepper's contract: what can this risk become next, and what is in the
+	// way. Read-only, so it rides the read permission.
+	protected.Get("/risks/:id/transitions", middleware.RequirePermission("risks:read"), riskHandler.ListTransitions)
 	protected.Delete("/risks/:id", riskDelete, riskHandler.DeleteRisk)
+
+	// A risk's references to compliance controls. Reading rides risks:read;
+	// writing rides risks:update, because mapping a risk IS editing the risk.
+	protected.Get("/risks/:id/control-mappings",
+		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListRiskMappings)
+	protected.Post("/risks/:id/control-mappings", riskUpdate, riskTaxonomyHandler.CreateRiskMapping)
+	protected.Delete("/risks/:id/control-mappings/:mappingId", riskUpdate, riskTaxonomyHandler.DeleteRiskMapping)
+
+	// The controlled category vocabulary. Any member may read it (the register
+	// renders it); only an admin curates it — a vocabulary anyone can extend is
+	// a tag list with extra steps.
+	protected.Get("/risk-categories",
+		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListCategories)
+	protected.Post("/risk-categories",
+		middleware.RequireRole("admin", "root"), riskTaxonomyHandler.CreateCategory)
+	protected.Patch("/risk-categories/:id",
+		middleware.RequireRole("admin", "root"), riskTaxonomyHandler.UpdateCategory)
+	protected.Delete("/risk-categories/:id",
+		middleware.RequireRole("admin", "root"), riskTaxonomyHandler.DeleteCategory)
 
 	// Mitigation Plans (CRUD). NOTE: this whole module previously used
 	// middleware.RequireRole ("writerRole"), which reads c.Locals("role") — a flat
@@ -1671,6 +1750,23 @@ func main() {
 		}
 	}, zeroLogger)
 	go riskReviewWorker.Start(context.Background())
+
+	// Mitigation deadlines: D-7 and D-1 nudges to whoever is doing the work.
+	// Hourly sweep — day-granularity reminders do not need a per-minute tick, and
+	// the "past the threshold and not yet sent" rule means a missed tick (deploy,
+	// restart) still sends the nudge instead of silently skipping it.
+	mitigationDueWorker := workers.NewMitigationDueWorker(
+		repository.NewGormMitigationDueRepository(database.DB),
+		func(ctx context.Context, tenantID, userID, mitigationID uuid.UUID, subject, message string) {
+			if err := notificationUseCase.NotifyInApp(userID, tenantID,
+				domain.NotificationTypeMitigationDeadline, subject, message, &mitigationID, "mitigation"); err != nil {
+				zeroLogger.Warn().Err(err).Msg("mitigation due: in-app notification failed")
+			}
+			if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			}
+		}, zeroLogger)
+	go mitigationDueWorker.Start(context.Background())
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 
 	// Remediation auto-detection: after a scan, a finding (CVE) that is no longer

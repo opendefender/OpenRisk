@@ -49,8 +49,8 @@ func TestComputeScoreWithConfig_WithAssets(t *testing.T) {
 	config := service.DefaultScoringConfig()
 
 	assets := []*domain.Asset{
-		{Criticality: domain.CriticalityLow},      // 0.8
-		{Criticality: domain.CriticalityHigh},     // 1.25
+		{Criticality: domain.CriticalityLow},  // 0.8
+		{Criticality: domain.CriticalityHigh}, // 1.25
 	}
 
 	score := service.ComputeScoreWithConfig(2, 5, assets, config)
@@ -171,7 +171,7 @@ func TestValidateConfig_InvalidThresholds(t *testing.T) {
 		BaseFormula: "impact*probability",
 		RiskMatrixThresholds: map[string]int{
 			"low":      10,
-			"medium":   5,  // Should be > low
+			"medium":   5, // Should be > low
 			"high":     19,
 			"critical": 20,
 		},
@@ -185,7 +185,7 @@ func TestValidateConfig_InvalidThresholds(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	service := NewScoreEngineService(nil)
-	
+
 	config := &ScoringConfig{
 		ID:          "test",
 		BaseFormula: "impact*probability",

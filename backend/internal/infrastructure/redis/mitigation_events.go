@@ -10,8 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/redis/go-redis/v9"
 )
 
 // MitigationEventsPublisher publishes mitigation-related events to Redis

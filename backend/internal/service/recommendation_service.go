@@ -55,7 +55,7 @@ func (s *RecommendationService) GetPrioritizedMitigations(tenantID string) ([]do
 	query := database.DB.Preload("Risk")
 	if tenantID != "" {
 		// Supposons que Mitigation ait une relation Risk avec tenant_id, ou Mitigation ait tenant_id.
-		// On va filtrer par mitigation tenant_id s'il existe. 
+		// On va filtrer par mitigation tenant_id s'il existe.
 		query = query.Where("tenant_id = ?", tenantID)
 	}
 

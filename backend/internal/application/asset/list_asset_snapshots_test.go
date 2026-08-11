@@ -90,7 +90,7 @@ func TestListAssetSnapshots_ResolvesActorEmails(t *testing.T) {
 			return []domain.AssetSnapshot{
 				{ChangedBy: alice, Reason: "update"},
 				{ChangedBy: bob, Reason: "update"},
-				{ChangedBy: alice, Reason: "delete"}, // duplicate actor
+				{ChangedBy: alice, Reason: "delete"},    // duplicate actor
 				{ChangedBy: uuid.Nil, Reason: "update"}, // system/legacy — skipped
 			}, nil
 		},

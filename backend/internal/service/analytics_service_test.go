@@ -94,7 +94,7 @@ func TestDashboardDataService_SeverityDistribution_TenantIsolation(t *testing.T)
 	tenantA := uuid.New()
 	tenantB := uuid.New()
 
-	insertAnalyticsRisk(t, db, tenantA, "active", "high", 8)   // severity=high
+	insertAnalyticsRisk(t, db, tenantA, "active", "high", 8)     // severity=high
 	insertAnalyticsRisk(t, db, tenantB, "active", "critical", 9) // severity=critical (other tenant)
 	insertAnalyticsRisk(t, db, tenantB, "active", "critical", 9)
 

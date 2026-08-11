@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Zap, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router';
 import { mitigationService } from '../../services/mitigationService';
 import type { Mitigation } from '../../types/mitigation';
 import { Button } from '../../components/ui/Button';
@@ -58,6 +59,8 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
     }
   }, [isOpen]);
 
+  const navigate = useNavigate();
+
   const handleClose = () => {
     reset();
     onClose();
@@ -77,9 +80,22 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
       } as any;
 
       const created = await mitigationService.createMitigation(payload);
-      toast.success('Plan d\'atténuation créé');
+
+      // §6: land the user ON the thing they just made, and give them the way
+      // back. Creating a plan and being dropped back on the risk with no sign
+      // of it is what made "j'ai créé une mitigation" feel like it failed.
+      toast.success("Plan d'atténuation créé", {
+        description: created.title,
+        action: riskId
+          ? {
+              label: 'Revenir au risque',
+              onClick: () => navigate(`/risks?focus=${riskId}`),
+            }
+          : undefined,
+      });
       onCreated?.(created);
       handleClose();
+      if (created.id) navigate(`/risks/mitigations/${created.id}`);
     } catch (err) {
       console.error(err);
       toast.error('Impossible de créer le plan', { description: 'Erreur serveur' });

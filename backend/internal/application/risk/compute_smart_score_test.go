@@ -47,9 +47,11 @@ func (m *mockAssetRepo) GetByID(ctx context.Context, id, tenantID uuid.UUID) (*d
 func (m *mockAssetRepo) List(ctx context.Context, tenantID uuid.UUID) ([]domain.Asset, error) {
 	return nil, nil
 }
-func (m *mockAssetRepo) Update(ctx context.Context, a *domain.Asset) error              { return nil }
-func (m *mockAssetRepo) Delete(ctx context.Context, id, tenantID uuid.UUID) error        { return nil }
-func (m *mockAssetRepo) CreateSnapshot(ctx context.Context, s *domain.AssetSnapshot) error { return nil }
+func (m *mockAssetRepo) Update(ctx context.Context, a *domain.Asset) error        { return nil }
+func (m *mockAssetRepo) Delete(ctx context.Context, id, tenantID uuid.UUID) error { return nil }
+func (m *mockAssetRepo) CreateSnapshot(ctx context.Context, s *domain.AssetSnapshot) error {
+	return nil
+}
 func (m *mockAssetRepo) ListSnapshots(ctx context.Context, assetID, tenantID uuid.UUID) ([]domain.AssetSnapshot, error) {
 	return nil, nil
 }

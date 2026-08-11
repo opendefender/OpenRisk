@@ -92,6 +92,11 @@ type ControlEvidence struct {
 	Description string     `gorm:"type:text" json:"description"`
 	UploadedBy  *uuid.UUID `gorm:"type:uuid" json:"uploaded_by"`
 
+	// Ownership — who answers for this evidence, who must refresh it, who
+	// validates it. Same embedded block as Risk/Mitigation/Incident/
+	// RemediationPlan; owner_id is backfilled from uploaded_by (migration 0044).
+	Ownership `gorm:"embedded"`
+
 	// Relations
 	Control ComplianceControl `gorm:"foreignKey:ControlID" json:"control,omitempty"`
 
@@ -104,3 +109,6 @@ type ControlEvidence struct {
 func (ControlEvidence) TableName() string {
 	return "control_evidences"
 }
+
+// OwnershipBlock implements OwnedEntity.
+func (e *ControlEvidence) OwnershipBlock() *Ownership { return &e.Ownership }

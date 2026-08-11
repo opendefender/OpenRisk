@@ -19,9 +19,9 @@ import (
 
 // userAccountControl flags we care about (Active Directory).
 const (
-	uacAccountDisable    = 0x0002
-	uacDontExpirePasswd  = 0x10000
-	adPageSize           = 1000
+	uacAccountDisable   = 0x0002
+	uacDontExpirePasswd = 0x10000
+	adPageSize          = 1000
 )
 
 // ldapSearcher is the minimal surface of an LDAP connection the AD collector

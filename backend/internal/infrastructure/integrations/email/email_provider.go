@@ -60,4 +60,3 @@ func (ep *EmailProvider) Validate(config map[string]interface{}) error {
 	}
 	return nil
 }
-

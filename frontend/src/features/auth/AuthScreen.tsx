@@ -6,7 +6,7 @@
 // The split-screen shell, motion policy and language switcher live in
 // AuthLayout; this file is the forms.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -372,16 +372,32 @@ function MFAEnrollment({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [nonce, setNonce] = useState(0);
+  // POST /auth/mfa/setup is NOT idempotent: a second call for the same account
+  // answers 400 "duplicated key not allowed". React runs effects twice in
+  // development, so the second call failed and painted "la création du compte a
+  // échoué" over a screen that had already loaded its QR code perfectly — the
+  // account existed, nothing had failed, and the user was told to start over.
+  // One call per token, tracked outside render so a re-render cannot repeat it.
+  const requested = useRef<string | null>(null);
 
   useEffect(() => {
+    if (requested.current === token) return;
+    requested.current = token;
     setupMFA(token)
       .then((r) => {
         setSecret(r.secret);
         setQr(r.qr_code);
         setBackupCodes(r.backup_codes ?? []);
       })
-      .catch(() => setError(copy.registerFailed));
-  }, [token, copy.registerFailed]);
+      .catch(() => {
+        // A setup failure is not a registration failure: the account is already
+        // created. Say what actually went wrong, and allow another attempt.
+        requested.current = null;
+        setError(copy.mfaSetupFailed);
+      });
+  }, [token, copy.mfaSetupFailed]);
+
+  const qrSrc = qr.startsWith('data:') ? qr : `data:image/jpeg;base64,${qr}`;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -416,7 +432,12 @@ function MFAEnrollment({ token }: { token: string }) {
         <div className="mb-4" style={cascade(1, reduced)}>
           <p className="text-[12.5px] text-ink-soft mb-2">{copy.mfaEnrolScan}</p>
           <div className="flex justify-center p-3 rounded-[13px]" style={{ background: '#fff' }}>
-            <img src={qr} alt="" width={168} height={168} />
+            {/* The backend returns raw base64 (a JPEG), not a data URI, so
+                assigning it straight to src made the browser treat it as a
+                relative URL and render a broken image — on the one screen a new
+                account cannot get past. Tolerate both shapes so a later change
+                on either side cannot break it again. */}
+            <img src={qrSrc} alt="" width={168} height={168} />
           </div>
           <p className="text-[11.5px] text-ink-muted mt-2">{copy.mfaEnrolManual}</p>
           <code className="mono text-[12px] text-ink break-all">{secret}</code>
@@ -480,6 +501,10 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
   const copy = authCopy(lang);
   const reduced = usePrefersReducedMotion();
   const login = useAuthStore((s) => s.login);
+  // Signing up creates an organisation with you as its owner, and an owner's
+  // role mandates MFA — so registration ALWAYS lands on enrolment. Handling it
+  // here is not an edge case, it is the only path.
+  const [mfa, setMfa] = useState<{ token: string; enrolling: boolean } | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -516,7 +541,21 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
         company_name: company,
       });
 
-      await login(email.trim(), password);
+      // The account exists now; the session may not. login() can stop short in
+      // two ways and RETURNS which one — ignoring that return was the bug: the
+      // form declared success and navigated with no session, so the route guard
+      // bounced the brand-new user straight back to the login screen.
+      const result = await login(email.trim(), password);
+
+      if (result.status === 'mfa_enrollment_required') {
+        setMfa({ token: result.mfa_token, enrolling: true });
+        return;
+      }
+      if (result.status === 'mfa_required') {
+        setMfa({ token: result.mfa_token, enrolling: false });
+        return;
+      }
+
       toast.success(copy.registerTitle);
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
@@ -534,6 +573,16 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
       setBusy(false);
     }
   };
+
+  // Hand off to the same enrolment/challenge screens the login form uses, rather
+  // than a second implementation that would drift from it.
+  if (mfa) {
+    return mfa.enrolling ? (
+      <MFAEnrollment token={mfa.token} />
+    ) : (
+      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} />
+    );
+  }
 
   return (
     <form onSubmit={submit} noValidate>

@@ -185,24 +185,63 @@ type Risk struct {
 	Status RiskStatus `gorm:"type:varchar(20);default:'open';index" json:"status"` // open|in_progress|mitigated|accepted|closed
 	Level  string     `gorm:"size:20;default:'medium';index" json:"level"`         // Legacy: CRITICAL|HIGH|MEDIUM|LOW
 
-	// ISO 31000 lifecycle phase (orthogonal to Status). Drives the register
-	// "Cycle de vie" stepper: Identifier → Analyser → Évaluer → Traiter →
-	// Surveiller → Clôturer. Defaults to 'identified' on creation.
+	// Deprecated as a WRITABLE field: derived from LifecycleState. The column
+	// stays (and stays correct) so the phase facet and any legacy reader keep
+	// working — but nothing sets it independently any more.
 	LifecyclePhase RiskPhase `gorm:"type:varchar(20);default:'identified';index" json:"lifecycle_phase"`
 
-	// Ownership & Assignment
-	CreatedBy  uuid.UUID  `gorm:"type:uuid;not null;index" json:"created_by"`
-	AssignedTo *uuid.UUID `gorm:"type:uuid;index" json:"assigned_to"` // Person responsible for mitigation
-	ReviewerID *uuid.UUID `gorm:"type:uuid;index" json:"reviewer_id"` // Person responsible for final validation
-	Owner      string     `json:"owner"`                              // Legacy: Email or UserID
+	// LifecycleState is the SINGLE source of truth for where a risk stands:
+	// DRAFT → IDENTIFIED → ASSESSED → TREATMENT_PLANNED → IN_TREATMENT →
+	// (RESIDUAL_ACCEPTED | MITIGATED) → CLOSED ↘ REOPENED ↗. Status and
+	// LifecyclePhase above are derived from it on every write (SetState), which
+	// is what stops the three from drifting apart.
+	LifecycleState RiskState `gorm:"type:varchar(24);default:'draft';index" json:"lifecycle_state"`
+
+	// Ownership & Assignment — the three accountability slots (owner_id /
+	// assignee_id / reviewer_id) are embedded from domain.Ownership so every
+	// actionable entity carries the exact same block. `reviewer_id` used to be
+	// declared here by hand; it now comes from the embed with an identical
+	// column and JSON key.
+	Ownership `gorm:"embedded"`
+
+	CreatedBy uuid.UUID `gorm:"type:uuid;not null;index" json:"created_by"`
+	// Deprecated: superseded by Ownership.AssigneeID. Kept (and backfilled FROM,
+	// migration 0044) so pre-existing filters and the RiskQuery.AssignedTo facet
+	// keep answering while callers migrate.
+	AssignedTo *uuid.UUID `gorm:"type:uuid;index" json:"assigned_to"`
+	// Deprecated: free-text owner (email or user id). Superseded by
+	// Ownership.OwnerID; kept for legacy readers.
+	Owner string `json:"owner"`
 
 	// Asset Association
 	AssetID *uuid.UUID `gorm:"type:uuid;index" json:"asset_id"` // Linked asset if risk is asset-specific
 
-	// Classification & Context
-	Tags       pq.StringArray `gorm:"type:text[];default:'{}'" json:"tags"`        // Labels (network, cloud, etc.)
-	Frameworks pq.StringArray `gorm:"type:text[];default:'{}'" json:"frameworks"`  // ISO27001|NIST-CSF|DORA|CIS|COBAC|BCEAO|OWASP|SOC2|GDPR|...
-	ControlIDs pq.StringArray `gorm:"type:text[];default:'{}'" json:"control_ids"` // Links to compliance controls
+	// Classification — three separate concepts, three separate columns. See
+	// risk_taxonomy.go for why conflating them was the "étiquette affichée comme
+	// framework" bug.
+
+	// Tags are free text, authored by the user, unbounded → column "Étiquettes".
+	Tags pq.StringArray `gorm:"type:text[];default:'{}'" json:"tags"`
+
+	// CategoryID points at the tenant's CONTROLLED vocabulary → column
+	// "Catégorie". Nullable: a risk may be unclassified, and forcing a category
+	// at creation would just push people to pick the first entry.
+	CategoryID *uuid.UUID    `gorm:"type:uuid;index" json:"category_id"`
+	Category   *RiskCategory `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+
+	// ControlMappings are references to REAL compliance controls → column
+	// "Référentiel". Loaded by the list/get use cases, never stored inline.
+	ControlMappings []RiskControlMapping `gorm:"-" json:"control_mappings,omitempty"`
+
+	// Deprecated (migration 0046): free-text framework names, populated by a
+	// hard-coded dropdown and never checked against the tenant's imported
+	// frameworks. Frozen — no longer read or written. Superseded by
+	// ControlMappings; the column is kept for one release so a rollback is
+	// possible, and dropped in a later migration.
+	Frameworks pq.StringArray `gorm:"type:text[];default:'{}'" json:"frameworks"`
+	// Deprecated: never written by anything but duplicate_risk, never read.
+	// Migrated into risk_control_mappings by 0046 where resolvable.
+	ControlIDs pq.StringArray `gorm:"type:text[];default:'{}'" json:"control_ids"`
 
 	// Treatment & Mitigation
 	TreatmentPlan   RiskTreatment `gorm:"type:varchar(20);default:'mitigate'" json:"treatment_plan"` // accept|mitigate|transfer|avoid
@@ -219,13 +258,13 @@ type Risk struct {
 	// explicitly it is composed from these: downtime cost + fines + data loss +
 	// other. RemediationCost + MitigationEffectiveness drive ROSI. All XAF, all
 	// optional; the engine (pkg/crq) degrades gracefully to the reference model.
-	DowntimeHours           *float64 `gorm:"type:numeric(10,2)" json:"downtime_hours"`            // business hours lost per incident
-	HourlyDowntimeCostXAF   *float64 `gorm:"type:numeric(16,2)" json:"hourly_downtime_cost_xaf"`  // cost per hour of downtime
-	DataLossCostXAF         *float64 `gorm:"type:numeric(16,2)" json:"data_loss_cost_xaf"`        // data recovery / breach cost
-	FinesXAF                *float64 `gorm:"type:numeric(16,2)" json:"fines_xaf"`                 // regulatory fines
-	OtherDirectCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"other_direct_cost_xaf"`     // any other direct per-incident cost
-	RemediationCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"remediation_cost_xaf"`      // budget to deploy the control
-	MitigationEffectiveness *float64 `gorm:"type:numeric(5,4)" json:"mitigation_effectiveness"`   // [0,1] share of ALE removed
+	DowntimeHours           *float64 `gorm:"type:numeric(10,2)" json:"downtime_hours"`           // business hours lost per incident
+	HourlyDowntimeCostXAF   *float64 `gorm:"type:numeric(16,2)" json:"hourly_downtime_cost_xaf"` // cost per hour of downtime
+	DataLossCostXAF         *float64 `gorm:"type:numeric(16,2)" json:"data_loss_cost_xaf"`       // data recovery / breach cost
+	FinesXAF                *float64 `gorm:"type:numeric(16,2)" json:"fines_xaf"`                // regulatory fines
+	OtherDirectCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"other_direct_cost_xaf"`    // any other direct per-incident cost
+	RemediationCostXAF      *float64 `gorm:"type:numeric(16,2)" json:"remediation_cost_xaf"`     // budget to deploy the control
+	MitigationEffectiveness *float64 `gorm:"type:numeric(5,4)" json:"mitigation_effectiveness"`  // [0,1] share of ALE removed
 
 	// Computed, NOT persisted — filled by the handler via pkg/crq before responding.
 	ALEXAF   float64 `gorm:"-" json:"ale_xaf"`   // annual loss expectancy (XAF)
@@ -265,6 +304,13 @@ type Risk struct {
 
 	// Relations (loaded via Preload)
 	Mitigations []Mitigation `gorm:"foreignKey:RiskID" json:"mitigations,omitempty"`
+
+	// MitigationsCount is computed, NOT persisted: the count of the plans above.
+	// The UI derives its "Créer une mitigation" vs "Voir les mitigations (n)"
+	// button from it, so that button reflects what EXISTS rather than what the
+	// user did in this session — a state the previous version got wrong the
+	// moment you reloaded the page.
+	MitigationsCount int `gorm:"-" json:"mitigations_count"`
 	Assets      []*Asset     `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
 
 	// Computed Fields (NOT persisted, populated by handlers/use cases)
@@ -323,6 +369,44 @@ func (r *Risk) AfterSave(tx *gorm.DB) error {
 	}
 
 	return tx.Create(&history).Error
+}
+
+// OwnershipBlock implements OwnedEntity.
+func (r *Risk) OwnershipBlock() *Ownership { return &r.Ownership }
+
+// CountMitigations fills the computed count from the preloaded relation.
+// Called by the repository after every read that preloads Mitigations.
+func (r *Risk) CountMitigations() {
+	if r != nil {
+		r.MitigationsCount = len(r.Mitigations)
+	}
+}
+
+// State returns the canonical lifecycle state, reconstructing it from the two
+// legacy fields for any row written before the column existed. Never empty.
+func (r *Risk) State() RiskState {
+	if r == nil {
+		return StateDraft
+	}
+	if IsRiskState(r.LifecycleState) {
+		return r.LifecycleState
+	}
+	return RiskStateFromLegacy(r.Status, r.LifecyclePhase)
+}
+
+// SetState moves the risk to a state and re-derives the two legacy fields from
+// it. This is the ONLY supported way to change where a risk stands: writing
+// Status or LifecyclePhase directly is what let them disagree.
+//
+// It performs no validation — the use case owns the guards, because they need
+// data (mitigations, approvals) the domain must not reach for.
+func (r *Risk) SetState(s RiskState) {
+	if r == nil {
+		return
+	}
+	r.LifecycleState = s
+	r.Status = s.DerivedStatus()
+	r.LifecyclePhase = s.DerivedPhase()
 }
 
 // RiskDetail is a DTO for API responses with enriched data

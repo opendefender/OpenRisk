@@ -53,8 +53,8 @@ func (uc *DuplicateRiskUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 		Status:            domain.RiskOpen, // Reset to "open"
 		Level:             sourceRisk.Level,
 		CreatedBy:         duplicatedBy,
-		AssignedTo:        sourceRisk.AssignedTo, // Copy assignment
-		ReviewerID:        sourceRisk.ReviewerID,
+		Ownership:         sourceRisk.Ownership, // owner / assignee / reviewer travel with the copy
+		AssignedTo:        sourceRisk.AssignedTo,
 		Owner:             sourceRisk.Owner,
 		AssetID:           sourceRisk.AssetID,
 		Tags:              sourceRisk.Tags,

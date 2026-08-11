@@ -130,17 +130,19 @@ func (uc *ListRemediationsUseCase) Execute(ctx context.Context, tenantID uuid.UU
 
 // UpdateRemediationInput carries editable fields; nil leaves a field unchanged.
 type UpdateRemediationInput struct {
-	Title          *string
-	Description    *string
-	Priority       *string
-	Status         *string
-	AssignedTo     *uuid.UUID
-	ClearAssignee  bool
-	DueDate        *time.Time
-	ClearDueDate   bool
+	Title         *string
+	Description   *string
+	Priority      *string
+	Status        *string
+	AssignedTo    *uuid.UUID
+	ClearAssignee bool
+	DueDate       *time.Time
+	ClearDueDate  bool
 }
 
-type UpdateRemediationUseCase struct{ repo domain.RemediationPlanRepository }
+type UpdateRemediationUseCase struct {
+	repo domain.RemediationPlanRepository
+}
 
 func NewUpdateRemediationUseCase(repo domain.RemediationPlanRepository) *UpdateRemediationUseCase {
 	return &UpdateRemediationUseCase{repo: repo}
@@ -205,7 +207,9 @@ func (uc *UpdateRemediationUseCase) Execute(ctx context.Context, tenantID, id uu
 
 // -------------------- Delete --------------------
 
-type DeleteRemediationUseCase struct{ repo domain.RemediationPlanRepository }
+type DeleteRemediationUseCase struct {
+	repo domain.RemediationPlanRepository
+}
 
 func NewDeleteRemediationUseCase(repo domain.RemediationPlanRepository) *DeleteRemediationUseCase {
 	return &DeleteRemediationUseCase{repo: repo}

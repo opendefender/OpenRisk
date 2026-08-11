@@ -90,11 +90,11 @@ func TestEngine_RunsChain_NotifyTicketAndSLA(t *testing.T) {
 	e.WithNotifier(notifier).WithTicketer(ticketer)
 
 	rules.add(&domain.AutomationRule{
-		ID:       uuid.New(),
-		TenantID: tenant,
-		Name:     "Critical KEV playbook",
-		Enabled:  true,
-		Trigger:  domain.TriggerVulnerabilityDetected,
+		ID:         uuid.New(),
+		TenantID:   tenant,
+		Name:       "Critical KEV playbook",
+		Enabled:    true,
+		Trigger:    domain.TriggerVulnerabilityDetected,
 		Conditions: domain.AutomationConditions{MinSeverity: "high", KEVOnly: true},
 		Actions: domain.AutomationActionList{
 			{Type: domain.ActionNotify, Channels: []string{"slack", "in_app"}},

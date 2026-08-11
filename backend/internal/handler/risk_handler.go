@@ -30,7 +30,7 @@ type RiskHandler struct {
 	updateRiskUseCase *risk.UpdateRiskUseCase
 	deleteRiskUseCase *risk.DeleteRiskUseCase
 	markReviewedUC    *risk.MarkRiskReviewedUseCase
-	transitionPhaseUC *risk.TransitionPhaseUseCase
+	transitionStateUC *risk.TransitionRiskStateUseCase
 	redisClient       *redis.Client
 	crq               *crq.Quantifier // Cyber Risk Quantification (XAF + USD)
 }
@@ -42,7 +42,7 @@ func NewRiskHandler(
 	updateRisk *risk.UpdateRiskUseCase,
 	deleteRisk *risk.DeleteRiskUseCase,
 	markReviewed *risk.MarkRiskReviewedUseCase,
-	transitionPhase *risk.TransitionPhaseUseCase,
+	transitionState *risk.TransitionRiskStateUseCase,
 	redisClient *redis.Client,
 	quantifier *crq.Quantifier,
 ) *RiskHandler {
@@ -53,7 +53,7 @@ func NewRiskHandler(
 		updateRiskUseCase: updateRisk,
 		deleteRiskUseCase: deleteRisk,
 		markReviewedUC:    markReviewed,
-		transitionPhaseUC: transitionPhase,
+		transitionStateUC: transitionState,
 		redisClient:       redisClient,
 		crq:               quantifier,
 	}
@@ -79,27 +79,68 @@ func (h *RiskHandler) MarkReviewed(c *fiber.Ctx) error {
 	return c.JSON(r)
 }
 
-// TransitionPhaseInput is the body for POST /risks/:id/transition.
-type TransitionPhaseInput struct {
-	Phase string `json:"phase" validate:"required"`
-	Note  string `json:"note" validate:"omitempty,max=1000"`
+// TransitionRiskInput is the body for POST /risks/:id/transition.
+//
+// `to` + `comment` is the specified shape. `phase` + `note` are the previous
+// one and are still accepted: the route predates this change and clients in the
+// wild use it. Both map onto the same canonical state.
+type TransitionRiskInput struct {
+	To      string `json:"to" validate:"omitempty"`
+	Comment string `json:"comment" validate:"omitempty,max=1000"`
+	Phase   string `json:"phase" validate:"omitempty"`
+	Note    string `json:"note" validate:"omitempty,max=1000"`
 }
 
-// TransitionPhase POST /risks/:id/transition — advances a risk through the
-// ISO 31000 lifecycle (Identifier → Analyser → Évaluer → Traiter → Surveiller →
-// Clôturer). Tenant-scoped, guarded by risks:update, audited.
+// target resolves the requested state from either spelling. A legacy ISO 31000
+// phase name is translated to the state that phase now corresponds to.
+func (in TransitionRiskInput) target() string {
+	if in.To != "" {
+		return in.To
+	}
+	switch domain.RiskPhase(in.Phase) {
+	case domain.PhaseIdentified:
+		return string(domain.StateIdentified)
+	case domain.PhaseAnalyzed:
+		return string(domain.StateAssessed)
+	case domain.PhaseEvaluated:
+		return string(domain.StateTreatmentPlanned)
+	case domain.PhaseTreated:
+		return string(domain.StateInTreatment)
+	case domain.PhaseMonitored:
+		return string(domain.StateMitigated)
+	case domain.PhaseClosed:
+		return string(domain.StateClosed)
+	}
+	return in.Phase
+}
+
+func (in TransitionRiskInput) comment() string {
+	if in.Comment != "" {
+		return in.Comment
+	}
+	return in.Note
+}
+
+// TransitionPhase POST /risks/:id/transition — moves a risk through the single
+// canonical lifecycle. Tenant-scoped, guarded by risks:update, audited.
+//
+// The guards live in the use case, NOT here and not in the frontend: a blocked
+// transition must be refused whichever client asks.
 func (h *RiskHandler) TransitionPhase(c *fiber.Ctx) error {
 	riskID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
 	}
 
-	input := new(TransitionPhaseInput)
+	input := new(TransitionRiskInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 	if err := validation.GetValidator().Struct(input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
+	if input.target() == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": "`to` is required"})
 	}
 
 	mwCtx := middleware.GetContext(c)
@@ -110,16 +151,49 @@ func (h *RiskHandler) TransitionPhase(c *fiber.Ctx) error {
 		actorID = mwCtx.UserID
 	}
 
-	r, err := h.transitionPhaseUC.Execute(c.UserContext(), orgID, riskID, risk.TransitionPhaseInput{
-		Phase: domain.RiskPhase(input.Phase),
-		Note:  input.Note,
-	}, actorID)
+	r, err := h.transitionStateUC.Execute(c.UserContext(), orgID, riskID, risk.TransitionRiskStateInput{
+		To:      domain.RiskState(input.target()),
+		Comment: input.comment(),
+		Actor:   actorID,
+		Locale:  c.Query("locale", "fr"),
+	})
 	if err != nil {
 		return writeAppError(c, err)
 	}
 
 	h.quantify(r)
 	return c.JSON(r)
+}
+
+// ListTransitions GET /risks/:id/transitions — the states reachable from here,
+// which of them are allowed right now, and for the rest exactly what is in the
+// way. Backs <LifecycleStepper>.
+//
+// Blocked options are RETURNED rather than hidden: a user who cannot see the
+// next step has no way to learn what to do about it.
+func (h *RiskHandler) ListTransitions(c *fiber.Ctx) error {
+	riskID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+	mwCtx := middleware.GetContext(c)
+	orgID := uuid.Nil
+	if mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	view, err := h.transitionStateUC.AvailableTransitions(c.UserContext(), orgID, riskID, c.Query("locale", "fr"))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(view)
+}
+
+// deref reads an optional string field as a plain one ("" when absent).
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // quantify fills a risk's computed CRQ fields (ALE in XAF + USD, basis) from its
@@ -143,6 +217,12 @@ type CreateRiskInput struct {
 	Tags        []string `json:"tags"`
 	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
 	Frameworks  []string `json:"frameworks"`
+	// CategoryID is the tenant's CONTROLLED classification. Optional — a risk
+	// stays creatable without one, exactly like the compliance mapping.
+	CategoryID *string `json:"category_id" validate:"omitempty,uuid4"`
+	// Ownership — responsable / exécutant / validateur, as picked in <UserPicker>.
+	// Embedded so the three keys sit at the top level of the payload.
+	domain.OwnershipPatch
 	// CRQ monetary inputs (XAF). Optional.
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
@@ -166,6 +246,12 @@ type UpdateRiskInput struct {
 	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
 	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
 	Frameworks  []string `json:"frameworks" validate:"omitempty,dive,required"`
+	// Category is tri-state like ownership: absent leaves it, null clears it.
+	Category domain.NullableUUID `json:"category_id"`
+	// Ownership — tri-state: a key absent from the body leaves the slot alone,
+	// an explicit null unassigns it. Embedded so the three keys sit at the top
+	// level of the payload.
+	domain.OwnershipPatch
 	// CRQ monetary inputs (XAF). Pointers → nil means "leave unchanged".
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
@@ -206,6 +292,11 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		createdBy = mwCtx.UserID
 	}
 
+	categoryID, err := parseOptionalUUID(deref(input.CategoryID))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
+
 	ucInput := risk.CreateRiskInput{
 		Title:       input.Title,
 		Description: input.Description,
@@ -213,6 +304,8 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Probability: input.Probability,
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
+		Ownership:   input.OwnershipPatch,
+		CategoryID:  categoryID,
 		CreatedBy:   createdBy,
 		SLEXAF:      input.SLEXAF,
 		ARO:         input.ARO,
@@ -310,6 +403,25 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 			query.AssignedTo = &id
 		}
 	}
+	if owner := c.Query("owner_id"); owner != "" {
+		if id, err := uuid.Parse(owner); err == nil {
+			query.OwnedBy = &id
+		}
+	}
+	if reviewer := c.Query("reviewer_id"); reviewer != "" {
+		if id, err := uuid.Parse(reviewer); err == nil {
+			query.ReviewedBy = &id
+		}
+	}
+	// "Mes risques" — anything the caller owns, works on, or must validate.
+	// Deliberately derived from the AUTHENTICATED user, never from a query
+	// parameter: "mine=<someone else's id>" must not be expressible.
+	if c.Query("mine") == "true" {
+		if mwCtx := middleware.GetContext(c); mwCtx != nil && mwCtx.UserID != uuid.Nil {
+			me := mwCtx.UserID
+			query.InvolvedUser = &me
+		}
+	}
 	if minScoreStr := c.Query("min_score"); minScoreStr != "" {
 		if v, err := strconv.ParseFloat(minScoreStr, 64); err == nil {
 			query.MinScore = &v
@@ -322,6 +434,24 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 	}
 	if tag := c.Query("tag"); tag != "" {
 		query.Tags = []string{tag}
+	}
+	// Taxonomy facets: the CONTROLLED category, and the real compliance mapping.
+	// `framework` above still filters the frozen free-text column for old
+	// clients; `framework_id` is the one that means anything.
+	if cats := c.Query("category_id"); cats != "" {
+		for _, raw := range csvValues(cats) {
+			if id, err := uuid.Parse(raw); err == nil {
+				query.CategoryIDs = append(query.CategoryIDs, id)
+			}
+		}
+	}
+	if fw := c.Query("framework_id"); fw != "" {
+		if id, err := uuid.Parse(fw); err == nil {
+			query.FrameworkID = &id
+		}
+	}
+	if c.Query("unmapped") == "true" {
+		query.Unmapped = true
 	}
 
 	// Page & Limit
@@ -410,8 +540,10 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 
 	mwCtx := middleware.GetContext(c)
 	orgID := uuid.Nil
+	actorID := uuid.Nil
 	if mwCtx != nil {
 		orgID = mwCtx.OrganizationID
+		actorID = mwCtx.UserID
 	}
 
 	ucInput := risk.UpdateRiskInput{
@@ -421,6 +553,10 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		Probability:        &input.Probability,
 		Tags:               input.Tags,
 		Frameworks:         input.Frameworks,
+		Ownership:          input.OwnershipPatch,
+		Category:           input.Category,
+		Actor:              actorID,
+		Locale:             c.Query("locale", "fr"),
 		SLEXAF:             input.SLEXAF,
 		ARO:                input.ARO,
 		ReviewIntervalDays: input.ReviewIntervalDays,
