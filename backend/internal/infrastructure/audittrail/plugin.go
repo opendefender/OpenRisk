@@ -6,6 +6,7 @@
 package audittrail
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 
@@ -13,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
 // Plugin is a GORM plugin that appends an immutable domain.AuditEvent whenever a
@@ -33,10 +35,24 @@ import (
 type Plugin struct {
 	// root is a callback-free handle used to write events without re-entrancy.
 	root *gorm.DB
+	// appender chains and stores events written outside an HTTP request. Always
+	// set: a raw insert would leave the row without a sequence or a hash, which
+	// is indistinguishable from a tampered row at verification time.
+	appender domain.AuditEventRepository
 }
 
 // New returns a Plugin. Register it once with db.Use(audittrail.New(db)).
-func New(db *gorm.DB) *Plugin { return &Plugin{root: db} }
+func New(db *gorm.DB) *Plugin {
+	return &Plugin{root: db, appender: repository.NewGormAuditChainRepository(db)}
+}
+
+// WithAppender attaches the chained audit store used for mutations that happen
+// outside an HTTP request (workers, schedulers). Without it those rows would
+// carry no sequence or hash and verification would flag them.
+func (p *Plugin) WithAppender(a domain.AuditEventRepository) *Plugin {
+	p.appender = a
+	return p
+}
 
 func (p *Plugin) Name() string { return "openrisk:audittrail" }
 
@@ -135,15 +151,31 @@ func (p *Plugin) record(db *gorm.DB, action domain.AuditAction, entityType strin
 	}
 	tenantID := tenantFromSnapshot(anchor)
 
-	var actor Actor
-	if db.Statement != nil {
-		actor, _ = ActorFromContext(db.Statement.Context)
+	var ctx context.Context = context.Background()
+	if db.Statement != nil && db.Statement.Context != nil {
+		ctx = db.Statement.Context
 	}
+	actor, _ := ActorFromContext(ctx)
 	if tenantID == uuid.Nil {
 		tenantID = actor.TenantID
 	}
 	if tenantID == uuid.Nil {
 		// Never journal a tenant-less mutation — it could leak across tenants.
+		return
+	}
+
+	// Inside an HTTP request the middleware owns the entry: hand it the row-level
+	// evidence and let it write one chained entry for the whole action.
+	if col, ok := CollectorFromContext(ctx); ok {
+		col.Add(Mutation{
+			EntityType: entityType,
+			EntityID:   entityID,
+			Action:     action,
+			Summary:    summarize(action, entityType, anchor),
+			Before:     before,
+			After:      after,
+			Changed:    changedFields(before, after),
+		})
 		return
 	}
 
@@ -161,12 +193,13 @@ func (p *Plugin) record(db *gorm.DB, action domain.AuditAction, entityType strin
 		IPAddress:     actor.IPAddress,
 		UserAgent:     actor.UserAgent,
 		RequestID:     actor.RequestID,
+		Source:        domain.AuditSourceGorm,
 	}
 
-	// Write with a fresh, hook-free session so this Create never re-enters the
-	// plugin. Use the acting context so downstream sees the same request.
-	ctx := db.Statement.Context
-	_ = p.root.WithContext(ctx).Session(&gorm.Session{SkipHooks: true, NewDB: true}).Create(ev).Error
+	// Chained append — assigns sequence + prev_hash + hash inside a transaction.
+	if p.appender != nil {
+		_ = p.appender.Append(ctx, ev)
+	}
 }
 
 // shouldAudit gates a callback: the write must have succeeded, have a schema, and

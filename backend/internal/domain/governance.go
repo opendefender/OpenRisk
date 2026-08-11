@@ -96,9 +96,16 @@ const (
 // AuditEvent is one immutable row in the audit trail. There is intentionally no
 // UpdatedAt and no soft-delete: the repository only ever appends. ActorID is nil
 // for automatic/system events (e.g. a background worker mutation).
+//
+// Each row is chained to the previous one of the same tenant (Sequence /
+// PrevHash / Hash), so any alteration is detectable — see audit_chain.go.
 type AuditEvent struct {
-	ID       uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TenantID uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	// No database-side default on ID: the repository always assigns it before
+	// hashing (the id is part of the hashed payload), and keeping the model free
+	// of Postgres-only DDL lets the same schema stand up under sqlite in tests —
+	// which is how this table's DDL stops drifting away from the model.
+	ID       uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID uuid.UUID  `gorm:"type:uuid;index:idx_audit_tenant_seq,unique,priority:1;index;not null" json:"tenant_id"`
 	ActorID  *uuid.UUID `gorm:"type:uuid;index" json:"actor_id,omitempty"`
 	// ActorEmail is resolved on read (never persisted) so the journal shows a
 	// human name instead of a bare UUID.
@@ -112,8 +119,25 @@ type AuditEvent struct {
 	ChangedFields StringList  `gorm:"type:jsonb" json:"changed_fields,omitempty"`
 	IPAddress     string      `gorm:"type:varchar(64)" json:"ip_address,omitempty"`
 	UserAgent     string      `gorm:"type:text" json:"user_agent,omitempty"`
-	RequestID     string      `gorm:"type:varchar(64)" json:"request_id,omitempty"`
-	CreatedAt     time.Time   `gorm:"index;autoCreateTime" json:"created_at"`
+	RequestID     string      `gorm:"type:varchar(64);index" json:"request_id,omitempty"`
+
+	// HTTP envelope — set when the entry was produced by the mutation middleware.
+	Method     string `gorm:"type:varchar(8)" json:"method,omitempty"`
+	Path       string `gorm:"type:varchar(255)" json:"path,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
+	// Source is which writer produced the entry: http | gorm | explicit.
+	Source string `gorm:"type:varchar(16);index" json:"source,omitempty"`
+
+	// Hash chain — Sequence is a per-tenant monotonic counter, PrevHash links to
+	// the preceding entry and Hash covers this entry's full content. Assigned by
+	// the repository inside the append transaction; never by callers.
+	Sequence int64  `gorm:"index:idx_audit_tenant_seq,unique,priority:2;not null;default:0" json:"sequence"`
+	PrevHash string `gorm:"type:varchar(64)" json:"prev_hash"`
+	Hash     string `gorm:"type:varchar(64);index" json:"hash"`
+
+	// CreatedAt is part of the hashed payload, so it is always set by the
+	// application before sealing — never left to a database default.
+	CreatedAt time.Time `gorm:"index" json:"created_at"`
 }
 
 func (AuditEvent) TableName() string { return "audit_events" }
@@ -124,9 +148,11 @@ type AuditEventFilter struct {
 	EntityID   string
 	Action     string
 	ActorID    *uuid.UUID
+	RequestID  string
+	Source     string
 	From       *time.Time
 	To         *time.Time
-	Search     string // free-text over summary / entity_type / entity_id
+	Search     string // free-text over summary / entity_type / entity_id / path
 	Limit      int
 	Offset     int
 }

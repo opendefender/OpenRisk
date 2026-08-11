@@ -267,6 +267,8 @@ func main() {
 		// (append-only who/what/when/before→after), time-boxed delegations, and
 		// the configurable Maker-Checker approval engine (workflows + requests).
 		&domain.AuditEvent{},
+		&domain.AuditChainSeal{},
+		&domain.AuditRetentionPolicy{},
 		&domain.Delegation{},
 		&domain.ApprovalWorkflow{},
 		&domain.ApprovalRequest{},
@@ -290,10 +292,15 @@ func main() {
 	// exist. From here on, every struct-form mutation of an Auditable model
 	// (Asset, ComplianceControl, …) is journaled automatically into audit_events —
 	// developers can't forget to log. Best-effort: a failure never blocks a write.
-	if err := database.DB.Use(audittrailinfra.New(database.DB)); err != nil {
+	//
+	// The plugin appends through the CHAINED store: entries written outside an
+	// HTTP request (workers, schedulers) still get a sequence number and a hash
+	// linking them to the previous entry, so chain verification covers them too.
+	auditChainRepo := repository.NewGormAuditChainRepository(database.DB)
+	if err := database.DB.Use(audittrailinfra.New(database.DB).WithAppender(auditChainRepo)); err != nil {
 		log.Printf("audit trail: failed to install GORM plugin: %v", err)
 	} else {
-		log.Println("Governance: immutable audit-trail plugin installed")
+		log.Println("Governance: immutable hash-chained audit-trail plugin installed")
 	}
 
 	// Création du compte Admin par défaut si la DB est vide
@@ -825,6 +832,13 @@ func main() {
 		}
 		return c.Next()
 	})
+
+	// Exhaustive mutation journaling. Mounted right after the actor stamp so it
+	// sees the identity, and BEFORE every business route so no route can escape
+	// it: each successful POST/PUT/PATCH/DELETE produces exactly one chained
+	// audit entry (actor, tenant, action, resource, before → after, ip, user
+	// agent, request id, timestamp). Adding a route adds coverage automatically.
+	protected.Use(middleware.AuditMutations(auditChainRepo))
 
 	// --- MFA enrollment (L4) ---
 	// Registered on `api` with MFAEnrollmentMiddleware rather than under
@@ -2034,14 +2048,23 @@ func main() {
 	// guarded by role (audit trail + workflow config = admin; delegations +
 	// approval decisions = any authenticated member — the use cases enforce
 	// four-eyes and role-eligibility internally).
-	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
+	// auditChainRepo (built above, before the GORM plugin) is the append-only,
+	// hash-chained store: it assigns each entry its sequence number and the hash
+	// of its predecessor, which is what makes tampering detectable.
+	auditRetentionRepo := repository.NewGormAuditRetentionRepository(database.DB)
 	delegationRepo := repository.NewGormDelegationRepository(database.DB)
 	approvalRepo := repository.NewGormApprovalRepository(database.DB)
-	governanceRecorder := governance.NewAuditRecorder(auditEventRepo)
+	governanceRecorder := governance.NewAuditRecorder(auditChainRepo)
 
 	governanceHandler := handlers.NewGovernanceHandler(handlers.GovernanceDeps{
-		ListAudit: governance.NewListAuditEventsUseCase(auditEventRepo).WithUserLookup(userRepo),
+		ListAudit: governance.NewListAuditEventsUseCase(auditChainRepo).WithUserLookup(userRepo),
 		Recorder:  governanceRecorder,
+
+		VerifyChain:  governance.NewVerifyAuditChainUseCase(auditChainRepo),
+		ExportAudit:  governance.NewExportAuditTrailUseCase(auditChainRepo).WithUserLookup(userRepo),
+		GetRetention: governance.NewGetRetentionPolicyUseCase(auditRetentionRepo),
+		SetRetention: governance.NewSetRetentionPolicyUseCase(auditRetentionRepo).WithRecorder(governanceRecorder),
+		PruneAudit:   governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo),
 
 		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo),
 		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo),
@@ -2062,9 +2085,20 @@ func main() {
 
 	governanceAdmin := middleware.RequireRole("admin", "root")
 
-	// Audit trail — admin only (matches /audit-logs). Static export path first.
+	// Audit trail — admin only (matches /audit-logs). Static sub-paths first
+	// (Fiber trap: /:id would otherwise swallow "export" and "verify").
 	protected.Get("/governance/audit-events/export", governanceAdmin, governanceHandler.ExportAuditEvents)
+	protected.Get("/governance/audit-events/verify", governanceAdmin, governanceHandler.VerifyAuditChain)
 	protected.Get("/governance/audit-events", governanceAdmin, governanceHandler.ListAuditEvents)
+	protected.Get("/governance/audit-retention", governanceAdmin, governanceHandler.GetAuditRetention)
+	protected.Put("/governance/audit-retention", governanceAdmin, governanceHandler.SetAuditRetention)
+	protected.Post("/governance/audit-retention/apply", governanceAdmin, governanceHandler.RunAuditRetention)
+
+	// Nightly-ish retention sweep. No-op for every tenant that kept the default
+	// (keep forever) — nothing is deleted unless someone configured a window.
+	go workers.NewAuditRetentionWorker(
+		governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo), zeroLogger,
+	).Start(context.Background())
 
 	// Delegations — any authenticated member manages their own; static paths first.
 	protected.Get("/governance/delegations/effective", governanceHandler.EffectiveDelegatedPermissions)
