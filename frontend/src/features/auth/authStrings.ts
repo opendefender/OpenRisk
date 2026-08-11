@@ -208,6 +208,7 @@ export interface AuthCopy {
   mfaSubmit: string;
   mfaUseBackup: string;
   mfaInvalid: string;
+  mfaSetupFailed: string;
   mfaEnrolTitle: string;
   mfaEnrolSubtitle: string;
   mfaEnrolScan: string;
@@ -309,6 +310,9 @@ const fr: AuthCopy = {
   mfaSubmit: 'Vérifier',
   mfaUseBackup: 'Utiliser un code de récupération',
   mfaInvalid: 'Code incorrect. Vérifiez votre application et réessayez.',
+  // Distinct from registerFailed on purpose: at this point the account EXISTS.
+  // Telling the user their sign-up failed sends them back to create it again.
+  mfaSetupFailed: "Impossible de préparer la double authentification. Votre compte est créé — rechargez la page pour réessayer.",
   mfaEnrolTitle: 'Activez la double authentification',
   mfaEnrolSubtitle:
     'Votre rôle donne accès aux données de toute l’organisation : un second facteur est obligatoire.',
@@ -415,6 +419,7 @@ const en: AuthCopy = {
   mfaSubmit: 'Verify',
   mfaUseBackup: 'Use a recovery code',
   mfaInvalid: 'Incorrect code. Check your app and try again.',
+  mfaSetupFailed: 'Could not set up two-factor authentication. Your account exists — reload the page to try again.',
   mfaEnrolTitle: 'Turn on two-factor authentication',
   mfaEnrolSubtitle:
     'Your role can reach data across the whole organisation, so a second factor is required.',
