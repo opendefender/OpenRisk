@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { Upload, Plus, X, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Rows3, LayoutGrid, Check, ChevronDown, ArrowRight, ArrowLeft, RotateCcw, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2 } from 'lucide-react';
+import { Upload, Plus, X, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Rows3, LayoutGrid, Check, ChevronDown, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2, UserCheck, Link2Off } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
   SkeletonRows, EmptyState, softFill, type RiskStatus,
@@ -39,6 +39,8 @@ import { useRiskFinancial } from '../financial/useFinancial';
 import { useRiskSmartScore } from './useSmartScore';
 import { SmartRiskRadar } from './components/SmartRiskRadar';
 import { useTreatmentPlan } from '../ai/useAi';
+import { LifecycleStepper } from './LifecycleStepper';
+import { useRiskCategories } from './useTaxonomy';
 import { useQueryClient } from '@tanstack/react-query';
 
 /* -------------------------------------------------------------- CSV export */
@@ -49,7 +51,8 @@ import { useQueryClient } from '@tanstack/react-query';
 function exportRiskCsv(r: UiRisk) {
   const cols: [string, string | number][] = [
     ['id', r.id], ['name', r.name], ['description', r.desc ?? ''], ['asset', r.asset],
-    ['score', r.score], ['criticality', r.crit], ['status', r.status], ['framework', r.fw],
+    ['score', r.score], ['criticality', r.crit], ['status', r.status],
+    ['category', r.categoryName], ['framework', r.fw], ['tags', r.tags.join(' ')],
     ['owner', r.ownerName], ['probability', r.prob], ['impact', r.impact], ['asset_criticality', r.ac],
     ['updated', r.mod],
   ];
@@ -78,12 +81,17 @@ export function RiskRegisterPage() {
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
   const deleteRisk = useRiskStore((s) => s.deleteRisk);
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  const { data: categories } = useRiskCategories();
   const canDelete = useAuthStore((s) => s.hasPermission('risks:delete'));
 
   const [view, setView] = useState<'table' | 'map'>('table');
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
+  // Two quick scopes that sit apart from the facet panel because they answer
+  // "what should I look at right now", not "narrow this list".
+  const [mine, setMine] = useState(false);
+  const [unmappedOnly, setUnmappedOnly] = useState(false);
   const [toDelete, setToDelete] = useState<UiRisk | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -104,8 +112,13 @@ export function RiskRegisterPage() {
     for (const [key, values] of Object.entries(state.filters)) {
       if (values.length) p[key] = values.join(',');
     }
+    // "Mes risques" — anything I own, execute or must validate. The server takes
+    // the user from the JWT, so this is a flag, never an id: `mine=<someone
+    // else>` is not expressible.
+    if (mine) p.mine = 'true';
+    if (unmappedOnly) p.unmapped = 'true';
     return p;
-  }, [state]);
+  }, [state, mine, unmappedOnly]);
 
   const reload = useCallback(() => { void fetchRisks(params).catch(() => {}); }, [fetchRisks, params]);
   useEffect(() => { reload(); }, [reload]);
@@ -165,8 +178,24 @@ export function RiskRegisterPage() {
     },
     {
       key: 'phase',
-      label: tr('Phase (ISO 31000)', 'Phase (ISO 31000)'),
-      options: PHASE_ORDER.map((p) => ({ value: p, label: phaseLabel(p, lang) })),
+      label: tr('Étape du cycle de vie', 'Lifecycle step'),
+      // The facet still filters the derived `phase` column, which the server
+      // keeps in step with lifecycle_state on every write.
+      options: [
+        { value: 'identified', label: tr('Identifié', 'Identified') },
+        { value: 'analyzed', label: tr('Évalué', 'Assessed') },
+        { value: 'evaluated', label: tr('Traitement planifié', 'Treatment planned') },
+        { value: 'treated', label: tr('En traitement', 'In treatment') },
+        { value: 'monitored', label: tr('Traité / accepté', 'Mitigated / accepted') },
+        { value: 'closed', label: tr('Clôturé', 'Closed') },
+      ],
+    },
+    {
+      key: 'category_id',
+      label: tr('Catégorie', 'Category'),
+      // The CONTROLLED vocabulary — that is what makes it a usable facet at all.
+      // Faceting on free-text tags would just list every string anyone typed.
+      options: (categories ?? []).map((c) => ({ value: c.id, label: c.name })),
     },
     {
       key: 'source',
@@ -178,7 +207,7 @@ export function RiskRegisterPage() {
         { value: 'import', label: tr('Import', 'Import') },
       ],
     },
-  ], [L, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  ], [L, lang, categories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* -------------------------------------------------------------- columns */
   const columns: Column<UiRisk>[] = useMemo(() => [
@@ -227,11 +256,74 @@ export function RiskRegisterPage() {
       exportValue: (r) => r.phase,
       render: (r) => <PhasePill phase={r.phase} lang={lang} />,
     },
+    // --- Taxonomy: three concepts, three columns, three renderings.
+    // Conflating them is the reported bug; keeping them apart is the fix, and
+    // the types make it hard to reintroduce (each reads a different field).
+    {
+      key: 'category',
+      header: L.col_category,
+      exportValue: (r) => r.categoryName,
+      render: (r) =>
+        r.categoryName ? (
+          <span
+            className="rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap"
+            style={{
+              background: `color-mix(in srgb, var(--${r.categoryColor}, --ink-muted) 14%, transparent)`,
+              color: `var(--${r.categoryColor}, var(--ink-soft))`,
+            }}
+          >
+            {r.categoryName}
+          </span>
+        ) : (
+          <span className="text-ink-muted text-[12px]">—</span>
+        ),
+    },
     {
       key: 'framework',
       header: L.col_fw,
       exportValue: (r) => r.fw,
-      render: (r) => (r.fw !== '—' ? <FwBadge fw={r.fw} /> : <span className="text-ink-muted text-[12px]">—</span>),
+      // A REAL reference, or nothing. Clickable through to the control it names.
+      render: (r) =>
+        r.fw !== '—' ? (
+          <a
+            href={r.fwHref}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              navigate(r.fwHref);
+            }}
+            title={r.mappings.length > 1 ? tr(`+${r.mappings.length - 1} autre(s)`, `+${r.mappings.length - 1} more`) : undefined}
+            className="inline-flex items-center gap-1"
+          >
+            <FwBadge fw={r.fw} />
+            {r.mappings.length > 1 ? (
+              <span className="text-[11px] text-ink-muted">+{r.mappings.length - 1}</span>
+            ) : null}
+          </a>
+        ) : (
+          <span className="text-ink-muted text-[12px]">—</span>
+        ),
+    },
+    {
+      key: 'tags',
+      header: L.col_tags,
+      defaultHidden: true,
+      exportValue: (r) => r.tags.join(' '),
+      // Rendered as neutral chips, deliberately NOT with FwBadge: a label must
+      // never be able to look like a compliance reference again.
+      render: (r) =>
+        r.tags.length ? (
+          <span className="flex flex-wrap gap-1">
+            {r.tags.slice(0, 2).map((t) => (
+              <span key={t} className="rounded-full border border-border px-1.5 py-0.5 text-[11px] text-ink-soft">
+                {t}
+              </span>
+            ))}
+            {r.tags.length > 2 ? <span className="text-[11px] text-ink-muted">+{r.tags.length - 2}</span> : null}
+          </span>
+        ) : (
+          <span className="text-ink-muted text-[12px]">—</span>
+        ),
     },
     {
       key: 'owner',
@@ -246,7 +338,7 @@ export function RiskRegisterPage() {
       exportValue: (r) => r.raw.updated_at ?? r.raw.created_at ?? '',
       render: (r) => <span className="text-[12px] text-ink-soft whitespace-nowrap">{r.mod}</span>,
     },
-  ], [L, lang, canUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
+  ], [L, lang, canUpdate, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------------------------------------------------- row actions */
   const rowActions: RowAction<UiRisk>[] = useMemo(() => [
@@ -340,8 +432,9 @@ export function RiskRegisterPage() {
           exportFilename="risques"
           minWidth={880}
           toolbarExtra={
-            // A shortcut onto the SAME url-backed facet the panel writes — not a
-            // second, divergent filter state.
+            <>
+            {/* A shortcut onto the SAME url-backed facet the panel writes — not
+                a second, divergent filter state. */}
             <button
               type="button"
               onClick={() => table.toggleFilter('criticality', 'critical')}
@@ -355,6 +448,36 @@ export function RiskRegisterPage() {
             >
               <ShieldAlert size={14} /> {L.critical}{critCount ? ` · ${critCount}` : ''}
             </button>
+            {/* "Mes risques" — the whole point of splitting owner/assignee/
+                reviewer: one toggle can now mean "anything I answer for, work
+                on, or must validate". */}
+            <button
+              type="button"
+              onClick={() => setMine((v) => !v)}
+              data-testid="quick-mine"
+              className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0"
+              style={
+                mine
+                  ? { background: softFill('var(--accent)', 16), color: 'var(--accent)', border: '1px solid transparent' }
+                  : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
+              }
+            >
+              <UserCheck size={14} /> {tr('Mes risques', 'My risks')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setUnmappedOnly((v) => !v)}
+              data-testid="quick-unmapped"
+              className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0"
+              style={
+                unmappedOnly
+                  ? { background: softFill('var(--medium)', 16), color: 'var(--medium)', border: '1px solid transparent' }
+                  : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
+              }
+            >
+              <Link2Off size={14} /> {tr('Non mappés', 'Unmapped')}
+            </button>
+          </>
           }
           empty={
             <EmptyState
@@ -760,7 +883,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
 
         <div className="flex-1 overflow-y-auto">
           {tab === 'details' && <DrawerDetails r={r} onCreateMiti={onCreateMiti} />}
-          {tab === 'lifecycle' && <DrawerLifecycle r={r} />}
+          {tab === 'lifecycle' && <DrawerLifecycle r={r} onOpenMitigations={() => setTab('miti')} />}
           {tab === 'score' && <DrawerScore r={r} />}
           {tab === 'smart' && <DrawerSmart r={r} />}
           {tab === 'financial' && <DrawerFinancial r={r} />}
@@ -880,131 +1003,50 @@ function DrawerSmart({ r }: { r: UiRisk }) {
   );
 }
 
-/* ---------------- lifecycle (ISO 31000) ---------------- */
-const PHASE_ORDER: RiskPhase[] = ['identified', 'analyzed', 'evaluated', 'treated', 'monitored', 'closed'];
-const PHASE_LABELS: Record<RiskPhase, [string, string]> = {
-  identified: ['Identifier', 'Identify'],
-  analyzed: ['Analyser', 'Analyze'],
-  evaluated: ['Évaluer', 'Evaluate'],
-  treated: ['Traiter', 'Treat'],
-  monitored: ['Surveiller', 'Monitor'],
-  closed: ['Clôturer', 'Close'],
-};
-function phaseLabel(p: RiskPhase, lang: 'fr' | 'en') { return PHASE_LABELS[p][lang === 'fr' ? 0 : 1]; }
-function phaseIdx(p: RiskPhase) { return PHASE_ORDER.indexOf(p); }
-// Mirrors domain.RiskPhase.CanTransitionTo on the backend (±1 step, →closed from
-// anywhere, or reopen from closed). The backend is the source of truth; this only
-// decides which buttons to show.
-function canTransition(from: RiskPhase, to: RiskPhase): boolean {
-  const f = phaseIdx(from), t = phaseIdx(to);
-  if (f < 0 || t < 0 || f === t) return false;
-  if (to === 'closed') return true;
-  if (from === 'closed') return true;
-  return Math.abs(t - f) === 1;
-}
+/* ---------------- lifecycle ---------------- */
+//
+// There is no client-side copy of the state graph any more. This used to hold a
+// `canTransition` that "mirrors the backend" — and mirrors drift: the button the
+// UI offered and the transition the server would accept stopped agreeing, which
+// is how a risk reached "traité" with open sub-actions. <LifecycleStepper>
+// renders GET /risks/:id/transitions verbatim, blockers included.
 
+/** State pill for the register row, from the single canonical lifecycle. */
 function PhasePill({ phase, lang }: { phase: RiskPhase; lang: 'fr' | 'en' }) {
   const closed = phase === 'closed';
   const col = closed ? 'var(--text-secondary)' : 'var(--accent)';
+  const labels: Record<RiskPhase, [string, string]> = {
+    identified: ['Identifié', 'Identified'],
+    analyzed: ['Évalué', 'Assessed'],
+    evaluated: ['Traitement planifié', 'Treatment planned'],
+    treated: ['En traitement', 'In treatment'],
+    monitored: ['Traité', 'Mitigated'],
+    closed: ['Clôturé', 'Closed'],
+  };
   return (
     <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11.5px] font-semibold" style={{ color: col, background: 'color-mix(in srgb,var(--accent) 12%,transparent)' }}>
-      <RouteIcon size={12} /> {phaseLabel(phase, lang)}
+      <RouteIcon size={12} /> {labels[phase]?.[lang === 'fr' ? 0 : 1] ?? phase}
     </span>
   );
 }
 
-function DrawerLifecycle({ r }: { r: UiRisk }) {
+function DrawerLifecycle({ r, onOpenMitigations }: { r: UiRisk; onOpenMitigations?: () => void }) {
   const lang = useUIStore((s) => s.lang);
+  const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const transitionPhase = useRiskStore((s) => s.transitionPhase);
-  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  const current = r.phase;
-  const curIdx = phaseIdx(current);
-
-  const go = async (to: RiskPhase) => {
-    setBusy(true);
-    try {
-      await transitionPhase(r.id, to, note.trim() || undefined);
-      toast.success(tr(`Phase : ${phaseLabel(to, lang)}`, `Phase: ${phaseLabel(to, lang)}`));
-      setNote('');
-    } catch {
-      toast.error(tr('Transition refusée', 'Transition rejected'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const prev = curIdx > 0 ? PHASE_ORDER[curIdx - 1] : null;
-  const next = curIdx < PHASE_ORDER.length - 1 ? PHASE_ORDER[curIdx + 1] : null;
-
   return (
     <div className="px-[22px] py-5">
-      <div className="text-[13px] text-ink-soft mb-4">{tr('Cycle de vie du risque — ISO 31000. La phase est indépendante du statut.', 'Risk lifecycle — ISO 31000. Phase is independent of status.')}</div>
-
-      {/* Vertical stepper */}
-      <div className="relative pl-1">
-        {PHASE_ORDER.map((p, i) => {
-          const done = curIdx > i || current === 'closed' && i < 5;
-          const isCurrent = p === current;
-          const dotBg = isCurrent ? 'var(--accent)' : done ? 'var(--low)' : 'var(--bg-hover)';
-          const dotFg = isCurrent || done ? '#fff' : 'var(--text-muted)';
-          return (
-            <div key={p} className="flex items-start gap-3 pb-1">
-              <div className="flex flex-col items-center">
-                <div className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[12px] font-bold shrink-0" style={{ background: dotBg, color: dotFg, boxShadow: isCurrent ? '0 0 0 4px color-mix(in srgb,var(--accent) 20%,transparent)' : 'none' }}>
-                  {done ? <Check size={14} /> : i + 1}
-                </div>
-                {i < PHASE_ORDER.length - 1 && <div className="w-[2px] h-6" style={{ background: curIdx > i ? 'var(--low)' : 'var(--border)' }} />}
-              </div>
-              <div className="pt-0.5">
-                <div className="text-[13.5px] font-semibold" style={{ color: isCurrent ? 'var(--accent)' : 'var(--text-primary)' }}>{phaseLabel(p, lang)}</div>
-                {isCurrent && <div className="text-[11.5px] text-ink-muted">{tr('Phase actuelle', 'Current phase')}</div>}
-              </div>
-            </div>
-          );
-        })}
+      <div className="text-[13px] text-ink-soft mb-4">
+        {tr(
+          "Le cycle de vie et le plan de mitigation sont un seul flux : une étape se débloque quand le travail correspondant est fait, pas quand on coche une case.",
+          'The lifecycle and the mitigation plan are one flow: a step unlocks when the work behind it is done, not when someone ticks a box.',
+        )}
       </div>
-
-      {/* Actions */}
-      {canUpdate ? (
-        <div className="mt-5 rounded-[12px] p-3.5" style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
-          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">{tr('Note (optionnelle)', 'Note (optional)')}</div>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={2}
-            placeholder={tr('Justification de la transition…', 'Transition rationale…')}
-            className="w-full rounded-[10px] px-3 py-2 text-[13px] text-ink outline-none mb-3"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-          />
-          <div className="flex flex-wrap gap-2">
-            {prev && canTransition(current, prev) && (
-              <button disabled={busy} onClick={() => go(prev)} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-                <ArrowLeft size={14} /> {phaseLabel(prev, lang)}
-              </button>
-            )}
-            {next && canTransition(current, next) && (
-              <button disabled={busy} onClick={() => go(next)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
-                {phaseLabel(next, lang)} <ArrowRight size={14} />
-              </button>
-            )}
-            {current !== 'closed' && (
-              <button disabled={busy} onClick={() => go('closed')} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-                <Check size={14} /> {tr('Clôturer', 'Close')}
-              </button>
-            )}
-            {current === 'closed' && (
-              <button disabled={busy} onClick={() => go('monitored')} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-                <RotateCcw size={14} /> {tr('Rouvrir', 'Reopen')}
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="mt-5 text-[12.5px] text-ink-muted">{tr('Lecture seule — permission « risks:update » requise pour faire évoluer la phase.', 'Read-only — the “risks:update” permission is required to advance the phase.')}</div>
-      )}
+      <LifecycleStepper
+        riskId={r.id}
+        onOpenMitigations={onOpenMitigations}
+        onOpenGovernance={() => navigate('/governance?tab=approvals')}
+      />
     </div>
   );
 }

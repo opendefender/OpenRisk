@@ -43,7 +43,10 @@ const fr = {
   riskTitle: 'Registre des risques', all: 'Tous', pendingReview: 'À revoir', importCsv: 'Importer',
   exportCsv: 'Exporter', filters: 'Filtres',
   col_name: 'Risque', col_score: 'Score', col_crit: 'Criticité', col_status: 'Statut',
-  col_fw: 'Framework', col_owner: 'Assigné', col_mod: 'Modifié',
+  // Three distinct columns for three distinct concepts — a tag is not a
+  // category and neither is a compliance reference.
+  col_fw: 'Référentiel', col_tags: 'Étiquettes', col_category: 'Catégorie',
+  col_owner: 'Responsable', col_assignee: 'Exécutant', col_mod: 'Modifié',
   edit: 'Éditer', duplicate: 'Dupliquer', share: 'Partager', exportPdf: 'Exporter PDF', del: 'Supprimer',
   createMiti: 'Créer une mitigation',
   tab_details: 'Détails', tab_score: 'Score', tab_miti: 'Mitigations', tab_timeline: 'Timeline',
@@ -105,7 +108,8 @@ const en: typeof fr = {
   riskTitle: 'Risk Register', all: 'All', pendingReview: 'To review', importCsv: 'Import',
   exportCsv: 'Export', filters: 'Filters',
   col_name: 'Risk', col_score: 'Score', col_crit: 'Criticality', col_status: 'Status',
-  col_fw: 'Framework', col_owner: 'Owner', col_mod: 'Modified',
+  col_fw: 'Framework', col_tags: 'Tags', col_category: 'Category',
+  col_owner: 'Owner', col_assignee: 'Assignee', col_mod: 'Modified',
   edit: 'Edit', duplicate: 'Duplicate', share: 'Share', exportPdf: 'Export PDF', del: 'Delete',
   createMiti: 'Create mitigation',
   tab_details: 'Details', tab_score: 'Score', tab_miti: 'Mitigations', tab_timeline: 'Timeline',
