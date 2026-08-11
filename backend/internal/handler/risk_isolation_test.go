@@ -273,6 +273,8 @@ const risksTableDDL = `CREATE TABLE IF NOT EXISTS risks (
 	lifecycle_phase TEXT,
 	created_by TEXT,
 	assigned_to TEXT,
+	owner_id TEXT,
+	assignee_id TEXT,
 	reviewer_id TEXT,
 	owner TEXT,
 	asset_id TEXT,

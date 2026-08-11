@@ -36,7 +36,9 @@ func CreateMitigation(c *fiber.Ctx) error {
 		Priority    string   `json:"priority"`
 		AssignedTo  []string `json:"assigned_to"`
 		DueDate     *string  `json:"due_date"`
-		SubActions  []struct {
+		// Ownership — responsable / exécutant / validateur from <UserPicker>.
+		domain.OwnershipPatch
+		SubActions []struct {
 			Title       string  `json:"title"`
 			Description string  `json:"description"`
 			DueDate     *string `json:"due_date"`
@@ -89,7 +91,8 @@ func CreateMitigation(c *fiber.Ctx) error {
 	// Use case
 	repo := repository.NewGormMitigationRepository(database.DB)
 	subRepo := repository.NewGormMitigationSubActionRepository(database.DB)
-	useCase := mitigation.NewCreateMitigationPlanUseCase(repo, subRepo)
+	useCase := mitigation.NewCreateMitigationPlanUseCase(repo, subRepo).
+		WithOwnership(OwnershipServiceInstance())
 	// Activation is recorded inside the use case; this legacy handler builds its
 	// own dependencies, so the recorder is carried in via the package seam
 	// (see activation_wiring.go). Nil-safe when unwired.
@@ -108,6 +111,8 @@ func CreateMitigation(c *fiber.Ctx) error {
 		CreatedBy:   ctx.UserID,
 		Source:      domain.SourceManual,
 		SubActions:  subActions,
+		Ownership:   payload.OwnershipPatch,
+		Locale:      c.Query("locale", "fr"),
 	}
 
 	output, err := useCase.ExecuteContext(c.UserContext(), input)
@@ -164,6 +169,12 @@ func ListMitigations(c *fiber.Ctx) error {
 	if riskID := c.Query("risk_id"); riskID != "" {
 		filters["risk_id"] = riskID
 	}
+	// "Mes mitigations" — anything the caller owns, executes, or must validate.
+	// Taken from the AUTHENTICATED user, never from a parameter, so
+	// "mine=<someone else>" is not expressible.
+	if c.Query("mine") == "true" && ctx.UserID != uuid.Nil {
+		filters["involved_user"] = ctx.UserID
+	}
 
 	repo := repository.NewGormMitigationRepository(database.DB)
 	plans, err := repo.List(ctx.OrganizationID.String(), filters)
@@ -214,6 +225,8 @@ func UpdateMitigation(c *fiber.Ctx) error {
 		Priority    *string  `json:"priority"`
 		AssignedTo  []string `json:"assigned_to"`
 		DueDate     *string  `json:"due_date"`
+		// Ownership — tri-state; an absent key leaves the slot alone.
+		domain.OwnershipPatch
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {
@@ -252,7 +265,8 @@ func UpdateMitigation(c *fiber.Ctx) error {
 	}
 
 	repo := repository.NewGormMitigationRepository(database.DB)
-	useCase := mitigation.NewUpdateMitigationPlanUseCase(repo)
+	useCase := mitigation.NewUpdateMitigationPlanUseCase(repo).
+		WithOwnership(OwnershipServiceInstance())
 
 	input := mitigation.UpdateMitigationPlanInput{
 		TenantID:    ctx.OrganizationID,
@@ -263,6 +277,9 @@ func UpdateMitigation(c *fiber.Ctx) error {
 		Priority:    priority,
 		AssignedTo:  assignedTo,
 		DueDate:     dueDate,
+		Ownership:   payload.OwnershipPatch,
+		Actor:       ctx.UserID,
+		Locale:      c.Query("locale", "fr"),
 	}
 
 	if err := useCase.Execute(input); err != nil {

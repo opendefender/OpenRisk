@@ -36,6 +36,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
+	"github.com/opendefender/openrisk/internal/application/ownership"
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -854,12 +855,35 @@ func main() {
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	protected.Get("/stats", cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats))
 
+	// --- Generalised ownership (responsable / exécutant / validateur) ---
+	// One service backs the <UserPicker> for every entity: it decides who may be
+	// assigned (active members of THIS tenant), applies the tri-state patch, and
+	// notifies the newly assigned. Its dependencies are stateless wrappers over
+	// database.DB, so instantiating them here (ahead of the RBAC and notification
+	// blocks further down) costs nothing and keeps the risk module's wiring local.
+	ownershipMembers := repository.NewGormMemberRBACRepository(database.DB)
+	ownershipService := ownership.NewService().
+		WithMembers(ownershipMembers).
+		WithUsers(repository.NewGormUserRepository(database.DB)).
+		WithNotifier(notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB)))
+	ownershipHandler := handlers.NewOwnershipHandler(ownership.NewListAssignableUseCase(ownershipMembers))
+	// Legacy handlers (mitigation, incident) build their use cases inline and
+	// cannot receive this through the constructor — same seam as the activation
+	// recorder above.
+	handlers.SetOwnershipService(ownershipService)
+	// Any authenticated member may see who they can assign work to — the picker
+	// is useless otherwise, and it exposes nothing an org chart would not.
+	protected.Get("/ownership/assignable", ownershipHandler.ListAssignable)
+	protected.Get("/ownership/me", ownershipHandler.Me)
+
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
-	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).WithActivation(activationRecorder)
+	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
+		WithActivation(activationRecorder).
+		WithOwnership(ownershipService)
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo)
-	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo)
+	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).WithOwnership(ownershipService)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.

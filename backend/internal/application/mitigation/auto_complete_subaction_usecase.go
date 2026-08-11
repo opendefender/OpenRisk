@@ -31,10 +31,10 @@ func NewAutoCompleteSubActionUseCase(
 }
 
 type AutoCompleteSubActionInput struct {
-	TenantID    uuid.UUID
-	SubActionID uuid.UUID
+	TenantID     uuid.UUID
+	SubActionID  uuid.UUID
 	ScannerJobID string // Reference to scanner run
-	Evidence    string // JSON/URL to scanner findings
+	Evidence     string // JSON/URL to scanner findings
 }
 
 // Execute auto-completes a subaction (called by scanner webhook)
@@ -42,12 +42,12 @@ func (uc *AutoCompleteSubActionUseCase) Execute(input AutoCompleteSubActionInput
 	if input.TenantID == uuid.Nil || input.SubActionID == uuid.Nil {
 		return fmt.Errorf("tenant_id and sub_action_id are required")
 	}
-	
+
 	subaction, mitigation, err := uc.subactionRepo.GetByIDWithMitigation(input.TenantID.String(), input.SubActionID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Validate dependencies even for scanner
 	canComplete, err := uc.subactionRepo.CanComplete(input.TenantID.String(), input.SubActionID)
 	if err != nil {
@@ -57,7 +57,7 @@ func (uc *AutoCompleteSubActionUseCase) Execute(input AutoCompleteSubActionInput
 		// Dependencies not met, can't auto-complete
 		return nil
 	}
-	
+
 	now := time.Now()
 	source := domain.CompletionScanner
 	subaction.Completed = true
@@ -66,19 +66,19 @@ func (uc *AutoCompleteSubActionUseCase) Execute(input AutoCompleteSubActionInput
 	subaction.CompletedSource = &source
 	subaction.AutoDetectedAt = &now
 	subaction.UpdatedAt = now
-	
+
 	if err := uc.subactionRepo.Update(input.TenantID.String(), subaction); err != nil {
 		return err
 	}
-	
+
 	// Recalculate progress
 	progress, err := uc.mitigationRepo.RecalculateProgress(input.TenantID.String(), mitigation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to recalculate progress: %w", err)
 	}
-	
+
 	// Event mitigation.auto_completed published separately via Redis
 	_ = progress
-	
+
 	return nil
 }

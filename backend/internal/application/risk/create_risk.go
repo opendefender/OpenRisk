@@ -23,11 +23,16 @@ type CreateRiskInput struct {
 	Tags        []string
 	Frameworks  []string
 	Owner       string
-	Source      string // parsed into domain.RiskSource in Execute()
-	ExternalID  string
-	CreatedBy   uuid.UUID // the authenticated user creating the risk
-	SLEXAF      *float64  // CRQ: single loss expectancy (XAF), optional
-	ARO         *float64  // CRQ: annualized rate of occurrence, optional
+	// Ownership assigns the responsable / exécutant / validateur at creation.
+	// When no owner is supplied the creator becomes the owner: a risk nobody
+	// answers for is how a register rots, and the creator is the only defensible
+	// default at this point.
+	Ownership  domain.OwnershipPatch
+	Source     string // parsed into domain.RiskSource in Execute()
+	ExternalID string
+	CreatedBy  uuid.UUID // the authenticated user creating the risk
+	SLEXAF     *float64  // CRQ: single loss expectancy (XAF), optional
+	ARO        *float64  // CRQ: annualized rate of occurrence, optional
 	// Full financial-quantification drivers (spec §9). All optional XAF amounts.
 	DowntimeHours           *float64
 	HourlyDowntimeCostXAF   *float64
@@ -52,6 +57,7 @@ type ActivationRecorder interface {
 type CreateRiskUseCase struct {
 	riskRepo   domain.RiskRepository
 	activation ActivationRecorder
+	ownership  OwnershipManager
 }
 
 // NewCreateRiskUseCase creates a new CreateRiskUseCase.
@@ -62,6 +68,13 @@ func NewCreateRiskUseCase(riskRepo domain.RiskRepository) *CreateRiskUseCase {
 // WithActivation attaches the optional activation recorder. Nil-safe.
 func (uc *CreateRiskUseCase) WithActivation(rec ActivationRecorder) *CreateRiskUseCase {
 	uc.activation = rec
+	return uc
+}
+
+// WithOwnership attaches the optional ownership manager (membership validation
+// + assignment notifications). Nil-safe.
+func (uc *CreateRiskUseCase) WithOwnership(m OwnershipManager) *CreateRiskUseCase {
+	uc.ownership = m
 	return uc
 }
 
@@ -120,6 +133,23 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 	// A newly created risk enters the lifecycle at "Identifier" (ISO 31000).
 	risk.LifecyclePhase = domain.PhaseIdentified
 
+	// Ownership: apply what the caller asked for, then guarantee an owner. The
+	// creator is the fallback — a risk with no responsable is unactionable, and
+	// leaving the slot empty is how registers accumulate orphans.
+	ownershipChanges, err := applyOwnership(ctx, uc.ownership, orgID, &risk.Ownership, input.Ownership, input.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+	if risk.OwnerID == nil && input.CreatedBy != uuid.Nil {
+		owner := input.CreatedBy
+		risk.OwnerID = &owner
+	}
+	// Keep the legacy assigned_to column in step so pre-0044 readers and the
+	// existing facet do not go blind on newly created rows.
+	if risk.AssigneeID != nil {
+		risk.AssignedTo = risk.AssigneeID
+	}
+
 	// 3. Compute score (Claude.md formula: P × I, score engine can override later)
 	risk.Score = risk.Impact * risk.Probability
 
@@ -135,6 +165,15 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		uc.activation.Record(ctx, orgID, string(domain.ActivationRiskCreated), map[string]interface{}{
 			"risk_id": risk.ID.String(),
 			"source":  string(risk.Source),
+		})
+	}
+
+	// 6. Announce assignments made at creation (never to the creator themselves).
+	if uc.ownership != nil && len(ownershipChanges) > 0 {
+		uc.ownership.Notify(ctx, orgID, ownershipChanges, domain.OwnershipSubject{
+			ResourceType: "risk",
+			ResourceID:   risk.ID,
+			Title:        risk.Title,
 		})
 	}
 

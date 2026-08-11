@@ -32,8 +32,8 @@ func NewValidateMitigationPlanUseCase(
 }
 
 type ValidateMitigationPlanInput struct {
-	TenantID uuid.UUID
-	PlanID   uuid.UUID
+	TenantID   uuid.UUID
+	PlanID     uuid.UUID
 	ReviewedBy uuid.UUID
 }
 
@@ -42,22 +42,22 @@ func (uc *ValidateMitigationPlanUseCase) Execute(input ValidateMitigationPlanInp
 	if input.TenantID == uuid.Nil || input.PlanID == uuid.Nil || input.ReviewedBy == uuid.Nil {
 		return fmt.Errorf("tenant_id, plan_id, and reviewed_by are required")
 	}
-	
+
 	mitigation, err := uc.mitigationRepo.GetByID(input.TenantID.String(), input.PlanID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Can only validate plans in REVIEW status (auto-filled when progress = 100)
 	if mitigation.Status != domain.MitigationReview {
 		return fmt.Errorf("plan must be in REVIEW status, current: %s", mitigation.Status)
 	}
-	
+
 	now := time.Now()
 	mitigation.Status = domain.MitigationDone
 	mitigation.ApprovedBy = &input.ReviewedBy
 	mitigation.ApprovedAt = &now
 	mitigation.UpdatedAt = now
-	
+
 	return uc.mitigationRepo.Update(input.TenantID.String(), mitigation)
 }

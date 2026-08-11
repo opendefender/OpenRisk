@@ -40,23 +40,23 @@ func (uc *ReorderSubActionsUseCase) Execute(input ReorderSubActionsInput) error 
 	if len(input.SubActions) == 0 {
 		return fmt.Errorf("subactions list cannot be empty")
 	}
-	
+
 	now := time.Now()
-	
+
 	// Update each subaction's order
 	for _, item := range input.SubActions {
 		subaction, _, err := uc.subactionRepo.GetByIDWithMitigation(input.TenantID.String(), item.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get subaction %s: %w", item.ID, err)
 		}
-		
+
 		subaction.Order = item.Order
 		subaction.UpdatedAt = now
-		
+
 		if err := uc.subactionRepo.Update(input.TenantID.String(), subaction); err != nil {
 			return fmt.Errorf("failed to update subaction order: %w", err)
 		}
 	}
-	
+
 	return nil
 }

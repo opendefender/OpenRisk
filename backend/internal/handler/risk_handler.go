@@ -143,6 +143,9 @@ type CreateRiskInput struct {
 	Tags        []string `json:"tags"`
 	AssetIDs    []string `json:"asset_ids"` // Liste des UUIDs des assets concernés
 	Frameworks  []string `json:"frameworks"`
+	// Ownership — responsable / exécutant / validateur, as picked in <UserPicker>.
+	// Embedded so the three keys sit at the top level of the payload.
+	domain.OwnershipPatch
 	// CRQ monetary inputs (XAF). Optional.
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
@@ -166,6 +169,10 @@ type UpdateRiskInput struct {
 	Tags        []string `json:"tags" validate:"omitempty,dive,required"`
 	AssetIDs    []string `json:"asset_ids" validate:"omitempty,dive,uuid4"`
 	Frameworks  []string `json:"frameworks" validate:"omitempty,dive,required"`
+	// Ownership — tri-state: a key absent from the body leaves the slot alone,
+	// an explicit null unassigns it. Embedded so the three keys sit at the top
+	// level of the payload.
+	domain.OwnershipPatch
 	// CRQ monetary inputs (XAF). Pointers → nil means "leave unchanged".
 	SLEXAF *float64 `json:"sle_xaf" validate:"omitempty,min=0"`
 	ARO    *float64 `json:"aro" validate:"omitempty,min=0"`
@@ -213,6 +220,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Probability: input.Probability,
 		Tags:        input.Tags,
 		Frameworks:  input.Frameworks,
+		Ownership:   input.OwnershipPatch,
 		CreatedBy:   createdBy,
 		SLEXAF:      input.SLEXAF,
 		ARO:         input.ARO,
@@ -308,6 +316,25 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 	if assignee := c.Query("assigned_to"); assignee != "" {
 		if id, err := uuid.Parse(assignee); err == nil {
 			query.AssignedTo = &id
+		}
+	}
+	if owner := c.Query("owner_id"); owner != "" {
+		if id, err := uuid.Parse(owner); err == nil {
+			query.OwnedBy = &id
+		}
+	}
+	if reviewer := c.Query("reviewer_id"); reviewer != "" {
+		if id, err := uuid.Parse(reviewer); err == nil {
+			query.ReviewedBy = &id
+		}
+	}
+	// "Mes risques" — anything the caller owns, works on, or must validate.
+	// Deliberately derived from the AUTHENTICATED user, never from a query
+	// parameter: "mine=<someone else's id>" must not be expressible.
+	if c.Query("mine") == "true" {
+		if mwCtx := middleware.GetContext(c); mwCtx != nil && mwCtx.UserID != uuid.Nil {
+			me := mwCtx.UserID
+			query.InvolvedUser = &me
 		}
 	}
 	if minScoreStr := c.Query("min_score"); minScoreStr != "" {
@@ -410,8 +437,10 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 
 	mwCtx := middleware.GetContext(c)
 	orgID := uuid.Nil
+	actorID := uuid.Nil
 	if mwCtx != nil {
 		orgID = mwCtx.OrganizationID
+		actorID = mwCtx.UserID
 	}
 
 	ucInput := risk.UpdateRiskInput{
@@ -421,6 +450,9 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		Probability:        &input.Probability,
 		Tags:               input.Tags,
 		Frameworks:         input.Frameworks,
+		Ownership:          input.OwnershipPatch,
+		Actor:              actorID,
+		Locale:             c.Query("locale", "fr"),
 		SLEXAF:             input.SLEXAF,
 		ARO:                input.ARO,
 		ReviewIntervalDays: input.ReviewIntervalDays,

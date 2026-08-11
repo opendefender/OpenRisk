@@ -6,6 +6,7 @@
 package mitigation
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -17,10 +18,17 @@ import (
 // UpdateMitigationPlanUseCase updates a mitigation plan
 type UpdateMitigationPlanUseCase struct {
 	mitigationRepo repository.MitigationRepository
+	ownership      OwnershipManager
 }
 
 func NewUpdateMitigationPlanUseCase(mitigationRepo repository.MitigationRepository) *UpdateMitigationPlanUseCase {
 	return &UpdateMitigationPlanUseCase{mitigationRepo: mitigationRepo}
+}
+
+// WithOwnership attaches the optional ownership manager. Nil-safe.
+func (uc *UpdateMitigationPlanUseCase) WithOwnership(m OwnershipManager) *UpdateMitigationPlanUseCase {
+	uc.ownership = m
+	return uc
 }
 
 type UpdateMitigationPlanInput struct {
@@ -32,6 +40,12 @@ type UpdateMitigationPlanInput struct {
 	Priority    *domain.MitigationPriority
 	AssignedTo  *domain.UUIDArray
 	DueDate     *time.Time
+	// Ownership is the tri-state patch of responsable / exécutant / validateur.
+	Ownership domain.OwnershipPatch
+	// Actor is the authenticated user, so nobody is notified of assigning
+	// something to themselves.
+	Actor  uuid.UUID
+	Locale string
 }
 
 // validMitigationStatus reports whether s is a known lifecycle status.
@@ -50,12 +64,12 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 	if input.TenantID == uuid.Nil || input.PlanID == uuid.Nil {
 		return fmt.Errorf("tenant_id and plan_id are required")
 	}
-	
+
 	mitigation, err := uc.mitigationRepo.GetByID(input.TenantID.String(), input.PlanID)
 	if err != nil {
 		return err
 	}
-	
+
 	if input.Title != nil {
 		mitigation.Title = *input.Title
 	}
@@ -84,8 +98,34 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 	if input.DueDate != nil {
 		mitigation.DueDate = input.DueDate
 	}
-	
+
+	changes, err := applyOwnership(context.Background(), uc.ownership, input.TenantID, &mitigation.Ownership, input.Ownership, input.Actor)
+	if err != nil {
+		return err
+	}
+	// Mirror onto the legacy jsonb array so the Kanban's existing avatar strip
+	// keeps rendering the person the picker just chose.
+	if input.Ownership.Assignee.Present {
+		if mitigation.AssigneeID != nil {
+			mitigation.AssignedTo = domain.UUIDArray{*mitigation.AssigneeID}
+		} else {
+			mitigation.AssignedTo = domain.UUIDArray{}
+		}
+	}
+
 	mitigation.UpdatedAt = time.Now()
-	
-	return uc.mitigationRepo.Update(input.TenantID.String(), mitigation)
+
+	if err := uc.mitigationRepo.Update(input.TenantID.String(), mitigation); err != nil {
+		return err
+	}
+
+	if uc.ownership != nil && len(changes) > 0 {
+		uc.ownership.Notify(context.Background(), input.TenantID, changes, domain.OwnershipSubject{
+			ResourceType: "mitigation",
+			ResourceID:   mitigation.ID,
+			Title:        mitigation.Title,
+			Locale:       input.Locale,
+		})
+	}
+	return nil
 }

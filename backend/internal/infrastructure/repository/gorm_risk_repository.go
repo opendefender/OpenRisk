@@ -121,9 +121,25 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		db = db.Where("asset_id = ?", *query.AssetID)
 	}
 
-	// Assigned to filter
+	// Assigned to filter. The legacy `assigned_to` column and the new
+	// `assignee_id` slot are OR'd: a row assigned before migration 0044 through
+	// the old column must still answer this facet.
 	if query.AssignedTo != nil {
-		db = db.Where("assigned_to = ?", *query.AssignedTo)
+		db = db.Where("(assigned_to = ? OR assignee_id = ?)", *query.AssignedTo, *query.AssignedTo)
+	}
+
+	// "Mes risques" — any of the three accountability slots. This is the whole
+	// point of splitting them: a single filter can now mean "anything I answer
+	// for, work on, or must validate".
+	if query.InvolvedUser != nil {
+		u := *query.InvolvedUser
+		db = db.Where("(owner_id = ? OR assignee_id = ? OR reviewer_id = ? OR assigned_to = ?)", u, u, u, u)
+	}
+	if query.OwnedBy != nil {
+		db = db.Where("owner_id = ?", *query.OwnedBy)
+	}
+	if query.ReviewedBy != nil {
+		db = db.Where("reviewer_id = ?", *query.ReviewedBy)
 	}
 
 	// Tags filter (OR condition)

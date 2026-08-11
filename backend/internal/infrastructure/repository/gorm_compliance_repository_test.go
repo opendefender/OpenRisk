@@ -78,6 +78,9 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			url TEXT NOT NULL DEFAULT '',
 			description TEXT,
 			uploaded_by TEXT,
+			owner_id TEXT,
+			assignee_id TEXT,
+			reviewer_id TEXT,
 			created_at DATETIME,
 			updated_at DATETIME,
 			deleted_at DATETIME

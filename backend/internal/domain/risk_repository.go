@@ -95,7 +95,11 @@ type RiskQuery struct {
 	LifecyclePhase []string   // Filter by ISO 31000 lifecycle phase (OR condition)
 	Framework      string     // Filter by single framework (iso27001|cobac|bceao|etc.)
 	AssetID        *uuid.UUID // Filter by linked asset
-	AssignedTo     *uuid.UUID // Filter by assigned person
+	AssignedTo     *uuid.UUID // Filter by assignee (matches the legacy assigned_to OR assignee_id)
+	OwnedBy        *uuid.UUID // Filter by owner (responsable)
+	ReviewedBy     *uuid.UUID // Filter by reviewer (validateur)
+	// InvolvedUser backs the "Mes risques" filter: owner OR assignee OR reviewer.
+	InvolvedUser *uuid.UUID
 	Tags           []string   // Filter by tags (OR condition)
 	DateFrom       *time.Time // Created date range start
 	DateTo         *time.Time // Created date range end

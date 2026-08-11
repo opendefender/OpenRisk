@@ -25,6 +25,11 @@ type UpdateRiskInput struct {
 	Tags        []string
 	Frameworks  []string
 	Owner       *string
+	// Ownership is a tri-state patch of the three accountability slots: a slot
+	// absent from the payload is left alone, an explicit null unassigns it.
+	// Without that distinction, saving a form that omits the reviewer would
+	// silently unassign the reviewer.
+	Ownership domain.OwnershipPatch
 	// CRQ monetary inputs (XAF). Pointers so a partial update can set or clear them.
 	SLEXAF *float64
 	ARO    *float64
@@ -39,15 +44,28 @@ type UpdateRiskInput struct {
 	MitigationEffectiveness *float64 // [0,1]
 	// Review cadence (days). 0 disables; >0 (re)initialises NextReviewAt when unset.
 	ReviewIntervalDays *int
+	// Actor is the authenticated user performing the update — the one whose own
+	// assignments must NOT generate a notification to themselves.
+	Actor uuid.UUID
+	// Locale drives the wording of the assignment notification ("fr" | "en").
+	Locale string
 }
 
 // UpdateRiskUseCase handles updating an existing risk.
 type UpdateRiskUseCase struct {
-	riskRepo domain.RiskRepository
+	riskRepo  domain.RiskRepository
+	ownership OwnershipManager
 }
 
 func NewUpdateRiskUseCase(riskRepo domain.RiskRepository) *UpdateRiskUseCase {
 	return &UpdateRiskUseCase{riskRepo: riskRepo}
+}
+
+// WithOwnership attaches the optional ownership manager (membership validation
+// + assignment notifications). Nil-safe.
+func (uc *UpdateRiskUseCase) WithOwnership(m OwnershipManager) *UpdateRiskUseCase {
+	uc.ownership = m
+	return uc
 }
 
 // Execute updates a risk by ID, scoped to the organization.
@@ -159,12 +177,35 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		}
 	}
 
+	// 2b. Ownership. Applied through the manager so a user from another tenant
+	// (or a deactivated account) is rejected before anything is written.
+	ownershipChanges, err := applyOwnership(ctx, uc.ownership, orgID, &risk.Ownership, input.Ownership, input.Actor)
+	if err != nil {
+		return nil, err
+	}
+	// Mirror onto the legacy column so pre-0044 readers and the existing
+	// assigned_to facet stay consistent with what the UI just showed.
+	if input.Ownership.Assignee.Present {
+		risk.AssignedTo = risk.AssigneeID
+	}
+
 	// 3. Recompute score
 	risk.Score = risk.Impact * risk.Probability
 
 	// 4. Persist
 	if err := uc.riskRepo.Update(ctx, risk); err != nil {
 		return nil, domain.NewInternalError(fmt.Sprintf("failed to update risk: %v", err))
+	}
+
+	// 5. Tell the newly assigned people, AFTER the write succeeded — nobody
+	// should be told they own something that failed to save. Best-effort.
+	if uc.ownership != nil && len(ownershipChanges) > 0 {
+		uc.ownership.Notify(ctx, orgID, ownershipChanges, domain.OwnershipSubject{
+			ResourceType: "risk",
+			ResourceID:   risk.ID,
+			Title:        risk.Title,
+			Locale:       input.Locale,
+		})
 	}
 
 	return risk, nil

@@ -122,6 +122,14 @@ func (r *GormMitigationRepository) List(tenantID string, filters map[string]inte
 	if riskID, ok := filters["risk_id"]; ok {
 		query = query.Where("risk_id = ?", riskID)
 	}
+	// "Mes mitigations": any of the three accountability slots. The legacy jsonb
+	// array is OR'd in so rows assigned before migration 0044 still answer.
+	if user, ok := filters["involved_user"]; ok {
+		query = query.Where(
+			"(owner_id = ? OR assignee_id = ? OR reviewer_id = ? OR assigned_to @> ?)",
+			user, user, user, fmt.Sprintf(`["%v"]`, user),
+		)
+	}
 
 	result := query.Order("created_at DESC").Find(&mitigations)
 
