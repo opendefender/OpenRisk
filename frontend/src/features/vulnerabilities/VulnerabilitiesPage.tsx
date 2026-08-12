@@ -9,10 +9,11 @@
 // an ingest modal and a connectors panel.
 
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
   Bug, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
-  ChevronDown, Check, Loader2, Ticket, ExternalLink,
+  ChevronDown, Check, Loader2, Ticket, ExternalLink, Unlink,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, EmptyState } from '../../shared/ui';
 import {
@@ -40,6 +41,7 @@ const cvssColor = (s: number) =>
   s >= 9 ? 'var(--critical)' : s >= 7 ? 'var(--high)' : s >= 4 ? 'var(--medium)' : 'var(--low)';
 
 export function VulnerabilitiesPage() {
+  const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const canWrite = useAuthStore((s) => s.hasPermission('vulnerabilities:update'));
@@ -227,6 +229,11 @@ export function VulnerabilitiesPage() {
         count={`${stats?.total ?? 0} ${tr('vulnérabilités', 'vulnerabilities')}`}
         actions={
           <>
+            <Btn
+              label={tr('Non rattachées', 'Unassigned')}
+              icon={Unlink}
+              onClick={() => navigate('/vulnerabilities/unassigned')}
+            />
             <Btn label={tr('Intégrations', 'Integrations')} icon={Plug} onClick={() => setConnectorsOpen(true)} />
             <Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />
           </>

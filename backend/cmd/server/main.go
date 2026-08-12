@@ -1422,10 +1422,21 @@ func main() {
 	protected.Get("/vulnerabilities/ticketing", vulnRead, vulnIntegHandler.GetTicketing)
 	protected.Put("/vulnerabilities/ticketing", vulnWrite, vulnIntegHandler.SaveTicketing)
 	protected.Delete("/vulnerabilities/ticketing", vulnDelete, vulnIntegHandler.DeleteTicketing)
+	// Vulnerability↔asset correlation (Attack Surface §3). Static sub-paths
+	// BEFORE /vulnerabilities/:id — "unassigned" must never be parsed as a UUID.
+	vulnCorrelationHandler := handlers.NewVulnCorrelationHandler(
+		vulnapp.NewListUnassignedUseCase(vulnRepo),
+		vulnapp.NewGetCandidatesUseCase(vulnRepo, assetRepo),
+		vulnapp.NewResolveAssetUseCase(vulnRepo, assetRepo),
+	)
+	protected.Get("/vulnerabilities/unassigned", vulnRead, vulnCorrelationHandler.ListUnassigned)
+
 	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
 	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
 	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
+	protected.Get("/vulnerabilities/:id/match-candidates", vulnRead, vulnCorrelationHandler.GetCandidates)
+	protected.Put("/vulnerabilities/:id/asset", vulnWrite, vulnCorrelationHandler.ResolveAsset)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
 
 	// --- Attack Surface topology wiring --------------------------------------

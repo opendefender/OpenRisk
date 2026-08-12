@@ -54,6 +54,7 @@ const RemediationPage = lazy(() => import('./features/compliance/RemediationPage
 const InventoryPage = lazy(() => import('./features/assets/InventoryPage').then(m => ({ default: m.InventoryPage })));
 const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
 const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
+const UnassignedVulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/UnassignedVulnerabilitiesPage'));
 const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
 const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
 const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
@@ -320,6 +321,7 @@ function App() {
 
           {/* ---------------- Threats ---------------- */}
           <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
+          <Route path="vulnerabilities/unassigned" element={<UnassignedVulnerabilitiesPage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
           <Route path="simulations" element={<SimulationsPage />} />
