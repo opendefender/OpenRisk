@@ -4,7 +4,7 @@
 // Create / edit an automation rule: trigger + conditions + an ordered action
 // chain + an optional SLA policy. This is the visual workflow builder for §10.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { X, Plus, ArrowUp, ArrowDown, Trash2, Workflow } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
@@ -65,6 +65,23 @@ export function RuleEditorModal({
   if (!isOpen) return null;
 
   const hasSLA = actions.some((a) => a.type === 'start_sla');
+
+  // Mirrors domain.AutomationRule.Describe — the sentence the rule list shows
+  // once saved, so what you compose and what you later read are the same thing.
+  const sentence = useMemo(() => {
+    const when = pick(TRIGGER_META[trigger].label, lang).toLowerCase();
+    const conds: string[] = [];
+    if (minSeverity) conds.push(tr(`la criticité est au moins ${minSeverity}`, `severity is at least ${minSeverity}`));
+    if (minCvss > 0) conds.push(tr(`le CVSS est au moins ${minCvss}`, `CVSS is at least ${minCvss}`));
+    if (kevOnly) conds.push(tr('elle est activement exploitée (CISA KEV)', 'it is actively exploited (CISA KEV)'));
+    const acts = actions.map((a) => pick(ACTION_META[a.type].label, lang).toLowerCase());
+    const head = tr(`Quand ${when}`, `When ${when}`);
+    const ifPart = conds.length ? tr(`, si ${conds.join(' et ')}`, `, if ${conds.join(' and ')}`) : '';
+    const thenPart = acts.length
+      ? tr(`, alors ${acts.join(', puis ')}.`, `, then ${acts.join(', then ')}.`)
+      : tr(', alors ne rien faire (ajoutez au moins une action).', ', then do nothing (add at least one action).');
+    return head + ifPart + thenPart;
+  }, [trigger, minSeverity, minCvss, kevOnly, actions, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addAction = (type: AutomationActionType) =>
     setActions((prev) => [...prev, type === 'notify' ? { type, channels: ['in_app'] } : { type }]);
@@ -127,6 +144,14 @@ export function RuleEditorModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {/* The rule, read back as a sentence while it is being built. A rule
+              you can read aloud is one a reviewer can check without opening its
+              payload. */}
+          <div className="rounded-[10px] p-3 text-[13px]"
+            style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>
+            {sentence}
+          </div>
+
           {/* Identity */}
           <div>
             <div className={lbl}>{tr('Nom', 'Name')}</div>
@@ -139,7 +164,10 @@ export function RuleEditorModal({
 
           {/* Trigger */}
           <div>
-            <div className={lbl}>{tr('Déclencheur', 'Trigger')}</div>
+            <div className={lbl}>
+              <span style={{ color: 'var(--accent)' }}>{tr('QUAND', 'WHEN')}</span>{' '}
+              {tr('cet événement survient', 'this happens')}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {TRIGGERS.map((t) => {
                 const meta = TRIGGER_META[t];
@@ -161,7 +189,11 @@ export function RuleEditorModal({
 
           {/* Conditions */}
           <div>
-            <div className={lbl}>{tr('Conditions (optionnel)', 'Conditions (optional)')}</div>
+            <div className={lbl}>
+              <span style={{ color: 'var(--accent)' }}>{tr('SI', 'IF')}</span>{' '}
+              {tr('ces conditions sont réunies (optionnel — sans condition, la règle s’applique à tout)',
+                  'these conditions hold (optional — with none, the rule matches everything)')}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[12px] text-ink-soft">
                 {tr('Sévérité min.', 'Min severity')}
@@ -189,7 +221,10 @@ export function RuleEditorModal({
           {/* Action chain */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <div className={lbl + ' mb-0'}>{tr('Chaîne d’actions', 'Action chain')}</div>
+              <div className={lbl + ' mb-0'}>
+                <span style={{ color: 'var(--accent)' }}>{tr('ALORS', 'THEN')}</span>{' '}
+                {tr('faire ceci, dans cet ordre', 'do this, in this order')}
+              </div>
             </div>
             <div className="space-y-2">
               {actions.map((a, i) => {
