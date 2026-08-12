@@ -22,7 +22,7 @@ func req(mode string, steps ...WorkflowStep) *ApprovalRequest {
 	}
 	return &ApprovalRequest{
 		ID: uuid.New(), TenantID: uuid.New(), RequestedBy: uuid.New(),
-		Title: "Accept the residual risk on the payment gateway",
+		Title:  "Accept the residual risk on the payment gateway",
 		Status: ApprovalPending, Mode: mode,
 		Steps: WorkflowStepList(steps), Decisions: ApprovalDecisionList{},
 	}

@@ -8,6 +8,7 @@ package domain
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -25,11 +26,32 @@ type Incident struct {
 	ExternalID     string         `gorm:"index" json:"external_id"` // external system ref (TheHive, OpenCTI, etc)
 	ReportedBy     string         `json:"reported_by"`              // user who reported
 	AssignedTo     string         `json:"assigned_to"`              // Deprecated: free-text member, superseded by Ownership.AssigneeID
-	RiskID         *uint          `gorm:"index" json:"risk_id"`     // linked risk
+	RiskID         *uint          `gorm:"index" json:"risk_id"`     // Deprecated: risks use UUIDs; see RiskIDs
 	ImpactedAssets datatypes.JSON `gorm:"type:jsonb" json:"impacted_assets"`
-	Timeline       datatypes.JSON `gorm:"type:jsonb" json:"timeline"` // array of events
-	Resolution     string         `gorm:"type:text" json:"resolution"`
-	ResolvedAt     *time.Time     `json:"resolved_at"`
+
+	// Real links. RiskID above is a *uint while risks are UUID-keyed, so
+	// incident → risk was structurally impossible; these two carry the actual
+	// ids and are what the UI resolves.
+	RiskIDs  StringList `gorm:"type:jsonb" json:"risk_ids"`
+	AssetIDs StringList `gorm:"type:jsonb" json:"asset_ids"`
+
+	// Stakeholders are the people who must be told, and on which channels.
+	Stakeholders IncidentStakeholderList `gorm:"type:jsonb" json:"stakeholders"`
+
+	// Provenance. An incident that appeared on its own is unnerving until you can
+	// see what opened it; these fields are what the "created automatically by
+	// rule X from source Y" banner renders, with a link to the rule itself.
+	Origin            string     `gorm:"type:varchar(24);index;default:'manual'" json:"origin"`
+	OriginRuleID      *uuid.UUID `gorm:"type:uuid;index" json:"origin_rule_id,omitempty"`
+	OriginRuleName    string     `gorm:"size:160" json:"origin_rule_name,omitempty"`
+	OriginExecutionID *uuid.UUID `gorm:"type:uuid" json:"origin_execution_id,omitempty"`
+	// OriginDetail names the concrete thing it came from: "CVE-2021-44228 on
+	// web-prod-01", "scan job 42". Free text on purpose — every source phrases
+	// its own evidence differently.
+	OriginDetail string         `gorm:"type:text" json:"origin_detail,omitempty"`
+	Timeline     datatypes.JSON `gorm:"type:jsonb" json:"timeline"` // array of events
+	Resolution   string         `gorm:"type:text" json:"resolution"`
+	ResolvedAt   *time.Time     `json:"resolved_at"`
 
 	// Ownership — responsable / exécutant / validateur. Same embedded block as
 	// Risk, Mitigation, RemediationPlan and ControlEvidence.
@@ -80,6 +102,18 @@ type IncidentCreateRequest struct {
 	ReportedBy     string   `json:"reported_by" binding:"required"`
 	RiskID         *uint    `json:"risk_id"`
 	ImpactedAssets []string `json:"impacted_assets"`
+
+	// Declaration fields: what this incident touches and who has to know.
+	RiskIDs      []string              `json:"risk_ids"`
+	AssetIDs     []string              `json:"asset_ids"`
+	Stakeholders []IncidentStakeholder `json:"stakeholders"`
+
+	// Provenance, set by automatic producers rather than by a human form.
+	Origin            string     `json:"origin"`
+	OriginRuleID      *uuid.UUID `json:"origin_rule_id"`
+	OriginRuleName    string     `json:"origin_rule_name"`
+	OriginExecutionID *uuid.UUID `json:"origin_execution_id"`
+	OriginDetail      string     `json:"origin_detail"`
 }
 
 // IncidentUpdateRequest represents incident update request

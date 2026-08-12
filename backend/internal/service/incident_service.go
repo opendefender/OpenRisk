@@ -6,10 +6,12 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/opendefender/openrisk/internal/domain"
@@ -18,9 +20,27 @@ import (
 	"gorm.io/gorm"
 )
 
+// IncidentNotifier delivers an incident alert across the tenant's configured
+// channels. Optional and best-effort: a channel outage must never stop an
+// incident from being recorded — but a silent one must never look like a
+// delivered one either, which is why the caller logs what came back.
+type IncidentNotifier interface {
+	NotifyDeclared(ctx context.Context, inc *domain.Incident)
+	NotifySeverityChanged(ctx context.Context, inc *domain.Incident, from, to string)
+}
+
+// PostMortemGate answers whether a critical incident may be closed yet.
+type PostMortemGate interface {
+	// PublishedReviewExists reports whether a published post-mortem exists, and
+	// what is still missing when it does not.
+	PublishedReviewExists(ctx context.Context, tenantID string, incidentID uint) (bool, string)
+}
+
 // IncidentService handles incident management operations
 type IncidentService struct {
-	db *gorm.DB
+	db       *gorm.DB
+	notifier IncidentNotifier
+	gate     PostMortemGate
 }
 
 // NewIncidentService creates a new incident service
@@ -28,6 +48,20 @@ func NewIncidentService(db *gorm.DB) *IncidentService {
 	return &IncidentService{
 		db: db,
 	}
+}
+
+// WithNotifier attaches multi-channel incident alerting.
+func (s *IncidentService) WithNotifier(n IncidentNotifier) *IncidentService {
+	s.notifier = n
+	return s
+}
+
+// WithPostMortemGate attaches the review requirement for closing a critical
+// incident. Without it, closure is unguarded — which is the behaviour that let
+// critical incidents close with nothing learned.
+func (s *IncidentService) WithPostMortemGate(g PostMortemGate) *IncidentService {
+	s.gate = g
+	return s
 }
 
 // CreateIncident creates a new incident
@@ -41,6 +75,11 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 	// Convert assets to JSON
 	assetsJSON, _ := json.Marshal(req.ImpactedAssets)
 
+	origin := strings.ToLower(strings.TrimSpace(req.Origin))
+	if origin == "" {
+		origin = domain.OriginManual
+	}
+
 	incident := &domain.Incident{
 		TenantID:       tenantID,
 		Title:          req.Title,
@@ -52,8 +91,18 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 		ReportedBy:     req.ReportedBy,
 		RiskID:         req.RiskID,
 		ImpactedAssets: assetsJSON,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		RiskIDs:        domain.StringList(req.RiskIDs),
+		AssetIDs:       domain.StringList(req.AssetIDs),
+		Stakeholders:   domain.IncidentStakeholderList(req.Stakeholders),
+
+		Origin:            origin,
+		OriginRuleID:      req.OriginRuleID,
+		OriginRuleName:    req.OriginRuleName,
+		OriginExecutionID: req.OriginExecutionID,
+		OriginDetail:      req.OriginDetail,
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	if err := s.db.Create(incident).Error; err != nil {
@@ -62,8 +111,23 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 	}
 
 	// Add initial timeline entry
-	if err := s.AddTimelineEntry(incident.ID, "status_change", "Incident created", "open", req.ReportedBy); err != nil {
+	opened := "Incident created"
+	if domain.IsAutomaticOrigin(origin) {
+		opened = "Incident opened automatically"
+		if req.OriginRuleName != "" {
+			opened += " by rule \"" + req.OriginRuleName + "\""
+		}
+		if req.OriginDetail != "" {
+			opened += " (" + req.OriginDetail + ")"
+		}
+	}
+	if err := s.AddTimelineEntry(incident.ID, "status_change", opened, "open", req.ReportedBy); err != nil {
 		log.Printf("Warning: failed to add timeline entry for incident %d: %v", incident.ID, err)
+	}
+
+	// Telling people is part of declaring, not a separate step someone remembers.
+	if s.notifier != nil {
+		s.notifier.NotifyDeclared(context.Background(), incident)
 	}
 
 	return incident, nil
@@ -129,8 +193,9 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 		return nil, err
 	}
 
-	// Track status change for timeline
+	// Track status/severity changes for the timeline and for alerting.
 	oldStatus := incident.Status
+	oldSeverity := incident.Severity
 
 	// Validate status if provided
 	if req.Status != "" {
@@ -174,6 +239,26 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 		}
 	}
 
+	// A CRITICAL incident may not be closed until its review is published. An
+	// incident that closes with nothing learned is how the same incident happens
+	// twice.
+	closing := req.Status == "closed" || req.Status == "resolved"
+	severityNow := incident.Severity
+	if req.Severity != "" {
+		severityNow = req.Severity
+	}
+	if closing && oldStatus != req.Status && domain.RequiresPostMortem(severityNow) && s.gate != nil {
+		published, missing := s.gate.PublishedReviewExists(context.Background(), tenantID, incidentID)
+		if !published {
+			detail := "publish its post-mortem first"
+			if missing != "" {
+				detail = missing
+			}
+			return nil, domain.NewValidationError(
+				"a CRITICAL incident cannot be closed without a published post-mortem — " + detail)
+		}
+	}
+
 	if err := s.db.Model(incident).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update incident: %w", err)
 	}
@@ -192,6 +277,22 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 			fmt.Sprintf("Assigned to %s", req.AssignedTo),
 			req.AssignedTo, updatedBy); err != nil {
 			log.Printf("Warning: failed to add assignment timeline entry for incident %d: %v", incidentID, err)
+		}
+	}
+
+	// A severity change is the moment the audience changes: a medium incident
+	// that becomes critical needs the people who were not watching it.
+	if req.Severity != "" && !strings.EqualFold(req.Severity, oldSeverity) {
+		if err := s.AddTimelineEntry(incidentID, "severity_change",
+			fmt.Sprintf("Severity changed from %s to %s", oldSeverity, req.Severity),
+			req.Severity, updatedBy); err != nil {
+			log.Printf("Warning: failed to add severity timeline entry for incident %d: %v", incidentID, err)
+		}
+		if s.notifier != nil {
+			// Re-read so the alert carries the new values, not the pre-image.
+			if fresh, err := s.GetIncident(tenantID, incidentID); err == nil {
+				s.notifier.NotifySeverityChanged(context.Background(), fresh, oldSeverity, req.Severity)
+			}
 		}
 	}
 
@@ -339,6 +440,32 @@ func (s *IncidentService) UpdateIncidentAction(tenantID string, actionID uint, s
 		return fmt.Errorf("failed to update action: %w", err)
 	}
 	return nil
+}
+
+// CountByOrigin counts a tenant's incidents per origin, for the "where do
+// incidents come from?" page. Returning real counts alongside the catalogue is
+// what stops that page from being a brochure: a source that has never fired
+// shows zero rather than implying it is in use.
+//
+// The "_total" key carries the tenant's overall count.
+func (s *IncidentService) CountByOrigin(tenantID string) map[string]int64 {
+	out := map[string]int64{}
+	var rows []struct {
+		Origin string
+		Count  int64
+	}
+	s.db.Model(&domain.Incident{}).
+		Where("tenant_id = ?", tenantID).
+		Select("COALESCE(NULLIF(origin, ''), 'manual') AS origin, COUNT(*) AS count").
+		Group("origin").
+		Scan(&rows)
+	var total int64
+	for _, r := range rows {
+		out[r.Origin] = r.Count
+		total += r.Count
+	}
+	out["_total"] = total
+	return out
 }
 
 // GetIncidentStats returns statistics for a tenant

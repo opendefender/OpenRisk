@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/service"
 )
@@ -20,6 +22,8 @@ import (
 // IncidentHandler handles incident endpoints
 type IncidentHandler struct {
 	incidentService *service.IncidentService
+	// postMortems backs the structured review. Optional.
+	postMortems *appinc.PostMortemService
 }
 
 // NewIncidentHandler creates a new incident handler
@@ -40,12 +44,21 @@ func (h *IncidentHandler) CreateIncident(c *fiber.Ctx) error {
 	}
 
 	tenantID := safeGetString(c, "tenant_id")
+	// A declaration made through the API is always attributed to the caller: a
+	// client must not be able to file an incident under someone else's name.
+	if uid := userID(c); uid != uuid.Nil {
+		req.ReportedBy = uid.String()
+	}
+	// Only automatic producers set an origin, and they do not come through this
+	// route. Anything arriving here is a human declaration.
+	req.Origin = domain.OriginManual
+	req.OriginRuleID = nil
+	req.OriginExecutionID = nil
+	req.OriginRuleName = ""
 
 	incident, err := h.incidentService.CreateIncident(tenantID, req)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to create incident: %v", err),
-		})
+		return writeAppError(c, err)
 	}
 
 	return c.Status(http.StatusCreated).JSON(incident)

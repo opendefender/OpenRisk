@@ -497,7 +497,7 @@ func (h *GovernanceHandler) EffectiveDelegatedPermissions(c *fiber.Ctx) error {
 // =============================================================================
 
 type workflowStepBody struct {
-	Name         string `json:"name"`
+	Name            string   `json:"name"`
 	ApproverRole    string   `json:"approver_role"`
 	MinApprovals    int      `json:"min_approvals"`
 	ApproverUserIDs []string `json:"approver_user_ids"`

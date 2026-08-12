@@ -50,7 +50,9 @@ import (
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
+	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
+	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
 	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
@@ -267,6 +269,7 @@ func main() {
 		// Governance (spec §15 « Gouvernance »): the immutable audit trail
 		// (append-only who/what/when/before→after), time-boxed delegations, and
 		// the configurable Maker-Checker approval engine (workflows + requests).
+		&domain.IncidentPostMortem{},
 		&domain.AuditEvent{},
 		&domain.AuditChainSeal{},
 		&domain.AuditRetentionPolicy{},
@@ -1514,15 +1517,36 @@ func main() {
 
 	// --- Incidents (Protected routes) ---
 	incidentService := service.NewIncidentService(database.DB)
-	incidentHandler := handlers.NewIncidentHandler(incidentService)
+
+	// The structured review. Its two collaborators — the multi-channel dispatcher
+	// and the mitigation use case — are built further down (the automation block),
+	// so the service is attached to them there rather than duplicating either.
+	postMortemRepo := repository.NewGormIncidentPostMortemRepository(database.DB)
+	postMortemService := appinc.NewPostMortemService(postMortemRepo, incidentService).
+		WithMitigations(incinfra.NewMitigationCreator(
+			appmitigation.NewCreateMitigationPlanUseCase(
+				repository.NewGormMitigationRepository(database.DB),
+				repository.NewGormMitigationSubActionRepository(database.DB),
+			).WithOwnership(handlers.OwnershipServiceInstance()),
+		)).
+		WithUserLookup(userRepo)
+	incidentService.WithPostMortemGate(incinfra.NewPostMortemGate(postMortemService))
+
+	incidentHandler := handlers.NewIncidentHandler(incidentService).
+		WithPostMortems(postMortemService)
 	incidentsGroup := protected.Group("/incidents")
 	incidentsGroup.Post("", incidentCreate, incidentHandler.CreateIncident)
 	incidentsGroup.Get("/stats", incidentHandler.GetIncidentStats)
+	// Static sub-paths before /:id (Fiber trap).
+	incidentsGroup.Get("/origins", incidentHandler.ListIncidentOrigins)
 	incidentsGroup.Get("", incidentHandler.ListIncidents)
 	incidentsGroup.Get("/:id", incidentHandler.GetIncident)
 	incidentsGroup.Put("/:id", incidentUpdate, incidentHandler.UpdateIncident)
 	incidentsGroup.Delete("/:id", incidentDelete, incidentHandler.DeleteIncident)
 	incidentsGroup.Get("/:id/timeline", incidentHandler.GetIncidentTimeline)
+	incidentsGroup.Get("/:id/post-mortem", incidentHandler.GetPostMortem)
+	incidentsGroup.Put("/:id/post-mortem", incidentUpdate, incidentHandler.SavePostMortem)
+	incidentsGroup.Post("/:id/post-mortem/publish", incidentUpdate, incidentHandler.PublishPostMortem)
 	incidentsGroup.Post("/:id/risks/:riskId", incidentUpdate, incidentHandler.LinkRisk)
 	incidentsGroup.Post("/:id/actions", incidentUpdate, incidentHandler.CreateIncidentAction)
 	incidentsGroup.Get("/:id/actions", incidentHandler.GetIncidentActions)
@@ -2010,6 +2034,12 @@ func main() {
 		WithSubjectResolver(automationSubjects).
 		WithAssetFacts(automationSubjects).
 		WithChannelProbe(automationChannelService)
+
+	// Incidents reach their stakeholders through the SAME dispatcher automation
+	// uses: one Slack webhook, one mail transport, one set of channel settings.
+	// A second dispatcher would mean a tenant configuring Slack twice and
+	// wondering why only half their alerts arrive.
+	incidentService.WithNotifier(incinfra.NewNotifier(automationNotifier, zeroLogger))
 
 	automationSLAService := appauto.NewSLAService(slaTrackerRepo, zeroLogger).
 		WithNotifier(automationNotifier).
