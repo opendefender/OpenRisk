@@ -49,7 +49,8 @@ type GovernanceHandler struct {
 	deleteWorkflow *governance.DeleteWorkflowUseCase
 
 	submitApproval *governance.SubmitApprovalRequestUseCase
-	decideApproval *governance.DecideApprovalStepUseCase
+	decideApproval *governance.DecideApprovalUseCase
+	approvalDetail *governance.GetApprovalDetailUseCase
 	cancelApproval *governance.CancelApprovalRequestUseCase
 	listApprovals  *governance.ListApprovalRequestsUseCase
 	getRequest     domain.ApprovalRequestRepository
@@ -77,7 +78,8 @@ type GovernanceDeps struct {
 	DeleteWorkflow *governance.DeleteWorkflowUseCase
 
 	SubmitApproval *governance.SubmitApprovalRequestUseCase
-	DecideApproval *governance.DecideApprovalStepUseCase
+	DecideApproval *governance.DecideApprovalUseCase
+	ApprovalDetail *governance.GetApprovalDetailUseCase
 	CancelApproval *governance.CancelApprovalRequestUseCase
 	ListApprovals  *governance.ListApprovalRequestsUseCase
 	GetRequest     domain.ApprovalRequestRepository
@@ -102,6 +104,7 @@ func NewGovernanceHandler(d GovernanceDeps) *GovernanceHandler {
 		deleteWorkflow:   d.DeleteWorkflow,
 		submitApproval:   d.SubmitApproval,
 		decideApproval:   d.DecideApproval,
+		approvalDetail:   d.ApprovalDetail,
 		cancelApproval:   d.CancelApproval,
 		listApprovals:    d.ListApprovals,
 		getRequest:       d.GetRequest,
@@ -125,10 +128,12 @@ func govCtx(c *fiber.Ctx) context.Context {
 	})
 }
 
-// approverFromCtx derives who is deciding and what they may sign from the JWT.
-func approverFromCtx(c *fiber.Ctx) governance.ApproverContext {
+// approverFromCtx derives who is deciding, from the JWT. Delegated rights are
+// resolved server-side by the use case — a client must never be able to claim
+// them.
+func approverFromCtx(c *fiber.Ctx) governance.ApproverIdentity {
 	claims := middleware.GetUserClaims(c)
-	who := governance.ApproverContext{UserID: userID(c)}
+	who := governance.ApproverIdentity{UserID: userID(c)}
 	if claims == nil {
 		return who
 	}
@@ -493,36 +498,52 @@ func (h *GovernanceHandler) EffectiveDelegatedPermissions(c *fiber.Ctx) error {
 
 type workflowStepBody struct {
 	Name         string `json:"name"`
-	ApproverRole string `json:"approver_role"`
-	MinApprovals int    `json:"min_approvals"`
+	ApproverRole    string   `json:"approver_role"`
+	MinApprovals    int      `json:"min_approvals"`
+	ApproverUserIDs []string `json:"approver_user_ids"`
+	QuorumPercent   int      `json:"quorum_percent"`
 }
 
 type workflowBody struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	EntityType  string             `json:"entity_type"`
-	Action      string             `json:"action"`
-	Enabled     *bool              `json:"enabled"`
-	Steps       []workflowStepBody `json:"steps"`
+	Name           string             `json:"name"`
+	Description    string             `json:"description"`
+	EntityType     string             `json:"entity_type"`
+	Action         string             `json:"action"`
+	RequestType    string             `json:"request_type"`
+	Mode           string             `json:"mode"`
+	ExpiresInHours int                `json:"expires_in_hours"`
+	Enabled        *bool              `json:"enabled"`
+	Steps          []workflowStepBody `json:"steps"`
 }
 
 func (b workflowBody) toInput() governance.WorkflowInput {
 	steps := make([]domain.WorkflowStep, 0, len(b.Steps))
 	for _, s := range b.Steps {
 		steps = append(steps, domain.WorkflowStep{
-			Name:         s.Name,
-			ApproverRole: s.ApproverRole,
-			MinApprovals: s.MinApprovals,
+			Name:            s.Name,
+			ApproverRole:    s.ApproverRole,
+			MinApprovals:    s.MinApprovals,
+			ApproverUserIDs: s.ApproverUserIDs,
+			QuorumPercent:   s.QuorumPercent,
 		})
 	}
 	return governance.WorkflowInput{
-		Name:        b.Name,
-		Description: b.Description,
-		EntityType:  b.EntityType,
-		Action:      b.Action,
-		Enabled:     b.Enabled,
-		Steps:       steps,
+		Name:           b.Name,
+		Description:    b.Description,
+		EntityType:     b.EntityType,
+		Action:         b.Action,
+		RequestType:    b.RequestType,
+		Mode:           b.Mode,
+		ExpiresInHours: b.ExpiresInHours,
+		Enabled:        b.Enabled,
+		Steps:          steps,
 	}
+}
+
+// ListRequestTypes GET /governance/request-types — the shared vocabulary of
+// decisions an organisation routes for sign-off.
+func (h *GovernanceHandler) ListRequestTypes(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{"items": domain.ApprovalRequestTypes()})
 }
 
 func (h *GovernanceHandler) ListWorkflows(c *fiber.Ctx) error {
@@ -588,6 +609,9 @@ type submitApprovalBody struct {
 type decideApprovalBody struct {
 	Decision string `json:"decision"`
 	Comment  string `json:"comment"`
+	// StepOrder targets one branch of a parallel chain. Omitted in sequential
+	// mode, where there is only ever one open step.
+	StepOrder *int `json:"step_order"`
 }
 
 func (h *GovernanceHandler) ListApprovals(c *fiber.Ctx) error {
@@ -610,6 +634,15 @@ func (h *GovernanceHandler) GetApproval(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request id"})
+	}
+	// The detail view carries per-step progress and whether the CALLER may sign,
+	// so the UI can explain a disabled button instead of producing a 403 on click.
+	if h.approvalDetail != nil {
+		detail, err := h.approvalDetail.Execute(c.UserContext(), tenantID(c), id, approverFromCtx(c))
+		if err != nil {
+			return writeAppError(c, err)
+		}
+		return c.JSON(detail)
 	}
 	req, err := h.getRequest.GetRequestByID(c.UserContext(), id, tenantID(c))
 	if err != nil {
@@ -649,9 +682,10 @@ func (h *GovernanceHandler) DecideApproval(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
 	}
-	req, err := h.decideApproval.Execute(govCtx(c), tenantID(c), id, approverFromCtx(c), governance.DecideApprovalInput{
-		Decision: body.Decision,
-		Comment:  body.Comment,
+	req, err := h.decideApproval.Execute(govCtx(c), tenantID(c), id, approverFromCtx(c), governance.DecideInput{
+		Decision:  body.Decision,
+		Comment:   body.Comment,
+		StepOrder: body.StepOrder,
 	})
 	if err != nil {
 		return writeAppError(c, err)

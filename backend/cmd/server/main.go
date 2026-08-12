@@ -51,6 +51,7 @@ import (
 	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
+	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -2092,6 +2093,14 @@ func main() {
 	approvalRepo := repository.NewGormApprovalRepository(database.DB)
 	governanceRecorder := governance.NewAuditRecorder(auditChainRepo)
 
+	// An approval inbox nobody is told to open is a queue, not a workflow: the
+	// notifier alerts whoever can sign right now (named approvers, role holders,
+	// and anyone currently covering for one of them by delegation), and tells the
+	// requester the outcome — with the refusal reason, which is the only part
+	// that lets them act on it.
+	approvalNotifier := govinfra.NewApprovalNotifier(database.DB, notificationUseCase, emailTransport, zeroLogger)
+	approvalRoles := govinfra.NewRoleResolver(database.DB)
+
 	governanceHandler := handlers.NewGovernanceHandler(handlers.GovernanceDeps{
 		ListAudit: governance.NewListAuditEventsUseCase(auditChainRepo).WithUserLookup(userRepo),
 		Recorder:  governanceRecorder,
@@ -2112,8 +2121,16 @@ func main() {
 		UpdateWorkflow: governance.NewUpdateWorkflowUseCase(approvalRepo),
 		DeleteWorkflow: governance.NewDeleteWorkflowUseCase(approvalRepo),
 
-		SubmitApproval: governance.NewSubmitApprovalRequestUseCase(approvalRepo, approvalRepo).WithRecorder(governanceRecorder),
-		DecideApproval: governance.NewDecideApprovalStepUseCase(approvalRepo).WithRecorder(governanceRecorder),
+		SubmitApproval: governance.NewSubmitApprovalRequestUseCase(approvalRepo, approvalRepo).
+			WithRecorder(governanceRecorder).
+			WithNotifier(approvalNotifier),
+		DecideApproval: governance.NewDecideApprovalUseCase(approvalRepo).
+			WithRecorder(governanceRecorder).
+			WithNotifier(approvalNotifier).
+			WithDelegations(delegationRepo, approvalRoles),
+		ApprovalDetail: governance.NewGetApprovalDetailUseCase(approvalRepo).
+			WithDelegations(delegationRepo, approvalRoles).
+			WithUserLookup(userRepo),
 		CancelApproval: governance.NewCancelApprovalRequestUseCase(approvalRepo),
 		ListApprovals:  governance.NewListApprovalRequestsUseCase(approvalRepo).WithUserLookup(userRepo),
 		GetRequest:     approvalRepo,
@@ -2143,6 +2160,7 @@ func main() {
 	protected.Post("/governance/delegations/:id/revoke", governanceHandler.RevokeDelegation)
 
 	// Approval workflows (config) — admin only.
+	protected.Get("/governance/request-types", governanceHandler.ListRequestTypes)
 	protected.Get("/governance/workflows", governanceHandler.ListWorkflows)
 	protected.Post("/governance/workflows", governanceAdmin, governanceHandler.CreateWorkflow)
 	protected.Put("/governance/workflows/:id", governanceAdmin, governanceHandler.UpdateWorkflow)
@@ -2154,6 +2172,16 @@ func main() {
 	protected.Get("/governance/approvals/:id", governanceHandler.GetApproval)
 	protected.Post("/governance/approvals/:id/decide", governanceHandler.DecideApproval)
 	protected.Post("/governance/approvals/:id/cancel", governanceHandler.CancelApproval)
+	// Requests nobody decided in time close as EXPIRED — a distinct outcome from
+	// a refusal, because "nobody said no" and "someone said no" call for
+	// different next steps. Without this sweep, "expires in 48h" is a label.
+	go workers.NewApprovalExpiryWorker(
+		governance.NewExpireApprovalsUseCase(approvalRepo, approvalRepo).
+			WithNotifier(approvalNotifier).
+			WithRecorder(governanceRecorder),
+		zeroLogger,
+	).Start(context.Background())
+
 	log.Println("Governance: audit trail + delegations + approval workflows mounted (/governance/*)")
 
 	// =========================================================================

@@ -21,12 +21,36 @@ import (
 
 // WorkflowInput is the payload to create or edit an approval workflow.
 type WorkflowInput struct {
-	Name        string
-	Description string
-	EntityType  string
-	Action      string
-	Enabled     *bool
-	Steps       []domain.WorkflowStep
+	Name           string
+	Description    string
+	EntityType     string
+	Action         string
+	RequestType    string
+	Mode           string
+	ExpiresInHours int
+	Enabled        *bool
+	Steps          []domain.WorkflowStep
+}
+
+// resolveType lets an admin pick a catalogue request type and have the
+// (entity_type, action) pair filled in for them — the pair the submit path
+// matches on. Typing them by hand is how a workflow ends up bound to nothing.
+func (in *WorkflowInput) resolveType() {
+	if t, ok := domain.FindApprovalRequestType(strings.TrimSpace(in.RequestType)); ok {
+		if strings.TrimSpace(in.EntityType) == "" {
+			in.EntityType = t.EntityType
+		}
+		if strings.TrimSpace(in.Action) == "" {
+			in.Action = t.Action
+		}
+	}
+}
+
+func normaliseMode(mode string) string {
+	if strings.EqualFold(strings.TrimSpace(mode), domain.ApprovalModeParallel) {
+		return domain.ApprovalModeParallel
+	}
+	return domain.ApprovalModeSequential
 }
 
 type CreateWorkflowUseCase struct {
@@ -38,15 +62,22 @@ func NewCreateWorkflowUseCase(repo domain.ApprovalWorkflowRepository) *CreateWor
 }
 
 func (uc *CreateWorkflowUseCase) Execute(ctx context.Context, tenantID, actorID uuid.UUID, in WorkflowInput) (*domain.ApprovalWorkflow, error) {
+	in.resolveType()
 	w := &domain.ApprovalWorkflow{
-		TenantID:    tenantID,
-		Name:        strings.TrimSpace(in.Name),
-		Description: strings.TrimSpace(in.Description),
-		EntityType:  strings.TrimSpace(in.EntityType),
-		Action:      strings.TrimSpace(in.Action),
-		Enabled:     true,
-		Steps:       domain.WorkflowStepList(normaliseSteps(in.Steps)),
-		CreatedBy:   actorID,
+		TenantID:       tenantID,
+		Name:           strings.TrimSpace(in.Name),
+		Description:    strings.TrimSpace(in.Description),
+		EntityType:     strings.TrimSpace(in.EntityType),
+		Action:         strings.TrimSpace(in.Action),
+		RequestType:    strings.TrimSpace(in.RequestType),
+		Mode:           normaliseMode(in.Mode),
+		ExpiresInHours: in.ExpiresInHours,
+		Enabled:        true,
+		Steps:          domain.WorkflowStepList(normaliseSteps(in.Steps)),
+		CreatedBy:      actorID,
+	}
+	if w.ExpiresInHours < 0 {
+		return nil, domain.NewValidationError("expires_in_hours cannot be negative (0 means the request never expires)")
 	}
 	if in.Enabled != nil {
 		w.Enabled = *in.Enabled
@@ -83,6 +114,7 @@ func NewUpdateWorkflowUseCase(repo domain.ApprovalWorkflowRepository) *UpdateWor
 	return &UpdateWorkflowUseCase{repo: repo}
 }
 func (uc *UpdateWorkflowUseCase) Execute(ctx context.Context, tenantID, id uuid.UUID, in WorkflowInput) (*domain.ApprovalWorkflow, error) {
+	in.resolveType()
 	w, err := uc.repo.GetWorkflowByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -98,6 +130,16 @@ func (uc *UpdateWorkflowUseCase) Execute(ctx context.Context, tenantID, id uuid.
 		w.EntityType = s
 	}
 	w.Action = strings.TrimSpace(in.Action)
+	if s := strings.TrimSpace(in.RequestType); s != "" {
+		w.RequestType = s
+	}
+	if in.Mode != "" {
+		w.Mode = normaliseMode(in.Mode)
+	}
+	if in.ExpiresInHours < 0 {
+		return nil, domain.NewValidationError("expires_in_hours cannot be negative (0 means the request never expires)")
+	}
+	w.ExpiresInHours = in.ExpiresInHours
 	if in.Enabled != nil {
 		w.Enabled = *in.Enabled
 	}
@@ -142,6 +184,7 @@ type SubmitApprovalRequestUseCase struct {
 	workflows domain.ApprovalWorkflowRepository
 	requests  domain.ApprovalRequestRepository
 	recorder  *AuditRecorder
+	notifier  ApprovalNotifier
 }
 
 func NewSubmitApprovalRequestUseCase(w domain.ApprovalWorkflowRepository, r domain.ApprovalRequestRepository) *SubmitApprovalRequestUseCase {
@@ -149,6 +192,13 @@ func NewSubmitApprovalRequestUseCase(w domain.ApprovalWorkflowRepository, r doma
 }
 func (uc *SubmitApprovalRequestUseCase) WithRecorder(r *AuditRecorder) *SubmitApprovalRequestUseCase {
 	uc.recorder = r
+	return uc
+}
+
+// WithNotifier tells the approvers that something now awaits them. Without it a
+// request sits in an inbox nobody was told to open.
+func (uc *SubmitApprovalRequestUseCase) WithNotifier(n ApprovalNotifier) *SubmitApprovalRequestUseCase {
+	uc.notifier = n
 	return uc
 }
 
@@ -175,6 +225,8 @@ func (uc *SubmitApprovalRequestUseCase) Execute(ctx context.Context, tenantID, r
 		TenantID:     tenantID,
 		WorkflowID:   &wf.ID,
 		WorkflowName: wf.Name,
+		RequestType:  wf.RequestType,
+		Mode:         normaliseMode(wf.Mode),
 		EntityType:   entityType,
 		EntityID:     strings.TrimSpace(in.EntityID),
 		Action:       strings.TrimSpace(in.Action),
@@ -187,8 +239,19 @@ func (uc *SubmitApprovalRequestUseCase) Execute(ctx context.Context, tenantID, r
 		Decisions:    domain.ApprovalDecisionList{},
 		RequestedBy:  requesterID,
 	}
+	// The deadline is frozen from the workflow at submit time, like the steps:
+	// shortening the policy tomorrow must not retroactively expire a request
+	// someone raised under yesterday's rules.
+	if wf.ExpiresInHours > 0 {
+		deadline := time.Now().UTC().Add(time.Duration(wf.ExpiresInHours) * time.Hour)
+		req.ExpiresAt = &deadline
+	}
 	if err := uc.requests.CreateRequest(ctx, req); err != nil {
 		return nil, err
+	}
+	if uc.notifier != nil {
+		roles, users := PendingAudience(req)
+		uc.notifier.NotifyPending(ctx, tenantID, req, roles, users)
 	}
 	if uc.recorder != nil {
 		actor := requesterID
@@ -205,130 +268,12 @@ func (uc *SubmitApprovalRequestUseCase) Execute(ctx context.Context, tenantID, r
 	return req, nil
 }
 
-// ApproverContext identifies who is deciding and what they may sign.
-type ApproverContext struct {
-	UserID  uuid.UUID
-	Roles   []string // org role names the user holds in this tenant
-	IsAdmin bool
-}
-
-func (a ApproverContext) canSign(step *domain.WorkflowStep) bool {
-	if a.IsAdmin {
-		return true
-	}
-	role := strings.TrimSpace(strings.ToLower(step.ApproverRole))
-	if role == "" || role == "any" {
-		return true
-	}
-	for _, r := range a.Roles {
-		if strings.ToLower(strings.TrimSpace(r)) == role {
-			return true
-		}
-	}
-	return false
-}
-
-// DecideApprovalInput is a Checker's ruling on the current step.
-type DecideApprovalInput struct {
-	Decision string // "approve" | "reject"
-	Comment  string
-}
-
-// DecideApprovalStepUseCase advances the state machine. This is the heart of the
-// Maker-Checker control: it enforces four-eyes (a requester can never approve
-// their own request), role eligibility per step, no double-signing a step, and
-// the min-approvals gate before the chain advances.
-type DecideApprovalStepUseCase struct {
-	requests domain.ApprovalRequestRepository
-	recorder *AuditRecorder
-}
-
-func NewDecideApprovalStepUseCase(r domain.ApprovalRequestRepository) *DecideApprovalStepUseCase {
-	return &DecideApprovalStepUseCase{requests: r}
-}
-func (uc *DecideApprovalStepUseCase) WithRecorder(r *AuditRecorder) *DecideApprovalStepUseCase {
-	uc.recorder = r
-	return uc
-}
-
-func (uc *DecideApprovalStepUseCase) Execute(ctx context.Context, tenantID, id uuid.UUID, who ApproverContext, in DecideApprovalInput) (*domain.ApprovalRequest, error) {
-	decision := strings.ToLower(strings.TrimSpace(in.Decision))
-	if decision != "approve" && decision != "reject" {
-		return nil, domain.NewValidationError("decision must be 'approve' or 'reject'")
-	}
-	req, err := uc.requests.GetRequestByID(ctx, id, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	if req == nil {
-		return nil, domain.NewNotFoundError("approval request", id)
-	}
-	if req.Status != domain.ApprovalPending {
-		return nil, domain.NewValidationError("request is already " + string(req.Status))
-	}
-	// Four-eyes: the maker cannot be a checker on their own request.
-	if who.UserID == req.RequestedBy {
-		return nil, domain.NewForbiddenError("the requester cannot approve their own request (four-eyes)")
-	}
-	step := req.CurrentStepDef()
-	if step == nil {
-		return nil, domain.NewValidationError("request has no pending step")
-	}
-	if !who.canSign(step) {
-		return nil, domain.NewForbiddenError("your role is not eligible to sign this step")
-	}
-	// No double-signing the same step.
-	for _, d := range req.Decisions {
-		if d.StepOrder == req.CurrentStep && d.ApproverID == who.UserID.String() && d.Decision == "approve" {
-			return nil, domain.NewValidationError("you have already approved this step")
-		}
-	}
-
-	now := time.Now().UTC()
-	req.Decisions = append(req.Decisions, domain.ApprovalDecision{
-		StepOrder:  req.CurrentStep,
-		ApproverID: who.UserID.String(),
-		Decision:   decision,
-		Comment:    strings.TrimSpace(in.Comment),
-		DecidedAt:  now,
-	})
-
-	auditAction := domain.AuditActionApprove
-	if decision == "reject" {
-		req.Status = domain.ApprovalRejected
-		req.ResolvedAt = &now
-		auditAction = domain.AuditActionReject
-	} else {
-		// Advance only once this step has enough distinct approvers.
-		min := step.MinApprovals
-		if min < 1 {
-			min = 1
-		}
-		if req.ApprovalsAtStep(req.CurrentStep) >= min {
-			req.CurrentStep++
-			if req.CurrentStep >= len(req.Steps) {
-				req.Status = domain.ApprovalApproved
-				req.ResolvedAt = &now
-			}
-		}
-	}
-
-	if err := uc.requests.UpdateRequest(ctx, req); err != nil {
-		return nil, err
-	}
-	if uc.recorder != nil {
-		actor := who.UserID
-		uc.recorder.Record(ctx, domain.AuditEvent{
-			TenantID:   tenantID,
-			ActorID:    &actor,
-			Action:     auditAction,
-			EntityType: "approval_request",
-			EntityID:   req.ID.String(),
-			Summary:    string(auditAction) + " step of \"" + req.Title + "\" → " + string(req.Status),
-		})
-	}
-	return req, nil
-}
+// The decision engine — eligibility, quorum, sequential vs parallel
+// advancement, expiry and the mandatory refusal comment — lives in
+// approval_engine_usecases.go (DecideApprovalUseCase), on top of the pure rules
+// in domain/approval_engine.go. The older DecideApprovalStepUseCase that lived
+// here was removed rather than left beside its replacement: two decision paths
+// with different rules is exactly how a control silently stops holding.
 
 // CancelApprovalRequestUseCase lets the maker withdraw their own pending request.
 type CancelApprovalRequestUseCase struct {
@@ -412,6 +357,16 @@ func normaliseSteps(in []domain.WorkflowStep) []domain.WorkflowStep {
 		s.ApproverRole = strings.TrimSpace(s.ApproverRole)
 		if s.MinApprovals < 1 {
 			s.MinApprovals = 1
+		}
+		cleaned := make([]string, 0, len(s.ApproverUserIDs))
+		for _, id := range s.ApproverUserIDs {
+			if id = strings.TrimSpace(id); id != "" {
+				cleaned = append(cleaned, id)
+			}
+		}
+		s.ApproverUserIDs = cleaned
+		if s.QuorumPercent < 0 || s.QuorumPercent > 100 {
+			s.QuorumPercent = 0
 		}
 		out = append(out, s)
 	}

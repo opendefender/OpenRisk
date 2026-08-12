@@ -391,7 +391,7 @@ func TestDecideApproval_FullChain_And_Guards(t *testing.T) {
 	tenant, requester := uuid.New(), uuid.New()
 	seedTwoStepWorkflow(t, repo, tenant)
 	submit := NewSubmitApprovalRequestUseCase(repo, repo)
-	decide := NewDecideApprovalStepUseCase(repo)
+	decide := NewDecideApprovalUseCase(repo)
 
 	req, _ := submit.Execute(context.Background(), tenant, requester, SubmitApprovalInput{
 		EntityType: "risk_acceptance", Action: "accept", EntityID: "risk-1", Title: "Accept residual risk",
@@ -399,23 +399,23 @@ func TestDecideApproval_FullChain_And_Guards(t *testing.T) {
 
 	// Four-eyes: the maker cannot check their own request.
 	if _, err := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: requester, Roles: []string{"manager"}},
-		DecideApprovalInput{Decision: "approve"}); !errors.Is(err, domain.ErrForbidden) {
+		ApproverIdentity{UserID: requester, Roles: []string{"manager"}},
+		DecideInput{Decision: "approve"}); !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("expected four-eyes forbidden, got %v", err)
 	}
 
 	// Role not eligible for step 1 (needs "manager").
 	if _, err := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: uuid.New(), Roles: []string{"viewer"}},
-		DecideApprovalInput{Decision: "approve"}); !errors.Is(err, domain.ErrForbidden) {
+		ApproverIdentity{UserID: uuid.New(), Roles: []string{"viewer"}},
+		DecideInput{Decision: "approve"}); !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("expected role-ineligible forbidden, got %v", err)
 	}
 
 	// Step 1 approved by a manager → advances to step 2, still pending.
 	manager := uuid.New()
 	got, err := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: manager, Roles: []string{"manager"}},
-		DecideApprovalInput{Decision: "approve", Comment: "owner ok"})
+		ApproverIdentity{UserID: manager, Roles: []string{"manager"}},
+		DecideInput{Decision: "approve", Comment: "owner ok"})
 	if err != nil {
 		t.Fatalf("step1 approve: %v", err)
 	}
@@ -426,8 +426,8 @@ func TestDecideApproval_FullChain_And_Guards(t *testing.T) {
 	// Step 2 approved by admin (admin satisfies any role) → fully approved.
 	ciso := uuid.New()
 	got, err = decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: ciso, IsAdmin: true},
-		DecideApprovalInput{Decision: "approve"})
+		ApproverIdentity{UserID: ciso, IsAdmin: true},
+		DecideInput{Decision: "approve"})
 	if err != nil {
 		t.Fatalf("step2 approve: %v", err)
 	}
@@ -437,8 +437,8 @@ func TestDecideApproval_FullChain_And_Guards(t *testing.T) {
 
 	// Deciding again on a resolved request → validation.
 	if _, err := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: uuid.New(), IsAdmin: true},
-		DecideApprovalInput{Decision: "approve"}); !errors.Is(err, domain.ErrValidation) {
+		ApproverIdentity{UserID: uuid.New(), IsAdmin: true},
+		DecideInput{Decision: "approve"}); !errors.Is(err, domain.ErrValidation) {
 		t.Fatalf("expected validation on resolved request, got %v", err)
 	}
 }
@@ -448,15 +448,15 @@ func TestDecideApproval_Reject_And_NotFound(t *testing.T) {
 	tenant, requester := uuid.New(), uuid.New()
 	seedTwoStepWorkflow(t, repo, tenant)
 	submit := NewSubmitApprovalRequestUseCase(repo, repo)
-	decide := NewDecideApprovalStepUseCase(repo)
+	decide := NewDecideApprovalUseCase(repo)
 
 	req, _ := submit.Execute(context.Background(), tenant, requester, SubmitApprovalInput{
 		EntityType: "risk_acceptance", Action: "accept", Title: "x",
 	})
 
 	got, err := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: uuid.New(), Roles: []string{"manager"}},
-		DecideApprovalInput{Decision: "reject", Comment: "not acceptable"})
+		ApproverIdentity{UserID: uuid.New(), Roles: []string{"manager"}},
+		DecideInput{Decision: "reject", Comment: "not acceptable"})
 	if err != nil {
 		t.Fatalf("reject: %v", err)
 	}
@@ -466,8 +466,8 @@ func TestDecideApproval_Reject_And_NotFound(t *testing.T) {
 
 	// NotFound
 	if _, err := decide.Execute(context.Background(), tenant, uuid.New(),
-		ApproverContext{UserID: uuid.New(), IsAdmin: true},
-		DecideApprovalInput{Decision: "approve"}); !errors.Is(err, domain.ErrNotFound) {
+		ApproverIdentity{UserID: uuid.New(), IsAdmin: true},
+		DecideInput{Decision: "approve"}); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
 }
@@ -484,25 +484,27 @@ func TestDecideApproval_MinApprovalsGate(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	submit := NewSubmitApprovalRequestUseCase(repo, repo)
-	decide := NewDecideApprovalStepUseCase(repo)
+	decide := NewDecideApprovalUseCase(repo)
 	req, _ := submit.Execute(context.Background(), tenant, requester, SubmitApprovalInput{
 		EntityType: "payment", Action: "release", Title: "Release 5M FCFA",
 	})
 
 	m1 := uuid.New()
 	got, _ := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: m1, Roles: []string{"manager"}}, DecideApprovalInput{Decision: "approve"})
+		ApproverIdentity{UserID: m1, Roles: []string{"manager"}}, DecideInput{Decision: "approve"})
 	if got.Status != domain.ApprovalPending {
 		t.Fatalf("expected still pending after 1/2 approvals, got %s", got.Status)
 	}
-	// same approver again → cannot double-sign
+	// Same approver again → cannot double-sign. This is an eligibility refusal
+	// (403), not a malformed request: the person is simply not allowed to be the
+	// second signature on a step they already signed.
 	if _, err := decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: m1, Roles: []string{"manager"}}, DecideApprovalInput{Decision: "approve"}); !errors.Is(err, domain.ErrValidation) {
-		t.Fatalf("expected double-sign validation, got %v", err)
+		ApproverIdentity{UserID: m1, Roles: []string{"manager"}}, DecideInput{Decision: "approve"}); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected double-sign to be forbidden, got %v", err)
 	}
 	// second distinct manager → satisfies the gate → approved
 	got, _ = decide.Execute(context.Background(), tenant, req.ID,
-		ApproverContext{UserID: uuid.New(), Roles: []string{"manager"}}, DecideApprovalInput{Decision: "approve"})
+		ApproverIdentity{UserID: uuid.New(), Roles: []string{"manager"}}, DecideInput{Decision: "approve"})
 	if got.Status != domain.ApprovalApproved {
 		t.Fatalf("expected approved after 2/2, got %s", got.Status)
 	}
