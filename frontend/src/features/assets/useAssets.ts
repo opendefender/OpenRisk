@@ -5,18 +5,28 @@
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { assetService } from '../../services/assetService';
+import { assetService, type AssetSearchFilter } from '../../services/assetService';
 import type { Asset, CreateAssetInput, UpdateAssetInput } from '../../types/asset';
 
 const ASSETS_QUERY_KEY = ['assets'];
 const historyQueryKey = (assetId: string) => ['assets', assetId, 'history'];
 
-export function useAssets() {
+/**
+ * The tenant's inventory, optionally narrowed by typed-attribute search.
+ *
+ * The filter is part of the query key, so each distinct search is its own cache
+ * entry; mutations invalidate the whole ['assets'] prefix, which covers every
+ * active filter without the caller tracking them.
+ */
+export function useAssets(filter?: AssetSearchFilter) {
   const queryClient = useQueryClient();
 
+  const hasFilter =
+    !!filter?.category || Object.keys(filter?.attributes ?? {}).length > 0;
+
   const query = useQuery({
-    queryKey: ASSETS_QUERY_KEY,
-    queryFn: () => assetService.listAssets(),
+    queryKey: hasFilter ? [...ASSETS_QUERY_KEY, filter] : ASSETS_QUERY_KEY,
+    queryFn: () => assetService.listAssets(filter),
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ASSETS_QUERY_KEY });

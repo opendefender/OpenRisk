@@ -1670,6 +1670,97 @@ paths:
           description: Asset not found
 
   # ==================== ASSET DEPENDENCIES ====================
+  /attack-surface/schemas:
+    get:
+      tags:
+        - Attack Surface
+      summary: List the tenant's typed attribute schemas (all 8 categories)
+      description: >-
+        Returns one schema per asset category, seeding the shipped default for
+        any the tenant has never edited — so the response always covers every
+        category and the form generator never has to handle a missing schema.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Schemas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchemaList'
+
+  /attack-surface/schemas/{category}:
+    parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+    get:
+      tags:
+        - Attack Surface
+      summary: Get one category's attribute schema
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchema'
+        '400':
+          description: Unknown category
+    put:
+      tags:
+        - Attack Surface
+      summary: Replace a category's attribute schema (admin)
+      description: >-
+        The schema is validated as a whole before anything is written: it is the
+        contract every asset of that category is checked against, so a malformed
+        one would make the category unwritable for everybody.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssetTypeSchemaInput'
+      responses:
+        '200':
+          description: Updated schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchema'
+        '400':
+          description: Invalid schema
+        '403':
+          description: Admin only
+
+  /attack-surface/schemas/{category}/reset:
+    post:
+      tags:
+        - Attack Surface
+      summary: Restore the shipped default schema for a category (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Default schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchema'
+
   /asset-dependencies:
     get:
       tags:
@@ -2209,6 +2300,15 @@ components:
         external_id:
           type: string
           example: "db-prod-001"
+        category:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: >-
+            Typed attribute values. Requires a category — without one there is no
+            schema to validate them against, and they are rejected.
 
     UpdateAssetInput:
       type: object
@@ -2225,6 +2325,16 @@ components:
           enum: [LOW, MEDIUM, HIGH, CRITICAL]
         owner:
           type: string
+        category:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: >-
+            When present, REPLACES the whole attribute bag (it is validated as a
+            whole, so a partial merge could drop a required attribute without the
+            validator seeing its absence).
 
     # ========== RESPONSE SCHEMAS ==========
     AuthResponse:
@@ -2844,6 +2954,35 @@ components:
           enum: [MANUAL, OPENASSET]
         external_id:
           type: string
+        category:
+          type: string
+          description: >-
+            Typed category selecting which attribute schema governs this asset.
+            Empty on assets registered before typed attributes existed.
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: >-
+            Typed attribute values, validated server-side against the tenant's
+            schema for this asset's category.
+        hostnames:
+          type: array
+          items:
+            type: string
+          description: Correlation fingerprint, denormalised from attributes.
+        ip_addresses:
+          type: array
+          items:
+            type: string
+          description: Correlation fingerprint, denormalised from attributes.
+        cloud_resource_id:
+          type: string
+          description: Correlation fingerprint, denormalised from attributes.
+        cpes:
+          type: array
+          items:
+            type: string
         risks:
           type: array
           items:
@@ -2854,6 +2993,101 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    AttributeDef:
+      type: object
+      description: >-
+        One attribute of an asset category's schema. The set of these for a
+        category IS the schema: the form generator renders it, the server
+        validates against it, and the correlator reads its fingerprint role.
+      required: [key, label, type]
+      properties:
+        key:
+          type: string
+          description: Stable snake_case machine key.
+        label:
+          type: string
+        label_en:
+          type: string
+        type:
+          type: string
+          enum: [string, text, number, integer, boolean, enum, multi_enum, date, ip, ip_list, hostname, cidr, url, email, string_list]
+        required:
+          type: boolean
+        enum:
+          type: array
+          items:
+            type: string
+        group:
+          type: string
+        help:
+          type: string
+        min:
+          type: number
+        max:
+          type: number
+        fingerprint:
+          type: string
+          description: >-
+            Marks this attribute as an identity signal used to correlate external
+            findings back to the asset.
+          enum: ['', hostname, ip, cloud_id, cpe]
+
+    AssetTypeSchema:
+      type: object
+      description: A tenant's attribute schema for one asset category.
+      required: [category, attributes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        label:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeDef'
+        customized:
+          type: boolean
+          description: Whether the tenant edited the shipped default.
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AssetTypeSchemaList:
+      type: object
+      required: [schemas, categories]
+      properties:
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetTypeSchema'
+        categories:
+          type: array
+          items:
+            type: string
+
+    UpdateAssetTypeSchemaInput:
+      type: object
+      required: [attributes]
+      properties:
+        label:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeDef'
 
     AssetSnapshot:
       type: object

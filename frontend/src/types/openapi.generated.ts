@@ -112,6 +112,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/risks/{id}/financial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Full financial assessment for one risk
+         * @description Returns the complete Cyber Risk Quantification for a risk (spec §9): SLE (explicit/composed/reference), downtime cost, worst/average loss, ALE (XAF+USD), remediation cost, residual ALE and ROSI.
+         */
+        get: operations["getRiskFinancial"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/{id}/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What-if investment simulation (non-persisting)
+         * @description Recomputes the financial assessment with the supplied overrides layered on the risk's stored drivers, WITHOUT persisting anything. Powers the CISO/CFO investment-scenario simulator.
+         */
+        post: operations["simulateRiskFinancial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/financial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tenant-wide financial posture (CFO/CISO dashboard)
+         * @description Portfolio ALE (current, worst-case, residual), remediation budget, portfolio ROSI, breakdown by criticality and the top financial exposures.
+         */
+        get: operations["getFinancialSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/{id}/smart-score": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Multifactor smart risk score + breakdown
+         * @description Computes (and caches on the risk) the multifactor "smart" risk score (spec §8): a 0–100 score blending business criticality, internet exposure, vulnerabilities/CVSS, control maturity, incident history, exploitability, financial value and live threat intel (CTI), each weighted by the tenant's configurable weights. Returns the radar-ready per-factor breakdown. The classic Score Engine (P × I × AC) is untouched.
+         */
+        get: operations["getRiskSmartScore"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/{id}/smart-score/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview the smart score with custom weights (non-persisting)
+         * @description Recomputes the smart score for a risk with the supplied factor weights WITHOUT persisting — powers the "tune the weighting live" simulator.
+         */
+        post: operations["simulateRiskSmartScore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risk-scoring/weights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tenant's smart-risk factor weights
+         * @description Returns the tenant's effective factor weights (custom or the built-in defaults) for the eight-factor multifactor model.
+         */
+        get: operations["getRiskScoringWeights"];
+        /**
+         * Update the tenant's factor weights (admin)
+         * @description Persists the tenant's custom factor weights. Weights are relative (the engine normalises them); each must be in [0,1] and at least one > 0. Admin only.
+         */
+        put: operations["updateRiskScoringWeights"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/mitigations/{mitigationId}": {
         parameters: {
             query?: never;
@@ -699,6 +823,173 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attack-surface/schemas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tenant's typed attribute schemas (all 8 categories)
+         * @description Returns one schema per asset category, seeding the shipped default for any the tenant has never edited — so the response always covers every category and the form generator never has to handle a missing schema.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Schemas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssetTypeSchemaList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attack-surface/schemas/{category}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+            };
+            cookie?: never;
+        };
+        /** Get one category's attribute schema */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    category: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Schema */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssetTypeSchema"];
+                    };
+                };
+                /** @description Unknown category */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        /**
+         * Replace a category's attribute schema (admin)
+         * @description The schema is validated as a whole before anything is written: it is the contract every asset of that category is checked against, so a malformed one would make the category unwritable for everybody.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    category: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateAssetTypeSchemaInput"];
+                };
+            };
+            responses: {
+                /** @description Updated schema */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssetTypeSchema"];
+                    };
+                };
+                /** @description Invalid schema */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Admin only */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attack-surface/schemas/{category}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore the shipped default schema for a category (admin) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    category: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default schema */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssetTypeSchema"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-dependencies": {
         parameters: {
             query?: never;
@@ -823,6 +1114,135 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description An amount in both currencies (XAF canonical, USD derived). */
+        Money: {
+            xaf: number;
+            usd: number;
+        };
+        /** @description Full monetary view of a single risk (pkg/crq). */
+        FinancialAssessment: {
+            sle: components["schemas"]["Money"];
+            sle_average: components["schemas"]["Money"];
+            sle_worst: components["schemas"]["Money"];
+            downtime_cost: components["schemas"]["Money"];
+            /** @enum {string} */
+            sle_basis: "explicit" | "composed" | "reference";
+            aro: number;
+            ale: components["schemas"]["Money"];
+            ale_average: components["schemas"]["Money"];
+            ale_worst: components["schemas"]["Money"];
+            /** @enum {string} */
+            ale_basis: "explicit" | "reference";
+            remediation_cost: components["schemas"]["Money"];
+            /** @description [0,1] share of ALE removed by the control */
+            mitigation_effectiveness: number;
+            ale_after: components["schemas"]["Money"];
+            risk_reduction: components["schemas"]["Money"];
+            /** @description Return on Security Investment ratio (e.g. 1.5 = +150%) */
+            rosi: number;
+            /** @description false when remediation cost <= 0 (ratio undefined) */
+            rosi_computable: boolean;
+        };
+        /** @description Per-field overrides for a what-if scenario (all optional). */
+        SimulateFinancialInput: {
+            sle_xaf?: number;
+            aro?: number;
+            downtime_hours?: number;
+            hourly_downtime_cost_xaf?: number;
+            data_loss_cost_xaf?: number;
+            fines_xaf?: number;
+            other_direct_cost_xaf?: number;
+            remediation_cost_xaf?: number;
+            mitigation_effectiveness?: number;
+        };
+        /** @description One factor's contribution to the multifactor smart score (spec §8). */
+        SmartFactorScore: {
+            /** @enum {string} */
+            key: "business_criticality" | "internet_exposure" | "vulnerabilities" | "control_maturity" | "incident_history" | "exploitability" | "financial_value" | "threat_intel";
+            /** @description Human-readable factor name */
+            label: string;
+            /** @description Normalised weight applied, 0 to 1 */
+            weight: number;
+            /** @description Risk contribution of the factor, 0 to 1 (1 = worst) */
+            value: number;
+            /** @description Points this factor adds (value x weight x 100) */
+            contribution: number;
+            /** @description Short human explanation of the raw inputs */
+            detail: string;
+        };
+        /** @description The multifactor smart risk score plus its radar-ready breakdown. */
+        SmartRiskScore: {
+            /** @description 0–100 composite score */
+            score: number;
+            /** @enum {string} */
+            criticality: "low" | "medium" | "high" | "critical";
+            factors: components["schemas"]["SmartFactorScore"][];
+            /** @description Sentence naming the top drivers */
+            explanation: string;
+        };
+        /** @description The eight configurable factor weights. Relative values (the engine normalises them); each in [0,1], at least one > 0. */
+        FactorWeightsInput: {
+            business_criticality: number;
+            internet_exposure: number;
+            vulnerabilities: number;
+            control_maturity: number;
+            incident_history: number;
+            exploitability: number;
+            financial_value: number;
+            threat_intel: number;
+        };
+        /** @description A tenant's persisted smart-risk factor weights. */
+        RiskScoringWeights: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            tenant_id?: string;
+            business_criticality: number;
+            internet_exposure: number;
+            vulnerabilities: number;
+            control_maturity: number;
+            incident_history: number;
+            exploitability: number;
+            financial_value: number;
+            threat_intel: number;
+            /** Format: uuid */
+            updated_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CriticalityBucket: {
+            criticality: string;
+            count: number;
+            ale: components["schemas"]["Money"];
+        };
+        TopRiskFinancial: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            criticality: string;
+            ale: components["schemas"]["Money"];
+            ale_worst: components["schemas"]["Money"];
+            rosi: number;
+            rosi_computable: boolean;
+        };
+        /** @description Tenant-wide financial posture for the CFO/CISO dashboard. */
+        FinancialSummary: {
+            currency: string;
+            xaf_per_usd: number;
+            total_risks: number;
+            quantified_risks: number;
+            total_ale: components["schemas"]["Money"];
+            total_ale_worst: components["schemas"]["Money"];
+            total_ale_after: components["schemas"]["Money"];
+            total_risk_reduction: components["schemas"]["Money"];
+            total_remediation: components["schemas"]["Money"];
+            portfolio_rosi: number;
+            portfolio_rosi_computable: boolean;
+            by_criticality: components["schemas"]["CriticalityBucket"][];
+            top_risks: components["schemas"]["TopRiskFinancial"][];
+        };
         LoginInput: {
             /**
              * Format: email
@@ -919,6 +1339,12 @@ export interface components {
             owner?: string;
             /** @example db-prod-001 */
             external_id?: string;
+            /** @enum {string} */
+            category?: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+            /** @description Typed attribute values. Requires a category — without one there is no schema to validate them against, and they are rejected. */
+            attributes?: {
+                [key: string]: unknown;
+            };
         };
         /** @description Partial update — omitted fields are left unchanged. */
         UpdateAssetInput: {
@@ -928,6 +1354,12 @@ export interface components {
             /** @enum {string} */
             criticality?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             owner?: string;
+            /** @enum {string} */
+            category?: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+            /** @description When present, REPLACES the whole attribute bag (it is validated as a whole, so a partial merge could drop a required attribute without the validator seeing its absence). */
+            attributes?: {
+                [key: string]: unknown;
+            };
         };
         AuthResponse: {
             /**
@@ -1429,11 +1861,73 @@ export interface components {
             /** @enum {string} */
             source?: "MANUAL" | "OPENASSET";
             external_id?: string;
+            /**
+             * @description Typed category selecting which attribute schema governs this asset. Empty on assets registered before typed attributes existed.
+             * @enum {string}
+             */
+            category?: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+            /** @description Typed attribute values, validated server-side against the tenant's schema for this asset's category. */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /** @description Correlation fingerprint, denormalised from attributes. */
+            hostnames?: string[];
+            /** @description Correlation fingerprint, denormalised from attributes. */
+            ip_addresses?: string[];
+            /** @description Correlation fingerprint, denormalised from attributes. */
+            cloud_resource_id?: string;
+            cpes?: string[];
             risks?: components["schemas"]["Risk"][];
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        /** @description One attribute of an asset category's schema. The set of these for a category IS the schema: the form generator renders it, the server validates against it, and the correlator reads its fingerprint role. */
+        AttributeDef: {
+            /** @description Stable snake_case machine key. */
+            key: string;
+            label: string;
+            label_en?: string;
+            /** @enum {string} */
+            type: "string" | "text" | "number" | "integer" | "boolean" | "enum" | "multi_enum" | "date" | "ip" | "ip_list" | "hostname" | "cidr" | "url" | "email" | "string_list";
+            required?: boolean;
+            enum?: string[];
+            group?: string;
+            help?: string;
+            min?: number;
+            max?: number;
+            /**
+             * @description Marks this attribute as an identity signal used to correlate external findings back to the asset.
+             * @enum {string}
+             */
+            fingerprint?: "" | "hostname" | "ip" | "cloud_id" | "cpe";
+        };
+        /** @description A tenant's attribute schema for one asset category. */
+        AssetTypeSchema: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            tenant_id?: string;
+            /** @enum {string} */
+            category: "server" | "workstation" | "application" | "database" | "network" | "cloud" | "vendor" | "data_processing";
+            label?: string;
+            attributes: components["schemas"]["AttributeDef"][];
+            /** @description Whether the tenant edited the shipped default. */
+            customized?: boolean;
+            version?: number;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        AssetTypeSchemaList: {
+            schemas: components["schemas"]["AssetTypeSchema"][];
+            categories: string[];
+        };
+        UpdateAssetTypeSchemaInput: {
+            label?: string;
+            attributes: components["schemas"]["AttributeDef"][];
         };
         /** @description An asset's state captured immediately before an update or deletion. Answers "qui a modifié quoi, et quand": the prior field values (quoi), created_at (quand) and changed_by / changed_by_email (qui). */
         AssetSnapshot: {
@@ -1862,6 +2356,271 @@ export interface operations {
             };
             /** @description Risk not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getRiskFinancial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Financial assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialAssessment"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Risk not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    simulateRiskFinancial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulateFinancialInput"];
+            };
+        };
+        responses: {
+            /** @description Simulated financial assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialAssessment"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Risk not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getFinancialSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Financial summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getRiskSmartScore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Smart score with per-factor breakdown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmartRiskScore"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Risk not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    simulateRiskSmartScore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactorWeightsInput"];
+            };
+        };
+        responses: {
+            /** @description Simulated smart score */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmartRiskScore"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Risk not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getRiskScoringWeights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Factor weights */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskScoringWeights"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateRiskScoringWeights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactorWeightsInput"];
+            };
+        };
+        responses: {
+            /** @description Updated weights */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskScoringWeights"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (admin only) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

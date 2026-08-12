@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { Atom, Plus, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, History, Pencil, Trash2, type LucideIcon } from 'lucide-react';
+import { Atom, Plus, SlidersHorizontal, Server, Laptop, Database, Cloud, Globe, HardDrive, Boxes, AppWindow, Users, Building2, History, Pencil, Trash2, type LucideIcon } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, CritBadge, EmptyState } from '../../shared/ui';
 import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -22,6 +22,8 @@ import { EditAssetModal } from './EditAssetModal';
 import { AssetHistoryDrawer } from './AssetHistoryDrawer';
 import { useFocusParam } from '../../shared/useFocusParam';
 import { relTime } from '../risks/riskMap';
+import { AttributeSearchBar } from '../attackSurface/AttributeSearchBar';
+import { CATEGORY_LABELS, type AssetCategory } from '../attackSurface/schemaTypes';
 import type { Asset } from '../../types/asset';
 
 const TYPE_ICON: Record<string, LucideIcon> = {
@@ -45,7 +47,16 @@ export function InventoryPage() {
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { assets, isLoading, isError, refetch, deleteAsset } = useAssets();
+  // Typed-attribute search (Attack Surface §1). The terms travel to the server
+  // as ?category=&attr.<key>=<value>; the matching rules live there, once.
+  const [attrFilter, setAttrFilter] = useState<{
+    category: AssetCategory | '';
+    attributes: Record<string, string>;
+  }>({ category: '', attributes: {} });
+  const { assets, isLoading, isError, refetch, deleteAsset } = useAssets({
+    category: attrFilter.category || undefined,
+    attributes: attrFilter.attributes,
+  });
   const canUpdate = useAuthStore((s) => s.hasPermission('assets:update'));
   const canDelete = useAuthStore((s) => s.hasPermission('assets:delete'));
   const [creating, setCreating] = useState(false);
@@ -109,6 +120,22 @@ export function InventoryPage() {
       },
     },
     { key: 'type', header: 'Type', sortValue: (a) => a.type ?? '', exportValue: (a) => a.type ?? '', render: (a) => <span className="text-[12.5px] text-ink-soft">{a.type ?? '—'}</span> },
+    {
+      key: 'category',
+      header: t(lang, 'Catégorie', 'Category'),
+      sortValue: (a) => a.category ?? '',
+      exportValue: (a) => a.category ?? '',
+      render: (a) =>
+        a.category ? (
+          <span className="text-[12.5px] text-ink-soft">
+            {CATEGORY_LABELS[a.category as AssetCategory] ?? a.category}
+          </span>
+        ) : (
+          // An untyped asset is stated as untyped rather than blank: it is the
+          // difference between "no attributes" and "attributes not shown".
+          <span className="text-[12px] text-ink-muted">{t(lang, 'Non typé', 'Untyped')}</span>
+        ),
+    },
     { key: 'crit', header: L.col_crit, sortValue: (a) => CRIT_RANK[(a.criticality ?? 'LOW').toLowerCase()] ?? 0, exportValue: (a) => a.criticality ?? '', render: (a) => <CritBadge crit={((a.criticality ?? 'LOW').toLowerCase()) as Criticality} /> },
     { key: 'score', header: 'Score', align: 'right', sortValue: (a) => scoreOf(a) ?? -1, exportValue: (a) => scoreOf(a)?.toFixed(1) ?? '', render: (a) => { const sc = scoreOf(a); return sc != null ? <span className="mono text-[14px] font-bold" style={{ color: critColor[(a.criticality?.toLowerCase() as Criticality) || 'low'] }}>{sc.toFixed(1)}</span> : <span className="text-ink-muted">—</span>; } },
     { key: 'risks', header: t(lang, 'Risques', 'Risks'), align: 'right', sortValue: (a) => a.risks?.length ?? 0, exportValue: (a) => a.risks?.length ?? 0, render: (a) => <span className="text-[13px] text-ink">{a.risks?.length || '—'}</span> },
@@ -157,11 +184,21 @@ export function InventoryPage() {
         count={`${assets.length} ${L.uniAssets}`}
         actions={
           <>
+            <Btn label={tr('Attributs', 'Attributes')} icon={SlidersHorizontal} onClick={() => navigate('/assets/schemas')} />
             <Btn label={tr('Vue Univers', 'Universe view')} icon={Atom} onClick={() => navigate('/assets/universe')} />
             <Btn label={tr('Nouvel actif', 'New asset')} icon={Plus} primary onClick={() => setCreating(true)} />
           </>
         }
       />
+
+      <div className="mb-3">
+        <AttributeSearchBar
+          category={attrFilter.category}
+          attributes={attrFilter.attributes}
+          onChange={setAttrFilter}
+          resultCount={assets.length}
+        />
+      </div>
 
       <DataTable
         id="assets"

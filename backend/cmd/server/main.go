@@ -28,6 +28,7 @@ import (
 	appactivation "github.com/opendefender/openrisk/internal/application/activation"
 	appai "github.com/opendefender/openrisk/internal/application/ai"
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
+	"github.com/opendefender/openrisk/internal/application/assetschema"
 	"github.com/opendefender/openrisk/internal/application/auth"
 	appauto "github.com/opendefender/openrisk/internal/application/automation"
 	"github.com/opendefender/openrisk/internal/application/board"
@@ -192,6 +193,10 @@ func main() {
 		&domain.Mitigation{},
 		&domain.Asset{},
 		&domain.AssetSnapshot{},
+		// Typed attributes by asset category (Attack Surface §1). One row per
+		// (tenant, category) holding the tenant-editable schema that the asset
+		// form is generated from and every asset write is validated against.
+		&domain.AssetTypeSchema{},
 		// Directed edges of the asset dependency graph ("cartographie des
 		// dépendances"). Tenant-scoped; both endpoints reference assets.
 		&domain.AssetDependency{},
@@ -1247,10 +1252,21 @@ func main() {
 	// data) — now gated the same way as risks/compliance.
 	assetRepo := repository.NewGormAssetRepository(database.DB)
 	assetDepRepo := repository.NewGormAssetDependencyRepository(database.DB)
-	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo).WithActivation(activationRecorder)
+
+	// Typed attributes (Attack Surface §1). One schema per (tenant, category);
+	// the SAME service backs the form generator (read), the tenant's schema
+	// editor (write) and the server-side write-path validator, so the form can
+	// never render a field the validator would reject.
+	assetSchemaSvc := assetschema.NewService(repository.NewGormAssetTypeSchemaRepository(database.DB))
+	assetAttrValidator := assetschema.NewValidator(assetSchemaSvc)
+
+	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo).
+		WithActivation(activationRecorder).
+		WithAttributeValidator(assetAttrValidator)
 	getAssetUC := assetapp.NewGetAssetUseCase(assetRepo)
 	listAssetsUC := assetapp.NewListAssetsUseCase(assetRepo)
-	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo)
+	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo).
+		WithAttributeValidator(assetAttrValidator)
 	// Deleting an asset also prunes its dependency edges (no dangling links).
 	deleteAssetUC := assetapp.NewDeleteAssetUseCase(assetRepo).WithDependencyRepository(assetDepRepo)
 	// Resolve each history snapshot's changed_by UUID to an email so the
@@ -1286,6 +1302,17 @@ func main() {
 	protected.Patch("/assets/:id", assetUpdate, assetHandler.UpdateAsset)
 	protected.Delete("/assets/:id", assetDelete, assetHandler.DeleteAsset)
 	protected.Get("/assets/:id/history", assetRead, assetHandler.GetAssetHistory)
+
+	// Attack Surface — typed attribute schemas. Reading is open to anyone who
+	// can read assets (the form generator needs it); editing the schema is an
+	// admin act, because it changes the contract every asset of that category is
+	// validated against.
+	assetSchemaHandler := handlers.NewAssetSchemaHandler(assetSchemaSvc)
+	adminOnly := middleware.RequireRole("admin", "root")
+	protected.Get("/attack-surface/schemas", assetRead, assetSchemaHandler.ListSchemas)
+	protected.Get("/attack-surface/schemas/:category", assetRead, assetSchemaHandler.GetSchema)
+	protected.Put("/attack-surface/schemas/:category", adminOnly, assetSchemaHandler.UpdateSchema)
+	protected.Post("/attack-surface/schemas/:category/reset", adminOnly, assetSchemaHandler.ResetSchema)
 
 	// --- Vulnerability Management (Module 3) — integrations + risk-based
 	// prioritisation. Findings from Nessus/OpenVAS/Qualys/Defender/Inspector/

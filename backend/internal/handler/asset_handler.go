@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -54,6 +55,11 @@ type createAssetInput struct {
 	Type        string `json:"type"`
 	Criticality string `json:"criticality" validate:"omitempty,oneof=LOW MEDIUM HIGH CRITICAL"`
 	Owner       string `json:"owner"`
+	// Category is NOT validated with `oneof` here: the authoritative list lives
+	// in domain.AssetCategories, and duplicating it in a struct tag is how the
+	// two drift. The use case parses it and returns a named validation error.
+	Category   string         `json:"category"`
+	Attributes map[string]any `json:"attributes"`
 }
 
 // CreateAsset godoc
@@ -71,6 +77,8 @@ func (h *AssetHandler) CreateAsset(c *fiber.Ctx) error {
 		Type:        input.Type,
 		Criticality: domain.AssetCriticality(input.Criticality),
 		Owner:       input.Owner,
+		Category:    domain.AssetCategory(input.Category),
+		Attributes:  input.Attributes,
 	})
 	if err != nil {
 		return writeAppError(c, err)
@@ -79,8 +87,23 @@ func (h *AssetHandler) CreateAsset(c *fiber.Ctx) error {
 }
 
 // ListAssets godoc
+// Supports typed-attribute search: ?category=server&attr.environment=production
 func (h *AssetHandler) ListAssets(c *fiber.Ctx) error {
-	assets, err := h.listAssetsUC.Execute(c.UserContext(), tenantID(c))
+	filter := assetuc.ListFilter{Category: domain.AssetCategory(c.Query("category"))}
+	// Any query parameter prefixed `attr.` is an attribute search term. Using a
+	// prefix rather than a fixed parameter list is what keeps search working
+	// when a tenant adds an attribute to a schema — no server change needed.
+	c.Context().QueryArgs().VisitAll(func(k, v []byte) {
+		key := string(k)
+		if !strings.HasPrefix(key, "attr.") || len(v) == 0 {
+			return
+		}
+		filter.Attributes = append(filter.Attributes, domain.AttributeSearchTerm{
+			Key: strings.TrimPrefix(key, "attr."), Value: string(v),
+		})
+	})
+
+	assets, err := h.listAssetsUC.Search(c.UserContext(), tenantID(c), filter)
 	if err != nil {
 		return writeAppError(c, err)
 	}
@@ -105,6 +128,9 @@ type updateAssetInput struct {
 	Type        *string `json:"type" validate:"omitempty"`
 	Criticality *string `json:"criticality" validate:"omitempty,oneof=LOW MEDIUM HIGH CRITICAL"`
 	Owner       *string `json:"owner" validate:"omitempty"`
+	Category    *string `json:"category" validate:"omitempty"`
+	// Attributes replaces the whole bag when present; absent leaves it alone.
+	Attributes map[string]any `json:"attributes"`
 }
 
 // UpdateAsset godoc
@@ -121,10 +147,17 @@ func (h *AssetHandler) UpdateAsset(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
 	}
 
-	ucInput := assetuc.UpdateAssetInput{Name: input.Name, Type: input.Type, Owner: input.Owner}
+	ucInput := assetuc.UpdateAssetInput{
+		Name: input.Name, Type: input.Type, Owner: input.Owner,
+		Attributes: input.Attributes,
+	}
 	if input.Criticality != nil {
 		crit := domain.AssetCriticality(*input.Criticality)
 		ucInput.Criticality = &crit
+	}
+	if input.Category != nil {
+		cat := domain.AssetCategory(*input.Category)
+		ucInput.Category = &cat
 	}
 
 	result, err := h.updateAssetUC.Execute(c.UserContext(), tenantID(c), id, userID(c), ucInput)
