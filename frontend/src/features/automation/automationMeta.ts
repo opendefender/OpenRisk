@@ -59,6 +59,8 @@ export const CHANNEL_META: Record<NotifyChannel, { label: string }> = {
   email: { label: 'Email' },
   slack: { label: 'Slack' },
   teams: { label: 'Microsoft Teams' },
+  webhook: { label: 'Webhook' },
+  sms: { label: 'SMS' },
 };
 
 export const EXEC_STATUS_META: Record<ExecutionStatus, { label: { fr: string; en: string }; color: string }> = {

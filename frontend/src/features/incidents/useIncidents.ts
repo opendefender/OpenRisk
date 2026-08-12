@@ -11,6 +11,7 @@ import {
   type CreateIncidentInput,
   type IncidentListParams,
   type UpdateIncidentInput,
+  type PostMortemInput,
 } from './incidentService';
 
 const INCIDENTS_KEY = ['incidents'];
@@ -86,4 +87,44 @@ export function useIncidents(params: IncidentListParams = {}) {
     }),
     [query, createIncident, updateIncident, deleteIncident]
   );
+}
+
+// ---------------------------------------------------------------------------
+// Provenance + post-mortem
+// ---------------------------------------------------------------------------
+
+export function useIncidentOrigins() {
+  return useQuery({
+    queryKey: ['incidents', 'origins'],
+    queryFn: incidentService.origins,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePostMortem(id: number | null) {
+  return useQuery({
+    queryKey: ['incidents', 'post-mortem', id],
+    queryFn: () => incidentService.getPostMortem(id as number),
+    enabled: id != null,
+  });
+}
+
+export function usePostMortemMutations(id: number | null) {
+  const qc = useQueryClient();
+  // Publishing can change whether the incident may be closed, so both the review
+  // and the incident itself are refreshed.
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ['incidents', 'post-mortem', id] });
+    void qc.invalidateQueries({ queryKey: ['incidents'] });
+  };
+
+  const save = useMutation({
+    mutationFn: (input: PostMortemInput) => incidentService.savePostMortem(id as number, input),
+    onSettled: invalidate,
+  });
+  const publish = useMutation({
+    mutationFn: () => incidentService.publishPostMortem(id as number),
+    onSettled: invalidate,
+  });
+  return { save, publish };
 }

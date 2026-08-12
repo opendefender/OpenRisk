@@ -23,10 +23,108 @@ export interface Incident {
   reported_by: string;
   assigned_to?: string;
   risk_id?: number | null;
+  risk_ids?: string[] | null;
+  asset_ids?: string[] | null;
+  stakeholders?: IncidentStakeholder[] | null;
+  origin: IncidentOrigin;
+  origin_rule_id?: string | null;
+  origin_rule_name?: string;
+  origin_execution_id?: string | null;
+  origin_detail?: string;
   resolution?: string;
   resolved_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type IncidentOrigin = 'manual' | 'automation' | 'scanner' | 'cti' | 'integration';
+
+export interface IncidentStakeholder {
+  user_id?: string;
+  email?: string;
+  role?: string;
+  name?: string;
+  channels?: string[];
+}
+
+export interface IncidentOriginInfo {
+  key: IncidentOrigin;
+  label: string;
+  label_en: string;
+  description: string;
+  automatic: boolean;
+  where_to_configure?: string;
+}
+
+export interface IncidentOriginCount {
+  origin: IncidentOriginInfo;
+  count: number;
+}
+
+// ---------------------------------------------------------------------------
+// Post-mortem
+// ---------------------------------------------------------------------------
+
+export interface PostMortemTimelineEntry {
+  at: string;
+  title: string;
+  detail?: string;
+  kind?: 'detection' | 'escalation' | 'mitigation' | 'resolution' | 'note';
+}
+
+export interface CorrectiveAction {
+  id: string;
+  title: string;
+  description?: string;
+  owner_id?: string;
+  due_date?: string | null;
+  priority?: string;
+  status: string;
+  mitigation_id?: string;
+  risk_id?: string;
+}
+
+export interface PostMortem {
+  id: string;
+  incident_id: number;
+  summary: string;
+  root_cause: string;
+  contributing_factors?: string;
+  impact: string;
+  detection?: string;
+  what_went_well?: string;
+  lessons_learned?: string;
+  timeline: PostMortemTimelineEntry[] | null;
+  corrective_actions: CorrectiveAction[] | null;
+  status: 'draft' | 'published';
+  author_email?: string;
+  published_at?: string | null;
+  created_at: string;
+}
+
+export interface PostMortemView {
+  post_mortem: PostMortem;
+  missing: string[] | null;
+  required: boolean;
+  blocks_closure?: string;
+}
+
+export interface PostMortemInput {
+  summary: string;
+  root_cause: string;
+  contributing_factors?: string;
+  impact: string;
+  detection?: string;
+  what_went_well?: string;
+  lessons_learned?: string;
+  timeline: PostMortemTimelineEntry[];
+  corrective_actions: CorrectiveAction[];
+}
+
+export interface PublishResult {
+  view: PostMortemView;
+  mitigations_created: number;
+  not_converted?: string[];
 }
 
 export interface IncidentStats {
@@ -59,6 +157,9 @@ export interface CreateIncidentInput {
   severity: IncidentSeverity;
   source: string;
   reported_by: string;
+  risk_ids?: string[];
+  asset_ids?: string[];
+  stakeholders?: IncidentStakeholder[];
 }
 
 export interface UpdateIncidentInput {
@@ -111,6 +212,25 @@ export const incidentService = {
 
   timeline: async (id: number): Promise<IncidentTimelineEvent[]> => {
     const response = await api.get<IncidentTimelineEvent[]>(`/incidents/${id}/timeline`);
+    return response.data;
+  },
+
+  // Where incidents come from — the catalogue plus this tenant's real counts.
+  origins: async (): Promise<{ items: IncidentOriginCount[]; total: number }> => {
+    const response = await api.get<{ items: IncidentOriginCount[]; total: number }>('/incidents/origins');
+    return response.data;
+  },
+
+  getPostMortem: async (id: number): Promise<PostMortemView> => {
+    const response = await api.get<PostMortemView>(`/incidents/${id}/post-mortem`);
+    return response.data;
+  },
+  savePostMortem: async (id: number, input: PostMortemInput): Promise<PostMortemView> => {
+    const response = await api.put<PostMortemView>(`/incidents/${id}/post-mortem`, input);
+    return response.data;
+  },
+  publishPostMortem: async (id: number): Promise<PublishResult> => {
+    const response = await api.post<PublishResult>(`/incidents/${id}/post-mortem/publish`, {});
     return response.data;
   },
 };

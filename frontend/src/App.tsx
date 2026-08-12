@@ -59,6 +59,7 @@ const GovernancePage = lazy(() => import('./features/governance/GovernancePage')
 const LeaderboardPage = lazy(() => import('./features/gamification/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
 const WarRoom = lazy(() => import('./features/incidents/WarRoom').then(m => ({ default: m.WarRoom })));
 const IncidentsScreen = lazy(() => import('./features/incidents/IncidentsScreen').then(m => ({ default: m.IncidentsScreen })));
+const IncidentSourcesPage = lazy(() => import('./features/incidents/IncidentSourcesPage').then(m => ({ default: m.IncidentSourcesPage })));
 const ThreatIntel = lazy(() => import('./features/cti/ThreatIntel').then(m => ({ default: m.ThreatIntel })));
 const InfrastructurePage = lazy(() => import('./features/infrastructure/InfrastructurePage').then(m => ({ default: m.InfrastructurePage })));
 const ScanPreviewPage = lazy(() => import('./features/infrastructure/ScanPreviewPage').then(m => ({ default: m.ScanPreviewPage })));
@@ -324,6 +325,7 @@ function App() {
 
           {/* ---------------- Incidents ---------------- */}
           <Route path="incidents" element={<IncidentsScreen />} />
+          <Route path="incidents/sources" element={<IncidentSourcesPage />} />
           <Route path="incidents/:id/war-room" element={<WarRoom />} />
 
           {/* ---------------- Compliance ----------------
