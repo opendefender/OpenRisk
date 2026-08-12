@@ -21,6 +21,19 @@ type ChannelInput struct {
 	TeamsWebhookURL string
 	EmailEnabled    bool
 	DefaultEmail    string
+
+	WebhookEnabled bool
+	WebhookURL     string
+	WebhookSecret  string
+
+	SMSEnabled     bool
+	SMSGatewayURL  string
+	SMSAPIKey      string
+	SMSSender      string
+	SMSRecipients  string
+	SMSToField     string
+	SMSTextField   string
+	SMSSenderField string
 }
 
 // ChannelService manages the tenant's outbound alert-channel configuration
@@ -55,6 +68,17 @@ func (s *ChannelService) Save(ctx context.Context, tenantID uuid.UUID, in Channe
 		TeamsWebhookURL: in.TeamsWebhookURL,
 		EmailEnabled:    in.EmailEnabled,
 		DefaultEmail:    in.DefaultEmail,
+		WebhookEnabled:  in.WebhookEnabled,
+		WebhookURL:      in.WebhookURL,
+		WebhookSecret:   in.WebhookSecret,
+		SMSEnabled:      in.SMSEnabled,
+		SMSGatewayURL:   in.SMSGatewayURL,
+		SMSAPIKey:       in.SMSAPIKey,
+		SMSSender:       in.SMSSender,
+		SMSRecipients:   in.SMSRecipients,
+		SMSToField:      in.SMSToField,
+		SMSTextField:    in.SMSTextField,
+		SMSSenderField:  in.SMSSenderField,
 	}
 	if err := s.repo.Upsert(ctx, cfg); err != nil {
 		return nil, err

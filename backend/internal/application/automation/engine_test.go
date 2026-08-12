@@ -233,7 +233,7 @@ func TestEngine_RunRuleByID_DryRun(t *testing.T) {
 		Actions:  domain.AutomationActionList{{Type: domain.ActionNotify, Channels: []string{"email"}}},
 	})
 
-	exec, err := e.RunRuleByID(context.Background(), ruleID, tenant, criticalKEVContext(tenant))
+	exec, err := e.RunRuleByID(context.Background(), ruleID, tenant, criticalKEVContext(tenant), domain.ExecutionModeManual)
 	if err != nil {
 		t.Fatalf("RunRuleByID: %v", err)
 	}

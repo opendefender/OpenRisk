@@ -191,10 +191,10 @@ func (p *AuditRetentionPolicy) Validate() error {
 
 // Break kinds reported by chain verification.
 const (
-	BreakHashMismatch = "hash_mismatch"  // stored hash ≠ recomputed hash → content altered
-	BreakPrevMismatch = "prev_mismatch"  // link to the previous entry is wrong → entry removed/inserted
-	BreakSequenceGap  = "sequence_gap"   // a sequence number is missing and no seal explains it
-	BreakUnsealedHead = "unsealed_head"  // the chain does not start at genesis and no seal covers the gap
+	BreakHashMismatch = "hash_mismatch" // stored hash ≠ recomputed hash → content altered
+	BreakPrevMismatch = "prev_mismatch" // link to the previous entry is wrong → entry removed/inserted
+	BreakSequenceGap  = "sequence_gap"  // a sequence number is missing and no seal explains it
+	BreakUnsealedHead = "unsealed_head" // the chain does not start at genesis and no seal covers the gap
 	BreakDuplicateSeq = "duplicate_sequence"
 )
 

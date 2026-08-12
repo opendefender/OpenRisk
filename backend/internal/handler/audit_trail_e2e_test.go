@@ -240,7 +240,7 @@ func TestAuditTrail_TwentyDistinctActions_ProduceExactlyTwentyVerifiedEntries(t 
 	}
 
 	// Noise that must NOT land in the trail.
-	f.do(t, http.MethodGet, "/api/v1/widgets", "")           // a read
+	f.do(t, http.MethodGet, "/api/v1/widgets", "")            // a read
 	f.do(t, http.MethodPost, "/api/v1/widgets/forbidden", "") // a refused action
 
 	// --- exactly twenty entries ---------------------------------------------

@@ -6,6 +6,8 @@
 package handler
 
 import (
+	"context"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	appauto "github.com/opendefender/openrisk/internal/application/automation"
@@ -22,6 +24,18 @@ type AutomationHandler struct {
 	sla        *appauto.SLAService
 	channels   *appauto.ChannelService
 	engine     *appauto.Engine
+
+	// dryRuns keeps in-flight traces so a test can be cancelled and re-read.
+	dryRuns *appauto.DryRunRegistry
+	// channelTester performs real single-channel deliveries. Optional.
+	channelTester *appauto.ChannelTester
+	// userEmails resolves actor emails for the run history. Optional.
+	userEmails UserEmailLookup
+}
+
+// UserEmailLookup resolves user emails for display in the run history.
+type UserEmailLookup interface {
+	EmailsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error)
 }
 
 // NewAutomationHandler builds the handler.
@@ -32,7 +46,22 @@ func NewAutomationHandler(
 	channels *appauto.ChannelService,
 	engine *appauto.Engine,
 ) *AutomationHandler {
-	return &AutomationHandler{rules: rules, executions: executions, sla: sla, channels: channels, engine: engine}
+	return &AutomationHandler{
+		rules: rules, executions: executions, sla: sla, channels: channels, engine: engine,
+		dryRuns: appauto.NewDryRunRegistry(),
+	}
+}
+
+// WithChannelTester attaches the real single-channel delivery tester.
+func (h *AutomationHandler) WithChannelTester(t *appauto.ChannelTester) *AutomationHandler {
+	h.channelTester = t
+	return h
+}
+
+// WithUserEmails attaches actor-email resolution for the run history.
+func (h *AutomationHandler) WithUserEmails(l UserEmailLookup) *AutomationHandler {
+	h.userEmails = l
+	return h
 }
 
 func (h *AutomationHandler) tenant(c *fiber.Ctx) uuid.UUID {
@@ -139,35 +168,42 @@ func (h *AutomationHandler) DeleteRule(c *fiber.Ctx) error {
 	return c.SendStatus(204)
 }
 
-// testRuleBody is the optional dry-run trigger context.
-type testRuleBody struct {
+// runNowBody is the optional trigger context for a REAL manual run.
+type runNowBody struct {
 	Severity     string  `json:"severity"`
 	CVEID        string  `json:"cve_id"`
 	CVSS         float64 `json:"cvss"`
 	KEV          bool    `json:"kev"`
 	PriorityTier string  `json:"priority_tier"`
 	AssetName    string  `json:"asset_name"`
+	// Confirm must be true. Running a rule opens risks, files tickets and pages
+	// people; the previous version of this endpoint did all of that behind a
+	// button labelled "Test", which is how production got surprised. To test
+	// without side effects, use POST /automation/rules/:id/dry-run.
+	Confirm bool `json:"confirm"`
 }
 
-// TestRule POST /automation/rules/:id/test — run a rule immediately against a
-// supplied (or sample) trigger context, without waiting for a real event.
-func (h *AutomationHandler) TestRule(c *fiber.Ctx) error {
+// RunRuleNow POST /automation/rules/:id/run — execute a rule for real, now.
+func (h *AutomationHandler) RunRuleNow(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid uuid"})
 	}
-	var body testRuleBody
-	_ = c.BodyParser(&body) // body is optional
+	var body runNowBody
+	_ = c.BodyParser(&body)
+	if !body.Confirm {
+		return c.Status(400).JSON(fiber.Map{
+			"error":  "confirmation required",
+			"detail": "running a rule has real side effects (risks, tickets, alerts). Send confirm:true, or use /dry-run to trace it without changing anything.",
+		})
+	}
 	if body.Severity == "" {
 		body.Severity = "critical"
 	}
-	if body.CVEID == "" {
-		body.CVEID = "CVE-0000-TEST"
-	}
 	tc := appauto.TriggerContext{
-		Ref:          "test:" + body.CVEID,
-		Subject:      "Automation rule dry-run",
-		Title:        firstNonEmpty(body.CVEID, "Automation rule dry-run"),
+		Ref:          "manual:" + firstNonEmpty(body.CVEID, id.String()),
+		Subject:      "Manual run of an automation rule",
+		Title:        firstNonEmpty(body.CVEID, "Manual run"),
 		Severity:     body.Severity,
 		CVSS:         body.CVSS,
 		KEV:          body.KEV,
@@ -176,7 +212,7 @@ func (h *AutomationHandler) TestRule(c *fiber.Ctx) error {
 		AssetName:    body.AssetName,
 		TriggeredBy:  h.user(c),
 	}
-	exec, err := h.engine.RunRuleByID(c.UserContext(), id, h.tenant(c), tc)
+	exec, err := h.engine.RunRuleByID(c.UserContext(), id, h.tenant(c), tc, domain.ExecutionModeManual)
 	if err != nil {
 		return writeAppError(c, err)
 	}
@@ -191,7 +227,7 @@ func (h *AutomationHandler) ListExecutions(c *fiber.Ctx) error {
 	if err != nil {
 		return serverError(c, "could not list executions", err)
 	}
-	return c.JSON(fiber.Map{"items": items})
+	return c.JSON(fiber.Map{"items": h.decorate(c, items)})
 }
 
 // ListRuleExecutions GET /automation/rules/:id/executions
@@ -204,7 +240,7 @@ func (h *AutomationHandler) ListRuleExecutions(c *fiber.Ctx) error {
 	if err != nil {
 		return serverError(c, "could not list executions", err)
 	}
-	return c.JSON(fiber.Map{"items": items})
+	return c.JSON(fiber.Map{"items": h.decorate(c, items)})
 }
 
 // ListSLA GET /automation/sla — live SLA countdowns.
@@ -242,6 +278,19 @@ type channelsBody struct {
 	TeamsWebhookURL string `json:"teams_webhook_url"`
 	EmailEnabled    bool   `json:"email_enabled"`
 	DefaultEmail    string `json:"default_email"`
+
+	WebhookEnabled bool   `json:"webhook_enabled"`
+	WebhookURL     string `json:"webhook_url"`
+	WebhookSecret  string `json:"webhook_secret"`
+
+	SMSEnabled     bool   `json:"sms_enabled"`
+	SMSGatewayURL  string `json:"sms_gateway_url"`
+	SMSAPIKey      string `json:"sms_api_key"`
+	SMSSender      string `json:"sms_sender"`
+	SMSRecipients  string `json:"sms_recipients"`
+	SMSToField     string `json:"sms_to_field"`
+	SMSTextField   string `json:"sms_text_field"`
+	SMSSenderField string `json:"sms_sender_field"`
 }
 
 // SaveChannels PUT /automation/channels
@@ -257,12 +306,61 @@ func (h *AutomationHandler) SaveChannels(c *fiber.Ctx) error {
 		TeamsWebhookURL: body.TeamsWebhookURL,
 		EmailEnabled:    body.EmailEnabled,
 		DefaultEmail:    body.DefaultEmail,
+		WebhookEnabled:  body.WebhookEnabled,
+		WebhookURL:      body.WebhookURL,
+		WebhookSecret:   body.WebhookSecret,
+		SMSEnabled:      body.SMSEnabled,
+		SMSGatewayURL:   body.SMSGatewayURL,
+		SMSAPIKey:       body.SMSAPIKey,
+		SMSSender:       body.SMSSender,
+		SMSRecipients:   body.SMSRecipients,
+		SMSToField:      body.SMSToField,
+		SMSTextField:    body.SMSTextField,
+		SMSSenderField:  body.SMSSenderField,
 	})
 	if err != nil {
 		return writeAppError(c, err)
 	}
 	return c.JSON(cfg)
 }
+
+// decorate adds the per-run step tally and resolves actor emails, so the history
+// answers "who ran this, and what came of it" without a second request.
+func (h *AutomationHandler) decorate(c *fiber.Ctx, items []domain.AutomationExecution) []appauto.ExecutionHistory {
+	out := make([]appauto.ExecutionHistory, 0, len(items))
+	for _, e := range items {
+		out = append(out, appauto.Summarise(e))
+	}
+	if h.userEmails == nil {
+		return out
+	}
+	idset := map[uuid.UUID]struct{}{}
+	for _, e := range out {
+		if e.ActorID != nil && *e.ActorID != uuid.Nil {
+			idset[*e.ActorID] = struct{}{}
+		}
+	}
+	if len(idset) == 0 {
+		return out
+	}
+	ids := make([]uuid.UUID, 0, len(idset))
+	for id := range idset {
+		ids = append(ids, id)
+	}
+	emails, err := h.userEmails.EmailsByIDs(c.UserContext(), ids)
+	if err != nil {
+		return out // degrade to bare ids rather than failing the list
+	}
+	for i := range out {
+		if out[i].ActorID != nil {
+			out[i].ActorEmail = emails[*out[i].ActorID]
+		}
+	}
+	return out
+}
+
+// channelsBody gains the generic webhook and SMS gateway fields; every secret is
+// write-only (an empty value preserves what is stored).
 
 // firstNonEmpty returns the first non-empty string.
 func firstNonEmpty(vals ...string) string {

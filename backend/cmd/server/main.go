@@ -1991,13 +1991,24 @@ func main() {
 	automationTicketer := autoinfra.NewTicketer(vulnIntegRepo, vulnIntegCipher)
 	automationScanAction := autoinfra.NewScanAction(scanConfigRepo, triggerScanUC, zeroLogger)
 
+	// The subject resolver is what makes a dry run a test against REAL tenant
+	// data: it loads a live vulnerability / risk / incident (read-only) and
+	// rebuilds the trigger context an event would have produced. It also supplies
+	// the asset tag vocabulary that a rule's asset-tag condition gates on — for
+	// live events as well as dry runs.
+	automationSubjects := autoinfra.NewSubjectResolver(database.DB)
+	automationChannelService := appauto.NewChannelService(automationChannelRepo)
+
 	automationEngine := appauto.NewEngine(automationRuleRepo, automationExecRepo, slaTrackerRepo, zeroLogger).
 		WithNotifier(automationNotifier).
 		WithTicketer(automationTicketer).
 		WithRiskCreator(automationRiskActions).
 		WithRiskAssigner(automationRiskActions).
 		WithRiskResolver(automationRiskActions).
-		WithAssetScanner(automationScanAction)
+		WithAssetScanner(automationScanAction).
+		WithSubjectResolver(automationSubjects).
+		WithAssetFacts(automationSubjects).
+		WithChannelProbe(automationChannelService)
 
 	automationSLAService := appauto.NewSLAService(slaTrackerRepo, zeroLogger).
 		WithNotifier(automationNotifier).
@@ -2007,9 +2018,21 @@ func main() {
 		appauto.NewRuleService(automationRuleRepo),
 		appauto.NewExecutionService(automationExecRepo),
 		automationSLAService,
-		appauto.NewChannelService(automationChannelRepo),
+		automationChannelService,
 		automationEngine,
-	)
+	).WithUserEmails(userRepo).
+		WithChannelTester(
+			appauto.NewChannelTester(automationChannelRepo).
+				WithInApp(notificationUseCase).
+				WithEmail(emailTransport).
+				WithUserEmail(func(ctx context.Context, userID uuid.UUID) string {
+					emails, err := userRepo.EmailsByIDs(ctx, []uuid.UUID{userID})
+					if err != nil {
+						return ""
+					}
+					return emails[userID]
+				}),
+		)
 
 	// A newly detected vulnerability fires the engine's vulnerability_detected
 	// trigger. Mutating vulnIngestUC here still affects the vuln handlers/webhook
@@ -2026,12 +2049,25 @@ func main() {
 	protected.Get("/automation/sla", automationRead, automationHandler.ListSLA)
 	protected.Get("/automation/sla/stats", automationRead, automationHandler.SLAStats)
 	protected.Get("/automation/channels", automationRead, automationHandler.GetChannels)
+	protected.Get("/automation/channels/catalogue", automationRead, automationHandler.ListChannelCatalogue)
 	protected.Put("/automation/channels", automationAdmin, automationHandler.SaveChannels)
+	protected.Post("/automation/channels/test", automationWrite, automationHandler.TestChannel)
+	protected.Get("/automation/state", automationRead, automationHandler.AutomationState)
+	protected.Get("/automation/templates", automationRead, automationHandler.ListTemplates)
+	protected.Post("/automation/templates/:key/adopt", automationWrite, automationHandler.CreateRuleFromTemplate)
+	protected.Get("/automation/dry-runs/:id", automationRead, automationHandler.GetDryRun)
+	protected.Post("/automation/dry-runs/:id/cancel", automationRead, automationHandler.CancelDryRun)
 	protected.Get("/automation/rules/:id", automationRead, automationHandler.GetRule)
 	protected.Put("/automation/rules/:id", automationWrite, automationHandler.UpdateRule)
 	protected.Delete("/automation/rules/:id", automationWrite, automationHandler.DeleteRule)
-	protected.Post("/automation/rules/:id/test", automationWrite, automationHandler.TestRule)
+	// Dry run is a READ of what would happen — it touches no action port, so it
+	// only needs read permission. Running a rule for real is a write.
+	protected.Post("/automation/rules/:id/dry-run", automationRead, automationHandler.DryRunRule)
+	protected.Post("/automation/rules/:id/run", automationWrite, automationHandler.RunRuleNow)
+	protected.Post("/automation/rules/:id/enable", automationWrite, automationHandler.EnableRule)
+	protected.Post("/automation/rules/:id/suspend", automationWrite, automationHandler.SuspendRule)
 	protected.Get("/automation/rules/:id/executions", automationRead, automationHandler.ListRuleExecutions)
+	protected.Post("/automation/executions/:id/replay", automationWrite, automationHandler.ReplayExecution)
 
 	// Background workers: the SOAR engine (event-driven) and the SLA monitor (cadence).
 	automationWorker := workers.NewAutomationWorker(redisClientInstance, automationEngine, zeroLogger)

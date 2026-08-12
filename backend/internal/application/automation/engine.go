@@ -29,6 +29,9 @@ type Engine struct {
 
 	notifier   Notifier
 	ticketer   Ticketer
+	subjects   SubjectResolver
+	channels   ChannelProbe
+	assetFacts AssetFactsLookup
 	riskCreate RiskCreator
 	assigner   RiskAssigner
 	scanner    AssetScanner
@@ -65,6 +68,17 @@ func (e *Engine) HandleTrigger(ctx context.Context, trigger domain.AutomationTri
 		e.logger.Warn().Err(err).Str("trigger", string(trigger)).Msg("automation: could not list rules")
 		return
 	}
+	// Event payloads carry an asset id but not the asset's tag vocabulary, so a
+	// rule gated on asset tags would never match anything. Enrich once, here,
+	// rather than per rule.
+	if len(tc.AssetTags) == 0 && tc.AssetID != nil && e.assetFacts != nil {
+		if name, tags := e.assetFacts.AssetFacts(ctx, tc.TenantID, *tc.AssetID); len(tags) > 0 {
+			tc.AssetTags = tags
+			if tc.AssetName == "" {
+				tc.AssetName = name
+			}
+		}
+	}
 	for i := range rules {
 		rule := rules[i]
 		if ok, reason := matchConditions(rule.Conditions, tc); !ok {
@@ -75,32 +89,84 @@ func (e *Engine) HandleTrigger(ctx context.Context, trigger domain.AutomationTri
 	}
 }
 
-// RunRuleByID runs one rule immediately against a supplied context, bypassing
-// the enabled/trigger filters. Used by the "test / dry-run" endpoint.
-func (e *Engine) RunRuleByID(ctx context.Context, ruleID, tenantID uuid.UUID, tc TriggerContext) (*domain.AutomationExecution, error) {
+// RunRuleByID runs one rule for real against a supplied context, bypassing the
+// enabled/trigger filters. This is the "run it now" path — it HAS side effects.
+// For a side-effect-free trace, use DryRun.
+func (e *Engine) RunRuleByID(ctx context.Context, ruleID, tenantID uuid.UUID, tc TriggerContext, mode string) (*domain.AutomationExecution, error) {
 	rule, err := e.rules.GetByID(ctx, ruleID, tenantID)
 	if err != nil {
 		return nil, err
 	}
+	if rule == nil {
+		return nil, domain.NewNotFoundError("automation rule", ruleID)
+	}
 	tc.TenantID = tenantID
-	return e.runRule(ctx, rule, tc), nil
+	return e.runRuleAs(ctx, rule, tc, mode, nil), nil
+}
+
+// Replay re-runs a past execution against the input that was recorded with it.
+// Replaying is a real run — the returned execution links back to the original so
+// the history reads as "this happened because someone replayed that".
+func (e *Engine) Replay(ctx context.Context, executionID, tenantID, actorID uuid.UUID) (*domain.AutomationExecution, error) {
+	past, err := e.executions.GetByID(ctx, executionID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if past == nil {
+		return nil, domain.NewNotFoundError("automation execution", executionID)
+	}
+	rule, err := e.rules.GetByID(ctx, past.RuleID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if rule == nil {
+		return nil, domain.NewValidationError("the rule behind this execution no longer exists, so it cannot be replayed")
+	}
+	tc := contextFromInput(past.Input)
+	tc.TenantID = tenantID
+	tc.TriggeredBy = actorID
+	if tc.Ref == "" {
+		tc.Ref = past.TriggerRef
+		tc.Subject = past.Subject
+		tc.Severity = past.Severity
+	}
+	origin := past.ID
+	exec := e.runRuleAs(ctx, rule, tc, domain.ExecutionModeReplay, &origin)
+	if exec != nil {
+		exec.ActorID = &actorID
+	}
+	return exec, nil
 }
 
 func (e *Engine) runRule(ctx context.Context, rule *domain.AutomationRule, tc TriggerContext) *domain.AutomationExecution {
+	return e.runRuleAs(ctx, rule, tc, domain.ExecutionModeLive, nil)
+}
+
+func (e *Engine) runRuleAs(ctx context.Context, rule *domain.AutomationRule, tc TriggerContext, mode string, replayedFrom *uuid.UUID) *domain.AutomationExecution {
 	now := time.Now()
+	if mode == "" {
+		mode = domain.ExecutionModeLive
+	}
 	exec := &domain.AutomationExecution{
-		ID:         uuid.New(),
-		TenantID:   rule.TenantID,
-		RuleID:     rule.ID,
-		RuleName:   rule.Name,
-		Trigger:    rule.Trigger,
-		TriggerRef: tc.Ref,
-		Subject:    tc.Subject,
-		Severity:   tc.Severity,
-		Status:     domain.ExecutionRunning,
-		Steps:      domain.ExecutionStepList{},
-		StartedAt:  now,
-		CreatedAt:  now,
+		ID:           uuid.New(),
+		TenantID:     rule.TenantID,
+		RuleID:       rule.ID,
+		RuleName:     rule.Name,
+		Trigger:      rule.Trigger,
+		TriggerRef:   tc.Ref,
+		Subject:      tc.Subject,
+		Severity:     tc.Severity,
+		Status:       domain.ExecutionRunning,
+		Steps:        domain.ExecutionStepList{},
+		Mode:         mode,
+		Input:        domain.JSONMap(contextPayload(&tc)),
+		ReplayedFrom: replayedFrom,
+		StartedAt:    now,
+		CreatedAt:    now,
+	}
+	if tc.TriggeredBy != uuid.Nil {
+		actor := tc.TriggeredBy
+		exec.ActorID = &actor
 	}
 	if err := e.executions.Create(ctx, exec); err != nil {
 		e.logger.Warn().Err(err).Str("rule", rule.Name).Msg("automation: could not create execution record")
@@ -108,12 +174,27 @@ func (e *Engine) runRule(ctx context.Context, rule *domain.AutomationRule, tc Tr
 	}
 
 	failures := 0
-	for _, action := range rule.Actions {
-		step := e.runAction(ctx, rule, action, &tc, exec)
-		exec.Steps = append(exec.Steps, step)
-		if step.Status == "failed" {
+	var firstError string
+	for i, action := range rule.Actions {
+		stepStart := time.Now()
+		payload := contextPayload(&tc) // the state entering this step
+		st := e.runAction(ctx, rule, action, &tc, exec)
+		st.Index = i
+		st.Input = payload
+		st.DurationMS = time.Since(stepStart).Milliseconds()
+		if st.Status == "failed" {
 			failures++
+			st.Error = st.Detail
+			if firstError == "" {
+				firstError = string(action.Type) + ": " + st.Detail
+			}
+		} else {
+			// What the step added to the chain — the "output" half of the history.
+			if out := contextDelta(payload, contextPayload(&tc)); len(out) > 0 {
+				st.Output = out
+			}
 		}
+		exec.Steps = append(exec.Steps, st)
 	}
 
 	switch {
@@ -126,11 +207,19 @@ func (e *Engine) runRule(ctx context.Context, rule *domain.AutomationRule, tc Tr
 	}
 	fin := time.Now()
 	exec.FinishedAt = &fin
+	exec.DurationMS = fin.Sub(now).Milliseconds()
+	exec.Error = firstError
+	exec.Output = domain.JSONMap(contextPayload(&tc))
 	if err := e.executions.Update(ctx, exec); err != nil {
 		e.logger.Warn().Err(err).Msg("automation: could not finalise execution record")
 	}
 	if err := e.rules.RecordTriggered(ctx, rule.ID, rule.TenantID, now); err != nil {
 		e.logger.Debug().Err(err).Msg("automation: could not bump rule trigger count")
+	}
+	// Denormalise health onto the rule so the rule list shows live state without
+	// a query per row.
+	if err := e.rules.RecordOutcome(ctx, rule.ID, rule.TenantID, string(exec.Status), firstError, fin); err != nil {
+		e.logger.Debug().Err(err).Msg("automation: could not record rule outcome")
 	}
 	e.logger.Info().
 		Str("rule", rule.Name).
@@ -143,6 +232,68 @@ func (e *Engine) runRule(ctx context.Context, rule *domain.AutomationRule, tc Tr
 
 func step(action domain.AutomationActionType, status, detail string) domain.ExecutionStep {
 	return domain.ExecutionStep{Action: string(action), Status: status, Detail: detail, At: time.Now()}
+}
+
+// contextDelta is what a step ADDED to the trigger context — the readable
+// "output" of a step, without repeating the whole payload on every line.
+func contextDelta(before, after map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range after {
+		if bv, ok := before[k]; !ok || fmt.Sprint(bv) != fmt.Sprint(v) {
+			out[k] = v
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// contextFromInput rebuilds a trigger context from a recorded execution input,
+// which is what makes a replay run against the SAME payload rather than against
+// a freshly re-derived one that may have drifted.
+func contextFromInput(in domain.JSONMap) TriggerContext {
+	tc := TriggerContext{}
+	if in == nil {
+		return tc
+	}
+	str := func(k string) string {
+		if v, ok := in[k].(string); ok {
+			return v
+		}
+		return ""
+	}
+	tc.Ref = str("ref")
+	tc.Subject = str("subject")
+	tc.Title = str("title")
+	tc.Severity = str("severity")
+	tc.CVEID = str("cve_id")
+	tc.PriorityTier = str("priority_tier")
+	tc.AssetName = str("asset_name")
+	tc.TicketRef = str("ticket_ref")
+	if v, ok := in["cvss"].(float64); ok {
+		tc.CVSS = v
+	}
+	if v, ok := in["kev"].(bool); ok {
+		tc.KEV = v
+	}
+	if id, err := uuid.Parse(str("asset_id")); err == nil {
+		tc.AssetID = &id
+	}
+	if id, err := uuid.Parse(str("risk_id")); err == nil {
+		tc.RiskID = &id
+	}
+	if id, err := uuid.Parse(str("owner_id")); err == nil {
+		tc.OwnerID = &id
+	}
+	if raw, ok := in["asset_tags"].([]interface{}); ok {
+		for _, t := range raw {
+			if s, ok := t.(string); ok {
+				tc.AssetTags = append(tc.AssetTags, s)
+			}
+		}
+	}
+	return tc
 }
 
 func (e *Engine) runAction(ctx context.Context, rule *domain.AutomationRule, action domain.AutomationAction, tc *TriggerContext, exec *domain.AutomationExecution) domain.ExecutionStep {

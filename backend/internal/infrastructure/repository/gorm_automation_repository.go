@@ -109,6 +109,54 @@ func (r *GormAutomationRuleRepository) RecordTriggered(ctx context.Context, id, 
 		}).Error
 }
 
+// RecordOutcome denormalises the last run's verdict onto the rule. A success
+// resets the failure streak; anything else extends it, which is what turns
+// "one bad run" into a visible "this rule is failing" state.
+func (r *GormAutomationRuleRepository) RecordOutcome(ctx context.Context, id, tenantID uuid.UUID, status, errMsg string, at time.Time) error {
+	updates := map[string]interface{}{
+		"last_status":      status,
+		"last_executed_at": at,
+		"last_error":       errMsg,
+	}
+	if status == string(domain.ExecutionSuccess) {
+		updates["failure_streak"] = 0
+	} else {
+		updates["failure_streak"] = gorm.Expr("failure_streak + 1")
+	}
+	return r.db.WithContext(ctx).
+		Model(&domain.AutomationRule{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Updates(updates).Error
+}
+
+// SetEnabled pauses or resumes a rule. Suspending records who and why so the
+// next person does not silently re-enable a rule that was stopped on purpose.
+func (r *GormAutomationRuleRepository) SetEnabled(ctx context.Context, id, tenantID uuid.UUID, enabled bool, actorID uuid.UUID, reason string, at time.Time) error {
+	updates := map[string]interface{}{"enabled": enabled, "updated_at": at}
+	if enabled {
+		updates["suspended_at"] = nil
+		updates["suspended_by"] = nil
+		updates["suspended_reason"] = ""
+	} else {
+		updates["suspended_at"] = at
+		updates["suspended_reason"] = reason
+		if actorID != uuid.Nil {
+			updates["suspended_by"] = actorID
+		}
+	}
+	res := r.db.WithContext(ctx).
+		Model(&domain.AutomationRule{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.NewNotFoundError("automation rule", id)
+	}
+	return nil
+}
+
 // GormAutomationExecutionRepository stores execution audit records.
 type GormAutomationExecutionRepository struct{ db *gorm.DB }
 
@@ -132,6 +180,8 @@ func (r *GormAutomationExecutionRepository) Update(ctx context.Context, e *domai
 			"error":       e.Error,
 			"subject":     e.Subject,
 			"severity":    e.Severity,
+			"output":      e.Output,
+			"duration_ms": e.DurationMS,
 			"finished_at": e.FinishedAt,
 		})
 	return res.Error
@@ -268,6 +318,8 @@ func channelDerived(c *domain.AutomationChannelConfig) {
 	if c != nil {
 		c.HasSlack = c.SlackWebhookURL != ""
 		c.HasTeams = c.TeamsWebhookURL != ""
+		c.HasWebhook = c.WebhookURL != ""
+		c.HasSMS = c.SMSGatewayURL != "" && c.SMSAPIKey != ""
 	}
 }
 
@@ -293,6 +345,18 @@ func (r *GormAutomationChannelRepository) Upsert(ctx context.Context, c *domain.
 	if c.TeamsWebhookURL == "" {
 		c.TeamsWebhookURL = existing.TeamsWebhookURL
 	}
+	if c.WebhookURL == "" {
+		c.WebhookURL = existing.WebhookURL
+	}
+	if c.WebhookSecret == "" {
+		c.WebhookSecret = existing.WebhookSecret
+	}
+	if c.SMSGatewayURL == "" {
+		c.SMSGatewayURL = existing.SMSGatewayURL
+	}
+	if c.SMSAPIKey == "" {
+		c.SMSAPIKey = existing.SMSAPIKey
+	}
 	if err := r.db.WithContext(ctx).Model(&domain.AutomationChannelConfig{}).
 		Where("tenant_id = ?", c.TenantID).
 		Updates(map[string]interface{}{
@@ -302,6 +366,17 @@ func (r *GormAutomationChannelRepository) Upsert(ctx context.Context, c *domain.
 			"teams_webhook_url": c.TeamsWebhookURL,
 			"email_enabled":     c.EmailEnabled,
 			"default_email":     c.DefaultEmail,
+			"webhook_enabled":   c.WebhookEnabled,
+			"webhook_url":       c.WebhookURL,
+			"webhook_secret":    c.WebhookSecret,
+			"sms_enabled":       c.SMSEnabled,
+			"sms_gateway_url":   c.SMSGatewayURL,
+			"sms_api_key":       c.SMSAPIKey,
+			"sms_sender":        c.SMSSender,
+			"sms_recipients":    c.SMSRecipients,
+			"sms_to_field":      c.SMSToField,
+			"sms_text_field":    c.SMSTextField,
+			"sms_sender_field":  c.SMSSenderField,
 			"updated_at":        time.Now(),
 		}).Error; err != nil {
 		return err

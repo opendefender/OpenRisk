@@ -74,6 +74,41 @@ func (m *mockRuleRepo) RecordTriggered(_ context.Context, id, _ uuid.UUID, _ tim
 	m.triggeredID = id
 	return nil
 }
+func (m *mockRuleRepo) RecordOutcome(_ context.Context, id, _ uuid.UUID, status, errMsg string, at time.Time) error {
+	r, ok := m.rules[id]
+	if !ok {
+		return nil
+	}
+	r.LastStatus = status
+	r.LastError = errMsg
+	stamp := at
+	r.LastExecutedAt = &stamp
+	if status == string(domain.ExecutionSuccess) {
+		r.FailureStreak = 0
+	} else {
+		r.FailureStreak++
+	}
+	return nil
+}
+func (m *mockRuleRepo) SetEnabled(_ context.Context, id, tenantID uuid.UUID, enabled bool, actorID uuid.UUID, reason string, at time.Time) error {
+	r, ok := m.rules[id]
+	if !ok || r.TenantID != tenantID {
+		return domain.NewNotFoundError("automation rule", id)
+	}
+	r.Enabled = enabled
+	if enabled {
+		r.SuspendedAt, r.SuspendedBy, r.SuspendedReason = nil, nil, ""
+		return nil
+	}
+	stamp := at
+	r.SuspendedAt = &stamp
+	r.SuspendedReason = reason
+	if actorID != uuid.Nil {
+		a := actorID
+		r.SuspendedBy = &a
+	}
+	return nil
+}
 
 // ---- in-memory execution repo ----
 
