@@ -29,7 +29,7 @@ export function SimulationsPage() {
 
   // Real analyses that answer part of the same question today.
   const alternatives: [typeof Atom, string, string, string][] = [
-    [Atom, tr('Cartographie des dépendances', 'Dependency map'), tr('Voir quels actifs tombent avec un actif compromis.', 'See which assets fall with a compromised one.'), '/assets/universe'],
+    [Atom, tr('Cartographie des dépendances', 'Dependency map'), tr('Voir quels actifs tombent avec un actif compromis.', 'See which assets fall with a compromised one.'), '/assets/topology'],
     [Coins, tr('Quantification financière', 'Financial quantification'), tr('Chiffrer la perte annualisée d’un risque (ALE, pire cas).', 'Quantify a risk’s annualised loss (ALE, worst case).'), '/analytics/financial'],
   ];
 

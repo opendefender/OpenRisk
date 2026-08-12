@@ -54,7 +54,7 @@ export function EstateDashboard() {
         title={tr('Patrimoine', 'Estate')}
         subtitle={tr('Ce que vous protégez : inventaire, criticité et dépendances.', 'What you protect: inventory, criticality and dependencies.')}
         actionLabel={tr('Vue Univers', 'Universe view')}
-        onAction={() => navigate('/assets/universe')}
+        onAction={() => navigate('/assets/topology')}
       />
 
       <div className="mb-4">

@@ -93,7 +93,7 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_identify',
     items: [
       { key: 'assets', labelKey: 'n_assets', icon: Database, path: '/assets', perm: 'assets:read' },
-      { key: 'universe', labelKey: 'n_universe', icon: Atom, path: '/assets/universe', perm: 'assets:read' },
+      { key: 'universe', labelKey: 'n_universe', icon: Atom, path: '/assets/topology', perm: 'assets:read' },
       { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
       { key: 'cti', labelKey: 'n_cti', icon: Globe, path: '/threat-map', perm: 'risks:read' },
       { key: 'infrastructure', labelKey: 'n_infra', icon: Server, path: '/infrastructure', perm: 'scanner:read' },

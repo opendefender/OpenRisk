@@ -66,7 +66,7 @@ export function ReportsScreen() {
     [tr('Conformité', 'Compliance'), tr('Rapport PDF détaillé par référentiel', 'Detailed PDF report per framework'), ClipboardCheck, () => setPicking(true)],
     [tr('Registre d’incidents', 'Incident register'), tr('Tous les incidents en CSV', 'All incidents as CSV'), Siren, exportIncidents],
     [tr('Export du registre', 'Register export'), tr('Tous les risques en CSV', 'All risks as CSV'), ShieldAlert, exportRegister],
-    [tr('Rapport Asset Universe', 'Asset Universe report'), tr('Cartographie et chemins d’attaque', 'Topology and attack paths'), Atom, () => navigate('/assets/universe')],
+    [tr('Rapport de topologie', 'Topology report'), tr('Cartographie et chemins d’attaque', 'Topology and attack paths'), Atom, () => navigate('/assets/topology')],
   ];
 
   return (

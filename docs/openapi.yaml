@@ -1670,6 +1670,71 @@ paths:
           description: Asset not found
 
   # ==================== ASSET DEPENDENCIES ====================
+  /attack-surface/topology:
+    get:
+      tags:
+        - Attack Surface
+      summary: The tenant's asset dependency graph
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Node cap (default and maximum 2000).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Topology
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTopology'
+
+  /attack-surface/topology/edge-types:
+    get:
+      tags:
+        - Attack Surface
+      summary: The four-type edge vocabulary the topology renders
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Edge types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  edge_types:
+                    type: array
+                    items:
+                      type: string
+
+  /attack-surface/topology/{id}/compromise-chain:
+    get:
+      tags:
+        - Attack Surface
+      summary: Everything impacted by, and reachable from, a compromised asset
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompromiseChain'
+        '404':
+          description: Unknown asset (or owned by another tenant)
+
   /attack-surface/schemas:
     get:
       tags:
@@ -3088,6 +3153,133 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AttributeDef'
+
+    TopologyNode:
+      type: object
+      description: >-
+        One asset as the topology view needs it — enough to place, colour and
+        label it. The full asset is fetched only when its detail panel opens.
+      required: [id, name, criticality, zone, internet_exposed, risk_count, max_risk_score, vuln_count, degree]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        category:
+          type: string
+        criticality:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        zone:
+          type: string
+          description: Cluster key — declared network zone, else cloud region, else category.
+        internet_exposed:
+          type: boolean
+        risk_count:
+          type: integer
+        max_risk_score:
+          type: number
+        vuln_count:
+          type: integer
+        degree:
+          type: integer
+          description: Number of edges touching this node.
+
+    TopologyEdge:
+      type: object
+      required: [id, source, target, type, raw_type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          format: uuid
+        target:
+          type: string
+          format: uuid
+        type:
+          type: string
+          description: Folded onto the four-type topology vocabulary.
+          enum: [depends_on, hosted_on, connects_to, processes_data_of]
+        raw_type:
+          type: string
+          description: The stored relation before folding (e.g. runs_on).
+        description:
+          type: string
+
+    TopologyZone:
+      type: object
+      required: [key, label, count]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        count:
+          type: integer
+
+    AssetTopology:
+      type: object
+      required: [nodes, edges, zones, truncated]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyEdge'
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyZone'
+        truncated:
+          type: boolean
+          description: >-
+            True when the node cap bit. Reported rather than silently trimming —
+            a topology missing nodes without saying so is worse than a slow one.
+        node_limit:
+          type: integer
+
+    ChainHop:
+      type: object
+      required: [asset_id, depth]
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+        depth:
+          type: integer
+
+    CompromiseChain:
+      type: object
+      description: >-
+        What follows from an asset being compromised. `impacted` are the assets
+        that depend on it (what breaks); `reachable` are the assets it depends on
+        or connects to (where an attacker moves next).
+      required: [origin_id, impacted, reachable, edge_ids]
+      properties:
+        origin_id:
+          type: string
+          format: uuid
+        impacted:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainHop'
+        reachable:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainHop'
+        edge_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     AssetSnapshot:
       type: object

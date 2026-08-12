@@ -1314,6 +1314,10 @@ func main() {
 	protected.Put("/attack-surface/schemas/:category", adminOnly, assetSchemaHandler.UpdateSchema)
 	protected.Post("/attack-surface/schemas/:category/reset", adminOnly, assetSchemaHandler.ResetSchema)
 
+	// Attack Surface — topology. Wired later than the asset block because the
+	// node badges need the vulnerability repository; see the "topology wiring"
+	// block after the vulnerability module.
+
 	// --- Vulnerability Management (Module 3) — integrations + risk-based
 	// prioritisation. Findings from Nessus/OpenVAS/Qualys/Defender/Inspector/
 	// Azure Defender/CrowdStrike are normalised (internal/vulnscan), scored by
@@ -1423,6 +1427,21 @@ func main() {
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
 	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
+
+	// --- Attack Surface topology wiring --------------------------------------
+	// Placed here (rather than beside the other asset routes) because the node
+	// badges read open-vulnerability counts, which needs vulnRepo — declared
+	// just above. The vulnerability counter is optional: if it fails, the graph
+	// still renders, minus one badge.
+	assetTopologyHandler := handlers.NewAssetTopologyHandler(
+		assetapp.NewGetTopologyUseCase(assetRepo, assetDepRepo).WithVulnCounter(vulnRepo),
+		assetapp.NewGetCompromiseChainUseCase(assetRepo, assetDepRepo),
+	)
+	// Static sub-paths BEFORE /:id (the Fiber trap): "edge-types" must never be
+	// parsed as an asset UUID.
+	protected.Get("/attack-surface/topology/edge-types", assetRead, assetTopologyHandler.GetEdgeTypes)
+	protected.Get("/attack-surface/topology", assetRead, assetTopologyHandler.GetTopology)
+	protected.Get("/attack-surface/topology/:id/compromise-chain", assetRead, assetTopologyHandler.GetCompromiseChain)
 
 	// =========================================================================
 	// AI GRC Assistant (spec §12 — see ROADMAP.md Module 12).

@@ -36,7 +36,46 @@ const (
 	DepBacksUpTo DependencyType = "backs_up_to"
 	// DepManagedBy — an asset is operated/managed by a supplier/user.
 	DepManagedBy DependencyType = "managed_by"
+
+	// --- topology vocabulary (Attack Surface §2) ---------------------------
+	// The topology view names four edge types. Two of them (depends_on,
+	// connects_to) already existed; the other two are added here rather than
+	// renaming the existing ones, because rows in the wild already carry
+	// runs_on / hosted_by / stores_data_in and rewriting stored data to satisfy
+	// a naming preference would be the more expensive mistake.
+	//
+	// DepHostedOn — a workload is hosted on a host/platform. Same relation as
+	// DepRunsOn and DepHostedBy, which are treated as its aliases.
+	DepHostedOn DependencyType = "hosted_on"
+	// DepProcessesDataOf — an asset processes data belonging to another
+	// (typically a Data/Processing or Vendor asset). Generalises
+	// DepStoresDataIn, which is treated as its alias.
+	DepProcessesDataOf DependencyType = "processes_data_of"
 )
+
+// CanonicalTopologyType folds an edge type onto the four-type vocabulary the
+// topology view draws. Legacy types keep their stored value and their meaning;
+// this is only about which of the four legends an edge renders under.
+func (t DependencyType) CanonicalTopologyType() DependencyType {
+	switch t {
+	case DepRunsOn, DepHostedBy, DepHostedOn:
+		return DepHostedOn
+	case DepStoresDataIn, DepProcessesDataOf:
+		return DepProcessesDataOf
+	case DepConnectsTo:
+		return DepConnectsTo
+	default:
+		// depends_on, authenticates_via, backs_up_to, managed_by — all forms of
+		// "this one needs that one".
+		return DepDependsOn
+	}
+}
+
+// TopologyEdgeTypes is the four-type vocabulary the topology view renders,
+// in legend order.
+var TopologyEdgeTypes = []DependencyType{
+	DepDependsOn, DepHostedOn, DepConnectsTo, DepProcessesDataOf,
+}
 
 // IsValid reports whether t is one of the known dependency types. An empty
 // type is treated as invalid by the use case (it defaults to DepDependsOn
@@ -44,7 +83,8 @@ const (
 func (t DependencyType) IsValid() bool {
 	switch t {
 	case DepDependsOn, DepRunsOn, DepConnectsTo, DepHostedBy,
-		DepStoresDataIn, DepAuthenticatesVia, DepBacksUpTo, DepManagedBy:
+		DepStoresDataIn, DepAuthenticatesVia, DepBacksUpTo, DepManagedBy,
+		DepHostedOn, DepProcessesDataOf:
 		return true
 	default:
 		return false

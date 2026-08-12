@@ -185,7 +185,7 @@ export function InventoryPage() {
         actions={
           <>
             <Btn label={tr('Attributs', 'Attributes')} icon={SlidersHorizontal} onClick={() => navigate('/assets/schemas')} />
-            <Btn label={tr('Vue Univers', 'Universe view')} icon={Atom} onClick={() => navigate('/assets/universe')} />
+            <Btn label={tr('Topologie', 'Topology')} icon={Atom} onClick={() => navigate('/assets/topology')} />
             <Btn label={tr('Nouvel actif', 'New asset')} icon={Plus} primary onClick={() => setCreating(true)} />
           </>
         }

@@ -823,6 +823,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attack-surface/topology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tenant's asset dependency graph */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Node cap (default and maximum 2000). */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Topology */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssetTopology"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attack-surface/topology/edge-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The four-type edge vocabulary the topology renders */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Edge types */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            edge_types?: string[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attack-surface/topology/{id}/compromise-chain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Everything impacted by, and reachable from, a compromised asset */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Chain */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CompromiseChain"];
+                    };
+                };
+                /** @description Unknown asset (or owned by another tenant) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attack-surface/schemas": {
         parameters: {
             query?: never;
@@ -1928,6 +2050,66 @@ export interface components {
         UpdateAssetTypeSchemaInput: {
             label?: string;
             attributes: components["schemas"]["AttributeDef"][];
+        };
+        /** @description One asset as the topology view needs it — enough to place, colour and label it. The full asset is fetched only when its detail panel opens. */
+        TopologyNode: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type?: string;
+            category?: string;
+            /** @enum {string} */
+            criticality: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @description Cluster key — declared network zone, else cloud region, else category. */
+            zone: string;
+            internet_exposed: boolean;
+            risk_count: number;
+            max_risk_score: number;
+            vuln_count: number;
+            /** @description Number of edges touching this node. */
+            degree: number;
+        };
+        TopologyEdge: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            source: string;
+            /** Format: uuid */
+            target: string;
+            /**
+             * @description Folded onto the four-type topology vocabulary.
+             * @enum {string}
+             */
+            type: "depends_on" | "hosted_on" | "connects_to" | "processes_data_of";
+            /** @description The stored relation before folding (e.g. runs_on). */
+            raw_type: string;
+            description?: string;
+        };
+        TopologyZone: {
+            key: string;
+            label: string;
+            count: number;
+        };
+        AssetTopology: {
+            nodes: components["schemas"]["TopologyNode"][];
+            edges: components["schemas"]["TopologyEdge"][];
+            zones: components["schemas"]["TopologyZone"][];
+            /** @description True when the node cap bit. Reported rather than silently trimming — a topology missing nodes without saying so is worse than a slow one. */
+            truncated: boolean;
+            node_limit?: number;
+        };
+        ChainHop: {
+            /** Format: uuid */
+            asset_id: string;
+            depth: number;
+        };
+        /** @description What follows from an asset being compromised. `impacted` are the assets that depend on it (what breaks); `reachable` are the assets it depends on or connects to (where an attacker moves next). */
+        CompromiseChain: {
+            /** Format: uuid */
+            origin_id: string;
+            impacted: components["schemas"]["ChainHop"][];
+            reachable: components["schemas"]["ChainHop"][];
+            edge_ids: string[];
         };
         /** @description An asset's state captured immediately before an update or deletion. Answers "qui a modifié quoi, et quand": the prior field values (quoi), created_at (quand) and changed_by / changed_by_email (qui). */
         AssetSnapshot: {
