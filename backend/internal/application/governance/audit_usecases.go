@@ -38,8 +38,29 @@ func NewAuditRecorder(repo domain.AuditEventRepository) *AuditRecorder {
 
 // Record appends an event. IP / user-agent / request-id are lifted from the
 // request context (stamped by the audit middleware) when present.
+//
+// Inside an HTTP request the entry is handed to the request collector instead:
+// the middleware writes ONE chained entry per user action, using this call's
+// summary as the action's meaning. That is what keeps "20 actions" from
+// producing 25 trail entries.
 func (r *AuditRecorder) Record(ctx context.Context, ev domain.AuditEvent) {
-	if r == nil || r.repo == nil || ev.TenantID == uuid.Nil {
+	if r == nil || ev.TenantID == uuid.Nil {
+		return
+	}
+	if col, ok := audittrail.CollectorFromContext(ctx); ok {
+		col.Add(audittrail.Mutation{
+			EntityType: ev.EntityType,
+			EntityID:   ev.EntityID,
+			Action:     ev.Action,
+			Summary:    ev.Summary,
+			Before:     ev.Before,
+			After:      ev.After,
+			Changed:    ev.ChangedFields,
+			Explicit:   true,
+		})
+		return
+	}
+	if r.repo == nil {
 		return
 	}
 	if actor, ok := audittrail.ActorFromContext(ctx); ok {
@@ -52,6 +73,9 @@ func (r *AuditRecorder) Record(ctx context.Context, ev domain.AuditEvent) {
 		if ev.RequestID == "" {
 			ev.RequestID = actor.RequestID
 		}
+	}
+	if ev.Source == "" {
+		ev.Source = domain.AuditSourceExplicit
 	}
 	_ = r.repo.Append(ctx, &ev)
 }

@@ -17,3 +17,24 @@ package domain
 func (Asset) AuditEntityType() string { return "asset" }
 
 func (ComplianceControl) AuditEntityType() string { return "compliance_control" }
+
+// Operations module (incidents, automation, governance). These are the entities
+// whose before → after an auditor actually asks about: who changed a rule's
+// conditions, who reopened an incident, who edited an approval chain.
+func (Incident) AuditEntityType() string { return "incident" }
+
+func (AutomationRule) AuditEntityType() string { return "automation_rule" }
+
+func (AutomationChannelConfig) AuditEntityType() string { return "automation_channel_config" }
+
+func (ApprovalWorkflow) AuditEntityType() string { return "approval_workflow" }
+
+func (ApprovalRequest) AuditEntityType() string { return "approval_request" }
+
+func (Delegation) AuditEntityType() string { return "delegation" }
+
+func (Mitigation) AuditEntityType() string { return "mitigation" }
+
+func (ComplianceFramework) AuditEntityType() string { return "compliance_framework" }
+
+func (Vulnerability) AuditEntityType() string { return "vulnerability" }

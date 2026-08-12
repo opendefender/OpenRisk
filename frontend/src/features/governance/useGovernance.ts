@@ -37,6 +37,25 @@ export function useWorkflows() {
   return useQuery({ queryKey: [...KEY, 'workflows'], queryFn: governanceService.listWorkflows });
 }
 
+// The detail view: per-step progress plus whether the CALLER may sign. Fetched
+// per pending request so a card can explain a disabled button instead of
+// producing a 403 when it is clicked.
+export function useApprovalDetail(id: string | null) {
+  return useQuery({
+    queryKey: ['governance', 'approval', id],
+    queryFn: () => governanceService.getApproval(id as string),
+    enabled: !!id,
+  });
+}
+
+export function useRequestTypes() {
+  return useQuery({
+    queryKey: ['governance', 'request-types'],
+    queryFn: governanceService.listRequestTypes,
+    staleTime: 60 * 60 * 1000, // a shipped catalogue does not change at runtime
+  });
+}
+
 export function useApprovals(params: { status?: string; mine?: boolean } = {}) {
   return useQuery({
     queryKey: [...KEY, 'approvals', params],

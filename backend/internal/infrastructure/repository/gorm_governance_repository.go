@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -123,6 +124,20 @@ func (r *GormDelegationRepository) List(ctx context.Context, tenantID uuid.UUID,
 	var out []domain.Delegation
 	if err := q.Order("created_at DESC").Find(&out).Error; err != nil {
 		return nil, fmt.Errorf("failed to list delegations: %w", err)
+	}
+	return out, nil
+}
+
+// ActiveDelegationsTo returns the delegations a user currently HOLDS — the
+// rights they can exercise on someone else's behalf right now. Tenant-scoped and
+// time-bounded in SQL so an expired delegation can never leak an approval right.
+func (r *GormDelegationRepository) ActiveDelegationsTo(ctx context.Context, tenantID, userID uuid.UUID, at time.Time) ([]domain.Delegation, error) {
+	var out []domain.Delegation
+	if err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND delegate_id = ? AND status = ? AND starts_at <= ? AND ends_at >= ?",
+			tenantID, userID, domain.DelegationActive, at, at).
+		Find(&out).Error; err != nil {
+		return nil, fmt.Errorf("failed to resolve active delegations: %w", err)
 	}
 	return out, nil
 }
@@ -272,6 +287,19 @@ func (r *GormApprovalRepository) ListRequests(ctx context.Context, tenantID uuid
 	var out []domain.ApprovalRequest
 	if err := q.Order("created_at DESC").Find(&out).Error; err != nil {
 		return nil, fmt.Errorf("failed to list approval requests: %w", err)
+	}
+	return out, nil
+}
+
+// ListExpired returns pending requests past their deadline, across ALL tenants
+// (each row carries its own). Drives the expiry sweep, which has no session.
+func (r *GormApprovalRepository) ListExpired(ctx context.Context, now time.Time) ([]domain.ApprovalRequest, error) {
+	var out []domain.ApprovalRequest
+	if err := r.db.WithContext(ctx).
+		Where("status = ? AND expires_at IS NOT NULL AND expires_at < ?", domain.ApprovalPending, now).
+		Limit(500).
+		Find(&out).Error; err != nil {
+		return nil, fmt.Errorf("failed to list expired approval requests: %w", err)
 	}
 	return out, nil
 }

@@ -25,7 +25,7 @@ export type AutomationActionType =
   | 'resolve_risk'
   | 'close_ticket';
 
-export type NotifyChannel = 'in_app' | 'email' | 'slack' | 'teams';
+export type NotifyChannel = 'in_app' | 'email' | 'slack' | 'teams' | 'webhook' | 'sms';
 
 export interface AutomationConditions {
   min_severity?: string;
@@ -67,6 +67,15 @@ export interface AutomationRule {
   last_triggered_at?: string | null;
   trigger_count: number;
   created_at: string;
+
+  suspended_at?: string | null;
+  suspended_by?: string | null;
+  suspended_reason?: string;
+  last_status?: string;
+  last_executed_at?: string | null;
+  last_error?: string;
+  failure_streak: number;
+  template_key?: string;
 }
 
 export interface RuleInput {
@@ -83,10 +92,15 @@ export interface RuleInput {
 export type ExecutionStatus = 'pending' | 'running' | 'success' | 'partial' | 'failed' | 'skipped';
 
 export interface ExecutionStep {
+  index: number;
   action: string;
   status: string; // success|failed|skipped
   detail: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  error?: string;
   at: string;
+  duration_ms: number;
 }
 
 export interface AutomationExecution {
@@ -100,8 +114,145 @@ export interface AutomationExecution {
   status: ExecutionStatus;
   steps: ExecutionStep[] | null;
   error?: string;
+  mode: 'live' | 'manual' | 'replay';
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  actor_id?: string | null;
+  actor_email?: string;
+  replayed_from?: string | null;
+  duration_ms: number;
+  step_summary?: string;
   started_at: string;
   finished_at?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Dry run — what a rule WOULD do, without doing any of it.
+// ---------------------------------------------------------------------------
+
+export type DryRunVerdict =
+  | 'would_run'
+  | 'would_skip'
+  | 'would_fail'
+  | 'not_reached'
+  | 'not_matched';
+
+export interface DryRunStep {
+  index: number;
+  action: AutomationActionType;
+  verdict: DryRunVerdict;
+  detail: string;
+  capability?: string;
+  wired: boolean;
+  params?: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  produces?: Record<string, unknown>;
+}
+
+export interface DryRunReport {
+  id: string;
+  rule_id: string;
+  rule_name: string;
+  trigger: AutomationTrigger;
+  rule_enabled: boolean;
+  real_subject: boolean;
+  subject_source: string;
+  subject: string;
+  conditions_matched: boolean;
+  conditions_detail: string;
+  initial_input: Record<string, unknown>;
+  steps: DryRunStep[];
+  failed_at_index?: number;
+  failed_action?: string;
+  failure_reason?: string;
+  payload_at_failure?: Record<string, unknown>;
+  would_run: number;
+  would_skip: number;
+  would_fail: number;
+  side_effects: boolean;
+  status: 'completed' | 'cancelled';
+  started_at: string;
+  finished_at: string;
+  duration_ms: number;
+}
+
+export interface DryRunInput {
+  subject_type?: 'vulnerability' | 'risk' | 'incident';
+  subject_id?: string;
+  overrides?: {
+    severity?: string;
+    cvss?: number;
+    kev?: boolean;
+    priority_tier?: string;
+    asset_tags?: string[];
+  };
+}
+
+export type RuleHealth = 'ok' | 'degraded' | 'failing' | 'suspended' | 'idle';
+
+export interface RuleState {
+  rule_id: string;
+  name: string;
+  sentence: string;
+  trigger: AutomationTrigger;
+  enabled: boolean;
+  health: RuleHealth;
+  health_detail: string;
+  last_status?: string;
+  last_run_at?: string | null;
+  last_error?: string;
+  failure_streak: number;
+  trigger_count: number;
+  suspended_at?: string | null;
+  suspended_reason?: string;
+  template_key?: string;
+}
+
+export interface AutomationState {
+  rules: RuleState[];
+  active: number;
+  suspended: number;
+  failing: number;
+  degraded: number;
+  idle: number;
+  observed_at: string;
+}
+
+export interface AutomationTemplate {
+  key: string;
+  name: string;
+  name_en: string;
+  description: string;
+  use_case: string;
+  use_case_en: string;
+  trigger: AutomationTrigger;
+  conditions: AutomationConditions;
+  actions: AutomationAction[];
+  sla: AutomationSLAConfig;
+  priority: number;
+  requires_channels: boolean;
+  requires_ticketing: boolean;
+}
+
+export interface TemplateListItem {
+  template: AutomationTemplate;
+  sentence: string;
+}
+
+export interface ChannelTestResult {
+  channel: NotifyChannel;
+  configured: boolean;
+  delivered: boolean;
+  detail: string;
+  error?: string;
+  recipients?: string;
+  duration_ms: number;
+  tested_at: string;
+}
+
+export interface ChannelCatalogueItem {
+  channel: NotifyChannel;
+  configured: boolean;
 }
 
 export type SLAStatus = 'open' | 'breached' | 'escalated' | 'met' | 'closed';
@@ -139,8 +290,17 @@ export interface ChannelConfig {
   teams_enabled: boolean;
   email_enabled: boolean;
   default_email: string;
+  webhook_enabled: boolean;
+  sms_enabled: boolean;
+  sms_sender?: string;
+  sms_recipients?: string;
+  sms_to_field?: string;
+  sms_text_field?: string;
+  sms_sender_field?: string;
   has_slack: boolean;
   has_teams: boolean;
+  has_webhook: boolean;
+  has_sms: boolean;
 }
 
 export interface ChannelInput {
@@ -150,6 +310,17 @@ export interface ChannelInput {
   teams_webhook_url?: string;
   email_enabled: boolean;
   default_email: string;
+  webhook_enabled: boolean;
+  webhook_url?: string;
+  webhook_secret?: string;
+  sms_enabled: boolean;
+  sms_gateway_url?: string;
+  sms_api_key?: string;
+  sms_sender?: string;
+  sms_recipients?: string;
+  sms_to_field?: string;
+  sms_text_field?: string;
+  sms_sender_field?: string;
 }
 
 export interface TestInput {
@@ -177,9 +348,56 @@ export const automationService = {
   deleteRule: async (id: string): Promise<void> => {
     await api.delete(`/automation/rules/${id}`);
   },
-  testRule: async (id: string, input: TestInput): Promise<AutomationExecution> => {
-    const res = await api.post<AutomationExecution>(`/automation/rules/${id}/test`, input);
+  // Dry run: traces the rule against real tenant data and touches nothing.
+  dryRun: async (id: string, input: DryRunInput, signal?: AbortSignal): Promise<DryRunReport> => {
+    const res = await api.post<DryRunReport>(`/automation/rules/${id}/dry-run`, input, { signal });
     return res.data;
+  },
+  cancelDryRun: async (id: string): Promise<void> => {
+    await api.post(`/automation/dry-runs/${id}/cancel`);
+  },
+  // Running for real. Deliberately a different verb from dryRun, and it refuses
+  // without confirm — this one opens risks, files tickets and pages people.
+  runRule: async (id: string, input: TestInput): Promise<AutomationExecution> => {
+    const res = await api.post<AutomationExecution>(`/automation/rules/${id}/run`, {
+      ...input,
+      confirm: true,
+    });
+    return res.data;
+  },
+  enableRule: async (id: string): Promise<AutomationRule> => {
+    const res = await api.post<AutomationRule>(`/automation/rules/${id}/enable`, {});
+    return res.data;
+  },
+  suspendRule: async (id: string, reason: string): Promise<AutomationRule> => {
+    const res = await api.post<AutomationRule>(`/automation/rules/${id}/suspend`, { reason });
+    return res.data;
+  },
+  replayExecution: async (id: string): Promise<AutomationExecution> => {
+    const res = await api.post<AutomationExecution>(`/automation/executions/${id}/replay`, {});
+    return res.data;
+  },
+  getState: async (): Promise<AutomationState> => {
+    const res = await api.get<AutomationState>('/automation/state', { params: { locale: 'fr' } });
+    return res.data;
+  },
+  listTemplates: async (): Promise<TemplateListItem[]> => {
+    const res = await api.get<{ items: TemplateListItem[] }>('/automation/templates', {
+      params: { locale: 'fr' },
+    });
+    return res.data.items ?? [];
+  },
+  adoptTemplate: async (key: string, name?: string): Promise<AutomationRule> => {
+    const res = await api.post<AutomationRule>(`/automation/templates/${key}/adopt`, { name });
+    return res.data;
+  },
+  testChannel: async (channel: NotifyChannel): Promise<ChannelTestResult> => {
+    const res = await api.post<ChannelTestResult>('/automation/channels/test', { channel });
+    return res.data;
+  },
+  channelCatalogue: async (): Promise<ChannelCatalogueItem[]> => {
+    const res = await api.get<{ items: ChannelCatalogueItem[] }>('/automation/channels/catalogue');
+    return res.data.items ?? [];
   },
   listExecutions: async (): Promise<AutomationExecution[]> => {
     const res = await api.get<{ items: AutomationExecution[] }>('/automation/executions', {

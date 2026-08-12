@@ -8,11 +8,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { X, Save, Trash2, Activity, Clock, Loader2 } from 'lucide-react';
+import { X, Save, Trash2, Activity, Clock, Loader2, ClipboardList } from 'lucide-react';
 import { SkeletonRows } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { relTime } from '../risks/riskMap';
-import { useIncidents, useIncidentTimeline } from './useIncidents';
+import { useIncidents, useIncidentTimeline, usePostMortem } from './useIncidents';
+import { IncidentProvenance } from './IncidentProvenance';
+import { PostMortemPanel } from './PostMortemPanel';
 import { SEV, STATUS, STATUSES, SEVERITIES, sevMeta, statusMeta } from './incidentMeta';
 import type { Incident, IncidentSeverity, IncidentStatus, UpdateIncidentInput } from './incidentService';
 import { useEscapeToClose } from '../../shared/useBackTo';
@@ -26,6 +28,9 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
   const { updateIncident, deleteIncident } = useIncidents();
   const { data: timeline = [], isLoading: tlLoading } = useIncidentTimeline(incident.id);
 
+  const [showPostMortem, setShowPostMortem] = useState(false);
+  // Loaded eagerly so the drawer can say up-front that a review is required.
+  const { data: pmView } = usePostMortem(incident.id);
   const [title, setTitle] = useState(incident.title);
   const [description, setDescription] = useState(incident.description ?? '');
   const [severity, setSeverity] = useState<IncidentSeverity>(incident.severity);
@@ -74,6 +79,10 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
   const inputCls = 'w-full h-10 px-3.5 rounded-[10px] text-[13px] text-ink outline-none focus:border-accent transition-colors disabled:opacity-70';
 
   return (
+    <>
+    {showPostMortem && (
+      <PostMortemPanel incidentId={incident.id} onClose={() => setShowPostMortem(false)} />
+    )}
     <div
       className="fixed inset-0 z-[70] flex justify-end"
       style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }}
@@ -107,6 +116,36 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
 
         {/* body */}
         <div className="flex-1 overflow-y-auto p-[22px] flex flex-col gap-4">
+          {/* Provenance first: if nobody declared this, say so before anything
+              else, with a link to the rule that did. */}
+          <IncidentProvenance incident={incident} />
+
+          {/* The review, and whether it is the reason this cannot be closed. */}
+          {pmView?.required && (
+            <button
+              onClick={() => setShowPostMortem(true)}
+              className="rounded-[10px] p-3 flex items-start gap-2.5 text-left"
+              style={{
+                background: pmView.post_mortem.status === 'published'
+                  ? 'color-mix(in srgb, var(--low) 8%, transparent)'
+                  : 'color-mix(in srgb, var(--critical) 8%, transparent)',
+                border: `1px solid ${pmView.post_mortem.status === 'published'
+                  ? 'color-mix(in srgb, var(--low) 30%, transparent)'
+                  : 'color-mix(in srgb, var(--critical) 35%, transparent)'}`,
+              }}
+            >
+              <ClipboardList
+                size={15}
+                className="shrink-0 mt-0.5"
+                style={{ color: pmView.post_mortem.status === 'published' ? 'var(--low)' : 'var(--critical)' }}
+              />
+              <span className="text-[12.5px]" style={{ color: 'var(--text-primary)' }}>
+                {pmView.post_mortem.status === 'published'
+                  ? tr('Post-mortem publié — ouvrir le compte rendu.', 'Post-mortem published — open the record.')
+                  : (pmView.blocks_closure ?? tr('Post-mortem requis.', 'Post-mortem required.'))}
+              </span>
+            </button>
+          )}
           <label className="flex flex-col gap-1.5">
             <span className={labelCls}>{tr('Titre', 'Title')}</span>
             <input value={title} disabled={!canWrite} onChange={(e) => setTitle(e.target.value)} className={inputCls} style={fieldStyle} />
@@ -179,6 +218,13 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
           >
             <Activity size={15} /> {tr('War Room', 'War Room')}
           </button>
+          <button
+            onClick={() => setShowPostMortem(true)}
+            className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold text-ink inline-flex items-center gap-1.5 hover:bg-hover transition-colors"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+          >
+            <ClipboardList size={15} /> {tr('Post-mortem', 'Post-mortem')}
+          </button>
           <div className="flex-1" />
           {canWrite && (
             <button onClick={remove} className="w-9 h-9 rounded-[10px] inline-flex items-center justify-center transition-all hover:brightness-110" style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', background: 'color-mix(in srgb,var(--critical) 10%,transparent)', color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')} aria-label={tr('Supprimer', 'Delete')}>
@@ -199,5 +245,6 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
         </div>
       </div>
     </div>
+    </>
   );
 }

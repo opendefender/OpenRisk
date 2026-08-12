@@ -50,7 +50,10 @@ import (
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
+	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
+	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
+	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -266,7 +269,10 @@ func main() {
 		// Governance (spec §15 « Gouvernance »): the immutable audit trail
 		// (append-only who/what/when/before→after), time-boxed delegations, and
 		// the configurable Maker-Checker approval engine (workflows + requests).
+		&domain.IncidentPostMortem{},
 		&domain.AuditEvent{},
+		&domain.AuditChainSeal{},
+		&domain.AuditRetentionPolicy{},
 		&domain.Delegation{},
 		&domain.ApprovalWorkflow{},
 		&domain.ApprovalRequest{},
@@ -290,10 +296,15 @@ func main() {
 	// exist. From here on, every struct-form mutation of an Auditable model
 	// (Asset, ComplianceControl, …) is journaled automatically into audit_events —
 	// developers can't forget to log. Best-effort: a failure never blocks a write.
-	if err := database.DB.Use(audittrailinfra.New(database.DB)); err != nil {
+	//
+	// The plugin appends through the CHAINED store: entries written outside an
+	// HTTP request (workers, schedulers) still get a sequence number and a hash
+	// linking them to the previous entry, so chain verification covers them too.
+	auditChainRepo := repository.NewGormAuditChainRepository(database.DB)
+	if err := database.DB.Use(audittrailinfra.New(database.DB).WithAppender(auditChainRepo)); err != nil {
 		log.Printf("audit trail: failed to install GORM plugin: %v", err)
 	} else {
-		log.Println("Governance: immutable audit-trail plugin installed")
+		log.Println("Governance: immutable hash-chained audit-trail plugin installed")
 	}
 
 	// Création du compte Admin par défaut si la DB est vide
@@ -825,6 +836,13 @@ func main() {
 		}
 		return c.Next()
 	})
+
+	// Exhaustive mutation journaling. Mounted right after the actor stamp so it
+	// sees the identity, and BEFORE every business route so no route can escape
+	// it: each successful POST/PUT/PATCH/DELETE produces exactly one chained
+	// audit entry (actor, tenant, action, resource, before → after, ip, user
+	// agent, request id, timestamp). Adding a route adds coverage automatically.
+	protected.Use(middleware.AuditMutations(auditChainRepo))
 
 	// --- MFA enrollment (L4) ---
 	// Registered on `api` with MFAEnrollmentMiddleware rather than under
@@ -1499,15 +1517,36 @@ func main() {
 
 	// --- Incidents (Protected routes) ---
 	incidentService := service.NewIncidentService(database.DB)
-	incidentHandler := handlers.NewIncidentHandler(incidentService)
+
+	// The structured review. Its two collaborators — the multi-channel dispatcher
+	// and the mitigation use case — are built further down (the automation block),
+	// so the service is attached to them there rather than duplicating either.
+	postMortemRepo := repository.NewGormIncidentPostMortemRepository(database.DB)
+	postMortemService := appinc.NewPostMortemService(postMortemRepo, incidentService).
+		WithMitigations(incinfra.NewMitigationCreator(
+			appmitigation.NewCreateMitigationPlanUseCase(
+				repository.NewGormMitigationRepository(database.DB),
+				repository.NewGormMitigationSubActionRepository(database.DB),
+			).WithOwnership(handlers.OwnershipServiceInstance()),
+		)).
+		WithUserLookup(userRepo)
+	incidentService.WithPostMortemGate(incinfra.NewPostMortemGate(postMortemService))
+
+	incidentHandler := handlers.NewIncidentHandler(incidentService).
+		WithPostMortems(postMortemService)
 	incidentsGroup := protected.Group("/incidents")
 	incidentsGroup.Post("", incidentCreate, incidentHandler.CreateIncident)
 	incidentsGroup.Get("/stats", incidentHandler.GetIncidentStats)
+	// Static sub-paths before /:id (Fiber trap).
+	incidentsGroup.Get("/origins", incidentHandler.ListIncidentOrigins)
 	incidentsGroup.Get("", incidentHandler.ListIncidents)
 	incidentsGroup.Get("/:id", incidentHandler.GetIncident)
 	incidentsGroup.Put("/:id", incidentUpdate, incidentHandler.UpdateIncident)
 	incidentsGroup.Delete("/:id", incidentDelete, incidentHandler.DeleteIncident)
 	incidentsGroup.Get("/:id/timeline", incidentHandler.GetIncidentTimeline)
+	incidentsGroup.Get("/:id/post-mortem", incidentHandler.GetPostMortem)
+	incidentsGroup.Put("/:id/post-mortem", incidentUpdate, incidentHandler.SavePostMortem)
+	incidentsGroup.Post("/:id/post-mortem/publish", incidentUpdate, incidentHandler.PublishPostMortem)
 	incidentsGroup.Post("/:id/risks/:riskId", incidentUpdate, incidentHandler.LinkRisk)
 	incidentsGroup.Post("/:id/actions", incidentUpdate, incidentHandler.CreateIncidentAction)
 	incidentsGroup.Get("/:id/actions", incidentHandler.GetIncidentActions)
@@ -1977,13 +2016,30 @@ func main() {
 	automationTicketer := autoinfra.NewTicketer(vulnIntegRepo, vulnIntegCipher)
 	automationScanAction := autoinfra.NewScanAction(scanConfigRepo, triggerScanUC, zeroLogger)
 
+	// The subject resolver is what makes a dry run a test against REAL tenant
+	// data: it loads a live vulnerability / risk / incident (read-only) and
+	// rebuilds the trigger context an event would have produced. It also supplies
+	// the asset tag vocabulary that a rule's asset-tag condition gates on — for
+	// live events as well as dry runs.
+	automationSubjects := autoinfra.NewSubjectResolver(database.DB)
+	automationChannelService := appauto.NewChannelService(automationChannelRepo)
+
 	automationEngine := appauto.NewEngine(automationRuleRepo, automationExecRepo, slaTrackerRepo, zeroLogger).
 		WithNotifier(automationNotifier).
 		WithTicketer(automationTicketer).
 		WithRiskCreator(automationRiskActions).
 		WithRiskAssigner(automationRiskActions).
 		WithRiskResolver(automationRiskActions).
-		WithAssetScanner(automationScanAction)
+		WithAssetScanner(automationScanAction).
+		WithSubjectResolver(automationSubjects).
+		WithAssetFacts(automationSubjects).
+		WithChannelProbe(automationChannelService)
+
+	// Incidents reach their stakeholders through the SAME dispatcher automation
+	// uses: one Slack webhook, one mail transport, one set of channel settings.
+	// A second dispatcher would mean a tenant configuring Slack twice and
+	// wondering why only half their alerts arrive.
+	incidentService.WithNotifier(incinfra.NewNotifier(automationNotifier, zeroLogger))
 
 	automationSLAService := appauto.NewSLAService(slaTrackerRepo, zeroLogger).
 		WithNotifier(automationNotifier).
@@ -1993,9 +2049,21 @@ func main() {
 		appauto.NewRuleService(automationRuleRepo),
 		appauto.NewExecutionService(automationExecRepo),
 		automationSLAService,
-		appauto.NewChannelService(automationChannelRepo),
+		automationChannelService,
 		automationEngine,
-	)
+	).WithUserEmails(userRepo).
+		WithChannelTester(
+			appauto.NewChannelTester(automationChannelRepo).
+				WithInApp(notificationUseCase).
+				WithEmail(emailTransport).
+				WithUserEmail(func(ctx context.Context, userID uuid.UUID) string {
+					emails, err := userRepo.EmailsByIDs(ctx, []uuid.UUID{userID})
+					if err != nil {
+						return ""
+					}
+					return emails[userID]
+				}),
+		)
 
 	// A newly detected vulnerability fires the engine's vulnerability_detected
 	// trigger. Mutating vulnIngestUC here still affects the vuln handlers/webhook
@@ -2012,12 +2080,25 @@ func main() {
 	protected.Get("/automation/sla", automationRead, automationHandler.ListSLA)
 	protected.Get("/automation/sla/stats", automationRead, automationHandler.SLAStats)
 	protected.Get("/automation/channels", automationRead, automationHandler.GetChannels)
+	protected.Get("/automation/channels/catalogue", automationRead, automationHandler.ListChannelCatalogue)
 	protected.Put("/automation/channels", automationAdmin, automationHandler.SaveChannels)
+	protected.Post("/automation/channels/test", automationWrite, automationHandler.TestChannel)
+	protected.Get("/automation/state", automationRead, automationHandler.AutomationState)
+	protected.Get("/automation/templates", automationRead, automationHandler.ListTemplates)
+	protected.Post("/automation/templates/:key/adopt", automationWrite, automationHandler.CreateRuleFromTemplate)
+	protected.Get("/automation/dry-runs/:id", automationRead, automationHandler.GetDryRun)
+	protected.Post("/automation/dry-runs/:id/cancel", automationRead, automationHandler.CancelDryRun)
 	protected.Get("/automation/rules/:id", automationRead, automationHandler.GetRule)
 	protected.Put("/automation/rules/:id", automationWrite, automationHandler.UpdateRule)
 	protected.Delete("/automation/rules/:id", automationWrite, automationHandler.DeleteRule)
-	protected.Post("/automation/rules/:id/test", automationWrite, automationHandler.TestRule)
+	// Dry run is a READ of what would happen — it touches no action port, so it
+	// only needs read permission. Running a rule for real is a write.
+	protected.Post("/automation/rules/:id/dry-run", automationRead, automationHandler.DryRunRule)
+	protected.Post("/automation/rules/:id/run", automationWrite, automationHandler.RunRuleNow)
+	protected.Post("/automation/rules/:id/enable", automationWrite, automationHandler.EnableRule)
+	protected.Post("/automation/rules/:id/suspend", automationWrite, automationHandler.SuspendRule)
 	protected.Get("/automation/rules/:id/executions", automationRead, automationHandler.ListRuleExecutions)
+	protected.Post("/automation/executions/:id/replay", automationWrite, automationHandler.ReplayExecution)
 
 	// Background workers: the SOAR engine (event-driven) and the SLA monitor (cadence).
 	automationWorker := workers.NewAutomationWorker(redisClientInstance, automationEngine, zeroLogger)
@@ -2034,14 +2115,31 @@ func main() {
 	// guarded by role (audit trail + workflow config = admin; delegations +
 	// approval decisions = any authenticated member — the use cases enforce
 	// four-eyes and role-eligibility internally).
-	auditEventRepo := repository.NewGormAuditEventRepository(database.DB)
+	// auditChainRepo (built above, before the GORM plugin) is the append-only,
+	// hash-chained store: it assigns each entry its sequence number and the hash
+	// of its predecessor, which is what makes tampering detectable.
+	auditRetentionRepo := repository.NewGormAuditRetentionRepository(database.DB)
 	delegationRepo := repository.NewGormDelegationRepository(database.DB)
 	approvalRepo := repository.NewGormApprovalRepository(database.DB)
-	governanceRecorder := governance.NewAuditRecorder(auditEventRepo)
+	governanceRecorder := governance.NewAuditRecorder(auditChainRepo)
+
+	// An approval inbox nobody is told to open is a queue, not a workflow: the
+	// notifier alerts whoever can sign right now (named approvers, role holders,
+	// and anyone currently covering for one of them by delegation), and tells the
+	// requester the outcome — with the refusal reason, which is the only part
+	// that lets them act on it.
+	approvalNotifier := govinfra.NewApprovalNotifier(database.DB, notificationUseCase, emailTransport, zeroLogger)
+	approvalRoles := govinfra.NewRoleResolver(database.DB)
 
 	governanceHandler := handlers.NewGovernanceHandler(handlers.GovernanceDeps{
-		ListAudit: governance.NewListAuditEventsUseCase(auditEventRepo).WithUserLookup(userRepo),
+		ListAudit: governance.NewListAuditEventsUseCase(auditChainRepo).WithUserLookup(userRepo),
 		Recorder:  governanceRecorder,
+
+		VerifyChain:  governance.NewVerifyAuditChainUseCase(auditChainRepo),
+		ExportAudit:  governance.NewExportAuditTrailUseCase(auditChainRepo).WithUserLookup(userRepo),
+		GetRetention: governance.NewGetRetentionPolicyUseCase(auditRetentionRepo),
+		SetRetention: governance.NewSetRetentionPolicyUseCase(auditRetentionRepo).WithRecorder(governanceRecorder),
+		PruneAudit:   governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo),
 
 		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo),
 		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo),
@@ -2053,8 +2151,16 @@ func main() {
 		UpdateWorkflow: governance.NewUpdateWorkflowUseCase(approvalRepo),
 		DeleteWorkflow: governance.NewDeleteWorkflowUseCase(approvalRepo),
 
-		SubmitApproval: governance.NewSubmitApprovalRequestUseCase(approvalRepo, approvalRepo).WithRecorder(governanceRecorder),
-		DecideApproval: governance.NewDecideApprovalStepUseCase(approvalRepo).WithRecorder(governanceRecorder),
+		SubmitApproval: governance.NewSubmitApprovalRequestUseCase(approvalRepo, approvalRepo).
+			WithRecorder(governanceRecorder).
+			WithNotifier(approvalNotifier),
+		DecideApproval: governance.NewDecideApprovalUseCase(approvalRepo).
+			WithRecorder(governanceRecorder).
+			WithNotifier(approvalNotifier).
+			WithDelegations(delegationRepo, approvalRoles),
+		ApprovalDetail: governance.NewGetApprovalDetailUseCase(approvalRepo).
+			WithDelegations(delegationRepo, approvalRoles).
+			WithUserLookup(userRepo),
 		CancelApproval: governance.NewCancelApprovalRequestUseCase(approvalRepo),
 		ListApprovals:  governance.NewListApprovalRequestsUseCase(approvalRepo).WithUserLookup(userRepo),
 		GetRequest:     approvalRepo,
@@ -2062,9 +2168,20 @@ func main() {
 
 	governanceAdmin := middleware.RequireRole("admin", "root")
 
-	// Audit trail — admin only (matches /audit-logs). Static export path first.
+	// Audit trail — admin only (matches /audit-logs). Static sub-paths first
+	// (Fiber trap: /:id would otherwise swallow "export" and "verify").
 	protected.Get("/governance/audit-events/export", governanceAdmin, governanceHandler.ExportAuditEvents)
+	protected.Get("/governance/audit-events/verify", governanceAdmin, governanceHandler.VerifyAuditChain)
 	protected.Get("/governance/audit-events", governanceAdmin, governanceHandler.ListAuditEvents)
+	protected.Get("/governance/audit-retention", governanceAdmin, governanceHandler.GetAuditRetention)
+	protected.Put("/governance/audit-retention", governanceAdmin, governanceHandler.SetAuditRetention)
+	protected.Post("/governance/audit-retention/apply", governanceAdmin, governanceHandler.RunAuditRetention)
+
+	// Nightly-ish retention sweep. No-op for every tenant that kept the default
+	// (keep forever) — nothing is deleted unless someone configured a window.
+	go workers.NewAuditRetentionWorker(
+		governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo), zeroLogger,
+	).Start(context.Background())
 
 	// Delegations — any authenticated member manages their own; static paths first.
 	protected.Get("/governance/delegations/effective", governanceHandler.EffectiveDelegatedPermissions)
@@ -2073,6 +2190,7 @@ func main() {
 	protected.Post("/governance/delegations/:id/revoke", governanceHandler.RevokeDelegation)
 
 	// Approval workflows (config) — admin only.
+	protected.Get("/governance/request-types", governanceHandler.ListRequestTypes)
 	protected.Get("/governance/workflows", governanceHandler.ListWorkflows)
 	protected.Post("/governance/workflows", governanceAdmin, governanceHandler.CreateWorkflow)
 	protected.Put("/governance/workflows/:id", governanceAdmin, governanceHandler.UpdateWorkflow)
@@ -2084,6 +2202,16 @@ func main() {
 	protected.Get("/governance/approvals/:id", governanceHandler.GetApproval)
 	protected.Post("/governance/approvals/:id/decide", governanceHandler.DecideApproval)
 	protected.Post("/governance/approvals/:id/cancel", governanceHandler.CancelApproval)
+	// Requests nobody decided in time close as EXPIRED — a distinct outcome from
+	// a refusal, because "nobody said no" and "someone said no" call for
+	// different next steps. Without this sweep, "expires in 48h" is a label.
+	go workers.NewApprovalExpiryWorker(
+		governance.NewExpireApprovalsUseCase(approvalRepo, approvalRepo).
+			WithNotifier(approvalNotifier).
+			WithRecorder(governanceRecorder),
+		zeroLogger,
+	).Start(context.Background())
+
 	log.Println("Governance: audit trail + delegations + approval workflows mounted (/governance/*)")
 
 	// =========================================================================

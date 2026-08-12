@@ -265,6 +265,24 @@ type AutomationRule struct {
 	LastTriggeredAt *time.Time `json:"last_triggered_at,omitempty"`
 	TriggerCount    int        `gorm:"default:0" json:"trigger_count"`
 
+	// Suspension is distinct from "never enabled": a rule someone deliberately
+	// paused should say who paused it, when, and why, so the next person does not
+	// re-enable a rule that was stopped for a reason.
+	SuspendedAt     *time.Time `json:"suspended_at,omitempty"`
+	SuspendedBy     *uuid.UUID `gorm:"type:uuid" json:"suspended_by,omitempty"`
+	SuspendedReason string     `gorm:"type:text" json:"suspended_reason,omitempty"`
+
+	// Live health, denormalised from the last execution so a rule list can show
+	// its state without N+1 queries.
+	LastStatus     string     `gorm:"size:16" json:"last_status,omitempty"`
+	LastExecutedAt *time.Time `json:"last_executed_at,omitempty"`
+	LastError      string     `gorm:"type:text" json:"last_error,omitempty"`
+	FailureStreak  int        `gorm:"default:0" json:"failure_streak"`
+
+	// TemplateKey records which ready-made template a rule was created from, so
+	// the UI can say "based on: Critical vulnerability response".
+	TemplateKey string `gorm:"size:64" json:"template_key,omitempty"`
+
 	CreatedBy uuid.UUID      `gorm:"type:uuid" json:"created_by"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -313,12 +331,27 @@ const (
 	ExecutionSkipped AutomationExecutionStatus = "skipped" // conditions not met
 )
 
+// ExecutionMode says how a run was started. It matters when reading history:
+// a replay that failed is not the same story as a live event that failed.
+const (
+	ExecutionModeLive   = "live"   // a real platform event fired the rule
+	ExecutionModeManual = "manual" // a human ran it from the UI
+	ExecutionModeReplay = "replay" // a human re-ran a past execution's input
+)
+
 // ExecutionStep records the outcome of a single action within an execution.
+// Input and Output are what the step received and produced, so a failed run can
+// be read without re-deriving the state the engine was in at that moment.
 type ExecutionStep struct {
-	Action string    `json:"action"`
-	Status string    `json:"status"` // success|failed|skipped
-	Detail string    `json:"detail"`
-	At     time.Time `json:"at"`
+	Index      int            `json:"index"`
+	Action     string         `json:"action"`
+	Status     string         `json:"status"` // success|failed|skipped
+	Detail     string         `json:"detail"`
+	Input      map[string]any `json:"input,omitempty"`
+	Output     map[string]any `json:"output,omitempty"`
+	Error      string         `json:"error,omitempty"`
+	At         time.Time      `json:"at"`
+	DurationMS int64          `json:"duration_ms"`
 }
 
 // ExecutionStepList is stored as jsonb.
@@ -364,6 +397,16 @@ type AutomationExecution struct {
 	Status AutomationExecutionStatus `gorm:"type:varchar(16);index" json:"status"`
 	Steps  ExecutionStepList         `gorm:"type:jsonb" json:"steps"`
 	Error  string                    `gorm:"type:text" json:"error,omitempty"`
+
+	// The whole point of a history: what went in, what came out, how long it
+	// took, and who is answerable for it.
+	Mode         string     `gorm:"size:16;index" json:"mode"`
+	Input        JSONMap    `gorm:"type:jsonb" json:"input,omitempty"`
+	Output       JSONMap    `gorm:"type:jsonb" json:"output,omitempty"`
+	ActorID      *uuid.UUID `gorm:"type:uuid;index" json:"actor_id,omitempty"`
+	ActorEmail   string     `gorm:"-" json:"actor_email,omitempty"` // resolved on read
+	ReplayedFrom *uuid.UUID `gorm:"type:uuid;index" json:"replayed_from,omitempty"`
+	DurationMS   int64      `json:"duration_ms"`
 
 	StartedAt  time.Time  `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
@@ -475,6 +518,13 @@ type AutomationRuleRepository interface {
 	Delete(ctx context.Context, id, tenantID uuid.UUID) error
 	// RecordTriggered bumps TriggerCount + LastTriggeredAt (best-effort, no history spam).
 	RecordTriggered(ctx context.Context, id, tenantID uuid.UUID, at time.Time) error
+	// RecordOutcome denormalises the last run's verdict onto the rule so a rule
+	// list can show live health without a query per row. A failure increments the
+	// streak; a success resets it.
+	RecordOutcome(ctx context.Context, id, tenantID uuid.UUID, status, errMsg string, at time.Time) error
+	// SetEnabled pauses or resumes a rule, recording who did it and why. reason
+	// and actor are only stored when suspending.
+	SetEnabled(ctx context.Context, id, tenantID uuid.UUID, enabled bool, actorID uuid.UUID, reason string, at time.Time) error
 }
 
 // AutomationExecutionRepository persists execution audit records.
@@ -523,12 +573,61 @@ type AutomationChannelConfig struct {
 	EmailEnabled bool   `gorm:"default:true" json:"email_enabled"`
 	DefaultEmail string `gorm:"size:255" json:"default_email"`
 
+	// Generic outbound webhook — the escape hatch for anything that is not
+	// Slack or Teams (PagerDuty, an internal bus, a customer's own endpoint).
+	WebhookEnabled bool   `gorm:"default:false" json:"webhook_enabled"`
+	WebhookURL     string `gorm:"size:512" json:"-"`
+	WebhookSecret  string `gorm:"size:255" json:"-"` // signs the payload (HMAC-SHA256)
+
+	// SMS through an HTTP gateway. Deliberately generic (URL + credentials +
+	// field names) rather than one vendor's SDK: African and European operators
+	// each expose their own HTTP API, and a hard-coded vendor would serve none
+	// of them.
+	SMSEnabled     bool   `gorm:"default:false" json:"sms_enabled"`
+	SMSGatewayURL  string `gorm:"size:512" json:"-"`
+	SMSAPIKey      string `gorm:"size:255" json:"-"`
+	SMSSender      string `gorm:"size:32" json:"sms_sender,omitempty"`
+	SMSRecipients  string `gorm:"size:512" json:"sms_recipients,omitempty"` // comma-separated E.164
+	SMSToField     string `gorm:"size:32" json:"sms_to_field,omitempty"`    // default "to"
+	SMSTextField   string `gorm:"size:32" json:"sms_text_field,omitempty"`  // default "message"
+	SMSSenderField string `gorm:"size:32" json:"sms_sender_field,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	// Computed, NOT persisted — surfaced instead of the raw webhook URLs.
-	HasSlack bool `gorm:"-" json:"has_slack"`
-	HasTeams bool `gorm:"-" json:"has_teams"`
+	// Computed, NOT persisted — surfaced instead of the raw webhook URLs and
+	// credentials, so the UI can show "configured" without ever reading a secret
+	// back out (RULE #6).
+	HasSlack   bool `gorm:"-" json:"has_slack"`
+	HasTeams   bool `gorm:"-" json:"has_teams"`
+	HasWebhook bool `gorm:"-" json:"has_webhook"`
+	HasSMS     bool `gorm:"-" json:"has_sms"`
+}
+
+// AutomationChannels are the outbound channels a notify action can use.
+const (
+	ChannelInApp   = "in_app"
+	ChannelEmail   = "email"
+	ChannelSlack   = "slack"
+	ChannelTeams   = "teams"
+	ChannelWebhook = "webhook"
+	ChannelSMS     = "sms"
+)
+
+// AllAutomationChannels is the catalogue the UI renders and the test endpoint
+// accepts.
+func AllAutomationChannels() []string {
+	return []string{ChannelInApp, ChannelEmail, ChannelSlack, ChannelTeams, ChannelWebhook, ChannelSMS}
+}
+
+// IsAutomationChannel validates a channel name.
+func IsAutomationChannel(s string) bool {
+	for _, c := range AllAutomationChannels() {
+		if c == strings.ToLower(strings.TrimSpace(s)) {
+			return true
+		}
+	}
+	return false
 }
 
 // TableName pins the table name.

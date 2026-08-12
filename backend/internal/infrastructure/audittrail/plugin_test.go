@@ -33,16 +33,11 @@ func setup(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	// Create tables with sqlite-friendly DDL (the real schema uses Postgres
-	// gen_random_uuid()/jsonb, which sqlite can't parse in AutoMigrate).
-	if err := db.Exec(`CREATE TABLE audit_events (
-		id TEXT PRIMARY KEY, tenant_id TEXT, actor_id TEXT, action TEXT,
-		entity_type TEXT, entity_id TEXT, summary TEXT, before TEXT, after TEXT,
-		changed_fields TEXT, ip_address TEXT, user_agent TEXT, request_id TEXT, created_at DATETIME)`).Error; err != nil {
-		t.Fatalf("create audit_events: %v", err)
-	}
-	if err := db.Exec(`CREATE TABLE widgets (id TEXT PRIMARY KEY, tenant_id TEXT, name TEXT, secret TEXT)`).Error; err != nil {
-		t.Fatalf("create widgets: %v", err)
+	// AutoMigrate from the real model rather than hand-written DDL: a hand-copied
+	// CREATE TABLE silently drifts the moment a column is added to AuditEvent,
+	// and the test then passes against a schema production does not have.
+	if err := db.AutoMigrate(&domain.AuditEvent{}, &widget{}); err != nil {
+		t.Fatalf("migrate: %v", err)
 	}
 	if err := db.Use(New(db)); err != nil {
 		t.Fatalf("install plugin: %v", err)

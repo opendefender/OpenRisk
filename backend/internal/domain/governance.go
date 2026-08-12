@@ -96,9 +96,16 @@ const (
 // AuditEvent is one immutable row in the audit trail. There is intentionally no
 // UpdatedAt and no soft-delete: the repository only ever appends. ActorID is nil
 // for automatic/system events (e.g. a background worker mutation).
+//
+// Each row is chained to the previous one of the same tenant (Sequence /
+// PrevHash / Hash), so any alteration is detectable — see audit_chain.go.
 type AuditEvent struct {
-	ID       uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TenantID uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	// No database-side default on ID: the repository always assigns it before
+	// hashing (the id is part of the hashed payload), and keeping the model free
+	// of Postgres-only DDL lets the same schema stand up under sqlite in tests —
+	// which is how this table's DDL stops drifting away from the model.
+	ID       uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID uuid.UUID  `gorm:"type:uuid;index:idx_audit_tenant_seq,unique,priority:1;index;not null" json:"tenant_id"`
 	ActorID  *uuid.UUID `gorm:"type:uuid;index" json:"actor_id,omitempty"`
 	// ActorEmail is resolved on read (never persisted) so the journal shows a
 	// human name instead of a bare UUID.
@@ -112,8 +119,25 @@ type AuditEvent struct {
 	ChangedFields StringList  `gorm:"type:jsonb" json:"changed_fields,omitempty"`
 	IPAddress     string      `gorm:"type:varchar(64)" json:"ip_address,omitempty"`
 	UserAgent     string      `gorm:"type:text" json:"user_agent,omitempty"`
-	RequestID     string      `gorm:"type:varchar(64)" json:"request_id,omitempty"`
-	CreatedAt     time.Time   `gorm:"index;autoCreateTime" json:"created_at"`
+	RequestID     string      `gorm:"type:varchar(64);index" json:"request_id,omitempty"`
+
+	// HTTP envelope — set when the entry was produced by the mutation middleware.
+	Method     string `gorm:"type:varchar(8)" json:"method,omitempty"`
+	Path       string `gorm:"type:varchar(255)" json:"path,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
+	// Source is which writer produced the entry: http | gorm | explicit.
+	Source string `gorm:"type:varchar(16);index" json:"source,omitempty"`
+
+	// Hash chain — Sequence is a per-tenant monotonic counter, PrevHash links to
+	// the preceding entry and Hash covers this entry's full content. Assigned by
+	// the repository inside the append transaction; never by callers.
+	Sequence int64  `gorm:"index:idx_audit_tenant_seq,unique,priority:2;not null;default:0" json:"sequence"`
+	PrevHash string `gorm:"type:varchar(64)" json:"prev_hash"`
+	Hash     string `gorm:"type:varchar(64);index" json:"hash"`
+
+	// CreatedAt is part of the hashed payload, so it is always set by the
+	// application before sealing — never left to a database default.
+	CreatedAt time.Time `gorm:"index" json:"created_at"`
 }
 
 func (AuditEvent) TableName() string { return "audit_events" }
@@ -124,9 +148,11 @@ type AuditEventFilter struct {
 	EntityID   string
 	Action     string
 	ActorID    *uuid.UUID
+	RequestID  string
+	Source     string
 	From       *time.Time
 	To         *time.Time
-	Search     string // free-text over summary / entity_type / entity_id
+	Search     string // free-text over summary / entity_type / entity_id / path
 	Limit      int
 	Offset     int
 }
@@ -221,6 +247,13 @@ type WorkflowStep struct {
 	Name         string `json:"name"`
 	ApproverRole string `json:"approver_role"`
 	MinApprovals int    `json:"min_approvals"`
+	// ApproverUserIDs names specific people, for the case a role cannot express:
+	// "the CISO and the DPO, not merely two admins".
+	ApproverUserIDs []string `json:"approver_user_ids,omitempty"`
+	// QuorumPercent expresses the gate as a share of the named approvers
+	// (e.g. 60% of five people = three). Resolved against MinApprovals, never
+	// below it. Meaningless without named approvers, and treated as such.
+	QuorumPercent int `json:"quorum_percent,omitempty"`
 }
 
 // WorkflowStepList is a jsonb array of steps.
@@ -268,10 +301,19 @@ type ApprovalWorkflow struct {
 	Action      string           `gorm:"type:varchar(64)" json:"action"`
 	Enabled     bool             `gorm:"index;default:true" json:"enabled"`
 	Steps       WorkflowStepList `gorm:"type:jsonb" json:"steps"`
-	CreatedBy   uuid.UUID        `gorm:"type:uuid" json:"created_by"`
-	CreatedAt   time.Time        `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt   gorm.DeletedAt   `gorm:"index" json:"-"`
+
+	// RequestType is the catalogue key this workflow serves (see
+	// ApprovalRequestTypes). Kept alongside EntityType/Action rather than instead
+	// of them: those two are what SubmitApprovalRequest matches on.
+	RequestType string `gorm:"type:varchar(64);index" json:"request_type,omitempty"`
+	// Mode is sequential (default) or parallel.
+	Mode string `gorm:"type:varchar(16);default:'sequential'" json:"mode"`
+	// ExpiresInHours closes a request nobody decided in time. 0 = never expires.
+	ExpiresInHours int            `gorm:"default:0" json:"expires_in_hours"`
+	CreatedBy      uuid.UUID      `gorm:"type:uuid" json:"created_by"`
+	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (ApprovalWorkflow) TableName() string { return "approval_workflows" }
@@ -337,18 +379,23 @@ func (l *ApprovalDecisionList) Scan(value interface{}) error {
 // snapshots the workflow's steps at submit time so later edits to the workflow
 // never rewrite in-flight requests.
 type ApprovalRequest struct {
-	ID               uuid.UUID            `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TenantID         uuid.UUID            `gorm:"type:uuid;index;not null" json:"tenant_id"`
-	WorkflowID       *uuid.UUID           `gorm:"type:uuid;index" json:"workflow_id,omitempty"`
-	WorkflowName     string               `gorm:"type:varchar(160)" json:"workflow_name,omitempty"`
-	EntityType       string               `gorm:"type:varchar(64);index" json:"entity_type"`
-	EntityID         string               `gorm:"type:varchar(128);index" json:"entity_id,omitempty"`
-	Action           string               `gorm:"type:varchar(64)" json:"action,omitempty"`
-	Title            string               `gorm:"type:varchar(255)" json:"title"`
-	Description      string               `gorm:"type:text" json:"description,omitempty"`
-	Payload          JSONMap              `gorm:"type:jsonb" json:"payload,omitempty"`
-	Status           ApprovalStatus       `gorm:"type:varchar(16);index;default:'pending'" json:"status"`
-	CurrentStep      int                  `gorm:"default:0" json:"current_step"`
+	ID           uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	TenantID     uuid.UUID      `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	WorkflowID   *uuid.UUID     `gorm:"type:uuid;index" json:"workflow_id,omitempty"`
+	WorkflowName string         `gorm:"type:varchar(160)" json:"workflow_name,omitempty"`
+	EntityType   string         `gorm:"type:varchar(64);index" json:"entity_type"`
+	EntityID     string         `gorm:"type:varchar(128);index" json:"entity_id,omitempty"`
+	Action       string         `gorm:"type:varchar(64)" json:"action,omitempty"`
+	Title        string         `gorm:"type:varchar(255)" json:"title"`
+	Description  string         `gorm:"type:text" json:"description,omitempty"`
+	Payload      JSONMap        `gorm:"type:jsonb" json:"payload,omitempty"`
+	Status       ApprovalStatus `gorm:"type:varchar(16);index;default:'pending'" json:"status"`
+	CurrentStep  int            `gorm:"default:0" json:"current_step"`
+	// Mode and ExpiresAt are snapshotted from the workflow at submit time, like
+	// Steps: editing the workflow must never move an in-flight request's goalposts.
+	Mode             string               `gorm:"type:varchar(16);default:'sequential'" json:"mode"`
+	ExpiresAt        *time.Time           `gorm:"index" json:"expires_at,omitempty"`
+	RequestType      string               `gorm:"type:varchar(64);index" json:"request_type,omitempty"`
 	Steps            WorkflowStepList     `gorm:"type:jsonb" json:"steps"`
 	Decisions        ApprovalDecisionList `gorm:"type:jsonb" json:"decisions"`
 	RequestedBy      uuid.UUID            `gorm:"type:uuid;index" json:"requested_by"`

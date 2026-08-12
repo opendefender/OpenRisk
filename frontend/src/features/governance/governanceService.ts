@@ -30,7 +30,48 @@ export interface AuditEvent {
   ip_address?: string;
   user_agent?: string;
   request_id?: string;
+  method?: string;
+  path?: string;
+  status_code?: number;
+  source?: 'http' | 'gorm' | 'explicit' | 'legacy';
+  sequence: number;
+  prev_hash: string;
+  hash: string;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Tamper evidence
+// ---------------------------------------------------------------------------
+
+export interface AuditChainBreak {
+  sequence: number;
+  event_id?: string;
+  kind: 'hash_mismatch' | 'prev_mismatch' | 'sequence_gap' | 'unsealed_head' | 'duplicate_sequence';
+  detail: string;
+}
+
+export interface AuditChainReport {
+  valid: boolean;
+  total_events: number;
+  verified: number;
+  first_sequence: number;
+  last_sequence: number;
+  head_hash: string;
+  seals: number;
+  breaks: AuditChainBreak[] | null;
+  checked_at: string;
+  duration_ms: number;
+}
+
+export interface AuditRetentionPolicy {
+  retention_days: number;
+  last_pruned_at?: string | null;
+}
+
+export interface PruneResult {
+  pruned: number;
+  seal?: { from_sequence: number; to_sequence: number; pruned_count: number } | null;
 }
 
 export interface AuditEventsResult {
@@ -41,6 +82,7 @@ export interface AuditEventsResult {
 }
 
 export interface AuditFilter {
+  format?: 'csv' | 'json';
   entity_type?: string;
   entity_id?: string;
   action?: string;
@@ -48,6 +90,8 @@ export interface AuditFilter {
   from?: string;
   to?: string;
   search?: string;
+  request_id?: string;
+  source?: string;
   limit?: number;
   offset?: number;
 }
@@ -92,13 +136,55 @@ export interface EffectivePermissions {
 // Approval workflows + requests (Maker-Checker)
 // ---------------------------------------------------------------------------
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired';
 
 export interface WorkflowStep {
   order: number;
   name: string;
   approver_role: string;
   min_approvals: number;
+  approver_user_ids?: string[];
+  quorum_percent?: number;
+}
+
+export type ApprovalMode = 'sequential' | 'parallel';
+
+export interface ApprovalRequestType {
+  key: string;
+  entity_type: string;
+  action: string;
+  label: string;
+  label_en: string;
+  description: string;
+  linked_to_lifecycle?: string;
+}
+
+export interface StepProgress {
+  order: number;
+  name: string;
+  approver_role?: string;
+  required_approvals: number;
+  approvals: number;
+  satisfied: boolean;
+  rejected: boolean;
+  open: boolean;
+  approvers?: string[];
+}
+
+export interface EligibilityVerdict {
+  eligible: boolean;
+  reason: string;
+  via_delegation?: string;
+}
+
+export interface ApprovalDetail {
+  request: ApprovalRequest;
+  progress: StepProgress[];
+  can_decide: boolean;
+  verdict: EligibilityVerdict;
+  open_steps?: WorkflowStep[] | null;
+  expired: boolean;
+  request_type_info?: ApprovalRequestType | null;
 }
 
 export interface ApprovalWorkflow {
@@ -110,6 +196,9 @@ export interface ApprovalWorkflow {
   action: string;
   enabled: boolean;
   steps: WorkflowStep[];
+  request_type?: string;
+  mode: ApprovalMode;
+  expires_in_hours: number;
   created_by: string;
   created_at: string;
 }
@@ -120,7 +209,16 @@ export interface WorkflowInput {
   entity_type: string;
   action?: string;
   enabled?: boolean;
-  steps: Array<{ name: string; approver_role: string; min_approvals: number }>;
+  request_type?: string;
+  mode?: ApprovalMode;
+  expires_in_hours?: number;
+  steps: Array<{
+    name: string;
+    approver_role: string;
+    min_approvals: number;
+    approver_user_ids?: string[];
+    quorum_percent?: number;
+  }>;
 }
 
 export interface ApprovalDecision {
@@ -149,6 +247,9 @@ export interface ApprovalRequest {
   decisions: ApprovalDecision[];
   requested_by: string;
   requested_by_email?: string;
+  mode: ApprovalMode;
+  expires_at?: string | null;
+  request_type?: string;
   resolved_at?: string | null;
   created_at: string;
 }
@@ -165,6 +266,8 @@ export interface SubmitApprovalInput {
 export interface DecideApprovalInput {
   decision: 'approve' | 'reject';
   comment?: string;
+  /** Targets one branch of a parallel chain. Omitted in sequential mode. */
+  step_order?: number;
 }
 
 function qs(filter: AuditFilter): string {
@@ -184,6 +287,20 @@ export const governanceService = {
     `/governance/audit-events/export${qs(filter)}`,
   exportAuditCsv: (filter: AuditFilter = {}): Promise<Blob> =>
     api.get(`/governance/audit-events/export${qs(filter)}`, { responseType: 'blob' }).then((r) => r.data as Blob),
+  // A signed JSON export carries the entries, the chain verdict at export time
+  // and an HMAC over both — so a recipient can re-check it offline.
+  exportAuditJson: (filter: AuditFilter = {}): Promise<Blob> =>
+    api
+      .get(`/governance/audit-events/export${qs({ ...filter, format: 'json' } as AuditFilter)}`, { responseType: 'blob' })
+      .then((r) => r.data as Blob),
+  verifyAuditChain: (): Promise<AuditChainReport> =>
+    api.get<AuditChainReport>('/governance/audit-events/verify').then((r) => r.data),
+  getRetention: (): Promise<AuditRetentionPolicy> =>
+    api.get<AuditRetentionPolicy>('/governance/audit-retention').then((r) => r.data),
+  setRetention: (days: number): Promise<AuditRetentionPolicy> =>
+    api.put<AuditRetentionPolicy>('/governance/audit-retention', { retention_days: days }).then((r) => r.data),
+  applyRetention: (): Promise<PruneResult> =>
+    api.post<PruneResult>('/governance/audit-retention/apply', {}).then((r) => r.data),
 
   // Delegations
   listDelegations: (): Promise<Delegation[]> =>
@@ -214,6 +331,12 @@ export const governanceService = {
     const s = p.toString();
     return api.get<ApprovalRequest[]>(`/governance/approvals${s ? `?${s}` : ''}`).then((r) => r.data);
   },
+  // The detail view carries per-step progress and whether the CALLER may sign —
+  // so a disabled button can explain itself rather than produce a 403 on click.
+  getApproval: (id: string): Promise<ApprovalDetail> =>
+    api.get<ApprovalDetail>(`/governance/approvals/${id}`).then((r) => r.data),
+  listRequestTypes: (): Promise<ApprovalRequestType[]> =>
+    api.get<{ items: ApprovalRequestType[] }>('/governance/request-types').then((r) => r.data.items ?? []),
   submitApproval: (input: SubmitApprovalInput): Promise<ApprovalRequest> =>
     api.post<ApprovalRequest>('/governance/approvals', input).then((r) => r.data),
   decideApproval: (id: string, input: DecideApprovalInput): Promise<ApprovalRequest> =>

@@ -18,8 +18,9 @@ import { DataTable, useTableState, type Column, type Facet, type RowAction } fro
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import {
-  useAuditEvents, useDelegations, useApprovals, useWorkflows, useGovernanceMutations,
+  useAuditEvents, useDelegations, useApprovals, useApprovalDetail, useRequestTypes, useWorkflows, useGovernanceMutations,
 } from './useGovernance';
+import { AuditIntegrityPanel } from './AuditIntegrityPanel';
 import { governanceService } from './governanceService';
 import type {
   AuditEvent, AuditAction, Delegation, ApprovalRequest, ApprovalWorkflow, WorkflowStep,
@@ -92,7 +93,7 @@ export function GovernancePage() {
       {tab === 'approvals' && <ApprovalsView />}
       {tab === 'delegations' && <DelegationsView />}
       {tab === 'workflows' && isAdmin && <WorkflowsView />}
-      {tab === 'audit' && isAdmin && <AuditView />}
+      {tab === 'audit' && isAdmin && <AuditView isAdmin={isAdmin} />}
     </PageFrame>
   );
 }
@@ -104,7 +105,7 @@ export function GovernancePage() {
 // "what happened", so the Before → After diff moved from an inline expander into
 // a drawer: <DataTable> owns the row, the drawer owns the detail. Server-side
 // paging (limit/offset), facets and search all round-trip to the API.
-function AuditView() {
+function AuditView({ isAdmin }: { isAdmin: boolean }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const [detail, setDetail] = useState<AuditEvent | null>(null);
@@ -182,6 +183,22 @@ function AuditView() {
       render: (e) => <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>{e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))}</span>,
     },
     { key: 'ip', header: 'IP', defaultHidden: true, exportValue: (e) => e.ip_address ?? '', render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.ip_address ?? '—'}</span> },
+    {
+      key: 'seq',
+      header: '#',
+      defaultHidden: true,
+      exportValue: (e) => String(e.sequence),
+      // The position in the chain. Hidden by default — it matters when you are
+      // reconciling an export, not when you are reading the day's activity.
+      render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.sequence}</span>,
+    },
+    {
+      key: 'source',
+      header: tr('Origine', 'Source'),
+      defaultHidden: true,
+      exportValue: (e) => e.source ?? '',
+      render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.source ?? '—'}</span>,
+    },
     { key: 'when', header: tr('Quand', 'When'), exportValue: (e) => e.created_at, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{fmt(e.created_at)}</span> },
   ], [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -191,6 +208,10 @@ function AuditView() {
 
   return (
     <>
+      {/* Integrity, retention and signed export sit above the list: what makes
+          this a piece of evidence rather than a log. */}
+      <AuditIntegrityPanel filter={filter} isAdmin={isAdmin} />
+
       <DataTable
         id="audit-trail"
         ariaLabel={tr('Piste d’audit', 'Audit trail')}
@@ -293,6 +314,7 @@ function ApprovalsView() {
     { id: 'pending', label: tr('En attente', 'Pending') },
     { id: 'approved', label: tr('Approuvés', 'Approved') },
     { id: 'rejected', label: tr('Rejetés', 'Rejected') },
+    { id: 'expired', label: tr('Expirés', 'Expired') },
     { id: 'all', label: tr('Tous', 'All') },
   ];
 
@@ -329,10 +351,33 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
   const user = useAuthStore((s) => s.user);
   const [comment, setComment] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [stepOrder, setStepOrder] = useState<number | null>(null);
+
+  // The detail view answers "may I sign this, and why not" before the click,
+  // instead of turning the question into a 403 afterwards.
+  const { data: detail } = useApprovalDetail(req.status === 'pending' ? req.id : null);
+  const progress = detail?.progress ?? [];
+  const openSteps = progress.filter((p) => p.open);
+  const parallel = req.mode === 'parallel';
 
   const decide = async (decision: 'approve' | 'reject') => {
+    // A refusal without a reason leaves the requester knowing only that they
+    // failed. The server refuses it too; catching it here saves a round trip
+    // and says so next to the field.
+    if (decision === 'reject' && !comment.trim()) {
+      toast.error(tr('Un commentaire est obligatoire pour refuser — dites ce qui devrait changer.',
+                     'A comment is required to refuse — say what would have to change.'));
+      return;
+    }
     try {
-      await decideApproval.mutateAsync({ id: req.id, input: { decision, comment: comment || undefined } });
+      await decideApproval.mutateAsync({
+        id: req.id,
+        input: {
+          decision,
+          comment: comment.trim() || undefined,
+          step_order: parallel && stepOrder !== null ? stepOrder : undefined,
+        },
+      });
       toast.success(decision === 'approve' ? tr('Étape approuvée', 'Step approved') : tr('Demande rejetée', 'Request rejected'));
       setComment('');
     } catch (err) {
@@ -347,6 +392,12 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
 
   const isPending = req.status === 'pending';
   const isRequester = user?.id === req.requested_by;
+  const canDecide = detail?.can_decide ?? false;
+
+  // Deadlines are a promise; show how much of it is left.
+  const hoursLeft = req.expires_at
+    ? Math.round((new Date(req.expires_at).getTime() - Date.now()) / 3_600_000)
+    : null;
 
   return (
     <Card style={{ padding: '14px 16px' }}>
@@ -355,39 +406,85 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: '#fff', background: STATUS_COLOR[req.status] }}>{req.status}</span>
             <span className="text-[14px] font-semibold">{req.title}</span>
+            {parallel && (
+              <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                {tr('parallèle', 'parallel')}
+              </span>
+            )}
+            {isPending && hoursLeft !== null && (
+              <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded"
+                style={{
+                  background: `color-mix(in srgb, ${hoursLeft <= 12 ? 'var(--critical)' : 'var(--medium)'} 14%, transparent)`,
+                  color: hoursLeft <= 12 ? 'var(--critical)' : 'var(--medium)',
+                }}>
+                {hoursLeft > 0
+                  ? tr(`expire dans ${hoursLeft} h`, `expires in ${hoursLeft}h`)
+                  : tr('expiré', 'expired')}
+              </span>
+            )}
           </div>
           <div className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {req.workflow_name} · {req.entity_type}{req.action ? `/${req.action}` : ''} · {tr('demandé par', 'by')} {req.requested_by_email || req.requested_by.slice(0, 8)}
+            {req.workflow_name} · {detail?.request_type_info
+              ? (lang === 'fr' ? detail.request_type_info.label : detail.request_type_info.label_en)
+              : `${req.entity_type}${req.action ? `/${req.action}` : ''}`}
+            {' · '}{tr('demandé par', 'by')} {req.requested_by_email || req.requested_by.slice(0, 8)}
           </div>
-          {/* Step chain */}
+
+          {/* Step chain, with each step's real quorum standing. */}
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            {req.steps.map((s, i) => {
-              const done = i < req.current_step || req.status === 'approved';
-              const current = i === req.current_step && isPending;
-              return (
-                <span key={i} className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] px-2 py-0.5 rounded-md" style={{
-                    border: '1px solid var(--border-strong)',
-                    background: done ? 'color-mix(in srgb, var(--good, #16a34a) 16%, transparent)' : current ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
-                    fontWeight: current ? 700 : 500,
-                  }}>
-                    {done && <Check size={11} className="inline mr-0.5" />}
-                    {s.name}{s.approver_role ? ` · ${s.approver_role}` : ''}{s.min_approvals > 1 ? ` ×${s.min_approvals}` : ''}
-                  </span>
-                  {i < req.steps.length - 1 && <ChevronRight size={12} style={{ color: 'var(--text-secondary)' }} />}
+            {(progress.length > 0 ? progress : req.steps.map((st, i) => ({
+              order: i, name: st.name, approver_role: st.approver_role,
+              required_approvals: st.min_approvals, approvals: 0,
+              satisfied: i < req.current_step, rejected: false,
+              open: i === req.current_step && isPending, approvers: [],
+            }))).map((p, i, arr) => (
+              <span key={p.order} className="inline-flex items-center gap-1.5">
+                <span className="text-[11px] px-2 py-0.5 rounded-md" style={{
+                  border: '1px solid var(--border-strong)',
+                  background: p.satisfied
+                    ? 'color-mix(in srgb, var(--good, #16a34a) 16%, transparent)'
+                    : p.open ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
+                  fontWeight: p.open ? 700 : 500,
+                }}
+                title={p.approvers && p.approvers.length > 0 ? p.approvers.join(', ') : undefined}>
+                  {p.satisfied && <Check size={11} className="inline mr-0.5" />}
+                  {p.name}{p.approver_role ? ` · ${p.approver_role}` : ''}
+                  {p.required_approvals > 1 ? ` ${p.approvals}/${p.required_approvals}` : ''}
                 </span>
-              );
-            })}
+                {!parallel && i < arr.length - 1 && <ChevronRight size={12} style={{ color: 'var(--text-secondary)' }} />}
+              </span>
+            ))}
           </div>
         </div>
       </div>
 
       {isPending && (
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
-          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder={tr('Commentaire (optionnel)', 'Comment (optional)')} className="flex-1 min-w-[160px] h-9 px-2.5 rounded-[9px] bg-transparent text-[13px]" style={{ border: '1px solid var(--border-strong)' }} />
-          <Btn label={tr('Approuver', 'Approve')} icon={Check} primary onClick={() => decide('approve')} />
-          <Btn label={tr('Rejeter', 'Reject')} icon={X} onClick={() => decide('reject')} />
-          {isRequester && <Btn label={tr('Annuler', 'Cancel')} onClick={cancel} />}
+        <div className="mt-3">
+          {/* Why the buttons are (or are not) available — stated, not implied. */}
+          {detail && (
+            <p className="text-[12px] mb-2" style={{ color: canDecide ? 'var(--text-secondary)' : 'var(--medium)' }}>
+              {detail.verdict.reason}
+              {detail.verdict.via_delegation && ` (${tr('par délégation', 'by delegation')})`}
+            </p>
+          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {parallel && openSteps.length > 1 && (
+              <select value={stepOrder ?? openSteps[0]?.order ?? 0}
+                onChange={(e) => setStepOrder(Number(e.target.value))}
+                className="h-9 px-2 rounded-[9px] text-[13px]"
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text-primary)' }}>
+                {openSteps.map((p) => <option key={p.order} value={p.order}>{p.name}</option>)}
+              </select>
+            )}
+            <input value={comment} onChange={(e) => setComment(e.target.value)}
+              placeholder={tr('Commentaire — obligatoire pour refuser', 'Comment — required to refuse')}
+              className="flex-1 min-w-[160px] h-9 px-2.5 rounded-[9px] bg-transparent text-[13px]"
+              style={{ border: '1px solid var(--border-strong)' }} />
+            <Btn label={tr('Approuver', 'Approve')} icon={Check} primary onClick={() => decide('approve')} disabled={!canDecide} />
+            <Btn label={tr('Rejeter', 'Reject')} icon={X} onClick={() => decide('reject')} disabled={!canDecide} />
+            {isRequester && <Btn label={tr('Annuler', 'Cancel')} onClick={cancel} />}
+          </div>
         </div>
       )}
 
@@ -595,7 +692,17 @@ function WorkflowsView() {
                     <span className="text-[14px] font-semibold">{w.name}</span>
                     {!w.enabled && <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>{tr('désactivé', 'disabled')}</span>}
                   </div>
-                  <div className="text-[12px] mt-0.5 mono" style={{ color: 'var(--text-secondary)' }}>{w.entity_type}{w.action ? `/${w.action}` : ''}</div>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{w.entity_type}{w.action ? `/${w.action}` : ''}</span>
+                    <span className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                      {w.mode === 'parallel' ? tr('parallèle', 'parallel') : tr('séquentiel', 'sequential')}
+                    </span>
+                    {w.expires_in_hours > 0 && (
+                      <span className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                        {tr(`expire après ${w.expires_in_hours} h`, `expires after ${w.expires_in_hours}h`)}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     {w.steps.map((s: WorkflowStep, i) => (
                       <span key={i} className="inline-flex items-center gap-1.5">
@@ -623,24 +730,38 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { createWorkflow } = useGovernanceMutations();
+  const { data: requestTypes = [] } = useRequestTypes();
   const [name, setName] = useState('');
-  const [entityType, setEntityType] = useState('risk_acceptance');
-  const [action, setAction] = useState('accept');
-  const [steps, setSteps] = useState<Array<{ name: string; approver_role: string; min_approvals: number }>>([
+  // The catalogue is the shared vocabulary; picking a type fills in the
+  // (entity_type, action) pair the submit path matches on, so a workflow cannot
+  // end up bound to a pair nothing ever submits.
+  const [requestType, setRequestType] = useState('risk_acceptance');
+  const [mode, setMode] = useState<'sequential' | 'parallel'>('sequential');
+  const [expiresInHours, setExpiresInHours] = useState(0);
+  const [steps, setSteps] = useState<Array<{ name: string; approver_role: string; min_approvals: number; quorum_percent?: number }>>([
     { name: 'Asset owner', approver_role: 'manager', min_approvals: 1 },
     { name: 'CISO sign-off', approver_role: 'admin', min_approvals: 1 },
   ]);
+  const selectedType = requestTypes.find((t) => t.key === requestType);
 
   const addStep = () => setSteps((s) => [...s, { name: '', approver_role: '', min_approvals: 1 }]);
   const removeStep = (i: number) => setSteps((s) => s.filter((_, idx) => idx !== i));
-  const setStep = (i: number, patch: Partial<{ name: string; approver_role: string; min_approvals: number }>) =>
+  const setStep = (i: number, patch: Partial<{ name: string; approver_role: string; min_approvals: number; quorum_percent: number }>) =>
     setSteps((s) => s.map((st, idx) => (idx === i ? { ...st, ...patch } : st)));
 
   const submit = async () => {
     const clean = steps.filter((s) => s.name.trim() || s.approver_role.trim());
-    if (!name || !entityType || clean.length === 0) { toast.error(tr('Nom, entité et au moins une étape requis', 'Name, entity and at least one step required')); return; }
+    if (!name || !requestType || clean.length === 0) { toast.error(tr('Nom, type de demande et au moins une étape requis', 'Name, request type and at least one step required')); return; }
     try {
-      await createWorkflow.mutateAsync({ name, entity_type: entityType, action: action || undefined, steps: clean });
+      await createWorkflow.mutateAsync({
+        name,
+        request_type: requestType,
+        entity_type: selectedType?.entity_type ?? requestType,
+        action: selectedType?.action,
+        mode,
+        expires_in_hours: expiresInHours,
+        steps: clean,
+      });
       toast.success(tr('Workflow créé', 'Workflow created'));
       onClose();
     } catch (err) {
@@ -652,10 +773,47 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalShell title={tr('Nouveau workflow', 'New workflow')} onClose={onClose} onSubmit={submit} submitLabel={tr('Créer', 'Create')}>
       <Field label={tr('Nom', 'Name')} value={name} onChange={setName} placeholder={tr('Acceptation de risque', 'Risk acceptance')} />
-      <div className="flex gap-2">
-        <div className="flex-1"><Field label={tr('Type d’entité', 'Entity type')} value={entityType} onChange={setEntityType} /></div>
-        <div className="flex-1"><Field label="Action" value={action} onChange={setAction} /></div>
+      <div>
+        <label className="text-[12px] font-semibold">{tr('Type de demande', 'Request type')}</label>
+        <select value={requestType} onChange={(e) => setRequestType(e.target.value)}
+          className="w-full mt-1 h-9 px-2.5 rounded-[9px] bg-transparent text-[13px]" style={{ border: '1px solid var(--border-strong)' }}>
+          {requestTypes.map((t) => (
+            <option key={t.key} value={t.key}>{lang === 'fr' ? t.label : t.label_en}</option>
+          ))}
+        </select>
+        {selectedType && (
+          <p className="text-[11.5px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+            {selectedType.description}
+            {selectedType.linked_to_lifecycle && (
+              <>
+                {' '}
+                <strong style={{ color: 'var(--medium)' }}>{selectedType.linked_to_lifecycle}</strong>
+              </>
+            )}
+          </p>
+        )}
       </div>
+
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <label className="text-[12px] font-semibold">{tr('Déroulement', 'Flow')}</label>
+          <select value={mode} onChange={(e) => setMode(e.target.value as 'sequential' | 'parallel')}
+            className="w-full mt-1 h-9 px-2.5 rounded-[9px] bg-transparent text-[13px]" style={{ border: '1px solid var(--border-strong)' }}>
+            <option value="sequential">{tr('Séquentiel — une étape après l’autre', 'Sequential — one step after another')}</option>
+            <option value="parallel">{tr('Parallèle — toutes les étapes en même temps', 'Parallel — every step at once')}</option>
+          </select>
+        </div>
+        <div className="w-[170px]">
+          <label className="text-[12px] font-semibold">{tr('Expire après (h)', 'Expires after (h)')}</label>
+          <input type="number" min={0} value={expiresInHours}
+            onChange={(e) => setExpiresInHours(Math.max(0, Number(e.target.value) || 0))}
+            className="w-full mt-1 h-9 px-2.5 rounded-[9px] bg-transparent text-[13px] mono" style={{ border: '1px solid var(--border-strong)' }} />
+        </div>
+      </div>
+      <p className="text-[11.5px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
+        {tr('0 = n’expire jamais. Sinon, une demande non décidée dans le délai se clôt comme « expirée » — ce qui n’est pas un refus.',
+            '0 = never expires. Otherwise a request nobody decides in time closes as "expired" — which is not a refusal.')}
+      </p>
       <div>
         <div className="flex items-center justify-between">
           <label className="text-[12px] font-semibold">{tr('Étapes d’approbation', 'Approval steps')}</label>
@@ -667,7 +825,10 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
               <span className="mono text-[12px]" style={{ color: 'var(--text-secondary)', width: 18 }}>{i + 1}</span>
               <input value={s.name} onChange={(e) => setStep(i, { name: e.target.value })} placeholder={tr('Nom de l’étape', 'Step name')} className="flex-1 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]" style={{ border: '1px solid var(--border-strong)' }} />
               <input value={s.approver_role} onChange={(e) => setStep(i, { approver_role: e.target.value })} placeholder={tr('rôle', 'role')} className="w-24 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]" style={{ border: '1px solid var(--border-strong)' }} />
-              <input type="number" min={1} value={s.min_approvals} onChange={(e) => setStep(i, { min_approvals: Math.max(1, Number(e.target.value) || 1) })} className="w-14 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]" style={{ border: '1px solid var(--border-strong)' }} />
+              <input type="number" min={1} value={s.min_approvals}
+                title={tr('Nombre de signatures requises', 'Signatures required')}
+                onChange={(e) => setStep(i, { min_approvals: Math.max(1, Number(e.target.value) || 1) })}
+                className="w-14 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]" style={{ border: '1px solid var(--border-strong)' }} />
               <button onClick={() => removeStep(i)} style={{ color: 'var(--crit, #dc2626)' }}><X size={14} /></button>
             </div>
           ))}

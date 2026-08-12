@@ -168,6 +168,23 @@ var decisions = []Decision{
 		"approvals/workflows/delegations are tenant-scoped in use cases; no cross-tenant test"},
 	{"/api/v1/automation/rules/*", Pending,
 		"ListEnabledByTrigger is tenant-scoped; per-rule routes lack cross-tenant assertions"},
+	// Dry-run traces live in an in-process registry keyed by (id, tenant): Get and
+	// Cancel both compare the entry's tenant to the caller's before doing
+	// anything, so another organisation's trace reads back as absent.
+	{"/api/v1/automation/dry-runs/{id}", Covered,
+		"application/automation dryrun_test TestDryRunRegistry_CancelAndTenantScope"},
+	{"/api/v1/automation/dry-runs/{id}/cancel", Covered,
+		"application/automation dryrun_test TestDryRunRegistry_CancelAndTenantScope"},
+	// Replay loads the execution through GetByID(id, tenant) and then the rule
+	// through GetByID(id, tenant); a forged id from another organisation fails
+	// the first lookup as not-found. Not yet pinned by a dedicated test.
+	{"/api/v1/automation/executions/{id}/replay", Pending,
+		"Replay resolves the execution and its rule through tenant-scoped GetByID; no cross-tenant assertion yet"},
+	// Adopting a template reads from an in-code catalogue (no tenant data at all)
+	// and writes a new rule stamped with the caller's tenant. There is nothing to
+	// leak: the {key} is a catalogue key, not a record id.
+	{"/api/v1/automation/templates/{id}/adopt", SelfScoped,
+		"the path parameter is a static catalogue key, not a tenant record; the created rule is stamped with the caller's own tenant from the token"},
 	{"/api/v1/reports/board/{id}", Pending,
 		"GormBoardReportRepository is tenant-scoped; not pinned by a test"},
 	{"/api/v1/reports/board/*", Pending,

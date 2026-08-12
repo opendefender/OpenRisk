@@ -310,8 +310,8 @@ type Risk struct {
 	// button from it, so that button reflects what EXISTS rather than what the
 	// user did in this session — a state the previous version got wrong the
 	// moment you reloaded the page.
-	MitigationsCount int `gorm:"-" json:"mitigations_count"`
-	Assets      []*Asset     `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
+	MitigationsCount int      `gorm:"-" json:"mitigations_count"`
+	Assets           []*Asset `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
 
 	// Computed Fields (NOT persisted, populated by handlers/use cases)
 	// These help with API responses but are never stored in DB
