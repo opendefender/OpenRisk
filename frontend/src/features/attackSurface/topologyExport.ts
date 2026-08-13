@@ -55,7 +55,7 @@ export function topologyToSvg(state: LayoutState, opts: ExportOptions): string {
   parts.push('<g stroke-linecap="round" fill="none">');
   for (const e of state.edges) {
     const on = !dim || opts.highlightedEdges?.has(e.id);
-    const dash = EDGE_DASH[(e.edge.type ?? 'depends_on') as TopologyEdgeType];
+    const dash = EDGE_DASH[(e.edge.type ?? 'depends_on') as TopologyEdgeType] ?? [];
     parts.push(
       `<path d="M${e.source.x.toFixed(1)} ${e.source.y.toFixed(1)}L${e.target.x.toFixed(1)} ${e.target.y.toFixed(1)}" ` +
         `stroke="${opts.ink}" stroke-opacity="${on ? 0.45 : 0.08}" stroke-width="${on ? 1.4 : 1}"` +

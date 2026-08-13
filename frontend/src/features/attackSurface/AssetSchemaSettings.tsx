@@ -33,8 +33,8 @@ const inputCls =
   'w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40';
 const inputSty = {
   background: 'var(--surface-2)',
-  borderColor: 'var(--line)',
-  color: 'var(--ink-1)',
+  borderColor: 'var(--border)',
+  color: 'var(--text-primary)',
 } as const;
 
 /**
@@ -106,13 +106,13 @@ export default function AssetSchemaSettings() {
   if (isError) {
     return (
       <div className="p-6">
-        <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Les schémas n'ont pas pu être chargés.
         </p>
         <button
           onClick={() => refetch()}
           className="mt-3 rounded-lg border px-3 py-1.5 text-sm"
-          style={{ borderColor: 'var(--line)', color: 'var(--ink-1)' }}
+          style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         >
           Réessayer
         </button>
@@ -123,10 +123,10 @@ export default function AssetSchemaSettings() {
   return (
     <div className="p-6 space-y-5">
       <header>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--ink-1)' }}>
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
           Attributs par catégorie d'actif
         </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-3)' }}>
+        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
           Ce que vous décrivez ici devient le formulaire de saisie et la validation
           serveur pour chaque actif de cette catégorie.
         </p>
@@ -142,9 +142,9 @@ export default function AssetSchemaSettings() {
               onClick={() => setSelected(cat)}
               className="rounded-full border px-3 py-1.5 text-sm transition"
               style={{
-                borderColor: on ? 'var(--accent)' : 'var(--line)',
+                borderColor: on ? 'var(--accent)' : 'var(--border)',
                 background: on ? 'var(--accent-soft)' : 'transparent',
-                color: on ? 'var(--accent)' : 'var(--ink-2)',
+                color: on ? 'var(--accent)' : 'var(--text-secondary)',
               }}
             >
               {CATEGORY_LABELS[cat]}
@@ -156,11 +156,11 @@ export default function AssetSchemaSettings() {
 
       <div
         className="rounded-2xl border p-4 space-y-4"
-        style={{ borderColor: 'var(--line)', background: 'var(--surface-1)' }}
+        style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}
       >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--ink-3)' }}>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
               Nom affiché de la catégorie
             </label>
             <input
@@ -172,7 +172,7 @@ export default function AssetSchemaSettings() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {draft.length} attribut{draft.length > 1 ? 's' : ''}
               {current?.customized ? ' · personnalisé' : ' · par défaut'}
               {current?.version ? ` · v${current.version}` : ''}
@@ -183,7 +183,7 @@ export default function AssetSchemaSettings() {
                   onClick={reset}
                   disabled={resetSchema.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"
-                  style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                 >
                   <RotateCcw size={14} /> Valeurs par défaut
                 </button>
@@ -191,7 +191,7 @@ export default function AssetSchemaSettings() {
                   onClick={save}
                   disabled={!dirty || updateSchema.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-                  style={{ background: 'var(--accent)', color: 'var(--on-accent, #fff)' }}
+                  style={{ background: 'var(--accent)', color: 'var(--text-inverse)' }}
                 >
                   <Save size={14} />
                   {updateSchema.isPending ? 'Enregistrement…' : 'Enregistrer'}
@@ -202,7 +202,7 @@ export default function AssetSchemaSettings() {
         </div>
 
         {!isAdmin && (
-          <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
             Lecture seule — modifier un schéma est une action d'administrateur.
           </p>
         )}
@@ -212,7 +212,7 @@ export default function AssetSchemaSettings() {
             <div
               key={`${def.key}-${i}`}
               className="rounded-xl border p-3"
-              style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
+              style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
             >
               <div className="grid gap-2 sm:grid-cols-12">
                 <input
@@ -255,7 +255,7 @@ export default function AssetSchemaSettings() {
                 <div className="flex items-center gap-1 sm:col-span-2">
                   <label
                     className="flex items-center gap-1 text-xs"
-                    style={{ color: 'var(--ink-2)' }}
+                    style={{ color: 'var(--text-secondary)' }}
                   >
                     <input
                       type="checkbox"
@@ -315,7 +315,7 @@ export default function AssetSchemaSettings() {
                 )}
                 <label
                   className="flex items-center gap-1.5 text-xs sm:col-span-5"
-                  style={{ color: 'var(--ink-3)' }}
+                  style={{ color: 'var(--text-muted)' }}
                   title="Marque cet attribut comme signal d'identité pour corréler les vulnérabilités"
                 >
                   <Fingerprint size={13} />
@@ -350,7 +350,7 @@ export default function AssetSchemaSettings() {
               ])
             }
             className="inline-flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm"
-            style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
           >
             <Plus size={14} /> Ajouter un attribut
           </button>
@@ -377,7 +377,7 @@ function IconBtn({
       onClick={onClick}
       disabled={disabled}
       className="rounded p-1.5 transition disabled:opacity-30"
-      style={{ color: danger ? 'var(--critical)' : 'var(--ink-3)' }}
+      style={{ color: danger ? 'var(--critical)' : 'var(--text-muted)' }}
     >
       {children}
     </button>

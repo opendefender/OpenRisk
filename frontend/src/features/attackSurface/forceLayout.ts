@@ -63,15 +63,41 @@ export interface LayoutState {
   zoneAnchors: Map<string, { x: number; y: number }>;
   /** Falls from 1 to 0; the layout is settled at 0. */
   alpha: number;
+  mode: LayoutMode;
 }
 
-/** Node radius: degree-driven, so hubs read as hubs without labels. */
-function radiusFor(n: TopologyNode): number {
+/**
+ * How the graph is laid out and drawn.
+ *
+ *  'zones'    — the topology: nodes cluster by network zone / cloud region /
+ *               category, sized by degree so hubs read as hubs. Answers "how is
+ *               the estate segmented, and what connects across the segments?".
+ *  'universe' — the asset universe: one gravity centre, large orbs sized and
+ *               coloured by criticality. Answers "what do we own, and what
+ *               matters most?".
+ *
+ * They are two questions about the same graph, so they are two modes of one
+ * view rather than two screens with two copies of the physics.
+ */
+export type LayoutMode = 'zones' | 'universe';
+
+const CRIT_RADIUS: Record<string, number> = {
+  CRITICAL: 22,
+  HIGH: 18,
+  MEDIUM: 14,
+  LOW: 11,
+};
+
+/** Node radius. Degree-driven in topology mode, criticality-driven in universe. */
+function radiusFor(n: TopologyNode, mode: LayoutMode): number {
+  if (mode === 'universe') {
+    return CRIT_RADIUS[(n.criticality ?? 'LOW') as string] ?? 11;
+  }
   return 5 + Math.min(9, Math.sqrt(n.degree ?? 0) * 2.2);
 }
 
 /**
- * Seeds a layout. Nodes start ON their zone anchor (jittered), not at random:
+ * Seeds a layout. Nodes start ON their anchor (jittered), not at random:
  * starting from the answer's neighbourhood is what lets the simulation settle in
  * a few hundred ticks instead of a few thousand.
  */
@@ -79,7 +105,8 @@ export function createLayout(
   nodes: TopologyNode[],
   edges: TopologyEdge[],
   width: number,
-  height: number
+  height: number,
+  mode: LayoutMode = 'zones'
 ): LayoutState {
   const zones = [...new Set(nodes.map((n) => n.zone ?? 'unknown'))];
   const zoneAnchors = new Map<string, { x: number; y: number }>();
@@ -88,7 +115,9 @@ export function createLayout(
   const ringRadius = Math.min(width, height) * 0.32;
 
   zones.forEach((zone, i) => {
-    if (zones.length === 1) {
+    // Universe mode has ONE centre: that is what makes it a universe rather
+    // than a set of neighbourhoods, and it is the whole visual difference.
+    if (mode === 'universe' || zones.length === 1) {
       zoneAnchors.set(zone, { x: cx, y: cy });
       return;
     }
@@ -115,7 +144,7 @@ export function createLayout(
       vy: 0,
       fixed: false,
       zone,
-      r: radiusFor(n),
+      r: radiusFor(n, mode),
       node: n,
     };
     byId.set(ln.id, ln);
@@ -130,7 +159,7 @@ export function createLayout(
     laidEdges.push({ id: e.id as string, source: s, target: t, edge: e });
   }
 
-  return { nodes: laid, edges: laidEdges, byId, zoneAnchors, alpha: 1 };
+  return { nodes: laid, edges: laidEdges, byId, zoneAnchors, alpha: 1, mode };
 }
 
 /** Advances the simulation one step. Mutates in place — no per-tick allocation. */
@@ -139,9 +168,14 @@ export function tick(state: LayoutState): void {
   if (state.alpha <= 0) return;
 
   // --- repulsion, restricted to spatial-grid neighbours ---------------------
-  const grid = new Map<number, LaidOutNode[]>();
+  const grid = new Map<string, LaidOutNode[]>();
   const cell = (v: number) => Math.floor(v / CUTOFF);
-  const key = (cx: number, cy: number) => cx * 100000 + cy;
+  // A string key, not `cx * 100000 + cy`. Node coordinates go negative as the
+  // graph spreads past the origin, and that arithmetic collides across the sign
+  // boundary — key(1, -1) and key(0, 99999) are both 99999 — which silently
+  // dropped repulsion between real neighbours and applied it between distant
+  // ones. The symptom is nodes piling on top of each other in one corner.
+  const key = (cx: number, cy: number) => `${cx},${cy}`;
 
   for (const n of nodes) {
     const k = key(cell(n.x), cell(n.y));
@@ -171,7 +205,10 @@ export function tick(state: LayoutState): void {
             d2 = 0.5;
           }
           const d = Math.sqrt(d2);
-          const force = REPULSION / d2;
+          // Bigger nodes must push harder or they overlap: in universe mode a
+          // critical asset is twice the radius of a low one.
+          const scale = ((n.r + m.r) / 16) ** 2;
+          const force = (REPULSION * scale) / d2;
           n.vx += (ddx / d) * force * 0.5;
           n.vy += (ddy / d) * force * 0.5;
         }
@@ -184,7 +221,8 @@ export function tick(state: LayoutState): void {
     const dx = e.target.x - e.source.x;
     const dy = e.target.y - e.source.y;
     const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-    const force = (d - SPRING_LENGTH) * SPRING;
+    const rest = SPRING_LENGTH + e.source.r + e.target.r;
+    const force = (d - rest) * SPRING;
     const fx = (dx / d) * force;
     const fy = (dy / d) * force;
     e.source.vx += fx;

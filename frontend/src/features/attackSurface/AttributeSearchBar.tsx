@@ -53,8 +53,8 @@ export function AttributeSearchBar({
   const inputCls = 'rounded-lg border px-2.5 py-1.5 text-[13px] outline-none';
   const inputSty = {
     background: 'var(--surface-2)',
-    borderColor: 'var(--line)',
-    color: 'var(--ink-1)',
+    borderColor: 'var(--border)',
+    color: 'var(--text-primary)',
   } as const;
 
   return (
@@ -62,7 +62,7 @@ export function AttributeSearchBar({
       <div className="flex flex-wrap items-center gap-2">
         <span
           className="inline-flex items-center gap-1.5 text-[12px] font-medium"
-          style={{ color: 'var(--ink-3)' }}
+          style={{ color: 'var(--text-muted)' }}
         >
           <Filter size={13} /> Recherche par attribut
         </span>
@@ -158,13 +158,13 @@ export function AttributeSearchBar({
             </button>
           </>
         ) : (
-          <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+          <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
             Choisissez une catégorie pour filtrer sur ses attributs.
           </span>
         )}
 
         {typeof resultCount === 'number' && (category || activeTerms.length) ? (
-          <span className="ml-auto text-[12px]" style={{ color: 'var(--ink-3)' }}>
+          <span className="ml-auto text-[12px]" style={{ color: 'var(--text-muted)' }}>
             {resultCount} actif{resultCount > 1 ? 's' : ''}
           </span>
         ) : null}

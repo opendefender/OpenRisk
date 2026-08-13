@@ -27,6 +27,7 @@ import {
   reheat,
   tick,
   type LaidOutNode,
+  type LayoutMode,
   type LayoutState,
 } from './forceLayout';
 import { downloadPng, downloadSvg } from './topologyExport';
@@ -44,6 +45,13 @@ import { useAssetDependencies } from '../assets/useAssetDependencies';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { DEPENDENCY_TYPES, type AssetDependency, type DependencyType } from '../../types/asset';
 import { apiErrorMessage } from '../../lib/apiError';
+
+const CRIT_LABEL: Record<string, string> = {
+  CRITICAL: 'Critique',
+  HIGH: 'Élevée',
+  MEDIUM: 'Moyenne',
+  LOW: 'Faible',
+};
 
 const EXPOSED_COLOR = 'var(--critical)';
 const INTERNAL_COLOR = 'var(--low)';
@@ -67,7 +75,14 @@ export default function TopologyView() {
   const camRef = useRef({ x: 0, y: 0, k: 1 });
 
   const [colorMode, setColorMode] = useState<ColorMode>('criticality');
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('zones');
   const [zoneFilter, setZoneFilter] = useState<string>('');
+  // Criticality filter, carried over from the Asset Universe. Unticking a level
+  // drops those assets AND every edge that ends on one — a dangling edge to a
+  // hidden node would draw a dependency on nothing.
+  const [critFilter, setCritFilter] = useState<Set<string>>(
+    new Set(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])
+  );
   const [selected, setSelected] = useState<LaidOutNode | null>(null);
   const [chainOrigin, setChainOrigin] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -122,7 +137,11 @@ export default function TopologyView() {
       layoutRef.current = null;
       return;
     }
-    const visibleNodes = zoneFilter ? nodes.filter((n) => n.zone === zoneFilter) : nodes;
+    const visibleNodes = nodes.filter(
+      (n) =>
+        (!zoneFilter || n.zone === zoneFilter) &&
+        critFilter.has((n.criticality ?? 'LOW') as string)
+    );
     const visibleIds = new Set(visibleNodes.map((n) => n.id as string));
     const visibleEdges = edges.filter(
       (e) => visibleIds.has(e.source as string) && visibleIds.has(e.target as string)
@@ -130,11 +149,11 @@ export default function TopologyView() {
 
     const w = wrap.clientWidth || 900;
     const h = wrap.clientHeight || 600;
-    layoutRef.current = createLayout(visibleNodes, visibleEdges, w, h);
+    layoutRef.current = createLayout(visibleNodes, visibleEdges, w, h, layoutMode);
     // Frame the whole graph rather than dropping the user at an arbitrary
     // corner of it.
     fitToView();
-  }, [nodes, edges, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, edges, zoneFilter, critFilter, layoutMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fitToView = useCallback(() => {
     const st = layoutRef.current;
@@ -189,7 +208,7 @@ export default function TopologyView() {
     h: number
   ) => {
     const root = document.documentElement;
-    const ink = resolveColor('var(--ink-1)', root);
+    const ink = resolveColor('var(--text-primary)', root);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
@@ -208,7 +227,7 @@ export default function TopologyView() {
       ctx.globalAlpha = on ? 0.45 : 0.06;
       ctx.strokeStyle = ink;
       ctx.lineWidth = (on ? 1.4 : 1) / cam.k;
-      const dash = EDGE_DASH[(e.edge.type ?? 'depends_on') as TopologyEdgeType];
+      const dash = EDGE_DASH[(e.edge.type ?? 'depends_on') as TopologyEdgeType] ?? [];
       ctx.setLineDash(dash.map((d) => d / cam.k));
       ctx.beginPath();
       ctx.moveTo(e.source.x, e.source.y);
@@ -243,9 +262,10 @@ export default function TopologyView() {
       }
     }
 
-    // Labels, only when zoomed in far enough for them to be readable — drawing
-    // 2 000 of them at any zoom produces a smear and costs the frame budget.
-    if (cam.k > 0.55) {
+    // Labels. Universe mode uses large orbs and is meant to be read at a glance,
+    // so it labels sooner; topology mode waits until the labels would not smear.
+    const labelZoom = st.mode === 'universe' ? 0.3 : 0.55;
+    if (cam.k > labelZoom) {
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = ink;
       ctx.font = `${11 / cam.k}px ui-sans-serif, system-ui, sans-serif`;
@@ -336,7 +356,7 @@ export default function TopologyView() {
       highlighted: highlighted ?? undefined,
       highlightedEdges: highlightedEdges ?? undefined,
       background: resolveColor('var(--surface-1)', root) || '#ffffff',
-      ink: resolveColor('var(--ink-1)', root) || '#111111',
+      ink: resolveColor('var(--text-primary)', root) || '#111111',
       title: `Topologie — ${st?.nodes.length ?? 0} actifs`,
     };
   };
@@ -390,7 +410,7 @@ export default function TopologyView() {
       {data?.truncated ? (
         <div
           className="mb-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-[13px]"
-          style={{ borderColor: 'var(--high)', background: 'var(--surface-2)', color: 'var(--ink-2)' }}
+          style={{ borderColor: 'var(--high)', background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
         >
           <AlertTriangle size={16} style={{ color: 'var(--high)' }} className="mt-0.5 shrink-0" />
           <span>
@@ -402,7 +422,21 @@ export default function TopologyView() {
 
       {/* Controls */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          Vue
+        </span>
+        <Chip
+          label="Topologie"
+          active={layoutMode === 'zones'}
+          onClick={() => setLayoutMode('zones')}
+        />
+        <Chip
+          label="Univers"
+          active={layoutMode === 'universe'}
+          onClick={() => setLayoutMode('universe')}
+        />
+
+        <span className="ml-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
           Couleur
         </span>
         <Chip
@@ -416,7 +450,7 @@ export default function TopologyView() {
           onClick={() => setColorMode('exposure')}
         />
 
-        <span className="ml-3 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+        <span className="ml-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
           Zone
         </span>
         <Chip label="Toutes" active={!zoneFilter} onClick={() => setZoneFilter('')} />
@@ -428,13 +462,33 @@ export default function TopologyView() {
             onClick={() => setZoneFilter(zoneFilter === z.key ? '' : (z.key as string))}
           />
         ))}
+
+        <span className="ml-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          Criticité
+        </span>
+        {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((c) => (
+          <Chip
+            key={c}
+            label={CRIT_LABEL[c]}
+            color={critColor[c.toLowerCase() as Criticality]}
+            active={critFilter.has(c)}
+            onClick={() =>
+              setCritFilter((prev) => {
+                const next = new Set(prev);
+                if (next.has(c)) next.delete(c);
+                else next.add(c);
+                return next;
+              })
+            }
+          />
+        ))}
       </div>
 
       <div className="relative" style={{ height: '68vh' }}>
         <div
           ref={wrapRef}
           className="h-full w-full overflow-hidden rounded-2xl border"
-          style={{ borderColor: 'var(--line)', background: 'var(--surface-1)' }}
+          style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}
         >
           {isLoading ? (
             <div className="p-6">
@@ -442,18 +496,18 @@ export default function TopologyView() {
             </div>
           ) : isError ? (
             <div className="flex h-full flex-col items-center justify-center gap-3">
-              <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 La topologie n'a pas pu être chargée.
               </p>
               <Btn label="Réessayer" onClick={() => void refetch()} />
             </div>
           ) : nodes.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2">
-              <Network size={32} style={{ color: 'var(--ink-3)' }} />
-              <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+              <Network size={32} style={{ color: 'var(--text-muted)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Aucun actif à cartographier.
               </p>
-              <p className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+              <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 Ajoutez des actifs et des dépendances pour voir la topologie.
               </p>
             </div>
@@ -491,12 +545,12 @@ export default function TopologyView() {
           <div
             className="absolute bottom-3 right-3 rounded-xl border px-3 py-2 text-[11px]"
             style={{
-              borderColor: 'var(--line)',
+              borderColor: 'var(--border)',
               background: 'var(--surface-2)',
-              color: 'var(--ink-3)',
+              color: 'var(--text-muted)',
             }}
           >
-            <div className="mb-1.5 font-medium" style={{ color: 'var(--ink-2)' }}>
+            <div className="mb-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>
               Relations
             </div>
             {TOPOLOGY_EDGE_TYPES.map((t) => (
@@ -522,25 +576,25 @@ export default function TopologyView() {
         {selected && (
           <aside
             className="absolute right-3 top-3 w-72 rounded-2xl border p-4 shadow-lg"
-            style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
+            style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-[15px] font-semibold" style={{ color: 'var(--ink-1)' }}>
+                <h3 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                   {selected.node.name}
                 </h3>
-                <p className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                   {selected.node.category
                     ? CATEGORY_LABELS[selected.node.category as AssetCategory]
                     : (selected.node.type ?? 'Non typé')}
                 </p>
               </div>
               <button onClick={() => setSelected(null)} aria-label="Fermer">
-                <X size={16} style={{ color: 'var(--ink-3)' }} />
+                <X size={16} style={{ color: 'var(--text-muted)' }} />
               </button>
             </div>
 
-            <div className="mt-3 space-y-2 text-[12.5px]" style={{ color: 'var(--ink-2)' }}>
+            <div className="mt-3 space-y-2 text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>
               <Row label="Criticité">
                 <CritBadge
                   crit={((selected.node.criticality ?? 'LOW') as string).toLowerCase() as Criticality}
@@ -562,8 +616,8 @@ export default function TopologyView() {
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium"
               style={{
                 background: chainOrigin === selected.id ? 'var(--surface-1)' : 'var(--accent-soft)',
-                color: chainOrigin === selected.id ? 'var(--ink-2)' : 'var(--accent)',
-                border: '1px solid var(--line)',
+                color: chainOrigin === selected.id ? 'var(--text-secondary)' : 'var(--accent)',
+                border: '1px solid var(--border)',
               }}
             >
               <Crosshair size={14} />
@@ -573,7 +627,7 @@ export default function TopologyView() {
             </button>
 
             {chainOrigin === selected.id && chainCounts ? (
-              <p className="mt-2 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+              <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--critical)' }}>{chainCounts.impacted}</strong> actif
                 {chainCounts.impacted > 1 ? 's' : ''} impacté
                 {chainCounts.impacted > 1 ? 's' : ''} ·{' '}
@@ -615,7 +669,7 @@ export default function TopologyView() {
             <a
               href={`/assets?focus=${selected.id}`}
               className="mt-2 block text-center text-[12px] underline"
-              style={{ color: 'var(--ink-3)' }}
+              style={{ color: 'var(--text-muted)' }}
             >
               Ouvrir la fiche de l'actif
             </a>
@@ -660,13 +714,13 @@ function DependencyEditor({
   const selCls = 'w-full rounded-lg border px-2 py-1.5 text-[12px]';
   const selSty = {
     background: 'var(--surface-1)',
-    borderColor: 'var(--line)',
-    color: 'var(--ink-1)',
+    borderColor: 'var(--border)',
+    color: 'var(--text-primary)',
   } as const;
 
   return (
-    <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
-      <div className="mb-1.5 text-[11px] font-semibold uppercase" style={{ color: 'var(--ink-3)' }}>
+    <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+      <div className="mb-1.5 text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
         Dépendances
       </div>
 
@@ -690,7 +744,7 @@ function DependencyEditor({
           />
         ))}
         {outgoing.length === 0 && incoming.length === 0 ? (
-          <p className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
             Aucune dépendance enregistrée.
           </p>
         ) : null}
@@ -756,11 +810,11 @@ function DepRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 text-[12px]">
-      <span style={{ color: 'var(--ink-2)' }}>
-        {text} <span style={{ color: 'var(--ink-3)' }}>({sub})</span>
+      <span style={{ color: 'var(--text-secondary)' }}>
+        {text} <span style={{ color: 'var(--text-muted)' }}>({sub})</span>
       </span>
       {canEdit ? (
-        <button onClick={onDelete} aria-label="Retirer" style={{ color: 'var(--ink-3)' }}>
+        <button onClick={onDelete} aria-label="Retirer" style={{ color: 'var(--text-muted)' }}>
           <X size={12} />
         </button>
       ) : null}
@@ -771,7 +825,7 @@ function DepRow({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span style={{ color: 'var(--ink-3)' }}>{label}</span>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className="font-medium">{children}</span>
     </div>
   );
@@ -793,9 +847,9 @@ function MapBtn({
       onClick={onClick}
       className="flex h-8 w-8 items-center justify-center rounded-lg border"
       style={{
-        borderColor: 'var(--line)',
+        borderColor: 'var(--border)',
         background: 'var(--surface-2)',
-        color: 'var(--ink-2)',
+        color: 'var(--text-secondary)',
       }}
     >
       {children}

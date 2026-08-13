@@ -116,16 +116,16 @@ export default function RiskRulePage() {
         <Card className="mb-6 p-5">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-[15px] font-semibold" style={{ color: 'var(--ink-1)' }}>
+              <h2 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Règle de création automatique
               </h2>
-              <p className="mt-1 max-w-2xl text-[13px]" style={{ color: 'var(--ink-3)' }}>
+              <p className="mt-1 max-w-2xl text-[13px]" style={{ color: 'var(--text-muted)' }}>
                 Quand une vulnérabilité remplit toutes ces conditions, un risque est créé
                 en <strong>brouillon</strong>. Il n'entre jamais directement dans le
                 registre : c'est vous qui décidez, plus bas.
               </p>
             </div>
-            <label className="flex shrink-0 items-center gap-2 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+            <label className="flex shrink-0 items-center gap-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
               <input
                 type="checkbox"
                 checked={draft.enabled}
@@ -147,7 +147,7 @@ export default function RiskRulePage() {
                 disabled={!isAdmin}
                 onChange={(e) => set('min_cvss', Number(e.target.value))}
                 className="w-full rounded-lg border px-2.5 py-1.5 text-sm"
-                style={{ background: 'var(--surface-2)', borderColor: 'var(--line)', color: 'var(--ink-1)' }}
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               />
             </Field>
 
@@ -159,7 +159,7 @@ export default function RiskRulePage() {
                   set('min_asset_criticality', e.target.value as VulnRiskRule['min_asset_criticality'])
                 }
                 className="w-full rounded-lg border px-2.5 py-1.5 text-sm"
-                style={{ background: 'var(--surface-2)', borderColor: 'var(--line)', color: 'var(--ink-1)' }}
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               >
                 {CRITICALITIES.map((c) => (
                   <option key={c} value={c}>
@@ -199,9 +199,9 @@ export default function RiskRulePage() {
           {/* Live preview against the real register. */}
           <div
             className="mt-4 rounded-xl border p-3"
-            style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
+            style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
           >
-            <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+            <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
               <Sparkles size={14} />
               {previewing ? (
                 'Simulation en cours…'
@@ -223,7 +223,7 @@ export default function RiskRulePage() {
             {preview && preview.samples.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {preview.samples.slice(0, 5).map((s) => (
-                  <li key={s.vulnerability_id} className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                  <li key={s.vulnerability_id} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                     • {s.cve_id ? `${s.cve_id} — ` : ''}
                     {s.title}
                     {s.asset_name ? ` (${s.asset_name})` : ''}
@@ -235,7 +235,7 @@ export default function RiskRulePage() {
             {/* A rule producing nothing explains itself rather than just looking broken. */}
             {preview && preview.would_create === 0 && Object.keys(preview.top_rejections).length > 0 && (
               <div className="mt-2">
-                <p className="text-[12px] font-medium" style={{ color: 'var(--ink-3)' }}>
+                <p className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>
                   Pourquoi rien ne se déclencherait :
                 </p>
                 <ul className="mt-1 space-y-0.5">
@@ -243,7 +243,7 @@ export default function RiskRulePage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 3)
                     .map(([reason, n]) => (
-                      <li key={reason} className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                      <li key={reason} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                         • {reason} ({n})
                       </li>
                     ))}
@@ -258,7 +258,7 @@ export default function RiskRulePage() {
                 onClick={() => save.mutate(draft)}
                 disabled={!dirty || save.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium disabled:opacity-40"
-                style={{ background: 'var(--accent)', color: 'var(--on-accent, #fff)' }}
+                style={{ background: 'var(--accent)', color: 'var(--text-inverse)' }}
               >
                 <Save size={15} />
                 {save.isPending ? 'Enregistrement…' : 'Enregistrer la règle'}
@@ -271,12 +271,12 @@ export default function RiskRulePage() {
       {/* Bulk review of the drafts. */}
       <section>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[15px] font-semibold" style={{ color: 'var(--ink-1)' }}>
+          <h2 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
             Brouillons proposés
           </h2>
           {canReview && selected.size > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+              <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 {selected.size} sélectionné(s)
               </span>
               <button
@@ -291,7 +291,7 @@ export default function RiskRulePage() {
                 onClick={() => review.mutate({ ids: [...selected], decision: 'dismiss' })}
                 disabled={review.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] disabled:opacity-40"
-                style={{ borderColor: 'var(--line)', color: 'var(--critical)' }}
+                style={{ borderColor: 'var(--border)', color: 'var(--critical)' }}
               >
                 <Trash2 size={14} /> Écarter
               </button>
@@ -309,7 +309,7 @@ export default function RiskRulePage() {
           />
         ) : (
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+            <label className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -353,27 +353,27 @@ function DraftRow({
   return (
     <div
       className="flex items-start gap-3 rounded-xl border px-3 py-2.5"
-      style={{ borderColor: 'var(--line)', background: 'var(--surface-1)' }}
+      style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}
     >
       <input type="checkbox" checked={checked} onChange={onToggle} className="mt-1" />
       <div className="min-w-0 flex-1">
-        <div className="text-[13.5px]" style={{ color: 'var(--ink-1)' }}>
+        <div className="text-[13.5px]" style={{ color: 'var(--text-primary)' }}>
           {risk.name || risk.title}
         </div>
         {/* The tracked origin: what proposed this, and on what grounds. Without
             it a reviewer cannot evaluate the proposal, and the honest response
             to a queue you cannot evaluate is to ignore all of it. */}
         {risk.source_rule_reason ? (
-          <div className="mt-0.5 text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
+          <div className="mt-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
             {risk.source_rule_reason}
           </div>
         ) : null}
       </div>
       <div className="shrink-0 text-right">
-        <div className="mono text-[13px] font-semibold" style={{ color: 'var(--ink-2)' }}>
+        <div className="mono text-[13px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
           {risk.score?.toFixed(1) ?? '—'}
         </div>
-        <div className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
+        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {risk.criticality ?? ''}
         </div>
       </div>
@@ -381,7 +381,7 @@ function DraftRow({
         <a
           href={`/vulnerabilities?focus=${risk.source_vulnerability_id ?? ''}`}
           className="mono shrink-0 text-[11px] underline"
-          style={{ color: 'var(--ink-3)' }}
+          style={{ color: 'var(--text-muted)' }}
         >
           {risk.source_cve_id}
         </a>
@@ -401,12 +401,12 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-[12px] font-medium" style={{ color: 'var(--ink-2)' }}>
+      <label className="mb-1 block text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
         {label}
       </label>
       {children}
       {help ? (
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--ink-3)' }}>
+        <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {help}
         </p>
       ) : null}
@@ -429,7 +429,7 @@ function Toggle({
 }) {
   return (
     <div>
-      <label className="flex items-start gap-2 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+      <label className="flex items-start gap-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
         <input
           type="checkbox"
           className="mt-0.5"
@@ -440,7 +440,7 @@ function Toggle({
         <span>{label}</span>
       </label>
       {help ? (
-        <p className="ml-6 mt-0.5 text-[11px]" style={{ color: 'var(--ink-3)' }}>
+        <p className="ml-6 mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {help}
         </p>
       ) : null}

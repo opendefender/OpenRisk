@@ -74,7 +74,7 @@ export default function UnassignedVulnerabilitiesPage() {
         actions={<Btn label="Actualiser" onClick={() => void refetch()} />}
       />
 
-      <p className="mb-4 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+      <p className="mb-4 text-[13px]" style={{ color: 'var(--text-muted)' }}>
         Ces vulnérabilités n'ont pas pu être attribuées à un actif avec assez de
         certitude. Tant qu'elles ne le sont pas, elles sont priorisées sans
         criticité métier — c'est-à-dire mal. Votre décision ici est conservée :
@@ -84,8 +84,8 @@ export default function UnassignedVulnerabilitiesPage() {
       {isLoading ? (
         <SkeletonRows rows={6} />
       ) : isError ? (
-        <div className="rounded-2xl border p-6 text-center" style={{ borderColor: 'var(--line)' }}>
-          <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+        <div className="rounded-2xl border p-6 text-center" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             La liste n'a pas pu être chargée.
           </p>
           <Btn label="Réessayer" onClick={() => void refetch()} />
@@ -156,15 +156,15 @@ function Section({
     <section>
       <h2
         className="mb-1 flex items-center gap-2 text-[14px] font-semibold"
-        style={{ color: 'var(--ink-1)' }}
+        style={{ color: 'var(--text-primary)' }}
       >
         <Icon size={16} />
         {title}
-        <span className="font-normal" style={{ color: 'var(--ink-3)' }}>
+        <span className="font-normal" style={{ color: 'var(--text-muted)' }}>
           ({items.length})
         </span>
       </h2>
-      <p className="mb-2 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+      <p className="mb-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
         {hint}
       </p>
       <div className="space-y-2">
@@ -212,12 +212,12 @@ function VulnRow({
     enabled: open,
   });
 
-  const sev = SEVERITY_META[vuln.severity]?.color ?? 'var(--ink-3)';
+  const sev = SEVERITY_META[vuln.severity]?.color ?? 'var(--text-muted)';
 
   return (
     <div
       className="rounded-xl border"
-      style={{ borderColor: 'var(--line)', background: 'var(--surface-1)' }}
+      style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}
     >
       <button
         type="button"
@@ -231,11 +231,11 @@ function VulnRow({
           {vuln.severity}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px]" style={{ color: 'var(--ink-1)' }}>
+          <span className="block truncate text-[13.5px]" style={{ color: 'var(--text-primary)' }}>
             {vuln.cve_id ? `${vuln.cve_id} — ` : ''}
             {vuln.title}
           </span>
-          <span className="mono block text-[11px]" style={{ color: 'var(--ink-3)' }}>
+          <span className="mono block text-[11px]" style={{ color: 'var(--text-muted)' }}>
             {vuln.source}
             {vuln.match_confidence > 0
               ? ` · meilleure correspondance ${Math.round(vuln.match_confidence * 100)} %`
@@ -243,18 +243,18 @@ function VulnRow({
             {vuln.match_method ? ` (${vuln.match_method})` : ''}
           </span>
         </span>
-        <span className="mono text-[12px]" style={{ color: 'var(--ink-3)' }}>
+        <span className="mono text-[12px]" style={{ color: 'var(--text-muted)' }}>
           {vuln.priority_tier}
         </span>
       </button>
 
       {open && (
-        <div className="border-t px-3 py-3" style={{ borderColor: 'var(--line)' }}>
+        <div className="border-t px-3 py-3" style={{ borderColor: 'var(--border)' }}>
           {loadingCandidates ? (
             <SkeletonRows rows={2} height={32} />
           ) : (candidates?.length ?? 0) > 0 ? (
             <>
-              <p className="mb-2 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+              <p className="mb-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                 Actifs candidats, du plus au moins probable :
               </p>
               <div className="space-y-1.5">
@@ -262,22 +262,22 @@ function VulnRow({
                   <div
                     key={c.asset_id}
                     className="flex items-center gap-3 rounded-lg border px-2.5 py-2"
-                    style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
+                    style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px]" style={{ color: 'var(--ink-1)' }}>
+                      <div className="text-[13px]" style={{ color: 'var(--text-primary)' }}>
                         {c.asset_name}{' '}
-                        <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                           ({c.criticality})
                         </span>
                       </div>
-                      <div className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                      <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                         {c.reason}
                       </div>
                     </div>
                     <span
                       className="mono shrink-0 text-[12px] font-semibold"
-                      style={{ color: 'var(--ink-2)' }}
+                      style={{ color: 'var(--text-secondary)' }}
                     >
                       {Math.round(c.confidence * 100)} %
                     </span>
@@ -299,7 +299,7 @@ function VulnRow({
           ) : (
             <p
               className="mb-2 flex items-center gap-1.5 text-[12px]"
-              style={{ color: 'var(--ink-3)' }}
+              style={{ color: 'var(--text-muted)' }}
             >
               <HelpCircle size={13} />
               Aucun actif candidat. Choisissez-en un manuellement, ou détachez la
@@ -315,8 +315,8 @@ function VulnRow({
                 className="rounded-lg border px-2 py-1.5 text-[12px]"
                 style={{
                   background: 'var(--surface-2)',
-                  borderColor: 'var(--line)',
-                  color: 'var(--ink-1)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-primary)',
                 }}
               >
                 <option value="">Choisir un autre actif…</option>
@@ -340,7 +340,7 @@ function VulnRow({
                 disabled={busy}
                 onClick={() => onAttribute(vuln, null)}
                 className="ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] disabled:opacity-40"
-                style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
+                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
                 title="Cette vulnérabilité ne concerne aucun actif que nous possédons"
               >
                 <Link2Off size={13} />
