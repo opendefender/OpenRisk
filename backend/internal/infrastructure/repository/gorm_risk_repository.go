@@ -116,6 +116,12 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		db = db.Where("lifecycle_phase IN ?", query.LifecyclePhase)
 	}
 
+	// Canonical lifecycle state filter — the source of truth the other two are
+	// derived from (see domain/risk_state.go).
+	if len(query.LifecycleState) > 0 {
+		db = db.Where("lifecycle_state IN ?", query.LifecycleState)
+	}
+
 	// Framework filter (single framework)
 	if query.Framework != "" {
 		db = db.Where("? = ANY(frameworks)", query.Framework)

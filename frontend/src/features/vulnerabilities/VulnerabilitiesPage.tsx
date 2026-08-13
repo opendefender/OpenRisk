@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
   Bug, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
-  ChevronDown, Check, Loader2, Ticket, ExternalLink, Unlink,
+  ChevronDown, Check, Loader2, Ticket, ExternalLink, Unlink, GitBranch,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, EmptyState } from '../../shared/ui';
 import {
@@ -233,6 +233,11 @@ export function VulnerabilitiesPage() {
               label={tr('Non rattachées', 'Unassigned')}
               icon={Unlink}
               onClick={() => navigate('/vulnerabilities/unassigned')}
+            />
+            <Btn
+              label={tr('Règle → risque', 'Risk rule')}
+              icon={GitBranch}
+              onClick={() => navigate('/vulnerabilities/risk-rule')}
             />
             <Btn label={tr('Intégrations', 'Integrations')} icon={Plug} onClick={() => setConnectorsOpen(true)} />
             <Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />

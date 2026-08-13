@@ -197,6 +197,10 @@ func main() {
 		// (tenant, category) holding the tenant-editable schema that the asset
 		// form is generated from and every asset write is validated against.
 		&domain.AssetTypeSchema{},
+		// The tenant's vulnerability→risk rule (Attack Surface §4). One row per
+		// tenant; disabled until they configure it, because automatic risk
+		// creation writes to somebody's register.
+		&domain.VulnRiskRule{},
 		// Directed edges of the asset dependency graph ("cartographie des
 		// dépendances"). Tenant-scoped; both endpoints reference assets.
 		&domain.AssetDependency{},
@@ -1328,9 +1332,17 @@ func main() {
 	// before prioritisation. A stateless repo instance on the shared DB — the CTI
 	// handler wires its own later.
 	vulnCTIEnricher := vulnapp.NewCTIRepoEnricher(repository.NewGormCTIRepository(database.DB))
+	// Vulnerability→risk rule (Attack Surface §4). The condition used to be
+	// hardcoded ("P1 or CISA-KEV"); it is now a tenant-configured rule, and every
+	// risk it produces lands in DRAFT — a machine may propose, never enrol.
+	vulnRiskRuleRepo := repository.NewGormVulnRiskRuleRepository(database.DB)
+	assetExposure := repository.NewGormAssetExposureLookup(database.DB)
+
 	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo).
 		WithCTIEnricher(vulnCTIEnricher).
-		WithRiskProposer(vulnrisk.NewRiskCreator(database.DB))
+		WithRiskProposer(vulnrisk.NewRiskCreator(database.DB)).
+		WithRiskRules(vulnRiskRuleRepo).
+		WithAssetExposure(assetExposure)
 	vulnHandler := handlers.NewVulnerabilityHandler(
 		vulnIngestUC,
 		vulnapp.NewListUseCase(vulnRepo),
@@ -1430,6 +1442,20 @@ func main() {
 		vulnapp.NewResolveAssetUseCase(vulnRepo, assetRepo),
 	)
 	protected.Get("/vulnerabilities/unassigned", vulnRead, vulnCorrelationHandler.ListUnassigned)
+
+	// Attack Surface §4 — the vuln→risk rule and the review queue of the DRAFT
+	// risks it proposes. Reading the rule is open to anyone who can read
+	// vulnerabilities (the preview is how you understand what fires); changing
+	// it is admin, because it changes what appears in everyone's register.
+	vulnRiskRuleHandler := handlers.NewVulnRiskRuleHandler(
+		vulnapp.NewRiskRuleService(vulnRiskRuleRepo, vulnRepo).WithAssetExposure(assetExposure),
+		risk.NewDraftReviewUseCase(riskRepo),
+	)
+	protected.Get("/attack-surface/risk-rule", vulnRead, vulnRiskRuleHandler.GetRule)
+	protected.Put("/attack-surface/risk-rule", adminOnly, vulnRiskRuleHandler.UpdateRule)
+	protected.Post("/attack-surface/risk-rule/preview", vulnRead, vulnRiskRuleHandler.PreviewRule)
+	protected.Get("/attack-surface/draft-risks", middleware.RequirePermission("risks:read"), vulnRiskRuleHandler.ListDrafts)
+	protected.Post("/attack-surface/draft-risks/review", middleware.RequirePermission("risks:update"), vulnRiskRuleHandler.BulkReview)
 
 	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
 	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
@@ -1620,6 +1646,13 @@ func main() {
 	notificationRepo := repository.NewNotificationRepository(database.DB)
 	notificationUseCase := notificationapp.NewUseCase(notificationRepo)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
+
+	// Attack Surface §4: tell the tenant's admins when the vuln→risk rule
+	// proposes a draft. Attached here (rather than at the ingest wiring above)
+	// because the notification use case only exists at this point; With* mutates
+	// the same pointer, so ordering is the only constraint. A draft nobody is
+	// told about is a draft nobody reviews.
+	vulnIngestUC.WithRiskProposalNotifier(vulnrisk.NewDraftRiskNotifier(database.DB, notificationUseCase))
 	notificationsGroup := protected.Group("/notifications")
 	notificationsGroup.Get("", notificationHandler.GetNotifications)
 	notificationsGroup.Get("/unread-count", notificationHandler.GetUnreadCount)

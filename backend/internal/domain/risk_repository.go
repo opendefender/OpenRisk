@@ -93,6 +93,9 @@ type RiskQuery struct {
 	Status         []string   // Filter by statuses (OR condition)
 	Criticality    []string   // Filter by criticality levels
 	LifecyclePhase []string   // Filter by ISO 31000 lifecycle phase (OR condition)
+	// LifecycleState filters on the CANONICAL state column (draft, identified,
+	// …). Prefer it over LifecyclePhase and Status, which are derived from it.
+	LifecycleState []string
 	Framework      string     // Filter by single framework (iso27001|cobac|bceao|etc.)
 	AssetID        *uuid.UUID // Filter by linked asset
 	AssignedTo     *uuid.UUID // Filter by assignee (matches the legacy assigned_to OR assignee_id)

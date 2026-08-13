@@ -292,6 +292,17 @@ type Risk struct {
 	// Source Tracking
 	Source      RiskSource `gorm:"type:varchar(20);default:'manual';index" json:"source"` // manual|cti_auto|scan_auto|import|vendor|ai
 	SourceCVEID *string    `gorm:"index" json:"source_cve_id"`                            // CVE identifier if from CTI
+
+	// Origin of an automatically proposed risk (Attack Surface §4). A machine
+	// may propose a risk, but the person reviewing it must be able to see
+	// exactly what proposed it and why — otherwise a draft register fills with
+	// items nobody can evaluate, and the honest response to that is to ignore
+	// all of them.
+	SourceVulnerabilityID *uuid.UUID `gorm:"type:uuid;index" json:"source_vulnerability_id,omitempty"`
+	// SourceRuleReason is the rule's own explanation, captured at creation time
+	// ("CVSS 9.8 ≥ 7.0, asset criticality CRITICAL ≥ HIGH"). Frozen: re-deriving
+	// it later would describe the rule as it is NOW, not the rule that fired.
+	SourceRuleReason string `gorm:"type:text" json:"source_rule_reason,omitempty"`
 	ExternalID  string     `gorm:"index" json:"external_id"`                              // ID in external system
 
 	// Custom Fields (JSONB for flexibility)
