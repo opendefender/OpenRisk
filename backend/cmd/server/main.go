@@ -151,16 +151,25 @@ func main() {
 		cacheableHandlers = handlers.NewCacheableHandlers(redisCache)
 		log.Println("Cache: Handler utilities initialized with Redis")
 	} else {
-		// Create a dummy handler that doesn't cache
-		log.Println("Cache: Handler utilities initialized without caching")
-		// We'll need to create a wrapper that handles nil gracefully
-		// For now, we'll initialize with a placeholder
-		_ = cacheableHandlers
+		// Left nil ON PURPOSE: *CacheableHandlers is nil-safe (see its doc), so
+		// every wrapped route serves its handler directly. This used to be a nil
+		// that got dereferenced during route registration, which meant an
+		// unreachable Redis panicked the server at boot — caching is an
+		// optimisation, and losing it must cost latency, not availability.
+		log.Println("Cache: Redis unavailable — responses will not be cached (the server runs normally)")
 	}
 
 	// =========================================================================
 	// 2. MIGRATIONS & SEEDING (DevOps Friendly)
 	// =========================================================================
+
+	// Data repairs AutoMigrate cannot do for itself. It creates the indexes the
+	// model declares but never touches rows, so a model that gains a UNIQUE
+	// index over an already-populated column makes the whole boot fail against
+	// any database with existing data. Idempotent; safe on a fresh database.
+	if err := database.PrepareForAutoMigrate(database.DB); err != nil {
+		log.Fatalf("Database preparation failed: %v", err)
+	}
 
 	log.Println("Database: Running Auto-Migrations...")
 	if err := database.DB.AutoMigrate(

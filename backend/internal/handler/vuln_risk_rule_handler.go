@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -62,7 +63,12 @@ func (h *VulnRiskRuleHandler) UpdateRule(c *fiber.Ctx) error {
 // is optional: absent, it previews the saved rule; present, the proposed one.
 func (h *VulnRiskRuleHandler) PreviewRule(c *fiber.Ctx) error {
 	var in *vulnapp.UpdateRuleInput
-	if len(c.Body()) > 0 {
+	// An EMPTY object means "preview the saved rule", not "preview a rule with
+	// every field false". Testing len(body) alone got this wrong: `{}` is two
+	// bytes, so it parsed into a zero-value input and the preview reported the
+	// rule as disabled seconds after it had been enabled.
+	if fields := map[string]json.RawMessage{}; len(c.Body()) > 0 &&
+		json.Unmarshal(c.Body(), &fields) == nil && len(fields) > 0 {
 		parsed := new(vulnapp.UpdateRuleInput)
 		if err := c.BodyParser(parsed); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "invalid input", "details": err.Error()})
