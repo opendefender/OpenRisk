@@ -313,9 +313,20 @@ func BuildCompromiseChain(origin uuid.UUID, deps []AssetDependency) CompromiseCh
 		return out
 	}
 
-	chain := CompromiseChain{OriginID: origin}
-	chain.Impacted = walk(backward)
-	chain.Reachable = walk(forward)
+	// Initialised to empty slices, not left nil: a nil slice marshals to JSON
+	// `null`, and the API contract declares these as arrays. An isolated asset
+	// would otherwise hand every client a null to guard against.
+	chain := CompromiseChain{
+		OriginID:  origin,
+		Impacted:  []ChainHop{},
+		Reachable: []ChainHop{},
+	}
+	if hops := walk(backward); hops != nil {
+		chain.Impacted = hops
+	}
+	if hops := walk(forward); hops != nil {
+		chain.Reachable = hops
+	}
 
 	chain.EdgeIDs = make([]uuid.UUID, 0, len(edgeSet))
 	for id := range edgeSet {

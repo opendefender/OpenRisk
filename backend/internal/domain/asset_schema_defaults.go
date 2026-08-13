@@ -43,6 +43,18 @@ func environmentDef() AttributeDef {
 	}
 }
 
+// networkZoneDef is shared by everything that sits on a network. The zone is
+// what the topology view clusters by, so a category that cannot declare one can
+// only ever be grouped by the weaker fallbacks.
+func networkZoneDef(required bool) AttributeDef {
+	return AttributeDef{
+		Key: "network_zone", Label: "Zone réseau", LabelEN: "Network zone",
+		Type: AttrEnum, Required: required, Group: "Exposition",
+		Enum: []string{"dmz", "interne", "administration", "industriel", "invite", "perimetre"},
+		Help: "Sert au regroupement par zone dans la vue topologie.",
+	}
+}
+
 func internetExposedDef() AttributeDef {
 	return AttributeDef{
 		Key: "internet_exposed", Label: "Exposé sur Internet", LabelEN: "Internet exposed",
@@ -74,9 +86,7 @@ func DefaultAttributes(cat AssetCategory) []AttributeDef {
 			{Key: "os_version", Label: "Version de l'OS", LabelEN: "OS version", Type: AttrString, Group: "Identité"},
 			environmentDef(),
 			internetExposedDef(),
-			{Key: "network_zone", Label: "Zone réseau", LabelEN: "Network zone", Type: AttrEnum, Group: "Exposition",
-				Enum: []string{"dmz", "interne", "administration", "industriel", "invite"},
-				Help: "Sert au regroupement par zone dans la vue topologie."},
+			networkZoneDef(false),
 			{Key: "physical_location", Label: "Localisation", LabelEN: "Location", Type: AttrString, Group: "Exploitation"},
 			{Key: "last_patched", Label: "Dernier correctif appliqué", LabelEN: "Last patched", Type: AttrDate, Group: "Exploitation"},
 			{Key: "backup_enabled", Label: "Sauvegardé", LabelEN: "Backed up", Type: AttrBoolean, Group: "Exploitation"},
@@ -109,6 +119,7 @@ func DefaultAttributes(cat AssetCategory) []AttributeDef {
 			{Key: "technology_stack", Label: "Technologies", LabelEN: "Technology stack", Type: AttrStringList, Group: "Identité"},
 			environmentDef(),
 			internetExposedDef(),
+			networkZoneDef(false),
 			{Key: "authentication", Label: "Authentification", LabelEN: "Authentication", Type: AttrEnum, Group: "Sécurité",
 				Enum: []string{"aucune", "mot-de-passe", "sso", "mfa", "certificat"}},
 			{Key: "data_classification", Label: "Classification des données", LabelEN: "Data classification", Type: AttrEnum, Group: "Sécurité",
@@ -126,6 +137,7 @@ func DefaultAttributes(cat AssetCategory) []AttributeDef {
 			{Key: "hostname", Label: "Nom d'hôte", LabelEN: "Hostname", Type: AttrHostname, Group: "Identité", Fingerprint: FingerprintHostname},
 			{Key: "port", Label: "Port", LabelEN: "Port", Type: AttrInteger, Group: "Identité", Min: f(1), Max: f(65535)},
 			environmentDef(),
+			networkZoneDef(false),
 			{Key: "encrypted_at_rest", Label: "Chiffrée au repos", LabelEN: "Encrypted at rest", Type: AttrBoolean, Group: "Sécurité"},
 			{Key: "contains_personal_data", Label: "Contient des données personnelles", LabelEN: "Contains personal data", Type: AttrBoolean, Group: "Conformité"},
 			{Key: "backup_frequency", Label: "Fréquence de sauvegarde", LabelEN: "Backup frequency", Type: AttrEnum, Group: "Exploitation",
