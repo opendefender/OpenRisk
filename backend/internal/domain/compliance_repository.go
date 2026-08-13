@@ -32,6 +32,9 @@ type ComplianceRepository interface {
 	// ListFrameworks returns a tenant's active (non-deleted) frameworks.
 	ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]ComplianceFramework, error)
 
+	// UpdateFramework persists changes to a framework the tenant owns.
+	UpdateFramework(ctx context.Context, framework *ComplianceFramework) error
+
 	// DeleteFramework soft-deletes a framework by ID scoped to a tenant — a
 	// tenant can only delete its own. The delete use case pairs this with
 	// DeleteControlsByFramework so the tenant's controls go away too.

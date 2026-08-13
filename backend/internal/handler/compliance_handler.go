@@ -45,6 +45,9 @@ type ComplianceHandler struct {
 	createMappingUC *compliance.CreateControlMappingUseCase
 	listMappingsUC  *compliance.ListControlMappingsUseCase
 	deleteMappingUC *compliance.DeleteControlMappingUseCase
+	// Optional: absent on deployments that do not wire crosswalks, and the
+	// endpoint says so rather than pretending the tenant inherits nothing.
+	inheritedCoverageUC *compliance.GetInheritedCoverageUseCase
 }
 
 func NewComplianceHandler(
@@ -235,17 +238,41 @@ func (h *ComplianceHandler) ListControlMappings(c *fiber.Ctx) error {
 	return c.JSON(mappings)
 }
 
-type createMappingInput struct {
+type createCrosswalkInput struct {
 	SourceControlID string `json:"source_control_id" validate:"required"`
 	TargetControlID string `json:"target_control_id" validate:"required"`
-	Relation        string `json:"relation"`
-	Note            string `json:"note"`
+	Coverage        string `json:"coverage"`
+	Rationale       string `json:"rationale"`
+}
+
+// GetInheritedCoverage GET /compliance/frameworks/:frameworkId/inherited-coverage
+// — how much of this framework the tenant's existing proof already answers.
+func (h *ComplianceHandler) GetInheritedCoverage(c *fiber.Ctx) error {
+	frameworkID, err := uuid.Parse(c.Params("frameworkId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+	}
+	if h.inheritedCoverageUC == nil {
+		return c.Status(501).JSON(fiber.Map{"error": "inherited coverage is not configured"})
+	}
+	cov, err := h.inheritedCoverageUC.Execute(c.UserContext(), tenantID(c), frameworkID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(cov)
+}
+
+// WithInheritedCoverage attaches the head-start use case. A builder rather than
+// an eighteenth positional argument to the constructor.
+func (h *ComplianceHandler) WithInheritedCoverage(uc *compliance.GetInheritedCoverageUseCase) *ComplianceHandler {
+	h.inheritedCoverageUC = uc
+	return h
 }
 
 // CreateControlMapping POST /compliance/control-mappings — link two controls
 // (normally across frameworks).
 func (h *ComplianceHandler) CreateControlMapping(c *fiber.Ctx) error {
-	input := new(createMappingInput)
+	input := new(createCrosswalkInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
 	}
@@ -257,11 +284,11 @@ func (h *ComplianceHandler) CreateControlMapping(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid target control id"})
 	}
-	m, err := h.createMappingUC.Execute(c.UserContext(), tenantID(c), userID(c), compliance.CreateControlMappingInput{
+	m, err := h.createMappingUC.Execute(c.UserContext(), tenantID(c), userID(c), compliance.CreateControlCrosswalkInput{
 		SourceControlID: src,
 		TargetControlID: tgt,
-		Relation:        input.Relation,
-		Note:            input.Note,
+		Coverage:        input.Coverage,
+		Rationale:       input.Rationale,
 	})
 	if err != nil {
 		return writeAppError(c, err)

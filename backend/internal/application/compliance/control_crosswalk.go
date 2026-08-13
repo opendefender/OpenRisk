@@ -7,17 +7,18 @@ package compliance
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// CreateControlMappingInput is the payload for a new cross-framework mapping.
-type CreateControlMappingInput struct {
+// CreateControlCrosswalkInput is the payload for a new cross-framework crosswalk.
+type CreateControlCrosswalkInput struct {
 	SourceControlID uuid.UUID
 	TargetControlID uuid.UUID
-	Relation        string
-	Note            string
+	Coverage        string
+	Rationale       string
 }
 
 // CreateControlMappingUseCase links two of the tenant's controls (normally in
@@ -25,21 +26,27 @@ type CreateControlMappingInput struct {
 // double cross-tenant guard — and refuses self-links and duplicates (either
 // direction).
 type CreateControlMappingUseCase struct {
-	repo     domain.ControlMappingRepository
+	repo     domain.ControlCrosswalkRepository
 	compRepo domain.ComplianceRepository
 }
 
-func NewCreateControlMappingUseCase(repo domain.ControlMappingRepository, compRepo domain.ComplianceRepository) *CreateControlMappingUseCase {
+func NewCreateControlMappingUseCase(repo domain.ControlCrosswalkRepository, compRepo domain.ComplianceRepository) *CreateControlMappingUseCase {
 	return &CreateControlMappingUseCase{repo: repo, compRepo: compRepo}
 }
 
-func (uc *CreateControlMappingUseCase) Execute(ctx context.Context, tenantID, createdBy uuid.UUID, in CreateControlMappingInput) (*domain.ControlMapping, error) {
+func (uc *CreateControlMappingUseCase) Execute(ctx context.Context, tenantID, createdBy uuid.UUID, in CreateControlCrosswalkInput) (*domain.ControlCrosswalk, error) {
 	if in.SourceControlID == in.TargetControlID {
 		return nil, domain.NewValidationError("a control cannot be mapped to itself")
 	}
-	relation, err := domain.ParseMappingRelation(in.Relation)
+	coverage, err := domain.ParseCrosswalkCoverage(in.Coverage)
 	if err != nil {
 		return nil, err
+	}
+	// A crosswalk with no reasoning is one nobody can defend to an auditor, and
+	// it still moves the inherited-coverage number. Curated links ship with a
+	// rationale; a hand-made one has to carry its own.
+	if strings.TrimSpace(in.Rationale) == "" {
+		return nil, domain.NewValidationError("a rationale is required: say why these two controls correspond")
 	}
 
 	// Both controls must belong to THIS tenant (GetControlByID returns nil for
@@ -67,12 +74,13 @@ func (uc *CreateControlMappingUseCase) Execute(ctx context.Context, tenantID, cr
 		return nil, domain.NewConflictError("control mapping", "control pair")
 	}
 
-	m := &domain.ControlMapping{
+	m := &domain.ControlCrosswalk{
 		TenantID:        tenantID,
 		SourceControlID: in.SourceControlID,
 		TargetControlID: in.TargetControlID,
-		Relation:        relation,
-		Note:            in.Note,
+		Coverage:        coverage,
+		Rationale:       strings.TrimSpace(in.Rationale),
+		Origin:          domain.CrosswalkOriginManual,
 	}
 	if createdBy != uuid.Nil {
 		m.CreatedBy = &createdBy
@@ -88,15 +96,15 @@ func (uc *CreateControlMappingUseCase) Execute(ctx context.Context, tenantID, cr
 // ListControlMappingsUseCase returns the tenant's crosswalks, optionally scoped
 // to one control, enriched with each side's code/name/framework.
 type ListControlMappingsUseCase struct {
-	repo     domain.ControlMappingRepository
+	repo     domain.ControlCrosswalkRepository
 	compRepo domain.ComplianceRepository
 }
 
-func NewListControlMappingsUseCase(repo domain.ControlMappingRepository, compRepo domain.ComplianceRepository) *ListControlMappingsUseCase {
+func NewListControlMappingsUseCase(repo domain.ControlCrosswalkRepository, compRepo domain.ComplianceRepository) *ListControlMappingsUseCase {
 	return &ListControlMappingsUseCase{repo: repo, compRepo: compRepo}
 }
 
-func (uc *ListControlMappingsUseCase) Execute(ctx context.Context, tenantID uuid.UUID, controlID *uuid.UUID) ([]domain.ControlMapping, error) {
+func (uc *ListControlMappingsUseCase) Execute(ctx context.Context, tenantID uuid.UUID, controlID *uuid.UUID) ([]domain.ControlCrosswalk, error) {
 	mappings, err := uc.repo.List(ctx, tenantID, controlID)
 	if err != nil {
 		return nil, err
@@ -113,7 +121,7 @@ func (uc *ListControlMappingsUseCase) Execute(ctx context.Context, tenantID uuid
 
 // enrichOne fills the computed source/target code/name/framework fields, using
 // caches to avoid re-querying shared controls/frameworks.
-func (uc *ListControlMappingsUseCase) enrichOne(ctx context.Context, tenantID uuid.UUID, m *domain.ControlMapping, ctrlCache map[uuid.UUID]*domain.ComplianceControl, fwCache map[uuid.UUID]*domain.ComplianceFramework) error {
+func (uc *ListControlMappingsUseCase) enrichOne(ctx context.Context, tenantID uuid.UUID, m *domain.ControlCrosswalk, ctrlCache map[uuid.UUID]*domain.ComplianceControl, fwCache map[uuid.UUID]*domain.ComplianceFramework) error {
 	src, err := uc.lookupControl(ctx, tenantID, m.SourceControlID, ctrlCache)
 	if err != nil {
 		return err
@@ -163,17 +171,17 @@ func (uc *ListControlMappingsUseCase) lookupFramework(ctx context.Context, tenan
 
 // enrichOne on the create use case reuses the list use case's logic via a small
 // shim so both paths return the same shape.
-func (uc *CreateControlMappingUseCase) enrichOne(ctx context.Context, tenantID uuid.UUID, m *domain.ControlMapping, ctrlCache map[uuid.UUID]*domain.ComplianceControl, fwCache map[uuid.UUID]*domain.ComplianceFramework) {
+func (uc *CreateControlMappingUseCase) enrichOne(ctx context.Context, tenantID uuid.UUID, m *domain.ControlCrosswalk, ctrlCache map[uuid.UUID]*domain.ComplianceControl, fwCache map[uuid.UUID]*domain.ComplianceFramework) {
 	lister := &ListControlMappingsUseCase{repo: uc.repo, compRepo: uc.compRepo}
 	_ = lister.enrichOne(ctx, tenantID, m, ctrlCache, fwCache)
 }
 
 // DeleteControlMappingUseCase removes a crosswalk (tenant-scoped).
 type DeleteControlMappingUseCase struct {
-	repo domain.ControlMappingRepository
+	repo domain.ControlCrosswalkRepository
 }
 
-func NewDeleteControlMappingUseCase(repo domain.ControlMappingRepository) *DeleteControlMappingUseCase {
+func NewDeleteControlMappingUseCase(repo domain.ControlCrosswalkRepository) *DeleteControlMappingUseCase {
 	return &DeleteControlMappingUseCase{repo: repo}
 }
 

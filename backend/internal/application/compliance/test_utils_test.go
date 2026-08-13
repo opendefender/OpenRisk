@@ -22,6 +22,7 @@ type MockComplianceRepository struct {
 	createFrameworkFunc         func(ctx context.Context, fw *domain.ComplianceFramework) error
 	getFrameworkByIDFunc        func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
 	listFrameworksFunc          func(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
+	updateFrameworkFunc         func(ctx context.Context, fw *domain.ComplianceFramework) error
 	deleteFrameworkFunc         func(ctx context.Context, id, tenantID uuid.UUID) error
 	deleteControlsByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (int64, error)
 	createControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
@@ -55,6 +56,13 @@ func (m *MockComplianceRepository) ListFrameworks(ctx context.Context, tenantID 
 		return m.listFrameworksFunc(ctx, tenantID)
 	}
 	return []domain.ComplianceFramework{}, nil
+}
+
+func (m *MockComplianceRepository) UpdateFramework(ctx context.Context, fw *domain.ComplianceFramework) error {
+	if m.updateFrameworkFunc != nil {
+		return m.updateFrameworkFunc(ctx, fw)
+	}
+	return nil
 }
 
 func (m *MockComplianceRepository) DeleteFramework(ctx context.Context, id, tenantID uuid.UUID) error {

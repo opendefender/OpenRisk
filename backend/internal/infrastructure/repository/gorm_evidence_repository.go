@@ -51,11 +51,16 @@ func (r *GormEvidenceRepository) BackfillFromControlEvidences(ctx context.Contex
 		return 0, nil
 	}
 
+	// Only columns the ORIGINAL compliance schema (migration 0028) guarantees are
+	// read here. The ownership block was added to control_evidences by migration
+	// 0044, and on a database where migrations are blocked those columns do not
+	// exist — selecting them fails the whole backfill with "column does not
+	// exist", which is exactly what happened the first time this ran. owner_id is
+	// derived from uploaded_by, which is what 0044 backfilled it from anyway.
 	res := r.db.WithContext(ctx).Exec(`
 		INSERT INTO evidences (
 			id, tenant_id, title, type, description, file_ref, filename,
-			collected_at, collected_by, review, source,
-			owner_id, assignee_id, reviewer_id,
+			collected_at, collected_by, review, source, owner_id,
 			created_at, updated_at, deleted_at
 		)
 		SELECT ce.id, ce.tenant_id,
@@ -65,8 +70,7 @@ func (r *GormEvidenceRepository) BackfillFromControlEvidences(ctx context.Contex
 		       -- the honest stand-in, and valid_until stays NULL rather than being
 		       -- invented. Guessing an expiry would put a date nobody asserted in
 		       -- front of an auditor.
-		       ce.created_at, ce.uploaded_by, 'accepted', 'manual',
-		       ce.owner_id, ce.assignee_id, ce.reviewer_id,
+		       ce.created_at, ce.uploaded_by, 'accepted', 'manual', ce.uploaded_by,
 		       ce.created_at, ce.updated_at, ce.deleted_at
 		FROM control_evidences ce
 		WHERE NOT EXISTS (SELECT 1 FROM evidences e WHERE e.id = ce.id)`)

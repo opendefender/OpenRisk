@@ -204,6 +204,30 @@ func (r *GormComplianceRepository) DeleteControl(ctx context.Context, id uuid.UU
 	return nil
 }
 
+// UpdateFramework persists changes to a framework the tenant owns.
+//
+// Model()+Where()+Updates() with an explicit Select, not Save(): GORM derives
+// Save's WHERE clause from the primary key alone and drops any chained Where,
+// which would let one tenant overwrite another's row by id. Same pattern, and
+// same reason, as UpdateControl above.
+func (r *GormComplianceRepository) UpdateFramework(ctx context.Context, framework *domain.ComplianceFramework) error {
+	if framework.TenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	res := r.db.WithContext(ctx).
+		Model(&domain.ComplianceFramework{}).
+		Where("id = ? AND tenant_id = ?", framework.ID, framework.TenantID).
+		Select("name", "version", "description", "catalog_key").
+		Updates(framework)
+	if res.Error != nil {
+		return fmt.Errorf("failed to update framework: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return domain.NewNotFoundError("framework", framework.ID)
+	}
+	return nil
+}
+
 // DeleteFramework soft-deletes a framework by ID scoped to a tenant.
 func (r *GormComplianceRepository) DeleteFramework(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error {
 	result := r.db.WithContext(ctx).

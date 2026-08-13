@@ -35,6 +35,16 @@ type ComplianceFramework struct {
 	Version     string    `gorm:"size:50;not null;default:''" json:"version"`
 	Description string    `gorm:"type:text" json:"description"`
 
+	// CatalogKey records which regulatory catalog (pkg/compliance) this framework
+	// was imported from, empty for one built by hand.
+	//
+	// It exists so the product can tell what a framework IS, not just what it was
+	// named. Curated crosswalks are defined between catalogs, so without this the
+	// only way to know that a framework called "SOC 2 (v2)" holds AICPA criteria
+	// would be to guess from its title — and inherited coverage would silently
+	// stop working the moment somebody renamed one.
+	CatalogKey string `gorm:"size:64;not null;default:'';index" json:"catalog_key"`
+
 	// Relations (loaded via Preload)
 	Controls []ComplianceControl `gorm:"foreignKey:FrameworkID" json:"controls,omitempty"`
 

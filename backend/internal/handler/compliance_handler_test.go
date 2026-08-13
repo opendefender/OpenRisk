@@ -40,6 +40,7 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 	require.NoError(t, db.Exec(`
 		CREATE TABLE compliance_frameworks (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, version TEXT NOT NULL DEFAULT '',
+			catalog_key TEXT NOT NULL DEFAULT '',
 			description TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
@@ -89,7 +90,7 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 	require.NoError(t, ps.InitializeDefaultRoles())
 
 	repo := repository.NewGormComplianceRepository(db)
-	mappingRepo := repository.NewGormControlMappingRepository(db)
+	mappingRepo := repository.NewGormControlCrosswalkRepository(db)
 	h := NewComplianceHandler(
 		applicationcompliance.NewCreateFrameworkUseCase(repo),
 		applicationcompliance.NewGetFrameworkUseCase(repo),

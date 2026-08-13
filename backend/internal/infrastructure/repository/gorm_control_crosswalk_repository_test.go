@@ -17,28 +17,15 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupMappingRepo(t *testing.T) *GormControlMappingRepository {
+func setupMappingRepo(t *testing.T) *GormControlCrosswalkRepository {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
-	// Raw CREATE TABLE rather than AutoMigrate: the model's id default is
-	// gen_random_uuid() (Postgres), which sqlite's parser rejects — same reason
-	// the other repo tests hand-write their schema.
-	require.NoError(t, db.Exec(`
-		CREATE TABLE control_mappings (
-			id TEXT PRIMARY KEY,
-			tenant_id TEXT NOT NULL,
-			source_control_id TEXT NOT NULL,
-			target_control_id TEXT NOT NULL,
-			relation TEXT NOT NULL DEFAULT 'equivalent',
-			note TEXT,
-			created_by TEXT,
-			created_at DATETIME,
-			updated_at DATETIME,
-			deleted_at DATETIME
-		);
-	`).Error)
-	return NewGormControlMappingRepository(db)
+	// Schema from the model. The crosswalk model carries no Postgres-only default
+	// any more, precisely so this can be derived rather than hand-written and left
+	// to drift.
+	require.NoError(t, db.AutoMigrate(&domain.ControlCrosswalk{}))
+	return NewGormControlCrosswalkRepository(db)
 }
 
 func TestControlMappingRepo_CreateAndExistsBothDirections(t *testing.T) {
@@ -47,8 +34,8 @@ func TestControlMappingRepo_CreateAndExistsBothDirections(t *testing.T) {
 	tenant := uuid.New()
 	a, b := uuid.New(), uuid.New()
 
-	require.NoError(t, repo.Create(ctx, &domain.ControlMapping{
-		ID: uuid.New(), TenantID: tenant, SourceControlID: a, TargetControlID: b, Relation: domain.MappingRelationEquivalent,
+	require.NoError(t, repo.Create(ctx, &domain.ControlCrosswalk{
+		ID: uuid.New(), TenantID: tenant, SourceControlID: a, TargetControlID: b, Coverage: domain.CoverageFull,
 	}))
 
 	// Exists must be symmetric: A→B and B→A are the same mapping.
@@ -71,8 +58,8 @@ func TestControlMappingRepo_ListAllAndByControl(t *testing.T) {
 	tenant := uuid.New()
 	a, b, c := uuid.New(), uuid.New(), uuid.New()
 
-	require.NoError(t, repo.Create(ctx, &domain.ControlMapping{ID: uuid.New(), TenantID: tenant, SourceControlID: a, TargetControlID: b}))
-	require.NoError(t, repo.Create(ctx, &domain.ControlMapping{ID: uuid.New(), TenantID: tenant, SourceControlID: b, TargetControlID: c}))
+	require.NoError(t, repo.Create(ctx, &domain.ControlCrosswalk{ID: uuid.New(), TenantID: tenant, SourceControlID: a, TargetControlID: b}))
+	require.NoError(t, repo.Create(ctx, &domain.ControlCrosswalk{ID: uuid.New(), TenantID: tenant, SourceControlID: b, TargetControlID: c}))
 
 	all, err := repo.List(ctx, tenant, nil)
 	require.NoError(t, err)
@@ -95,7 +82,7 @@ func TestControlMappingRepo_TenantIsolationAndDelete(t *testing.T) {
 	t1, t2 := uuid.New(), uuid.New()
 	a, b := uuid.New(), uuid.New()
 
-	m := &domain.ControlMapping{ID: uuid.New(), TenantID: t1, SourceControlID: a, TargetControlID: b}
+	m := &domain.ControlCrosswalk{ID: uuid.New(), TenantID: t1, SourceControlID: a, TargetControlID: b}
 	require.NoError(t, repo.Create(ctx, m))
 
 	// Another tenant sees nothing.

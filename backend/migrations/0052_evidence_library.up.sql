@@ -90,8 +90,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_evidence_control_pair
 -- ---------------------------------------------------------------------------
 INSERT INTO evidences (
     id, tenant_id, title, type, description, file_ref, filename,
-    collected_at, collected_by, review, source,
-    owner_id, assignee_id, reviewer_id,
+    collected_at, collected_by, review, source, owner_id,
     created_at, updated_at, deleted_at
 )
 SELECT
@@ -106,7 +105,10 @@ SELECT
     ce.uploaded_by,
     'accepted',
     'manual',
-    ce.owner_id, ce.assignee_id, ce.reviewer_id,
+    -- owner_id from uploaded_by: that is what migration 0044 backfilled it from,
+    -- and reading control_evidences.owner_id here would make this migration
+    -- depend on 0044 having run.
+    ce.uploaded_by,
     ce.created_at, ce.updated_at, ce.deleted_at
 FROM control_evidences ce
 WHERE NOT EXISTS (SELECT 1 FROM evidences e WHERE e.id = ce.id);
