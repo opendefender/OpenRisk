@@ -275,6 +275,13 @@ func main() {
 		// sets it (a bare map[string]interface{} has no driver.Valuer).
 		&domain.Notification{},
 		&domain.NotificationPreference{},
+		// The compliance register itself. Created by migration 0028 and, until
+		// now, absent from AutoMigrate — so a column added to the model never
+		// reached a database where migrations are blocked, and every write failed
+		// with "column does not exist". Listed here so model and schema stay in
+		// step, which is how every other module in this file works.
+		&domain.ComplianceFramework{},
+		&domain.ComplianceControl{},
 		// Compliance audits ("Audits" — plan/execute/history) and remediation
 		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
 		&domain.ComplianceAudit{},
