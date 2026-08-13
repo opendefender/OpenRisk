@@ -21,6 +21,7 @@ import (
 	"gorm.io/gorm"
 
 	applicationcompliance "github.com/opendefender/openrisk/internal/application/compliance"
+	applicationevidence "github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -60,14 +61,10 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 			ON compliance_controls(tenant_id, framework_id, reference_code)
 			WHERE deleted_at IS NULL AND reference_code != '';
 	`).Error)
-	require.NoError(t, db.Exec(`
-		CREATE TABLE control_evidences (
-			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, control_id TEXT NOT NULL,
-			filename TEXT NOT NULL DEFAULT '', url TEXT NOT NULL DEFAULT '', description TEXT,
-			uploaded_by TEXT, owner_id TEXT, assignee_id TEXT, reviewer_id TEXT,
-			created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
-		);
-	`).Error)
+	// The evidence library's tables come from the models, not from hand-written
+	// DDL: the two tests in this repository that were red for months were both
+	// hand-written DDL that had drifted from the struct it mirrored.
+	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
 	require.NoError(t, db.Exec(`
 		CREATE TABLE control_mappings (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
@@ -103,10 +100,6 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewListControlsUseCase(repo),
 		applicationcompliance.NewUpdateControlUseCase(repo),
 		applicationcompliance.NewDeleteControlUseCase(repo),
-		applicationcompliance.NewCreateEvidenceUseCase(repo, store),
-		applicationcompliance.NewListEvidencesUseCase(repo),
-		applicationcompliance.NewDeleteEvidenceUseCase(repo, store),
-		applicationcompliance.NewDownloadEvidenceUseCase(repo, store),
 		applicationcompliance.NewGetComplianceProgressUseCase(repo),
 		applicationcompliance.NewListCatalogsUseCase(),
 		applicationcompliance.NewImportCatalogUseCase(repo),
@@ -115,6 +108,12 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 		applicationcompliance.NewCreateControlMappingUseCase(mappingRepo, repo),
 		applicationcompliance.NewListControlMappingsUseCase(mappingRepo, repo),
 		applicationcompliance.NewDeleteControlMappingUseCase(mappingRepo),
+	)
+
+	// Evidence is served by its own handler now; the per-control URLs are
+	// unchanged, so this test still exercises the same flow the UI drives.
+	evidenceH := NewEvidenceHandler(
+		applicationevidence.NewService(repository.NewGormEvidenceRepository(db), repo, store),
 	)
 
 	app := fiber.New()
@@ -148,10 +147,10 @@ func buildComplianceApp(t *testing.T, db *gorm.DB, store storage.Storage, tenant
 	api.Get("/compliance/controls/:controlId", controlRead, h.GetControl)
 	api.Patch("/compliance/controls/:controlId", controlUpdate, h.UpdateControl)
 	api.Delete("/compliance/controls/:controlId", controlDelete, h.DeleteControl)
-	api.Get("/compliance/controls/:controlId/evidences", evidenceRead, h.ListEvidences)
-	api.Post("/compliance/controls/:controlId/evidences", evidenceCreate, h.CreateEvidence)
-	api.Get("/compliance/evidences/:evidenceId/download", evidenceRead, h.DownloadEvidence)
-	api.Delete("/compliance/evidences/:evidenceId", evidenceDelete, h.DeleteEvidence)
+	api.Get("/compliance/controls/:controlId/evidences", evidenceRead, evidenceH.ListByControl)
+	api.Post("/compliance/controls/:controlId/evidences", evidenceCreate, evidenceH.CreateForControl)
+	api.Get("/compliance/evidences/:evidenceId/download", evidenceRead, evidenceH.Download)
+	api.Delete("/compliance/evidences/:evidenceId", evidenceDelete, evidenceH.Delete)
 
 	return app
 }
@@ -231,7 +230,7 @@ func TestComplianceE2EFlow(t *testing.T) {
 	resp, err = analystApp.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, 201, resp.StatusCode)
-	var evidence domain.ControlEvidence
+	var evidence domain.Evidence
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&evidence))
 	resp.Body.Close()
 
@@ -414,7 +413,7 @@ func TestEvidenceDownload_CrossTenant_NotFound(t *testing.T) {
 		"secret.pdf", "confidential", "sensitive content")
 	resp, err = appA.Test(req)
 	require.NoError(t, err)
-	var evidence domain.ControlEvidence
+	var evidence domain.Evidence
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&evidence))
 	resp.Body.Close()
 

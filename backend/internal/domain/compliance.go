@@ -64,12 +64,17 @@ type ComplianceControl struct {
 
 	// Relations
 	Framework ComplianceFramework `gorm:"foreignKey:FrameworkID" json:"framework,omitempty"`
-	Evidences []ControlEvidence   `gorm:"foreignKey:ControlID" json:"evidences,omitempty"`
 
-	// EvidenceCount is a computed, non-persisted count of the control's active
-	// evidences (gorm:"-": never a column). Populated by the list/get use cases so
-	// the UI can show an evidence badge and enforce the "no implemented without a
-	// proof" rule client-side without loading every evidence file.
+	// EvidenceCount is a computed, non-persisted count (gorm:"-": never a column)
+	// of the artifacts in the evidence library that CURRENTLY substantiate this
+	// control — expired and rejected proof excluded. Populated by the list/get use
+	// cases so the UI can show an evidence badge, and read by the "no implemented
+	// without proof" rule.
+	//
+	// There is deliberately no Evidences relation here any more. Evidence is
+	// reusable across controls (see domain.Evidence), so it cannot hang off one
+	// control by foreign key; a preload of the old control_evidences table would
+	// now return nothing for anything uploaded since migration 0052.
 	EvidenceCount int `gorm:"-" json:"evidence_count"`
 
 	CreatedAt time.Time      `json:"created_at"`

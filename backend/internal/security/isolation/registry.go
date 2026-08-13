@@ -105,6 +105,8 @@ var decisions = []Decision{
 		"gorm_asset_dependency_repository_test: cross-tenant GetByID returns nil"},
 	{"/api/v1/compliance/*", Covered,
 		"application/compliance controls+evidences tests, gorm_compliance_repository_test, gorm_compliance_audit_repository_test, gorm_control_mapping_repository_test"},
+	{"/api/v1/evidence/*", Covered,
+		"gorm_evidence_repository_test: cross-tenant GetByID returns nil, cross-tenant Delete leaves the row, List is empty, and a forged link from another tenant never counts toward coverage; application/evidence TestGetAndDelete_AreTenantScoped and TestCreate_RejectsControlFromAnotherTenant cover the use-case gate on linking"},
 	{"/api/v1/reports/jobs/{id}", Covered,
 		"gorm_report_job_repository_test: cross-tenant GetByID is ErrNotFound, List is tenant-scoped, Update cannot cross tenants; application/reportjob TestGet_CrossTenant_IsNotFound"},
 	{"/api/v1/reports/jobs/{id}/download", Covered,

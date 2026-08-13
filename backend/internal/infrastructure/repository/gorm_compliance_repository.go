@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -102,7 +103,6 @@ func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.U
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Preload("Framework").
-		Preload("Evidences").
 		First(&control).Error
 
 	if err != nil {
@@ -111,6 +111,25 @@ func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.U
 		}
 		return nil, fmt.Errorf("failed to get control: %w", err)
 	}
+
+	// EvidenceCount counts the artifacts that CURRENTLY substantiate this control,
+	// from the evidence library. It replaces the old Evidences preload, which
+	// carried every attachment ever made regardless of whether it had expired.
+	//
+	// The count is what the "cannot mark implemented without proof" rule reads, so
+	// a failure here must not silently report zero and block a legitimate edit:
+	// the error propagates.
+	var n int64
+	if err := r.db.WithContext(ctx).
+		Table("evidence_control_links l").
+		Joins("JOIN evidences e ON e.id = l.evidence_id AND e.tenant_id = l.tenant_id AND e.deleted_at IS NULL").
+		Where("l.tenant_id = ? AND l.control_id = ?", tenantID, id).
+		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, time.Now()).
+		Count(&n).Error; err != nil {
+		return nil, fmt.Errorf("failed to count control evidence: %w", err)
+	}
+	control.EvidenceCount = int(n)
+
 	return &control, nil
 }
 
@@ -214,44 +233,26 @@ func (r *GormComplianceRepository) DeleteControlsByFramework(ctx context.Context
 // Evidences (tenant-scoped — ALWAYS filter by tenant_id)
 // =============================================================================
 
-// CreateEvidence persists a new control evidence for a tenant.
-func (r *GormComplianceRepository) CreateEvidence(ctx context.Context, evidence *domain.ControlEvidence) error {
-	if evidence.TenantID == uuid.Nil {
-		return fmt.Errorf("tenant_id is required")
-	}
-	return r.db.WithContext(ctx).Create(evidence).Error
-}
-
-// GetEvidenceByID retrieves an evidence by ID scoped to a tenant.
-// Returns (nil, nil) if not found or belongs to another tenant.
-func (r *GormComplianceRepository) GetEvidenceByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ControlEvidence, error) {
-	var evidence domain.ControlEvidence
-	err := r.db.WithContext(ctx).
-		Where("id = ? AND tenant_id = ?", id, tenantID).
-		First(&evidence).Error
-
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get evidence: %w", err)
-	}
-	return &evidence, nil
-}
-
-// ListEvidencesByControl retrieves all evidences for a (tenant, control) pair.
-func (r *GormComplianceRepository) ListEvidencesByControl(ctx context.Context, tenantID uuid.UUID, controlID uuid.UUID) ([]domain.ControlEvidence, error) {
-	var evidences []domain.ControlEvidence
-	err := r.db.WithContext(ctx).
-		Where("tenant_id = ? AND control_id = ?", tenantID, controlID).
-		Order("created_at DESC").
-		Find(&evidences).Error
-	return evidences, err
-}
-
-// CountEvidencesByFramework returns evidence counts per control for a (tenant, framework)
-// pair in a single grouped query. Joins evidences to their controls so the framework and
-// tenant filters both apply; soft-deleted rows on either side are excluded.
+// CountEvidencesByFramework returns, per control of a (tenant, framework) pair,
+// the number of artifacts that CURRENTLY substantiate it.
+//
+// Two things changed here when the evidence library landed (migration 0052).
+//
+// It reads the library, not control_evidences. There is one evidence register
+// now; counting the old table would report zero for everything uploaded since,
+// and the number gates whether a control may be marked implemented.
+//
+// And it counts COVERING artifacts, not attachments: expired and rejected proof
+// is excluded, exactly as domain.Evidence.Covers defines it. That is a
+// deliberate tightening. A control whose only certificate lapsed last quarter
+// stops counting as evidenced, which means it can no longer be moved to
+// "implemented" on the strength of it, and it surfaces on the missing-evidence
+// worklist. The alternative — counting a file nobody could defend to an auditor
+// — is the failure mode this module exists to remove.
+//
+// "Currently" is evaluated against time.Now() inside the repository because the
+// port carries no clock. Callers that need a specific instant use
+// domain.EvidenceRepository.CountCoveringByFramework, which takes one.
 func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
 	type row struct {
 		ControlID uuid.UUID
@@ -259,11 +260,13 @@ func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context
 	}
 	var rows []row
 	err := r.db.WithContext(ctx).
-		Model(&domain.ControlEvidence{}).
-		Select("control_evidences.control_id AS control_id, COUNT(*) AS count").
-		Joins("JOIN compliance_controls ON compliance_controls.id = control_evidences.control_id AND compliance_controls.deleted_at IS NULL").
-		Where("control_evidences.tenant_id = ? AND compliance_controls.framework_id = ? AND compliance_controls.tenant_id = ?", tenantID, frameworkID, tenantID).
-		Group("control_evidences.control_id").
+		Table("evidence_control_links l").
+		Select("l.control_id AS control_id, COUNT(*) AS count").
+		Joins("JOIN evidences e ON e.id = l.evidence_id AND e.tenant_id = l.tenant_id AND e.deleted_at IS NULL").
+		Joins("JOIN compliance_controls c ON c.id = l.control_id AND c.tenant_id = l.tenant_id AND c.deleted_at IS NULL").
+		Where("l.tenant_id = ? AND c.framework_id = ?", tenantID, frameworkID).
+		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, time.Now()).
+		Group("l.control_id").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to count evidences by framework: %w", err)
@@ -273,19 +276,4 @@ func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context
 		counts[r.ControlID] = r.Count
 	}
 	return counts, nil
-}
-
-// DeleteEvidence soft-deletes an evidence by ID scoped to a tenant.
-func (r *GormComplianceRepository) DeleteEvidence(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error {
-	result := r.db.WithContext(ctx).
-		Where("id = ? AND tenant_id = ?", id, tenantID).
-		Delete(&domain.ControlEvidence{})
-
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete evidence: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("evidence not found")
-	}
-	return nil
 }

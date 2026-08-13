@@ -27,24 +27,20 @@ import (
 // eager-loading it would mix every tenant's controls together. Always go
 // through ListControls (tenant-scoped) instead.
 type ComplianceHandler struct {
-	createFrameworkUC  *compliance.CreateFrameworkUseCase
-	getFrameworkUC     *compliance.GetFrameworkUseCase
-	listFrameworksUC   *compliance.ListFrameworksUseCase
-	deleteFrameworkUC  *compliance.DeleteFrameworkUseCase
-	createControlUC    *compliance.CreateControlUseCase
-	getControlUC       *compliance.GetControlUseCase
-	listControlsUC     *compliance.ListControlsUseCase
-	updateControlUC    *compliance.UpdateControlUseCase
-	deleteControlUC    *compliance.DeleteControlUseCase
-	createEvidenceUC   *compliance.CreateEvidenceUseCase
-	listEvidencesUC    *compliance.ListEvidencesUseCase
-	deleteEvidenceUC   *compliance.DeleteEvidenceUseCase
-	downloadEvidenceUC *compliance.DownloadEvidenceUseCase
-	getProgressUC      *compliance.GetComplianceProgressUseCase
-	listCatalogsUC     *compliance.ListCatalogsUseCase
-	importCatalogUC    *compliance.ImportCatalogUseCase
-	generateReportUC   *compliance.GenerateComplianceReportUseCase
-	getGapAnalysisUC   *compliance.GetGapAnalysisUseCase
+	createFrameworkUC *compliance.CreateFrameworkUseCase
+	getFrameworkUC    *compliance.GetFrameworkUseCase
+	listFrameworksUC  *compliance.ListFrameworksUseCase
+	deleteFrameworkUC *compliance.DeleteFrameworkUseCase
+	createControlUC   *compliance.CreateControlUseCase
+	getControlUC      *compliance.GetControlUseCase
+	listControlsUC    *compliance.ListControlsUseCase
+	updateControlUC   *compliance.UpdateControlUseCase
+	deleteControlUC   *compliance.DeleteControlUseCase
+	getProgressUC     *compliance.GetComplianceProgressUseCase
+	listCatalogsUC    *compliance.ListCatalogsUseCase
+	importCatalogUC   *compliance.ImportCatalogUseCase
+	generateReportUC  *compliance.GenerateComplianceReportUseCase
+	getGapAnalysisUC  *compliance.GetGapAnalysisUseCase
 
 	createMappingUC *compliance.CreateControlMappingUseCase
 	listMappingsUC  *compliance.ListControlMappingsUseCase
@@ -61,10 +57,6 @@ func NewComplianceHandler(
 	listControls *compliance.ListControlsUseCase,
 	updateControl *compliance.UpdateControlUseCase,
 	deleteControl *compliance.DeleteControlUseCase,
-	createEvidence *compliance.CreateEvidenceUseCase,
-	listEvidences *compliance.ListEvidencesUseCase,
-	deleteEvidence *compliance.DeleteEvidenceUseCase,
-	downloadEvidence *compliance.DownloadEvidenceUseCase,
 	getProgress *compliance.GetComplianceProgressUseCase,
 	listCatalogs *compliance.ListCatalogsUseCase,
 	importCatalog *compliance.ImportCatalogUseCase,
@@ -75,27 +67,23 @@ func NewComplianceHandler(
 	deleteMapping *compliance.DeleteControlMappingUseCase,
 ) *ComplianceHandler {
 	return &ComplianceHandler{
-		createFrameworkUC:  createFramework,
-		getFrameworkUC:     getFramework,
-		listFrameworksUC:   listFrameworks,
-		deleteFrameworkUC:  deleteFramework,
-		createControlUC:    createControl,
-		getControlUC:       getControl,
-		listControlsUC:     listControls,
-		updateControlUC:    updateControl,
-		deleteControlUC:    deleteControl,
-		createEvidenceUC:   createEvidence,
-		listEvidencesUC:    listEvidences,
-		deleteEvidenceUC:   deleteEvidence,
-		downloadEvidenceUC: downloadEvidence,
-		getProgressUC:      getProgress,
-		listCatalogsUC:     listCatalogs,
-		importCatalogUC:    importCatalog,
-		generateReportUC:   generateReport,
-		getGapAnalysisUC:   getGapAnalysis,
-		createMappingUC:    createMapping,
-		listMappingsUC:     listMappings,
-		deleteMappingUC:    deleteMapping,
+		createFrameworkUC: createFramework,
+		getFrameworkUC:    getFramework,
+		listFrameworksUC:  listFrameworks,
+		deleteFrameworkUC: deleteFramework,
+		createControlUC:   createControl,
+		getControlUC:      getControl,
+		listControlsUC:    listControls,
+		updateControlUC:   updateControl,
+		deleteControlUC:   deleteControl,
+		getProgressUC:     getProgress,
+		listCatalogsUC:    listCatalogs,
+		importCatalogUC:   importCatalog,
+		generateReportUC:  generateReport,
+		getGapAnalysisUC:  getGapAnalysis,
+		createMappingUC:   createMapping,
+		listMappingsUC:    listMappings,
+		deleteMappingUC:   deleteMapping,
 	}
 }
 
@@ -500,83 +488,7 @@ func (h *ComplianceHandler) DeleteControl(c *fiber.Ctx) error {
 	return c.SendStatus(204)
 }
 
-// =============================================================================
-// Evidences (tenant-scoped)
-// =============================================================================
-
-// CreateEvidence godoc — multipart/form-data: file (required), description (optional).
-func (h *ComplianceHandler) CreateEvidence(c *fiber.Ctx) error {
-	controlID, err := uuid.Parse(c.Params("controlId"))
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid control id"})
-	}
-
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "file is required"})
-	}
-	file, err := fileHeader.Open()
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "failed to read uploaded file"})
-	}
-	defer file.Close()
-
-	evidence, err := h.createEvidenceUC.Execute(c.UserContext(), tenantID(c), compliance.CreateEvidenceInput{
-		ControlID:   controlID,
-		Filename:    fileHeader.Filename,
-		Description: c.FormValue("description"),
-		Content:     file,
-		UploadedBy:  userID(c),
-	})
-	if err != nil {
-		return writeAppError(c, err)
-	}
-	return c.Status(201).JSON(evidence)
-}
-
-// ListEvidences godoc
-func (h *ComplianceHandler) ListEvidences(c *fiber.Ctx) error {
-	controlID, err := uuid.Parse(c.Params("controlId"))
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid control id"})
-	}
-	evidences, err := h.listEvidencesUC.Execute(c.UserContext(), tenantID(c), controlID)
-	if err != nil {
-		return writeAppError(c, err)
-	}
-	return c.JSON(evidences)
-}
-
-// DownloadEvidence godoc — the only path to evidence file content; no
-// public/static route exists for these files (see storage.Storage doc).
-func (h *ComplianceHandler) DownloadEvidence(c *fiber.Ctx) error {
-	evidenceID, err := uuid.Parse(c.Params("evidenceId"))
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid evidence id"})
-	}
-
-	evidence, content, err := h.downloadEvidenceUC.Execute(c.UserContext(), tenantID(c), evidenceID)
-	if err != nil {
-		return writeAppError(c, err)
-	}
-	// No defer content.Close() here: SendStream hands the reader to
-	// fasthttp, which reads (and closes, since it implements io.Closer)
-	// the stream lazily *after* this handler returns while serializing
-	// the response — closing it here would race the actual write.
-
-	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, evidence.Filename))
-	c.Set(fiber.HeaderContentType, "application/octet-stream")
-	return c.SendStream(content)
-}
-
-// DeleteEvidence godoc
-func (h *ComplianceHandler) DeleteEvidence(c *fiber.Ctx) error {
-	evidenceID, err := uuid.Parse(c.Params("evidenceId"))
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid evidence id"})
-	}
-	if err := h.deleteEvidenceUC.Execute(c.UserContext(), tenantID(c), evidenceID); err != nil {
-		return writeAppError(c, err)
-	}
-	return c.SendStatus(204)
-}
+// Evidence lives in its own module now (application/evidence, EvidenceHandler).
+// The per-control routes kept their URLs but are served from there, because
+// evidence is reusable across controls and two writers into one register would
+// mean two truths. See internal/handler/evidence_handler.go.
