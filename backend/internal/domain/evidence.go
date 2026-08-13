@@ -274,10 +274,13 @@ func (e *Evidence) Decorate(now time.Time) {
 // what makes evidence reusable; it is tenant-stamped as well as keyed so a
 // mis-scoped query can never bridge two tenants' registers.
 type EvidenceControlLink struct {
-	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	TenantID   uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
-	EvidenceID uuid.UUID `gorm:"type:uuid;not null;index" json:"evidence_id"`
-	ControlID  uuid.UUID `gorm:"type:uuid;not null;index" json:"control_id"`
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
+	// The pair is unique on the MODEL, not only in the migration: schemas here are
+	// built by AutoMigrate as often as by golang-migrate, and a constraint that
+	// exists in only one of them is a constraint that silently is not there.
+	EvidenceID uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:uq_evidence_control_pair" json:"evidence_id"`
+	ControlID  uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:uq_evidence_control_pair" json:"control_id"`
 	// Note records why this artifact answers this particular control — the same
 	// certificate justifies A.5.1 and CC6.1 for different reasons, and an auditor
 	// asks about the reason, not the file.
