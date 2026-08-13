@@ -85,7 +85,8 @@ export const ROUTES: RouteNode[] = [
 
   /* ---------------- Assets ---------------- */
   { path: '/assets', labelKey: 'n_assets', perm: 'assets:read' },
-  { path: '/assets/universe', labelKey: 'n_universe', parent: '/assets', perm: 'assets:read' },
+  { path: '/assets/topology', labelKey: 'n_universe', parent: '/assets', perm: 'assets:read' },
+  { path: '/assets/schemas', labelKey: 'n_assetSchemas', parent: '/assets', perm: 'assets:read' },
   { path: '/infrastructure', labelKey: 'n_infra', perm: 'scanner:read' },
   { path: '/infrastructure/scans/:jobId', label: { fr: 'Aperçu du scan', en: 'Scan preview' }, parent: '/infrastructure', perm: 'scanner:read' },
 

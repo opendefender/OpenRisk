@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -42,6 +43,10 @@ func setupAssetRepo(t *testing.T) *GormAssetRepository {
 			deleted_at DATETIME
 		);
 	`).Error)
+	// Everything domain.Asset has gained since (typed category, attributes,
+	// correlation fingerprints) is taken off the model rather than repeated
+	// here — the hand-written list above only covers what sqlite needs.
+	require.NoError(t, sqliteschema.Reconcile(db, "assets", &domain.Asset{}))
 
 	require.NoError(t, db.Exec(`CREATE TABLE risks (id TEXT PRIMARY KEY);`).Error)
 	require.NoError(t, db.Exec(`

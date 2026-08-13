@@ -7,6 +7,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -32,7 +33,15 @@ func DefaultCacheConfig() CacheConfig {
 	}
 }
 
-// CacheableHandlers provides cache-enabled handler wrapper
+// CacheableHandlers provides cache-enabled handler wrapper.
+//
+// A NIL *CacheableHandlers IS VALID and means "no cache configured". Caching is
+// an optimisation, not a feature: losing Redis must cost latency, never
+// availability. main.go left this nil whenever Redis was unreachable and then
+// called methods on it while registering routes, so the server panicked during
+// start-up — no Redis meant no server at all. Every method tolerates a nil
+// receiver: wrappers return the handler unchanged, invalidation is a no-op, and
+// get-or-set computes directly.
 type CacheableHandlers struct {
 	cache       *cache.Cache
 	cacheConfig CacheConfig
@@ -50,6 +59,9 @@ func NewCacheableHandlers(cacheInstance *cache.Cache) *CacheableHandlers {
 
 // SetCacheConfig updates cache TTL configuration
 func (ch *CacheableHandlers) SetCacheConfig(cfg CacheConfig) {
+	if ch == nil {
+		return
+	}
 	ch.cacheConfig = cfg
 }
 
@@ -68,6 +80,9 @@ func (ch *CacheableHandlers) GetRiskCacheKey(operation string, params ...string)
 
 // InvalidateRiskCaches invalidates all risk-related cache entries
 func (ch *CacheableHandlers) InvalidateRiskCaches(ctx context.Context) error {
+	if ch == nil {
+		return nil // nothing cached, nothing to invalidate
+	}
 	return ch.decoration.BatchInvalidate(ctx,
 		"risk:*",      // All risk entries
 		"report:*",    // Reports depend on risks
@@ -77,6 +92,9 @@ func (ch *CacheableHandlers) InvalidateRiskCaches(ctx context.Context) error {
 
 // InvalidateSpecificRisk invalidates cache for a specific risk
 func (ch *CacheableHandlers) InvalidateSpecificRisk(ctx context.Context, riskID string) error {
+	if ch == nil {
+		return nil // nothing cached, nothing to invalidate
+	}
 	return ch.decoration.BatchInvalidate(ctx,
 		fmt.Sprintf("risk:id:%s", riskID),
 		"risk:list:*",
@@ -88,6 +106,9 @@ func (ch *CacheableHandlers) InvalidateSpecificRisk(ctx context.Context, riskID 
 
 // CacheRiskListGET wraps a GET risk list handler with caching
 func (ch *CacheableHandlers) CacheRiskListGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -102,6 +123,9 @@ func (ch *CacheableHandlers) CacheRiskListGET(handler fiber.Handler) fiber.Handl
 
 // CacheRiskSearchGET wraps a GET risk search handler with caching
 func (ch *CacheableHandlers) CacheRiskSearchGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -114,6 +138,9 @@ func (ch *CacheableHandlers) CacheRiskSearchGET(handler fiber.Handler) fiber.Han
 
 // CacheRiskGetByIDGET wraps a GET risk by ID handler with caching
 func (ch *CacheableHandlers) CacheRiskGetByIDGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -122,6 +149,25 @@ func (ch *CacheableHandlers) CacheRiskGetByIDGET(handler fiber.Handler) fiber.Ha
 		},
 		ch.cacheConfig.RiskCacheTTL,
 	)
+}
+
+// computeInto runs the compute function and copies its result into dest, which
+// is what the cache path does on a miss. Used when there is no cache at all.
+func computeInto(dest interface{}, compute func() (interface{}, error)) error {
+	value, err := compute()
+	if err != nil {
+		return err
+	}
+	if dest == nil || value == nil {
+		return nil
+	}
+	// Round-trip through JSON so dest is populated exactly as the cache path
+	// would have populated it (same tags, same conversions).
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, dest)
 }
 
 // ============================================================================
@@ -139,11 +185,17 @@ func (ch *CacheableHandlers) GetDashboardCacheKey(operation string, params ...st
 
 // InvalidateDashboardCaches invalidates all dashboard cache entries
 func (ch *CacheableHandlers) InvalidateDashboardCaches(ctx context.Context) error {
+	if ch == nil {
+		return nil // nothing cached, nothing to invalidate
+	}
 	return ch.cache.DeletePattern(ctx, "dashboard:*")
 }
 
 // CacheDashboardStatsGET wraps a GET dashboard stats handler with caching
 func (ch *CacheableHandlers) CacheDashboardStatsGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -156,6 +208,9 @@ func (ch *CacheableHandlers) CacheDashboardStatsGET(handler fiber.Handler) fiber
 
 // CacheDashboardMatrixGET wraps a GET dashboard matrix handler with caching
 func (ch *CacheableHandlers) CacheDashboardMatrixGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -167,6 +222,9 @@ func (ch *CacheableHandlers) CacheDashboardMatrixGET(handler fiber.Handler) fibe
 
 // CacheDashboardTimelineGET wraps a GET dashboard timeline handler with caching
 func (ch *CacheableHandlers) CacheDashboardTimelineGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -200,6 +258,9 @@ func (ch *CacheableHandlers) InvalidateMarketplaceCaches(ctx context.Context) er
 
 // InvalidateSpecificConnector invalidates cache for a specific connector
 func (ch *CacheableHandlers) InvalidateSpecificConnector(ctx context.Context, connectorID string) error {
+	if ch == nil {
+		return nil // nothing cached, nothing to invalidate
+	}
 	return ch.decoration.BatchInvalidate(ctx,
 		fmt.Sprintf("connector:id:%s", connectorID),
 		"connector:list:*",
@@ -209,6 +270,9 @@ func (ch *CacheableHandlers) InvalidateSpecificConnector(ctx context.Context, co
 
 // CacheConnectorListGET wraps a GET connector list handler with caching
 func (ch *CacheableHandlers) CacheConnectorListGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -222,6 +286,9 @@ func (ch *CacheableHandlers) CacheConnectorListGET(handler fiber.Handler) fiber.
 
 // CacheConnectorGetByIDGET wraps a GET connector by ID handler with caching
 func (ch *CacheableHandlers) CacheConnectorGetByIDGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -234,6 +301,9 @@ func (ch *CacheableHandlers) CacheConnectorGetByIDGET(handler fiber.Handler) fib
 
 // CacheMarketplaceAppGetByIDGET wraps a GET app by ID handler with caching
 func (ch *CacheableHandlers) CacheMarketplaceAppGetByIDGET(handler fiber.Handler) fiber.Handler {
+	if ch == nil {
+		return handler // no cache configured — serve directly
+	}
 	return ch.decoration.WrapWithCache(
 		handler,
 		func(c *fiber.Ctx) string {
@@ -267,18 +337,27 @@ func hashQuery(query string) string {
 
 // GetOrSetRiskData provides cache-or-compute pattern for risk data
 func (ch *CacheableHandlers) GetOrSetRiskData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
+	if ch == nil {
+		return computeInto(dest, compute)
+	}
 	cacheCtx := cache.NewRequestCacheContext(ch.cache, ctx)
 	return cacheCtx.GetOrSet(key, dest, compute)
 }
 
 // GetOrSetDashboardData provides cache-or-compute pattern for dashboard data
 func (ch *CacheableHandlers) GetOrSetDashboardData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
+	if ch == nil {
+		return computeInto(dest, compute)
+	}
 	cacheCtx := cache.NewRequestCacheContext(ch.cache, ctx)
 	return cacheCtx.GetOrSet(key, dest, compute)
 }
 
 // GetOrSetMarketplaceData provides cache-or-compute pattern for marketplace data
 func (ch *CacheableHandlers) GetOrSetMarketplaceData(ctx context.Context, key string, dest interface{}, compute func() (interface{}, error)) error {
+	if ch == nil {
+		return computeInto(dest, compute)
+	}
 	cacheCtx := cache.NewRequestCacheContext(ch.cache, ctx)
 	return cacheCtx.GetOrSet(key, dest, compute)
 }

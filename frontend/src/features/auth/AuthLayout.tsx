@@ -100,6 +100,14 @@ function RiskOrbit({ reduced }: { reduced: boolean }) {
   );
 }
 
+// The narrative panel is a fixed dark brand surface in BOTH themes (see the
+// wrapper in AuthLayout). Anything drawn on it must therefore be a FIXED light
+// colour: a theme-following token such as --text-primary flips to near-black in
+// light mode and the text disappears into the panel. That is exactly what
+// happened to the wordmark and the quote — legible in dark, invisible in light.
+// eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see above
+const ON_BRAND_PANEL = '#ffffff';
+
 /** How long each quote stays up. */
 const QUOTE_INTERVAL_MS = 8000;
 
@@ -171,7 +179,10 @@ function RotatingQuote({ reduced }: { reduced: boolean }) {
           transition: reduced ? undefined : 'opacity 300ms ease, transform 300ms ease',
         }}
       >
-        <blockquote className="text-[17px] font-medium text-text-primary leading-relaxed m-0" style={{ letterSpacing: '-.01em' }}>
+        <blockquote
+          className="text-[17px] font-medium leading-relaxed m-0"
+          style={{ letterSpacing: '-.01em', color: ON_BRAND_PANEL }}
+        >
           “{lang === 'fr' ? quote.fr : quote.en}”
         </blockquote>
         {/* eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see AuthLayout */}
@@ -258,8 +269,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
         <div className="flex items-center gap-2.5 relative" style={cascade(0, reduced)}>
           <div
-            className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary"
+            className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center"
             style={{
+              color: ON_BRAND_PANEL,
               background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
               boxShadow: '0 3px 14px var(--accent-glow)',
             }}
@@ -267,7 +279,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             <OpenRiskLogo size={20} />
           </div>
           <div>
-            <div className="disp text-[19px] font-bold text-text-primary leading-tight">OpenRisk</div>
+            <div className="disp text-[19px] font-bold leading-tight" style={{ color: ON_BRAND_PANEL }}>
+              OpenRisk
+            </div>
             {/* eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see above */}
             <div className="text-[11.5px]" style={{ color: 'rgba(255,255,255,.45)' }}>
               {copy.productTagline}

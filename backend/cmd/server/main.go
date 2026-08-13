@@ -28,12 +28,14 @@ import (
 	appactivation "github.com/opendefender/openrisk/internal/application/activation"
 	appai "github.com/opendefender/openrisk/internal/application/ai"
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
+	"github.com/opendefender/openrisk/internal/application/assetschema"
 	"github.com/opendefender/openrisk/internal/application/auth"
 	appauto "github.com/opendefender/openrisk/internal/application/automation"
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
 	"github.com/opendefender/openrisk/internal/application/governance"
+	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/ownership"
@@ -50,14 +52,13 @@ import (
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
-	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
-	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
-	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
 	"github.com/opendefender/openrisk/internal/infrastructure/email"
+	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
+	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
@@ -150,16 +151,25 @@ func main() {
 		cacheableHandlers = handlers.NewCacheableHandlers(redisCache)
 		log.Println("Cache: Handler utilities initialized with Redis")
 	} else {
-		// Create a dummy handler that doesn't cache
-		log.Println("Cache: Handler utilities initialized without caching")
-		// We'll need to create a wrapper that handles nil gracefully
-		// For now, we'll initialize with a placeholder
-		_ = cacheableHandlers
+		// Left nil ON PURPOSE: *CacheableHandlers is nil-safe (see its doc), so
+		// every wrapped route serves its handler directly. This used to be a nil
+		// that got dereferenced during route registration, which meant an
+		// unreachable Redis panicked the server at boot — caching is an
+		// optimisation, and losing it must cost latency, not availability.
+		log.Println("Cache: Redis unavailable — responses will not be cached (the server runs normally)")
 	}
 
 	// =========================================================================
 	// 2. MIGRATIONS & SEEDING (DevOps Friendly)
 	// =========================================================================
+
+	// Data repairs AutoMigrate cannot do for itself. It creates the indexes the
+	// model declares but never touches rows, so a model that gains a UNIQUE
+	// index over an already-populated column makes the whole boot fail against
+	// any database with existing data. Idempotent; safe on a fresh database.
+	if err := database.PrepareForAutoMigrate(database.DB); err != nil {
+		log.Fatalf("Database preparation failed: %v", err)
+	}
 
 	log.Println("Database: Running Auto-Migrations...")
 	if err := database.DB.AutoMigrate(
@@ -192,6 +202,14 @@ func main() {
 		&domain.Mitigation{},
 		&domain.Asset{},
 		&domain.AssetSnapshot{},
+		// Typed attributes by asset category (Attack Surface §1). One row per
+		// (tenant, category) holding the tenant-editable schema that the asset
+		// form is generated from and every asset write is validated against.
+		&domain.AssetTypeSchema{},
+		// The tenant's vulnerability→risk rule (Attack Surface §4). One row per
+		// tenant; disabled until they configure it, because automatic risk
+		// creation writes to somebody's register.
+		&domain.VulnRiskRule{},
 		// Directed edges of the asset dependency graph ("cartographie des
 		// dépendances"). Tenant-scoped; both endpoints reference assets.
 		&domain.AssetDependency{},
@@ -1247,10 +1265,21 @@ func main() {
 	// data) — now gated the same way as risks/compliance.
 	assetRepo := repository.NewGormAssetRepository(database.DB)
 	assetDepRepo := repository.NewGormAssetDependencyRepository(database.DB)
-	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo).WithActivation(activationRecorder)
+
+	// Typed attributes (Attack Surface §1). One schema per (tenant, category);
+	// the SAME service backs the form generator (read), the tenant's schema
+	// editor (write) and the server-side write-path validator, so the form can
+	// never render a field the validator would reject.
+	assetSchemaSvc := assetschema.NewService(repository.NewGormAssetTypeSchemaRepository(database.DB))
+	assetAttrValidator := assetschema.NewValidator(assetSchemaSvc)
+
+	createAssetUC := assetapp.NewCreateAssetUseCase(assetRepo).
+		WithActivation(activationRecorder).
+		WithAttributeValidator(assetAttrValidator)
 	getAssetUC := assetapp.NewGetAssetUseCase(assetRepo)
 	listAssetsUC := assetapp.NewListAssetsUseCase(assetRepo)
-	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo)
+	updateAssetUC := assetapp.NewUpdateAssetUseCase(assetRepo).
+		WithAttributeValidator(assetAttrValidator)
 	// Deleting an asset also prunes its dependency edges (no dangling links).
 	deleteAssetUC := assetapp.NewDeleteAssetUseCase(assetRepo).WithDependencyRepository(assetDepRepo)
 	// Resolve each history snapshot's changed_by UUID to an email so the
@@ -1287,6 +1316,21 @@ func main() {
 	protected.Delete("/assets/:id", assetDelete, assetHandler.DeleteAsset)
 	protected.Get("/assets/:id/history", assetRead, assetHandler.GetAssetHistory)
 
+	// Attack Surface — typed attribute schemas. Reading is open to anyone who
+	// can read assets (the form generator needs it); editing the schema is an
+	// admin act, because it changes the contract every asset of that category is
+	// validated against.
+	assetSchemaHandler := handlers.NewAssetSchemaHandler(assetSchemaSvc)
+	adminOnly := middleware.RequireRole("admin", "root")
+	protected.Get("/attack-surface/schemas", assetRead, assetSchemaHandler.ListSchemas)
+	protected.Get("/attack-surface/schemas/:category", assetRead, assetSchemaHandler.GetSchema)
+	protected.Put("/attack-surface/schemas/:category", adminOnly, assetSchemaHandler.UpdateSchema)
+	protected.Post("/attack-surface/schemas/:category/reset", adminOnly, assetSchemaHandler.ResetSchema)
+
+	// Attack Surface — topology. Wired later than the asset block because the
+	// node badges need the vulnerability repository; see the "topology wiring"
+	// block after the vulnerability module.
+
 	// --- Vulnerability Management (Module 3) — integrations + risk-based
 	// prioritisation. Findings from Nessus/OpenVAS/Qualys/Defender/Inspector/
 	// Azure Defender/CrowdStrike are normalised (internal/vulnscan), scored by
@@ -1297,9 +1341,17 @@ func main() {
 	// before prioritisation. A stateless repo instance on the shared DB — the CTI
 	// handler wires its own later.
 	vulnCTIEnricher := vulnapp.NewCTIRepoEnricher(repository.NewGormCTIRepository(database.DB))
+	// Vulnerability→risk rule (Attack Surface §4). The condition used to be
+	// hardcoded ("P1 or CISA-KEV"); it is now a tenant-configured rule, and every
+	// risk it produces lands in DRAFT — a machine may propose, never enrol.
+	vulnRiskRuleRepo := repository.NewGormVulnRiskRuleRepository(database.DB)
+	assetExposure := repository.NewGormAssetExposureLookup(database.DB)
+
 	vulnIngestUC := vulnapp.NewIngestUseCase(vulnRepo, assetRepo).
 		WithCTIEnricher(vulnCTIEnricher).
-		WithRiskProposer(vulnrisk.NewRiskCreator(database.DB))
+		WithRiskProposer(vulnrisk.NewRiskCreator(database.DB)).
+		WithRiskRules(vulnRiskRuleRepo).
+		WithAssetExposure(assetExposure)
 	vulnHandler := handlers.NewVulnerabilityHandler(
 		vulnIngestUC,
 		vulnapp.NewListUseCase(vulnRepo),
@@ -1391,11 +1443,51 @@ func main() {
 	protected.Get("/vulnerabilities/ticketing", vulnRead, vulnIntegHandler.GetTicketing)
 	protected.Put("/vulnerabilities/ticketing", vulnWrite, vulnIntegHandler.SaveTicketing)
 	protected.Delete("/vulnerabilities/ticketing", vulnDelete, vulnIntegHandler.DeleteTicketing)
+	// Vulnerability↔asset correlation (Attack Surface §3). Static sub-paths
+	// BEFORE /vulnerabilities/:id — "unassigned" must never be parsed as a UUID.
+	vulnCorrelationHandler := handlers.NewVulnCorrelationHandler(
+		vulnapp.NewListUnassignedUseCase(vulnRepo),
+		vulnapp.NewGetCandidatesUseCase(vulnRepo, assetRepo),
+		vulnapp.NewResolveAssetUseCase(vulnRepo, assetRepo),
+	)
+	protected.Get("/vulnerabilities/unassigned", vulnRead, vulnCorrelationHandler.ListUnassigned)
+
+	// Attack Surface §4 — the vuln→risk rule and the review queue of the DRAFT
+	// risks it proposes. Reading the rule is open to anyone who can read
+	// vulnerabilities (the preview is how you understand what fires); changing
+	// it is admin, because it changes what appears in everyone's register.
+	vulnRiskRuleHandler := handlers.NewVulnRiskRuleHandler(
+		vulnapp.NewRiskRuleService(vulnRiskRuleRepo, vulnRepo).WithAssetExposure(assetExposure),
+		risk.NewDraftReviewUseCase(riskRepo),
+	)
+	protected.Get("/attack-surface/risk-rule", vulnRead, vulnRiskRuleHandler.GetRule)
+	protected.Put("/attack-surface/risk-rule", adminOnly, vulnRiskRuleHandler.UpdateRule)
+	protected.Post("/attack-surface/risk-rule/preview", vulnRead, vulnRiskRuleHandler.PreviewRule)
+	protected.Get("/attack-surface/draft-risks", middleware.RequirePermission("risks:read"), vulnRiskRuleHandler.ListDrafts)
+	protected.Post("/attack-surface/draft-risks/review", middleware.RequirePermission("risks:update"), vulnRiskRuleHandler.BulkReview)
+
 	protected.Get("/vulnerabilities", vulnRead, vulnHandler.List)
 	protected.Get("/vulnerabilities/:id", vulnRead, vulnHandler.Get)
 	protected.Patch("/vulnerabilities/:id/status", vulnWrite, vulnHandler.UpdateStatus)
 	protected.Post("/vulnerabilities/:id/ticket", vulnWrite, vulnIntegHandler.CreateTicket)
+	protected.Get("/vulnerabilities/:id/match-candidates", vulnRead, vulnCorrelationHandler.GetCandidates)
+	protected.Put("/vulnerabilities/:id/asset", vulnWrite, vulnCorrelationHandler.ResolveAsset)
 	protected.Delete("/vulnerabilities/:id", vulnDelete, vulnHandler.Delete)
+
+	// --- Attack Surface topology wiring --------------------------------------
+	// Placed here (rather than beside the other asset routes) because the node
+	// badges read open-vulnerability counts, which needs vulnRepo — declared
+	// just above. The vulnerability counter is optional: if it fails, the graph
+	// still renders, minus one badge.
+	assetTopologyHandler := handlers.NewAssetTopologyHandler(
+		assetapp.NewGetTopologyUseCase(assetRepo, assetDepRepo).WithVulnCounter(vulnRepo),
+		assetapp.NewGetCompromiseChainUseCase(assetRepo, assetDepRepo),
+	)
+	// Static sub-paths BEFORE /:id (the Fiber trap): "edge-types" must never be
+	// parsed as an asset UUID.
+	protected.Get("/attack-surface/topology/edge-types", assetRead, assetTopologyHandler.GetEdgeTypes)
+	protected.Get("/attack-surface/topology", assetRead, assetTopologyHandler.GetTopology)
+	protected.Get("/attack-surface/topology/:id/compromise-chain", assetRead, assetTopologyHandler.GetCompromiseChain)
 
 	// =========================================================================
 	// AI GRC Assistant (spec §12 — see ROADMAP.md Module 12).
@@ -1563,6 +1655,13 @@ func main() {
 	notificationRepo := repository.NewNotificationRepository(database.DB)
 	notificationUseCase := notificationapp.NewUseCase(notificationRepo)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
+
+	// Attack Surface §4: tell the tenant's admins when the vuln→risk rule
+	// proposes a draft. Attached here (rather than at the ingest wiring above)
+	// because the notification use case only exists at this point; With* mutates
+	// the same pointer, so ordering is the only constraint. A draft nobody is
+	// told about is a draft nobody reviews.
+	vulnIngestUC.WithRiskProposalNotifier(vulnrisk.NewDraftRiskNotifier(database.DB, notificationUseCase))
 	notificationsGroup := protected.Group("/notifications")
 	notificationsGroup.Get("", notificationHandler.GetNotifications)
 	notificationsGroup.Get("/unread-count", notificationHandler.GetUnreadCount)

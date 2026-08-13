@@ -1670,6 +1670,162 @@ paths:
           description: Asset not found
 
   # ==================== ASSET DEPENDENCIES ====================
+  /attack-surface/topology:
+    get:
+      tags:
+        - Attack Surface
+      summary: The tenant's asset dependency graph
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Node cap (default and maximum 2000).
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Topology
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTopology'
+
+  /attack-surface/topology/edge-types:
+    get:
+      tags:
+        - Attack Surface
+      summary: The four-type edge vocabulary the topology renders
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Edge types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  edge_types:
+                    type: array
+                    items:
+                      type: string
+
+  /attack-surface/topology/{id}/compromise-chain:
+    get:
+      tags:
+        - Attack Surface
+      summary: Everything impacted by, and reachable from, a compromised asset
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompromiseChain'
+        '404':
+          description: Unknown asset (or owned by another tenant)
+
+  /attack-surface/schemas:
+    get:
+      tags:
+        - Attack Surface
+      summary: List the tenant's typed attribute schemas (all 8 categories)
+      description: >-
+        Returns one schema per asset category, seeding the shipped default for
+        any the tenant has never edited — so the response always covers every
+        category and the form generator never has to handle a missing schema.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Schemas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchemaList'
+
+  /attack-surface/schemas/{category}:
+    parameters:
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+    get:
+      tags:
+        - Attack Surface
+      summary: Get one category's attribute schema
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchema'
+        '400':
+          description: Unknown category
+    put:
+      tags:
+        - Attack Surface
+      summary: Replace a category's attribute schema (admin)
+      description: >-
+        The schema is validated as a whole before anything is written: it is the
+        contract every asset of that category is checked against, so a malformed
+        one would make the category unwritable for everybody.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssetTypeSchemaInput'
+      responses:
+        '200':
+          description: Updated schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchema'
+        '400':
+          description: Invalid schema
+        '403':
+          description: Admin only
+
+  /attack-surface/schemas/{category}/reset:
+    post:
+      tags:
+        - Attack Surface
+      summary: Restore the shipped default schema for a category (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Default schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetTypeSchema'
+
   /asset-dependencies:
     get:
       tags:
@@ -2209,6 +2365,15 @@ components:
         external_id:
           type: string
           example: "db-prod-001"
+        category:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: >-
+            Typed attribute values. Requires a category — without one there is no
+            schema to validate them against, and they are rejected.
 
     UpdateAssetInput:
       type: object
@@ -2225,6 +2390,16 @@ components:
           enum: [LOW, MEDIUM, HIGH, CRITICAL]
         owner:
           type: string
+        category:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: >-
+            When present, REPLACES the whole attribute bag (it is validated as a
+            whole, so a partial merge could drop a required attribute without the
+            validator seeing its absence).
 
     # ========== RESPONSE SCHEMAS ==========
     AuthResponse:
@@ -2844,6 +3019,35 @@ components:
           enum: [MANUAL, OPENASSET]
         external_id:
           type: string
+        category:
+          type: string
+          description: >-
+            Typed category selecting which attribute schema governs this asset.
+            Empty on assets registered before typed attributes existed.
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: >-
+            Typed attribute values, validated server-side against the tenant's
+            schema for this asset's category.
+        hostnames:
+          type: array
+          items:
+            type: string
+          description: Correlation fingerprint, denormalised from attributes.
+        ip_addresses:
+          type: array
+          items:
+            type: string
+          description: Correlation fingerprint, denormalised from attributes.
+        cloud_resource_id:
+          type: string
+          description: Correlation fingerprint, denormalised from attributes.
+        cpes:
+          type: array
+          items:
+            type: string
         risks:
           type: array
           items:
@@ -2854,6 +3058,228 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    AttributeDef:
+      type: object
+      description: >-
+        One attribute of an asset category's schema. The set of these for a
+        category IS the schema: the form generator renders it, the server
+        validates against it, and the correlator reads its fingerprint role.
+      required: [key, label, type]
+      properties:
+        key:
+          type: string
+          description: Stable snake_case machine key.
+        label:
+          type: string
+        label_en:
+          type: string
+        type:
+          type: string
+          enum: [string, text, number, integer, boolean, enum, multi_enum, date, ip, ip_list, hostname, cidr, url, email, string_list]
+        required:
+          type: boolean
+        enum:
+          type: array
+          items:
+            type: string
+        group:
+          type: string
+        help:
+          type: string
+        min:
+          type: number
+        max:
+          type: number
+        fingerprint:
+          type: string
+          description: >-
+            Marks this attribute as an identity signal used to correlate external
+            findings back to the asset.
+          enum: ['', hostname, ip, cloud_id, cpe]
+
+    AssetTypeSchema:
+      type: object
+      description: A tenant's attribute schema for one asset category.
+      required: [category, attributes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [server, workstation, application, database, network, cloud, vendor, data_processing]
+        label:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeDef'
+        customized:
+          type: boolean
+          description: Whether the tenant edited the shipped default.
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AssetTypeSchemaList:
+      type: object
+      required: [schemas, categories]
+      properties:
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetTypeSchema'
+        categories:
+          type: array
+          items:
+            type: string
+
+    UpdateAssetTypeSchemaInput:
+      type: object
+      required: [attributes]
+      properties:
+        label:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeDef'
+
+    TopologyNode:
+      type: object
+      description: >-
+        One asset as the topology view needs it — enough to place, colour and
+        label it. The full asset is fetched only when its detail panel opens.
+      required: [id, name, criticality, zone, internet_exposed, risk_count, max_risk_score, vuln_count, degree]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        category:
+          type: string
+        criticality:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        zone:
+          type: string
+          description: Cluster key — declared network zone, else cloud region, else category.
+        internet_exposed:
+          type: boolean
+        risk_count:
+          type: integer
+        max_risk_score:
+          type: number
+        vuln_count:
+          type: integer
+        degree:
+          type: integer
+          description: Number of edges touching this node.
+
+    TopologyEdge:
+      type: object
+      required: [id, source, target, type, raw_type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          format: uuid
+        target:
+          type: string
+          format: uuid
+        type:
+          type: string
+          description: Folded onto the four-type topology vocabulary.
+          enum: [depends_on, hosted_on, connects_to, processes_data_of]
+        raw_type:
+          type: string
+          description: The stored relation before folding (e.g. runs_on).
+        description:
+          type: string
+
+    TopologyZone:
+      type: object
+      required: [key, label, count]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        count:
+          type: integer
+
+    AssetTopology:
+      type: object
+      required: [nodes, edges, zones, truncated]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyEdge'
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyZone'
+        truncated:
+          type: boolean
+          description: >-
+            True when the node cap bit. Reported rather than silently trimming —
+            a topology missing nodes without saying so is worse than a slow one.
+        node_limit:
+          type: integer
+
+    ChainHop:
+      type: object
+      required: [asset_id, depth]
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+        depth:
+          type: integer
+
+    CompromiseChain:
+      type: object
+      description: >-
+        What follows from an asset being compromised. `impacted` are the assets
+        that depend on it (what breaks); `reachable` are the assets it depends on
+        or connects to (where an attacker moves next).
+      required: [origin_id, impacted, reachable, edge_ids]
+      properties:
+        origin_id:
+          type: string
+          format: uuid
+        impacted:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainHop'
+        reachable:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainHop'
+        edge_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     AssetSnapshot:
       type: object

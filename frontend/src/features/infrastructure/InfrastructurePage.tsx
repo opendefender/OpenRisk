@@ -85,7 +85,7 @@ export function InfrastructurePage() {
         count={configs.length ? `${configs.length}` : null}
         actions={
           <>
-            <Btn label={tr('Vue Univers', 'Universe view')} icon={Radar} onClick={() => navigate('/assets/universe')} />
+            <Btn label={tr('Topologie', 'Topology')} icon={Radar} onClick={() => navigate('/assets/topology')} />
             {canWrite && <Btn label={tr('Nouvelle config', 'New config')} icon={Plus} primary onClick={() => setDrawerProvider('aws')} />}
           </>
         }

@@ -53,28 +53,7 @@ func newLifecycleHarness(t *testing.T) *lifecycleHarness {
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 
-	// Hand-written DDL, as everywhere else in this package: the domain models
-	// carry Postgres defaults sqlite cannot parse, and hand-writing it means a
-	// model that gains a column fails here loudly instead of silently.
-	require.NoError(t, db.Exec(`CREATE TABLE risks (
-		id TEXT PRIMARY KEY, tenant_id TEXT, organization_id TEXT,
-		name TEXT, title TEXT NOT NULL, description TEXT,
-		probability REAL, impact REAL, score REAL, criticality TEXT,
-		impact_legacy INTEGER, probability_legacy INTEGER,
-		status TEXT, level TEXT, category_id TEXT,
-		lifecycle_state TEXT, lifecycle_phase TEXT,
-		created_by TEXT, assigned_to TEXT,
-		owner_id TEXT, assignee_id TEXT, reviewer_id TEXT, owner TEXT,
-		asset_id TEXT, treatment_plan TEXT, residual_risk REAL, last_mitigated_at DATETIME,
-		slexaf REAL, aro REAL, downtime_hours REAL, hourly_downtime_cost_xaf REAL,
-		data_loss_cost_xaf REAL, fines_xaf REAL, other_direct_cost_xaf REAL,
-		remediation_cost_xaf REAL, mitigation_effectiveness REAL,
-		smart_score REAL, smart_level TEXT, smart_factors TEXT, smart_computed_at DATETIME,
-		review_interval_days INTEGER, next_review_at DATETIME, last_reviewed_at DATETIME,
-		source TEXT, source_cve_id TEXT, external_id TEXT, custom_fields TEXT,
-		tags TEXT, frameworks TEXT, control_ids TEXT,
-		created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
-	);`).Error)
+	createRisksTable(t, db)
 	require.NoError(t, db.Exec(`CREATE TABLE risk_assets (risk_id TEXT, asset_id TEXT);`).Error)
 	require.NoError(t, db.Exec(`CREATE TABLE risk_histories (
 		id TEXT PRIMARY KEY, risk_id TEXT, score REAL, impact INTEGER, probability INTEGER,

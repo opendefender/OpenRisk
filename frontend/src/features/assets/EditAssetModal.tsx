@@ -19,6 +19,15 @@ import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useAssets } from './useAssets';
 import { ASSET_CRITICALITIES, ASSET_TYPES, type Asset } from '../../types/asset';
 import { useEscapeToClose } from '../../shared/useBackTo';
+import { apiErrorMessage } from '../../lib/apiError';
+import { AttributeForm } from '../attackSurface/AttributeForm';
+import { useAssetSchemas } from '../attackSurface/useAssetSchemas';
+import {
+  ASSET_CATEGORIES,
+  CATEGORY_LABELS,
+  type AssetCategory,
+  type AttributeBag,
+} from '../attackSurface/schemaTypes';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -47,6 +56,10 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
   const { updateAsset, deleteAsset } = useAssets();
   const isOpen = !!asset;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { defsFor } = useAssetSchemas();
+  const [category, setCategory] = useState<AssetCategory | ''>('');
+  const [attributes, setAttributes] = useState<AttributeBag>({});
+  const defs = defsFor(category);
   const linkedRisks = asset?.risks?.length ?? 0;
 
   const {
@@ -67,6 +80,16 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
     }
   }, [asset, reset]);
 
+  // Sync the typed-attribute state from the asset by adjusting state during
+  // render rather than inside the effect above, which would schedule an extra
+  // render pass every time the drawer opens.
+  const [syncedFrom, setSyncedFrom] = useState<Asset | undefined>(undefined);
+  if (asset !== syncedFrom) {
+    setSyncedFrom(asset);
+    setCategory((asset?.category as AssetCategory | undefined) ?? '');
+    setAttributes((asset?.attributes as AttributeBag | undefined) ?? {});
+  }
+
   const handleClose = () => {
     reset();
     setConfirmingDelete(false);
@@ -76,11 +99,16 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
   const onSubmit = async (values: FormValues) => {
     if (!asset?.id) return;
     try {
-      await updateAsset.mutateAsync({ id: asset.id, payload: values });
+      await updateAsset.mutateAsync({
+        id: asset.id,
+        payload: { ...values, ...(category ? { category, attributes } : {}) },
+      });
       toast.success(t('assets.updateSuccess'));
       handleClose();
-    } catch {
-      toast.error(t('errors.failedToUpdateAsset'));
+    } catch (err) {
+      // Show the server's named validation failure, not a generic one — it is
+      // the only part that tells the user which attribute to fix.
+      toast.error(apiErrorMessage(err) || t('errors.failedToUpdateAsset'));
     }
   };
 
@@ -197,6 +225,41 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
                   {...register('owner')}
                   disabled={isSubmitting}
                 />
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                    {t('assets.form.category', 'Catégorie typée')}
+                  </label>
+                  <select
+                    value={category}
+                    disabled={isSubmitting}
+                    onChange={(e) => {
+                      setCategory(e.target.value as AssetCategory | '');
+                      // Re-typing an asset re-validates against a different
+                      // schema; the previous bag does not belong to it.
+                      setAttributes({});
+                    }}
+                    className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  >
+                    <option value="">{t('assets.form.noCategory', 'Aucune (sans attributs typés)')}</option>
+                    {ASSET_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {CATEGORY_LABELS[cat]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {category && defs.length > 0 ? (
+                  <div className="rounded-2xl border border-border p-4">
+                    <AttributeForm
+                      defs={defs}
+                      values={attributes}
+                      onChange={setAttributes}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                ) : null}
 
                 </div>
 

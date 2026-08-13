@@ -52,7 +52,10 @@ const GapAnalysisPage = lazy(() => import('./features/compliance/GapAnalysisPage
 const AuditsPage = lazy(() => import('./features/compliance/AuditsPage').then(m => ({ default: m.AuditsPage })));
 const RemediationPage = lazy(() => import('./features/compliance/RemediationPage').then(m => ({ default: m.RemediationPage })));
 const InventoryPage = lazy(() => import('./features/assets/InventoryPage').then(m => ({ default: m.InventoryPage })));
-const AssetUniverse = lazy(() => import('./features/universe/AssetUniverse').then(m => ({ default: m.AssetUniverse })));
+const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
+const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
+const UnassignedVulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/UnassignedVulnerabilitiesPage'));
+const RiskRulePage = lazy(() => import('./features/attackSurface/RiskRulePage'));
 const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
 const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
 const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
@@ -319,6 +322,8 @@ function App() {
 
           {/* ---------------- Threats ---------------- */}
           <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
+          <Route path="vulnerabilities/unassigned" element={<UnassignedVulnerabilitiesPage />} />
+          <Route path="vulnerabilities/risk-rule" element={<RiskRulePage />} />
           <Route path="threat-map" element={<ThreatIntel />} />
           <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
           <Route path="simulations" element={<SimulationsPage />} />
@@ -345,7 +350,13 @@ function App() {
 
           {/* ---------------- Assets ---------------- */}
           <Route path="assets" element={<InventoryPage />} />
-          <Route path="assets/universe" element={<AssetUniverse />} />
+          {/* The Asset Universe was superseded by the topology view (same graph,
+              plus zoom/pan, zone clustering, typed edges, compromise chain and
+              export). Kept as a redirect so existing links and bookmarks land
+              on its replacement rather than a 404. */}
+          <Route path="assets/universe" element={<Navigate to="/assets/topology" replace />} />
+          <Route path="assets/schemas" element={<AssetSchemaSettings />} />
+          <Route path="assets/topology" element={<TopologyView />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />
 

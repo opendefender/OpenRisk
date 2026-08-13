@@ -20,6 +20,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useCTIStats, useCTIVulnerabilities, useCTISync, useCTIMatch } from './useCTI';
 import type { CTIVulnerability } from './ctiService';
+import { CveDetailDrawer } from './CveDetailDrawer';
 
 const sevToCrit = (s: string): Criticality => {
   switch ((s || '').toUpperCase()) {
@@ -48,6 +49,7 @@ export function ThreatIntel() {
 
   const [q, setQ] = useState('');
   const [sev, setSev] = useState('');
+  const [openCve, setOpenCve] = useState<string | null>(null);
   const { data: stats } = useCTIStats();
   const { data: vulns, isLoading, isError, refetch } = useCTIVulnerabilities({
     query: q || undefined,
@@ -169,7 +171,20 @@ export function ThreatIntel() {
             const crit = sevToCrit(v.severity);
             const techniques = (v.mitre_techniques ?? []).slice(0, 3);
             return (
-              <div key={v.cve_id} className="flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-hover transition-colors" style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}>
+              <div
+                key={v.cve_id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenCve(v.cve_id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenCve(v.cve_id);
+                  }
+                }}
+                className="flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-hover transition-colors cursor-pointer text-left w-full"
+                style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}
+              >
                 <div className="w-[52px] shrink-0 text-center">
                   <div className="mono text-[17px] font-bold" style={{ color: critColor[crit] }}>{v.cvss_v3 > 0 ? v.cvss_v3.toFixed(1) : '—'}</div>
                   <div className="text-[9px] text-ink-muted tracking-[.04em]">CVSS</div>
@@ -198,6 +213,14 @@ export function ThreatIntel() {
           })
         )}
       </Card>
+
+      {openCve && (
+        <CveDetailDrawer
+          cveId={openCve}
+          fallback={list.find((v) => v.cve_id === openCve)}
+          onClose={() => setOpenCve(null)}
+        />
+      )}
     </PageFrame>
   );
 }

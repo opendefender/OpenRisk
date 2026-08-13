@@ -105,68 +105,7 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 	if err := db.AutoMigrate(&UserT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
-	// Hand-written (AutoMigrate can't build this model on sqlite: gen_random_uuid()
-	// default + pq array columns). Kept in sync with domain.Risk — every column the
-	// repository INSERT/RETURNING touches must exist, else the insert 400s. This
-	// had drifted (missing tenant_id + ~15 newer columns), which was the real cause
-	// of the long-standing TestRiskCRUDFlow failure.
-	if err := db.Exec(`CREATE TABLE IF NOT EXISTS risks (
-		id TEXT PRIMARY KEY,
-		tenant_id TEXT,
-		organization_id TEXT,
-		name TEXT,
-		title TEXT NOT NULL,
-		description TEXT,
-		probability REAL,
-		impact REAL,
-		score REAL,
-		criticality TEXT,
-		impact_legacy INTEGER,
-		probability_legacy INTEGER,
-		status TEXT,
-		level TEXT,
-		category_id TEXT,
-	lifecycle_state TEXT,
-	lifecycle_phase TEXT,
-		created_by TEXT,
-		assigned_to TEXT,
-		owner_id TEXT,
-	assignee_id TEXT,
-	reviewer_id TEXT,
-		owner TEXT,
-		asset_id TEXT,
-		treatment_plan TEXT,
-		residual_risk REAL,
-		last_mitigated_at DATETIME,
-		slexaf REAL,
-		aro REAL,
-		downtime_hours REAL,
-		hourly_downtime_cost_xaf REAL,
-		data_loss_cost_xaf REAL,
-		fines_xaf REAL,
-		other_direct_cost_xaf REAL,
-		remediation_cost_xaf REAL,
-		mitigation_effectiveness REAL,
-		smart_score REAL,
-		smart_level TEXT,
-		smart_factors TEXT,
-		smart_computed_at DATETIME,
-		review_interval_days INTEGER,
-		next_review_at DATETIME,
-		last_reviewed_at DATETIME,
-		source TEXT,
-		source_cve_id TEXT,
-		external_id TEXT,
-		custom_fields TEXT,
-		tags TEXT,
-		frameworks TEXT,
-		control_ids TEXT,
-		created_at DATETIME,
-		updated_at DATETIME,
-		deleted_at DATETIME
-	);`).Error; err != nil {
-		t.Fatalf("create risks table failed: %v", err)
-	}
+	createRisksTable(t, db)
 	if err := db.Exec(`CREATE TABLE IF NOT EXISTS risk_assets (
 		risk_id TEXT NOT NULL,
 		asset_id TEXT NOT NULL

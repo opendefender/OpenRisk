@@ -34,7 +34,7 @@ func NewRiskCreator(db *gorm.DB) *RiskCreator {
 // ProposeFromVulnerability creates (once) a risk for the given vulnerability.
 // Idempotent by (tenant, asset, cve) — or (tenant, asset, name) for non-CVE
 // findings — so repeated scans/ingests never duplicate.
-func (c *RiskCreator) ProposeFromVulnerability(ctx context.Context, tenantID uuid.UUID, v *domain.Vulnerability) (uuid.UUID, error) {
+func (c *RiskCreator) ProposeFromVulnerability(ctx context.Context, tenantID uuid.UUID, v *domain.Vulnerability, reason string) (uuid.UUID, error) {
 	if v.AssetID == nil {
 		return uuid.Nil, fmt.Errorf("vulnerability has no asset to attribute a risk to")
 	}
@@ -84,7 +84,6 @@ func (c *RiskCreator) ProposeFromVulnerability(ctx context.Context, tenantID uui
 		Impact:         impact,
 		Score:          roundTo(prob*impact*1.5, 3),
 		Criticality:    crit,
-		Status:         domain.RiskStatus("open"),
 		Level:          level,
 		CreatedBy:      uuid.Nil, // auto-generated, no human author
 		AssetID:        v.AssetID,
@@ -94,10 +93,24 @@ func (c *RiskCreator) ProposeFromVulnerability(ctx context.Context, tenantID uui
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
+
+	// DRAFT, ALWAYS. A machine may propose a risk; it may not enter one into the
+	// register as live work. An auto-created risk landing in an active state
+	// would silently inflate the register, distort every posture number computed
+	// from it, and assign work nobody agreed to — and it would do so on every
+	// scan. SetState is used rather than assigning Status directly because it is
+	// the single writer that keeps status and lifecycle_phase derived from the
+	// state (see domain/risk_state.go).
+	risk.SetState(domain.StateDraft)
+
 	if v.CVEID != "" {
 		cve := v.CVEID
 		risk.SourceCVEID = &cve
 	}
+	// Tracked origin: which finding proposed this, and on what grounds.
+	vulnID := v.ID
+	risk.SourceVulnerabilityID = &vulnID
+	risk.SourceRuleReason = reason
 
 	if err := c.db.WithContext(ctx).Create(risk).Error; err != nil {
 		return uuid.Nil, fmt.Errorf("failed to auto-create risk from vulnerability: %w", err)

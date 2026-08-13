@@ -18,6 +18,20 @@ type CreateAssetInput struct {
 	Type        string
 	Criticality domain.AssetCriticality
 	Owner       string
+	// Category selects the typed attribute schema. Optional: an asset created
+	// without one is untyped and simply has no attributes (that is the state
+	// every pre-existing asset is in).
+	Category domain.AssetCategory
+	// Attributes is the raw, unvalidated bag from the client. It is only ever
+	// persisted after AttributeValidator has checked and coerced it.
+	Attributes map[string]any
+}
+
+// AttributeValidator validates a raw attribute bag against the tenant's schema
+// for a category and returns the coerced bag plus the schema that governed it.
+// Narrow port, satisfied structurally by application/assetschema.Validator.
+type AttributeValidator interface {
+	ValidateFor(ctx context.Context, tenantID uuid.UUID, cat domain.AssetCategory, in map[string]any) (domain.AssetAttributes, []domain.AttributeDef, error)
 }
 
 // ActivationRecorder notes the "connected an asset" milestone. Narrow port,
@@ -30,6 +44,7 @@ type ActivationRecorder interface {
 type CreateAssetUseCase struct {
 	repo       domain.AssetRepository
 	activation ActivationRecorder
+	attrs      AttributeValidator
 }
 
 func NewCreateAssetUseCase(repo domain.AssetRepository) *CreateAssetUseCase {
@@ -39,6 +54,13 @@ func NewCreateAssetUseCase(repo domain.AssetRepository) *CreateAssetUseCase {
 // WithActivation attaches the optional activation recorder.
 func (uc *CreateAssetUseCase) WithActivation(rec ActivationRecorder) *CreateAssetUseCase {
 	uc.activation = rec
+	return uc
+}
+
+// WithAttributeValidator wires typed-attribute validation. Without it, an asset
+// may still be created — but only without attributes: see Execute.
+func (uc *CreateAssetUseCase) WithAttributeValidator(v AttributeValidator) *CreateAssetUseCase {
+	uc.attrs = v
 	return uc
 }
 
@@ -52,6 +74,29 @@ func (uc *CreateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 		criticality = domain.CriticalityMedium
 	}
 
+	// Typed attributes: a category is required to have any, because the schema
+	// is what makes them typed. Attributes without a category are rejected
+	// rather than stored loose — an unvalidated bag is the untyped inventory
+	// this feature exists to replace.
+	var (
+		attrs    domain.AssetAttributes
+		defs     []domain.AttributeDef
+		category domain.AssetCategory
+	)
+	if input.Category != "" {
+		parsed, err := domain.ParseAssetCategory(string(input.Category))
+		if err != nil {
+			return nil, err
+		}
+		category = parsed
+		attrs, defs, err = uc.validateAttributes(ctx, tenantID, category, input.Attributes)
+		if err != nil {
+			return nil, err
+		}
+	} else if len(input.Attributes) > 0 {
+		return nil, domain.NewValidationError("attributes require an asset category — pick one so the values can be validated against its schema")
+	}
+
 	assetEntity := &domain.Asset{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -60,7 +105,10 @@ func (uc *CreateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 		Criticality: criticality,
 		Owner:       input.Owner,
 		Source:      "MANUAL",
+		Category:    category,
+		Attributes:  attrs,
 	}
+	assetEntity.RefreshFingerprints(defs)
 
 	if err := uc.repo.Create(ctx, assetEntity); err != nil {
 		return nil, domain.NewInternalError(err.Error())

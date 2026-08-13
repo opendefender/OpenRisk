@@ -6,6 +6,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,6 +63,27 @@ type Asset struct {
 	// to auto-create risks for exposed CVEs.
 	CPEs pq.StringArray `gorm:"column:cpes;type:text[]" json:"cpes"`
 
+	// Category selects which attribute schema governs this asset (see
+	// AssetTypeSchema). Type stays as the free-text display label — category is
+	// the closed vocabulary the form generator and the validator key off.
+	// Empty on rows written before typed attributes existed: those assets simply
+	// have no typed attributes until someone assigns them a category.
+	Category AssetCategory `gorm:"type:varchar(32);index" json:"category"`
+
+	// Attributes holds the typed, schema-validated attribute values. Every write
+	// path runs ValidateAttributes against the tenant's schema first, so an
+	// out-of-schema key or a malformed value never reaches this column.
+	Attributes AssetAttributes `gorm:"type:jsonb" json:"attributes"`
+
+	// --- correlation fingerprints ------------------------------------------
+	// Denormalised out of Attributes on every write (see RefreshFingerprints).
+	// They exist as their own indexed columns because the vulnerability↔asset
+	// correlator matches on them for every ingested finding: querying a JSONB
+	// bag per finding would make a 10k-finding import quadratic.
+	Hostnames       pq.StringArray `gorm:"column:hostnames;type:text[]" json:"hostnames"`
+	IPAddresses     pq.StringArray `gorm:"column:ip_addresses;type:text[]" json:"ip_addresses"`
+	CloudResourceID string         `gorm:"size:512;index" json:"cloud_resource_id"`
+
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
@@ -79,6 +101,52 @@ func (a *Asset) BeforeSave(tx *gorm.DB) error {
 		a.OrganizationID = a.TenantID
 	}
 	return nil
+}
+
+// RefreshFingerprints recomputes the denormalised correlation columns from the
+// asset's typed attributes, given the schema that governs its category.
+//
+// Called on every asset write. Values already present on the asset (a hostname
+// typed into the legacy field, CPEs pushed by the scanner) are PRESERVED and
+// merged, never replaced: the scanner learns things about an asset the operator
+// never typed, and losing them at the next manual edit is exactly how a
+// correlation silently starts failing.
+func (a *Asset) RefreshFingerprints(defs []AttributeDef) {
+	if a == nil {
+		return
+	}
+	sig := FingerprintSignalsFrom(defs, a.Attributes)
+
+	a.Hostnames = mergeUnique(a.Hostnames, sig.Hostnames)
+	a.IPAddresses = mergeUnique(a.IPAddresses, sig.IPs)
+	a.CPEs = mergeUnique(a.CPEs, sig.CPEs)
+	if len(sig.CloudIDs) > 0 {
+		a.CloudResourceID = sig.CloudIDs[0]
+	}
+}
+
+// mergeUnique appends the values of b that a does not already carry, comparing
+// case-insensitively and preserving a's order.
+func mergeUnique(a pq.StringArray, b []string) pq.StringArray {
+	seen := make(map[string]bool, len(a)+len(b))
+	out := make(pq.StringArray, 0, len(a)+len(b))
+	for _, v := range a {
+		v = strings.TrimSpace(v)
+		if v == "" || seen[strings.ToLower(v)] {
+			continue
+		}
+		seen[strings.ToLower(v)] = true
+		out = append(out, v)
+	}
+	for _, v := range b {
+		v = strings.TrimSpace(v)
+		if v == "" || seen[strings.ToLower(v)] {
+			continue
+		}
+		seen[strings.ToLower(v)] = true
+		out = append(out, v)
+	}
+	return out
 }
 
 // AssetSnapshot captures an asset's state at a point in time, taken

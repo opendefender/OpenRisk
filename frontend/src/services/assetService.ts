@@ -13,9 +13,25 @@ import type {
   UpdateAssetInput,
 } from '../types/asset';
 
+/**
+ * Typed-attribute search. Sent to the server as `?category=&attr.<key>=<value>`
+ * so the matching semantics are the server's single implementation
+ * (domain.MatchesAttributes) rather than a second copy living in the client.
+ */
+export interface AssetSearchFilter {
+  category?: string;
+  /** attribute key → value, AND-ed together. */
+  attributes?: Record<string, string>;
+}
+
 export const assetService = {
-  listAssets: async (): Promise<Asset[]> => {
-    const response = await api.get<Asset[]>('/assets');
+  listAssets: async (filter?: AssetSearchFilter): Promise<Asset[]> => {
+    const params: Record<string, string> = {};
+    if (filter?.category) params.category = filter.category;
+    for (const [k, v] of Object.entries(filter?.attributes ?? {})) {
+      if (k.trim() && v.trim()) params[`attr.${k.trim()}`] = v.trim();
+    }
+    const response = await api.get<Asset[]>('/assets', { params });
     return response.data;
   },
 

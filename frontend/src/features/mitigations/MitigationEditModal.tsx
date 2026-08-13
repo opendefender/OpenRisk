@@ -11,6 +11,9 @@ import { Input } from '../../components/ui/Input';
 import { api } from '../../lib/api';
 import { toast } from 'sonner';
 import { useEscapeToClose } from '../../shared/useBackTo';
+import { UserPicker } from '../../shared/UserPicker';
+import { ownershipPatch, type OwnershipRole } from '../../services/ownershipService';
+import { apiErrorMessage } from '../../lib/apiError';
 
 interface Props {
   isOpen: boolean;
@@ -25,11 +28,17 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
   const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm();
   const [newSubTitle, setNewSubTitle] = useState('');
 
+  // The three accountability slots. The API has accepted them since the
+  // ownership work (domain.OwnershipPatch is embedded in the mitigation
+  // create/update payloads) — this form simply never sent them, which is why a
+  // mitigation could not be given an owner from anywhere in the product.
+  const [owners, setOwners] = useState<Record<OwnershipRole, string | null>>({
+    owner: null, assignee: null, reviewer: null,
+  });
+
   useEffect(() => {
     if (isOpen && mitigation) {
       setValue('title', mitigation.title || '');
-      setValue('assignee', mitigation.assignee || '');
-      setValue('progress', mitigation.progress || 0);
       setValue('cost', mitigation.cost || 1);
       setValue('mitigation_time', mitigation.mitigation_time || 1);
       setValue('status', mitigation.status || 'PLANNED');
@@ -39,10 +48,37 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     }
   }, [isOpen, mitigation, setValue, reset]);
 
+  // Sync the ownership slots from the record by adjusting state during render —
+  // React's pattern for "reset local state when the source changes". Doing it in
+  // the effect above would schedule an extra render pass on every open.
+  const [syncedFrom, setSyncedFrom] = useState<unknown>(undefined);
+  if (mitigation !== syncedFrom) {
+    setSyncedFrom(mitigation);
+    setOwners(
+      mitigation
+        ? {
+            owner: mitigation.owner_id ?? null,
+            assignee: mitigation.assignee_id ?? null,
+            reviewer: mitigation.reviewer_id ?? null,
+          }
+        : { owner: null, assignee: null, reviewer: null }
+    );
+  }
+
   const onSubmit = async (data: any) => {
     if (!mitigation) return;
     try {
-      await api.patch(`/mitigations/${mitigation.id}`, data);
+      // ownershipPatch keeps the tri-state: an untouched slot is omitted rather
+      // than sent as null, so saving this form never silently unassigns the
+      // reviewer somebody set elsewhere.
+      await api.patch(`/mitigations/${mitigation.id}`, {
+        ...data,
+        ...ownershipPatch({
+          owner: owners.owner ?? null,
+          assignee: owners.assignee ?? null,
+          reviewer: owners.reviewer ?? null,
+        }),
+      });
       toast.success('Mitigation sauvegardée');
       onSaved?.();
       onClose();
@@ -54,7 +90,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
         onClose();
         return;
       }
-      toast.error('Erreur lors de la sauvegarde');
+      toast.error(apiErrorMessage(e) || 'Erreur lors de la sauvegarde');
     }
   };
 
@@ -121,9 +157,39 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
             <h3 className="text-lg font-semibold text-text-primary mb-4">Modifier la mitigation</h3>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <Input label="Titre" {...register('title')} />
-              <Input label="Assigné à" {...register('assignee')} />
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                  Responsabilités
+                </label>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {(['owner', 'assignee', 'reviewer'] as const).map((role) => (
+                    <UserPicker
+                      key={role}
+                      role={role}
+                      value={owners[role]}
+                      onChange={(id) => setOwners((prev) => ({ ...prev, [role]: id }))}
+                      permission="mitigations:update"
+                      size="sm"
+                    />
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
-                <Input type="number" label="Progress (%)" {...register('progress')} />
+                {/* Progress is COMPUTED server-side from the sub-actions below
+                    (domain.ComputeMitigationProgress) and no endpoint accepts
+                    it. It used to be an editable input, which is a control that
+                    cannot do what it appears to do — shown read-only instead. */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    Avancement
+                  </label>
+                  <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-surface-1 text-sm text-text-secondary">
+                    {mitigation?.progress ?? 0}%
+                    <span className="ml-2 text-xs text-text-muted">(calculé)</span>
+                  </div>
+                </div>
                 <Input type="number" label="Temps (jours)" {...register('mitigation_time')} />
               </div>
               <div className="grid grid-cols-2 gap-2">

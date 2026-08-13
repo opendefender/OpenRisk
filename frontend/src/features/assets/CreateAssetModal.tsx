@@ -3,6 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -15,6 +16,15 @@ import { useToast } from '../../hooks/useToast';
 import { useAssets } from './useAssets';
 import { ASSET_CRITICALITIES, ASSET_TYPES } from '../../types/asset';
 import { useEscapeToClose } from '../../shared/useBackTo';
+import { apiErrorMessage } from '../../lib/apiError';
+import { AttributeForm } from '../attackSurface/AttributeForm';
+import { useAssetSchemas } from '../attackSurface/useAssetSchemas';
+import {
+  ASSET_CATEGORIES,
+  CATEGORY_LABELS,
+  type AssetCategory,
+  type AttributeBag,
+} from '../attackSurface/schemaTypes';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -23,6 +33,25 @@ const schema = z.object({
   owner: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
+
+/**
+ * Free-text type → typed category. Picking the category for the user (rather
+ * than asking twice) is what stops the two vocabularies from disagreeing on the
+ * very first screen; they can still override it below.
+ */
+const CATEGORY_FOR_TYPE: Partial<Record<(typeof ASSET_TYPES)[number], AssetCategory>> = {
+  Server: 'server',
+  Laptop: 'workstation',
+  Application: 'application',
+  SaaS: 'application',
+  Database: 'database',
+  Network: 'network',
+  Cloud: 'cloud',
+  Storage: 'cloud',
+  Supplier: 'vendor',
+  Data: 'data_processing',
+  User: 'workstation',
+};
 
 interface CreateAssetModalProps {
   isOpen: boolean;
@@ -36,28 +65,49 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
   const toast = useToast();
   const { createAsset } = useAssets();
 
+  const { defsFor } = useAssetSchemas();
+
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', type: ASSET_TYPES[0], criticality: 'MEDIUM', owner: '' },
   });
 
+  const selectedType = watch('type');
+  // The category defaults from the chosen type but stays overridable: the two
+  // vocabularies serve different purposes (display vs. schema selection).
+  const [categoryOverride, setCategoryOverride] = useState<AssetCategory | ''>('');
+  const category: AssetCategory | '' =
+    categoryOverride || CATEGORY_FOR_TYPE[selectedType] || '';
+  const defs = defsFor(category);
+
+  const [attributes, setAttributes] = useState<AttributeBag>({});
+
   const handleClose = () => {
     reset();
+    setAttributes({});
+    setCategoryOverride('');
     onClose();
   };
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await createAsset.mutateAsync(values);
+      await createAsset.mutateAsync({
+        ...values,
+        ...(category ? { category, attributes } : {}),
+      });
       toast.success(t('assets.createSuccess'));
       handleClose();
-    } catch {
-      toast.error(t('errors.failedToCreateAsset'));
+    } catch (err) {
+      // The server owns attribute validation, so its message is the specific
+      // one ("Nom d'hôte is required") — showing a generic failure instead
+      // would hide the only useful part.
+      toast.error(apiErrorMessage(err) || t('errors.failedToCreateAsset'));
     }
   };
 
@@ -148,6 +198,41 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
                   disabled={isSubmitting}
                   placeholder="IT Dept"
                 />
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                    {t('assets.form.category', 'Catégorie typée')}
+                  </label>
+                  <select
+                    value={category}
+                    disabled={isSubmitting}
+                    onChange={(e) => {
+                      setCategoryOverride(e.target.value as AssetCategory | '');
+                      // The old bag belongs to the old schema; carrying it over
+                      // would submit attributes the new category never declared.
+                      setAttributes({});
+                    }}
+                    className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  >
+                    <option value="">{t('assets.form.noCategory', 'Aucune (sans attributs typés)')}</option>
+                    {ASSET_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {CATEGORY_LABELS[cat]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {category && defs.length > 0 ? (
+                  <div className="rounded-2xl border border-border p-4">
+                    <AttributeForm
+                      defs={defs}
+                      values={attributes}
+                      onChange={setAttributes}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                ) : null}
 
                 </div>
 
