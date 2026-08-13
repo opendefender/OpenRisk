@@ -136,9 +136,9 @@ func TestVulnRiskRule_RequireKEVAndExposure(t *testing.T) {
 func TestVulnRiskRule_NegativeDecisionsAreExplained(t *testing.T) {
 	r := enabledRule()
 	for _, v := range []*Vulnerability{
-		{CVSSScore: 9.8},                      // no asset
-		vulnOn("LOW", 9.8),                    // criticality too low
-		vulnOn("CRITICAL", 1.0),               // CVSS too low
+		{CVSSScore: 9.8},        // no asset
+		vulnOn("LOW", 9.8),      // criticality too low
+		vulnOn("CRITICAL", 1.0), // CVSS too low
 	} {
 		d := EvaluateVulnRiskRule(r, v, false)
 		if d.Create {

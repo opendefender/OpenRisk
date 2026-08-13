@@ -18,6 +18,7 @@ import type {
   NotifyChannel, RuleInput,
 } from './automationService';
 import { useEscapeToClose } from '../../shared/useBackTo';
+import { apiErrorMessage } from '../../lib/apiError';
 
 const TRIGGERS: AutomationTrigger[] = [
   'vulnerability_detected', 'risk_score_updated', 'risk_created', 'incident_created', 'manual',
@@ -128,8 +129,12 @@ export function RuleEditorModal({
       else await createRule.mutateAsync(input);
       toast.success(tr('Règle enregistrée', 'Rule saved'));
       onClose();
-    } catch {
-      toast.error(tr('Échec de l’enregistrement', 'Save failed'));
+    } catch (err) {
+      // The server names what it refused ("action 2: missing recipient"). A
+      // generic message leaves the modal open with no way to tell whether the
+      // save failed or the close is broken — which is exactly how "the modal
+      // stays open after saving" gets reported.
+      toast.error(apiErrorMessage(err) || tr('Échec de l’enregistrement', 'Save failed'));
     }
   };
 

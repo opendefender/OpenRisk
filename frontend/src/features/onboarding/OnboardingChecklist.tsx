@@ -15,7 +15,7 @@
 // after a single import (two steps read the same count).
 
 import { useNavigate } from 'react-router';
-import { Check, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
+import { Check, ArrowRight, Sparkles, Loader2, LifeBuoy } from 'lucide-react';
 
 import { useUIStore } from '../../store/uiStore';
 import { i18n, type ActivationStep } from '../../services/activationService';
@@ -131,6 +131,19 @@ export function OnboardingChecklist() {
           />
         ))}
       </ul>
+
+      {/* The tour lives here rather than as a permanent header button: it is a
+          first-run aid, and someone who wants to replay it is already looking at
+          the getting-started card. */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent('openrisk:tour'))}
+        className="mt-3 inline-flex items-center gap-1.5 text-[12px] self-start"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <LifeBuoy size={13} />
+        {tr('Revoir la visite guidée', 'Replay the product tour')}
+      </button>
     </section>
   );
 }

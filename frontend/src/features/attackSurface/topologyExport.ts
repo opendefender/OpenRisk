@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { bounds, type LayoutState } from './forceLayout';
-import { EDGE_DASH, type ColorMode, type TopologyEdgeType } from './topologyTypes';
+import { EDGE_DASH, type TopologyEdgeType } from './topologyTypes';
 
 /**
  * Export the topology as SVG or PNG.

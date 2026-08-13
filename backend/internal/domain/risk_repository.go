@@ -89,10 +89,10 @@ type RiskRepository interface {
 // Sanitize() must be called before use to prevent SQL injection.
 type RiskQuery struct {
 	// Filtering
-	Search         string     // Full-text search on title + description (PostgreSQL tsvector 'french')
-	Status         []string   // Filter by statuses (OR condition)
-	Criticality    []string   // Filter by criticality levels
-	LifecyclePhase []string   // Filter by ISO 31000 lifecycle phase (OR condition)
+	Search         string   // Full-text search on title + description (PostgreSQL tsvector 'french')
+	Status         []string // Filter by statuses (OR condition)
+	Criticality    []string // Filter by criticality levels
+	LifecyclePhase []string // Filter by ISO 31000 lifecycle phase (OR condition)
 	// LifecycleState filters on the CANONICAL state column (draft, identified,
 	// …). Prefer it over LifecyclePhase and Status, which are derived from it.
 	LifecycleState []string

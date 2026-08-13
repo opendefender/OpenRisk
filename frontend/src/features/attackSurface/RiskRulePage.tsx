@@ -3,10 +3,10 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, FileText, Save, Sparkles, Trash2, X } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card, EmptyState, SkeletonRows } from '../../shared/ui';
+import { Check, FileText, Save, Sparkles, Trash2 } from 'lucide-react';
+import { PageFrame, PageHeader, Card, EmptyState, SkeletonRows } from '../../shared/ui';
 import { useToast } from '../../hooks/useToast';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { apiErrorMessage } from '../../lib/apiError';
@@ -38,10 +38,16 @@ export default function RiskRulePage() {
     queryFn: () => riskRuleService.get(),
   });
 
+  // Local editable copy of the saved rule. Re-synced by adjusting state during
+  // render (React's documented pattern for "reset state when the source
+  // changes") rather than in an effect, which would cost an extra render pass
+  // on every load.
   const [draft, setDraft] = useState<VulnRiskRule | null>(null);
-  useEffect(() => {
-    if (saved) setDraft({ ...saved });
-  }, [saved]);
+  const [syncedFrom, setSyncedFrom] = useState<VulnRiskRule | null>(null);
+  if (saved && saved !== syncedFrom) {
+    setSyncedFrom(saved);
+    setDraft({ ...saved });
+  }
 
   const dirty = useMemo(
     () => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved),

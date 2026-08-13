@@ -3,7 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -56,10 +56,14 @@ export default function AssetSchemaSettings() {
     [schemas, selected]
   );
 
-  useEffect(() => {
+  // Re-sync the editable copy when the selected category's schema changes, by
+  // adjusting state during render rather than in an effect.
+  const [syncedFrom, setSyncedFrom] = useState<typeof current>(undefined);
+  if (current !== syncedFrom) {
+    setSyncedFrom(current);
     setDraft(current?.attributes ? current.attributes.map((a) => ({ ...a })) : []);
     setLabel(current?.label ?? '');
-  }, [current]);
+  }
 
   const dirty = useMemo(
     () =>

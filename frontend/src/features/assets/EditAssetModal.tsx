@@ -77,10 +77,18 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
         criticality: (asset.criticality as FormValues['criticality']) ?? 'MEDIUM',
         owner: asset.owner ?? '',
       });
-      setCategory((asset.category as AssetCategory | undefined) ?? '');
-      setAttributes((asset.attributes as AttributeBag | undefined) ?? {});
     }
   }, [asset, reset]);
+
+  // Sync the typed-attribute state from the asset by adjusting state during
+  // render rather than inside the effect above, which would schedule an extra
+  // render pass every time the drawer opens.
+  const [syncedFrom, setSyncedFrom] = useState<Asset | undefined>(undefined);
+  if (asset !== syncedFrom) {
+    setSyncedFrom(asset);
+    setCategory((asset?.category as AssetCategory | undefined) ?? '');
+    setAttributes((asset?.attributes as AttributeBag | undefined) ?? {});
+  }
 
   const handleClose = () => {
     reset();

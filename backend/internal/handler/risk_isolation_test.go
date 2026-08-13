@@ -55,7 +55,7 @@ func newTenantRiskApp(t *testing.T) *tenantRiskApp {
 	require.NoError(t, err)
 
 	require.NoError(t, db.AutoMigrate(&UserT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}))
-	require.NoError(t, db.Exec(risksTableDDL).Error)
+	createRisksTable(t, db)
 	require.NoError(t, db.Exec(`CREATE TABLE IF NOT EXISTS risk_assets (risk_id TEXT NOT NULL, asset_id TEXT NOT NULL);`).Error)
 
 	orig := database.DB
@@ -250,63 +250,3 @@ func TestRiskIsolation_NilTenantIsDenied(t *testing.T) {
 		require.Empty(t, items, "a nil tenant must never list another tenant's risks")
 	}
 }
-
-// risksTableDDL mirrors domain.Risk. AutoMigrate cannot build it on sqlite
-// (Postgres gen_random_uuid() default + array columns), and every column the
-// repository INSERT/RETURNING touches must exist or inserts fail — the drift
-// that once broke TestRiskCRUDFlow.
-const risksTableDDL = `CREATE TABLE IF NOT EXISTS risks (
-	id TEXT PRIMARY KEY,
-	tenant_id TEXT,
-	organization_id TEXT,
-	name TEXT,
-	title TEXT NOT NULL,
-	description TEXT,
-	probability REAL,
-	impact REAL,
-	score REAL,
-	criticality TEXT,
-	impact_legacy INTEGER,
-	probability_legacy INTEGER,
-	status TEXT,
-	level TEXT,
-	category_id TEXT,
-	lifecycle_state TEXT,
-	lifecycle_phase TEXT,
-	created_by TEXT,
-	assigned_to TEXT,
-	owner_id TEXT,
-	assignee_id TEXT,
-	reviewer_id TEXT,
-	owner TEXT,
-	asset_id TEXT,
-	treatment_plan TEXT,
-	residual_risk REAL,
-	last_mitigated_at DATETIME,
-	slexaf REAL,
-	aro REAL,
-	downtime_hours REAL,
-	hourly_downtime_cost_xaf REAL,
-	data_loss_cost_xaf REAL,
-	fines_xaf REAL,
-	other_direct_cost_xaf REAL,
-	remediation_cost_xaf REAL,
-	mitigation_effectiveness REAL,
-	smart_score REAL,
-	smart_level TEXT,
-	smart_factors TEXT,
-	smart_computed_at DATETIME,
-	review_interval_days INTEGER,
-	next_review_at DATETIME,
-	last_reviewed_at DATETIME,
-	source TEXT,
-	source_cve_id TEXT,
-	external_id TEXT,
-	custom_fields TEXT,
-	tags TEXT,
-	frameworks TEXT,
-	control_ids TEXT,
-	created_at DATETIME,
-	updated_at DATETIME,
-	deleted_at DATETIME
-);`

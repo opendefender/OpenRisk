@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
@@ -19,8 +20,15 @@ import { Input } from '../../../components/ui/Input';
 const riskSchema = z.object({
   title: z.string().min(5).max(100),
   description: z.string().min(10),
-  impact: z.number().min(1).max(5),
-  probability: z.number().min(1).max(5),
+  // THE SCORE ENGINE SCALES, not 1-5. Score = Probability (0.0-1.0) x Impact
+  // (0.0-10.0) x AssetCriticality. This form used to declare 1-5 for both, which
+  // broke saving in two independent ways: loading any real risk (probability
+  // 0.7) failed `min(1)` so zodResolver refused to submit and the Save button
+  // did nothing at all, and any value the 1-5 picker could produce failed the
+  // server's `max=1` on probability. CreateRiskModal always used the right
+  // scale — the two forms simply disagreed.
+  impact: z.number().min(0).max(10),
+  probability: z.number().min(0).max(1),
   // Bound to a comma-separated text input; split into an array on submit. The
   // schema previously declared z.array here while the input produced a string,
   // so zodResolver rejected EVERY save (the Edit form's Save was broken).
@@ -45,8 +53,8 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting }, reset } = useForm<RiskFormData>({
     resolver: zodResolver(riskSchema),
     defaultValues: {
-      impact: 3,
-      probability: 3,
+      impact: 5,
+      probability: 0.5,
       asset_ids: [],
       tags: '',
       frameworks: [],
@@ -58,8 +66,8 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
     if (risk) {
       setValue('title', risk.title || '');
       setValue('description', risk.description || '');
-      setValue('impact', risk.impact || 3);
-      setValue('probability', risk.probability || 3);
+      setValue('impact', typeof risk.impact === 'number' ? risk.impact : 5);
+      setValue('probability', typeof risk.probability === 'number' ? risk.probability : 0.5);
       setValue('tags', (risk.tags || []).join(','));
       setValue('asset_ids', (risk.assets || []).map((a: any) => a.id));
       setValue('frameworks', risk.frameworks || []);
@@ -114,13 +122,11 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       await updateRisk(risk.id, payload);
       toast.success('Risque mis à jour');
       onClose();
-      if (typeof ({} as any) !== 'undefined') {
-        // call onSuccess if provided
-      }
-      // call provided onSuccess from props
-      try { (onSuccess as any)?.(); } catch (_) {}
+      onSuccess?.();
     } catch (err) {
-      toast.error('Erreur lors de la mise à jour');
+      // Show what the server actually said. A generic message hides the one
+      // sentence that names the offending field.
+      toast.error(apiErrorMessage(err) || 'Erreur lors de la mise à jour');
     }
   };
 
@@ -151,25 +157,45 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Impact (1-5)</label>
-                  <div className="flex bg-surface-1 border border-border rounded-lg p-1">
-                    {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => setValue('impact', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('impact') === n ? 'bg-primary text-text-primary' : 'text-text-secondary hover:bg-surface-2'} ${isLoading ? 'opacity-70' : ''}`}>
-                        {n}
-                      </button>
-                    ))}
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    Impact (0 – 10)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    step={0.5}
+                    disabled={isLoading}
+                    {...register('impact', { valueAsNumber: true })}
+                    className="w-full"
+                  />
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span>0</span>
+                    <span className="font-semibold text-text-primary">{(watch('impact') ?? 0).toFixed(1)}</span>
+                    <span>10</span>
                   </div>
+                  {errors.impact && <p className="text-xs text-danger-text mt-1">{errors.impact?.message}</p>}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Probabilité (1-5)</label>
-                  <div className="flex bg-surface-1 border border-border rounded-lg p-1">
-                    {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => setValue('probability', n as any)} disabled={isLoading} className={`flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors ${watch('probability') === n ? 'bg-primary text-text-primary' : 'text-text-secondary hover:bg-surface-2'} ${isLoading ? 'opacity-70' : ''}`}>
-                        {n}
-                      </button>
-                    ))}
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    Probabilité (0 – 1)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    disabled={isLoading}
+                    {...register('probability', { valueAsNumber: true })}
+                    className="w-full"
+                  />
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span>0</span>
+                    <span className="font-semibold text-text-primary">{(watch('probability') ?? 0).toFixed(2)}</span>
+                    <span>1</span>
                   </div>
+                  {errors.probability && <p className="text-xs text-danger-text mt-1">{errors.probability?.message}</p>}
                 </div>
               </div>
 

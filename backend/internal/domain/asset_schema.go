@@ -74,20 +74,20 @@ func joinCategories() string {
 type AttributeType string
 
 const (
-	AttrString   AttributeType = "string"
-	AttrText     AttributeType = "text" // multi-line
-	AttrNumber   AttributeType = "number"
-	AttrInteger  AttributeType = "integer"
-	AttrBoolean  AttributeType = "boolean"
-	AttrEnum      AttributeType = "enum"
-	AttrMultiEnum AttributeType = "multi_enum"
-	AttrDate     AttributeType = "date" // YYYY-MM-DD
-	AttrIP       AttributeType = "ip"
-	AttrIPList   AttributeType = "ip_list"
-	AttrHostname AttributeType = "hostname"
-	AttrCIDR     AttributeType = "cidr"
-	AttrURL      AttributeType = "url"
-	AttrEmail    AttributeType = "email"
+	AttrString     AttributeType = "string"
+	AttrText       AttributeType = "text" // multi-line
+	AttrNumber     AttributeType = "number"
+	AttrInteger    AttributeType = "integer"
+	AttrBoolean    AttributeType = "boolean"
+	AttrEnum       AttributeType = "enum"
+	AttrMultiEnum  AttributeType = "multi_enum"
+	AttrDate       AttributeType = "date" // YYYY-MM-DD
+	AttrIP         AttributeType = "ip"
+	AttrIPList     AttributeType = "ip_list"
+	AttrHostname   AttributeType = "hostname"
+	AttrCIDR       AttributeType = "cidr"
+	AttrURL        AttributeType = "url"
+	AttrEmail      AttributeType = "email"
 	AttrStringList AttributeType = "string_list"
 )
 

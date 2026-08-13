@@ -86,10 +86,10 @@ func TestValidateAttributes_CoercesAndValidates(t *testing.T) {
 
 	got, err := ValidateAttributes(defs, map[string]any{
 		"hostname":         " web-01.example.com ",
-		"port":             "8443",           // string from a form field
-		"internet_exposed": "true",           // string from a checkbox
+		"port":             "8443", // string from a form field
+		"internet_exposed": "true", // string from a checkbox
 		"environment":      "production",
-		"ips":              "10.0.0.1, 10.0.0.2", // comma-separated from a plain input
+		"ips":              "10.0.0.1, 10.0.0.2",   // comma-separated from a plain input
 		"last_patched":     "2026-08-01T00:00:00Z", // full timestamp from a date picker
 		"contact":          "ops@example.com",
 	})
@@ -205,8 +205,8 @@ func TestFingerprintSignals_URLReducedToHost(t *testing.T) {
 func TestRefreshFingerprints_PreservesDiscoveredValues(t *testing.T) {
 	defs := DefaultAttributes(CategoryServer)
 	a := &Asset{
-		ID:    uuid.New(),
-		CPEs:  []string{"cpe:2.3:o:canonical:ubuntu_linux:22.04"}, // pushed by the scanner
+		ID:   uuid.New(),
+		CPEs: []string{"cpe:2.3:o:canonical:ubuntu_linux:22.04"}, // pushed by the scanner
 		Attributes: AssetAttributes{
 			"hostname": "web-01",
 			"cpes":     []string{"cpe:2.3:a:apache:log4j:2.14.1"}, // typed by the operator
@@ -235,10 +235,10 @@ func TestMatchesAttributes(t *testing.T) {
 		"certifications":   []string{"iso-27001", "soc-2"},
 	}
 	ok := []AttributeSearchTerm{
-		{Key: "environment", Value: "PRODUCTION"},   // case-insensitive
+		{Key: "environment", Value: "PRODUCTION"}, // case-insensitive
 		{Key: "internet_exposed", Value: "true"},
 		{Key: "port", Value: "8443"},
-		{Key: "certifications", Value: "soc-2"},     // list contains
+		{Key: "certifications", Value: "soc-2"}, // list contains
 	}
 	for _, term := range ok {
 		if !MatchesAttributes(attrs, []AttributeSearchTerm{term}) {

@@ -14,6 +14,7 @@ import { Siren, X, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useIncidents } from './useIncidents';
+import { apiErrorMessage } from '../../lib/apiError';
 import { SEVERITIES, SEV, TYPES } from './incidentMeta';
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { useAssetStore } from '../../hooks/useAssetStore';
@@ -76,7 +77,9 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
       onCreated?.(inc.id);
       onClose();
     } catch (e) {
-      toast.error(tr('La déclaration a échoué', 'The declaration failed'));
+      // Show the server's reason. "La déclaration a échoué" on its own tells
+      // the user nothing and tells us nothing either.
+      toast.error(apiErrorMessage(e) || tr('La déclaration a échoué', 'The declaration failed'));
     } finally {
       setSaving(false);
     }

@@ -303,7 +303,7 @@ type Risk struct {
 	// ("CVSS 9.8 ≥ 7.0, asset criticality CRITICAL ≥ HIGH"). Frozen: re-deriving
 	// it later would describe the rule as it is NOW, not the rule that fired.
 	SourceRuleReason string `gorm:"type:text" json:"source_rule_reason,omitempty"`
-	ExternalID  string     `gorm:"index" json:"external_id"`                              // ID in external system
+	ExternalID       string `gorm:"index" json:"external_id"` // ID in external system
 
 	// Custom Fields (JSONB for flexibility)
 	CustomFields datatypes.JSON `gorm:"type:jsonb" json:"custom_fields,omitempty"`

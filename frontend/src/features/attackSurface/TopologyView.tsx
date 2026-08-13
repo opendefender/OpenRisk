@@ -61,7 +61,12 @@ const INTERNAL_COLOR = 'var(--low)';
 function resolveColor(cssVar: string, root: HTMLElement): string {
   const name = cssVar.match(/var\((--[^)]+)\)/)?.[1];
   if (!name) return cssVar;
-  return getComputedStyle(root).getPropertyValue(name).trim() || '#888';
+  // Falling back to --text-muted rather than a literal grey: an unresolvable
+  // token should still land on something that follows the theme.
+  const resolved = getComputedStyle(root).getPropertyValue(name).trim();
+  // An unresolvable token falls back to another TOKEN, never a literal: the
+  // fallback has to follow the theme too.
+  return resolved || getComputedStyle(root).getPropertyValue('--text-muted').trim();
 }
 
 export default function TopologyView() {
@@ -352,11 +357,15 @@ export default function TopologyView() {
     const colors = new Map<string, string>();
     for (const n of st?.nodes ?? []) colors.set(n.id, resolveColor(colorOfNode(n), root));
     return {
-      colorOf: (id: string) => colors.get(id) ?? '#888',
+      // The export leaves the document, so every colour must already be a
+      // literal here — `var(--x)` means nothing in a downloaded file. They are
+      // resolved FROM tokens, which is what makes the export follow whichever
+      // theme it was taken in.
+      colorOf: (id: string) => colors.get(id) ?? resolveColor('var(--text-muted)', root),
       highlighted: highlighted ?? undefined,
       highlightedEdges: highlightedEdges ?? undefined,
-      background: resolveColor('var(--surface-1)', root) || '#ffffff',
-      ink: resolveColor('var(--text-primary)', root) || '#111111',
+      background: resolveColor('var(--surface-1)', root),
+      ink: resolveColor('var(--text-primary)', root),
       title: `Topologie — ${st?.nodes.length ?? 0} actifs`,
     };
   };

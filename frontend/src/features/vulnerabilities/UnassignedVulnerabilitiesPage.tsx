@@ -48,7 +48,7 @@ export default function UnassignedVulnerabilitiesPage() {
     },
   });
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const ambiguous = useMemo(() => items.filter((v) => v.match_ambiguous), [items]);
   const unmatched = useMemo(() => items.filter((v) => !v.match_ambiguous), [items]);
 
@@ -226,7 +226,7 @@ function VulnRow({
       >
         <span
           className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
-          style={{ background: sev, color: '#fff' }}
+          style={{ background: sev, color: 'var(--text-inverse)' }}
         >
           {vuln.severity}
         </span>

@@ -205,6 +205,17 @@ var decisions = []Decision{
 		"CTI feed data (NVD/CISA) is global threat intelligence, not tenant-owned"},
 	{"/api/v1/score-engine/*", Covered,
 		"handler test TestScoreEngine_AssetLoadTenantScoped (regression for the July fail-open)"},
+
+	// --- Attack Surface ------------------------------------------------------
+	// The {id} here is an asset CATEGORY (server, vendor, …), not a record id, so
+	// there is nothing cross-tenant to address: the tenant comes from the token
+	// and the repository keys on (tenant_id, category).
+	{"/api/v1/attack-surface/schemas/{id}", Covered,
+		"application/assetschema: the tenant comes from the token; the path segment is a category, and the repository keys on (tenant_id, category)"},
+	{"/api/v1/attack-surface/schemas/{id}/reset", Covered,
+		"application/assetschema: same as above — deletes only the caller's tenant row"},
+	{"/api/v1/attack-surface/topology/{id}/compromise-chain", Covered,
+		"application/asset topology: the origin asset is loaded with GetByID(id, tenant) FIRST, so another tenant's id is a 404 before any graph is walked"},
 }
 
 // Normalise rewrites a concrete route path into registry pattern form, so

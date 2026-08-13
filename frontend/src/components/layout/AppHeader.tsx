@@ -16,7 +16,7 @@
 import { useSyncExternalStore, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Search, Bell, Sun, Moon, Menu, LifeBuoy,
+  Search, Bell, Sun, Moon, Menu,
   Rows2, Rows3, Rows4, Keyboard,
 } from 'lucide-react';
 import { cn } from '../ui/Button';
@@ -112,22 +112,6 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         {/* Replays the 3-coach-mark product tour (spec §8). A tour you cannot
             replay is a tour you have to get right first time — and that nobody
             can consult when they actually have the question. */}
-        <Hint
-          id="header-tour"
-          side="bottom"
-          text={lang === 'fr' ? 'Revoir la visite guidée' : 'Replay the product tour'}
-        >
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('openrisk:tour'))}
-            className={cn(iconBtn, 'hidden sm:flex')}
-            title={lang === 'fr' ? 'Visite guidée' : 'Product tour'}
-            aria-label={lang === 'fr' ? 'Revoir la visite guidée' : 'Replay the product tour'}
-            data-testid="replay-tour"
-          >
-            <LifeBuoy size={18} strokeWidth={1.7} />
-          </button>
-        </Hint>
-
         <Hint
           id="header-shortcuts"
           side="bottom"
