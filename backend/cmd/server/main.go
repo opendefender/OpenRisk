@@ -1110,6 +1110,14 @@ func main() {
 	// to the tenant without being handed the ability to mutate the register.
 	// userRepo resolves "collected by" to an email; optional and nil-safe.
 	evidenceRepo := repository.NewGormEvidenceRepository(database.DB)
+	// Move any pre-library attachments into the library. Idempotent, and
+	// best-effort: an old attachment that fails to move is worth a log line, not
+	// a server that refuses to start.
+	if moved, err := evidenceRepo.BackfillFromControlEvidences(context.Background()); err != nil {
+		log.Printf("Evidence: backfill from control_evidences failed (pre-library attachments may be missing): %v", err)
+	} else if moved > 0 {
+		log.Printf("Evidence: migrated %d pre-library attachment(s) into the evidence library", moved)
+	}
 	evidenceService := evidence.NewService(evidenceRepo, complianceRepo, fileStorage).
 		WithUserLookup(userRepo)
 	evidenceHandler := handlers.NewEvidenceHandler(evidenceService)
@@ -1948,6 +1956,24 @@ func main() {
 			}
 		}, zeroLogger)
 	go mitigationDueWorker.Start(context.Background())
+
+	// Evidence expiry: warn the owner before proof goes stale. Without this, the
+	// first person to notice a lapsed certificate is the auditor reading the
+	// register — the register is still honest (the control shows as unevidenced),
+	// but the organisation finds out at the worst possible moment.
+	evidenceExpiryWorker := workers.NewEvidenceExpiryWorker(
+		evidenceRepo,
+		func(ctx context.Context, tenantID, userID, evidenceID uuid.UUID, subject, message string) {
+			if err := notificationUseCase.NotifyInApp(userID, tenantID,
+				domain.NotificationTypeRiskReview, subject, message, &evidenceID, "evidence"); err != nil {
+				zeroLogger.Warn().Err(err).Msg("evidence expiry: in-app notification failed")
+			}
+			if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			}
+		}, zeroLogger)
+	go evidenceExpiryWorker.Start(context.Background())
+
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 
 	// Remediation auto-detection: after a scan, a finding (CVE) that is no longer

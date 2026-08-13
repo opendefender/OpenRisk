@@ -30,6 +30,65 @@ func NewGormEvidenceRepository(db *gorm.DB) *GormEvidenceRepository {
 	return &GormEvidenceRepository{db: db}
 }
 
+// BackfillFromControlEvidences moves the old per-control attachments into the
+// library, preserving ids so stored file keys and bookmarked URLs still resolve.
+//
+// This duplicates the data step of migration 0052 deliberately. Schemas in this
+// project are built by AutoMigrate at least as often as by golang-migrate — and
+// on a database where golang-migrate is blocked (this project's dev database has
+// been dirty at version 40 for months), AutoMigrate creates the two tables while
+// the migration's INSERT never runs. The result would be an empty library on a
+// tenant that had evidence, with no error anywhere: every control silently
+// unevidenced, and every control marked implemented suddenly unprovable.
+//
+// Idempotent by NOT EXISTS on both halves, so running it every boot is a no-op
+// once the rows have moved. Best-effort at the call site: a backfill failure must
+// not stop the server, because refusing to boot leaves the tenant with no product
+// at all rather than one missing an old attachment.
+func (r *GormEvidenceRepository) BackfillFromControlEvidences(ctx context.Context) (int64, error) {
+	// Nothing to do if the legacy table was never created (fresh install).
+	if !r.db.Migrator().HasTable("control_evidences") {
+		return 0, nil
+	}
+
+	res := r.db.WithContext(ctx).Exec(`
+		INSERT INTO evidences (
+			id, tenant_id, title, type, description, file_ref, filename,
+			collected_at, collected_by, review, source,
+			owner_id, assignee_id, reviewer_id,
+			created_at, updated_at, deleted_at
+		)
+		SELECT ce.id, ce.tenant_id,
+		       COALESCE(NULLIF(ce.filename, ''), 'Preuve'),
+		       'document', ce.description, COALESCE(ce.url, ''), COALESCE(ce.filename, ''),
+		       -- The old model never recorded when proof was taken; created_at is
+		       -- the honest stand-in, and valid_until stays NULL rather than being
+		       -- invented. Guessing an expiry would put a date nobody asserted in
+		       -- front of an auditor.
+		       ce.created_at, ce.uploaded_by, 'accepted', 'manual',
+		       ce.owner_id, ce.assignee_id, ce.reviewer_id,
+		       ce.created_at, ce.updated_at, ce.deleted_at
+		FROM control_evidences ce
+		WHERE NOT EXISTS (SELECT 1 FROM evidences e WHERE e.id = ce.id)`)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	moved := res.RowsAffected
+
+	res = r.db.WithContext(ctx).Exec(`
+		INSERT INTO evidence_control_links (id, tenant_id, evidence_id, control_id, linked_by, created_at)
+		SELECT gen_random_uuid(), ce.tenant_id, ce.id, ce.control_id, ce.uploaded_by, ce.created_at
+		FROM control_evidences ce
+		WHERE ce.deleted_at IS NULL
+		  AND NOT EXISTS (
+			SELECT 1 FROM evidence_control_links l
+			WHERE l.evidence_id = ce.id AND l.control_id = ce.control_id)`)
+	if res.Error != nil {
+		return moved, res.Error
+	}
+	return moved, nil
+}
+
 func (r *GormEvidenceRepository) Create(ctx context.Context, e *domain.Evidence) error {
 	if e.TenantID == uuid.Nil {
 		return domain.NewValidationError("tenant_id is required")
