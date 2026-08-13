@@ -471,9 +471,54 @@ func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
 		require.Greater(t, byKey[key].ControlCount, 0, "catalog %q must carry controls", key)
 	}
 
-	// A genuine placeholder must still be present and unavailable.
-	require.Contains(t, byKey, "cm-loi-2024-017")
-	require.False(t, byKey["cm-loi-2024-017"].Available, "placeholder catalog must not be marked available")
+	// The Cameroonian data-protection law is WITHDRAWN: absent from the picker
+	// entirely, not shown as "coming soon". Offering a framework the product
+	// cannot cite article by article invites a compliance officer to import a
+	// shell and believe they have a programme — it would then count in the
+	// dashboard, the gap analysis and the report.
+	require.NotContains(t, byKey, "cm-loi-2024-017",
+		"a withdrawn catalog must not appear in the import picker")
+
+	// Business continuity, modelled clause by clause.
+	require.Contains(t, byKey, "iso22301-2019")
+	require.True(t, byKey["iso22301-2019"].Available)
+	require.Greater(t, byKey["iso22301-2019"].ControlCount, 0)
+}
+
+// Importing a withdrawn catalog must fail with a reason a compliance officer can
+// act on, not a generic "unavailable" they cannot plan around.
+func TestImportCatalog_WithdrawnIsRefusedWithItsReason(t *testing.T) {
+	db := setupComplianceSchema(t)
+	store, err := storage.NewLocalStorage(t.TempDir())
+	require.NoError(t, err)
+	tenantID := uuid.New()
+	adminApp := buildComplianceApp(t, db, store, tenantID, "admin")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/compliance/frameworks",
+		mustJSON(t, map[string]string{"name": "Cameroun PDP", "version": "2024"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := adminApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 201, resp.StatusCode)
+	var fw domain.ComplianceFramework
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&fw))
+	resp.Body.Close()
+
+	req = httptest.NewRequest(http.MethodPost,
+		"/api/v1/compliance/frameworks/"+fw.ID.String()+"/import-catalog",
+		mustJSON(t, map[string]string{"catalog_key": "cm-loi-2024-017"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = adminApp.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 400, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Contains(t, string(body), "retiré",
+		"the refusal must say the catalog was withdrawn")
+	require.Contains(t, string(body), "CM-LOI-2024-017-reconstruction.md",
+		"the refusal must point at the work that would bring it back")
 }
 
 // TestImportCatalog_AdminSuccess_AnalystForbidden is the automated proof of ROADMAP.md's M2

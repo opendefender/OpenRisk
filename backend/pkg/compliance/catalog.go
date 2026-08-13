@@ -33,7 +33,28 @@ type Catalog struct {
 	// ImportCatalogUseCase refuses to import them. Flip to true once a compliance-competent
 	// reviewer has verified the content against the actual regulatory text.
 	Available bool
-	Controls  []CatalogControl
+
+	// Withdrawn removes a catalog from the import picker entirely, as opposed to
+	// showing it as "coming soon".
+	//
+	// The difference is a promise. An unavailable catalog says "we will ship
+	// this"; a withdrawn one says "we are not offering this, and here is why".
+	// A framework we cannot cite article by article must not be importable at
+	// all: a shell framework reads as coverage in every dashboard, percentage
+	// and report the product produces.
+	//
+	// Withdrawn catalogs stay registered so their key keeps resolving for tenants
+	// who imported them before, and so the work to bring one back has somewhere
+	// to land.
+	Withdrawn bool
+	// WithdrawalReason is shown wherever the withdrawal is surfaced. Required
+	// when Withdrawn — "unavailable, no reason given" is not an answer a
+	// compliance officer can plan around.
+	WithdrawalReason string
+	// TrackingTicket points at the work to restore it.
+	TrackingTicket string
+
+	Controls []CatalogControl
 }
 
 // catalogs is the registry of every known catalog, keyed by Catalog.Key.
@@ -47,17 +68,46 @@ func register(c Catalog) {
 	catalogs[c.Key] = c
 }
 
+// ListWithdrawn returns the catalogs removed from the picker, with their reason.
+// Not part of the import surface — it exists so the withdrawal is visible
+// somewhere rather than being a silent disappearance.
+func ListWithdrawn() []Catalog {
+	out := make([]Catalog, 0, 2)
+	for _, c := range catalogs {
+		if c.Withdrawn {
+			out = append(out, c)
+		}
+	}
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j].Key < out[j-1].Key; j-- {
+			out[j], out[j-1] = out[j-1], out[j]
+		}
+	}
+	return out
+}
+
 // Get returns the catalog for a key, or (Catalog{}, false) if unknown.
+//
+// Withdrawn catalogs still resolve: a tenant who imported one before it was
+// withdrawn keeps a framework whose key has to mean something. Refusing the
+// import is ImportCatalogUseCase's job, not this one's.
 func Get(key string) (Catalog, bool) {
 	c, ok := catalogs[key]
 	return c, ok
 }
 
-// List returns every registered catalog (available and placeholder alike), sorted by Key for
-// a stable API response order.
+// List returns the catalogs offered for import: available ones and placeholders
+// announced as coming, but NOT withdrawn ones. Sorted by Key for a stable API
+// response order.
+//
+// This is what the import picker reads, so withdrawing a catalog here is what
+// actually removes it from the product.
 func List() []Catalog {
 	out := make([]Catalog, 0, len(catalogs))
 	for _, c := range catalogs {
+		if c.Withdrawn {
+			continue
+		}
 		out = append(out, c)
 	}
 	// Small, fixed set — insertion sort is plenty and keeps this dependency-free.

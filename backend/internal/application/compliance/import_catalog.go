@@ -89,6 +89,19 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 	if !ok {
 		return nil, domain.NewValidationError("unknown catalog: " + input.CatalogKey)
 	}
+	// Withdrawn is checked before Available, and says WHY. A compliance officer
+	// who cannot import a framework needs to know whether to wait for it or plan
+	// around it, and "not available" answers neither.
+	if catalog.Withdrawn {
+		msg := "le référentiel « " + catalog.Name + " » a été retiré du catalogue d'import"
+		if catalog.WithdrawalReason != "" {
+			msg += " : " + catalog.WithdrawalReason
+		}
+		if catalog.TrackingTicket != "" {
+			msg += " (suivi : " + catalog.TrackingTicket + ")"
+		}
+		return nil, domain.NewValidationError(msg)
+	}
 	if !catalog.Available {
 		return nil, domain.NewValidationError("catalog " + input.CatalogKey + " is not yet available — no reviewed control content")
 	}
