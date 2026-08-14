@@ -36,6 +36,19 @@ export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalo
           .replace('{imported}', String(result.imported))
           .replace('{skipped}', String(result.skipped))
       );
+
+      // The head start, said at the moment the question arises rather than left
+      // for the user to discover. Only when there is one: "0% already covered"
+      // on a first framework is noise, not news.
+      const inherited = result.inherited_coverage;
+      if (inherited && inherited.already_covered_controls > 0) {
+        toast.success(
+          t('compliance.catalog.inheritedCoverage')
+            .replace('{percent}', String(Math.round(inherited.percent_already_covered)))
+            .replace('{covered}', String(inherited.already_covered_controls))
+            .replace('{total}', String(inherited.total_controls)),
+        );
+      }
       onImported?.(framework.id);
       onClose();
     } catch {
