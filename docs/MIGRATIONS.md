@@ -29,21 +29,24 @@ empêché le produit de tourner : AutoMigrate faisait tout le travail.)
 - `DATABASE_URL` — `postgres://user:pass@host:port/db?sslmode=disable`. Absente → couche SQL sautée.
 - `MIGRATIONS_DIR` — dossier lu par golang-migrate (défaut `migrations`, relatif au CWD du process).
 
-## Dette connue (à résorber — suivi P0.5 #3/#4 du plan de lancement)
+## État de la couche SQL (P0.5, 2026-08-14)
 
-Le rail SQL « marche par accident » : golang-migrate lit le dossier **racine** `migrations/`, y
-**ignore** les fichiers legacy mal formés (`0001`–`0024`, des `.sql` nus sans `.up/.down`, dont un
-**doublon de version `0018`**), et applique les bien formés (`0048`–`0054`) — se marquant `version=54`.
-Deux pièges documentés :
+Le dossier lu ne contient plus que les migrations **bien formées et exécutées** (`0048`+). Le reste a
+été déplacé sous `migrations/_archive/` (ignoré par le runner, non-récursif) :
+- **`_archive/root-legacy-preautomigrate/`** — les `0001`–`0024` en `.sql` nus (mauvais format, déjà
+  ignorés ; redondants avec AutoMigrate ; portaient un **doublon de version `0018`**, désamorcé).
+- **`_archive/backend-0026-0047-neverread/`** — l'ancien `backend/migrations/`, jamais lu par le runner
+  (ADD COLUMN redondant + backfills legacy sans objet sur base fraîche).
 
-- **`backend/migrations/` (0026–0047) n'est JAMAIS lu** par le runner (dossier orphelin). Son contenu
-  (ADD COLUMN redondant avec AutoMigrate + backfills legacy) n'a d'effet que sur une base pré-existante.
-- **Aucun trigger append-only** n'existe sur `audit_events` / `admin_audit_events` (0 trigger vérifié
-  sur base fraîche). L'immuabilité de la piste d'audit ne repose aujourd'hui que sur le **hash-chain
-  applicatif** (`audit_chain.go`), pas sur une garantie base. La **RÈGLE #4** du Master Prompt V5
-  (« trigger PG rejetant UPDATE/DELETE ») n'est donc pas tenue au niveau DB. ⚠️ Un tel trigger doit
-  **autoriser la purge de rétention** (le worker de rétention supprime des events) — d'où sa
-  conception délicate (rôle/flag de session dédié, pas un blocage aveugle des DELETE).
+### Append-only DB sur la piste d'audit — RÈGLE #4 (migration `0055`)
+Un trigger `BEFORE UPDATE OR DELETE` (`openrisk_audit_append_only`) sur `audit_events` **et**
+`admin_audit_events` **rejette toute mutation** d'une entrée déjà écrite. Escape unique pour la
+maintenance système : une transaction qui pose `SET LOCAL openrisk.audit_maintenance = 'on'` peut
+muter — utilisé par exactement deux chemins auditables (`GormAuditChainRepository.Prune` = purge de
+rétention ; `PrepareForAutoMigrate` = backfill legacy). Toute écriture applicative ordinaire ne pose
+jamais ce GUC → UPDATE/DELETE refusés. Prouvé live sur Postgres : INSERT ok, UPDATE/DELETE rejetés,
+DELETE sous GUC autorisé ; `up`/`down` réversibles. (Sur sqlite — utilisé par les tests — le GUC est
+sauté par garde de dialecte et aucun trigger n'existe.)
 
 ## Recettes
 

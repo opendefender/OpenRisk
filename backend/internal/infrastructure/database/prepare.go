@@ -78,7 +78,17 @@ func backfillAuditSequences(db *gorm.DB) error {
 		FROM numbered
 		WHERE e.id = numbered.id`, setSource)
 
-	if err := db.Exec(stmt).Error; err != nil {
+	// This legacy backfill normally runs before the append-only trigger (0055)
+	// exists, but wrap it in a maintenance-authorised transaction so it can never
+	// be blocked by the trigger if the two ever coexist. SET LOCAL is tx-scoped.
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if tx.Dialector.Name() == "postgres" {
+			if err := tx.Exec("SET LOCAL openrisk.audit_maintenance = 'on'").Error; err != nil {
+				return err
+			}
+		}
+		return tx.Exec(stmt).Error
+	}); err != nil {
 		return fmt.Errorf("backfill sequences for %d legacy entries: %w", unnumbered, err)
 	}
 	return nil
