@@ -238,11 +238,28 @@ type Report struct {
 	Artifact  []byte `gorm:"type:bytea" json:"-"`
 	SizeBytes int    `gorm:"not null;default:0" json:"size_bytes,omitempty"`
 
-	// ContentHash is SHA-256 of the exact bytes served, printed on the document
-	// itself. It is what lets someone holding a PDF prove it is the one the
-	// platform produced and that nobody has edited it since — the difference
-	// between a report and a PDF that says it is a report.
+	// ContentHash is SHA-256 of the exact bytes served. It is what /verify
+	// recomputes and what the download sends in X-Content-SHA256, so someone
+	// holding the file can prove it is the one the platform produced and that
+	// nobody has edited it since.
 	ContentHash string `gorm:"size:64;not null;default:'';index" json:"content_hash,omitempty"`
+
+	// ContentFingerprint is SHA-256 of what the report SAYS — the data that went
+	// into it — and it is the value printed on the document itself.
+	//
+	// It has to be a different number from ContentHash, and the reason is
+	// arithmetic rather than preference: a file cannot contain the hash of
+	// itself, because printing the hash changes the bytes being hashed. An
+	// earlier version of this code printed the hash of a first render and stored
+	// the hash of a second, so the number on the page silently disagreed with the
+	// number the API served — worse than printing nothing, because it looked
+	// checkable and was not.
+	//
+	// So the two answer different questions. The fingerprint says "this is the
+	// same content as that other copy" and survives a re-render in another
+	// format; the hash says "these exact bytes are untampered". Both are exposed,
+	// and /verify reports both.
+	ContentFingerprint string `gorm:"size:64;not null;default:''" json:"content_fingerprint,omitempty"`
 
 	// Version counts regenerations of the same report lineage, and Supersedes
 	// points at the one this replaces. Together they are the version history, and
@@ -279,14 +296,14 @@ func ComputeContentHash(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ShortHash is the first 16 hex characters, which is what gets printed on the
-// document. The full hash is served by the API for a real verification; a
+// ShortFingerprint is the first 16 hex characters of the content fingerprint —
+// what gets printed on the document. The full values are served by the API; a
 // 64-character string across a page footer is something nobody reads or types.
-func (r *Report) ShortHash() string {
-	if len(r.ContentHash) < 16 {
-		return r.ContentHash
+func (r *Report) ShortFingerprint() string {
+	if len(r.ContentFingerprint) < 16 {
+		return r.ContentFingerprint
 	}
-	return r.ContentHash[:16]
+	return r.ContentFingerprint[:16]
 }
 
 // VerifyIntegrity recomputes the hash over the stored bytes and reports whether

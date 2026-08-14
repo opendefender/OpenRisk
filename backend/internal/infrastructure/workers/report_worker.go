@@ -178,29 +178,27 @@ func (w *ReportWorker) render(ctx context.Context, rep *domain.Report) {
 		return
 	}
 
-	// The hash goes IN the document, so it has to be computed over bytes that
-	// already contain it — impossible in one pass. Rendered twice: once to learn
-	// the hash, once with the hash printed on the page. The second render's bytes
-	// are what is stored and hashed, so the printed value and the recorded value
-	// are the same number.
+	// Fingerprint the CONTENT, then render once with that fingerprint printed on
+	// the page.
+	//
+	// The document cannot carry the hash of its own bytes — printing it would
+	// change them. An earlier version rendered twice, printed the first render's
+	// hash and stored the second's, which produced a number on the page that
+	// never matched the number the API served: checkable-looking and wrong. The
+	// fingerprint is over what the report SAYS, so it is stable across formats
+	// and re-renders of the same data, and the file hash is computed from the
+	// bytes afterwards.
 	progress(85, "rendering")
-	landscape := rep.Type == domain.ReportTypeRiskRegister
-	first, err := content.Render(rep.Format, landscape)
-	if err != nil {
-		log.Warn().Err(err).Msg("report worker: render failed")
-		w.fail(ctx, rep, "the document could not be produced")
-		return
-	}
-	provisional := domain.ComputeContentHash(first)
-
+	fingerprint := appreport.FingerprintContent(content)
 	content.Footer = fmt.Sprintf("%s · %s : %s",
 		appreport.Localise(rep.Locale, "Document confidentiel", "Confidential document"),
-		appreport.Localise(rep.Locale, "empreinte", "fingerprint"),
-		provisional[:16])
+		appreport.Localise(rep.Locale, "empreinte du contenu", "content fingerprint"),
+		fingerprint[:16])
 
+	landscape := rep.Type == domain.ReportTypeRiskRegister
 	final, err := content.Render(rep.Format, landscape)
 	if err != nil {
-		log.Warn().Err(err).Msg("report worker: second render failed")
+		log.Warn().Err(err).Msg("report worker: render failed")
 		w.fail(ctx, rep, "the document could not be produced")
 		return
 	}
@@ -209,6 +207,7 @@ func (w *ReportWorker) render(ctx context.Context, rep *domain.Report) {
 	rep.Artifact = final
 	rep.SizeBytes = len(final)
 	rep.ContentHash = domain.ComputeContentHash(final)
+	rep.ContentFingerprint = fingerprint
 	rep.ContentType = rep.Format.ContentType()
 	rep.Filename = filenameFor(rep, content.Title)
 	rep.Title = content.Title

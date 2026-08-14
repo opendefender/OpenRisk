@@ -51,6 +51,7 @@ func (r *GormReportRepository) Update(ctx context.Context, rep *domain.Report) e
 		Where("id = ? AND tenant_id = ?", rep.ID, rep.TenantID).
 		Select("title", "run_state", "progress", "step", "error", "lifecycle",
 			"filename", "content_type", "artifact", "size_bytes", "content_hash",
+			"content_fingerprint",
 			"template_key", "template_version", "approved_by", "approved_at",
 			"published_at", "completed_at", "updated_at").
 		Updates(rep)
@@ -127,7 +128,7 @@ func (r *GormReportRepository) List(ctx context.Context, tenantID uuid.UUID, f d
 	err := q.Select("id", "tenant_id", "type", "format", "locale", "template_key",
 		"template_version", "params", "title", "run_state", "progress", "step",
 		"error", "lifecycle", "filename", "content_type", "size_bytes",
-		"content_hash", "version", "supersedes", "requested_by", "approved_by",
+		"content_hash", "content_fingerprint", "version", "supersedes", "requested_by", "approved_by",
 		"approved_at", "published_at", "created_at", "updated_at", "completed_at").
 		Find(&out).Error
 	return out, total, err

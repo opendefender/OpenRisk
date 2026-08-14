@@ -78,8 +78,14 @@ func TestReport_IntegrityHash(t *testing.T) {
 	if len(r.ContentHash) != 64 {
 		t.Fatalf("expected a hex sha-256, got %d chars", len(r.ContentHash))
 	}
-	if len(r.ShortHash()) != 16 {
-		t.Fatalf("the printed hash should be 16 chars, got %d", len(r.ShortHash()))
+	// The printed value is the CONTENT fingerprint, not the file hash: a file
+	// cannot contain the hash of itself.
+	r.ContentFingerprint = ComputeContentHash([]byte("the data that went into the report"))
+	if len(r.ShortFingerprint()) != 16 {
+		t.Fatalf("the printed fingerprint should be 16 chars, got %d", len(r.ShortFingerprint()))
+	}
+	if r.ContentFingerprint == r.ContentHash {
+		t.Fatal("the fingerprint and the file hash answer different questions and must not be the same number")
 	}
 
 	// One byte changed anywhere must break it.

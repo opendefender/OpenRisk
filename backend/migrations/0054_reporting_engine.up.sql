@@ -38,8 +38,13 @@ CREATE TABLE IF NOT EXISTS reports (
     content_type     varchar(128) NOT NULL DEFAULT '',
     artifact         bytea,
     size_bytes       integer NOT NULL DEFAULT 0,
-    -- SHA-256 of the exact bytes served, printed on the document itself.
+    -- SHA-256 of the exact bytes served: what /verify recomputes.
     content_hash     varchar(64) NOT NULL DEFAULT '',
+    -- SHA-256 of what the report SAYS, and the value printed on the document.
+    -- Necessarily a different number: a file cannot carry the hash of itself,
+    -- because printing it changes the bytes being hashed. This one is stable
+    -- across formats and re-renders of unchanged data.
+    content_fingerprint varchar(64) NOT NULL DEFAULT '',
 
     version          integer NOT NULL DEFAULT 1,
     supersedes       uuid,

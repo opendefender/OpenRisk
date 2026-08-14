@@ -217,12 +217,17 @@ func (s *Service) Download(ctx context.Context, tenantID, id uuid.UUID) (*domain
 
 // Verify recomputes the hash and reports the verdict, without downloading.
 type VerifyResult struct {
-	ReportID    uuid.UUID `json:"report_id"`
-	ContentHash string    `json:"content_hash"`
-	Recomputed  string    `json:"recomputed_hash"`
-	Intact      bool      `json:"intact"`
-	SizeBytes   int       `json:"size_bytes"`
-	Message     string    `json:"message"`
+	ReportID uuid.UUID `json:"report_id"`
+	// ContentHash / Recomputed / Intact answer "are these exact bytes untampered".
+	ContentHash string `json:"content_hash"`
+	Recomputed  string `json:"recomputed_hash"`
+	Intact      bool   `json:"intact"`
+	// ContentFingerprint is the value PRINTED on the document, and answers a
+	// different question: "is this the same content as that other copy". The two
+	// are necessarily different numbers — a file cannot carry the hash of itself.
+	ContentFingerprint string `json:"content_fingerprint"`
+	SizeBytes          int    `json:"size_bytes"`
+	Message            string `json:"message"`
 }
 
 func (s *Service) Verify(ctx context.Context, tenantID, id uuid.UUID) (*VerifyResult, error) {
@@ -231,9 +236,10 @@ func (s *Service) Verify(ctx context.Context, tenantID, id uuid.UUID) (*VerifyRe
 		return nil, err
 	}
 	res := &VerifyResult{
-		ReportID:    rep.ID,
-		ContentHash: rep.ContentHash,
-		SizeBytes:   len(rep.Artifact),
+		ReportID:           rep.ID,
+		ContentHash:        rep.ContentHash,
+		ContentFingerprint: rep.ContentFingerprint,
+		SizeBytes:          len(rep.Artifact),
 	}
 	if len(rep.Artifact) == 0 {
 		res.Message = "no document to verify: this report has not been generated"
@@ -242,7 +248,8 @@ func (s *Service) Verify(ctx context.Context, tenantID, id uuid.UUID) (*VerifyRe
 	res.Recomputed = domain.ComputeContentHash(rep.Artifact)
 	res.Intact = res.Recomputed == rep.ContentHash
 	if res.Intact {
-		res.Message = "the stored document matches the hash recorded when it was generated"
+		res.Message = "the stored document matches the hash recorded when it was generated; " +
+			"the fingerprint printed on the page identifies its content"
 	} else {
 		res.Message = "the stored document does NOT match its recorded hash"
 	}

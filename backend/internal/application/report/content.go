@@ -7,6 +7,7 @@ package report
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opendefender/openrisk/internal/domain"
@@ -209,4 +210,57 @@ func (c Content) Render(format domain.ReportFormat, landscape bool) ([]byte, err
 	default:
 		return c.RenderPDF(landscape)
 	}
+}
+
+// FingerprintContent hashes what the report SAYS, independent of the container
+// it is delivered in.
+//
+// This is the value printed on the document. It is deliberately NOT the hash of
+// the file: printing a file's own hash is impossible, because printing it
+// changes the bytes being hashed. What this gives instead is a number two people
+// can compare to know they are reading the same content — including across
+// formats, since the PDF and the XLSX of one report fingerprint identically.
+//
+// The serialisation is written by hand rather than taken from encoding/json so
+// the value cannot drift when a struct field is added for display purposes: only
+// what a reader would notice contributes to it.
+func FingerprintContent(c Content) string {
+	var b strings.Builder
+	b.WriteString(c.Title)
+	b.WriteByte('\n')
+	b.WriteString(c.Subtitle)
+	b.WriteByte('\n')
+
+	// Meta deliberately excluded: it carries the generation timestamp, so
+	// including it would make every regeneration of unchanged data fingerprint
+	// differently — which is exactly the comparison this exists to support.
+	for _, kv := range c.Summary {
+		b.WriteString(kv.Label)
+		b.WriteByte('\x1f')
+		b.WriteString(kv.Value)
+		b.WriteByte('\x1e')
+	}
+	for _, s := range c.Sections {
+		b.WriteString(s.Heading)
+		b.WriteByte('\x1e')
+		for _, p := range s.Body {
+			b.WriteString(p)
+			b.WriteByte('\x1e')
+		}
+		if s.Table != nil {
+			for _, col := range s.Table.Columns {
+				b.WriteString(col)
+				b.WriteByte('\x1f')
+			}
+			b.WriteByte('\x1e')
+			for _, row := range s.Table.Rows {
+				for _, cell := range row {
+					b.WriteString(cell)
+					b.WriteByte('\x1f')
+				}
+				b.WriteByte('\x1e')
+			}
+		}
+	}
+	return domain.ComputeContentHash([]byte(b.String()))
 }
