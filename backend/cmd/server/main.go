@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -41,6 +42,7 @@ import (
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/ownership"
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
+	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
@@ -234,6 +236,12 @@ func main() {
 		// with a per-tenant posture snapshot and an editable AI/template narrative.
 		&domain.BoardReport{},
 		&domain.ReportJob{},
+		// The reporting engine (migration 0054): asynchronous generation, three
+		// formats, versioned templates, an integrity hash and an editorial
+		// lifecycle. ReportJob above is the earlier synchronous compliance-only
+		// job, kept until its route is removed.
+		&domain.Report{},
+		&domain.ReportComment{},
 		// RBAC + audit + multi-tenant tables. These back the Settings admin tabs
 		// (Roles / Organizations / Audit log). RoleEnhanced maps onto the existing
 		// "roles" table and only ADDS columns (tenant_id/level/is_predefined/...);
@@ -1692,6 +1700,71 @@ func main() {
 		)).
 		WithUserLookup(userRepo)
 	incidentService.WithPostMortemGate(incinfra.NewPostMortemGate(postMortemService))
+
+	// =========================================================================
+	// Reporting engine (spec §5). Asynchronous generation into PDF / DOCX /
+	// XLSX, six report types, a document language chosen independently of the
+	// interface language, a printed integrity hash, and an editorial lifecycle
+	// (draft → in_review → approved → published) with comments and versions.
+	//
+	// The sources are the repositories the reports read; every one is optional,
+	// so a deployment missing a module produces the other five reports and says
+	// what is unavailable rather than failing.
+	// =========================================================================
+	reportRepo := repository.NewGormReportRepository(database.DB)
+	reportSources := appreport.Sources{
+		Compliance: complianceRepo,
+		Evidence:   evidenceRepo,
+		Risks:      riskRepo,
+		Incidents:  reportIncidentAdapter{svc: incidentService},
+		Audits:     reportAuditAdapter{repo: complianceAuditRepo},
+		Org:        orgRepo,
+	}
+	reportService := appreport.NewService(reportRepo, reportSources).WithUserLookup(userRepo)
+	reportHandler := handlers.NewReportHandler(reportService, redisClientInstance)
+
+	// The worker renders queued reports and publishes progress; the SSE endpoint
+	// forwards it. Without Redis the client falls back to polling, which the
+	// progress endpoint handles by sending the current state and closing.
+	reportWorker := workers.NewReportWorker(reportRepo, reportSources, zeroLogger).
+		WithOrgLookup(func(ctx context.Context, tenantID uuid.UUID) string {
+			if org, err := orgRepo.GetByID(ctx, tenantID); err == nil && org != nil {
+				return org.Name
+			}
+			return ""
+		}).
+		WithProgressPublisher(func(ctx context.Context, tenantID, reportID uuid.UUID, progress int, step, runState string) {
+			if redisClientInstance == nil {
+				return
+			}
+			payload, err := json.Marshal(map[string]any{
+				"tenant_id": tenantID.String(), "report_id": reportID.String(),
+				"progress": progress, "step": step, "run_state": runState,
+			})
+			if err != nil {
+				return
+			}
+			// Best-effort: a dropped progress event costs a smoother bar, not the
+			// document. The report row is always updated first.
+			_ = redisClientInstance.Publish(ctx, handlers.ReportProgressChannel, string(payload))
+		})
+	go reportWorker.Start(context.Background())
+
+	// Static sub-paths before the parameterised one (Fiber matches in order).
+	protected.Get("/reports/types", complianceControlRead, reportHandler.Catalogue)
+	protected.Get("/reports", complianceControlRead, reportHandler.List)
+	protected.Post("/reports", complianceControlRead, reportHandler.Create)
+	protected.Get("/reports/:reportId", complianceControlRead, reportHandler.Get)
+	protected.Delete("/reports/:reportId", complianceControlRead, reportHandler.Delete)
+	protected.Get("/reports/:reportId/download", complianceControlRead, reportHandler.Download)
+	protected.Get("/reports/:reportId/verify", complianceControlRead, reportHandler.Verify)
+	protected.Get("/reports/:reportId/progress", complianceControlRead, reportHandler.Progress)
+	protected.Get("/reports/:reportId/versions", complianceControlRead, reportHandler.Versions)
+	protected.Get("/reports/:reportId/compare", complianceControlRead, reportHandler.Compare)
+	protected.Post("/reports/:reportId/comments", complianceControlRead, reportHandler.Comment)
+	// Approving and publishing are editorial acts, not reads: they need the
+	// board-report approval tier, which admins hold through the "*" wildcard.
+	protected.Post("/reports/:reportId/transition", middleware.RequirePermission("reports:board:approve"), reportHandler.Transition)
 
 	incidentHandler := handlers.NewIncidentHandler(incidentService).
 		WithPostMortems(postMortemService)
