@@ -75,6 +75,11 @@ func TestExpectedControlCounts(t *testing.T) {
 		"dora-2022-2554": 19, // 5 pillars — key articles
 		"nis2-2022-2555": 12, // governance + the 10 art.21 measures + notification
 		"sox-2002":       10, // 6 statutory sections + 4 ITGC domains
+		// Clauses 4-10, including the sub-clauses of 8.2 and 8.4 that an auditor
+		// asks for separately (BIA, response structure, plans, recovery). Clauses
+		// 1-3 (scope, references, terms) carry no requirements and are deliberately
+		// absent: a row nobody can evidence or close does not belong in a register.
+		"iso22301-2019": 32,
 	}
 	for key, want := range cases {
 		t.Run(key, func(t *testing.T) {
@@ -101,5 +106,55 @@ func TestList_SortedByKey(t *testing.T) {
 		if list[i].Key < list[i-1].Key {
 			t.Errorf("List() not sorted: %q comes after %q", list[i].Key, list[i-1].Key)
 		}
+	}
+}
+
+// A withdrawn catalog must not reach the import picker, and must say why it was
+// withdrawn. "Unavailable, no reason given" is not something a compliance officer
+// can plan around: they cannot tell whether to wait for it or work around it.
+func TestWithdrawnCatalogs_AreOffThePickerAndExplained(t *testing.T) {
+	for _, c := range List() {
+		if c.Withdrawn {
+			t.Errorf("catalog %q is withdrawn but still offered for import", c.Key)
+		}
+	}
+
+	withdrawn := ListWithdrawn()
+	if len(withdrawn) == 0 {
+		t.Skip("no withdrawn catalogs registered")
+	}
+	for _, c := range withdrawn {
+		if c.WithdrawalReason == "" {
+			t.Errorf("catalog %q is withdrawn with no reason", c.Key)
+		}
+		if c.TrackingTicket == "" {
+			t.Errorf("catalog %q is withdrawn with nothing tracking its return", c.Key)
+		}
+		if len(c.Controls) > 0 {
+			t.Errorf("catalog %q is withdrawn yet carries controls — withdraw the content too, or do not withdraw it", c.Key)
+		}
+		// The key must still resolve: a tenant who imported it before the
+		// withdrawal keeps a framework whose key has to mean something.
+		if _, ok := Get(c.Key); !ok {
+			t.Errorf("withdrawn catalog %q no longer resolves by key", c.Key)
+		}
+	}
+}
+
+// The Cameroonian data-protection law specifically: withdrawn from the picker,
+// pending an article-by-article reconstruction against the published text.
+func TestCameroonDataProtection_IsWithdrawnPendingItsText(t *testing.T) {
+	c, ok := Get("cm-loi-2024-017")
+	if !ok {
+		t.Fatal("the catalog must stay registered, not be deleted")
+	}
+	if !c.Withdrawn {
+		t.Fatal("must not be offered for import without a cited, reviewed modelling")
+	}
+	if c.Available {
+		t.Fatal("a withdrawn catalog cannot also be available")
+	}
+	if c.TrackingTicket != "docs/tickets/CM-LOI-2024-017-reconstruction.md" {
+		t.Fatalf("the reconstruction ticket should be referenced, got %q", c.TrackingTicket)
 	}
 }

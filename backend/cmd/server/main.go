@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -34,12 +35,14 @@ import (
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
+	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/ownership"
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
+	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
@@ -213,9 +216,10 @@ func main() {
 		// Directed edges of the asset dependency graph ("cartographie des
 		// dépendances"). Tenant-scoped; both endpoints reference assets.
 		&domain.AssetDependency{},
-		// Cross-framework control crosswalks ("cross-mapping entre référentiels").
+		// Cross-framework control crosswalks: how much of a newly imported
+		// framework a tenant's existing proof already answers (migration 0053).
 		// Tenant-scoped undirected links between two compliance controls.
-		&domain.ControlMapping{},
+		&domain.ControlCrosswalk{},
 		&domain.RiskHistory{},
 		&domain.CustomField{},
 		&domain.CustomFieldTemplate{},
@@ -232,6 +236,12 @@ func main() {
 		// with a per-tenant posture snapshot and an editable AI/template narrative.
 		&domain.BoardReport{},
 		&domain.ReportJob{},
+		// The reporting engine (migration 0054): asynchronous generation, three
+		// formats, versioned templates, an integrity hash and an editorial
+		// lifecycle. ReportJob above is the earlier synchronous compliance-only
+		// job, kept until its route is removed.
+		&domain.Report{},
+		&domain.ReportComment{},
 		// RBAC + audit + multi-tenant tables. These back the Settings admin tabs
 		// (Roles / Organizations / Audit log). RoleEnhanced maps onto the existing
 		// "roles" table and only ADDS columns (tenant_id/level/is_predefined/...);
@@ -273,10 +283,23 @@ func main() {
 		// sets it (a bare map[string]interface{} has no driver.Valuer).
 		&domain.Notification{},
 		&domain.NotificationPreference{},
+		// The compliance register itself. Created by migration 0028 and, until
+		// now, absent from AutoMigrate — so a column added to the model never
+		// reached a database where migrations are blocked, and every write failed
+		// with "column does not exist". Listed here so model and schema stay in
+		// step, which is how every other module in this file works.
+		&domain.ComplianceFramework{},
+		&domain.ComplianceControl{},
 		// Compliance audits ("Audits" — plan/execute/history) and remediation
 		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
 		&domain.ComplianceAudit{},
 		&domain.RemediationPlan{},
+		// Evidence library (migration 0052): one proof artifact answering N
+		// controls, with a collection date and an expiry. Replaces the read path
+		// of control_evidences, which stays in place, backfilled from, for a
+		// release.
+		&domain.Evidence{},
+		&domain.EvidenceControlLink{},
 		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped
 		// playbooks (trigger + conditions + action chain + SLA policy), their
 		// execution audit trail, and the live SLA countdowns the monitor escalates.
@@ -1079,29 +1102,48 @@ func main() {
 	listControlsUC := compliance.NewListControlsUseCase(complianceRepo)
 	updateControlUC := compliance.NewUpdateControlUseCase(complianceRepo)
 	deleteControlUC := compliance.NewDeleteControlUseCase(complianceRepo)
-	createEvidenceUC := compliance.NewCreateEvidenceUseCase(complianceRepo, fileStorage)
-	listEvidencesUC := compliance.NewListEvidencesUseCase(complianceRepo)
-	deleteEvidenceUC := compliance.NewDeleteEvidenceUseCase(complianceRepo, fileStorage)
-	downloadEvidenceUC := compliance.NewDownloadEvidenceUseCase(complianceRepo, fileStorage)
 	getProgressUC := compliance.NewGetComplianceProgressUseCase(complianceRepo)
 	getGapAnalysisUC := compliance.NewGetGapAnalysisUseCase(complianceRepo)
-	controlMappingRepo := repository.NewGormControlMappingRepository(database.DB)
+	controlMappingRepo := repository.NewGormControlCrosswalkRepository(database.DB)
 	createMappingUC := compliance.NewCreateControlMappingUseCase(controlMappingRepo, complianceRepo)
 	listMappingsUC := compliance.NewListControlMappingsUseCase(controlMappingRepo, complianceRepo)
 	deleteMappingUC := compliance.NewDeleteControlMappingUseCase(controlMappingRepo)
 	listCatalogsUC := compliance.NewListCatalogsUseCase()
-	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo).WithActivation(activationRecorder)
+	// Evidence library (spec §1). complianceRepo satisfies the narrow
+	// ControlLookup port structurally, so the library can verify a control belongs
+	// to the tenant without being handed the ability to mutate the register.
+	// userRepo resolves "collected by" to an email; optional and nil-safe.
+	evidenceRepo := repository.NewGormEvidenceRepository(database.DB)
+	// Move any pre-library attachments into the library. Idempotent, and
+	// best-effort: an old attachment that fails to move is worth a log line, not
+	// a server that refuses to start.
+	if moved, err := evidenceRepo.BackfillFromControlEvidences(context.Background()); err != nil {
+		log.Printf("Evidence: backfill from control_evidences failed (pre-library attachments may be missing): %v", err)
+	} else if moved > 0 {
+		log.Printf("Evidence: migrated %d pre-library attachment(s) into the evidence library", moved)
+	}
+	evidenceService := evidence.NewService(evidenceRepo, complianceRepo, fileStorage).
+		WithUserLookup(userRepo)
+	evidenceHandler := handlers.NewEvidenceHandler(evidenceService)
+
+	// Curated crosswalks are materialised at import time and the head start they
+	// produce is returned with the import — the answer arrives when the question
+	// is asked, not when the user goes looking for it.
+	crosswalkMaterialiser := compliance.NewCrosswalkMaterialiser(complianceRepo, controlMappingRepo)
+	inheritedCoverageUC := compliance.NewGetInheritedCoverageUseCase(complianceRepo, controlMappingRepo, evidenceRepo)
+	importCatalogUC := compliance.NewImportCatalogUseCase(complianceRepo).
+		WithActivation(activationRecorder).
+		WithCrosswalks(crosswalkMaterialiser, inheritedCoverageUC)
 	// M4 — official compliance report (PDF). Reuses userRepo/orgRepo (declared
 	// above) to resolve the "generated by" and organization identity lines.
 	generateReportUC := compliance.NewGenerateComplianceReportUseCase(complianceRepo, orgRepo, userRepo)
 	complianceHandler := handlers.NewComplianceHandler(
 		createFrameworkUC, getFrameworkUC, listFrameworksUC, deleteFrameworkUC,
 		createControlUC, getControlUC, listControlsUC, updateControlUC, deleteControlUC,
-		createEvidenceUC, listEvidencesUC, deleteEvidenceUC, downloadEvidenceUC,
 		getProgressUC, listCatalogsUC, importCatalogUC, generateReportUC,
 		getGapAnalysisUC,
 		createMappingUC, listMappingsUC, deleteMappingUC,
-	)
+	).WithInheritedCoverage(inheritedCoverageUC)
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
 	// RS256) stores the *new* multi-tenant claims in c.Locals("user")/("permissions"). The
@@ -1136,6 +1178,9 @@ func main() {
 	// Gap analysis ("analyse d'écarts") — every unsatisfied control across the
 	// tenant's frameworks (optional ?framework_id= scopes to one).
 	protected.Get("/compliance/gap-analysis", complianceControlRead, complianceHandler.GetGapAnalysis)
+	// The head start: how much of a framework the tenant's existing proof already
+	// answers, through the crosswalks. Read tier — it reports, it changes nothing.
+	protected.Get("/compliance/frameworks/:frameworkId/inherited-coverage", complianceControlRead, complianceHandler.GetInheritedCoverage)
 	// Cross-framework control mappings ("cross-mapping entre référentiels"). Static
 	// path — no :param collision with /compliance/controls/:controlId.
 	protected.Get("/compliance/control-mappings", complianceControlRead, complianceHandler.ListControlMappings)
@@ -1148,10 +1193,40 @@ func main() {
 	protected.Get("/compliance/controls/:controlId", complianceControlRead, complianceHandler.GetControl)
 	protected.Patch("/compliance/controls/:controlId", complianceControlUpdate, complianceHandler.UpdateControl)
 	protected.Delete("/compliance/controls/:controlId", complianceControlDelete, complianceHandler.DeleteControl)
-	protected.Get("/compliance/controls/:controlId/evidences", complianceEvidenceRead, complianceHandler.ListEvidences)
-	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, complianceHandler.CreateEvidence)
-	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, complianceHandler.DownloadEvidence)
-	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, complianceHandler.DeleteEvidence)
+	// Per-control evidence, served by the LIBRARY (application/evidence), not by
+	// the old one-file-one-control use cases. The paths are unchanged so existing
+	// clients keep working; what changes is that an upload here lands in the
+	// library and can then be reused elsewhere, and that the list carries derived
+	// status and expiry. Two writers into one register would mean two truths, so
+	// the compliance handler's evidence methods are no longer mounted.
+	protected.Get("/compliance/controls/:controlId/evidences", complianceEvidenceRead, evidenceHandler.ListByControl)
+	protected.Post("/compliance/controls/:controlId/evidences", complianceEvidenceCreate, evidenceHandler.CreateForControl)
+	protected.Get("/compliance/evidences/:evidenceId/download", complianceEvidenceRead, evidenceHandler.Download)
+	protected.Delete("/compliance/evidences/:evidenceId", complianceEvidenceDelete, evidenceHandler.Delete)
+
+	// -------------------------------------------------------------------------
+	// Evidence library (spec §1). One artifact, N controls, an expiry and a
+	// review verdict — plus the "missing evidence" worklist per framework.
+	//
+	// Mounted under /evidence rather than /compliance/evidences because the
+	// library is not a property of the compliance module: the same certificate
+	// answers a framework control, a customer questionnaire and an audit finding.
+	// Static sub-paths (/missing) are registered BEFORE /:evidenceId — the Fiber
+	// trap this codebase has hit on every module.
+	// -------------------------------------------------------------------------
+	protected.Get("/evidence/missing", complianceEvidenceRead, evidenceHandler.Missing)
+	protected.Get("/evidence", complianceEvidenceRead, evidenceHandler.List)
+	protected.Post("/evidence", complianceEvidenceCreate, evidenceHandler.Create)
+	protected.Get("/evidence/:evidenceId", complianceEvidenceRead, evidenceHandler.Get)
+	protected.Patch("/evidence/:evidenceId", complianceEvidenceCreate, evidenceHandler.Update)
+	protected.Delete("/evidence/:evidenceId", complianceEvidenceDelete, evidenceHandler.Delete)
+	protected.Get("/evidence/:evidenceId/download", complianceEvidenceRead, evidenceHandler.Download)
+	// Reuse: attach an artifact the tenant already holds to further controls.
+	protected.Post("/evidence/:evidenceId/links", complianceEvidenceCreate, evidenceHandler.Link)
+	protected.Delete("/evidence/:evidenceId/links/:controlId", complianceEvidenceCreate, evidenceHandler.Unlink)
+	// Accepting or rejecting proof is a review verdict, not a create — it rides
+	// the same tier as attaching evidence.
+	protected.Post("/evidence/:evidenceId/review", complianceEvidenceCreate, evidenceHandler.Review)
 
 	// -------------------------------------------------------------------------
 	// Compliance audits ("Audits") + remediation plans ("Plans de remédiation").
@@ -1508,13 +1583,15 @@ func main() {
 	}
 	aiTreatmentUC := appai.NewSuggestTreatmentPlanUseCase(aiAssistant, riskRepo).WithAssetReader(assetRepo)
 	aiEmergingUC := appai.NewDetectEmergingRisksUseCase(aiAssistant).WithRiskLister(riskRepo)
+	// One reader spanning both halves of the register (see evidence_wiring.go).
+	aiComplianceReader := newAIComplianceReader(complianceRepo, evidenceRepo)
 	aiQueryUC := appai.NewAssistantQueryUseCase(aiAssistant).
 		WithRisks(riskRepo).
-		WithCompliance(complianceRepo).
+		WithCompliance(aiComplianceReader).
 		WithVulns(vulnRepo).
 		WithOrgs(orgRepo)
 	aiAuditReportUC := appai.NewGenerateAuditReportUseCase(aiAssistant, complianceAuditRepo).WithGapAnalyzer(getGapAnalysisUC)
-	aiEvidenceUC := appai.NewAnalyzeEvidenceUseCase(aiAssistant, complianceRepo)
+	aiEvidenceUC := appai.NewAnalyzeEvidenceUseCase(aiAssistant, aiComplianceReader)
 	aiHandler := handlers.NewAIHandler(aiAssistant, aiTreatmentUC, aiEmergingUC, aiQueryUC, aiAuditReportUC, aiEvidenceUC)
 
 	// AI features are advisory (non-mutating): guarded by the read permission of
@@ -1623,6 +1700,71 @@ func main() {
 		)).
 		WithUserLookup(userRepo)
 	incidentService.WithPostMortemGate(incinfra.NewPostMortemGate(postMortemService))
+
+	// =========================================================================
+	// Reporting engine (spec §5). Asynchronous generation into PDF / DOCX /
+	// XLSX, six report types, a document language chosen independently of the
+	// interface language, a printed integrity hash, and an editorial lifecycle
+	// (draft → in_review → approved → published) with comments and versions.
+	//
+	// The sources are the repositories the reports read; every one is optional,
+	// so a deployment missing a module produces the other five reports and says
+	// what is unavailable rather than failing.
+	// =========================================================================
+	reportRepo := repository.NewGormReportRepository(database.DB)
+	reportSources := appreport.Sources{
+		Compliance: complianceRepo,
+		Evidence:   evidenceRepo,
+		Risks:      riskRepo,
+		Incidents:  reportIncidentAdapter{svc: incidentService},
+		Audits:     reportAuditAdapter{repo: complianceAuditRepo},
+		Org:        orgRepo,
+	}
+	reportService := appreport.NewService(reportRepo, reportSources).WithUserLookup(userRepo)
+	reportHandler := handlers.NewReportHandler(reportService, redisClientInstance)
+
+	// The worker renders queued reports and publishes progress; the SSE endpoint
+	// forwards it. Without Redis the client falls back to polling, which the
+	// progress endpoint handles by sending the current state and closing.
+	reportWorker := workers.NewReportWorker(reportRepo, reportSources, zeroLogger).
+		WithOrgLookup(func(ctx context.Context, tenantID uuid.UUID) string {
+			if org, err := orgRepo.GetByID(ctx, tenantID); err == nil && org != nil {
+				return org.Name
+			}
+			return ""
+		}).
+		WithProgressPublisher(func(ctx context.Context, tenantID, reportID uuid.UUID, progress int, step, runState string) {
+			if redisClientInstance == nil {
+				return
+			}
+			payload, err := json.Marshal(map[string]any{
+				"tenant_id": tenantID.String(), "report_id": reportID.String(),
+				"progress": progress, "step": step, "run_state": runState,
+			})
+			if err != nil {
+				return
+			}
+			// Best-effort: a dropped progress event costs a smoother bar, not the
+			// document. The report row is always updated first.
+			_ = redisClientInstance.Publish(ctx, handlers.ReportProgressChannel, string(payload))
+		})
+	go reportWorker.Start(context.Background())
+
+	// Static sub-paths before the parameterised one (Fiber matches in order).
+	protected.Get("/reports/types", complianceControlRead, reportHandler.Catalogue)
+	protected.Get("/reports", complianceControlRead, reportHandler.List)
+	protected.Post("/reports", complianceControlRead, reportHandler.Create)
+	protected.Get("/reports/:reportId", complianceControlRead, reportHandler.Get)
+	protected.Delete("/reports/:reportId", complianceControlRead, reportHandler.Delete)
+	protected.Get("/reports/:reportId/download", complianceControlRead, reportHandler.Download)
+	protected.Get("/reports/:reportId/verify", complianceControlRead, reportHandler.Verify)
+	protected.Get("/reports/:reportId/progress", complianceControlRead, reportHandler.Progress)
+	protected.Get("/reports/:reportId/versions", complianceControlRead, reportHandler.Versions)
+	protected.Get("/reports/:reportId/compare", complianceControlRead, reportHandler.Compare)
+	protected.Post("/reports/:reportId/comments", complianceControlRead, reportHandler.Comment)
+	// Approving and publishing are editorial acts, not reads: they need the
+	// board-report approval tier, which admins hold through the "*" wildcard.
+	protected.Post("/reports/:reportId/transition", middleware.RequirePermission("reports:board:approve"), reportHandler.Transition)
 
 	incidentHandler := handlers.NewIncidentHandler(incidentService).
 		WithPostMortems(postMortemService)
@@ -1905,6 +2047,24 @@ func main() {
 			}
 		}, zeroLogger)
 	go mitigationDueWorker.Start(context.Background())
+
+	// Evidence expiry: warn the owner before proof goes stale. Without this, the
+	// first person to notice a lapsed certificate is the auditor reading the
+	// register — the register is still honest (the control shows as unevidenced),
+	// but the organisation finds out at the worst possible moment.
+	evidenceExpiryWorker := workers.NewEvidenceExpiryWorker(
+		evidenceRepo,
+		func(ctx context.Context, tenantID, userID, evidenceID uuid.UUID, subject, message string) {
+			if err := notificationUseCase.NotifyInApp(userID, tenantID,
+				domain.NotificationTypeRiskReview, subject, message, &evidenceID, "evidence"); err != nil {
+				zeroLogger.Warn().Err(err).Msg("evidence expiry: in-app notification failed")
+			}
+			if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			}
+		}, zeroLogger)
+	go evidenceExpiryWorker.Start(context.Background())
+
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 
 	// Remediation auto-detection: after a scan, a finding (CVE) that is no longer

@@ -40,7 +40,7 @@ func NewAnalyzeEvidenceUseCase(assistant llm.Assistant, compliance ComplianceRea
 
 // Execute loads the evidence + control context and asks the assistant for a verdict.
 func (uc *AnalyzeEvidenceUseCase) Execute(ctx context.Context, tenantID, evidenceID uuid.UUID, locale string) (*EvidenceAssessmentResult, error) {
-	evidence, err := uc.compliance.GetEvidenceByID(ctx, evidenceID, tenantID)
+	evidence, err := uc.compliance.GetEvidenceByID(ctx, tenantID, evidenceID)
 	if err != nil {
 		return nil, err
 	}
@@ -48,19 +48,31 @@ func (uc *AnalyzeEvidenceUseCase) Execute(ctx context.Context, tenantID, evidenc
 		return nil, domain.NewNotFoundError("evidence", evidenceID)
 	}
 
+	filename := evidence.Filename
+	if filename == "" {
+		filename = evidence.Title
+	}
 	ec := llm.EvidenceContext{
 		Locale:              llm.Locale(locale),
-		EvidenceFilename:    evidence.Filename,
+		EvidenceFilename:    filename,
 		EvidenceDescription: evidence.Description,
 	}
 
-	// Resolve the control the evidence proves, and its framework name.
-	if control, err := uc.compliance.GetControlByID(ctx, evidence.ControlID, tenantID); err == nil && control != nil {
-		ec.ControlCode = control.ReferenceCode
-		ec.ControlName = control.Name
-		ec.ControlDescription = control.Description
-		if fw, err := uc.compliance.GetFrameworkByID(ctx, control.FrameworkID, tenantID); err == nil && fw != nil {
-			ec.FrameworkName = fw.Name
+	// Resolve a control the artifact answers, and its framework name.
+	//
+	// An artifact in the library can answer several controls; the assistant is
+	// asked about ONE of them (the first link), because "does this satisfy the
+	// control?" has no meaning averaged across a dozen different requirements.
+	// Analysing against a specific control is a per-control call, which is how the
+	// UI invokes it from the control drawer.
+	if links, err := uc.compliance.ListLinks(ctx, tenantID, []uuid.UUID{evidence.ID}); err == nil && len(links) > 0 {
+		if control, err := uc.compliance.GetControlByID(ctx, links[0].ControlID, tenantID); err == nil && control != nil {
+			ec.ControlCode = control.ReferenceCode
+			ec.ControlName = control.Name
+			ec.ControlDescription = control.Description
+			if fw, err := uc.compliance.GetFrameworkByID(ctx, control.FrameworkID, tenantID); err == nil && fw != nil {
+				ec.FrameworkName = fw.Name
+			}
 		}
 	}
 

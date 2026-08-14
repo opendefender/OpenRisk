@@ -23,7 +23,25 @@ export type UpdateControlInput = components['schemas']['UpdateControlInput'];
 
 export type ComplianceCatalogSummary = components['schemas']['ComplianceCatalogSummary'];
 export type ImportCatalogInput = components['schemas']['ImportCatalogInput'];
-export type ImportCatalogResult = components['schemas']['ImportCatalogResult'];
+export type ImportCatalogResult = components['schemas']['ImportCatalogResult'] & {
+  /**
+   * What the import inherited from crosswalks. Hand-written rather than
+   * generated: the two fields are new on the server and docs/openapi.yaml has
+   * not been regenerated for them yet. Optional throughout, so an older server
+   * that does not send them degrades to the plain import message rather than
+   * rendering undefined.
+   */
+  crosswalks?: { created: number; skipped: number; unmatched: number };
+  inherited_coverage?: {
+    framework_id: string;
+    framework_name: string;
+    total_controls: number;
+    crosswalked_controls: number;
+    already_covered_controls: number;
+    partially_covered_controls: number;
+    percent_already_covered: number;
+  };
+};
 
 export const CONTROL_STATUSES: ControlStatus[] = [
   'not_implemented',

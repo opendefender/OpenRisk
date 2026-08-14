@@ -35,6 +35,16 @@ type ComplianceFramework struct {
 	Version     string    `gorm:"size:50;not null;default:''" json:"version"`
 	Description string    `gorm:"type:text" json:"description"`
 
+	// CatalogKey records which regulatory catalog (pkg/compliance) this framework
+	// was imported from, empty for one built by hand.
+	//
+	// It exists so the product can tell what a framework IS, not just what it was
+	// named. Curated crosswalks are defined between catalogs, so without this the
+	// only way to know that a framework called "SOC 2 (v2)" holds AICPA criteria
+	// would be to guess from its title — and inherited coverage would silently
+	// stop working the moment somebody renamed one.
+	CatalogKey string `gorm:"size:64;not null;default:'';index" json:"catalog_key"`
+
 	// Relations (loaded via Preload)
 	Controls []ComplianceControl `gorm:"foreignKey:FrameworkID" json:"controls,omitempty"`
 
@@ -64,12 +74,17 @@ type ComplianceControl struct {
 
 	// Relations
 	Framework ComplianceFramework `gorm:"foreignKey:FrameworkID" json:"framework,omitempty"`
-	Evidences []ControlEvidence   `gorm:"foreignKey:ControlID" json:"evidences,omitempty"`
 
-	// EvidenceCount is a computed, non-persisted count of the control's active
-	// evidences (gorm:"-": never a column). Populated by the list/get use cases so
-	// the UI can show an evidence badge and enforce the "no implemented without a
-	// proof" rule client-side without loading every evidence file.
+	// EvidenceCount is a computed, non-persisted count (gorm:"-": never a column)
+	// of the artifacts in the evidence library that CURRENTLY substantiate this
+	// control — expired and rejected proof excluded. Populated by the list/get use
+	// cases so the UI can show an evidence badge, and read by the "no implemented
+	// without proof" rule.
+	//
+	// There is deliberately no Evidences relation here any more. Evidence is
+	// reusable across controls (see domain.Evidence), so it cannot hang off one
+	// control by foreign key; a preload of the old control_evidences table would
+	// now return nothing for anything uploaded since migration 0052.
 	EvidenceCount int `gorm:"-" json:"evidence_count"`
 
 	CreatedAt time.Time      `json:"created_at"`

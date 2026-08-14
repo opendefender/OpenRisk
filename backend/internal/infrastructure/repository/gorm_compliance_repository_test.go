@@ -8,6 +8,7 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -19,6 +20,14 @@ import (
 
 // setupComplianceRepo creates an in-memory SQLite DB with compliance tables
 // and returns a ready-to-use GormComplianceRepository.
+// setupComplianceRepoWithEvidence returns both halves of the register: the
+// compliance repository under test and the evidence library it now counts from.
+func setupComplianceRepoWithEvidence(t *testing.T) (*GormComplianceRepository, *GormEvidenceRepository) {
+	t.Helper()
+	repo := setupComplianceRepo(t)
+	return repo, NewGormEvidenceRepository(repo.db)
+}
+
 func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
@@ -35,6 +44,7 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			tenant_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			version TEXT NOT NULL DEFAULT '',
+			catalog_key TEXT NOT NULL DEFAULT '',
 			description TEXT,
 			created_at DATETIME,
 			updated_at DATETIME,
@@ -68,24 +78,10 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			WHERE deleted_at IS NULL AND reference_code != '';
 	`).Error)
 
-	// control_evidences (tenant-scoped)
-	require.NoError(t, db.Exec(`
-		CREATE TABLE control_evidences (
-			id TEXT PRIMARY KEY,
-			tenant_id TEXT NOT NULL,
-			control_id TEXT NOT NULL,
-			filename TEXT NOT NULL DEFAULT '',
-			url TEXT NOT NULL DEFAULT '',
-			description TEXT,
-			uploaded_by TEXT,
-			owner_id TEXT,
-			assignee_id TEXT,
-			reviewer_id TEXT,
-			created_at DATETIME,
-			updated_at DATETIME,
-			deleted_at DATETIME
-		);
-	`).Error)
+	// The evidence library, from the models rather than hand-written DDL.
+	// GetControlByID counts current proof from these tables, so every compliance
+	// fixture needs them — control_evidences is gone, nothing reads it any more.
+	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
 
 	return NewGormComplianceRepository(db)
 }
@@ -317,101 +313,31 @@ func TestUpdateControl_CrossTenantFails(t *testing.T) {
 }
 
 // =============================================================================
-// Evidence Tests — Cross-tenant isolation
+// Evidence counts
+//
+// Storing and reading evidence moved to the library (migration 0052), and so did
+// its isolation tests — see gorm_evidence_repository_test.go. What is still this
+// repository's job, and still tested here, is answering "how much CURRENT proof
+// does each control of this framework have", because that number gates whether a
+// control may be declared implemented.
 // =============================================================================
 
-func TestCreateEvidence_RequiresTenantID(t *testing.T) {
-	repo := setupComplianceRepo(t)
+// attach files one artifact in the library and links it to a control.
+func attach(t *testing.T, r *GormEvidenceRepository, tenant, control uuid.UUID, validUntil *time.Time) {
+	t.Helper()
 	ctx := context.Background()
-
-	ev := &domain.ControlEvidence{
-		ID:       uuid.New(),
-		Filename: "audit_report.pdf",
-		// TenantID intentionally omitted
+	ev := &domain.Evidence{
+		TenantID: tenant, Title: "proof", CollectedAt: time.Now().Add(-48 * time.Hour),
+		Review: domain.EvidenceReviewAccepted, ValidUntil: validUntil,
 	}
-	err := repo.CreateEvidence(ctx, ev)
-	require.Error(t, err, "Creating evidence without tenant_id must fail")
-	assert.Contains(t, err.Error(), "tenant_id is required")
-}
-
-func TestGetEvidenceByID_CrossTenantReturnsNil(t *testing.T) {
-	repo := setupComplianceRepo(t)
-	ctx := context.Background()
-
-	tenantA := uuid.New()
-	tenantB := uuid.New()
-	controlID := uuid.New()
-
-	// Setup framework + control
-	fwID := uuid.New()
-	require.NoError(t, repo.CreateFramework(ctx, &domain.ComplianceFramework{
-		ID: fwID, TenantID: uuid.New(), Name: "ISO 27001", Version: "2022",
+	require.NoError(t, r.Create(ctx, ev))
+	require.NoError(t, r.Link(ctx, &domain.EvidenceControlLink{
+		TenantID: tenant, EvidenceID: ev.ID, ControlID: control,
 	}))
-	require.NoError(t, repo.CreateControl(ctx, &domain.ComplianceControl{
-		ID: controlID, TenantID: tenantA, FrameworkID: fwID,
-		Name: "A.5.1.1", Status: domain.ControlStatusImplemented,
-	}))
-
-	// Create evidence for tenantA
-	evID := uuid.New()
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID:        evID,
-		TenantID:  tenantA,
-		ControlID: controlID,
-		Filename:  "soc2_report.pdf",
-		URL:       "https://storage.example.com/soc2_report.pdf",
-	}))
-
-	// TenantA can access it
-	got, err := repo.GetEvidenceByID(ctx, evID, tenantA)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Equal(t, "soc2_report.pdf", got.Filename)
-
-	// TenantB CANNOT access it
-	got, err = repo.GetEvidenceByID(ctx, evID, tenantB)
-	require.NoError(t, err)
-	assert.Nil(t, got, "Cross-tenant evidence access must return nil (404)")
-}
-
-func TestListEvidencesByControl_TenantIsolation(t *testing.T) {
-	repo := setupComplianceRepo(t)
-	ctx := context.Background()
-
-	tenantA := uuid.New()
-	tenantB := uuid.New()
-	controlID := uuid.New()
-
-	// Create 2 evidences for tenantA
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID: uuid.New(), TenantID: tenantA, ControlID: controlID,
-		Filename: "report1.pdf",
-	}))
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID: uuid.New(), TenantID: tenantA, ControlID: controlID,
-		Filename: "report2.pdf",
-	}))
-
-	// Create 1 evidence for tenantB on the same controlID
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID: uuid.New(), TenantID: tenantB, ControlID: controlID,
-		Filename: "evil_report.pdf",
-	}))
-
-	// TenantA sees only its 2 evidences
-	evsA, err := repo.ListEvidencesByControl(ctx, tenantA, controlID)
-	require.NoError(t, err)
-	assert.Len(t, evsA, 2)
-
-	// TenantB sees only its 1 evidence
-	evsB, err := repo.ListEvidencesByControl(ctx, tenantB, controlID)
-	require.NoError(t, err)
-	assert.Len(t, evsB, 1)
-	assert.Equal(t, "evil_report.pdf", evsB[0].Filename)
 }
 
 func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
-	repo := setupComplianceRepo(t)
+	repo, evRepo := setupComplianceRepoWithEvidence(t)
 	ctx := context.Background()
 
 	tenantA := uuid.New()
@@ -442,19 +368,18 @@ func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
 
 	// tenantA evidence: 2 on ctrl1, 1 on ctrl2, 1 on ctrl3 (other framework)
 	for _, cid := range []uuid.UUID{ctrl1, ctrl1, ctrl2, ctrl3} {
-		require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-			ID: uuid.New(), TenantID: tenantA, ControlID: cid, Filename: "a.pdf",
-		}))
+		attach(t, evRepo, tenantA, cid, nil)
 	}
-	// A stray evidence carrying tenantB's tenant_id but pointing at tenantA's
+	// A stray artifact carrying tenantB's tenant_id but linked to tenantA's
 	// control must never inflate tenantA's counts.
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID: uuid.New(), TenantID: tenantB, ControlID: ctrl1, Filename: "evil.pdf",
-	}))
+	attach(t, evRepo, tenantB, ctrl1, nil)
 	// tenantB's legitimate evidence on its own control.
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID: uuid.New(), TenantID: tenantB, ControlID: ctrl1B, Filename: "b.pdf",
-	}))
+	attach(t, evRepo, tenantB, ctrl1B, nil)
+	// And proof that EXPIRED does not count, however many copies of it exist:
+	// this is the tightening the library brought, and the reason a control whose
+	// certificate lapsed can no longer be declared implemented.
+	expired := time.Now().Add(-24 * time.Hour)
+	attach(t, evRepo, tenantA, ctrl2, &expired)
 
 	counts, err := repo.CountEvidencesByFramework(ctx, tenantA, frameworkID)
 	require.NoError(t, err)
@@ -468,31 +393,6 @@ func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, countsB[ctrl1B])
 	assert.Len(t, countsB, 1)
-}
-
-func TestDeleteEvidence_CrossTenantReturnsError(t *testing.T) {
-	repo := setupComplianceRepo(t)
-	ctx := context.Background()
-
-	tenantA := uuid.New()
-	tenantB := uuid.New()
-	controlID := uuid.New()
-
-	evID := uuid.New()
-	require.NoError(t, repo.CreateEvidence(ctx, &domain.ControlEvidence{
-		ID: evID, TenantID: tenantA, ControlID: controlID,
-		Filename: "confidential.pdf",
-	}))
-
-	// TenantB trying to delete tenantA's evidence → "not found"
-	err := repo.DeleteEvidence(ctx, evID, tenantB)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
-
-	// Verify the evidence still exists for tenantA
-	got, err := repo.GetEvidenceByID(ctx, evID, tenantA)
-	require.NoError(t, err)
-	require.NotNil(t, got, "Evidence must still exist after cross-tenant delete attempt")
 }
 
 func TestCreateFramework_DuplicateNameVersion_Conflict(t *testing.T) {

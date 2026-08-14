@@ -47,7 +47,12 @@ type ComplianceReader interface {
 	ListControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
 	GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
 	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceControl, error)
-	GetEvidenceByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ControlEvidence, error)
+	// GetEvidenceByID reads the evidence LIBRARY (domain.Evidence), which is what
+	// the register holds since migration 0052. An artifact can answer several
+	// controls, so the analyser resolves context through its links rather than
+	// through a single owning control.
+	GetEvidenceByID(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.Evidence, error)
+	ListLinks(ctx context.Context, tenantID uuid.UUID, evidenceIDs []uuid.UUID) ([]domain.EvidenceControlLink, error)
 }
 
 // VulnLister lists vulnerabilities for retrieval (tenant-scoped).

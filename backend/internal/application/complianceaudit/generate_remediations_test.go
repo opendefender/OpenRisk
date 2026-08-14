@@ -67,6 +67,10 @@ func (m *mockComplianceRepo) GetFrameworkByID(context.Context, uuid.UUID, uuid.U
 func (m *mockComplianceRepo) ListFrameworks(context.Context, uuid.UUID) ([]domain.ComplianceFramework, error) {
 	return nil, nil
 }
+func (m *mockComplianceRepo) UpdateFramework(context.Context, *domain.ComplianceFramework) error {
+	return nil
+}
+
 func (m *mockComplianceRepo) DeleteFramework(context.Context, uuid.UUID, uuid.UUID) error { return nil }
 func (m *mockComplianceRepo) CreateControl(context.Context, *domain.ComplianceControl) error {
 	return nil

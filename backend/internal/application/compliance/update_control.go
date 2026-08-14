@@ -54,13 +54,20 @@ func (uc *UpdateControlUseCase) Execute(ctx context.Context, tenantID, controlID
 			return nil, domain.NewValidationError("invalid status: " + string(*input.Status))
 		}
 		// Strict compliance rule: a control cannot be marked "implemented" without
-		// at least one piece of evidence to substantiate it. GetControlByID
-		// preloads (non-deleted) Evidences, so no extra query is needed. Only
-		// enforced on the transition INTO implemented, so re-saving an already
-		// implemented control (e.g. editing its name) is never blocked.
+		// at least one piece of evidence to substantiate it. GetControlByID fills
+		// EvidenceCount from the evidence library, so no extra query is needed.
+		//
+		// Since the library landed, that count is of CURRENTLY VALID proof:
+		// expired and rejected artifacts do not satisfy the rule. A control whose
+		// certificate lapsed cannot be re-declared implemented on the strength of
+		// it — which is the point, since that declaration is what an auditor reads.
+		//
+		// Still only enforced on the transition INTO implemented, so re-saving an
+		// already implemented control (editing its name, say) is never blocked;
+		// otherwise every unrelated edit would become a compliance event.
 		if *input.Status == domain.ControlStatusImplemented &&
 			control.Status != domain.ControlStatusImplemented &&
-			len(control.Evidences) == 0 {
+			control.EvidenceCount == 0 {
 			return nil, domain.NewValidationError("evidence_required")
 		}
 		control.Status = *input.Status

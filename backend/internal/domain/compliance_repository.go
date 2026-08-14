@@ -32,6 +32,9 @@ type ComplianceRepository interface {
 	// ListFrameworks returns a tenant's active (non-deleted) frameworks.
 	ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]ComplianceFramework, error)
 
+	// UpdateFramework persists changes to a framework the tenant owns.
+	UpdateFramework(ctx context.Context, framework *ComplianceFramework) error
+
 	// DeleteFramework soft-deletes a framework by ID scoped to a tenant — a
 	// tenant can only delete its own. The delete use case pairs this with
 	// DeleteControlsByFramework so the tenant's controls go away too.
@@ -63,25 +66,17 @@ type ComplianceRepository interface {
 	DeleteControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (int64, error)
 
 	// =========================================================================
-	// Evidences (tenant-scoped)
+	// Evidence counts
+	//
+	// Storing and reading evidence itself moved to domain.EvidenceRepository when
+	// the library landed (migration 0052): an artifact answers N controls, so it
+	// cannot hang off the compliance repository by control id. What stays here is
+	// the count, because the control register is what asks the question.
 	// =========================================================================
-
-	// CreateEvidence persists a new control evidence for a tenant.
-	CreateEvidence(ctx context.Context, evidence *ControlEvidence) error
-
-	// GetEvidenceByID retrieves an evidence by ID scoped to a tenant.
-	// Returns (nil, nil) if not found or belongs to another tenant.
-	GetEvidenceByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*ControlEvidence, error)
-
-	// ListEvidencesByControl retrieves all evidences for a (tenant, control) pair.
-	ListEvidencesByControl(ctx context.Context, tenantID uuid.UUID, controlID uuid.UUID) ([]ControlEvidence, error)
 
 	// CountEvidencesByFramework returns, for a (tenant, framework) pair, the number of
 	// evidences attached to each control, keyed by control ID. Controls with no evidence
 	// are simply absent from the map. Used by the compliance report to show, in a single
 	// query, which controls are substantiated — avoids N per-control lookups.
 	CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
-
-	// DeleteEvidence soft-deletes an evidence by ID scoped to a tenant.
-	DeleteEvidence(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error
 }

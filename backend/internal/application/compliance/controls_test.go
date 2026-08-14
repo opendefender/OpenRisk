@@ -106,10 +106,12 @@ func TestUpdateControlUseCase_Success(t *testing.T) {
 	var saved *domain.ComplianceControl
 	repo := &MockComplianceRepository{
 		getControlByIDFunc: func(ctx context.Context, id, tid uuid.UUID) (*domain.ComplianceControl, error) {
-			// One evidence present → the strict "implemented needs a proof" rule is satisfied.
+			// One CURRENTLY VALID artifact in the evidence library → the strict
+			// "implemented needs a proof" rule is satisfied. The repository fills
+			// EvidenceCount; expired and rejected proof never reaches it.
 			return &domain.ComplianceControl{
 				ID: controlID, TenantID: tenantID, Status: domain.ControlStatusNotImplemented,
-				Evidences: []domain.ControlEvidence{{ID: uuid.New(), TenantID: tenantID, ControlID: controlID}},
+				EvidenceCount: 1,
 			}, nil
 		},
 		updateControlFunc: func(ctx context.Context, c *domain.ComplianceControl) error {

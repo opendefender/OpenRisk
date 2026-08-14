@@ -97,14 +97,14 @@ type BoardReportData struct {
 	ApprovedAt       *time.Time
 
 	// Posture snapshot
-	RisksCritical          int
-	RisksHigh              int
-	RisksMedium            int
-	RisksLow               int
-	RisksTotal             int
-	FinancialExposureLabel string // pre-formatted, e.g. "175 000 000 FCFA"
+	RisksCritical            int
+	RisksHigh                int
+	RisksMedium              int
+	RisksLow                 int
+	RisksTotal               int
+	FinancialExposureLabel   string // pre-formatted, e.g. "175 000 000 FCFA"
 	OverallCompliancePercent float64
-	Frameworks             []BoardFrameworkRow
+	Frameworks               []BoardFrameworkRow
 
 	// Narrative (already reviewed by a human)
 	ExecutiveSummary     string

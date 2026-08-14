@@ -280,6 +280,7 @@
       "import": "Ajouter",
       "empty": "Aucun référentiel disponible",
       "importSuccess": "{imported} contrôles importés ({skipped} déjà présents)",
+      "inheritedCoverage": "{percent} % de ce référentiel est déjà couvert par vos preuves existantes ({covered} contrôles sur {total})",
       "importError": "Échec de l'ajout du référentiel"
     },
     "report": {

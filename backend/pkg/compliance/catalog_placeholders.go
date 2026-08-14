@@ -5,26 +5,33 @@
 
 package compliance
 
-// Placeholder catalog(s) for frameworks that are announced but not yet modeled because we
-// don't have the regulator's actual source text. Registered with Available: false and no
-// Controls, this is a deliberate choice, not an oversight: modeling specific article
-// citations from training-data recall risks fabricating legal references, which is worse
-// than not shipping the framework at all in a product real compliance officers rely on.
+// Withdrawn catalog(s): registered in code, but NOT offered for import.
 //
-// The three previously-placeholder African frameworks (COBAC, BCEAO, and the Cameroonian
-// cybersecurity law) are now real, cited catalogs — see catalog_cobac_2016.go,
-// catalog_bceao_2002.go and catalog_antic_cm_2010.go — because the source documents were
-// provided. What remains here is a framework we still lack the text for.
+// The distinction from Available:false matters. An unavailable catalog is one
+// the product intends to ship and has not modelled yet — it appears in the
+// picker as "coming soon", which is a promise. A withdrawn one is removed from
+// the picker entirely, because offering a framework we cannot cite article by
+// article invites a compliance officer to import a shell and believe they have a
+// programme. The code stays so the key keeps resolving for tenants who already
+// imported it, and so the reconstruction has somewhere to land.
 
 func init() {
 	register(Catalog{
 		Key:     "cm-loi-2024-017",
 		Name:    "Cameroun — Protection des données personnelles",
 		Version: "",
-		// Referenced in ROADMAP.md M2 as a planned framework. Kept as a placeholder until
-		// the actual legal text is available and reviewed — same policy as before.
-		Description: "Cadre camerounais de protection des données à caractère personnel — non encore modélisé, en attente du texte source officiel.",
-		Available:   false,
-		Controls:    nil,
+		Description: "Loi n° 2024/017 du Cameroun relative à la protection des données à caractère personnel. " +
+			"Retiré du catalogue d'import en attendant une modélisation article par article vérifiée " +
+			"contre le texte officiel — voir docs/tickets/CM-LOI-2024-017-reconstruction.md.",
+		Available: false,
+		// Withdrawn keeps it out of the import picker. Modelling article citations
+		// from recall rather than from the published text risks putting fabricated
+		// legal references in front of a regulator, which is worse than shipping
+		// nothing: a shell framework reads as coverage in every dashboard,
+		// percentage and report in the product.
+		Withdrawn:        true,
+		WithdrawalReason: "Texte source officiel non disponible : la modélisation article par article n'a pas été vérifiée contre le Journal officiel.",
+		TrackingTicket:   "docs/tickets/CM-LOI-2024-017-reconstruction.md",
+		Controls:         nil,
 	})
 }

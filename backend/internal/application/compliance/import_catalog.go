@@ -26,6 +26,15 @@ type ImportCatalogResult struct {
 	Imported int `json:"imported"`
 	Skipped  int `json:"skipped"` // already existed for this (tenant, framework) by reference_code
 	Total    int `json:"total"`
+
+	// Crosswalks reports the curated correspondences materialised against the
+	// frameworks the tenant already held.
+	Crosswalks *MaterialiseResult `json:"crosswalks,omitempty"`
+	// InheritedCoverage is the head start: how much of what was just imported is
+	// already answered by proof the tenant holds elsewhere. Returned WITH the
+	// import so the answer arrives at the moment the question is asked, rather
+	// than waiting for the user to go looking for it.
+	InheritedCoverage *InheritedCoverage `json:"inherited_coverage,omitempty"`
 }
 
 // ImportCatalogUseCase bulk-creates controls for a tenant from a static regulatory catalog
@@ -40,6 +49,10 @@ type ActivationRecorder interface {
 type ImportCatalogUseCase struct {
 	repo       domain.ComplianceRepository
 	activation ActivationRecorder
+	// Optional and nil-safe, like every other collaborator in this codebase: an
+	// import must still succeed on a deployment where crosswalks are not wired.
+	materialiser *CrosswalkMaterialiser
+	coverage     *GetInheritedCoverageUseCase
 }
 
 func NewImportCatalogUseCase(repo domain.ComplianceRepository) *ImportCatalogUseCase {
@@ -49,6 +62,13 @@ func NewImportCatalogUseCase(repo domain.ComplianceRepository) *ImportCatalogUse
 // WithActivation attaches the optional activation recorder.
 func (uc *ImportCatalogUseCase) WithActivation(rec ActivationRecorder) *ImportCatalogUseCase {
 	uc.activation = rec
+	return uc
+}
+
+// WithCrosswalks makes the import materialise curated correspondences and report
+// the head start they produce. Optional; absent, an import behaves as before.
+func (uc *ImportCatalogUseCase) WithCrosswalks(m *CrosswalkMaterialiser, cov *GetInheritedCoverageUseCase) *ImportCatalogUseCase {
+	uc.materialiser, uc.coverage = m, cov
 	return uc
 }
 
@@ -68,6 +88,19 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 	catalog, ok := pkgcompliance.Get(input.CatalogKey)
 	if !ok {
 		return nil, domain.NewValidationError("unknown catalog: " + input.CatalogKey)
+	}
+	// Withdrawn is checked before Available, and says WHY. A compliance officer
+	// who cannot import a framework needs to know whether to wait for it or plan
+	// around it, and "not available" answers neither.
+	if catalog.Withdrawn {
+		msg := "le référentiel « " + catalog.Name + " » a été retiré du catalogue d'import"
+		if catalog.WithdrawalReason != "" {
+			msg += " : " + catalog.WithdrawalReason
+		}
+		if catalog.TrackingTicket != "" {
+			msg += " (suivi : " + catalog.TrackingTicket + ")"
+		}
+		return nil, domain.NewValidationError(msg)
 	}
 	if !catalog.Available {
 		return nil, domain.NewValidationError("catalog " + input.CatalogKey + " is not yet available — no reviewed control content")
@@ -105,6 +138,37 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 			return nil, err
 		}
 		result.Imported++
+	}
+
+	// Stamp what this framework IS, so crosswalks keep working after a rename.
+	// Best-effort: failing the import over a label would be a poor trade, and the
+	// controls — the thing the user asked for — are already in.
+	if fw.CatalogKey != input.CatalogKey {
+		fw.CatalogKey = input.CatalogKey
+		_ = uc.repo.UpdateFramework(ctx, fw)
+	}
+
+	// Materialise the curated crosswalks against everything the tenant already
+	// holds, then answer the question they are about to ask: how much of this do
+	// I already have? Both are best-effort — a tenant who just imported 93
+	// controls must not be told the import failed because a head-start number
+	// could not be computed.
+	if uc.materialiser != nil {
+		catalogOf := func(id uuid.UUID) string {
+			f, err := uc.repo.GetFrameworkByID(ctx, id, tenantID)
+			if err != nil || f == nil {
+				return ""
+			}
+			return f.CatalogKey
+		}
+		if cw, err := uc.materialiser.ForFramework(ctx, tenantID, input.FrameworkID, input.CatalogKey, catalogOf); err == nil {
+			result.Crosswalks = cw
+		}
+	}
+	if uc.coverage != nil {
+		if cov, err := uc.coverage.Execute(ctx, tenantID, input.FrameworkID); err == nil && cov.CrosswalkedControls > 0 {
+			result.InheritedCoverage = cov
+		}
 	}
 
 	// ONE event for the whole import, whatever the number of controls. This is

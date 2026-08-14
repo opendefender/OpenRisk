@@ -48,6 +48,9 @@ const VulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/Vulner
 const MitigationsBoard = lazy(() => import('./features/mitigations/MitigationsBoard').then(m => ({ default: m.MitigationsBoard })));
 const ComplianceScreen = lazy(() => import('./features/compliance/ComplianceScreen').then(m => ({ default: m.ComplianceScreen })));
 const FrameworkDetail = lazy(() => import('./features/compliance/FrameworkDetail').then(m => ({ default: m.FrameworkDetail })));
+const EvidenceLibraryPage = lazy(() => import('./features/evidence/EvidenceLibraryPage').then(m => ({ default: m.EvidenceLibraryPage })));
+const MissingEvidencePage = lazy(() => import('./features/evidence/MissingEvidencePage').then(m => ({ default: m.MissingEvidencePage })));
+const ReportsLibraryPage = lazy(() => import('./features/reports/ReportsLibraryPage').then(m => ({ default: m.ReportsLibraryPage })));
 const GapAnalysisPage = lazy(() => import('./features/compliance/GapAnalysisPage').then(m => ({ default: m.GapAnalysisPage })));
 const AuditsPage = lazy(() => import('./features/compliance/AuditsPage').then(m => ({ default: m.AuditsPage })));
 const RemediationPage = lazy(() => import('./features/compliance/RemediationPage').then(m => ({ default: m.RemediationPage })));
@@ -341,6 +344,11 @@ function App() {
               framework id. */}
           <Route path="compliance" element={<ComplianceScreen />} />
           <Route path="compliance/gaps" element={<GapAnalysisPage />} />
+          {/* The evidence library and its worklist. Under /compliance because
+              that is where people go looking for proof, even though evidence
+              outlives any one framework. */}
+          <Route path="compliance/evidence" element={<EvidenceLibraryPage />} />
+          <Route path="compliance/evidence/missing" element={<MissingEvidencePage />} />
           <Route path="compliance/audits" element={<AuditsPage />} />
           <Route path="compliance/audits/:auditId" element={<AuditDetailPage />} />
           <Route path="compliance/remediation" element={<RemediationPage />} />
@@ -373,6 +381,10 @@ function App() {
               segments first: /reports/jobs and /reports/board must not be eaten
               by /reports/:reportId. */}
           <Route path="reports" element={<ReportsScreen />} />
+          {/* The reporting engine's own library: real documents, their state,
+              their hash. Static segment, so it is never eaten by
+              /reports/:reportId below. */}
+          <Route path="reports/library" element={<ReportsLibraryPage />} />
           <Route path="reports/jobs/:jobId" element={<ReportJobPage />} />
           <Route path="reports/board" element={<BoardReportPage />} />
           <Route path="reports/:reportId" element={<BoardReportPage />} />

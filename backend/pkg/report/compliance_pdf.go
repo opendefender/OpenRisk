@@ -21,7 +21,7 @@ const (
 	pageMarginTop    = 15.0
 	pageMarginBottom = 18.0
 	usableWidth      = 210.0 - pageMarginLeft - pageMarginRight // 180
-	pageBottomLimit  = 297.0 - pageMarginBottom                  // where a row must break
+	pageBottomLimit  = 297.0 - pageMarginBottom                 // where a row must break
 )
 
 // Detailed-table column widths (sum must equal usableWidth = 180).
@@ -202,9 +202,9 @@ func RenderCompliancePDF(data ComplianceReportData) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func setText(pdf *fpdf.Fpdf, c rgb)  { pdf.SetTextColor(c.r, c.g, c.b) }
-func setFill(pdf *fpdf.Fpdf, c rgb)  { pdf.SetFillColor(c.r, c.g, c.b) }
-func setDraw(pdf *fpdf.Fpdf, c rgb)  { pdf.SetDrawColor(c.r, c.g, c.b) }
+func setText(pdf *fpdf.Fpdf, c rgb) { pdf.SetTextColor(c.r, c.g, c.b) }
+func setFill(pdf *fpdf.Fpdf, c rgb) { pdf.SetFillColor(c.r, c.g, c.b) }
+func setDraw(pdf *fpdf.Fpdf, c rgb) { pdf.SetDrawColor(c.r, c.g, c.b) }
 
 // drawHeaderBand renders the dark title band at the top of page 1.
 func drawHeaderBand(pdf *fpdf.Fpdf, tr func(string) string, lbl labels) {

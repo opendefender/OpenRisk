@@ -48,7 +48,8 @@ func (m *mockAssetReader) GetByID(_ context.Context, _, _ uuid.UUID) (*domain.As
 type mockCompliance struct {
 	frameworks []domain.ComplianceFramework
 	controls   []domain.ComplianceControl
-	evidence   *domain.ControlEvidence
+	evidence   *domain.Evidence
+	links      []domain.EvidenceControlLink
 }
 
 func (m *mockCompliance) ListFrameworks(_ context.Context, _ uuid.UUID) ([]domain.ComplianceFramework, error) {
@@ -73,8 +74,12 @@ func (m *mockCompliance) GetControlByID(_ context.Context, id, _ uuid.UUID) (*do
 	}
 	return nil, nil
 }
-func (m *mockCompliance) GetEvidenceByID(_ context.Context, _, _ uuid.UUID) (*domain.ControlEvidence, error) {
+func (m *mockCompliance) GetEvidenceByID(_ context.Context, _, _ uuid.UUID) (*domain.Evidence, error) {
 	return m.evidence, nil
+}
+
+func (m *mockCompliance) ListLinks(_ context.Context, _ uuid.UUID, _ []uuid.UUID) ([]domain.EvidenceControlLink, error) {
+	return m.links, nil
 }
 
 type mockAuditReader struct {
@@ -223,10 +228,13 @@ func TestGenerateAuditReport_NotFound(t *testing.T) {
 func TestAnalyzeEvidence_Success(t *testing.T) {
 	ctrlID := uuid.New()
 	fwID := uuid.New()
+	evID := uuid.New()
 	comp := &mockCompliance{
 		frameworks: []domain.ComplianceFramework{{ID: fwID, Name: "ISO 27001"}},
 		controls:   []domain.ComplianceControl{{ID: ctrlID, FrameworkID: fwID, ReferenceCode: "A.5.15", Name: "Access control policy", Description: "policy access control"}},
-		evidence:   &domain.ControlEvidence{ControlID: ctrlID, Filename: "access-control-policy.pdf"},
+		evidence:   &domain.Evidence{ID: evID, Filename: "access-control-policy.pdf"},
+		// The artifact reaches its control through a link now, not a foreign key.
+		links: []domain.EvidenceControlLink{{EvidenceID: evID, ControlID: ctrlID}},
 	}
 	uc := NewAnalyzeEvidenceUseCase(tmpl, comp)
 

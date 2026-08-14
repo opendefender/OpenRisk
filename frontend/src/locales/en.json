@@ -280,6 +280,7 @@
       "import": "Add",
       "empty": "No frameworks available",
       "importSuccess": "{imported} controls imported ({skipped} already present)",
+      "inheritedCoverage": "{percent}% of this framework is already covered by your existing evidence ({covered} of {total} controls)",
       "importError": "Failed to add framework"
     },
     "report": {

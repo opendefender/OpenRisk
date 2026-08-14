@@ -44,10 +44,16 @@ func TestListCatalogsUseCase_Success(t *testing.T) {
 		assert.Greater(t, c.ControlCount, 0, "catalog %q should carry controls", key)
 	}
 
-	// A genuine placeholder remains for frameworks whose source text we still lack — it
-	// must be present but explicitly unavailable so the UI can show it as "coming soon".
-	placeholder, found := byKey["cm-loi-2024-017"]
-	assert.True(t, found, "expected placeholder catalog cm-loi-2024-017 in the list")
-	assert.False(t, placeholder.Available, "placeholder catalog should not be marked available")
-	assert.Equal(t, 0, placeholder.ControlCount)
+	// The Cameroonian data-protection law is WITHDRAWN, not merely unavailable, so
+	// it must not appear in the import picker at all. A shell framework offered as
+	// "coming soon" invites someone to import it and believe they have a
+	// programme; see docs/tickets/CM-LOI-2024-017-reconstruction.md.
+	_, found := byKey["cm-loi-2024-017"]
+	assert.False(t, found, "a withdrawn catalog must not be offered for import")
+
+	// Business continuity, modelled clause by clause from ISO 22301:2019.
+	bcm, found := byKey["iso22301-2019"]
+	assert.True(t, found, "expected iso22301-2019 in the list")
+	assert.True(t, bcm.Available)
+	assert.Greater(t, bcm.ControlCount, 0)
 }
