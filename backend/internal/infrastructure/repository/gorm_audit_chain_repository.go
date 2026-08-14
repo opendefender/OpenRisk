@@ -197,6 +197,16 @@ func (r *GormAuditChainRepository) Prune(ctx context.Context, tenantID uuid.UUID
 	var seal *domain.AuditChainSeal
 	err := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
 		Transaction(func(tx *gorm.DB) error {
+			// Authorise the append-only trigger to let this transaction's DELETE
+			// through (migration 0055, Postgres only). SET LOCAL is
+			// transaction-scoped, so no other session or pooled connection inherits
+			// the maintenance flag. Guarded by dialect: the GUC syntax is invalid on
+			// sqlite (used by tests), where no such trigger exists anyway.
+			if tx.Dialector.Name() == "postgres" {
+				if err := tx.Exec("SET LOCAL openrisk.audit_maintenance = 'on'").Error; err != nil {
+					return err
+				}
+			}
 			var head domain.AuditEvent
 			if err := tx.Model(&domain.AuditEvent{}).Where("tenant_id = ?", tenantID).
 				Order("sequence DESC").Limit(1).Take(&head).Error; err != nil {
