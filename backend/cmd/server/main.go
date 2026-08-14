@@ -328,10 +328,12 @@ func main() {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
 
-	// Run SQL migrations (if DATABASE_URL is set). This uses the `migrations` folder.
-	// Must run after AutoMigrate: these SQL migrations add indices/tables/FKs on top of
-	// the base tables (users, organizations, risks, ...) that AutoMigrate creates first.
-	migrations.RunMigrations()
+	// Run the additive SQL migration layer (if DATABASE_URL is set), on top of the
+	// schema AutoMigrate has just built. Fail loudly: a real migration error must
+	// abort the boot rather than let the app serve on a half-applied schema.
+	if err := migrations.RunMigrations(); err != nil {
+		log.Fatalf("SQL migrations failed: %v", err)
+	}
 
 	// Governance audit trail (spec §15): install the GORM plugin AFTER the tables
 	// exist. From here on, every struct-form mutation of an Auditable model
