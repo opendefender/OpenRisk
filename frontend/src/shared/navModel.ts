@@ -12,6 +12,7 @@
 // shown as empty promises; their routes still exist for progressive disclosure.
 
 import {
+  FolderCheck,
   LayoutDashboard, TrendingUp, ShieldAlert, ShieldCheck, Siren, Server,
   ClipboardCheck, Globe, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
   Workflow, Scale, Users,
@@ -120,6 +121,10 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_prove',
     items: [
       { key: 'compliance', labelKey: 'n_compliance', icon: ClipboardCheck, path: '/compliance', perm: 'compliance:read' },
+      // The evidence library is its own destination, not a tab inside a
+      // framework: the same artifact answers controls in several frameworks, so
+      // filing it under one of them would hide it from the others.
+      { key: 'evidence', labelKey: 'n_evidence', icon: FolderCheck, path: '/compliance/evidence', perm: 'compliance:evidences:read' },
       { key: 'reports', labelKey: 'n_reports', icon: FileText, path: '/reports', perm: 'reports:board:read' },
       { key: 'ai', labelKey: 'n_ai', icon: Sparkles, path: '/recommendations', perm: 'risks:read' },
       { key: 'emerging', labelKey: 'n_emerging', icon: Sparkles, path: '/ai/emerging-risks', perm: 'risks:read' },

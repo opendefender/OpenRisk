@@ -78,6 +78,8 @@ export const ROUTES: RouteNode[] = [
   { path: '/compliance/frameworks/:frameworkId', label: { fr: 'Référentiel', en: 'Framework' }, parent: '/compliance', perm: 'compliance:controls:read', dynamic: true },
   { path: '/compliance/frameworks/:frameworkId/gaps', label: { fr: 'Écarts', en: 'Gaps' }, parent: '/compliance/frameworks/:frameworkId', perm: 'compliance:controls:read' },
   { path: '/compliance/gaps', label: { fr: "Analyse d'écarts", en: 'Gap analysis' }, parent: '/compliance', perm: 'compliance:controls:read' },
+  { path: '/compliance/evidence', label: { fr: 'Bibliothèque de preuves', en: 'Evidence library' }, parent: '/compliance', perm: 'compliance:evidences:read' },
+  { path: '/compliance/evidence/missing', label: { fr: 'Preuves manquantes', en: 'Missing evidence' }, parent: '/compliance/evidence', perm: 'compliance:evidences:read' },
   { path: '/compliance/audits', label: { fr: 'Audits', en: 'Audits' }, parent: '/compliance', perm: 'compliance:audits:read' },
   { path: '/compliance/audits/:auditId', label: { fr: 'Audit', en: 'Audit' }, parent: '/compliance/audits', perm: 'compliance:audits:read', dynamic: true },
   { path: '/compliance/remediation', label: { fr: 'Plans de remédiation', en: 'Remediation plans' }, parent: '/compliance', perm: 'compliance:remediations:read' },
@@ -99,6 +101,7 @@ export const ROUTES: RouteNode[] = [
 
   /* ---------------- Reports ---------------- */
   { path: '/reports', labelKey: 'n_reports', perm: 'compliance:controls:read' },
+  { path: '/reports/library', label: { fr: 'Bibliothèque de rapports', en: 'Report library' }, parent: '/reports', perm: 'compliance:controls:read' },
   { path: '/reports/jobs/:jobId', label: { fr: 'Rapport généré', en: 'Generated report' }, parent: '/reports', perm: 'compliance:controls:read', dynamic: true },
   { path: '/reports/board', label: { fr: 'Rapports Conseil', en: 'Board reports' }, parent: '/reports', perm: 'reports:board:read' },
   { path: '/reports/:reportId', label: { fr: 'Rapport', en: 'Report' }, parent: '/reports/board', perm: 'reports:board:read', dynamic: true },
