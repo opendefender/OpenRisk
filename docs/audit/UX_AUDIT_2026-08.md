@@ -1,108 +1,127 @@
-# Audit UX produit — Pass 1 (live, base vierge) · 2026-08-17
+# Audit UX produit — live, base vierge · 2026-08-17
 
 > **Méthode.** Audit **live**, pas par lecture de code : stack monté (Postgres **vierge** :5480, backend :8080,
-> frontend vite :5173 proxy `/api`, base 100 % vide, admin seedé `admin@opendefender.io`). Chaque constat
-> est adossé à une **preuve observée** (statut HTTP, JSON, écran). Ceci est le **Pass 1** : il couvre le
-> **BLOC 1 — Acquisition & Activation** et des **sondes de véracité** sur le tenant vide. Les BLOCs 2–5
-> (cœur produit, conformité/restitution, admin, états limites) restent à parcourir — voir §7 Couverture.
->
-> Référentiel : `PROMPT_AUDIT_UX_PRODUIT.md` (34 parcours, 4 personas, 20 critères).
+> frontend vite :5173 proxy `/api`, base 100 % vide). Chaque constat est adossé à une **preuve observée**
+> (statut HTTP, JSON, DOM, écran). Parcours réel d'un **nouveau compte** de l'inscription jusqu'à la
+> création du premier risque, en incarnant Persona C (Mme Fotso, conformité COBAC, banque/Cameroun/XAF).
+> Référentiel : `PROMPT_AUDIT_UX_PRODUIT.md`. **Pass 1** = acquisition/activation + véracité ;
+> **Pass 2** = onboarding authentifié, dashboards, création de risque & moment Aha.
 
 ---
 
-## 1. Verdict (à ce stade du Pass 1)
+## 1. Verdict
 
-Sandrine Mbarga (RSSI, sceptique) **ne signerait pas encore** — mais le blocage n'est pas là où on le
-croyait. La création de compte **fonctionne** (contrairement à ce que soupçonnait l'audit interne de
-juillet). Deux choses la feraient décrocher : (a) elle doit **enrôler une MFA** avant même de voir le
-produit, et (b) une fois entrée sur un compte neuf, l'app lui affiche un **score de sécurité 100/100,
-grade A « Excellente »** alors qu'elle n'a **aucune** donnée — un chiffre qui ment, le pire défaut pour
-un outil de sécurité vendu à des banques. Le socle technique est sain (auth 7 couches réellement
-fonctionnelle) ; ce sont des défauts de **véracité** et de **friction d'activation**, pas des façades.
+Le socle est **plus sain** que ne le laissait craindre l'audit interne de juillet : l'inscription, l'auth
+7 couches (MFA TOTP incluse), l'onboarding, l'import COBAC et la création de risque **fonctionnent
+réellement**. Mais Sandrine Mbarga (RSSI sceptique) **ne signerait pas encore**, pour deux raisons de
+**confiance** et une d'**activation** : (1) « le score de sécurité » affiche **cinq valeurs différentes
+selon l'écran** (0, 25, 36, 100) sur le même compte vide ; (2) le **moment Aha promis** — « créez votre
+premier risque et voyez immédiatement son exposition financière » — **n'est pas tenu** (le score
+qualitatif s'affiche, l'exposition FCFA non) ; (3) la friction d'entrée (MFA obligatoire avant le
+produit, tour guidé qui bloque les clics) ralentit l'activation. Ce sont des défauts corrigibles, pas
+des trous béants — le produit est **réel**.
 
 ---
 
 ## 2. ⚠️ Correction d'un faux positif (intégrité de l'audit)
 
-Une première lecture a conclu que `POST /auth/register` renvoyait **404 → inscription = façade (S1)**.
-**C'était FAUX** : un artefact de **process orphelins** (backend/vite d'un démarrage vieux de 3 jours
-tenant encore les ports, proxy routant mal). Après nettoyage et redémarrage propre, `register` renvoie
-**201** et **crée réellement l'utilisateur + son organisation** (vérifié en base). **Constat retiré.**
-*Leçon : sans un stack propre et reproductible, un audit live produit lui-même des faux ✅/❌.*
+Une première lecture a conclu `POST /auth/register` → **404 → inscription = façade (S1)**. **FAUX** :
+artefact de **process orphelins** (backend/vite d'un run vieux de 3 jours tenant les ports, proxy
+routant mal). Après stack propre : `register` → **201**, crée réellement user + organisation (vérifié en
+base). *Sans un stack propre et reproductible, un audit live produit lui-même de faux ❌.*
 
 ---
 
-## 3. Métriques mesurées (Pass 1)
+## 3. Métriques mesurées
 
-| Métrique | Mesuré (live) | Cible | Écart |
+| Métrique | Mesuré (live) | Cible | Verdict |
 |---|---|---|---|
-| Inscription possible ? | **Oui** — 201, crée user+org | Oui | ✅ |
-| Session après inscription | **Non** — « check your email », re-login requis | Auto-login | ⚠️ friction |
-| MFA à la 1re connexion | **Obligatoire** (`mfa_enrollment_required`) | Optionnelle/différable | ⚠️ friction |
-| MFA fonctionne (setup→TOTP→session) | **Oui** (cookies HttpOnly émis) | Oui | ✅ |
-| Score sécurité sur tenant vide | **100/100** | « non mesuré »/0 | ❌ ment |
-| Cyber score exécutif sur tenant vide | **A / « Excellente »** | « non mesuré » | ❌ ment |
-| Temps jusqu'au Aha | **non atteint ce pass** (bloqué au parcours d'activation) | < 8 min | — |
+| Inscription crée un compte | Oui — 201, user + org en base | Oui | ✅ |
+| Auth 7 couches (register→login→MFA setup→TOTP→session) | Oui, bout-en-bout | Oui | ✅ |
+| Onboarding 5 étapes complété → landing adaptée | Oui → `/compliance` (objectif COBAC) | Oui | ✅ |
+| Import référentiel (COBAC, 45 contrôles cités) | Oui, 1 clic, feedback « Importé » | Oui | ✅ |
+| Création 1er risque | Oui — score qualitatif 4.8/Élevé immédiat | Oui | ✅ |
+| **Aha : exposition financière FCFA immédiate** | **Non** — aucun FCFA affiché après création | Immédiate | ❌ |
+| **Cohérence du « score de sécurité »** | **0 / 25 / 36 / 100** selon l'écran | 1 valeur | ❌ |
+| Session après inscription | Non (« check your email », re-login) | Auto | ⚠️ |
+| MFA à la 1re connexion | Obligatoire (avant tout accès) | Différable | ⚠️ |
 
 ---
 
-## 4. Registre des défauts (Pass 1)
+## 4. Les moments où l'utilisateur décrocherait
 
-| ID | Écran/API | Persona | Attendu | Réel (preuve) | Critère | Sévérité |
-|---|---|---|---|---|---|---|
-| **OR26-01** | `GET /stats` (dashboard) | A | Sur 0 risque : « non mesuré » ou 0 | `global_risk_score: 100` sur registre vide | #8 Chiffres | **S1** |
-| **OR26-02** | `GET /analytics/executive` | A | Pas de note sur 0 donnée | `cyber_score {score:100, grade:'A', label:'Excellente'}` (1 seul axe) | #8 Chiffres | **S1** |
-| **OR26-03** | Login 1re fois | B, C | Voir le produit vite ; MFA différable | `mfa_enrollment_required:true` → MFA **imposée** avant tout accès (nécessite une app TOTP) | #3 Charge, activation | **S2** |
-| **OR26-04** | Inscription → accès | A, B | Auto-login après signup | 201 **sans session** + « check your email » (aucun serveur mail) → re-login manuel | #1 Orientation | **S2** |
-| **OR26-05** | Formulaire d'inscription (`/password/check`) | B | Retour de robustesse serveur | Indicateur « Vérification… » alimenté par un check serveur ; robustesse zxcvbn OK côté client (à re-vérifier hors artefact) | #5 Feedback | **S3** |
-
-*Sévérité : S1 bloquant · S2 majeur · S3 modéré · S4 mineur.*
+1. **Première connexion** — on lui impose de **scanner un QR MFA** avant d'avoir rien vu. Pour une
+   évaluation, c'est un mur (**OR26-03**).
+2. **Le score qui change d'écran en écran** — accueil « 0/100 », barre latérale « 25/100 », exécutif
+   « F 36/100 » puis « A » selon l'état. *« Lequel est le vrai ? Ce tableau de bord n'est pas fiable. »*
+   (**OR26-01**).
+3. **Après avoir créé son premier risque** — on lui avait promis « exposition financière calculée
+   immédiatement » ; elle voit un score, **pas de FCFA**. La promesse-clé du produit n'est pas tenue à
+   l'instant où elle comptait (**OR26-10**).
 
 ---
 
-## 5. Les moments où l'utilisateur décrocherait (observés)
+## 5. Registre des défauts
 
-1. **Juste après « Créer un compte »** — le compte est créé mais rien ne connecte l'utilisateur ; le
-   message renvoie vers un e-mail qui n'arrivera pas (pas de SMTP en démo). *« J'ai créé mon compte…
-   et maintenant ? »* → **OR26-04**.
-2. **Première connexion** — on lui demande de **scanner un QR MFA** avant d'avoir rien vu du produit.
-   Pour un essai/évaluation, c'est un mur. *« Je voulais juste regarder. »* → **OR26-03**.
-3. **Premier dashboard** (compte neuf) — l'app annonce **A / Excellente, 100/100** sans qu'elle ait
-   saisi le moindre risque. *« Un score parfait sur un compte vide ? Ce produit invente. »* → **OR26-01/02**.
+| ID | Écran/API | Attendu | Réel (preuve) | Critère | Sévérité |
+|---|---|---|---|---|---|
+| **OR26-01** | Score sécurité (4 surfaces) | 1 valeur cohérente, « non mesuré » si vide | `/stats`=**100**, accueil=**0/100**, sidebar=**25/100**, exécutif=**F 36** (et **A/100** avant tout import) — même tenant vide | #8 Chiffres | **S1** |
+| **OR26-10** | Création 1er risque → Aha | Exposition FCFA + traitement suggéré **immédiats** (promis par la checklist) | Score qualitatif OK ; **aucun FCFA** sur la page ; CRQ exige saisie SLE/ARO ; traitement = clic « Générer avec l'IA » | Aha / #1 | **S2** |
+| **OR26-11** | Visite guidée | Coach marks **non bloquants** | Tour = `role=dialog` qui **intercepte les clics** de l'UI dessous et réapparaît à la navigation | #16 Raccourcis/UX | **S2** |
+| **OR26-03** | 1re connexion | MFA différable (après l'Aha) | `mfa_enrollment_required:true` → MFA **imposée** avant tout accès | #3 Charge / activation | **S2** |
+| **OR26-04** | Inscription → accès | Auto-login | 201 **sans session** + « check your email » (pas de SMTP) → re-login manuel | #1 Orientation | **S2** |
+| **OR26-12** | Modal « Créer un risque » | `role=dialog`/`aria-modal` | Ouvert comme conteneur nu — non annoncé aux lecteurs d'écran | #18/a11y | **S3** |
+| **OR26-06/07** | Onboarding Profil/Org | Pré-remplir depuis l'inscription | Nom complet (val `""`) et nom d'org **re-demandés** | #11 Friction | **S3** |
+| **OR26-13** | Sidebar (badges nav) | Compteurs réels | « Registre 12 », « Mitigations 3 » sur un tenant à **1 risque / 0 mitigation** | #8 Chiffres | **S4** |
+| **OR26-08/09** | Onboarding Objectif/Profil | Choix multiple ; pas d'avatar URL | Objectif **single-select** ; champ **« Avatar (URL) »** en onboarding | #3 Charge | **S4** |
+
+*S1 bloquant · S2 majeur · S3 modéré · S4 mineur.*
 
 ---
 
 ## 6. Ce qui est bien (à protéger des régressions)
 
-- **Inscription réelle** : crée user + organisation nommée d'après l'entreprise, en base, en une requête.
-- **Auth 7 couches fonctionnelle** : register → login → MFA setup → **TOTP verify → session** (cookies
-  **HttpOnly** `or_access`/`or_refresh`/`or_csrf`, JWT RS256 avec `permissions`/`org_roles` corrects).
-  C'est un socle solide (et une preuve d'avance pour la phase P3 « Auth prouvée live »).
-- **Écran de login soigné** : bascule thème, FR/EN, citations, OAuth Google/GitHub/Microsoft présents.
+- **Auth 7 couches réellement fonctionnelle** : register → login → **MFA setup → TOTP verify → session**
+  (cookies **HttpOnly** `or_access`/`or_refresh`/`or_csrf`, JWT RS256, perms correctes). Preuve d'avance
+  pour la phase P3.
+- **Contenu réglementaire africain = vrai différenciateur** : l'étape référentiel suggère
+  **COBAC/BCEAO/ANTIC** (adaptés secteur+pays), cités article par article, **import 1 clic** avec feedback.
+- **Landing adaptée à l'objectif** : objectif COBAC → arrivée sur `/compliance` avec le référentiel déjà
+  importé (45 contrôles, 0 % honnête).
+- **Dashboard newcomer soigné** : checklist « Prise en main » **pilotée par les vraies données** (2/7),
+  **empty states honnêtes et actionnables** partout (matrice/tendance/activité/incidents), cadrage Aha
+  explicite. L'accueil affiche « 0/100 » (et non le « 100 » trompeur) — à généraliser aux autres surfaces.
+- **Fuseau horaire éditable** (corrige la plainte « timezone non modifiable » de l'audit interne).
 
 ---
 
 ## 7. Couverture & suite (honnêteté)
 
-**Couvert (live, Pass 1) :** parcours [01] inscription, [06] amorce d'activation, chaîne d'auth complète,
-sondes de véracité dashboard/exécutif sur tenant vide.
+**Couvert (live) :** inscription, auth+MFA complète, onboarding 5 étapes, import COBAC, landing,
+dashboard d'accueil, dashboard exécutif, registre des risques, **création du 1er risque + drawer**,
+sondes de véracité multi-surfaces.
 
-**Non encore parcouru (Pass 2+), à faire dans le même stack :** onboarding wizard [02-05] & Aha [06-07],
-dashboard authentifié (visuel) & mobile [08-09], Risk Register liste/carte/création/détail [10-14],
-Mitigations [15-16], Heatmap [17], Score Engine [18], Conformité + rapport COBAC PDF [19-21],
-Administration [22-27], états limites/destructeur/thème sombre/axe-core [28-34]. Ces parcours exigent
-de piloter l'app **authentifiée** (login+MFA en navigateur) — le stack reste monté pour enchaîner.
+**Non encore parcouru :** rapport COBAC PDF (mesure « clic → PDF » [20]), Mitigations [15-16],
+Heatmap interactive [17], Conformité en profondeur (preuves, crosswalks) [19], IA Advisor + test
+d'isolation tenant [21], Administration (Membres/RBAC/Intégrations/Audit log) [22-27], états limites &
+destructeur [28-30], thème sombre exhaustif [33], **axe-core sur chaque page** [34], mobile 375 px [09].
+Le stack reste monté pour enchaîner.
 
 ---
 
-## 8. Plan de correction proposé (cause racine)
+## 8. Plan de correction (par cause racine)
 
-- **Lot véracité (S1, OR26-01/02)** — un score n'existe pas tant qu'il n'y a rien à scorer. Renvoyer un
-  état **« non mesuré »** (et non 100) quand le tenant a 0 risque ; le dashboard doit inviter à créer le
-  1er risque, pas afficher un A trompeur. *(= `PROMPT_CLAUDE_RÉSOLUTION §1.2`.)*
-- **Lot activation (S2, OR26-03/04)** — rendre la **MFA différable** (proposée après l'Aha, pas avant),
-  et **auto-connecter** après inscription (ou dire clairement quoi faire sans dépendre d'un e-mail).
-  Objectif : inconnu → 1er risque + exposition financière **< 8 min**.
+- **Lot véracité (S1, OR26-01)** — **une seule source** de « score de sécurité », qui renvoie
+  **« non mesuré »** (pas 0/25/100) quand le tenant est vide, et un axe **absent ≠ 100/parfait**.
+  Aligner les 4 surfaces (accueil déjà correct → propager). *(= `PROMPT_CLAUDE_RÉSOLUTION §1.2`.)*
+- **Lot Aha (S2, OR26-10)** — tenir la promesse : à la création d'un risque, **dériver et afficher
+  immédiatement** une exposition financière (même approximative, à partir de la criticité/impact) et
+  **proposer un traitement** sans clic supplémentaire. C'est le cœur de l'activation.
+- **Lot friction d'activation (S2, OR26-03/04/11)** — MFA **différable** après l'Aha ; **auto-login**
+  après inscription ; tour guidé **non bloquant** (overlay qui n'intercepte pas les clics, non
+  ré-affiché après passage).
+- **Lot pré-remplissage & a11y (S3)** — propager les données d'inscription dans l'onboarding ;
+  `role=dialog` sur les modals.
 
-Ces deux lots alimentent directement **P2 (Lot 0 sécurité & chiffres)** et **P4 (onboarding)** du plan de
-lancement (`docs/LAUNCH_PLAN_2026.md`).
+Ces lots alimentent **P2 (Lot 0 sécurité & chiffres)** et **P4 (onboarding & Aha)** du plan de lancement
+(`docs/LAUNCH_PLAN_2026.md`).
