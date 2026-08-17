@@ -14,11 +14,61 @@ export interface Money {
   usd: number;
 }
 
+/** Currency-aware amount: canonical XAF, USD, and the tenant display currency. */
+export interface Amount {
+  xaf: number;
+  usd: number;
+  value: number;    // amount in `currency`
+  currency: string; // tenant display currency (ISO code)
+}
+
+/** Supported tenant display currencies (spec §3). */
+export const SUPPORTED_CURRENCIES = ['XAF', 'XOF', 'EUR', 'USD', 'NGN', 'MAD', 'GHS', 'ZAR'] as const;
+export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number];
+
+/** FAIR-lite loss distribution: P10 / P50 (median) / P90 band + run metadata. */
+export interface DistributionAmounts {
+  p10: Amount;
+  p50: Amount;
+  p90: Amount;
+  mean: Amount;
+  iterations: number;
+  seed: number;
+  formula_version: string;
+  lef: number;
+}
+
+/** One intrant surfaced in the methodology panel. */
+export interface MethodologyInput {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  source: string;
+}
+
+/** Explainability payload for a quantified figure (spec §4). */
+export interface Methodology {
+  formula_version: string;
+  model: string;
+  iterations: number;
+  seed: number;
+  computed_at: string;
+  doc_url: string;
+  currency: string;
+  fx_as_of: string;
+  fx_rate_xaf: number;
+  inputs: MethodologyInput[];
+  assumptions: string[];
+}
+
 export type SLEBasis = 'explicit' | 'composed' | 'reference';
 export type ALEBasis = 'explicit' | 'reference';
 
 /** Full monetary view of a single risk. */
 export interface FinancialAssessment {
+  distribution?: DistributionAmounts;
+  methodology?: Methodology;
   sle: Money;
   sle_average: Money;
   sle_worst: Money;
@@ -56,9 +106,16 @@ export interface TopRiskFinancial {
 /** Tenant-wide financial posture for the CFO/CISO dashboard. */
 export interface FinancialSummary {
   currency: string;
+  fx_rate_xaf: number;
+  fx_as_of: string;
   xaf_per_usd: number;
+  computed_at: string;
+  formula_version: string;
+  iterations: number;
   total_risks: number;
   quantified_risks: number;
+  /** Headline P10/P50/P90 band of total annual exposure (never one number). */
+  portfolio_loss: DistributionAmounts;
   total_ale: Money;
   total_ale_worst: Money;
   total_ale_after: Money;
@@ -99,6 +156,12 @@ export const financialService = {
   /** What-if assessment with overrides layered on the risk's stored drivers. */
   simulate: async (riskId: string, overrides: SimulateInput): Promise<FinancialAssessment> => {
     const res = await api.post<FinancialAssessment>(`/risks/${riskId}/simulate`, overrides);
+    return res.data;
+  },
+
+  /** Change the tenant display currency (admin). Returns the normalized code. */
+  setCurrency: async (currency: CurrencyCode): Promise<{ currency: string }> => {
+    const res = await api.put<{ currency: string }>('/analytics/financial/currency', { currency });
     return res.data;
   },
 };
