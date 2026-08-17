@@ -143,6 +143,8 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 	api.Patch("/risks/:id", handler.UpdateRisk)
 	api.Post("/risks/:id/transition", handler.TransitionPhase)
 	api.Delete("/risks/:id", handler.DeleteRisk)
+	api.Get("/risks/:id/financial", handler.GetRiskFinancial)
+	api.Post("/risks/:id/simulate", handler.SimulateRiskFinancial)
 
 	return app
 }
@@ -205,6 +207,76 @@ func TestRiskCRUDFlow(t *testing.T) {
 	defer delResp.Body.Close()
 	if delResp.StatusCode != 204 {
 		t.Fatalf("expected 204 on delete got %d", delResp.StatusCode)
+	}
+}
+
+// TestRiskFinancialAndSimulator is the end-to-end for the FAIR-lite engine and
+// the ROSI simulator (spec §2, §4, §5) through the real HTTP stack: create a
+// risk, read its financial assessment (band + methodology), then run a what-if
+// investment simulation and assert the ROSI + residual exposure.
+func TestRiskFinancialAndSimulator(t *testing.T) {
+	app := setupAppWithDB(t)
+
+	// 1. Create a risk.
+	b, _ := json.Marshal(map[string]interface{}{
+		"title": "Ransomware", "description": "d", "impact": 8, "probability": 0.6,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/risks", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := app.Test(req)
+	defer resp.Body.Close()
+	if resp.StatusCode != 201 {
+		t.Fatalf("create: expected 201 got %d", resp.StatusCode)
+	}
+	var created domain.Risk
+	json.NewDecoder(resp.Body).Decode(&created)
+
+	// 2. GET /financial → a distribution band + methodology (explainability).
+	finReq := httptest.NewRequest(http.MethodGet, "/api/v1/risks/"+created.ID.String()+"/financial", nil)
+	finResp, _ := app.Test(finReq)
+	defer finResp.Body.Close()
+	if finResp.StatusCode != 200 {
+		t.Fatalf("financial: expected 200 got %d", finResp.StatusCode)
+	}
+	var assess crq.FinancialAssessment
+	json.NewDecoder(finResp.Body).Decode(&assess)
+	if assess.Distribution == nil || assess.Methodology == nil {
+		t.Fatalf("financial must include distribution + methodology")
+	}
+	d := assess.Distribution
+	if !(d.P10.XAF <= d.P50.XAF && d.P50.XAF <= d.P90.XAF) {
+		t.Fatalf("band not ordered: %+v", d)
+	}
+	if assess.Methodology.ComputedAt.IsZero() {
+		t.Fatalf("handler must stamp methodology.computed_at")
+	}
+
+	// 3. POST /simulate — invest against explicit drivers, assert ROSI + residual.
+	sim, _ := json.Marshal(map[string]interface{}{
+		"sle_xaf": 20_000_000, "aro": 0.5, // ALE = 10M
+		"remediation_cost_xaf": 3_000_000, "mitigation_effectiveness": 0.8,
+	})
+	simReq := httptest.NewRequest(http.MethodPost, "/api/v1/risks/"+created.ID.String()+"/simulate", bytes.NewReader(sim))
+	simReq.Header.Set("Content-Type", "application/json")
+	simResp, _ := app.Test(simReq)
+	defer simResp.Body.Close()
+	if simResp.StatusCode != 200 {
+		t.Fatalf("simulate: expected 200 got %d", simResp.StatusCode)
+	}
+	var out crq.FinancialAssessment
+	json.NewDecoder(simResp.Body).Decode(&out)
+	if out.ALE.XAF != 10_000_000 {
+		t.Fatalf("simulate ALE = %v, want 10000000", out.ALE.XAF)
+	}
+	if out.ALEAfter.XAF != 2_000_000 {
+		t.Fatalf("simulate residual ALE = %v, want 2000000", out.ALEAfter.XAF)
+	}
+	// ROSI = (10M − 2M − 3M) / 3M ≈ 1.67.
+	if !out.ROSIComputable || out.ROSI < 1.6 || out.ROSI > 1.7 {
+		t.Fatalf("simulate ROSI = %v (ok=%v), want ~1.67", out.ROSI, out.ROSIComputable)
+	}
+	if out.Distribution == nil {
+		t.Fatalf("simulate result must include the distribution band")
 	}
 }
 
