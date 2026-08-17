@@ -45,6 +45,9 @@ base). *Sans un stack propre et reproductible, un audit live produit lui-même d
 | **Cohérence du « score de sécurité »** | **0 / 25 / 36 / 100** selon l'écran | 1 valeur | ❌ |
 | Session après inscription | Non (« check your email », re-login) | Auto | ⚠️ |
 | MFA à la 1re connexion | Obligatoire (avant tout accès) | Différable | ⚠️ |
+| **Clics « rapport COBAC » → PDF** | **2** (Générer → Télécharger) | ≤ 4 | ✅ |
+| Violations a11y sérieuses / page (axe) | 1–2 (surtout contraste, clair) | 0 | ⚠️ |
+| Responsive 375 px / thème sombre | Sans scroll H · dark OK | Utilisable | ✅ |
 
 ---
 
@@ -95,17 +98,42 @@ base). *Sans un stack propre et reproductible, un audit live produit lui-même d
 
 ---
 
+## 6b. Pass 3 — restitution, accessibilité, responsive, thème
+
+**Rapport COBAC (point fort, [20]).** « Générer un rapport » (**clic 1**) → job `POST /reports/jobs` **201**
+→ « Rapport prêt » → « Télécharger » (**clic 2**) → `GET /reports/jobs/:id/download` **200**, PDF 10 Ko.
+**2 clics jusqu'au PDF** (cible ≤ 4). Immuabilité annoncée (« figé à la date de génération, même fichier »).
+
+**Accessibilité (axe-core 4.12.1, WCAG 2.1 AA).** Base **saine** : 1–2 violations *sérieuses* par page,
+récurrentes et corrigibles.
+
+| Page | Violations sérieuses | Détail |
+|---|---|---|
+| Dashboard | 2 | `aria-progressbar-name` ×1, `color-contrast` ×1 |
+| Registre des risques | 1 | `color-contrast` |
+| Dashboard exécutif | 1 | `color-contrast` |
+
+- **OR26-14 (S3)** — `color-contrast` sérieux sur plusieurs pages **en thème clair** (concorde avec
+  `--risk-moderate` 3,62:1 de la doc résolution). **Thème sombre : 0 violation de contraste** → défaut
+  spécifique au clair.
+- **OR26-15 (S3)** — `aria-progressbar-name` : barre de progression sans nom accessible (dashboard).
+
+**Responsive & thème (OK).** Mobile **375 px** : pas de scroll horizontal, menu hamburger présent.
+**Thème sombre** : s'applique (`body` fond `rgb(8,9,13)`), passe le contraste AA sur la page testée.
+
+---
+
 ## 7. Couverture & suite (honnêteté)
 
 **Couvert (live) :** inscription, auth+MFA complète, onboarding 5 étapes, import COBAC, landing,
 dashboard d'accueil, dashboard exécutif, registre des risques, **création du 1er risque + drawer**,
-sondes de véracité multi-surfaces.
+sondes de véracité multi-surfaces, **rapport COBAC PDF [20]**, **axe-core [34]** (dashboard/risques/exécutif),
+**mobile 375 px [09]**, **thème sombre [33]** (échantillon).
 
-**Non encore parcouru :** rapport COBAC PDF (mesure « clic → PDF » [20]), Mitigations [15-16],
-Heatmap interactive [17], Conformité en profondeur (preuves, crosswalks) [19], IA Advisor + test
-d'isolation tenant [21], Administration (Membres/RBAC/Intégrations/Audit log) [22-27], états limites &
-destructeur [28-30], thème sombre exhaustif [33], **axe-core sur chaque page** [34], mobile 375 px [09].
-Le stack reste monté pour enchaîner.
+**Non encore parcouru :** IA Advisor + test d'isolation tenant [21], Administration
+(Membres/RBAC/Intégrations/Audit log) [22-27], bug AWS-présélection sur Intégrations [25],
+Mitigations [15-16], Heatmap interactive [17], preuves/crosswalks en profondeur [19], états limites &
+destructeur [28-30], axe-core **exhaustif** (toutes pages + modals). Le stack reste monté pour enchaîner.
 
 ---
 
