@@ -126,9 +126,9 @@ func Simulate(in SimulationInput) LossDistribution {
 	samples := make([]float64, iters)
 	var sum float64
 	for i := 0; i < iters; i++ {
-		x := sampleBeta(rng, alpha, beta)          // Beta(α,β) ∈ [0,1]
-		loss := lm.Min + x*(lm.Max-lm.Min)         // scale to [min,max]
-		annual := lef * loss                       // ALE contribution = LEF × LM
+		x := sampleBeta(rng, alpha, beta)  // Beta(α,β) ∈ [0,1]
+		loss := lm.Min + x*(lm.Max-lm.Min) // scale to [min,max]
+		annual := lef * loss               // ALE contribution = LEF × LM
 		samples[i] = annual
 		sum += annual
 	}
@@ -138,6 +138,71 @@ func Simulate(in SimulationInput) LossDistribution {
 	dist.P50 = round2(percentile(samples, 50))
 	dist.P90 = round2(percentile(samples, 90))
 	dist.Mean = round2(sum / float64(iters))
+	dist.Min = round2(samples[0])
+	dist.Max = round2(samples[len(samples)-1])
+	return dist
+}
+
+// SimulatePortfolio runs one shared Monte Carlo across many risks: on each
+// iteration it sums each risk's sampled annual loss, so the resulting P10/P50/P90
+// is the distribution of TOTAL exposure — correctly capturing that not every risk
+// hits its worst case in the same year (diversification). Deterministic given the
+// seed and the order of inputs. iterations/seed are taken from the first input
+// (or defaults); per-risk iteration/seed fields are ignored so the runs stay
+// aligned across risks.
+func SimulatePortfolio(inputs []SimulationInput, iterations int, seed int64) LossDistribution {
+	if iterations <= 0 {
+		iterations = DefaultIterations
+	}
+	dist := LossDistribution{Iterations: iterations, Seed: seed, FormulaVersion: FormulaVersion}
+	if len(inputs) == 0 {
+		return dist
+	}
+
+	// Pre-compute each risk's LEF + Beta shape (or a degenerate point).
+	type risk struct {
+		lef         float64
+		min, span   float64
+		alpha, beta float64
+		point       float64 // set when degenerate (span == 0)
+		degenerate  bool
+	}
+	rs := make([]risk, 0, len(inputs))
+	for _, in := range inputs {
+		lm := in.LM.normalized()
+		lef := in.LEF
+		if lef < 0 {
+			lef = 0
+		}
+		if lm.Max <= lm.Min {
+			rs = append(rs, risk{lef: lef, point: lef * lm.Mode, degenerate: true})
+			continue
+		}
+		a, b := pertBetaParams(lm)
+		rs = append(rs, risk{lef: lef, min: lm.Min, span: lm.Max - lm.Min, alpha: a, beta: b})
+	}
+
+	rng := rand.New(rand.NewSource(seed))
+	samples := make([]float64, iterations)
+	var sum float64
+	for i := 0; i < iterations; i++ {
+		var total float64
+		for _, r := range rs {
+			if r.degenerate {
+				total += r.point
+				continue
+			}
+			x := sampleBeta(rng, r.alpha, r.beta)
+			total += r.lef * (r.min + x*r.span)
+		}
+		samples[i] = total
+		sum += total
+	}
+	sort.Float64s(samples)
+	dist.P10 = round2(percentile(samples, 10))
+	dist.P50 = round2(percentile(samples, 50))
+	dist.P90 = round2(percentile(samples, 90))
+	dist.Mean = round2(sum / float64(iterations))
 	dist.Min = round2(samples[0])
 	dist.Max = round2(samples[len(samples)-1])
 	return dist

@@ -105,6 +105,37 @@ func TestSimulate_UnorderedInput(t *testing.T) {
 	}
 }
 
+// TestSimulatePortfolio — the portfolio band is deterministic, ordered, and its
+// mean equals the sum of per-risk analytic means (diversification affects the
+// spread, not the mean).
+func TestSimulatePortfolio(t *testing.T) {
+	inputs := []SimulationInput{
+		{LEF: 0.5, LM: PERT{Min: 5e6, Mode: 10e6, Max: 20e6}},
+		{LEF: 1.0, LM: PERT{Min: 2e6, Mode: 4e6, Max: 9e6}},
+		{LEF: 0.2, LM: PERT{Min: 20e6, Mode: 40e6, Max: 80e6}},
+	}
+	a := SimulatePortfolio(inputs, 100_000, DefaultSeed)
+	b := SimulatePortfolio(inputs, 100_000, DefaultSeed)
+	if a != b {
+		t.Fatalf("portfolio not deterministic")
+	}
+	if !(a.P10 <= a.P50 && a.P50 <= a.P90) {
+		t.Fatalf("portfolio percentiles not ordered: %+v", a)
+	}
+	var want float64
+	for _, in := range inputs {
+		want += in.LEF * in.LM.ExpectedValue()
+	}
+	if rel := math.Abs(a.Mean-want) / want; rel > 0.01 {
+		t.Fatalf("portfolio mean off: got %.0f want %.0f (%.2f%%)", a.Mean, want, rel*100)
+	}
+	// Empty portfolio → zero band, still versioned.
+	e := SimulatePortfolio(nil, 1000, 1)
+	if e.P50 != 0 || e.FormulaVersion != FormulaVersion {
+		t.Fatalf("empty portfolio wrong: %+v", e)
+	}
+}
+
 func TestPERT_ExpectedValue(t *testing.T) {
 	p := PERT{Min: 0, Mode: 10, Max: 20}
 	if got := p.ExpectedValue(); got != 10 {

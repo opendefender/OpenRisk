@@ -63,9 +63,9 @@ func NormalizeCurrency(code string) Currency {
 // direction keeps XAF as the base and matches DefaultXAFPerUSD. AsOf is the date
 // the rates were captured — surfaced next to every converted amount.
 type RateTable struct {
-	Base   Currency             `json:"base"`   // always XAF
-	AsOf   time.Time            `json:"as_of"`  // reference date of the rates
-	Source string               `json:"source"` // provider label ("static", "ecb", …)
+	Base   Currency             `json:"base"`    // always XAF
+	AsOf   time.Time            `json:"as_of"`   // reference date of the rates
+	Source string               `json:"source"`  // provider label ("static", "ecb", …)
 	XAFPer map[Currency]float64 `json:"xaf_per"` // XAF per 1 unit of currency
 }
 
@@ -84,13 +84,13 @@ func DefaultRateTable() *RateTable {
 		Source: "static-reference",
 		XAFPer: map[Currency]float64{
 			CurrencyXAF: 1.0,
-			CurrencyXOF: 1.0,      // XAF and XOF share the fixed CFA parity
-			CurrencyEUR: 655.957,  // fixed BCEAO/BEAC euro peg
+			CurrencyXOF: 1.0,     // XAF and XOF share the fixed CFA parity
+			CurrencyEUR: 655.957, // fixed BCEAO/BEAC euro peg
 			CurrencyUSD: DefaultXAFPerUSD,
-			CurrencyNGN: 0.40,     // ~1 NGN
-			CurrencyMAD: 60.0,     // ~1 MAD
-			CurrencyGHS: 40.0,     // ~1 GHS
-			CurrencyZAR: 33.0,     // ~1 ZAR
+			CurrencyNGN: 0.40, // ~1 NGN
+			CurrencyMAD: 60.0, // ~1 MAD
+			CurrencyGHS: 40.0, // ~1 GHS
+			CurrencyZAR: 33.0, // ~1 ZAR
 		},
 	}
 }

@@ -166,11 +166,30 @@ func (q *Quantifier) SimulationInputFor(in FinancialInputs, criticality string) 
 	}
 }
 
+// AssessDeterministic runs the closed-form part of the model (SLE, downtime,
+// ALE, worst/average, ROSI) WITHOUT the Monte Carlo distribution or methodology.
+// It is the cheap path the portfolio summary uses per risk, since the summary
+// runs a single shared portfolio simulation instead of one per risk.
+func (q *Quantifier) AssessDeterministic(in FinancialInputs, criticality string) FinancialAssessment {
+	return q.assessCore(in, criticality)
+}
+
 // AssessP runs the full financial model for one risk and presents every figure in
-// the tenant's display currency via p. It never errors: absent inputs degrade
+// the tenant's display currency via p, including the FAIR-lite loss distribution
+// and the explainability methodology. It never errors: absent inputs degrade
 // gracefully to the reference model so every risk still carries an
 // order-of-magnitude figure, exactly like Quantify.
 func (q *Quantifier) AssessP(in FinancialInputs, criticality string, p Presenter) FinancialAssessment {
+	fa := q.assessCore(in, criticality)
+	sim := q.SimulationInputFor(in, criticality)
+	dist := p.Present(Simulate(sim))
+	fa.Distribution = &dist
+	fa.Methodology = q.methodology(in, sim, p, fa.SLEBasis)
+	return fa
+}
+
+// assessCore computes the deterministic XAF figures shared by both paths.
+func (q *Quantifier) assessCore(in FinancialInputs, criticality string) FinancialAssessment {
 	downtime := DowntimeCostXAF(in.DowntimeHours, in.HourlyDowntimeCostXAF)
 
 	// 1. Effective single-loss expectancy (XAF) + how we got it.
@@ -217,14 +236,7 @@ func (q *Quantifier) AssessP(in FinancialInputs, criticality string, p Presenter
 	}
 	rosi, rosiOK := ROSI(aleXAF, aleAfter, remediation)
 
-	// 6. FAIR-lite loss distribution (P10/P50/P90) + explainability metadata.
-	sim := q.SimulationInputFor(in, criticality)
-	dist := p.Present(Simulate(sim))
-	method := q.methodology(in, sim, p, sleBasis)
-
 	return FinancialAssessment{
-		Distribution: &dist,
-		Methodology:  method,
 		SLE:          q.Money(sleXAF),
 		SLEAverage:   q.Money(avg),
 		SLEWorst:     q.Money(worst),
