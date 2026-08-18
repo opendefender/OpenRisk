@@ -39,6 +39,7 @@ import { ProductTour } from './features/onboarding/ProductTour';
 //     paint. Each loads behind a Suspense boundary on demand. ---
 const CreateRiskModal = lazy(() => import('./features/risks/CreateRiskModal').then(m => ({ default: m.CreateRiskModal })));
 const AuthScreen = lazy(() => import('./features/auth/AuthScreen').then(m => ({ default: m.AuthScreen })));
+const StatusPage = lazy(() => import('./features/status/StatusPage').then(m => ({ default: m.StatusPage })));
 const ForgotPasswordScreen = lazy(() => import('./features/auth/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
 const ResetPasswordScreen = lazy(() => import('./features/auth/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
 
@@ -298,6 +299,8 @@ function App() {
             and the reset link in the email lands directly on /reset-password. */}
         <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
         <Route path="/reset-password" element={<ResetPasswordScreen />} />
+        {/* Public status page (task §4) — reachable without a session. */}
+        <Route path="/status" element={<StatusPage />} />
 
         {/* Signup wizard — authenticated but OUTSIDE the app shell: the point of
             these five screens is that nothing else competes for attention. The

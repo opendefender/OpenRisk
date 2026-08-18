@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -77,6 +78,7 @@ func (h *BoardReportHandler) Generate(c *fiber.Ctx) error {
 	if err != nil {
 		return writeAppError(c, err)
 	}
+	monitoring.RecordReportGenerated("board")
 	return c.Status(201).JSON(report)
 }
 

@@ -7,6 +7,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -333,6 +334,7 @@ func (h *ComplianceHandler) GenerateReport(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to render report"})
 	}
 
+	monitoring.RecordReportGenerated("compliance")
 	filename := reportFilename(data.FrameworkName, data.FrameworkVersion)
 	c.Set("Content-Type", "application/pdf")
 	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
