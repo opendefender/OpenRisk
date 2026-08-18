@@ -188,13 +188,17 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex h-screen bg-app text-ink overflow-hidden font-sans selection:bg-accent-soft">
+      {/* Skip-to-content (WCAG 2.4.1): first focusable element, jumps past nav. */}
+      <a href="#main-content" className="skip-link">
+        {lang === 'fr' ? 'Aller au contenu principal' : 'Skip to main content'}
+      </a>
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0" style={{ background: 'var(--bg-primary)' }}>
         {/* Renders only when the server reports DEMO_MODE. Not dismissible by
             design — see shared/DemoBanner. */}
         <DemoBanner />
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
-        <main data-testid="app-main" className="flex-1 overflow-hidden relative flex flex-col">
+        <main id="main-content" tabIndex={-1} data-testid="app-main" className="flex-1 overflow-hidden relative flex flex-col">
           <Suspense fallback={<RouteFallback />}>
             <RoutePermissionGuard>
               <AnimatedOutlet />

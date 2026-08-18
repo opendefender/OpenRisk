@@ -1,7 +1,7 @@
-// Accessibility (UX — WCAG 2.1 AA): axe-core on 6 key screens. Always attaches the
-// full violations report as an artifact. The DoD target is zero serious/critical;
-// screens that violate today are quarantined in A11Y_KNOWN (test.fixme with a bug
-// id) so the gate stays green while the violations stay named in the audit.
+// Accessibility (WCAG 2.2 AA — task §1): axe-core across the primary screens (incl.
+// a 404). Always attaches the full violations report as an artifact. The gate is
+// zero serious/critical; screens that violate today are quarantined in A11Y_KNOWN
+// (test.fixme with a bug id) so the gate stays green while violations stay named.
 
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -15,7 +15,16 @@ const SCREENS: { path: string; name: string }[] = [
   { path: '/compliance', name: 'Compliance' },
   { path: '/vulnerabilities', name: 'Vulnerabilities' },
   { path: '/analytics', name: 'Executive dashboard' },
+  { path: '/analytics/financial', name: 'Financial dashboard' },
+  { path: '/assets', name: 'Asset inventory' },
+  { path: '/mitigations', name: 'Mitigations' },
+  { path: '/incidents', name: 'Incidents' },
+  { path: '/automation/rules', name: 'Automation' },
+  { path: '/governance', name: 'Governance' },
+  { path: '/reports', name: 'Reports' },
   { path: '/settings', name: 'Settings' },
+  { path: '/settings?tab=billing', name: 'Billing' },
+  { path: '/this-route-does-not-exist', name: '404 page' },
 ];
 
 // path -> OR-BUG id for screens with unresolved serious/critical violations.
@@ -30,7 +39,8 @@ for (const screen of SCREENS) {
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
     const results = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      // WCAG 2.2 AA (task §1): include the 2.2 rule tags on top of 2.0/2.1.
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'])
       .analyze();
 
     await info.attach(`axe-${screen.name}.json`, {
