@@ -32,9 +32,11 @@ import (
 	"github.com/opendefender/openrisk/internal/application/assetschema"
 	"github.com/opendefender/openrisk/internal/application/auth"
 	appauto "github.com/opendefender/openrisk/internal/application/automation"
+	billingapp "github.com/opendefender/openrisk/internal/application/billing"
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
+	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
@@ -75,9 +77,11 @@ import (
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/ai"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
+	pkgbilling "github.com/opendefender/openrisk/pkg/billing"
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/crq"
 	"github.com/opendefender/openrisk/pkg/cti"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
@@ -324,6 +328,13 @@ func main() {
 		&domain.ActivationEvent{},
 		&domain.ActivationCelebration{},
 		&domain.OnboardingProgress{},
+		// Open-core commercialisation: the per-tenant subscription + mirrored
+		// invoices behind the plan gates, instance-level opt-in telemetry consent,
+		// and the danger-zone organization-erasure record (30-day cancelable grace).
+		&domain.Subscription{},
+		&domain.Invoice{},
+		&domain.TelemetryConfig{},
+		&domain.OrgDeletionRequest{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
@@ -887,6 +898,52 @@ func main() {
 	// agent, request id, timestamp). Adding a route adds coverage automatically.
 	protected.Use(middleware.AuditMutations(auditChainRepo))
 
+	// =========================================================================
+	// Open-core: entitlements + billing. This is where the plan model becomes
+	// enforceable. The entitlement service resolves a tenant's effective plan
+	// (subscription-driven, briefly cached) and the middleware below REFUSES
+	// premium routes for plans that do not include them — the frontend only greys
+	// and explains. Payment gateways are read from the environment; with no keys
+	// the instance stays on Free + manual upgrades and says so honestly.
+	// =========================================================================
+	entitlementRepo := repository.NewGormEntitlementRepository(database.DB)
+	billingRepo := repository.NewGormBillingRepository(database.DB)
+	entitlementService := entapp.NewService(entitlementRepo).
+		WithSubscriptions(billingRepo).
+		WithUsage(entitlementRepo)
+
+	billingRegistry := pkgbilling.NewRegistry(
+		pkgbilling.NewStripeGateway(os.Getenv("STRIPE_SECRET_KEY")),
+		pkgbilling.NewNotchpayGateway(os.Getenv("NOTCHPAY_PUBLIC_KEY")),
+		pkgbilling.NewCinetpayGateway(os.Getenv("CINETPAY_API_KEY"), os.Getenv("CINETPAY_SITE_ID")),
+	)
+	billingService := billingapp.NewService(billingRepo, billingRegistry).
+		WithCache(entitlementService).
+		WithBaseURL(os.Getenv("APP_BASE_URL"))
+
+	entitlementHandler := handlers.NewEntitlementHandler(entitlementService)
+	billingHandler := handlers.NewBillingHandler(billingService, billingRegistry)
+
+	// The entitlements snapshot drives the whole paywall UX; every authenticated
+	// user may read it. Billing self-service is available to any member; the
+	// admin-only verbs (manual plan change, cancel) are guarded by role.
+	protected.Get("/entitlements", entitlementHandler.GetEntitlements)
+	protected.Get("/billing", billingHandler.GetBilling)
+	protected.Post("/billing/trial", billingHandler.StartTrial)
+	protected.Post("/billing/checkout", billingHandler.Checkout)
+	protected.Post("/billing/change-plan", middleware.RequireRole("admin", "root"), billingHandler.ChangePlan)
+	protected.Post("/billing/cancel", middleware.RequireRole("admin", "root"), billingHandler.Cancel)
+
+	// Feature/limit gates reused on the premium routes below. A gated read that a
+	// plan does not include returns 402 with an explaining body the frontend turns
+	// into an upgrade prompt (the blurred UpsellLock), never a bare wall.
+	featFinancial := middleware.RequireFeature(entitlementService, ent.FeatFinancialQuant)
+	featSmartScore := middleware.RequireFeature(entitlementService, ent.FeatSmartScore)
+	featExecutive := middleware.RequireFeature(entitlementService, ent.FeatExecutiveDashboard)
+	featAI := middleware.RequireFeature(entitlementService, ent.FeatAIAdvisor)
+	capRisks := middleware.RequireCapacity(entitlementService, ent.LimitRisks)
+	capAssets := middleware.RequireCapacity(entitlementService, ent.LimitAssets)
+
 	// --- MFA enrollment (L4) ---
 	// Registered on `api` with MFAEnrollmentMiddleware rather than under
 	// `protected`, because enrolment must be reachable in two states: by a
@@ -1027,9 +1084,9 @@ func main() {
 	// and a non-persisting investment-scenario simulator. Static "financial"/
 	// "simulate" segments are risk-scoped so they never collide with :id parsing.
 	protected.Get("/risks/:id/financial",
-		middleware.RequirePermission("risks:read"), riskHandler.GetRiskFinancial)
+		middleware.RequirePermission("risks:read"), featFinancial, riskHandler.GetRiskFinancial)
 	protected.Post("/risks/:id/simulate",
-		middleware.RequirePermission("risks:read"), riskHandler.SimulateRiskFinancial)
+		middleware.RequirePermission("risks:read"), featFinancial, riskHandler.SimulateRiskFinancial)
 
 	// Gestion des Risques (Écriture = Analyst & Admin uniquement)
 	// Respect du principe "Simplicité & Sécurité" + Fine-grained Permission Checks
@@ -1037,7 +1094,7 @@ func main() {
 	riskUpdate := middleware.RequirePermission("risks:update")
 	riskDelete := middleware.RequirePermission("risks:delete")
 
-	protected.Post("/risks", riskCreate, riskHandler.CreateRisk)
+	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
@@ -1397,7 +1454,7 @@ func main() {
 	assetDelete := middleware.RequirePermission("assets:delete")
 
 	protected.Get("/assets", assetRead, assetHandler.ListAssets)
-	protected.Post("/assets", assetCreate, assetHandler.CreateAsset)
+	protected.Post("/assets", assetCreate, capAssets, assetHandler.CreateAsset)
 	// NB: register the static /asset-dependencies resource as a sibling of
 	// /assets (not /assets/:id/...) so "dependencies" is never parsed as an
 	// asset UUID.
@@ -1480,9 +1537,9 @@ func main() {
 	// Per-risk multifactor score + breakdown (read), and a non-persisting simulator
 	// for live weight tuning. Static "risk-scoring" path is a sibling of /risks.
 	protected.Get("/risks/:id/smart-score",
-		middleware.RequirePermission("risks:read"), smartScoreHandler.GetRiskSmartScore)
+		middleware.RequirePermission("risks:read"), featSmartScore, smartScoreHandler.GetRiskSmartScore)
 	protected.Post("/risks/:id/smart-score/simulate",
-		middleware.RequirePermission("risks:read"), smartScoreHandler.SimulateRiskSmartScore)
+		middleware.RequirePermission("risks:read"), featSmartScore, smartScoreHandler.SimulateRiskSmartScore)
 	// Per-tenant factor weights: read for anyone with risks:read, write admin-only.
 	protected.Get("/risk-scoring/weights",
 		middleware.RequirePermission("risks:read"), smartScoreHandler.GetRiskWeights)
@@ -1617,11 +1674,11 @@ func main() {
 	aiRiskRead := middleware.RequirePermission("risks:read")
 	aiComplianceRead := middleware.RequirePermission("compliance:read")
 	protected.Get("/ai/status", aiHandler.Status)
-	protected.Post("/ai/assistant/query", aiRiskRead, aiHandler.AssistantQuery)
-	protected.Post("/ai/emerging-risks", aiRiskRead, aiHandler.DetectEmergingRisks)
-	protected.Post("/ai/risks/:id/treatment-plan", aiRiskRead, aiHandler.SuggestTreatmentPlan)
-	protected.Post("/ai/audits/:id/report", aiComplianceRead, aiHandler.GenerateAuditReport)
-	protected.Post("/ai/evidence/:id/analyze", aiComplianceRead, aiHandler.AnalyzeEvidence)
+	protected.Post("/ai/assistant/query", aiRiskRead, featAI, aiHandler.AssistantQuery)
+	protected.Post("/ai/emerging-risks", aiRiskRead, featAI, aiHandler.DetectEmergingRisks)
+	protected.Post("/ai/risks/:id/treatment-plan", aiRiskRead, featAI, aiHandler.SuggestTreatmentPlan)
+	protected.Post("/ai/audits/:id/report", aiComplianceRead, featAI, aiHandler.GenerateAuditReport)
+	protected.Post("/ai/evidence/:id/analyze", aiComplianceRead, featAI, aiHandler.AnalyzeEvidence)
 
 	// (/users/me is already registered once above — duplicate registration removed for RC1.)
 	api.Get("/stats/risk-matrix", cacheableHandlers.CacheDashboardMatrixGET(handlers.GetRiskMatrixData))
@@ -1854,7 +1911,7 @@ func main() {
 	// Financial Risk Quantification dashboard (spec §9) — tenant-wide portfolio
 	// ALE / worst-case / residual / remediation budget / ROSI for the CFO/CISO screen.
 	protected.Get("/analytics/financial",
-		middleware.RequirePermission("risks:read"), financialAnalyticsHandler.GetFinancialSummary)
+		middleware.RequirePermission("risks:read"), featFinancial, financialAnalyticsHandler.GetFinancialSummary)
 	// Tenant display currency — chosen at onboarding, changeable here (admin).
 	protected.Put("/analytics/financial/currency",
 		middleware.RequireRole("admin", "root"), financialAnalyticsHandler.SetCurrency)
@@ -1868,7 +1925,7 @@ func main() {
 		ahaRecorder,
 	)
 	protected.Get("/analytics/executive",
-		middleware.RequirePermission("risks:read"), executiveDashboardHandler.GetExecutiveDashboard)
+		middleware.RequirePermission("risks:read"), featExecutive, executiveDashboardHandler.GetExecutiveDashboard)
 
 	// --- Enhanced Dashboard Analytics (Protected routes) ---
 	dashboardDataService := service.NewDashboardDataService(database.DB, nil)
