@@ -42,6 +42,7 @@ import (
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
+	"github.com/opendefender/openrisk/internal/application/orgdeletion"
 	"github.com/opendefender/openrisk/internal/application/ownership"
 	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	appreport "github.com/opendefender/openrisk/internal/application/report"
@@ -57,6 +58,7 @@ import (
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	audittrailinfra "github.com/opendefender/openrisk/internal/infrastructure/audittrail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
+	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
@@ -65,6 +67,8 @@ import (
 	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	orgdeletioninfra "github.com/opendefender/openrisk/internal/infrastructure/orgdeletion"
+	"github.com/opendefender/openrisk/internal/infrastructure/orgexport"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
@@ -2026,6 +2030,39 @@ func main() {
 	rbacTenants.Delete("/:tenant_id", rbacTenantHandler.DeleteTenant)                 // Delete (owner only)
 	rbacTenants.Get("/:tenant_id/users", adminRole, rbacTenantHandler.GetTenantUsers) // List users
 	rbacTenants.Get("/:tenant_id/stats", rbacTenantHandler.GetTenantStats)            // Get stats
+
+	// Danger zone (spec §6): hardened organization erasure. Unlike the immediate
+	// DELETE /rbac/tenants/:id above, this flow forces a full export first, an
+	// exact-name confirmation, an MFA check for enrolled admins, a 30-day cancelable
+	// grace window, an admin notification and a logged purge (RGPD / Cameroon law
+	// 2024/017). A daily worker purges only after the grace window elapses.
+	orgExporter := orgexport.New(database.DB, os.Getenv("EXPORT_DIR"))
+	orgDeletionService := orgdeletion.NewService(
+		repository.NewGormOrgDeletionRepository(database.DB),
+		repository.NewGormOrgDeletionRepository(database.DB), // OrgReader.Name
+		orgExporter,
+		authmfa.NewGate(mfaRepo, mfaKey[:]),
+		orgdeletioninfra.NewPurger(rbacTenantService.DeleteTenant),
+	).WithNotifier(orgdeletioninfra.NewAdminNotifier(database.DB, notificationUseCase))
+	orgDeletionHandler := handlers.NewOrgDeletionHandler(orgDeletionService, orgExporter)
+	protected.Get("/organization/export", adminRole, orgDeletionHandler.ExportOrganization)
+	protected.Get("/organization/deletion", adminRole, orgDeletionHandler.GetDeletion)
+	protected.Post("/organization/deletion", adminRole, orgDeletionHandler.RequestDeletion)
+	protected.Post("/organization/deletion/cancel", adminRole, orgDeletionHandler.CancelDeletion)
+
+	// Purge worker: sweeps every 6h and erases only tenants whose 30-day grace
+	// window has elapsed and were not cancelled. Cross-tenant by design.
+	go func() {
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if n, err := orgDeletionService.RunDuePurges(context.Background()); err != nil {
+				log.Printf("org-deletion purge sweep error: %v", err)
+			} else if n > 0 {
+				log.Printf("org-deletion purge sweep: %d organization(s) erased after grace window", n)
+			}
+		}
+	}()
 
 	// Business Roles — the runtime RBAC that actually drives authorization.
 	// The catalog (permissions + presets) is readable by any authenticated member
