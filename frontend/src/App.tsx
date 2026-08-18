@@ -28,6 +28,7 @@ import { AppHeader } from './components/layout/AppHeader';
 const CommandPalette = lazy(() => import('./components/layout/CommandPalette').then(m => ({ default: m.CommandPalette })));
 import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { DemoBanner } from './shared/DemoBanner';
+import { OfflineBanner } from './shared/OfflineBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
@@ -197,6 +198,7 @@ const DashboardLayout = () => {
         {/* Renders only when the server reports DEMO_MODE. Not dismissible by
             design — see shared/DemoBanner. */}
         <DemoBanner />
+        <OfflineBanner />
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main id="main-content" tabIndex={-1} data-testid="app-main" className="flex-1 overflow-hidden relative flex flex-col">
           <Suspense fallback={<RouteFallback />}>
