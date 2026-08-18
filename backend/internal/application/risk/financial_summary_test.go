@@ -93,3 +93,66 @@ func TestFinancialSummary_ListerError(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, sum)
 }
+
+// mockCurrencyReader / mockCoverage back the optional ports.
+type mockCurrencyReader struct{ code string }
+
+func (m mockCurrencyReader) OrgCurrency(context.Context, uuid.UUID) (string, error) {
+	return m.code, nil
+}
+
+type mockCoverage struct{ total, quantified int }
+
+func (m mockCoverage) CountFinancialCoverage(context.Context, uuid.UUID) (int, int, error) {
+	return m.total, m.quantified, nil
+}
+
+func TestFinancialSummary_PortfolioBandAndMetadata(t *testing.T) {
+	risks := []domain.Risk{
+		{ID: uuid.New(), Title: "A", Criticality: domain.RiskCriticalityCritical, SLEXAF: fp(20_000_000), ARO: fp(0.5)},
+		{ID: uuid.New(), Title: "B", Criticality: domain.RiskCriticalityHigh, FinesXAF: fp(3_000_000), ARO: fp(1)},
+	}
+	uc := NewFinancialSummaryUseCase(&mockFinancialLister{risks: risks}, crq.NewQuantifier(600, crq.DefaultReference()))
+
+	sum, err := uc.Execute(context.Background(), uuid.New())
+	require.NoError(t, err)
+
+	// A distribution (band), not a single number.
+	pl := sum.PortfolioLoss
+	assert.True(t, pl.P10.XAF <= pl.P50.XAF && pl.P50.XAF <= pl.P90.XAF, "band ordered: %+v", pl)
+	assert.Equal(t, crq.FormulaVersion, pl.FormulaVersion)
+	assert.Equal(t, crq.DefaultIterations, sum.Iterations)
+	assert.False(t, sum.ComputedAt.IsZero(), "computed_at stamped")
+	// Default currency is XAF with the static rate table's date.
+	assert.Equal(t, "XAF", sum.Currency)
+	assert.False(t, sum.FXAsOf.IsZero())
+}
+
+func TestFinancialSummary_TenantCurrencyConversion(t *testing.T) {
+	risks := []domain.Risk{
+		{ID: uuid.New(), Title: "A", Criticality: domain.RiskCriticalityCritical, SLEXAF: fp(655_957_000), ARO: fp(1)},
+	}
+	uc := NewFinancialSummaryUseCase(&mockFinancialLister{risks: risks}, crq.NewQuantifier(600, crq.DefaultReference())).
+		WithPresenters(NewFinancialPresenterFactory(crq.NewQuantifier(600, crq.DefaultReference())).WithCurrency(mockCurrencyReader{code: "EUR"}))
+
+	sum, err := uc.Execute(context.Background(), uuid.New())
+	require.NoError(t, err)
+	assert.Equal(t, "EUR", sum.Currency)
+	assert.InDelta(t, 655.96, sum.FXRateXAF, 0.01)
+	// The band's median is presented in EUR (XAF preserved alongside).
+	assert.Greater(t, sum.PortfolioLoss.P50.XAF, 0.0)
+	assert.InDelta(t, sum.PortfolioLoss.P50.XAF/655.957, sum.PortfolioLoss.P50.Value, 1.0)
+	assert.Equal(t, crq.CurrencyEUR, sum.PortfolioLoss.P50.Currency)
+}
+
+func TestFinancialSummary_CoverageCounterWins(t *testing.T) {
+	// Lister returns 1 risk but the SQL coverage aggregate is authoritative.
+	risks := []domain.Risk{{ID: uuid.New(), Title: "A", Criticality: domain.RiskCriticalityLow}}
+	uc := NewFinancialSummaryUseCase(&mockFinancialLister{risks: risks}, crq.NewQuantifier(600, crq.DefaultReference())).
+		WithCoverageCounter(mockCoverage{total: 12, quantified: 5})
+
+	sum, err := uc.Execute(context.Background(), uuid.New())
+	require.NoError(t, err)
+	assert.Equal(t, 12, sum.TotalRisks)
+	assert.Equal(t, 5, sum.QuantifiedRisks)
+}

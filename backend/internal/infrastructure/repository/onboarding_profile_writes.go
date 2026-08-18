@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/crq"
 )
 
 // Narrow, targeted writes for the onboarding wizard's organization and profile
@@ -49,6 +50,51 @@ func (r *GormOrganizationRepository) UpdateOrganizationProfile(ctx context.Conte
 		Model(&domain.Organization{}).
 		Where("id = ?", orgID).
 		Updates(updates).Error
+}
+
+// SetOrganizationCurrency stores the tenant's display currency inside the
+// organization's settings jsonb. The value is validated against the supported
+// set; an unsupported/empty code is ignored (leaves the current setting intact),
+// so a blank onboarding answer can't blank out a real choice. Load-merge-save is
+// safe here (onboarding / settings screen are low-concurrency).
+func (r *GormOrganizationRepository) SetOrganizationCurrency(ctx context.Context, orgID uuid.UUID, currency string) error {
+	if orgID == uuid.Nil {
+		return nil
+	}
+	code := strings.ToUpper(strings.TrimSpace(currency))
+	if !crq.IsSupportedCurrency(code) {
+		return nil
+	}
+	var org domain.Organization
+	if err := r.db.WithContext(ctx).Where("id = ?", orgID).First(&org).Error; err != nil {
+		return err
+	}
+	settings := org.GetSettings()
+	settings["currency"] = code
+	if err := org.SetSettings(settings); err != nil {
+		return err
+	}
+	return r.db.WithContext(ctx).
+		Model(&domain.Organization{}).
+		Where("id = ?", orgID).
+		Update("settings", org.Settings).Error
+}
+
+// OrgCurrency reads the tenant's display currency from settings, falling back to
+// XAF (the base) when unset or unknown. Concrete method (off any shared port) so
+// mocks stay valid — same convention as ListRisksForFinancial.
+func (r *GormOrganizationRepository) OrgCurrency(ctx context.Context, orgID uuid.UUID) (string, error) {
+	if orgID == uuid.Nil {
+		return string(crq.CurrencyXAF), nil
+	}
+	var org domain.Organization
+	if err := r.db.WithContext(ctx).Where("id = ?", orgID).First(&org).Error; err != nil {
+		return string(crq.CurrencyXAF), err
+	}
+	if v, ok := org.GetSettings()["currency"].(string); ok && crq.IsSupportedCurrency(v) {
+		return strings.ToUpper(strings.TrimSpace(v)), nil
+	}
+	return string(crq.CurrencyXAF), nil
 }
 
 // UpdateUserProfile applies the wizard's profile step.

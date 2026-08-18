@@ -108,6 +108,45 @@ func TestAssess_ExplicitSLEAndROSI(t *testing.T) {
 	}
 }
 
+// AssessP must attach the currency-aware loss distribution AND the explainability
+// methodology (spec §2 + §4); AssessDeterministic must NOT.
+func TestAssessP_DistributionAndMethodology(t *testing.T) {
+	q := NewQuantifier(600, DefaultReference())
+	in := FinancialInputs{SLEXAF: f(20_000_000), ARO: f(0.5)}
+	p := NewPresenter(CurrencyEUR, DefaultRateTable(), 600)
+	a := q.AssessP(in, "critical", p)
+
+	if a.Distribution == nil || a.Methodology == nil {
+		t.Fatalf("AssessP must populate Distribution + Methodology")
+	}
+	d := a.Distribution
+	if !(d.P10.XAF <= d.P50.XAF && d.P50.XAF <= d.P90.XAF) {
+		t.Fatalf("band not ordered: %+v", d)
+	}
+	if d.P50.Currency != CurrencyEUR || d.FormulaVersion != FormulaVersion {
+		t.Fatalf("distribution currency/version wrong: %+v", d)
+	}
+	m := a.Methodology
+	if m.Iterations != DefaultIterations || m.Seed != DefaultSeed || m.Currency != CurrencyEUR {
+		t.Fatalf("methodology run params wrong: %+v", m)
+	}
+	if len(m.Inputs) < 4 || len(m.Assumptions) == 0 {
+		t.Fatalf("methodology intrants/assumptions missing: %+v", m)
+	}
+	// The pure engine leaves ComputedAt zero (stamped by the caller).
+	if !m.ComputedAt.IsZero() {
+		t.Fatalf("ComputedAt should be zero in the pure engine")
+	}
+
+	det := q.AssessDeterministic(in, "critical")
+	if det.Distribution != nil || det.Methodology != nil {
+		t.Fatalf("AssessDeterministic must not attach distribution/methodology")
+	}
+	if det.ALE.XAF != a.ALE.XAF {
+		t.Fatalf("deterministic ALE must match: %v vs %v", det.ALE.XAF, a.ALE.XAF)
+	}
+}
+
 // Worst / average loss modelling (derived band).
 func TestAssess_LossBand(t *testing.T) {
 	q := NewQuantifier(600, DefaultReference())

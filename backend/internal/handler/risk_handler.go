@@ -32,7 +32,15 @@ type RiskHandler struct {
 	markReviewedUC    *risk.MarkRiskReviewedUseCase
 	transitionStateUC *risk.TransitionRiskStateUseCase
 	redisClient       *redis.Client
-	crq               *crq.Quantifier // Cyber Risk Quantification (XAF + USD)
+	crq               *crq.Quantifier                 // Cyber Risk Quantification (XAF + USD)
+	presenters        *risk.FinancialPresenterFactory // optional: tenant currency + FX
+}
+
+// WithFinancialPresenters attaches the tenant currency/FX presenter factory used
+// by the per-risk financial + simulate endpoints. Optional (nil → XAF/static).
+func (h *RiskHandler) WithFinancialPresenters(f *risk.FinancialPresenterFactory) *RiskHandler {
+	h.presenters = f
+	return h
 }
 
 func NewRiskHandler(

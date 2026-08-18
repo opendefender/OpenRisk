@@ -332,6 +332,33 @@ func (r *GormRiskRepository) SearchByText(ctx context.Context, tenantID uuid.UUI
 	return risks, err
 }
 
+// CountFinancialCoverage returns, for a tenant, the total active risk count and
+// how many are "quantified" — carrying an explicit SLE or at least one loss
+// component (downtime pair, fines, data-loss or other direct cost). This is a
+// single SQL aggregate so the "N/M risks quantified" counter is a server fact,
+// not a client-side filter that can drift (spec §6). Concrete method (off the
+// RiskRepository port) so mocks stay valid.
+func (r *GormRiskRepository) CountFinancialCoverage(ctx context.Context, tenantID uuid.UUID) (total, quantified int, err error) {
+	type row struct {
+		Total      int64
+		Quantified int64
+	}
+	var res row
+	err = r.db.WithContext(ctx).
+		Model(&domain.Risk{}).
+		Select(`COUNT(*) AS total,
+			COUNT(*) FILTER (WHERE
+				sle_xaf IS NOT NULL
+				OR fines_xaf IS NOT NULL
+				OR data_loss_cost_xaf IS NOT NULL
+				OR other_direct_cost_xaf IS NOT NULL
+				OR (downtime_hours IS NOT NULL AND hourly_downtime_cost_xaf IS NOT NULL)
+			) AS quantified`).
+		Where("tenant_id = ?", tenantID).
+		Scan(&res).Error
+	return int(res.Total), int(res.Quantified), err
+}
+
 func (r *GormRiskRepository) ListRisksForFinancial(ctx context.Context, tenantID uuid.UUID) ([]domain.Risk, error) {
 	var risks []domain.Risk
 	err := r.db.WithContext(ctx).

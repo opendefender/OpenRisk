@@ -12,6 +12,8 @@
 // no actuarial black box.
 package crq
 
+import "time"
+
 // Loss-band spread factors used when a risk only carries a most-likely SLE (no
 // explicit min/max). They give a defensible worst/best envelope around the point
 // estimate: best = SLE × 0.5, worst = SLE × 2.0. Documented and deliberately
@@ -47,9 +49,41 @@ type FinancialInputs struct {
 	MitigationEffectiveness *float64 // [0,1] share of ALE the control removes
 }
 
+// MethodologyInput is one intrant surfaced in the explainability panel: what
+// value went into the model, in what unit, and where it came from.
+type MethodologyInput struct {
+	Key    string  `json:"key"`
+	Label  string  `json:"label"`
+	Value  float64 `json:"value"`
+	Unit   string  `json:"unit"`
+	Source string  `json:"source"` // "risk-input" | "reference-model" | "derived"
+}
+
+// Methodology is the audit trail for a quantified figure (spec §4): the model,
+// its exact intrants, assumptions, run parameters and the reference rate used.
+// ComputedAt is stamped by the caller (handler/use case), not the pure engine.
+type Methodology struct {
+	FormulaVersion string             `json:"formula_version"`
+	Model          string             `json:"model"`
+	Iterations     int                `json:"iterations"`
+	Seed           int64              `json:"seed"`
+	ComputedAt     time.Time          `json:"computed_at"`
+	DocURL         string             `json:"doc_url"`
+	Currency       Currency           `json:"currency"`
+	FXAsOf         time.Time          `json:"fx_as_of"`
+	FXRateXAF      float64            `json:"fx_rate_xaf"` // XAF per 1 unit of Currency
+	Inputs         []MethodologyInput `json:"inputs"`
+	Assumptions    []string           `json:"assumptions"`
+}
+
 // FinancialAssessment is the full monetary view of a single risk — the object a
 // CISO/CFO dashboard renders. Every monetary field carries both currencies.
 type FinancialAssessment struct {
+	// --- FAIR-lite loss distribution (spec §2: P10/P50/P90, never one number) ---
+	Distribution *DistributionAmounts `json:"distribution,omitempty"`
+	// --- Explainability (spec §4) ---
+	Methodology *Methodology `json:"methodology,omitempty"`
+
 	// --- Single-event loss magnitude ---
 	SLE          Money `json:"sle"`           // effective single loss expectancy
 	SLEAverage   Money `json:"sle_average"`   // PERT-expected single loss
@@ -104,10 +138,58 @@ func ROSI(aleBefore, aleAfter, remediationCost float64) (float64, bool) {
 	return round2((aleBefore - aleAfter - remediationCost) / remediationCost), true
 }
 
-// Assess runs the full financial model for one risk. It never errors: absent
-// inputs degrade gracefully to the reference model so every risk still carries an
-// order-of-magnitude figure, exactly like Quantify.
+// Assess runs the full financial model for one risk in XAF only (no tenant
+// currency). Kept for callers that don't present a currency; delegates to AssessP
+// with a plain XAF presenter.
 func (q *Quantifier) Assess(in FinancialInputs, criticality string) FinancialAssessment {
+	return q.AssessP(in, criticality, NewPresenter(CurrencyXAF, DefaultRateTable(), q.XAFPerUSD))
+}
+
+// SimulationInputFor derives the FAIR-lite Monte Carlo parameters (LEF + PERT
+// loss-magnitude band) from a risk's stored drivers. LEF is the ARO (falling back
+// to 1 loss/year when unknown so the reference band reads as an annual figure);
+// the PERT band is the composed/explicit SLE as the mode with the loss-band
+// best/worst as the bounds.
+func (q *Quantifier) SimulationInputFor(in FinancialInputs, criticality string) SimulationInput {
+	downtime := DowntimeCostXAF(in.DowntimeHours, in.HourlyDowntimeCostXAF)
+	sleXAF, _ := q.effectiveSLE(in, downtime, criticality)
+	best, worst := q.lossBand(in, sleXAF)
+	lef := 1.0
+	if in.ARO != nil && *in.ARO > 0 {
+		lef = *in.ARO
+	}
+	return SimulationInput{
+		LEF:        lef,
+		LM:         PERT{Min: best, Mode: sleXAF, Max: worst},
+		Iterations: DefaultIterations,
+		Seed:       DefaultSeed,
+	}
+}
+
+// AssessDeterministic runs the closed-form part of the model (SLE, downtime,
+// ALE, worst/average, ROSI) WITHOUT the Monte Carlo distribution or methodology.
+// It is the cheap path the portfolio summary uses per risk, since the summary
+// runs a single shared portfolio simulation instead of one per risk.
+func (q *Quantifier) AssessDeterministic(in FinancialInputs, criticality string) FinancialAssessment {
+	return q.assessCore(in, criticality)
+}
+
+// AssessP runs the full financial model for one risk and presents every figure in
+// the tenant's display currency via p, including the FAIR-lite loss distribution
+// and the explainability methodology. It never errors: absent inputs degrade
+// gracefully to the reference model so every risk still carries an
+// order-of-magnitude figure, exactly like Quantify.
+func (q *Quantifier) AssessP(in FinancialInputs, criticality string, p Presenter) FinancialAssessment {
+	fa := q.assessCore(in, criticality)
+	sim := q.SimulationInputFor(in, criticality)
+	dist := p.Present(Simulate(sim))
+	fa.Distribution = &dist
+	fa.Methodology = q.methodology(in, sim, p, fa.SLEBasis)
+	return fa
+}
+
+// assessCore computes the deterministic XAF figures shared by both paths.
+func (q *Quantifier) assessCore(in FinancialInputs, criticality string) FinancialAssessment {
 	downtime := DowntimeCostXAF(in.DowntimeHours, in.HourlyDowntimeCostXAF)
 
 	// 1. Effective single-loss expectancy (XAF) + how we got it.
@@ -211,6 +293,76 @@ func (q *Quantifier) lossBand(in FinancialInputs, sleXAF float64) (best, worst f
 		best = sleXAF
 	}
 	return best, worst
+}
+
+// methodology assembles the explainability payload for one risk: the model, the
+// exact intrants that fed it (with their provenance), the assumptions, the run
+// parameters and the reference FX rate. ComputedAt is left zero here (pure
+// engine) and stamped by the caller.
+func (q *Quantifier) methodology(in FinancialInputs, sim SimulationInput, p Presenter, sleBasis Basis) *Methodology {
+	inputs := []MethodologyInput{
+		{Key: "lef", Label: "Loss Event Frequency", Value: round2(sim.LEF), Unit: "events/year", Source: aroSource(in)},
+		{Key: "lm_min", Label: "Loss Magnitude — min", Value: round2(sim.LM.Min), Unit: "XAF", Source: "derived"},
+		{Key: "lm_mode", Label: "Loss Magnitude — most likely", Value: round2(sim.LM.Mode), Unit: "XAF", Source: sleSource(sleBasis)},
+		{Key: "lm_max", Label: "Loss Magnitude — max", Value: round2(sim.LM.Max), Unit: "XAF", Source: "derived"},
+	}
+	// Surface the specific loss drivers that were actually provided.
+	if v := val(in.DowntimeHours); v > 0 {
+		inputs = append(inputs, MethodologyInput{Key: "downtime_hours", Label: "Downtime", Value: v, Unit: "hours", Source: "risk-input"})
+	}
+	if v := val(in.HourlyDowntimeCostXAF); v > 0 {
+		inputs = append(inputs, MethodologyInput{Key: "hourly_downtime_cost", Label: "Downtime cost", Value: v, Unit: "XAF/hour", Source: "risk-input"})
+	}
+	if v := val(in.FinesXAF); v > 0 {
+		inputs = append(inputs, MethodologyInput{Key: "fines", Label: "Regulatory fines", Value: v, Unit: "XAF", Source: "risk-input"})
+	}
+	if v := val(in.DataLossCostXAF); v > 0 {
+		inputs = append(inputs, MethodologyInput{Key: "data_loss", Label: "Data-loss cost", Value: v, Unit: "XAF", Source: "risk-input"})
+	}
+
+	assumptions := []string{
+		"ALE = LEF × LM ; LM follows a 3-point PERT distribution (min / most-likely / max).",
+		"Loss magnitude sampled by Monte Carlo; percentiles are P10 / P50 (median) / P90.",
+	}
+	if sleBasis == BasisReference {
+		assumptions = append(assumptions, "No explicit loss inputs on this risk — the reference band for its criticality was used.")
+	}
+	if in.SLEBestXAF == nil || in.SLEWorstXAF == nil {
+		assumptions = append(assumptions, "Loss band derived from the point estimate (best = ×0.5, worst = ×2.0).")
+	}
+
+	return &Methodology{
+		FormulaVersion: FormulaVersion,
+		Model:          "FAIR-lite: ALE = LEF × LM (PERT), Monte Carlo",
+		Iterations:     sim.Iterations,
+		Seed:           sim.Seed,
+		DocURL:         DocURL,
+		Currency:       p.Currency,
+		FXAsOf:         p.Rates.AsOf,
+		FXRateXAF:      p.Rates.RateFor(p.Currency),
+		Inputs:         inputs,
+		Assumptions:    assumptions,
+	}
+}
+
+// aroSource labels where the LEF came from.
+func aroSource(in FinancialInputs) string {
+	if in.ARO != nil && *in.ARO > 0 {
+		return "risk-input"
+	}
+	return "reference-model"
+}
+
+// sleSource labels where the loss-magnitude mode came from.
+func sleSource(b Basis) string {
+	switch b {
+	case BasisExplicit:
+		return "risk-input"
+	case BasisComposed:
+		return "derived"
+	default:
+		return "reference-model"
+	}
 }
 
 // val safely dereferences an optional positive amount (nil / negative → 0).

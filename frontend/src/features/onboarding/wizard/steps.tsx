@@ -185,7 +185,7 @@ const COUNTRIES = [
   { code: 'CA', fr: 'Canada', en: 'Canada' },
 ];
 
-const CURRENCIES = ['XAF', 'XOF', 'EUR', 'USD', 'MAD', 'TND', 'DZD'];
+const CURRENCIES = ['XAF', 'XOF', 'EUR', 'USD', 'NGN', 'MAD', 'GHS', 'ZAR'];
 
 export function OrganizationStep() {
   const lang = useUIStore((s) => s.lang);

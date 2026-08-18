@@ -32,6 +32,13 @@ type OrgUpdater interface {
 	UpdateOrganizationProfile(ctx context.Context, orgID uuid.UUID, name, industry, size string) error
 }
 
+// OrgCurrencyUpdater persists the tenant's display currency (onboarding step, and
+// later the settings screen). Optional (nil-safe), kept off OrgUpdater so callers
+// without a currency path are unaffected.
+type OrgCurrencyUpdater interface {
+	SetOrganizationCurrency(ctx context.Context, orgID uuid.UUID, currency string) error
+}
+
 // ProfileUpdater applies the profile step to the User row. Optional.
 type ProfileUpdater interface {
 	UpdateUserProfile(ctx context.Context, userID uuid.UUID, fullName, jobTitle, avatarURL string) error
@@ -59,8 +66,15 @@ type OnboardingUseCase struct {
 	repo     domain.OnboardingRepository
 	recorder *Recorder
 	orgs     OrgUpdater
+	orgCur   OrgCurrencyUpdater
 	profiles ProfileUpdater
 	now      func() time.Time
+}
+
+// WithOrgCurrencyUpdater attaches the optional tenant-currency writer.
+func (uc *OnboardingUseCase) WithOrgCurrencyUpdater(u OrgCurrencyUpdater) *OnboardingUseCase {
+	uc.orgCur = u
+	return uc
 }
 
 // NewOnboardingUseCase builds the use case with the required repository.
@@ -156,6 +170,11 @@ func (uc *OnboardingUseCase) SaveStep(ctx context.Context, tenantID, userID uuid
 				progress.Industry,
 				stringAnswer(input.Answers, "size"),
 			)
+		}
+		if uc.orgCur != nil && input.CanEditOrganization {
+			// Persist the chosen display currency so the financial engine converts
+			// every figure into it. Best-effort — never blocks the wizard.
+			_ = uc.orgCur.SetOrganizationCurrency(ctx, tenantID, stringAnswer(input.Answers, "currency"))
 		}
 	case domain.OnboardingStepProfile:
 		if uc.profiles != nil {

@@ -965,6 +965,16 @@ func main() {
 		}
 	}
 	riskQuantifier := crq.NewQuantifier(xafPerUSD, crq.DefaultReference())
+	// Daily FX rate job (spec §3): keeps a dated rate table so every converted
+	// amount can show its reference date. Defaults to the static reference source
+	// (honest fallback) until a live feed is plugged into FXRateSource.
+	fxWorker := workers.NewFXRateWorker(workers.StaticFXSource{}, zeroLogger)
+	go fxWorker.Start(context.Background())
+	// Currency/FX presenter factory: resolves each tenant's display currency (org
+	// settings) + the live rate table so financial figures convert consistently.
+	financialPresenters := risk.NewFinancialPresenterFactory(riskQuantifier).
+		WithCurrency(orgRepo).
+		WithRates(fxWorker)
 	markReviewedUseCase := risk.NewMarkRiskReviewedUseCase(riskRepo)
 	// The lifecycle FSM enforces its guards server-side. Its two inspectors are
 	// wired here so "IN_TREATMENT needs an active mitigation", "MITIGATED needs
@@ -976,13 +986,19 @@ func main() {
 			repository.NewGormMitigationSubActionRepository(database.DB),
 		)).
 		WithApprovals(newApprovalChecker(repository.NewGormApprovalRepository(database.DB)))
-	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier)
+	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier).
+		WithFinancialPresenters(financialPresenters)
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
-	// (portfolio ALE, worst-case, residual, remediation budget, ROSI). Reuses the
-	// same quantifier as per-risk CRQ so figures agree.
-	financialSummaryUseCase := risk.NewFinancialSummaryUseCase(riskRepo, riskQuantifier)
-	financialAnalyticsHandler := handlers.NewFinancialAnalyticsHandler(financialSummaryUseCase)
+	// (portfolio FAIR-lite P10/P50/P90, ALE, worst-case, residual, remediation
+	// budget, ROSI). Reuses the same quantifier as per-risk CRQ so figures agree;
+	// the coverage counter makes "N/M quantified" a SQL fact, and the presenter
+	// factory converts every figure into the tenant's currency at a dated rate.
+	financialSummaryUseCase := risk.NewFinancialSummaryUseCase(riskRepo, riskQuantifier).
+		WithPresenters(financialPresenters).
+		WithCoverageCounter(riskRepo)
+	financialAnalyticsHandler := handlers.NewFinancialAnalyticsHandler(financialSummaryUseCase).
+		WithCurrencyWriter(orgRepo)
 
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
@@ -1839,6 +1855,9 @@ func main() {
 	// ALE / worst-case / residual / remediation budget / ROSI for the CFO/CISO screen.
 	protected.Get("/analytics/financial",
 		middleware.RequirePermission("risks:read"), financialAnalyticsHandler.GetFinancialSummary)
+	// Tenant display currency — chosen at onboarding, changeable here (admin).
+	protected.Put("/analytics/financial/currency",
+		middleware.RequireRole("admin", "root"), financialAnalyticsHandler.SetCurrency)
 
 	// Executive dashboard (spec §11) — ONE consolidated, tenant-scoped aggregation
 	// (cyber score, financial exposure, KRIs, top-10 risks, risk & incident trends,
@@ -2216,6 +2235,7 @@ func main() {
 	// =========================================================================
 	onboardingUC := appactivation.NewOnboardingUseCase(activationRepo, activationRecorder).
 		WithOrgUpdater(orgRepo).
+		WithOrgCurrencyUpdater(orgRepo).
 		WithProfileUpdater(userRepo)
 	activationHandler := handlers.NewActivationHandler(
 		appactivation.NewGetStateUseCase(activationRepo),

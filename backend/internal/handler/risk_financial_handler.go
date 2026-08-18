@@ -6,6 +6,9 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -15,15 +18,58 @@ import (
 	"github.com/opendefender/openrisk/pkg/validation"
 )
 
+// OrgCurrencyWriter persists the tenant's display currency (settings change).
+type OrgCurrencyWriter interface {
+	SetOrganizationCurrency(ctx context.Context, tenantID uuid.UUID, currency string) error
+}
+
 // FinancialAnalyticsHandler serves the tenant-wide financial dashboard
 // (GET /analytics/financial) that backs the CISO/CFO screen.
 type FinancialAnalyticsHandler struct {
-	summaryUC *risk.FinancialSummaryUseCase
+	summaryUC  *risk.FinancialSummaryUseCase
+	currencyWr OrgCurrencyWriter // optional
 }
 
 // NewFinancialAnalyticsHandler builds the handler.
 func NewFinancialAnalyticsHandler(summaryUC *risk.FinancialSummaryUseCase) *FinancialAnalyticsHandler {
 	return &FinancialAnalyticsHandler{summaryUC: summaryUC}
+}
+
+// WithCurrencyWriter attaches the tenant-currency setter (for PUT currency).
+func (h *FinancialAnalyticsHandler) WithCurrencyWriter(w OrgCurrencyWriter) *FinancialAnalyticsHandler {
+	h.currencyWr = w
+	return h
+}
+
+// SetCurrencyInput is the body of PUT /analytics/financial/currency.
+type SetCurrencyInput struct {
+	Currency string `json:"currency"`
+}
+
+// SetCurrency PUT /analytics/financial/currency — changes the tenant's display
+// currency (chosen at onboarding, changeable here). Guarded admin at the route.
+func (h *FinancialAnalyticsHandler) SetCurrency(c *fiber.Ctx) error {
+	if h.currencyWr == nil {
+		return c.Status(500).JSON(fiber.Map{"error": "currency writer not configured"})
+	}
+	orgID := uuid.Nil
+	if mwCtx := middleware.GetContext(c); mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	if orgID == uuid.Nil {
+		return c.Status(401).JSON(fiber.Map{"error": "unauthenticated"})
+	}
+	in := new(SetCurrencyInput)
+	if err := c.BodyParser(in); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	if !crq.IsSupportedCurrency(in.Currency) {
+		return c.Status(400).JSON(fiber.Map{"error": "unsupported currency", "supported": crq.SupportedCurrencies})
+	}
+	if err := h.currencyWr.SetOrganizationCurrency(c.UserContext(), orgID, in.Currency); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to update currency"})
+	}
+	return c.JSON(fiber.Map{"currency": crq.NormalizeCurrency(in.Currency)})
 }
 
 // GetFinancialSummary GET /analytics/financial — aggregated financial posture
@@ -81,8 +127,22 @@ func (h *RiskHandler) GetRiskFinancial(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "quantifier not configured"})
 	}
 
-	assessment := h.crq.Assess(financialInputsFromRisk(r), string(r.Criticality))
+	assessment := h.assess(c, orgID, financialInputsFromRisk(r), string(r.Criticality))
 	return c.JSON(assessment)
+}
+
+// assess runs the full currency-aware assessment for the caller's tenant and
+// stamps the methodology's computed-at (the pure engine leaves it zero).
+func (h *RiskHandler) assess(c *fiber.Ctx, orgID uuid.UUID, in crq.FinancialInputs, criticality string) crq.FinancialAssessment {
+	pres := crq.NewPresenter(crq.CurrencyXAF, crq.DefaultRateTable(), h.crq.XAFPerUSD)
+	if h.presenters != nil {
+		pres = h.presenters.For(c.UserContext(), orgID)
+	}
+	a := h.crq.AssessP(in, criticality, pres)
+	if a.Methodology != nil {
+		a.Methodology.ComputedAt = time.Now().UTC()
+	}
+	return a
 }
 
 // SimulateFinancialInput carries per-field overrides for a what-if investment
@@ -163,6 +223,6 @@ func (h *RiskHandler) SimulateRiskFinancial(c *fiber.Ctx) error {
 		in.MitigationEffectiveness = input.MitigationEffectiveness
 	}
 
-	assessment := h.crq.Assess(in, string(r.Criticality))
+	assessment := h.assess(c, orgID, in, string(r.Criticality))
 	return c.JSON(assessment)
 }
