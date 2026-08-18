@@ -934,6 +934,16 @@ func main() {
 	protected.Post("/billing/change-plan", middleware.RequireRole("admin", "root"), billingHandler.ChangePlan)
 	protected.Post("/billing/cancel", middleware.RequireRole("admin", "root"), billingHandler.Cancel)
 
+	// Telemetry (opt-in, anonymous, env-killable). Reading state is open to any
+	// member so the UI reflects it; toggling consent is admin-only. The env kill
+	// switch OPENRISK_TELEMETRY=off always wins over stored consent.
+	telemetryHandler := handlers.NewTelemetryHandler(
+		repository.NewGormTelemetryRepository(database.DB),
+		os.Getenv("OPENRISK_TELEMETRY"), Version,
+	)
+	protected.Get("/telemetry", telemetryHandler.GetTelemetry)
+	protected.Put("/telemetry", middleware.RequireRole("admin", "root"), telemetryHandler.SetTelemetry)
+
 	// Feature/limit gates reused on the premium routes below. A gated read that a
 	// plan does not include returns 402 with an explaining body the frontend turns
 	// into an upgrade prompt (the blurred UpsellLock), never a bare wall.
