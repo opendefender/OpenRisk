@@ -53,6 +53,35 @@ func (r *GormBillingRepository) Upsert(ctx context.Context, sub *domain.Subscrip
 		Save(sub).Error
 }
 
+// SetOrganizationPlanAndRegion writes the effective plan (and region default,
+// mirrored into org settings so the resolver can price a Free org's zone) onto the
+// organization. Tenant-scoped by primary key.
+func (r *GormBillingRepository) SetOrganizationPlanAndRegion(ctx context.Context, tenant uuid.UUID, plan, region string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&domain.Organization{}).Where("id = ?", tenant).
+			Update("plan", plan).Error; err != nil {
+			return err
+		}
+		if region == "" {
+			return nil
+		}
+		var org domain.Organization
+		if err := tx.Select("id", "settings").Where("id = ?", tenant).First(&org).Error; err != nil {
+			return err
+		}
+		s := org.GetSettings()
+		if s == nil {
+			s = map[string]interface{}{}
+		}
+		s["region"] = region
+		if err := org.SetSettings(s); err != nil {
+			return err
+		}
+		return tx.Model(&domain.Organization{}).Where("id = ?", tenant).
+			Update("settings", org.Settings).Error
+	})
+}
+
 // ListInvoices returns a tenant's invoices, newest first.
 func (r *GormBillingRepository) ListInvoices(ctx context.Context, tenant uuid.UUID) ([]domain.Invoice, error) {
 	var out []domain.Invoice
