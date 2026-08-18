@@ -265,6 +265,11 @@ jobs:
           echo "✅ Frontend build successful"
           ls -lah dist/
 
+      # Performance budget (task §2) — BLOCKING. Fails the build if the initial
+      # (preloaded) JS exceeds 250 KB gzipped. Route/on-demand chunks excluded.
+      - name: Enforce bundle-size budget (< 250 KB gzip initial)
+        run: cd frontend && npm run budget
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:

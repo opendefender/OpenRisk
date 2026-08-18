@@ -21,19 +21,23 @@ import { OnboardingGuard, OnboardingCompletedRedirect } from './features/onboard
 // --- App shell ---
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
-import { CommandPalette } from './components/layout/CommandPalette';
+// Command palette pulls @floating-ui + the search stack; it is only needed once
+// the user opens it (⌘K / "/"), so it loads on first open, not at app start.
+const CommandPalette = lazy(() => import('./components/layout/CommandPalette').then(m => ({ default: m.CommandPalette })));
 import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { DemoBanner } from './shared/DemoBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
-import { CreateRiskModal } from './features/risks/CreateRiskModal';
-
-// --- Public auth screen stays eager (first paint / login path) ---
-import { AuthScreen } from './features/auth/AuthScreen';
-import { ForgotPasswordScreen } from './features/auth/ForgotPasswordScreen';
-import { ResetPasswordScreen } from './features/auth/ResetPasswordScreen';
+// --- The create-risk modal and the public auth screens are route/interaction
+//     split too: they pull the form stack (react-hook-form + zod) and the auth
+//     screens, none of which a logged-in user needs on the dashboard's first
+//     paint. Each loads behind a Suspense boundary on demand. ---
+const CreateRiskModal = lazy(() => import('./features/risks/CreateRiskModal').then(m => ({ default: m.CreateRiskModal })));
+const AuthScreen = lazy(() => import('./features/auth/AuthScreen').then(m => ({ default: m.AuthScreen })));
+const ForgotPasswordScreen = lazy(() => import('./features/auth/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
+const ResetPasswordScreen = lazy(() => import('./features/auth/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
 
 // --- Feature pages are route-split with React.lazy so the initial bundle only
 //     carries the shell + auth; each screen's chunk loads on navigation. This
@@ -142,6 +146,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
+  const cmdkOpen = useUIStore((s) => s.cmdkOpen);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
 
   // The activation checklist's primary step deep-links to /risks?guided=1. Honour
@@ -196,17 +201,27 @@ const DashboardLayout = () => {
         </main>
       </div>
 
-      {/* Global shell overlays */}
-      <CommandPalette />
+      {/* Global shell overlays. The palette mounts only once opened. */}
+      {cmdkOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette />
+        </Suspense>
+      )}
       {/* Three non-blocking coach marks, shown once and replayable from the
           header's help button (spec §8). It never covers the app. */}
       <ProductTour />
       <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} lang={lang} />
-      <CreateRiskModal
-        isOpen={newRiskOpen}
-        onClose={() => setNewRiskOpen(false)}
-        onCreated={() => { void useRiskStore.getState().fetchRisks(); }}
-      />
+      {/* Only mounted when opened, and behind its own Suspense — so the form
+          stack (react-hook-form + zod) loads on first use, not at app start. */}
+      {newRiskOpen && (
+        <Suspense fallback={null}>
+          <CreateRiskModal
+            isOpen={newRiskOpen}
+            onClose={() => setNewRiskOpen(false)}
+            onCreated={() => { void useRiskStore.getState().fetchRisks(); }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
@@ -264,6 +279,9 @@ function RouteFallback() {
 function App() {
   return (
     <BrowserRouter>
+      {/* App-wide Suspense: the public auth screens are lazy now, so they need a
+          boundary above the route table (the shell routes have their own too). */}
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* Routes Publiques */}
         <Route path="/login" element={<AuthScreen initialView="login" />} />
@@ -433,6 +451,7 @@ function App() {
         {/* Redirection par défaut */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
