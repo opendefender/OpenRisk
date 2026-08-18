@@ -13,8 +13,13 @@ import './index.css'
 import { Toaster } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useUIStore } from './store/uiStore'
+import { ErrorBoundary } from './shared/system/ErrorBoundary'
+import { installGlobalErrorReporting } from './lib/observability'
 
 const queryClient = new QueryClient()
+
+// Report uncaught errors and unhandled rejections (Sentry when present).
+installGlobalErrorReporting()
 
 /** Toasts follow the active theme (dc.html §8). */
 function ThemedToaster() {
@@ -25,7 +30,9 @@ function ThemedToaster() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
       <ThemedToaster />
     </QueryClientProvider>
   </React.StrictMode>,

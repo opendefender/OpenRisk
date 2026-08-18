@@ -16,6 +16,8 @@ import { useHotkeys } from './shared/useHotkeys';
 import { ShortcutsOverlay } from './shared/ShortcutsOverlay';
 import { permissionFor } from './shared/routeModel';
 import { AccessDenied } from './shared/AccessDenied';
+import { NotFound } from './shared/system/NotFound';
+import { Maintenance } from './shared/system/Maintenance';
 import { OnboardingGuard, OnboardingCompletedRedirect } from './features/onboarding/OnboardingGuard';
 
 // --- App shell ---
@@ -449,7 +451,10 @@ function App() {
         </Route>
 
         {/* Redirection par défaut */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* System pages: a real, branded 404 (not a silent redirect) and a
+            maintenance screen deployers can route to. */}
+        <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       </Suspense>
     </BrowserRouter>
