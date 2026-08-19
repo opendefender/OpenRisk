@@ -60,6 +60,11 @@ export interface Risk {
   mitigations_count?: number;
   created_at?: string;
   updated_at?: string;
+  // Server-computed severity band (ScoreWorker), derived from score via the
+  // Score Engine bands. This is the source of truth for severity. `level` is a
+  // legacy field that is not reliably populated — prefer `criticality`.
+  criticality?: string;
+  /** @deprecated use `criticality` — `level` is not reliably populated. */
   level?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   // The single canonical lifecycle. status and lifecycle_phase are derived from
   // it server-side; this is the one that means anything.

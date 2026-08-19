@@ -25,12 +25,16 @@ interface RiskCardProps {
 }
 
 export const RiskCard = ({ risk, onClick }: RiskCardProps) => {
+  // Severity comes from the server-computed `criticality` band (derived from the
+  // score), NOT the legacy `level` field, which is not reliably populated and
+  // rendered every risk as MEDIUM regardless of score.
+  const band = (risk.criticality ?? risk.level ?? 'low').toString().toUpperCase();
   const riskLevelColor = {
     CRITICAL: 'bg-danger-surface border-danger/50',
     HIGH: 'bg-warning-surface border-warning/50',
     MEDIUM: 'bg-warning-surface border-warning/50',
     LOW: 'bg-info-surface border-accent-400/50',
-  }[risk.level || 'MEDIUM'] || 'bg-info-surface border-accent-400/50';
+  }[band] || 'bg-info-surface border-accent-400/50';
 
   return (
     <div

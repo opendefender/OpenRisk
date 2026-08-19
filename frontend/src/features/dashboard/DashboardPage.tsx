@@ -113,9 +113,11 @@ function PostureDashboard() {
   }, []);
 
   const critOf = (r: (typeof risks)[number]): Criticality =>
-    // The server's criticality, or nothing. Deriving a band from the number
+    // The server's criticality band (derived from the score by the ScoreWorker).
+    // `level` is a legacy field that is not reliably populated — it rendered
+    // every risk as medium. Prefer criticality; deriving a band from the number
     // here is the mapping that drifted away from the number itself.
-    (r.level?.toLowerCase() as Criticality) || 'low';
+    ((r.criticality ?? r.level)?.toLowerCase() as Criticality) || 'low';
 
   const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
   // The canonical tenant score — the same query key the sidebar and /score use,
