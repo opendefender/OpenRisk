@@ -23,13 +23,12 @@ WORKDIR /app
 # Install serve to serve static files
 RUN npm install -g serve
 
-# Copy built application from builder
-COPY --from=builder /app/dist ./dist
-
-# Create non-root user for security
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
-USER appuser
+# Copy built application from builder, owned by the base image's built-in
+# non-root `node` user (UID/GID 1000). We reuse `node` rather than creating a new
+# UID/GID 1000 user — the alpine base already occupies 1000, so `addgroup -g 1000`
+# would fail (this broke the container build on a clean runner).
+COPY --from=builder --chown=node:node /app/dist ./dist
+USER node
 
 EXPOSE 5173
 
