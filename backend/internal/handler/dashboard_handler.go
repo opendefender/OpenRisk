@@ -73,7 +73,7 @@ func GetDashboardStats(c *fiber.Ctx) error {
 	err := database.DB.Raw(`
 		SELECT
 			COUNT(*)                                                        AS total,
-			COUNT(*) FILTER (WHERE score >= 15.0)                           AS high,
+			COUNT(*) FILTER (WHERE score >= 4.0)                            AS high,
 			COUNT(*) FILTER (WHERE LOWER(status) = 'mitigated')             AS mitigated,
 			COUNT(*) FILTER (WHERE LOWER(status) IN ('in_progress','active')) AS in_progress,
 			COUNT(*) FILTER (WHERE
@@ -83,10 +83,17 @@ func GetDashboardStats(c *fiber.Ctx) error {
 				OR COALESCE(other_direct_cost_xaf, 0) > 0
 				OR (COALESCE(downtime_hours, 0) > 0 AND COALESCE(hourly_downtime_cost_xaf, 0) > 0)
 			)                                                               AS quantified,
-			COUNT(*) FILTER (WHERE score >= 20.0)                           AS critical,
-			COUNT(*) FILTER (WHERE score >= 15.0 AND score < 20.0)          AS high_band,
-			COUNT(*) FILTER (WHERE score >= 10.0 AND score < 15.0)          AS medium,
-			COUNT(*) FILTER (WHERE score < 10.0)                            AS low,
+			-- Severity bands MUST match the Score Engine (score = P x I x AC),
+			-- the same thresholds the register's criticality column is derived
+			-- from: >=7 critical, >=4 high, >=2 medium, <2 low. The previous
+			-- 20/15/10 thresholds assumed a 1-5 x 1-5 scale and reported 0
+			-- critical / 0 high on a register the register itself showed as
+			-- critical, contradicting /analytics/executive. Score is always set
+			-- and the bands partition fully, so critical+high+medium+low = total.
+			COUNT(*) FILTER (WHERE score >= 7.0)                            AS critical,
+			COUNT(*) FILTER (WHERE score >= 4.0 AND score < 7.0)           AS high_band,
+			COUNT(*) FILTER (WHERE score >= 2.0 AND score < 4.0)           AS medium,
+			COUNT(*) FILTER (WHERE score < 2.0)                            AS low,
 			COALESCE(AVG(score), 0)                                         AS avg_score
 		FROM risks
 		WHERE tenant_id = ? AND deleted_at IS NULL
