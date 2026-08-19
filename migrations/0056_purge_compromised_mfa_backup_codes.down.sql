@@ -1,0 +1,2 @@
+-- Irreversible by design: the purged backup codes were compromised (universal,
+-- publicly derivable). There is nothing safe to restore. No-op.
