@@ -197,6 +197,19 @@ func ListMitigationsByRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid risk ID"})
 	}
 
+	// Verify the parent risk belongs to this tenant. Without this the endpoint
+	// returned 200 [] for a foreign/nonexistent risk, which is inconsistent with
+	// the 404 convention every other by-id route follows (audit-2026 #248).
+	var riskCount int64
+	if err := database.DB.Table("risks").
+		Where("id = ? AND tenant_id = ? AND deleted_at IS NULL", riskID, ctx.OrganizationID).
+		Count(&riskCount).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve mitigations"})
+	}
+	if riskCount == 0 {
+		return c.Status(404).JSON(fiber.Map{"error": "risk not found"})
+	}
+
 	repo := repository.NewGormMitigationRepository(database.DB)
 	plans, err := repo.ListByRiskID(ctx.OrganizationID.String(), uuid.MustParse(riskID))
 	if err != nil {

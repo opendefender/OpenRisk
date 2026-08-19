@@ -34,4 +34,4 @@ legacy_v1/
 secrets/
 backend/keys/
 /private_key.pem
-/public_key.pem
+/public_key.pembackend/openrisk-server

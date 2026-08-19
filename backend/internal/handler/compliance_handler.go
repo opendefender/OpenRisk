@@ -449,6 +449,12 @@ func (h *ComplianceHandler) ListControls(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
 	}
+	// Verify the parent framework belongs to this tenant first, so a foreign or
+	// nonexistent framework returns 404 rather than 200 [] — consistent with the
+	// by-id convention everywhere else (audit-2026 #248).
+	if _, err := h.getFrameworkUC.Execute(c.UserContext(), tenantID(c), frameworkID); err != nil {
+		return writeAppError(c, err)
+	}
 	controls, err := h.listControlsUC.Execute(c.UserContext(), tenantID(c), frameworkID)
 	if err != nil {
 		return writeAppError(c, err)
