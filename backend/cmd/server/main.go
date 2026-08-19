@@ -103,6 +103,19 @@ var (
 )
 
 func main() {
+	// Migration subcommand: `<server> migrate <up|down|force <version>|version>`.
+	// Handled FIRST, before config.LoadConfig() (which requires RSA keys and would
+	// panic) and before any DB/service init — migrations need only DATABASE_URL.
+	// This makes `make migrate`, `make migrate-rollback` and `make migrate-force`
+	// real migration operations; previously the binary ignored its arguments and
+	// these targets silently booted the whole server instead.
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		if err := migrations.RunCLI(os.Args[2:]); err != nil {
+			log.Fatalf("%v", err)
+		}
+		return
+	}
+
 	// =========================================================================
 	// 1. CONFIGURATION & INFRASTRUCTURE
 	// =========================================================================
