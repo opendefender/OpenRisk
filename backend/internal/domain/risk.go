@@ -47,6 +47,25 @@ const (
 	RiskCriticalityCritical CriticalityLevel = "CRITICAL"
 )
 
+// CriticalityFromScore maps a raw Score Engine score (P × I × AC) to its
+// severity band using the canonical thresholds (>=7 critical, >=4 high,
+// >=2 medium, <2 low). It returns the lowercase form the ScoreWorker persists,
+// so a value computed synchronously at create/update time agrees with the band
+// the worker later writes. Kept in the domain so every producer bands
+// identically (mirrors pkg/scoring engine.ToCriticality).
+func CriticalityFromScore(score float64) CriticalityLevel {
+	switch {
+	case score >= 7.0:
+		return CriticalityCriticalNew
+	case score >= 4.0:
+		return CriticalityHighNew
+	case score >= 2.0:
+		return CriticalityMediumNew
+	default:
+		return CriticalityLowNew
+	}
+}
+
 // RiskPhase represents the ISO 31000 risk-management lifecycle stage of a risk.
 // This is ORTHOGONAL to RiskStatus: Status is the resolution state
 // (open/mitigated/accepted/…) while Phase is where the risk sits in the

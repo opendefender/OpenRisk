@@ -158,6 +158,11 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 
 	// 3. Compute score (Claude.md formula: P × I, score engine can override later)
 	risk.Score = risk.Impact * risk.Probability
+	// Band the score synchronously so the create response is self-consistent
+	// (score and criticality agree) instead of returning the default 'low' until
+	// the async ScoreWorker runs ~2s later. The worker refines it once asset
+	// criticality is folded in; both move together (audit-2026 #246).
+	risk.Criticality = domain.CriticalityFromScore(risk.Score)
 
 	// 4. Persist
 	if err := uc.riskRepo.Create(ctx, risk); err != nil {
