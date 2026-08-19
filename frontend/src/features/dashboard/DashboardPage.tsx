@@ -22,6 +22,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, softFill, type Criticality } from '../../shared/riskColors';
 import { useDashboardStats, type MatrixCell } from './useStats';
+import { useCountUp } from './shared';
 import { useScore } from '../../hooks/useScore';
 import { ScoreGauge } from '../../shared/ScoreGauge';
 import { EmptyState } from '../../shared/EmptyState';
@@ -38,24 +39,6 @@ import { ViewerDashboard } from './ViewerDashboard';
 import { ExecutiveDashboard } from '../analytics/ExecutiveDashboard';
 
 /* ---------------- helpers ---------------- */
-
-/** Numeric count-up over ~1.1s, ease-out cubic. Re-runs when target changes. */
-function useCountUp(target: number, duration = 1100): number {
-  const [value, setValue] = useState(0);
-  const raf = useRef<number>(0);
-  useEffect(() => {
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      let p = Math.min(1, (now - t0) / duration);
-      p = 1 - Math.pow(1 - p, 3);
-      setValue(target * p);
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [target, duration]);
-  return value;
-}
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
   const a = ((deg - 90) * Math.PI) / 180;
