@@ -145,7 +145,7 @@ func (h *RiskHandler) TransitionPhase(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 	if err := validation.GetValidator().Struct(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+		return badValidation(c, err)
 	}
 	if input.target() == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": "`to` is required"})
@@ -194,6 +194,23 @@ func (h *RiskHandler) ListTransitions(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(view)
+}
+
+// badValidation renders validator errors as human-readable, per-field messages
+// (WHAT/WHY/HOW) instead of leaking the raw go-playground string
+// "Key: 'CreateRiskInput.Title' Error:Field validation..." (audit-2026 #245).
+// `errors` is a field→message map; `message` is a single summary line.
+func badValidation(c *fiber.Ctx, err error) error {
+	fields := validation.HumanizeErrors(err)
+	if len(fields) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "message": "Some fields are invalid."})
+	}
+	first := ""
+	for _, m := range fields {
+		first = m
+		break
+	}
+	return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "message": first, "errors": fields})
 }
 
 // deref reads an optional string field as a plain one ("" when absent).
@@ -287,7 +304,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	}
 
 	if err := validation.GetValidator().Struct(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+		return badValidation(c, err)
 	}
 
 	stdCtx := c.UserContext()
@@ -543,7 +560,7 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 	if err := validation.GetValidator().Struct(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+		return badValidation(c, err)
 	}
 
 	mwCtx := middleware.GetContext(c)
