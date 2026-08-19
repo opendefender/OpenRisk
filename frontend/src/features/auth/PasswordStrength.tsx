@@ -10,30 +10,36 @@
 // is right now. The client estimate is a preview — never the gate.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ZxcvbnFactory } from '@zxcvbn-ts/core';
-import * as zxcvbnCommon from '@zxcvbn-ts/language-common';
-import * as zxcvbnEn from '@zxcvbn-ts/language-en';
-import * as zxcvbnFr from '@zxcvbn-ts/language-fr';
 
 import { useUIStore } from '../../store/uiStore';
 import { authCopy, strengthLabel } from './authStrings';
 import { checkPassword, reasonText, type PasswordAssessment } from './authService';
 
-// One estimator for the module, with BOTH language dictionaries loaded.
-//
-// Both rather than switching on the UI language: a French user may well pick an
-// English word and vice versa, and the dictionary's job is to catch the word
-// whichever language it came from. Built once at module scope because assembling
-// the ranked dictionaries is the expensive part, and this runs on every
-// keystroke.
-const estimator = new ZxcvbnFactory({
-  graphs: zxcvbnCommon.adjacencyGraphs,
-  dictionary: {
-    ...zxcvbnCommon.dictionary,
-    ...zxcvbnEn.dictionary,
-    ...zxcvbnFr.dictionary,
-  },
-});
+// zxcvbn's ranked dictionaries are ~1 MB gzipped — far too heavy to sit in the
+// initial bundle, since the login page (the app's very first paint) would pay for
+// them even though the meter only matters on sign-up. So the estimator is loaded
+// ON DEMAND, the first time a password is actually typed, as its own async chunk.
+// Until it resolves, the meter falls back to the (authoritative) server verdict.
+type Estimator = { check: (pw: string, inputs?: string[]) => { score: number } };
+let estimatorPromise: Promise<Estimator> | null = null;
+function loadEstimator(): Promise<Estimator> {
+  if (!estimatorPromise) {
+    estimatorPromise = Promise.all([
+      import('@zxcvbn-ts/core'),
+      import('@zxcvbn-ts/language-common'),
+      import('@zxcvbn-ts/language-en'),
+      import('@zxcvbn-ts/language-fr'),
+    ]).then(([core, common, en, fr]) =>
+      new core.ZxcvbnFactory({
+        // Both language dictionaries: a French user may pick an English word and
+        // vice versa; the dictionary must catch it whichever language it came from.
+        graphs: common.adjacencyGraphs,
+        dictionary: { ...common.dictionary, ...en.dictionary, ...fr.dictionary },
+      }),
+    );
+  }
+  return estimatorPromise;
+}
 
 /** Mirrors pkg/pwpolicy.MinScore — the bar the server enforces. */
 const MIN_SCORE = 3;
@@ -66,12 +72,22 @@ export function PasswordStrength({ password, email, name, onVerdict, override }:
   const [server, setServer] = useState<{ forPassword: string; result: PasswordAssessment } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // --- Client estimate: instant, every keystroke ---------------------------
+  // --- Client estimate: instant once the estimator has loaded --------------
+  // Kick off the (lazy) dictionary load the first time there is a password.
+  const [estimator, setEstimator] = useState<Estimator | null>(null);
+  useEffect(() => {
+    if (password && !estimator) {
+      loadEstimator().then(setEstimator).catch(() => {
+        /* offline / chunk load failed — server verdict still gates submit */
+      });
+    }
+  }, [password, estimator]);
+
   const local = useMemo(() => {
-    if (!password) return null;
+    if (!password || !estimator) return null;
     const inputs = [email, name].filter((v): v is string => Boolean(v));
     return estimator.check(password, inputs);
-  }, [password, email, name]);
+  }, [password, email, name, estimator]);
 
   // --- Server verdict: debounced, authoritative ----------------------------
   useEffect(() => {

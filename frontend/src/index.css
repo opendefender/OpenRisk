@@ -267,6 +267,41 @@
   }
 }
 
+/* WCAG 2.2 — 2.4.11/2.4.7: a strong, consistent, theme-aware focus indicator on
+   every keyboard-focused control. :focus-visible so it shows for keyboard/AT
+   users without ringing on mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+/* Skip-to-content link (WCAG 2.4.1): off-screen until focused, then it lands as a
+   real, branded control at the top-left so keyboard users jump past the chrome. */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  transform: translateY(-120%);
+  transition: transform 0.15s ease;
+  margin: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}
+
 @layer components {
   /* Floating / glass surfaces — header, palette, drawers, panels, notifications.
      Never use glass on solid content cards (they stay opaque). */

@@ -13,8 +13,34 @@ import './index.css'
 import { Toaster } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useUIStore } from './store/uiStore'
+import { ErrorBoundary } from './shared/system/ErrorBoundary'
+import { installGlobalErrorReporting } from './lib/observability'
 
-const queryClient = new QueryClient()
+// Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
+// the cached value immediately and revalidate when the network allows (SWR), and
+// the cache is kept long enough to survive flaky links. Mutations use the default
+// online network mode, so a write attempted while offline is PAUSED and replayed
+// automatically on reconnect — a built-in mutation queue. The OfflineBanner shows
+// the state and how many writes are waiting.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      networkMode: 'offlineFirst',
+      staleTime: 30_000,
+      gcTime: 24 * 60 * 60 * 1000, // keep cache a day so a reload offline still paints
+      retry: 2,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      networkMode: 'online',
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
+    },
+  },
+})
+
+// Report uncaught errors and unhandled rejections (Sentry when present).
+installGlobalErrorReporting()
 
 /** Toasts follow the active theme (dc.html §8). */
 function ThemedToaster() {
@@ -25,7 +51,9 @@ function ThemedToaster() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
       <ThemedToaster />
     </QueryClientProvider>
   </React.StrictMode>,

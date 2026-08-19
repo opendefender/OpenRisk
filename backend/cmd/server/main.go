@@ -748,6 +748,27 @@ func main() {
 	handlers.SetSSOTokenManager(tokenManager, authAudit, userRepo, orgRepo)
 
 	// --- Routes Publiques ---
+	// Public status endpoint (task §4) — probes the critical dependencies so the
+	// public status page reflects reality, not a hardcoded "UP". No auth: it must
+	// be reachable exactly when the app is degraded.
+	api.Get("/status", func(c *fiber.Ctx) error {
+		components := []fiber.Map{{"name": "api", "status": "operational"}}
+		overall := "operational"
+
+		dbStatus := "operational"
+		if sqlDB, err := database.DB.DB(); err != nil || sqlDB.Ping() != nil {
+			dbStatus = "down"
+			overall = "major_outage"
+		}
+		components = append(components, fiber.Map{"name": "database", "status": dbStatus})
+
+		return c.JSON(fiber.Map{
+			"status":     overall,
+			"version":    Version,
+			"components": components,
+		})
+	})
+
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "UP",
