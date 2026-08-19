@@ -28,6 +28,8 @@ import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
 import { DataTable, useTableState, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
+import { BillingPanel } from '../billing/BillingPanel';
+import { DangerZonePanel } from '../billing/DangerZonePanel';
 
 type TabKey = 'general' | 'members' | 'tokens' | 'orgs' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
@@ -469,95 +471,20 @@ function SecurityTab({ tr }: { tr: Tr }) {
   );
 }
 
-function BillingTab({ tr }: { tr: Tr }) {
-  return (
-    <Card style={{ padding: '22px 24px' }}>
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <span className="disp text-[20px] font-bold text-ink">{tr('Édition open-source', 'Open-source edition')}</span>
-        <span className="text-[11px] font-semibold px-[9px] py-[3px] rounded-full" style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}>AGPL-3.0</span>
-      </div>
-      <div className="text-[13px] text-ink-soft leading-relaxed max-w-[60ch]">
-        {tr(
-          'Cette instance est l’édition communautaire OpenRisk — aucune facturation n’est configurée. Les offres managées et le suivi d’usage apparaîtront ici lorsqu’ils seront disponibles.',
-          'This instance runs the OpenRisk community edition — no billing is configured. Managed plans and usage metering will appear here when available.'
-        )}
-      </div>
-    </Card>
-  );
+function BillingTab({ tr: _tr }: { tr: Tr }) {
+  return <BillingPanel />;
 }
 
 // The danger zone shipped a "Delete organization" button wired to nothing: the
 // single most destructive control in the product was a <button> with no onClick.
 // It now calls DELETE /rbac/tenants/:id for real, behind an impact radiography,
 // and signs the user out afterwards — there is nothing left to be signed in to.
-function DangerTab({ L, tr }: { L: ReturnType<typeof useUIStrings>; tr: Tr }) {
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const navigate = useNavigate();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const tenantId = user?.tenant_id;
-
-  const deleteOrg = async () => {
-    if (!tenantId) return;
-    setBusy(true);
-    try {
-      await api.delete(`/rbac/tenants/${tenantId}`);
-      toast.success(tr('Organisation supprimée', 'Organization deleted'));
-      logout();
-      navigate('/login');
-    } catch {
-      // Owner-only on the backend; an admin who is not the owner gets a 403.
-      toast.error(tr(
-        'Suppression refusée — seul le propriétaire de l’organisation peut la supprimer.',
-        'Deletion refused — only the organization owner can delete it.',
-      ));
-    } finally {
-      setBusy(false);
-    }
-  };
-
+function DangerTab({ L, tr: _tr }: { L: ReturnType<typeof useUIStrings>; tr: Tr }) {
   return (
-    <div className="rounded-[16px] p-[22px]" style={{ border: '1px solid rgba(255,69,58,.35)', background: 'color-mix(in srgb,var(--critical) 5%,transparent)' }}>
+    <div>
       <div className="text-[15px] font-semibold mb-1.5" style={{ color: 'var(--critical)' }}>{L.s_danger}</div>
-      <div className="text-[13px] text-ink-soft mb-[18px]">{tr('Ces actions sont irréversibles.', 'These actions are irreversible.')}</div>
-      <button
-        onClick={() => setConfirming(true)}
-        disabled={!tenantId}
-        data-testid="delete-org"
-        title={tenantId ? undefined : tr('Organisation inconnue — reconnectez-vous.', 'Unknown organization — sign in again.')}
-        className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:pointer-events-none"
-        style={{ border: '1px solid rgba(255,69,58,.4)', color: 'var(--critical)' }}
-      >
-        {tr('Supprimer l’organisation', 'Delete organization')}
-      </button>
-
-      <DangerConfirm
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        title={tr('Supprimer l’organisation ?', 'Delete this organization?')}
-        subject={user?.org_name || tenantId}
-        intro={tr(
-          'Toute l’organisation est supprimée : risques, actifs, preuves de conformité, incidents et journaux d’audit. Les membres perdent immédiatement leur accès. Cette action est irréversible.',
-          'The whole organization goes: risks, assets, compliance evidence, incidents and audit logs. Members lose access immediately. This cannot be undone.',
-        )}
-        impact={[
-          { label: tr('Membres', 'Members'), value: tr('déconnectés immédiatement', 'signed out immediately') },
-          { label: tr('Registres (risques, actifs, incidents)', 'Registers (risks, assets, incidents)'), value: tr('supprimés', 'deleted') },
-          { label: tr('Piste d’audit', 'Audit trail'), value: tr('supprimée', 'deleted') },
-          { label: tr('Jetons API', 'API tokens'), value: tr('invalidés', 'invalidated') },
-        ]}
-        alternatives={[
-          {
-            label: tr('Exporter vos registres avant de supprimer', 'Export your registers first'),
-            description: tr('Chaque registre a un bouton « Exporter la vue » (CSV).', 'Every register has an "Export view" (CSV) button.'),
-            onClick: () => { setConfirming(false); navigate('/risks'); },
-          },
-        ]}
-        confirmLabel={tr('Supprimer définitivement l’organisation', 'Permanently delete the organization')}
-        onConfirm={deleteOrg}
-        busy={busy}
-      />
+      <div className="text-[13px] text-ink-soft mb-[18px]">{_tr('Ces actions sont irréversibles et suivent un délai de grâce de 30 jours.', 'These actions are irreversible and follow a 30-day grace period.')}</div>
+      <DangerZonePanel />
     </div>
   );
 }

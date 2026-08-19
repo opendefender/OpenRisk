@@ -11,6 +11,8 @@
 // All figures come from GET /analytics/financial and POST /risks/:id/simulate.
 
 import { useMemo, useState } from 'react';
+import { FeatureGate } from '../../shared/FeatureGate';
+import { useFeature } from '../billing/useEntitlements';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -91,8 +93,22 @@ function useMoneyFmt(summary: FinancialSummary) {
 export function FinancialDashboard() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const fin = useFeature('financial_quantification');
   const { data, isLoading, isError, refetch, isFetching } = useFinancialSummary();
   const [methodology, setMethodology] = useState<Methodology | null>(null);
+
+  // Paywall: on a plan without financial quantification, show the blurred preview
+  // + explaining upsell instead of the (402) error state.
+  if (!fin.loading && !fin.enabled) {
+    return (
+      <PageFrame wide>
+        <PageHeader title={tr('Quantification financière', 'Financial Quantification')} />
+        <FeatureGate feature="financial_quantification">
+          <FinancialSkeleton />
+        </FeatureGate>
+      </PageFrame>
+    );
+  }
 
   if (isLoading) return <FinancialSkeleton />;
   if (isError || !data) {
