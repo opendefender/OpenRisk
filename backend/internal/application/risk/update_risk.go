@@ -195,8 +195,11 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		risk.AssignedTo = risk.AssigneeID
 	}
 
-	// 3. Recompute score
+	// 3. Recompute score + band it synchronously so the update response is
+	// self-consistent (score and criticality agree) rather than showing a stale
+	// band until the async ScoreWorker runs (audit-2026 #246).
 	risk.Score = risk.Impact * risk.Probability
+	risk.Criticality = domain.CriticalityFromScore(risk.Score)
 
 	// 4. Persist
 	if err := uc.riskRepo.Update(ctx, risk); err != nil {

@@ -1,4 +1,4 @@
-.PHONY: help build test lint clean docker-build docker-up docker-down migrate seed dev install setup version sync-version check-version
+.PHONY: help build test lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed dev install setup version sync-version check-version
 
 # ============================================================================
 # VERSION — single source of truth is the root VERSION file (see docs/VERSIONING.md)
@@ -44,6 +44,8 @@ help:
 	@echo "  💾 DATABASE"
 	@echo "     make migrate              - Run database migrations"
 	@echo "     make migrate-rollback     - Rollback last migration"
+	@echo "     make migrate-status       - Show current migration version + dirty flag"
+	@echo "     make migrate-force VERSION=<n> - Recover a DIRTY database (set version, clear dirty)"
 	@echo "     make seed                 - Seed database with sample data"
 	@echo "     make db-shell             - Open database shell (psql)"
 	@echo "     make db-test-shell        - Open test database shell"
@@ -199,14 +201,26 @@ migrate:
 	@echo "📊 Running database migrations..."
 	docker-compose up -d db
 	@sleep 2
-	cd backend && go run ./cmd/server migrate up
+	cd backend && MIGRATIONS_DIR=../migrations go run ./cmd/server migrate up
 	@echo "✅ Migrations complete"
 
 migrate-rollback:
 	@echo "⏮️  Rolling back last migration..."
 	docker-compose up -d db
 	@sleep 2
-	cd backend && go run ./cmd/server migrate down
+	cd backend && MIGRATIONS_DIR=../migrations go run ./cmd/server migrate down
+
+migrate-status:
+	@echo "🔎 Current migration version..."
+	cd backend && MIGRATIONS_DIR=../migrations go run ./cmd/server migrate version
+
+# Recovery for a DIRTY database (a migration that failed mid-apply). Set VERSION
+# to the last known-good migration, then re-run `make migrate`.
+# Example: make migrate-force VERSION=47
+migrate-force:
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make migrate-force VERSION=<known_good_version>"; exit 1; fi
+	@echo "🔧 Forcing migration version to $(VERSION) (clears dirty flag)..."
+	cd backend && MIGRATIONS_DIR=../migrations go run ./cmd/server migrate force $(VERSION)
 	@echo "✅ Rollback complete"
 
 seed:

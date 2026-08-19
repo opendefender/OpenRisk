@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -103,6 +104,19 @@ var (
 )
 
 func main() {
+	// Migration subcommand: `<server> migrate <up|down|force <version>|version>`.
+	// Handled FIRST, before config.LoadConfig() (which requires RSA keys and would
+	// panic) and before any DB/service init — migrations need only DATABASE_URL.
+	// This makes `make migrate`, `make migrate-rollback` and `make migrate-force`
+	// real migration operations; previously the binary ignored its arguments and
+	// these targets silently booted the whole server instead.
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		if err := migrations.RunCLI(os.Args[2:]); err != nil {
+			log.Fatalf("%v", err)
+		}
+		return
+	}
+
 	// =========================================================================
 	// 1. CONFIGURATION & INFRASTRUCTURE
 	// =========================================================================
@@ -700,9 +714,22 @@ func main() {
 	// and REQUIRES it for admin/root: those accounts can change permissions across
 	// the tenant and mint API tokens, so a password alone is not a proportionate
 	// gate. Members keep MFA optional.
+	// Which org roles must hold MFA is a deployment policy. Default admin+root
+	// (privileged accounts); a deployment onboarding non-technical members who may
+	// lack an authenticator can widen or narrow it via MFA_REQUIRED_ROLES
+	// (comma-separated; empty string disables mandatory enrolment entirely).
+	mfaRequiredRoles := []string{"admin", "root"}
+	if v, ok := os.LookupEnv("MFA_REQUIRED_ROLES"); ok {
+		mfaRequiredRoles = mfaRequiredRoles[:0]
+		for _, r := range strings.Split(v, ",") {
+			if r = strings.TrimSpace(r); r != "" {
+				mfaRequiredRoles = append(mfaRequiredRoles, r)
+			}
+		}
+	}
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
-		RequireMFAForRoles("admin", "root")
+		RequireMFAForRoles(mfaRequiredRoles...)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder)

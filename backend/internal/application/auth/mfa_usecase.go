@@ -94,8 +94,17 @@ func (uc *SetupMFAUseCase) Execute(ctx context.Context, input SetupMFAInput) (*S
 		return nil, fmt.Errorf("failed to store MFA secret: %w", err)
 	}
 
-	// Generate backup codes
-	backupCodes := otp.GenerateBackupCodes()
+	// Generate backup codes (CSPRNG, unique per user — see otp.GenerateBackupCodes).
+	backupCodes, err := otp.GenerateBackupCodes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate backup codes: %w", err)
+	}
+
+	// Replace any previously-issued codes for this user so re-enrolment
+	// invalidates the old set (defence in depth against a stale/compromised set).
+	if err := uc.mfaRepo.DeleteBackupCodes(ctx, input.UserID, input.TenantID); err != nil {
+		return nil, fmt.Errorf("failed to clear previous backup codes: %w", err)
+	}
 
 	// Hash and store backup codes
 	var hashedCodes []*domain.MFABackupCode

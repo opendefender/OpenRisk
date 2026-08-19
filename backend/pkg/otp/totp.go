@@ -7,6 +7,7 @@ package otp
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"image/jpeg"
@@ -101,21 +102,41 @@ func VerifyTOTPWithCustomWindow(secret, code string, window uint) bool {
 	return valid
 }
 
-// GenerateBackupCodes generates 8 backup codes (12-character alphanumeric)
-// Each code should be used only once
-func GenerateBackupCodes() []string {
-	codes := make([]string, 8)
-	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-	seed := int64(0x1234567890abcdef)
+// backupCodeCount is how many single-use MFA backup codes are minted per user.
+const backupCodeCount = 8
 
-	for i := 0; i < 8; i++ {
-		code := make([]byte, 12)
-		for j := 0; j < 12; j++ {
-			// Simple pseudo-random using seed (not cryptographically secure)
-			seed = (seed*1103515245 + 12345) & 0x7fffffff
-			code[j] = chars[seed%int64(len(chars))]
+// backupCodeLength is the character length of each backup code.
+const backupCodeLength = 12
+
+// backupCodeAlphabet is a Crockford-style base32 alphabet (no 0/1/8/9 to avoid
+// O/I/B/g confusion). Its length is 32, an exact divisor of 256, so mapping a
+// uniform random byte with `b % 32` introduces no modulo bias.
+const backupCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
+// GenerateBackupCodes returns backupCodeCount single-use MFA backup codes, each
+// backupCodeLength characters drawn uniformly from backupCodeAlphabet using
+// crypto/rand.
+//
+// SECURITY: every code MUST be independently unpredictable. A previous
+// implementation seeded a linear congruential generator with a hard-coded
+// constant, which made every user's codes identical and derivable from the
+// public source — a universal MFA bypass (CWE-330/338/798). Do not reintroduce
+// any deterministic seed here.
+func GenerateBackupCodes() ([]string, error) {
+	// One CSPRNG read for all codes; len(alphabet)==32 divides 256 evenly, so
+	// `b % 32` is unbiased.
+	raw := make([]byte, backupCodeCount*backupCodeLength)
+	if _, err := rand.Read(raw); err != nil {
+		return nil, fmt.Errorf("failed to read CSPRNG for backup codes: %w", err)
+	}
+
+	codes := make([]string, backupCodeCount)
+	for i := 0; i < backupCodeCount; i++ {
+		code := make([]byte, backupCodeLength)
+		for j := 0; j < backupCodeLength; j++ {
+			code[j] = backupCodeAlphabet[raw[i*backupCodeLength+j]%byte(len(backupCodeAlphabet))]
 		}
 		codes[i] = string(code)
 	}
-	return codes
+	return codes, nil
 }
