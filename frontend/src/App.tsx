@@ -40,6 +40,7 @@ import { ProductTour } from './features/onboarding/ProductTour';
 const CreateRiskModal = lazy(() => import('./features/risks/CreateRiskModal').then(m => ({ default: m.CreateRiskModal })));
 const AuthScreen = lazy(() => import('./features/auth/AuthScreen').then(m => ({ default: m.AuthScreen })));
 const StatusPage = lazy(() => import('./features/status/StatusPage').then(m => ({ default: m.StatusPage })));
+const AcceptInvitationPage = lazy(() => import('./features/organization/AcceptInvitationPage').then(m => ({ default: m.AcceptInvitationPage })));
 const ForgotPasswordScreen = lazy(() => import('./features/auth/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
 const ResetPasswordScreen = lazy(() => import('./features/auth/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
 
@@ -301,6 +302,12 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordScreen />} />
         {/* Public status page (task §4) — reachable without a session. */}
         <Route path="/status" element={<StatusPage />} />
+        {/* Invitation acceptance. Public by necessity: the person following the
+            link may have no OpenRisk account yet, and a sign-in wall here would
+            block exactly the people the link exists for. The screen previews
+            the invitation before asking for anything, and the server binds it
+            to the invited address. */}
+        <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
 
         {/* Signup wizard — authenticated but OUTSIDE the app shell: the point of
             these five screens is that nothing else competes for attention. The

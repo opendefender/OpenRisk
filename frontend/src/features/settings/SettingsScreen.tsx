@@ -15,12 +15,12 @@ import {
   Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Trash2, Copy, Database, PowerOff,
   type LucideIcon,
 } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
+import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { SessionsPanel } from '../auth/SessionsPanel';
-import { MembersPanel } from '../rbac/MembersPanel';
+import { MembersView } from '../organization/MembersView';
 import { relTime } from '../risks/riskMap';
 import { api } from '../../lib/api';
 import { useTokens, useCustomFields, useTenants, type ApiToken } from './adminData';
@@ -30,6 +30,7 @@ import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 import { BillingPanel } from '../billing/BillingPanel';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
+import { useOrganization } from '../organization/useOrganization';
 
 type TabKey = 'general' | 'members' | 'tokens' | 'orgs' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
@@ -166,7 +167,7 @@ export function SettingsScreen() {
         </div>
         <div className="flex-1 min-w-0 w-full">
           {tab === 'general' && <GeneralTab tr={tr} />}
-          {tab === 'members' && <MembersPanel />}
+          {tab === 'members' && <MembersView />}
           {tab === 'tokens' && <TokensTab tr={tr} lang={lang} />}
           {tab === 'orgs' && <OrgsTab tr={tr} />}
           {tab === 'fields' && <CustomFieldsTab tr={tr} />}
@@ -364,27 +365,79 @@ function OrgsTab({ tr }: { tr: Tr }) {
 /* ==================== static tabs ==================== */
 
 function GeneralTab({ tr }: { tr: Tr }) {
-  const user = useAuthStore((s) => s.user);
-  const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
-  const orgInitials =
-    orgName
-      .split(/\s+/)
-      .map((w) => w[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || 'OR';
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const lang = useUIStore((s) => s.lang);
+  const { data: org, isLoading, isError, refetch } = useOrganization();
+
+  if (isLoading) {
+    return <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={4} /></Card>;
+  }
+  if (isError || !org) {
+    return (
+      <Card style={{ padding: '20px 22px' }}>
+        <ErrorState
+          title={tr("Impossible de charger l'organisation", 'Could not load the organization')}
+          sub={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+          onRetry={() => void refetch()}
+        />
+      </Card>
+    );
+  }
+
+  const initials = (org.name || 'OR').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const created = new Date(org.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Profil de l’organisation', 'Organization profile')}</Title>
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{orgInitials}</div>
-          <Btn label={tr('Changer le logo', 'Change logo')} />
+          <div className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold overflow-hidden"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+            {org.logo_url ? <img src={org.logo_url} alt="" className="w-full h-full object-cover" /> : initials}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[16px] font-bold text-ink truncate">{org.name}</div>
+            <div className="mono text-[12px] text-ink-muted">{org.slug}</div>
+          </div>
         </div>
-        <Field label={tr('Nom de l’organisation', 'Organization name')} value={orgName} />
-        <Field label={tr('Fuseau horaire', 'Time zone')} value={tz} />
+        {/* Read-only, and honestly so: the backend serves this profile but has
+            no endpoint that writes it. An input that looks editable and saves
+            nothing is worse than a value that plainly is not. */}
+        <dl className="grid gap-x-6 gap-y-[14px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+          <ReadOnly label={tr('Plan', 'Plan')} value={org.plan} />
+          <ReadOnly label={tr('Statut', 'Status')} value={org.is_active ? tr('Active', 'Active') : tr('Suspendue', 'Suspended')} />
+          <ReadOnly label={tr('Créée le', 'Created')} value={created} />
+          <ReadOnly label={tr('Propriétaire', 'Owner')} value={org.owner_name || '—'} />
+          {org.industry && <ReadOnly label={tr('Secteur', 'Industry')} value={org.industry} />}
+          <ReadOnly
+            label={tr('Fuseau horaire', 'Time zone')}
+            value={org.timezone || tr('non défini', 'not set')}
+            muted={!org.timezone}
+          />
+        </dl>
+        {org.can_edit && (
+          <p className="text-[11.5px] text-ink-muted mt-4 leading-snug">
+            {tr(
+              "Ces informations sont définies à la création de l'organisation. Leur modification depuis cet écran arrivera dans une prochaine version.",
+              'These details are set when the organization is created. Editing them from this screen is coming in a future release.',
+            )}
+          </p>
+        )}
       </Card>
+
+      <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
+        <Title>{tr('Membres', 'Members')}</Title>
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>
+          <CountTile label={tr('Total', 'Total')} value={org.counts.total_members} />
+          <CountTile label={tr('Actifs', 'Active')} value={org.counts.active_members} color="var(--low)" />
+          <CountTile label={tr('Administrateurs', 'Administrators')} value={org.counts.admins} color="var(--accent)" />
+          <CountTile label={tr('Désactivés', 'Deactivated')} value={org.counts.deactivated_members} color="var(--high)" />
+          <CountTile label={tr('Invitations', 'Invitations')} value={org.counts.pending_invitations} color="var(--info)" />
+        </div>
+      </Card>
+
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Apparence', 'Appearance')}</Title>
         <PersonalizeCard />
@@ -395,6 +448,24 @@ function GeneralTab({ tr }: { tr: Tr }) {
         <SavedToggleRow prefKey="auto_recalc" tr={tr} label={tr('Recalcul automatique des scores', 'Automatic score recalculation')} sub={tr('Met à jour les scores à chaque scan d’infrastructure', 'Updates scores after each infrastructure scan')} />
       </Card>
     </>
+  );
+}
+
+function ReadOnly({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div>
+      <dt className="text-[11.5px] font-semibold text-ink-muted uppercase tracking-wide mb-1">{label}</dt>
+      <dd className="text-[13.5px] text-ink" style={{ opacity: muted ? 0.6 : 1 }}>{value}</dd>
+    </div>
+  );
+}
+
+function CountTile({ label, value, color }: { label: string; value: number; color?: string }) {
+  return (
+    <div className="px-3.5 py-3 rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
+      <div className="text-[22px] font-bold leading-none" style={{ color: color ?? 'var(--text-primary)' }}>{value}</div>
+      <div className="text-[11.5px] text-ink-muted mt-1.5">{label}</div>
+    </div>
   );
 }
 

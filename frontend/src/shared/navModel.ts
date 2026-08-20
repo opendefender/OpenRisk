@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
 
+/** The named live counters a nav item may display. Each maps to a real
+ *  tenant-scoped field the Sidebar resolves; there is no free-text option, so
+ *  a badge cannot be invented. */
+export type NavCount = 'pending_invitations';
+
 export interface NavItem {
   key: string;
   labelKey: keyof UIStrings;
@@ -40,7 +45,17 @@ export interface NavItem {
    * param is absent.
    */
   view?: string;
-  badge?: { text: string; color?: string };
+  /**
+   * A live counter for this item, resolved at render time from a real
+   * tenant-scoped source. It names WHICH count it wants, so an item cannot
+   * carry a number nobody computes.
+   *
+   * This replaces two literal strings — '12' on Risks and '3' on Mitigations —
+   * that were rendered to every tenant regardless of what they actually held.
+   * A counter is a claim about the user's data; there is no honest way to write
+   * one as a constant.
+   */
+  badge?: { count: NavCount; color?: string };
   /** Placeholder screen (no backend yet). */
   soon?: boolean;
   /** Required permission to see this item. Mirrors the route guard on the
@@ -73,9 +88,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'g_pilot',
     items: [
-      { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', badge: { text: '12' }, perm: 'risks:read' },
+      { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', perm: 'risks:read' },
       { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
-      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/risks/mitigations', badge: { text: '3', color: 'var(--high)' }, perm: 'mitigations:read' },
+      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/risks/mitigations', perm: 'mitigations:read' },
       { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
       { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
     ],
@@ -135,7 +150,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'g_admin',
     items: [
-      { key: 'roles', labelKey: 'n_roles', icon: Users, path: '/settings/members', adminOnly: true },
+      // The members badge counts OUTSTANDING INVITATIONS, not members: a number
+      // beside a nav item should mean "something is waiting for you", and the
+      // headcount is not.
+      { key: 'roles', labelKey: 'n_roles', icon: Users, path: '/settings/members', adminOnly: true, badge: { count: 'pending_invitations', color: 'var(--info)' } },
       { key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' },
     ],
   },
