@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -192,117 +191,12 @@ func (s *MultitenantOrgService) TransferOwnership(ctx context.Context, orgID, cu
 	})
 }
 
-// InviteMembersRequest is the request to invite multiple members
-type InviteMembersRequest struct {
-	Invitees []InviteeRequest `json:"invitees" validate:"required,min=1"`
-}
-
-// InviteeRequest represents a single invitee
-type InviteeRequest struct {
-	Email     string     `json:"email" validate:"required,email"`
-	Role      string     `json:"role" validate:"required,oneof=admin user"`
-	ProfileID *uuid.UUID `json:"profile_id,omitempty"`
-}
-
-// InviteMembers invites users to the organization
-func (s *MultitenantOrgService) InviteMembers(ctx context.Context, orgID uuid.UUID, req *InviteMembersRequest, invitedByID uuid.UUID) (map[string]interface{}, error) {
-	result := map[string]interface{}{
-		"directly_added": []string{},
-		"invited":        []string{},
-	}
-
-	for _, invitee := range req.Invitees {
-		// Check if user with this email already exists
-		var existingUser domain.User
-		userExists := s.db.WithContext(ctx).Where("email = ?", invitee.Email).First(&existingUser).Error == nil
-
-		if userExists {
-			// Check if already a member
-			var existingMember domain.OrganizationMember
-			memberExists := s.db.WithContext(ctx).
-				Where("organization_id = ? AND user_id = ?", orgID, existingUser.ID).
-				First(&existingMember).Error == nil
-
-			if !memberExists {
-				// Add as direct member
-				member := &domain.OrganizationMember{
-					ID:             uuid.New(),
-					OrganizationID: orgID,
-					UserID:         existingUser.ID,
-					Role:           domain.MemberRole(invitee.Role),
-					ProfileID:      invitee.ProfileID,
-					IsActive:       true,
-					InvitedByID:    &invitedByID,
-				}
-				if err := s.db.WithContext(ctx).Create(member).Error; err != nil {
-					continue
-				}
-				result["directly_added"] = append(result["directly_added"].([]string), invitee.Email)
-			}
-		} else {
-			// Create invitation
-			expiresAt := time.Now().Add(72 * time.Hour)
-			invitation := &domain.Invitation{
-				ID:             uuid.New(),
-				Token:          uuid.New(),
-				OrganizationID: orgID,
-				Email:          invitee.Email,
-				Role:           domain.MemberRole(invitee.Role),
-				ProfileID:      invitee.ProfileID,
-				Status:         domain.InvitationPending,
-				ExpiresAt:      expiresAt,
-				InvitedByID:    invitedByID,
-			}
-			if err := s.db.WithContext(ctx).Create(invitation).Error; err != nil {
-				continue
-			}
-			result["invited"] = append(result["invited"].([]string), invitee.Email)
-		}
-	}
-
-	return result, nil
-}
-
-// AcceptInvitation accepts an invitation
-func (s *MultitenantOrgService) AcceptInvitation(ctx context.Context, token uuid.UUID, userID uuid.UUID) (*domain.Organization, error) {
-	// Get invitation
-	var invitation domain.Invitation
-	if err := s.db.WithContext(ctx).
-		Preload("Organization").
-		Where("token = ?", token).
-		First(&invitation).Error; err != nil {
-		return nil, errors.New("invitation not found")
-	}
-
-	// Check if invitation is usable
-	if !invitation.IsUsable() {
-		invitation.Status = domain.InvitationExpired
-		s.db.WithContext(ctx).Save(&invitation)
-		return nil, errors.New("invitation has expired")
-	}
-
-	// Add user as member
-	member := &domain.OrganizationMember{
-		ID:             uuid.New(),
-		OrganizationID: invitation.OrganizationID,
-		UserID:         userID,
-		Role:           invitation.Role,
-		ProfileID:      invitation.ProfileID,
-		IsActive:       true,
-	}
-
-	if err := s.db.WithContext(ctx).Create(member).Error; err != nil {
-		return nil, err
-	}
-
-	// Mark invitation as accepted
-	invitation.Status = domain.InvitationAccepted
-	if err := s.db.WithContext(ctx).Save(&invitation).Error; err != nil {
-		return nil, err
-	}
-
-	return s.GetOrganizationByID(ctx, invitation.OrganizationID)
-}
+// Invitations were served from here by a second, unwired implementation that
+// stored a UUID token in clear, never checked the invitee's email on
+// acceptance, and took its organization id from the URL rather than the
+// session. It has been removed rather than left beside its replacement: the
+// real member-invitation flow lives in internal/application/membership, backed
+// by internal/domain/invitation.go.
 
 // seedSystemProfiles creates default IAM profiles for a new organization
 func (s *MultitenantOrgService) seedSystemProfiles(ctx context.Context, orgID, createdByID uuid.UUID) error {

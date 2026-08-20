@@ -38,3 +38,11 @@ func (Mitigation) AuditEntityType() string { return "mitigation" }
 func (ComplianceFramework) AuditEntityType() string { return "compliance_framework" }
 
 func (Vulnerability) AuditEntityType() string { return "vulnerability" }
+
+// Organization membership (W0-04). Who joined, whose role changed, who was
+// deactivated and by whom is precisely the question an auditor opens the trail
+// to answer. Invitation carries `json:"-"` on its token hash, so the plugin's
+// json snapshot cannot capture the credential.
+func (OrganizationMember) AuditEntityType() string { return "organization_member" }
+
+func (Invitation) AuditEntityType() string { return "invitation" }
