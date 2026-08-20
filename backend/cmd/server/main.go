@@ -794,7 +794,7 @@ func main() {
 		logoutUseCase,
 		passwordHasher,
 		authAudit,
-	).WithNewDeviceNotifier(newDeviceNotifier)
+	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused

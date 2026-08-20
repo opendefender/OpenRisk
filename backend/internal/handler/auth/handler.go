@@ -6,6 +6,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -26,11 +27,25 @@ type Handler struct {
 	audit           *coreauth.AuditService // L7: full-fidelity auth audit trail (optional)
 	// newDeviceNotifier warns on sign-in from an unrecognised device. Optional.
 	newDeviceNotifier *auth.NotifyNewDeviceUseCase
+	// userLookup resolves the authenticated user for /auth/me. Optional; without it
+	// Me returns only the id/tenant it can read from the request context.
+	userLookup UserByIDReader
+}
+
+// UserByIDReader resolves a user by id for /auth/me.
+type UserByIDReader interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 }
 
 // WithNewDeviceNotifier enables the new-device sign-in alert.
 func (h *Handler) WithNewDeviceNotifier(n *auth.NotifyNewDeviceUseCase) *Handler {
 	h.newDeviceNotifier = n
+	return h
+}
+
+// WithUserLookup makes /auth/me return the real authenticated user.
+func (h *Handler) WithUserLookup(r UserByIDReader) *Handler {
+	h.userLookup = r
 	return h
 }
 
@@ -444,18 +459,33 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 // @Failure 401 {object} fiber.Map
 // @Router /auth/me [get]
 func (h *Handler) Me(c *fiber.Ctx) error {
-	// Get user from context (set by auth middleware)
-	userID := c.Locals("user_id")
-	if userID == nil {
+	mwCtx := middleware.GetContext(c)
+	if mwCtx == nil || mwCtx.UserID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "User not authenticated",
 		})
 	}
 
-	// In a real implementation, you would fetch the user from the repository
-	// For now, return a placeholder
+	// Resolve the real user. Password/MFA secret/deletion markers are json:"-", so
+	// the domain.User serialises without secrets.
+	if h.userLookup != nil {
+		user, err := h.userLookup.GetByID(c.UserContext(), mwCtx.UserID)
+		if err == nil && user != nil {
+			return c.JSON(fiber.Map{
+				"user":            user,
+				"organization_id": mwCtx.OrganizationID,
+			})
+		}
+		if err == nil && user == nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load user"})
+	}
+
+	// No lookup wired: return only what the verified token already carries, rather
+	// than fabricating profile fields.
 	return c.JSON(fiber.Map{
-		"id":    userID,
-		"email": "user@example.com", // This should come from the database
+		"id":              mwCtx.UserID,
+		"organization_id": mwCtx.OrganizationID,
 	})
 }
