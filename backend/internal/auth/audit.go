@@ -22,7 +22,11 @@ type AuditAction string
 const (
 	AuditActionLogin     AuditAction = "login"
 	AuditActionRefresh   AuditAction = "refresh"
-	AuditActionLogout    AuditAction = "logout"
+	// AuditActionRefreshReuse records a detected refresh-token reuse: a spent token
+	// replayed, or two requests racing to rotate one. It revokes the token family,
+	// so it is a genuine security event distinct from an ordinary failed refresh.
+	AuditActionRefreshReuse AuditAction = "refresh_reuse"
+	AuditActionLogout       AuditAction = "logout"
 	AuditActionMfaSetup  AuditAction = "mfa_setup"
 	AuditActionMfaVerify AuditAction = "mfa_verify"
 	AuditActionSwitchOrg AuditAction = "switch_org"

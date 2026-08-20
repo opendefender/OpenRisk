@@ -623,10 +623,37 @@ func main() {
 	// every token is signed and validated by one implementation.
 	tokenManager := coreauth.NewTokenManager(database.DB, rsaKeys)
 
-	// One session resolver, shared by refresh + OAuth2/SAML, re-derives the user's
-	// tenant + org roles + permissions from the DB at mint time. This guarantees
-	// (a) OAuth/SAML sessions are identical to password login, and (b) refresh
-	// preserves — and freshens — permissions instead of dropping them.
+	// resolveSessionForOrg re-derives a user's claims for a SPECIFIC organization,
+	// enforcing that the user is an ACTIVE member of it. It is the single
+	// authorization gate for org-scoped sessions: refresh resolves for the
+	// session's own org, and organization switching resolves for the chosen org.
+	// A user who is not an active member of orgID gets an error here, so a forged
+	// or stolen org id can never be turned into a session.
+	resolveSessionForOrg := func(ctx context.Context, uid, orgID uuid.UUID) (*coreauth.SessionClaims, error) {
+		if orgID == uuid.Nil {
+			return nil, fmt.Errorf("organization is required")
+		}
+		member, err := userRepo.GetOrganizationMember(ctx, uid, orgID)
+		if err != nil {
+			return nil, err
+		}
+		if member == nil {
+			return nil, fmt.Errorf("user is not a member of this organization")
+		}
+		if !member.IsActive {
+			return nil, fmt.Errorf("membership is not active")
+		}
+		sc := &coreauth.SessionClaims{TenantID: orgID, OrgRoles: map[uuid.UUID]string{orgID: string(member.Role)}}
+		// EffectivePermissions unifies the admin wildcard, the business-role preset,
+		// and any legacy profile rules — so a business-role user keeps its
+		// permissions across a token refresh (same path as login).
+		sc.Permissions = member.EffectivePermissions()
+		return sc, nil
+	}
+
+	// resolveSession re-derives a user's claims for their DEFAULT organization.
+	// Shared by IssueSession (OAuth2/SAML/MFA) and the PAT middleware, which have
+	// no notion of a chosen org.
 	resolveSession := func(ctx context.Context, uid uuid.UUID) (*coreauth.SessionClaims, error) {
 		org, err := userRepo.GetUserDefaultOrganization(ctx, uid)
 		if err != nil {
@@ -635,21 +662,10 @@ func main() {
 		if org == nil {
 			return nil, fmt.Errorf("user has no organization")
 		}
-		sc := &coreauth.SessionClaims{TenantID: org.ID, OrgRoles: map[uuid.UUID]string{}}
-		member, err := userRepo.GetOrganizationMember(ctx, uid, org.ID)
-		if err != nil {
-			return nil, err
-		}
-		if member != nil {
-			sc.OrgRoles[org.ID] = string(member.Role)
-			// EffectivePermissions unifies the admin wildcard, the business-role
-			// preset, and any legacy profile rules — so a business-role user keeps
-			// its permissions across a token refresh (same path as login).
-			sc.Permissions = member.EffectivePermissions()
-		}
-		return sc, nil
+		return resolveSessionForOrg(ctx, uid, org.ID)
 	}
 	tokenManager.SetSessionResolver(resolveSession)
+	tokenManager.SetOrgSessionResolver(resolveSessionForOrg)
 
 	// L5 — Personal Access Tokens. DB-backed service (survives restarts, scoped),
 	// its auth middleware, and a management handler. The same resolveSession gives a
@@ -762,6 +778,14 @@ func main() {
 	)
 	newDeviceNotifier := auth.NewNotifyNewDeviceUseCase(sessionRepo, securityMailer)
 
+	// Organization switching (server-authorized). userRepo satisfies the narrow
+	// MembershipRepository the use cases need; the switch mints an org-scoped
+	// session via the org resolver wired above, so membership is re-checked at mint
+	// time and a forged org id can never yield a session.
+	listOrgsUseCase := auth.NewListOrganizationsUseCase(userRepo)
+	switchOrgUseCase := auth.NewSwitchOrganizationUseCase(userRepo, tokenManager)
+	switchHandler := authhandler.NewSwitchHandler(listOrgsUseCase, switchOrgUseCase, authAudit)
+
 	// Initialize Clean Architecture auth handler
 	cleanAuthHandler := authhandler.NewHandler(
 		loginUseCase,
@@ -770,7 +794,7 @@ func main() {
 		logoutUseCase,
 		passwordHasher,
 		authAudit,
-	).WithNewDeviceNotifier(newDeviceNotifier)
+	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused
@@ -1027,6 +1051,12 @@ func main() {
 	protected.Get("/auth/sessions", sessionHandler.ListSessions)
 	protected.Delete("/auth/sessions/others", sessionHandler.RevokeOtherSessions)
 	protected.Delete("/auth/sessions/:id", sessionHandler.RevokeSession)
+
+	// Organization switching — list the orgs the user may enter, and switch into
+	// one. Both require an authenticated session (mounted under protected); the
+	// switch re-validates active membership of the target org on the server.
+	protected.Get("/auth/organizations", switchHandler.ListOrganizations)
+	protected.Post("/auth/switch-org", switchHandler.SwitchOrganization)
 
 	// --- Personal Access Tokens (L5) management — full session required ---
 	protected.Post("/auth/pat", patHandler.Create)

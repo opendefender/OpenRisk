@@ -33,6 +33,39 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := backfillAuditSequences(db); err != nil {
 		return fmt.Errorf("audit_events: %w", err)
 	}
+	if err := backfillRefreshTokenFamilies(db); err != nil {
+		return fmt.Errorf("refresh_tokens: %w", err)
+	}
+	return nil
+}
+
+// backfillRefreshTokenFamilies gives every pre-existing refresh token a family
+// lineage before AutoMigrate makes family_id NOT NULL.
+//
+// The reuse-detection work (W0-03) adds family_id (NOT NULL) and rotated_at to
+// refresh_tokens. AutoMigrate would try `ADD family_id uuid NOT NULL` on a table
+// whose existing rows have no value and fail with 23502. We add the columns
+// nullable first and seed each live session as its own family (family_id = id),
+// so AutoMigrate's later SET NOT NULL succeeds. Mirrors
+// migrations/0057_refresh_token_family_rotation.up.sql. Idempotent; a no-op on a
+// fresh database where the table does not exist yet.
+func backfillRefreshTokenFamilies(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("refresh_tokens") {
+		return nil
+	}
+	stmts := []string{
+		`ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id uuid`,
+		`ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at timestamptz`,
+		`UPDATE refresh_tokens SET family_id = id WHERE family_id IS NULL`,
+	}
+	for _, s := range stmts {
+		if err := db.Exec(s).Error; err != nil {
+			return fmt.Errorf("prepare family_id: %w", err)
+		}
+	}
 	return nil
 }
 

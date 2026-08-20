@@ -64,11 +64,13 @@ func newLoginHarness(t *testing.T, role domain.MemberRole) (*LoginUseCase, *logi
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
 			tenant_id TEXT NOT NULL,
+			family_id TEXT NOT NULL,
 			token_hash TEXT NOT NULL UNIQUE,
 			device_fingerprint TEXT,
 			ip_address TEXT,
 			user_agent TEXT,
 			expires_at DATETIME NOT NULL,
+			rotated_at DATETIME,
 			last_used_at DATETIME,
 			created_at DATETIME,
 			updated_at DATETIME
@@ -87,7 +89,7 @@ func newLoginHarness(t *testing.T, role domain.MemberRole) (*LoginUseCase, *logi
 		Password: "hashed:Ancre-Vitrail7-Cobalt", DefaultOrgID: &org.ID,
 	}
 	member := &domain.OrganizationMember{
-		ID: uuid.New(), UserID: user.ID, OrganizationID: org.ID, Role: role,
+		ID: uuid.New(), UserID: user.ID, OrganizationID: org.ID, Role: role, IsActive: true,
 	}
 
 	users := &loginUsers{user: user, org: org, member: member}
@@ -163,6 +165,23 @@ func TestLogin_OrdinaryMemberWithoutMFASignsInNormally(t *testing.T) {
 	assert.False(t, out.MFARequired)
 	require.NotNil(t, out.TokenPair, "a member without MFA should get a session")
 	assert.NotEmpty(t, out.TokenPair.AccessToken)
+}
+
+func TestLogin_DeactivatedMembershipIsRejected(t *testing.T) {
+	// A user removed from an organization keeps their account but loses access to
+	// that org: a password must stop granting a session there. No token is issued.
+	uc, users, _, _ := newLoginHarness(t, domain.MemberRole("user"))
+	users.member.IsActive = false
+
+	out, err := uc.Execute(context.Background(), LoginInput{
+		Email:    users.user.Email,
+		Password: "Ancre-Vitrail7-Cobalt",
+	})
+	require.Error(t, err)
+	require.Nil(t, out)
+	appErr, ok := err.(*domain.AppError)
+	require.True(t, ok)
+	require.Equal(t, domain.ErrValidation, appErr.Err)
 }
 
 func TestLogin_AdminWithMFAGetsAChallengeNotAnEnrolment(t *testing.T) {
