@@ -94,9 +94,14 @@ func (r *GormMembershipRepository) ListMembers(ctx context.Context, tenantID uui
 	}
 	if q.Status != "" {
 		if q.Status == domain.MembershipActive {
-			// Rows predating the status column carry NULL and are active when the
-			// legacy boolean says so — the same fallback EffectiveStatus applies.
-			base = base.Where("(organization_members.status = ? OR (organization_members.status IS NULL AND organization_members.is_active))", domain.MembershipActive)
+			// Rows written before the status column (NULL) and rows written before
+			// the BeforeCreate hook ('' — GORM sends the Go zero value explicitly,
+			// so the column DEFAULT never applied) both mean "unset", and are
+			// active exactly when the legacy boolean says so. Same fallback as
+			// EffectiveStatus.
+			base = base.Where(`(organization_members.status = ?
+			                    OR (COALESCE(organization_members.status, '') = '' AND organization_members.is_active))`,
+				domain.MembershipActive)
 		} else {
 			base = base.Where("organization_members.status = ?", q.Status)
 		}
@@ -185,7 +190,7 @@ func (r *GormMembershipRepository) CountActiveAdmins(ctx context.Context, tenant
 		Model(&domain.OrganizationMember{}).
 		Where("organization_id = ?", tenantID).
 		Where("role IN ?", []domain.MemberRole{domain.RoleRoot, domain.RoleAdmin}).
-		Where("(status = ? OR (status IS NULL AND is_active))", domain.MembershipActive).
+		Where("(status = ? OR (COALESCE(status, '') = '' AND is_active))", domain.MembershipActive).
 		Count(&n).Error
 	return int(n), err
 }
@@ -207,10 +212,10 @@ func (r *GormMembershipRepository) Counts(ctx context.Context, tenantID uuid.UUI
 	err := r.db.WithContext(ctx).
 		Model(&domain.OrganizationMember{}).
 		Select(`COUNT(*) AS total,
-		        COUNT(*) FILTER (WHERE status = 'active' OR (status IS NULL AND is_active)) AS active,
-		        COUNT(*) FILTER (WHERE status = 'deactivated' OR (status IS NULL AND NOT is_active)) AS deactivated,
+		        COUNT(*) FILTER (WHERE status = 'active' OR (COALESCE(status,'') = '' AND is_active)) AS active,
+		        COUNT(*) FILTER (WHERE status = 'deactivated' OR (COALESCE(status,'') = '' AND NOT is_active)) AS deactivated,
 		        COUNT(*) FILTER (WHERE status = 'revoked') AS revoked,
-		        COUNT(*) FILTER (WHERE role IN ('root','admin') AND (status = 'active' OR (status IS NULL AND is_active))) AS admins`).
+		        COUNT(*) FILTER (WHERE role IN ('root','admin') AND (status = 'active' OR (COALESCE(status,'') = '' AND is_active))) AS admins`).
 		Where("organization_id = ?", tenantID).
 		Scan(&row).Error
 	if err != nil {

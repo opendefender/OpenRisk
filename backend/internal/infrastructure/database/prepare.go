@@ -64,7 +64,10 @@ func prepareMembershipIntegrity(db *gorm.DB) error {
 	if db.Migrator().HasTable("organization_members") {
 		stmts := []string{
 			`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS status VARCHAR(16)`,
-			`UPDATE organization_members SET status = CASE WHEN is_active THEN 'active' ELSE 'deactivated' END WHERE status IS NULL`,
+			// NULL is a row from before the column; '' is a row from before the
+			// BeforeCreate hook, because GORM sends the Go zero value explicitly
+			// and the column DEFAULT therefore never applied. Both mean "unset".
+			`UPDATE organization_members SET status = CASE WHEN is_active THEN 'active' ELSE 'deactivated' END WHERE COALESCE(status, '') = ''`,
 			// Keep the oldest row per (organization, user); the later ones are the
 			// accidental duplicates.
 			`DELETE FROM organization_members om

@@ -23,7 +23,7 @@ ALTER TABLE organization_members
 -- making the column queryable, not about correctness of existing rows.
 UPDATE organization_members
    SET status = CASE WHEN is_active THEN 'active' ELSE 'deactivated' END
- WHERE status IS NULL;
+ WHERE COALESCE(status, '') = '';
 
 ALTER TABLE organization_members
     ALTER COLUMN status SET DEFAULT 'active';

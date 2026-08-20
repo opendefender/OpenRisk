@@ -185,6 +185,60 @@ func TestMembershipRepo_LegacyNullStatusCountsAsActive(t *testing.T) {
 	}
 }
 
+// The defect this pins was found by running the real server, not by a test:
+// GORM sends the Go zero value for a non-pointer string, so every INSERT
+// carried status = ” explicitly and the column's DEFAULT 'active' never
+// applied. The roster said one member existed and the active count said zero.
+//
+// Both halves of the fix are asserted here: BeforeCreate stamps a status on the
+// way in, and the read predicates treat ” exactly like NULL for the rows that
+// were already written without one.
+func TestMembershipRepo_MembershipWrittenWithoutAStatusStillCountsAsActive(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+
+	// A writer that knows nothing about the status column — registration,
+	// onboarding, seeding. It sets only the legacy boolean.
+	u := &domain.User{ID: uuid.New(), Email: "fresh@a.io", Username: "fresh", IsActive: true}
+	if err := f.db.Create(u).Error; err != nil {
+		t.Fatal(err)
+	}
+	m := &domain.OrganizationMember{
+		ID: uuid.New(), OrganizationID: f.tenantA, UserID: u.ID,
+		Role: domain.RoleAdmin, IsActive: true, JoinedAt: time.Now(),
+	}
+	if err := f.db.Create(m).Error; err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	var stored domain.OrganizationMember
+	f.db.First(&stored, "id = ?", m.ID)
+	if stored.Status != domain.MembershipActive {
+		t.Fatalf("BeforeCreate must stamp a status on the way in, got %q", stored.Status)
+	}
+
+	// Now force the pre-fix shape onto the row and prove the reads still agree.
+	if err := f.db.Model(&domain.OrganizationMember{}).Where("id = ?", m.ID).
+		Update("status", "").Error; err != nil {
+		t.Fatal(err)
+	}
+	_, total, err := f.repo.ListMembers(ctx, f.tenantA, domain.MemberQuery{Status: domain.MembershipActive})
+	if err != nil || total != 1 {
+		t.Fatalf("an empty status must read as active: total=%d err=%v", total, err)
+	}
+	n, err := f.repo.CountActiveAdmins(ctx, f.tenantA)
+	if err != nil || n != 1 {
+		t.Fatalf("an empty status must count toward administrative capacity: %d %v", n, err)
+	}
+	c, err := f.repo.Counts(ctx, f.tenantA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.TotalMembers != 1 || c.ActiveMembers != 1 || c.Admins != 1 {
+		t.Fatalf("the roster and the counts must agree: %+v", c)
+	}
+}
+
 func TestMembershipRepo_GetAndSaveMember_CrossTenant(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()

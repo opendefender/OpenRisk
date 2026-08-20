@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,30 @@ func (m *OrganizationMember) SetStatus(next MembershipStatus, at time.Time) bool
 	}
 	m.UpdatedAt = at
 	return true
+}
+
+// BeforeCreate derives the lifecycle status of a membership that was written
+// without one.
+//
+// This is not belt-and-braces, it is the fix for a real gap: GORM inserts the
+// Go zero value for a non-pointer string field, so every INSERT sends
+// status = ” explicitly and the column's DEFAULT 'active' never applies.
+// Registration, onboarding, seeding and invitation acceptance all create
+// memberships, and requiring each of them to remember a column is exactly the
+// arrangement that produces rows where the roster says a member exists and the
+// active count says they do not.
+//
+// EffectiveStatus already reads ” as "fall back to the boolean", so this only
+// makes the stored row agree with what the application already believes.
+func (m *OrganizationMember) BeforeCreate(*gorm.DB) error {
+	if !IsValidMembershipStatus(m.Status) {
+		if m.IsActive {
+			m.Status = MembershipActive
+		} else {
+			m.Status = MembershipDeactivated
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
