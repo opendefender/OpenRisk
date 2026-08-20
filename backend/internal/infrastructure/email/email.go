@@ -3,55 +3,33 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
+// Package email is the mail transport seam. See smtp.go for the two
+// implementations and for why there is no third one that quietly succeeds.
 package email
 
 import (
 	"context"
-	"fmt"
+	"log"
 )
 
-// Service defines the email service interface
+// Service defines the email transport interface.
 type Service interface {
 	SendEmail(ctx context.Context, to, subject, body string) error
 }
 
-// SMTPService implements Service using SMTP
-type SMTPService struct {
-	host     string
-	port     int
-	username string
-	password string
-	from     string
-}
+// LogService writes the message to the log and reports success. It exists for
+// local development where seeing the mail is the point, and it is opt-in
+// through EMAIL_TRANSPORT=log — never a silent default, because a transport
+// that reports success without delivering is how "the invitation was sent"
+// becomes a lie the product tells its administrator.
+type LogService struct{}
 
-// NewSMTPService creates a new SMTP email service
-func NewSMTPService(host string, port int, username, password, from string) *SMTPService {
-	return &SMTPService{
-		host:     host,
-		port:     port,
-		username: username,
-		password: password,
-		from:     from,
-	}
-}
+// NewLogService builds the development transport.
+func NewLogService() *LogService { return &LogService{} }
 
-// SendEmail sends an email (placeholder implementation)
-func (s *SMTPService) SendEmail(ctx context.Context, to, subject, body string) error {
-	// TODO: Implement actual SMTP sending
-	fmt.Printf("Sending email to %s: %s\n", to, subject)
-	return nil
-}
-
-// MockService implements Service for testing
-type MockService struct{}
-
-// NewMockService creates a new mock email service
-func NewMockService() *MockService {
-	return &MockService{}
-}
-
-// SendEmail mocks sending an email
-func (s *MockService) SendEmail(ctx context.Context, to, subject, body string) error {
-	fmt.Printf("MOCK: Sending email to %s: %s\n", to, subject)
+// SendEmail logs the recipient and subject. The body is deliberately not
+// logged: these messages carry invitation links and reset tokens (RULE #6).
+func (s *LogService) SendEmail(_ context.Context, to, subject, _ string) error {
+	log.Printf("email[log-transport]: to=%s subject=%q (body withheld — it may carry a credential)", to, subject)
 	return nil
 }

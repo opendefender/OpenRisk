@@ -613,9 +613,16 @@ func main() {
 	if appBaseURL == "" {
 		appBaseURL = "http://localhost:5173"
 	}
-	// Email transport (mock in dev; swap for SMTP in prod). Kept as a var so the
-	// scan-notification sink below can also send through it.
-	emailTransport := email.NewMockService()
+	// Email transport. Real SMTP when SMTP_HOST is set, a logging transport when
+	// EMAIL_TRANSPORT=log, and otherwise a transport that returns
+	// email.ErrNotConfigured rather than reporting a success it did not achieve.
+	//
+	// This used to be a mock that printed to stdout and returned nil, so every
+	// caller believed its mail had been delivered. Best-effort callers (scan
+	// notices, sign-in alerts) still ignore the error and behave as before; the
+	// invitation flow surfaces it, because "we emailed them" is that feature's
+	// entire user-visible outcome.
+	emailTransport := buildEmailTransport()
 	notificationService := notify.NewEmailService(emailTransport, emailFromAddr, appBaseURL)
 
 	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
@@ -2709,4 +2716,30 @@ func main() {
 	}
 
 	log.Println("Server exited properly")
+}
+
+// buildEmailTransport picks the mail transport from the environment. There is
+// deliberately no default that pretends to send: a deployment either has SMTP,
+// or asks for the logging transport, or gets a transport that says so.
+func buildEmailTransport() email.Service {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("EMAIL_TRANSPORT"))) {
+	case "log":
+		log.Println("Email: log transport (messages are logged, not delivered)")
+		return email.NewLogService()
+	}
+	host := strings.TrimSpace(os.Getenv("SMTP_HOST"))
+	if host == "" {
+		log.Println("Email: no SMTP_HOST configured — outbound mail is unavailable and will be reported as such")
+		return email.NewUnconfigured()
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(os.Getenv("SMTP_PORT")))
+	if err != nil || port <= 0 {
+		port = 587
+	}
+	from := strings.TrimSpace(os.Getenv("EMAIL_FROM"))
+	if from == "" {
+		from = "noreply@openrisk.local"
+	}
+	log.Printf("Email: SMTP transport %s:%d", host, port)
+	return email.FromEnv(host, port, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), from)
 }
