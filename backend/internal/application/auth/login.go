@@ -138,6 +138,14 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		return nil, fmt.Errorf("failed to get organization membership: %w", err)
 	}
 	if member != nil {
+		// A revoked (deactivated) membership must not yield a session, even though
+		// the user account itself is active: being removed from an organization is
+		// exactly the case where a password must stop granting access to it. The
+		// token resolver enforces the same predicate on refresh, so a session
+		// cannot outlive the membership that authorized it.
+		if !member.IsActive {
+			return nil, domain.NewValidationError("your access to this organization has been revoked")
+		}
 		orgRoles[org.ID] = string(member.Role)
 		// EffectivePermissions unifies root/admin wildcard, the business-role
 		// preset, and any legacy profile rules (see domain.OrganizationMember).
