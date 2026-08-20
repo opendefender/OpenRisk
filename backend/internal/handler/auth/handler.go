@@ -6,6 +6,8 @@
 package auth
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/application/auth"
@@ -343,6 +345,18 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
+		// Reuse of a rotated token (or a lost concurrent-rotation race) has already
+		// revoked the whole family server-side. Clear the browser's cookies and
+		// record it as the distinct security event it is, so a leaked token shows
+		// up in the audit trail rather than as one more "refresh failed".
+		if errors.Is(err, coreauth.ErrRefreshTokenReuse) {
+			middleware.ClearSessionCookies(c)
+			h.logAudit(c, nil, nil, coreauth.AuditActionRefreshReuse, false, strptr("reuse_detected"))
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Session revoked. Please sign in again.",
+				"code":  "REFRESH_REUSE_DETECTED",
+			})
+		}
 		reason := "token refresh failed"
 		h.logAudit(c, nil, nil, coreauth.AuditActionRefresh, false, &reason)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
