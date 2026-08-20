@@ -30,6 +30,13 @@ func newTokenHarness(t *testing.T) (*TokenManager, *gorm.DB, *resolverSpy) {
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
+	// Pin to a single connection: sqlite ":memory:" is per-connection, so an
+	// unbounded pool would give each concurrent goroutine its OWN database and
+	// every one of them would "win" the rotation. One connection models the single
+	// logical database (Postgres) where the atomic UPDATE genuinely serialises.
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE refresh_tokens (
 			id TEXT PRIMARY KEY,
