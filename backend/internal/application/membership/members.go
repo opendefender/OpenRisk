@@ -93,13 +93,18 @@ func (s *Service) ChangeRole(ctx context.Context, tenantID uuid.UUID, in ChangeR
 	if err != nil {
 		return nil, err
 	}
+	// "Same org role, different preset" is a real change, and the common one for
+	// a scoped member — their access lives in the preset. Telling the policy so
+	// keeps it from refusing that call as a no-op.
+	businessRoleChanging := in.BusinessRoleSet && business != m.BusinessRole
 	if err := domain.CheckRoleChange(domain.RoleChange{
-		ActorID:          in.ActorID,
-		TargetUserID:     m.UserID,
-		TargetRole:       m.Role,
-		TargetStatus:     m.EffectiveStatus(),
-		NewRole:          role,
-		ActiveAdminCount: admins,
+		ActorID:              in.ActorID,
+		TargetUserID:         m.UserID,
+		TargetRole:           m.Role,
+		TargetStatus:         m.EffectiveStatus(),
+		NewRole:              role,
+		ActiveAdminCount:     admins,
+		BusinessRoleChanging: businessRoleChanging,
 	}); err != nil {
 		return nil, err
 	}

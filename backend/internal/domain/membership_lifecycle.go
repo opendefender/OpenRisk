@@ -158,6 +158,11 @@ type RoleChange struct {
 	TargetStatus     MembershipStatus
 	NewRole          MemberRole
 	ActiveAdminCount int
+	// BusinessRoleChanging says the same call is also altering the member's
+	// business-role preset. Without it, "keep the org role, swap the preset"
+	// would be refused as a no-op — the preset is where a scoped member's real
+	// access lives, so changing only that is the common case, not an edge one.
+	BusinessRoleChanging bool
 }
 
 // CheckRoleChange returns nil when the change is allowed, or a typed error
@@ -179,7 +184,7 @@ func CheckRoleChange(c RoleChange) error {
 	if c.TargetRole == RoleRoot {
 		return NewForbiddenError("the organization owner's role cannot be changed here")
 	}
-	if c.TargetRole == c.NewRole {
+	if c.TargetRole == c.NewRole && !c.BusinessRoleChanging {
 		return NewValidationError("this member already has that role")
 	}
 	// Demoting the last remaining administrator would lock the tenant out of its

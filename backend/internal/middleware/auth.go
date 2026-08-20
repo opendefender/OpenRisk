@@ -409,3 +409,38 @@ func OAuthRateLimit(store *RateLimitStore) fiber.Handler {
 		return c.Next()
 	}
 }
+
+// OptionalAuth authenticates a request IF it carries a valid session, and lets
+// it through unauthenticated otherwise.
+//
+// It exists for exactly one shape of endpoint: accepting an organization
+// invitation. The invitee may already have an OpenRisk account and be signed
+// in, or may be creating their account right now by following the link — and
+// the same endpoint has to serve both. Protected would turn the second case
+// into a 401, and mounting it fully public would make the handler unable to
+// tell that the caller is signed in, which is precisely what binds the
+// invitation to its invited address.
+//
+// A malformed or expired token is treated as no token at all rather than as an
+// error: the request continues anonymously and the handler decides. Nothing
+// here grants anything — it only stamps identity when identity is provable.
+func OptionalAuth(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti string) (bool, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		tokenString, _, extractErr := extractAccessToken(c)
+		if extractErr != nil || tokenString == "" {
+			return c.Next()
+		}
+		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)
+		if err != nil || claims == nil || claims.Sub == uuid.Nil {
+			return c.Next()
+		}
+		c.Locals("user", claims)
+		c.Locals("user_id", claims.Sub)
+		c.Locals("userID", claims.Sub)
+		c.Locals("permissions", claims.Permissions)
+		// The tenant is NOT stamped: the organization being joined comes from the
+		// invitation, and a session's own tenant has no authority over it.
+		SetContext(c, &RequestContext{UserID: claims.Sub})
+		return c.Next()
+	}
+}

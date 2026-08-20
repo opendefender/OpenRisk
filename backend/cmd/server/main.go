@@ -41,6 +41,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
+	"github.com/opendefender/openrisk/internal/application/membership"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/orgdeletion"
@@ -932,6 +933,27 @@ func main() {
 	// token is validated from ?token= inside the handler. Assigned in §5.7.
 	var mitigationEventsHandler *handlers.MitigationEventsHandler
 	app.Get("/api/v1/mitigations/events", func(c *fiber.Ctx) error { return mitigationEventsHandler.Stream(c) })
+
+	// Invitation preview / acceptance — mounted on `app` BEFORE the /api/v1 JWT
+	// gate, for the same reason as the scanner agent routes: `api.Use(Protected)`
+	// below is registered on the /api/v1 PREFIX and therefore wraps every route
+	// under it, whenever it was declared. An invitee following their link may
+	// have no OpenRisk account at all, so a JWT gate would 401 exactly the people
+	// these endpoints exist for.
+	//
+	// They are not unauthenticated, though: OptionalAuth stamps identity WHEN a
+	// valid session is present (the use case then requires that identity to be
+	// the invited address) and lets the request through anonymously otherwise.
+	// It deliberately never stamps a tenant — the organization comes from the
+	// invitation the token resolves to, never from the caller.
+	var invitationPublicHandler *handlers.OrganizationMemberHandler
+	optionalAuth := middleware.OptionalAuth(rsaKeys, jtiBlacklistChecker)
+	app.Get("/api/v1/invitations/preview", optionalAuth, func(c *fiber.Ctx) error {
+		return invitationPublicHandler.PreviewInvitation(c)
+	})
+	app.Post("/api/v1/invitations/accept", optionalAuth, func(c *fiber.Ctx) error {
+		return invitationPublicHandler.AcceptInvitation(c)
+	})
 
 	// Vulnerability scanner webhook — external tools (Nessus/Qualys/Defender/…) POST
 	// findings here authenticated by the integration's opaque webhook token (NOT a
@@ -2152,6 +2174,68 @@ func main() {
 			}
 		}
 	}()
+
+	// =========================================================================
+	// 5.10 ORGANIZATION MEMBER MANAGEMENT (W0-04)
+	//
+	// Members, invitations, roles, deactivation and the membership audit trail.
+	// The tenant for every route below comes from the authenticated session
+	// (middleware.GetContext) — no path segment, query parameter or body field
+	// names an organization, so there is nothing for a caller to substitute.
+	//
+	// The two acceptance routes are mounted OUTSIDE this group, further down,
+	// because an invitee may not have an account yet.
+	// =========================================================================
+	membershipRepo := repository.NewGormMembershipRepository(database.DB)
+	membershipSvc := membership.NewService(membershipRepo, userRepo).
+		WithOrganizations(orgRepo).
+		// The recorder feeds the request collector, so a membership action lands
+		// as ONE chained trail entry carrying both its meaning and its
+		// before → after — not as a second entry beside the middleware's.
+		WithAudit(governance.NewAuditRecorder(auditChainRepo)).
+		WithAuditReader(auditChainRepo).
+		WithMailer(authmail.NewInvitationMailer(emailTransport)).
+		// Withdrawing access ends the member's refresh lineage, so no new session
+		// can be minted for them.
+		WithSessionRevoker(tokenManager).
+		WithPasswordHasher(passwordHasher).
+		WithBaseURL(appBaseURL)
+	memberHandler := handlers.NewOrganizationMemberHandler(membershipSvc)
+
+	// Reading the organization and its member roster needs membership-read;
+	// admins hold "*" and pass everything. The counts endpoint is open to any
+	// authenticated member: knowing how many colleagues you have is not
+	// privileged, and gating it would leave the sidebar badge permanently empty
+	// for everyone who is not an administrator.
+	orgRead := middleware.RequirePermission("organization:read", "organization:members:read")
+	protected.Get("/organization", orgRead, memberHandler.GetOrganization)
+	protected.Get("/organization/counts", memberHandler.GetCounts)
+
+	// STATIC SUB-PATHS BEFORE /:memberId — Fiber matches in registration order,
+	// so "audit" would otherwise be parsed as a member id.
+	protected.Get("/organization/members/audit",
+		middleware.RequirePermission("organization:audit:read"), memberHandler.GetMembershipAudit)
+	protected.Get("/organization/members",
+		middleware.RequirePermission("organization:members:read"), memberHandler.ListMembers)
+	protected.Get("/organization/members/:memberId",
+		middleware.RequirePermission("organization:members:read"), memberHandler.GetMember)
+	protected.Put("/organization/members/:memberId/role",
+		middleware.RequirePermission("organization:members:update"), memberHandler.UpdateMemberRole)
+	protected.Put("/organization/members/:memberId/status",
+		middleware.RequirePermission("organization:members:deactivate"), memberHandler.UpdateMemberStatus)
+
+	protected.Get("/organization/invitations",
+		middleware.RequirePermission("organization:members:read"), memberHandler.ListInvitations)
+	protected.Post("/organization/invitations",
+		middleware.RequirePermission("organization:members:invite"), memberHandler.CreateInvitation)
+	protected.Post("/organization/invitations/:invitationId/resend",
+		middleware.RequirePermission("organization:members:invite"), memberHandler.ResendInvitation)
+	protected.Delete("/organization/invitations/:invitationId",
+		middleware.RequirePermission("organization:members:invite"), memberHandler.RevokeInvitation)
+
+	// The two acceptance routes were mounted before the JWT gate (see the
+	// forward declaration above); assign the handler they capture.
+	invitationPublicHandler = memberHandler
 
 	// Business Roles — the runtime RBAC that actually drives authorization.
 	// The catalog (permissions + presets) is readable by any authenticated member

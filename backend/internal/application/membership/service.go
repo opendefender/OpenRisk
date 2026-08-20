@@ -102,12 +102,15 @@ type OrganizationReader interface {
 // MemberView is one row of the member list. It carries identity, access and
 // timestamps, and nothing else: no password hash, no MFA state, no tokens.
 type MemberView struct {
-	MemberID      uuid.UUID               `json:"member_id"`
-	UserID        uuid.UUID               `json:"user_id"`
-	Email         string                  `json:"email"`
-	FullName      string                  `json:"full_name"`
-	OrgRole       domain.MemberRole       `json:"org_role"`
-	BusinessRole  domain.BusinessRoleKey  `json:"business_role,omitempty"`
+	MemberID uuid.UUID         `json:"member_id"`
+	UserID   uuid.UUID         `json:"user_id"`
+	Email    string            `json:"email"`
+	FullName string            `json:"full_name"`
+	OrgRole  domain.MemberRole `json:"org_role"`
+	// Always emitted, never omitempty: a client has to be able to tell "this
+	// member has no preset" from "the server did not say", and the members
+	// screen renders one of those as an empty dropdown and the other as stale.
+	BusinessRole  domain.BusinessRoleKey  `json:"business_role"`
 	Status        domain.MembershipStatus `json:"status"`
 	IsActive      bool                    `json:"is_active"`
 	JoinedAt      time.Time               `json:"joined_at"`
