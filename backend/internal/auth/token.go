@@ -12,6 +12,7 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,6 +20,24 @@ import (
 	"gorm.io/gorm"
 
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
+)
+
+// Typed refresh errors let the HTTP layer tell an ordinary failed refresh (401,
+// re-login) apart from a detected reuse (revoke the whole family, alert, force
+// re-login). Callers compare with errors.Is.
+var (
+	// ErrRefreshTokenInvalid — the presented token does not correspond to any
+	// live session (never issued, already pruned, or a bad string).
+	ErrRefreshTokenInvalid = errors.New("invalid refresh token")
+	// ErrRefreshTokenExpired — the token existed but is past its 30-day TTL.
+	ErrRefreshTokenExpired = errors.New("refresh token expired")
+	// ErrRefreshTokenReuse — a token that was ALREADY rotated (single-use) is
+	// being presented again, OR two requests raced to rotate the same token. Both
+	// mean the lineage may be in more than one party's hands, so the entire token
+	// family is revoked and re-authentication is required (RFC 9700 §4.14.2).
+	ErrRefreshTokenReuse = errors.New("refresh token reuse detected")
+	// ErrDeviceMismatch — the token is bound to a different device fingerprint.
+	ErrDeviceMismatch = errors.New("device fingerprint mismatch")
 )
 
 const (
@@ -41,17 +60,26 @@ const (
 // list in Settings is a projection of this table, and "unknown device, unknown
 // location" is not something a user can act on.
 type RefreshToken struct {
-	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID            uuid.UUID  `gorm:"type:uuid;index;not null" json:"user_id"`
-	TenantID          uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
-	TokenHash         string     `gorm:"type:varchar(64);uniqueIndex;not null" json:"token_hash"` // SHA256 hash
-	DeviceFingerprint string     `gorm:"type:varchar(255);index" json:"device_fingerprint"`
-	IPAddress         string     `gorm:"type:varchar(64)"  json:"ip_address,omitempty"`
-	UserAgent         string     `gorm:"type:varchar(512)" json:"user_agent,omitempty"`
-	ExpiresAt         time.Time  `gorm:"index;not null" json:"expires_at"`
-	LastUsedAt        *time.Time `json:"last_used_at,omitempty"`
-	CreatedAt         time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt         time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID   uuid.UUID `gorm:"type:uuid;index;not null" json:"user_id"`
+	TenantID uuid.UUID `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	// FamilyID ties every rotation of one login into a single lineage. When a
+	// rotated (spent) token is replayed, the whole family is revoked at once —
+	// this is the unit of "log this session out everywhere it might have leaked".
+	FamilyID          uuid.UUID `gorm:"type:uuid;index;not null" json:"family_id"`
+	TokenHash         string    `gorm:"type:varchar(64);uniqueIndex;not null" json:"token_hash"` // SHA256 hash
+	DeviceFingerprint string    `gorm:"type:varchar(255);index" json:"device_fingerprint"`
+	IPAddress         string    `gorm:"type:varchar(64)"  json:"ip_address,omitempty"`
+	UserAgent         string    `gorm:"type:varchar(512)" json:"user_agent,omitempty"`
+	ExpiresAt         time.Time `gorm:"index;not null" json:"expires_at"`
+	// RotatedAt marks the moment this token was consumed by a rotation. A non-nil
+	// value means the token is SPENT: presenting it again is reuse. It is set
+	// atomically (UPDATE ... WHERE rotated_at IS NULL) so exactly one of two racing
+	// refreshes can win, and the loser is treated as reuse.
+	RotatedAt  *time.Time `gorm:"index" json:"rotated_at,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // DeviceContext describes where a session is being created from.
@@ -70,6 +98,16 @@ type DeviceContext struct {
 // TableName specifies the table name
 func (RefreshToken) TableName() string {
 	return "refresh_tokens"
+}
+
+// BeforeCreate assigns an id when the database default does not (e.g. sqlite in
+// tests). On Postgres the gen_random_uuid() default already fills it; this hook
+// only fires when the field is still nil, so it never overrides a real value.
+func (rt *RefreshToken) BeforeCreate(*gorm.DB) error {
+	if rt.ID == uuid.Nil {
+		rt.ID = uuid.New()
+	}
+	return nil
 }
 
 // IsExpired checks if the refresh token has expired
@@ -92,11 +130,20 @@ type SessionClaims struct {
 // permissions are ever "lost" across a refresh).
 type SessionResolver func(ctx context.Context, userID uuid.UUID) (*SessionClaims, error)
 
+// OrgSessionResolver re-derives a user's claims for a SPECIFIC organization,
+// validating that the user is an active member of it. It is what makes org
+// switching and org-context-preserving refresh possible: refresh resolves for
+// the session's own org (not the user's default), and switch resolves for the
+// chosen org. It must return an error when the user is not an active member of
+// orgID so a stolen/forged org id can never yield a session.
+type OrgSessionResolver func(ctx context.Context, userID, orgID uuid.UUID) (*SessionClaims, error)
+
 // TokenManager handles token operations
 type TokenManager struct {
-	db       *gorm.DB
-	rsaKeys  *authpkg.RSAKeys
-	resolver SessionResolver
+	db          *gorm.DB
+	rsaKeys     *authpkg.RSAKeys
+	resolver    SessionResolver
+	orgResolver OrgSessionResolver
 }
 
 // NewTokenManager creates a new token manager
@@ -104,13 +151,31 @@ func NewTokenManager(db *gorm.DB, rsaKeys *authpkg.RSAKeys) *TokenManager {
 	return &TokenManager{db: db, rsaKeys: rsaKeys}
 }
 
-// SetSessionResolver wires the resolver used by refresh and IssueSession.
+// SetSessionResolver wires the default-org resolver used by IssueSession and PAT.
 func (tm *TokenManager) SetSessionResolver(r SessionResolver) {
 	tm.resolver = r
 }
 
-// GenerateTokenPair generates a new access (RS256, 15 min) + refresh (30 day) pair.
+// SetOrgSessionResolver wires the org-scoped resolver used by refresh (to keep a
+// session on its own org) and by organization switching.
+func (tm *TokenManager) SetOrgSessionResolver(r OrgSessionResolver) {
+	tm.orgResolver = r
+}
+
+// GenerateTokenPair generates a new access (RS256, 15 min) + refresh (30 day)
+// pair, starting a FRESH session family. Used by password login and any flow
+// that begins a brand-new session.
 func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID uuid.UUID, orgRoles map[uuid.UUID]string, permissions []string, featureFlags []string, device DeviceContext) (*TokenPair, error) {
+	return tm.generatePair(ctx, userID, tenantID, orgRoles, permissions, featureFlags, device, uuid.Nil)
+}
+
+// generatePair mints the access token and stores a refresh token row. When
+// familyID is uuid.Nil a new lineage is started; when it carries a value the new
+// token joins that existing family (a rotation).
+func (tm *TokenManager) generatePair(ctx context.Context, userID, tenantID uuid.UUID, orgRoles map[uuid.UUID]string, permissions []string, featureFlags []string, device DeviceContext, familyID uuid.UUID) (*TokenPair, error) {
+	if familyID == uuid.Nil {
+		familyID = uuid.New()
+	}
 	// Generate refresh token (opaque string) and hash it for storage.
 	refreshTokenValue, err := generateRefreshToken()
 	if err != nil {
@@ -121,6 +186,7 @@ func (tm *TokenManager) GenerateTokenPair(ctx context.Context, userID, tenantID 
 	refreshToken := &RefreshToken{
 		UserID:            userID,
 		TenantID:          tenantID,
+		FamilyID:          familyID,
 		TokenHash:         tokenHash,
 		DeviceFingerprint: device.Fingerprint,
 		IPAddress:         device.IP,
@@ -156,6 +222,22 @@ func (tm *TokenManager) IssueSession(ctx context.Context, userID uuid.UUID, devi
 	return tm.GenerateTokenPair(ctx, userID, sc.TenantID, sc.OrgRoles, sc.Permissions, sc.FeatureFlags, device)
 }
 
+// IssueSessionForOrg resolves the user's claims for a SPECIFIC organization
+// (validating active membership via the org resolver) and issues a fresh session
+// family scoped to it. This is the minting half of organization switching; the
+// authorization half — that the user may enter orgID at all — is the org
+// resolver's responsibility, so a forged org id can never produce a session.
+func (tm *TokenManager) IssueSessionForOrg(ctx context.Context, userID, orgID uuid.UUID, device DeviceContext) (*TokenPair, error) {
+	if tm.orgResolver == nil {
+		return nil, fmt.Errorf("org session resolver not configured")
+	}
+	sc, err := tm.orgResolver(ctx, userID, orgID)
+	if err != nil {
+		return nil, err
+	}
+	return tm.GenerateTokenPair(ctx, userID, sc.TenantID, sc.OrgRoles, sc.Permissions, sc.FeatureFlags, device)
+}
+
 // GenerateMFAChallengeToken issues a short-lived, permission-less RS256 token of
 // type MFA_REQUIRED. It is the only credential accepted by /auth/mfa/challenge and
 // carries NO refresh token — the full pair is only minted after the code is valid.
@@ -182,44 +264,86 @@ func (tm *TokenManager) GenerateMFAEnrollmentToken(userID, tenantID uuid.UUID) (
 	return token, nil
 }
 
-// RefreshTokenPair rotates a refresh token: it validates and then DELETES the
-// presented token (single-use / reuse prevention), re-resolves the user's current
-// claims, and issues a brand-new pair. Presenting a rotated token again fails
-// (record not found), which is what makes rotation meaningful.
+// RefreshTokenPair rotates a refresh token. It is single-use with reuse
+// detection (RFC 9700 §4.14.2):
+//
+//   - The presented token is looked up. Unknown → ErrRefreshTokenInvalid.
+//   - If it was ALREADY rotated (spent), presenting it again means the lineage is
+//     in more than one party's hands: the entire family is revoked and
+//     ErrRefreshTokenReuse is returned so the client is forced to re-authenticate.
+//   - Otherwise it is claimed ATOMICALLY (UPDATE ... WHERE rotated_at IS NULL). If
+//     two requests race, exactly one flips the flag; the loser is treated as reuse
+//     and the family is revoked.
+//   - Claims are re-resolved for the session's OWN organization (via the org
+//     resolver) so a refresh keeps the user on the org they switched to, and
+//     revoked permissions take effect on the next refresh.
+//   - A brand-new token is issued INTO THE SAME FAMILY.
 func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue string, device DeviceContext) (*TokenPair, error) {
 	tokenHash := hashToken(refreshTokenValue)
 
 	var refreshToken RefreshToken
 	if err := tm.db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&refreshToken).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("invalid refresh token")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRefreshTokenInvalid
 		}
 		return nil, fmt.Errorf("failed to find refresh token: %w", err)
 	}
 
 	// Bind the token to its originating device: if both sides present a
-	// fingerprint they must match (correct comparison — previously the stored
-	// fingerprint was compared against the raw token value and always failed).
+	// fingerprint they must match.
 	if device.Fingerprint != "" && refreshToken.DeviceFingerprint != "" && refreshToken.DeviceFingerprint != device.Fingerprint {
-		return nil, fmt.Errorf("device fingerprint mismatch")
+		return nil, ErrDeviceMismatch
 	}
 
-	// ROTATION: delete the presented token before issuing a new one. Any replay of
-	// this exact token from here on hits ErrRecordNotFound above.
-	if err := tm.db.WithContext(ctx).Delete(&refreshToken).Error; err != nil {
-		return nil, fmt.Errorf("failed to rotate refresh token: %w", err)
+	// REUSE DETECTION: a token already consumed by a rotation is being replayed.
+	// The lineage is compromised — revoke the whole family and refuse.
+	if refreshToken.RotatedAt != nil {
+		tm.revokeFamily(ctx, refreshToken.FamilyID)
+		return nil, ErrRefreshTokenReuse
 	}
 
 	if refreshToken.IsExpired() {
-		return nil, fmt.Errorf("refresh token expired")
+		// Clean up the dead token; a later replay reads as invalid, not reuse.
+		tm.db.WithContext(ctx).Delete(&refreshToken)
+		return nil, ErrRefreshTokenExpired
 	}
 
-	// Preserve (and freshen) permissions + org roles + claims via the resolver.
-	// Fall back to the token's own tenant with empty perms only if unconfigured.
+	// ATOMIC CLAIM: only the winner of a concurrent rotation flips rotated_at from
+	// NULL. The row is kept (not deleted) so a replay is recognisable as reuse.
+	now := time.Now()
+	res := tm.db.WithContext(ctx).Model(&RefreshToken{}).
+		Where("id = ? AND rotated_at IS NULL", refreshToken.ID).
+		Update("rotated_at", now)
+	if res.Error != nil {
+		return nil, fmt.Errorf("failed to rotate refresh token: %w", res.Error)
+	}
+	if res.RowsAffected != 1 {
+		// A concurrent request already rotated this exact single-use token. Two
+		// live holders of one token is a compromise signal → revoke the family.
+		tm.revokeFamily(ctx, refreshToken.FamilyID)
+		return nil, ErrRefreshTokenReuse
+	}
+
+	// Preserve (and freshen) claims for the session's OWN organization so a refresh
+	// never silently snaps the user back to their default org.
 	tenantID := refreshToken.TenantID
 	var orgRoles map[uuid.UUID]string
 	var permissions, featureFlags []string
-	if tm.resolver != nil {
+	switch {
+	case tm.orgResolver != nil:
+		sc, err := tm.orgResolver(ctx, refreshToken.UserID, refreshToken.TenantID)
+		if err != nil {
+			// The user is no longer an active member of this org (removed /
+			// deactivated): kill the family rather than re-issue a session for an
+			// org they can no longer enter.
+			tm.revokeFamily(ctx, refreshToken.FamilyID)
+			return nil, err
+		}
+		if sc.TenantID != uuid.Nil {
+			tenantID = sc.TenantID
+		}
+		orgRoles, permissions, featureFlags = sc.OrgRoles, sc.Permissions, sc.FeatureFlags
+	case tm.resolver != nil:
 		sc, err := tm.resolver(ctx, refreshToken.UserID)
 		if err != nil {
 			return nil, err
@@ -231,8 +355,7 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	}
 
 	// Carry forward whatever the rotating request did not restate, so a device
-	// keeps its identity in the session list across refreshes instead of
-	// degrading to blanks every 15 minutes.
+	// keeps its identity in the session list across refreshes.
 	next := device
 	if next.Fingerprint == "" {
 		next.Fingerprint = refreshToken.DeviceFingerprint
@@ -243,7 +366,24 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	if next.UserAgent == "" {
 		next.UserAgent = refreshToken.UserAgent
 	}
-	return tm.GenerateTokenPair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, next)
+	return tm.generatePair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, next, refreshToken.FamilyID)
+}
+
+// revokeFamily deletes every refresh token in a lineage. Best-effort: a failure
+// here must not mask the security decision that triggered it.
+func (tm *TokenManager) revokeFamily(ctx context.Context, familyID uuid.UUID) {
+	if familyID == uuid.Nil {
+		return
+	}
+	tm.db.WithContext(ctx).Where("family_id = ?", familyID).Delete(&RefreshToken{})
+}
+
+// PruneExpiredTokens removes refresh tokens past their TTL (both live and spent).
+// Reuse detection only needs a spent token to survive its own validity window, so
+// pruning by ExpiresAt is safe. Intended to be called periodically by a worker.
+func (tm *TokenManager) PruneExpiredTokens(ctx context.Context) (int64, error) {
+	res := tm.db.WithContext(ctx).Where("expires_at < ?", time.Now()).Delete(&RefreshToken{})
+	return res.RowsAffected, res.Error
 }
 
 // RevokeRefreshToken revokes a refresh token
