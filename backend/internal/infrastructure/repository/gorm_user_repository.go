@@ -145,3 +145,19 @@ func (r *GormUserRepository) GetOrganizationMember(ctx context.Context, userID, 
 func (r *GormUserRepository) CreateOrganizationMember(ctx context.Context, member *domain.OrganizationMember) error {
 	return r.db.WithContext(ctx).Create(member).Error
 }
+
+// ListActiveMemberships returns every ACTIVE organization membership for a user,
+// with the Organization preloaded. It is the source of truth for "which orgs may
+// this user switch into" — the org switcher lists exactly these, and the switch
+// endpoint independently re-validates against the same is_active predicate.
+func (r *GormUserRepository) ListActiveMemberships(ctx context.Context, userID uuid.UUID) ([]*domain.OrganizationMember, error) {
+	var members []*domain.OrganizationMember
+	err := r.db.WithContext(ctx).
+		Preload("Organization").
+		Where("user_id = ? AND is_active = ?", userID, true).
+		Find(&members).Error
+	if err != nil {
+		return nil, err
+	}
+	return members, nil
+}

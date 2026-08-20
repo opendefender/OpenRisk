@@ -778,6 +778,14 @@ func main() {
 	)
 	newDeviceNotifier := auth.NewNotifyNewDeviceUseCase(sessionRepo, securityMailer)
 
+	// Organization switching (server-authorized). userRepo satisfies the narrow
+	// MembershipRepository the use cases need; the switch mints an org-scoped
+	// session via the org resolver wired above, so membership is re-checked at mint
+	// time and a forged org id can never yield a session.
+	listOrgsUseCase := auth.NewListOrganizationsUseCase(userRepo)
+	switchOrgUseCase := auth.NewSwitchOrganizationUseCase(userRepo, tokenManager)
+	switchHandler := authhandler.NewSwitchHandler(listOrgsUseCase, switchOrgUseCase, authAudit)
+
 	// Initialize Clean Architecture auth handler
 	cleanAuthHandler := authhandler.NewHandler(
 		loginUseCase,
@@ -1043,6 +1051,12 @@ func main() {
 	protected.Get("/auth/sessions", sessionHandler.ListSessions)
 	protected.Delete("/auth/sessions/others", sessionHandler.RevokeOtherSessions)
 	protected.Delete("/auth/sessions/:id", sessionHandler.RevokeSession)
+
+	// Organization switching — list the orgs the user may enter, and switch into
+	// one. Both require an authenticated session (mounted under protected); the
+	// switch re-validates active membership of the target org on the server.
+	protected.Get("/auth/organizations", switchHandler.ListOrganizations)
+	protected.Post("/auth/switch-org", switchHandler.SwitchOrganization)
 
 	// --- Personal Access Tokens (L5) management — full session required ---
 	protected.Post("/auth/pat", patHandler.Create)
