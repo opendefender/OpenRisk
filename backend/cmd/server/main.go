@@ -201,6 +201,10 @@ func main() {
 		&domain.User{},
 		&domain.Organization{},
 		&domain.OrganizationMember{},
+		// Organization invitations (W0-04, migration 0058). The previous
+		// invitations model was never in AutoMigrate, so the table never existed
+		// and the invitation code that referenced it could not have run.
+		&domain.Invitation{},
 		&coreauth.RefreshToken{},
 		// L2/L4/L5/L7 auth tables. Previously absent from AutoMigrate, so the whole
 		// feature set (MFA setup/challenge, PAT auth, SSO account linking, and the
