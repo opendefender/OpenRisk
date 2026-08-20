@@ -7,25 +7,23 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
-	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
-// BusinessRoleHandler exposes the RBAC catalog (permissions + business-role
-// presets), the tenant's members with their resolved access, and the
-// assign-a-business-role action. Reads are open to any authenticated member (so
-// the UI can render matrices); the assign action is admin-gated at the route.
-type BusinessRoleHandler struct {
-	listMembers  *apprbac.ListMembersUseCase
-	assignRole   *apprbac.AssignBusinessRoleUseCase
-	inviteMember *apprbac.InviteMemberUseCase
-}
+// BusinessRoleHandler exposes the RBAC catalog: the permission vocabulary and
+// the business-role presets, so the UI can render a self-describing permission
+// matrix. Open to any authenticated member — it is reference material about the
+// product, not data about anybody's organization.
+//
+// Listing members, inviting them and assigning their roles used to live here
+// too. They now live under /organization/members (W0-04), which is one system
+// rather than two: this handler's invite created a user immediately and handed
+// the administrator a temporary password to relay, with no token, no expiry, no
+// revocation and no resend.
+type BusinessRoleHandler struct{}
 
 // NewBusinessRoleHandler builds the handler.
-func NewBusinessRoleHandler(listMembers *apprbac.ListMembersUseCase, assignRole *apprbac.AssignBusinessRoleUseCase, inviteMember *apprbac.InviteMemberUseCase) *BusinessRoleHandler {
-	return &BusinessRoleHandler{listMembers: listMembers, assignRole: assignRole, inviteMember: inviteMember}
-}
+func NewBusinessRoleHandler() *BusinessRoleHandler { return &BusinessRoleHandler{} }
 
 // RBACCatalogResponse is the self-describing permission matrix payload.
 type RBACCatalogResponse struct {
@@ -40,74 +38,4 @@ func (h *BusinessRoleHandler) GetCatalog(c *fiber.Ctx) error {
 		Permissions:   domain.PermissionCatalog,
 		BusinessRoles: domain.ListBusinessRoles(),
 	})
-}
-
-// ListMembers returns the tenant's members with their org role, business role
-// and resolved permission set.
-// GET /rbac/members
-func (h *BusinessRoleHandler) ListMembers(c *fiber.Ctx) error {
-	views, err := h.listMembers.Execute(c.UserContext(), tenantID(c))
-	if err != nil {
-		return writeAppError(c, err)
-	}
-	return c.JSON(fiber.Map{"members": views})
-}
-
-// AssignBusinessRoleRequest is the assign-role body.
-type AssignBusinessRoleRequest struct {
-	BusinessRole string `json:"business_role"` // preset key, or "" to clear
-	MemberRole   string `json:"member_role"`   // optional: "admin" | "user"
-}
-
-// AssignBusinessRole assigns (or clears) a member's business role, optionally
-// changing their org role in the same call.
-// PUT /rbac/members/:userId/business-role
-func (h *BusinessRoleHandler) AssignBusinessRole(c *fiber.Ctx) error {
-	targetID, err := uuid.Parse(c.Params("userId"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
-	}
-
-	var req AssignBusinessRoleRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
-	}
-
-	view, err := h.assignRole.Execute(c.UserContext(), tenantID(c), apprbac.AssignBusinessRoleInput{
-		TargetUserID: targetID,
-		BusinessRole: domain.BusinessRoleKey(req.BusinessRole),
-		MemberRole:   domain.MemberRole(req.MemberRole),
-	})
-	if err != nil {
-		return writeAppError(c, err)
-	}
-	return c.JSON(view)
-}
-
-// InviteMemberRequest is the invite body.
-type InviteMemberRequest struct {
-	Email        string `json:"email"`
-	FullName     string `json:"full_name"`
-	MemberRole   string `json:"member_role"`   // optional: "admin" | "user" (default user)
-	BusinessRole string `json:"business_role"` // optional preset key
-}
-
-// InviteMember adds a new member to the current tenant with an org role and an
-// optional business-role preset, returning a one-time temporary password to share.
-// POST /rbac/members
-func (h *BusinessRoleHandler) InviteMember(c *fiber.Ctx) error {
-	var req InviteMemberRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
-	}
-	res, err := h.inviteMember.Execute(c.UserContext(), tenantID(c), apprbac.InviteMemberInput{
-		Email:        req.Email,
-		FullName:     req.FullName,
-		MemberRole:   domain.MemberRole(req.MemberRole),
-		BusinessRole: domain.BusinessRoleKey(req.BusinessRole),
-	})
-	if err != nil {
-		return writeAppError(c, err)
-	}
-	return c.Status(fiber.StatusCreated).JSON(res)
 }

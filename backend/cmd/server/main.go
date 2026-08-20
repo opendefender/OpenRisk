@@ -46,7 +46,6 @@ import (
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/orgdeletion"
 	"github.com/opendefender/openrisk/internal/application/ownership"
-	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -604,6 +603,10 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewGormUserRepository(database.DB)
 	orgRepo := repository.NewGormOrganizationRepository(database.DB)
+	// The single tenant-scoped store for organization memberships. Built here
+	// because three call sites read through it: the ownership <UserPicker>, the
+	// global search, and member management (§5.10).
+	membershipRepo := repository.NewGormMembershipRepository(database.DB)
 
 	// Initialize notification service (mock email transport - swap for SMTP in production)
 	emailFromAddr := os.Getenv("EMAIL_FROM")
@@ -1109,7 +1112,7 @@ func main() {
 	// notifies the newly assigned. Its dependencies are stateless wrappers over
 	// database.DB, so instantiating them here (ahead of the RBAC and notification
 	// blocks further down) costs nothing and keeps the risk module's wiring local.
-	ownershipMembers := repository.NewGormMemberRBACRepository(database.DB)
+	ownershipMembers := memberDirectory{repo: membershipRepo}
 	ownershipService := ownership.NewService().
 		WithMembers(ownershipMembers).
 		WithUsers(repository.NewGormUserRepository(database.DB)).
@@ -2186,7 +2189,6 @@ func main() {
 	// The two acceptance routes are mounted OUTSIDE this group, further down,
 	// because an invitee may not have an account yet.
 	// =========================================================================
-	membershipRepo := repository.NewGormMembershipRepository(database.DB)
 	membershipSvc := membership.NewService(membershipRepo, userRepo).
 		WithOrganizations(orgRepo).
 		// The recorder feeds the request collector, so a membership action lands
@@ -2237,25 +2239,18 @@ func main() {
 	// forward declaration above); assign the handler they capture.
 	invitationPublicHandler = memberHandler
 
-	// Business Roles — the runtime RBAC that actually drives authorization.
-	// The catalog (permissions + presets) is readable by any authenticated member
-	// so the UI can render the matrix; listing members and assigning a business
-	// role are admin-gated. Operates on organization_members (the login-path model),
-	// tenant-scoped by GormMemberRBACRepository. The static /rbac/members/roles
-	// catalog path is a sibling of /rbac/members/:userId (no Fiber :param trap).
-	memberRBACRepo := repository.NewGormMemberRBACRepository(database.DB)
-	businessRoleHandler := handlers.NewBusinessRoleHandler(
-		apprbac.NewListMembersUseCase(memberRBACRepo),
-		apprbac.NewAssignBusinessRoleUseCase(memberRBACRepo),
-		// Invite reuses the shared user repo + password hasher to provision a real
-		// member (user + organization_member) in the tenant (OR-BUG-003).
-		apprbac.NewInviteMemberUseCase(userRepo, passwordHasher).WithActivation(activationRecorder),
-	)
+	// The RBAC catalog: the permission vocabulary and the business-role presets,
+	// readable by any authenticated member so the UI can render the permission
+	// matrix. It is reference material about the product, not data about anyone's
+	// organization.
+	//
+	// GET/POST /rbac/members and PUT /rbac/members/:userId/business-role were
+	// removed here in favour of /organization/members (§5.10). Keeping both would
+	// have meant two ways to add a colleague — and the one here created the user
+	// immediately and handed the administrator a temporary password to relay,
+	// with no token, no expiry, no revocation and no resend.
+	businessRoleHandler := handlers.NewBusinessRoleHandler()
 	protected.Get("/rbac/business-roles", businessRoleHandler.GetCatalog)
-	protected.Get("/rbac/members", adminRole, businessRoleHandler.ListMembers)
-	// POST /rbac/members (static) is a sibling of /rbac/members/:userId — no trap.
-	protected.Post("/rbac/members", adminRole, businessRoleHandler.InviteMember)
-	protected.Put("/rbac/members/:userId/business-role", adminRole, businessRoleHandler.AssignBusinessRole)
 
 	// =========================================================================
 	// 5.6 SCANNER ENGINE (cloud SDK scans + on-prem Agent, Redis preview)
@@ -2473,7 +2468,11 @@ func main() {
 			WithAudits(complianceAuditRepo).
 			WithReports(boardRepo).
 			WithCVE(ctiService).
-			WithMembers(memberRBACRepo),
+			// The member source is the membership repository behind an adapter:
+			// search wants "every member of this tenant" while the repository's
+			// listing is paged and filtered. Adapting here keeps ONE member store
+			// rather than a second one kept alive for this call site.
+			WithMembers(memberDirectory{repo: membershipRepo}),
 	)
 	protected.Get("/search", searchHandler.Search)
 
@@ -2826,4 +2825,21 @@ func buildEmailTransport() email.Service {
 	}
 	log.Printf("Email: SMTP transport %s:%d", host, port)
 	return email.FromEnv(host, port, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), from)
+}
+
+// memberDirectory adapts the tenant-scoped membership repository to the narrow
+// "who is in this tenant" shape that the ownership picker and the global search
+// expect: both want the roster, while the repository's listing is paged and
+// filtered. Adapting here keeps ONE membership store rather than a second one
+// kept alive for these two call sites. Both consumers cap their own output, so
+// the page size below is the repository ceiling, not an unbounded read.
+type memberDirectory struct{ repo domain.MembershipRepository }
+
+func (m memberDirectory) ListMembers(ctx context.Context, tenantID uuid.UUID) ([]domain.OrganizationMember, error) {
+	rows, _, err := m.repo.ListMembers(ctx, tenantID, domain.MemberQuery{Limit: 200})
+	return rows, err
+}
+
+func (m memberDirectory) GetMember(ctx context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error) {
+	return m.repo.GetMember(ctx, tenantID, userID)
 }
