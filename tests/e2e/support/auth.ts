@@ -20,8 +20,9 @@
 // token_pair. Both second-factor shapes are completed here.
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import type { APIRequestContext } from '@playwright/test';
-import { API_URL, FRONTEND_ORIGIN } from './env';
+import { API_URL, FRONTEND_ORIGIN, SEED_IDS_FILE } from './env';
 
 export interface TokenPair {
   access_token: string;
@@ -89,19 +90,37 @@ export function buildAuthUser(login: LoginResult): Record<string, unknown> {
 }
 
 /**
+ * The TOTP secret the seed enrolled for the shared admin persona.
+ *
+ * Read lazily, and defaulted into `apiLogin` below, so a caller signing in as
+ * the seed admin does not have to know that MFA exists. Making every call site
+ * remember to pass it is exactly the kind of thing that gets forgotten in one
+ * spec and fails five tests with a message about TOTP.
+ */
+function seedAdminMfaSecret(): string | undefined {
+  try {
+    return JSON.parse(fs.readFileSync(SEED_IDS_FILE, 'utf8')).adminMfaSecret || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Signs in through a Playwright APIRequestContext, completing MFA if demanded.
  *
  * The context accumulates the session cookies, so pass the SAME context to
  * `storageStateFor` afterwards.
  *
- * @param mfaSecret the account's TOTP secret; the seed records the admin's in
- *   tests/e2e/.seed-ids.json. Without it an enrolled account cannot be answered.
+ * @param mfaSecret the account's TOTP secret. Defaults to the one the seed
+ *   enrolled, which is the right answer for the shared admin persona; pass one
+ *   explicitly for any other pre-enrolled account. A freshly-registered account
+ *   needs none — it enrols here, and enrolment issues the session.
  */
 export async function apiLogin(
   request: APIRequestContext,
   email: string,
   password: string,
-  mfaSecret?: string,
+  mfaSecret: string | undefined = seedAdminMfaSecret(),
 ): Promise<LoginResult> {
   const res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
   if (!res.ok()) {

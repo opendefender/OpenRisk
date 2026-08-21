@@ -23,7 +23,7 @@
 // backend/internal/handler/risk_lifecycle_e2e_test.go.
 
 import { test, expect, request as pwRequest, type APIRequestContext } from '@playwright/test';
-import { API_URL, ADMIN, FRONTEND_ORIGIN, SEED_IDS_FILE } from './support/env';
+import { API_URL, API_BASE, ADMIN, FRONTEND_ORIGIN, SEED_IDS_FILE } from './support/env';
 import fs from 'node:fs';
 import { apiLogin, storageStateFor } from './support/auth';
 
@@ -40,7 +40,7 @@ async function authed(): Promise<{
   token: string;
   state: Awaited<ReturnType<typeof storageStateFor>>;
 }> {
-  const raw = await pwRequest.newContext({ baseURL: API_URL });
+  const raw = await pwRequest.newContext({ baseURL: API_BASE });
   // MFA is mandated, so the password step alone yields no session. The seed
   // records the TOTP secret it enrolled; without it an enrolled account cannot
   // be answered.
@@ -48,7 +48,7 @@ async function authed(): Promise<{
   const login = await apiLogin(raw, ADMIN.email, ADMIN.password, seed.adminMfaSecret);
   const token = login.token_pair.access_token;
   const api = await pwRequest.newContext({
-    baseURL: API_URL,
+    baseURL: API_BASE,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
   // Built from `raw`, the context that performed the login and therefore holds
@@ -58,13 +58,13 @@ async function authed(): Promise<{
 
 /** POST a transition and return { status, error } without throwing on 4xx. */
 async function transition(api: APIRequestContext, riskId: string, to: string) {
-  const res = await api.post(`/risks/${riskId}/transition`, { data: { to, comment: 'e2e' } });
+  const res = await api.post(`risks/${riskId}/transition`, { data: { to, comment: 'e2e' } });
   const body = await res.json().catch(() => ({}));
   return { status: res.status(), error: (body as { error?: string }).error ?? '' };
 }
 
 async function stateOf(api: APIRequestContext, riskId: string) {
-  const res = await api.get(`/risks/${riskId}`);
+  const res = await api.get(`risks/${riskId}`);
   expect(res.ok()).toBeTruthy();
   return (await res.json()) as { lifecycle_state: string; status: string; lifecycle_phase: string };
 }
@@ -75,7 +75,7 @@ test.describe('Risk lifecycle', () => {
     const ctx: Ctx = { api, token: '', riskId: '', planId: '', subIds: [] };
 
     await test.step('create — lands at DRAFT, owned by its creator', async () => {
-      const res = await api.post('/risks', {
+      const res = await api.post('risks', {
         data: {
           title: `E2E lifecycle ${Date.now()}`,
           description: 'Bucket S3 exposé publiquement — parcours E2E du cycle de vie.',
@@ -113,7 +113,7 @@ test.describe('Risk lifecycle', () => {
 
       // And the stepper's contract reports the same, with the guard named so the
       // UI can offer the way out instead of a dead end.
-      const view = await (await api.get(`/risks/${ctx.riskId}/transitions`)).json();
+      const view = await (await api.get(`risks/${ctx.riskId}/transitions`)).json();
       const blocked = view.options.find((o: { to: string }) => o.to === 'in_treatment');
       expect(blocked).toBeTruthy();
       expect(blocked.allowed).toBe(false);
@@ -122,7 +122,7 @@ test.describe('Risk lifecycle', () => {
     });
 
     await test.step('create the mitigation plan and its checklist', async () => {
-      const res = await api.post(`/risks/${ctx.riskId}/mitigations`, {
+      const res = await api.post(`risks/${ctx.riskId}/mitigations`, {
         data: { title: "Fermer l'accès public", description: 'Retirer la policy, activer SSE-KMS.', priority: 'high' },
       });
       expect(res.status()).toBe(201);
@@ -132,7 +132,7 @@ test.describe('Risk lifecycle', () => {
       expect(plan.progress).toBe(0);
 
       for (const title of ['Retirer la policy publique', 'Activer SSE-KMS']) {
-        const sub = await api.post(`/mitigations/${ctx.planId}/sub-actions`, { data: { title } });
+        const sub = await api.post(`mitigations/${ctx.planId}/sub-actions`, { data: { title } });
         expect(sub.status()).toBe(201);
         ctx.subIds.push((await sub.json()).id);
       }
@@ -154,13 +154,13 @@ test.describe('Risk lifecycle', () => {
       expect(r.error).toContain('2');
 
       // One down, one to go — the count in the refusal follows reality.
-      expect((await api.post(`/mitigations/${ctx.planId}/sub-actions/${ctx.subIds[0]}/complete`)).ok()).toBeTruthy();
+      expect((await api.post(`mitigations/${ctx.planId}/sub-actions/${ctx.subIds[0]}/complete`)).ok()).toBeTruthy();
       r = await transition(api, ctx.riskId, 'mitigated');
       expect(r.status).toBe(400);
       expect(r.error).toContain('1');
 
       // …and progress was recomputed server-side by that completion.
-      const plan = await (await api.get(`/mitigations/${ctx.planId}`)).json();
+      const plan = await (await api.get(`mitigations/${ctx.planId}`)).json();
       expect(plan.progress).toBe(50);
     });
 
@@ -171,7 +171,7 @@ test.describe('Risk lifecycle', () => {
 
       // Submit the acceptance request. A request that exists but is pending is
       // NOT an approval — the refusal names it so it can be chased.
-      const submitted = await api.post('/governance/approvals', {
+      const submitted = await api.post('governance/approvals', {
         data: {
           entity_type: 'risk_acceptance',
           entity_id: ctx.riskId,
@@ -190,7 +190,7 @@ test.describe('Risk lifecycle', () => {
 
       // Approve it (four-eyes: a different member must sign, so this step needs
       // a second seeded account — skipped rather than faked when absent).
-      const decided = await api.post(`/governance/approvals/${request.id}/decide`, {
+      const decided = await api.post(`governance/approvals/${request.id}/decide`, {
         data: { decision: 'approve', comment: 'E2E' },
       });
       test.skip(!decided.ok(), 'four-eyes: the requester cannot approve their own request');
@@ -207,8 +207,8 @@ test.describe('Risk lifecycle', () => {
         expect((await transition(api, ctx.riskId, 'in_treatment')).status).toBe(200);
       }
 
-      expect((await api.post(`/mitigations/${ctx.planId}/sub-actions/${ctx.subIds[1]}/complete`)).ok()).toBeTruthy();
-      const plan = await (await api.get(`/mitigations/${ctx.planId}`)).json();
+      expect((await api.post(`mitigations/${ctx.planId}/sub-actions/${ctx.subIds[1]}/complete`)).ok()).toBeTruthy();
+      const plan = await (await api.get(`mitigations/${ctx.planId}`)).json();
       expect(plan.progress).toBe(100);
 
       expect((await transition(api, ctx.riskId, 'mitigated')).status).toBe(200);
@@ -227,7 +227,7 @@ test.describe('Risk lifecycle', () => {
 
     // A risk parked in TREATMENT_PLANNED with no mitigation: the next step is
     // blocked, and the UI must SAY SO rather than offering nothing.
-    const created = await api.post('/risks', {
+    const created = await api.post('risks', {
       data: { title: `E2E blocked ${Date.now()}`, description: 'Étape suivante bloquée.', impact: 6, probability: 0.4 },
     });
     const risk = await created.json();
