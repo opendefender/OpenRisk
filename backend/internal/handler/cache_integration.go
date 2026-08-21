@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+
+	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/pkg/cache"
 )
 
@@ -65,6 +68,120 @@ func (ch *CacheableHandlers) SetCacheConfig(cfg CacheConfig) {
 	ch.cacheConfig = cfg
 }
 
+// ---------------------------------------------------------------------------
+// Cache keys
+//
+// Every key below starts with the tenant. That is the entire point of this
+// section, and it is worth saying why in one place rather than five.
+//
+// Before W0-06 these were anonymous closures inside the wrapper methods, and not
+// one of them carried a tenant: `dashboard:stats:month`, `dashboard:matrix:all`,
+// `risk:list:page:1:sev::status:`. Any tenant's request would have produced the
+// same key as any other tenant's, so the first response cached would have been
+// served to everyone. It was not a live disclosure, for exactly one reason:
+// cache.WrapWithCache returns the handler unchanged and never evaluates the key.
+// Dead keys — but dead in a way nobody reading main.go could see, and one
+// implementation of that wrapper away from being a leak on every dashboard at
+// once.
+//
+// They are named functions now so the tests can call them directly and assert
+// two things that no amount of reading guarantees: that a request with no
+// resolved tenant yields NO key, and that two tenants never collide.
+// ---------------------------------------------------------------------------
+
+// tenantScope returns the request's tenant prefix, or false when there is none.
+//
+// False is not an error path to paper over. It is the correct answer for an
+// unauthenticated or unresolved request, and the KeyFunc contract turns it into
+// "do not cache" rather than "cache under a shared key".
+func tenantScope(c *fiber.Ctx) (string, bool) {
+	ctx := middleware.GetContext(c)
+	if ctx == nil || ctx.OrganizationID == uuid.Nil {
+		return "", false
+	}
+	return "t:" + ctx.OrganizationID.String(), true
+}
+
+func dashboardStatsCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	// The period is part of the key because it is part of the answer: two
+	// windows over the same register are two different responses.
+	return fmt.Sprintf("dashboard:stats:%s:period:%s:from:%s:to:%s",
+		scope, c.Query("period"), c.Query("from"), c.Query("to")), true
+}
+
+func dashboardMatrixCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("dashboard:matrix:%s", scope), true
+}
+
+func dashboardTimelineCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("dashboard:timeline:%s:days:%s", scope, c.Query("days", "30")), true
+}
+
+func riskListCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("risk:list:%s:page:%s:sev:%s:status:%s",
+		scope, c.Query("page", "1"), c.Query("severity", ""), c.Query("status", "")), true
+}
+
+func riskSearchCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("risk:search:%s:%s", scope, hashQuery(c.Query("q", ""))), true
+}
+
+func riskByIDCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	// A risk id is a UUID and is not guessable, but the tenant still belongs in
+	// the key: the response body is tenant data, and "unguessable" is not the
+	// same guarantee as "scoped".
+	return fmt.Sprintf("risk:id:%s:%s", scope, c.Params("id")), true
+}
+
+func connectorListCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("connector:list:%s:cat:%s:status:%s",
+		scope, c.Query("category", "all"), c.Query("status", "all")), true
+}
+
+func connectorByIDCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("connector:id:%s:%s", scope, c.Params("id")), true
+}
+
+func marketplaceAppByIDCacheKey(c *fiber.Ctx) (string, bool) {
+	scope, ok := tenantScope(c)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("marketplace:app:%s:%s", scope, c.Params("id")), true
+}
+
 // ============================================================================
 // RISK HANDLER CACHE HELPERS
 // ============================================================================
@@ -111,12 +228,7 @@ func (ch *CacheableHandlers) CacheRiskListGET(handler fiber.Handler) fiber.Handl
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			page := c.Query("page", "1")
-			severity := c.Query("severity", "")
-			status := c.Query("status", "")
-			return fmt.Sprintf("risk:list:page:%s:sev:%s:status:%s", page, severity, status)
-		},
+		riskListCacheKey,
 		ch.cacheConfig.RiskCacheTTL,
 	)
 }
@@ -128,10 +240,7 @@ func (ch *CacheableHandlers) CacheRiskSearchGET(handler fiber.Handler) fiber.Han
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			query := c.Query("q", "")
-			return fmt.Sprintf("risk:search:%s", hashQuery(query))
-		},
+		riskSearchCacheKey,
 		ch.cacheConfig.RiskCacheTTL,
 	)
 }
@@ -143,10 +252,7 @@ func (ch *CacheableHandlers) CacheRiskGetByIDGET(handler fiber.Handler) fiber.Ha
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			riskID := c.Params("id")
-			return fmt.Sprintf("risk:id:%s", riskID)
-		},
+		riskByIDCacheKey,
 		ch.cacheConfig.RiskCacheTTL,
 	)
 }
@@ -198,10 +304,7 @@ func (ch *CacheableHandlers) CacheDashboardStatsGET(handler fiber.Handler) fiber
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			period := c.Query("period", "month")
-			return fmt.Sprintf("dashboard:stats:%s", period)
-		},
+		dashboardStatsCacheKey,
 		ch.cacheConfig.DashboardCacheTTL,
 	)
 }
@@ -213,9 +316,7 @@ func (ch *CacheableHandlers) CacheDashboardMatrixGET(handler fiber.Handler) fibe
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			return "dashboard:matrix:all"
-		},
+		dashboardMatrixCacheKey,
 		ch.cacheConfig.DashboardCacheTTL,
 	)
 }
@@ -227,10 +328,7 @@ func (ch *CacheableHandlers) CacheDashboardTimelineGET(handler fiber.Handler) fi
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			days := c.Query("days", "30")
-			return fmt.Sprintf("dashboard:timeline:%s", days)
-		},
+		dashboardTimelineCacheKey,
 		ch.cacheConfig.DashboardCacheTTL,
 	)
 }
@@ -275,11 +373,7 @@ func (ch *CacheableHandlers) CacheConnectorListGET(handler fiber.Handler) fiber.
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			category := c.Query("category", "all")
-			status := c.Query("status", "all")
-			return fmt.Sprintf("connector:list:cat:%s:status:%s", category, status)
-		},
+		connectorListCacheKey,
 		ch.cacheConfig.ConnectorCacheTTL,
 	)
 }
@@ -291,10 +385,7 @@ func (ch *CacheableHandlers) CacheConnectorGetByIDGET(handler fiber.Handler) fib
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			connectorID := c.Params("id")
-			return fmt.Sprintf("connector:id:%s", connectorID)
-		},
+		connectorByIDCacheKey,
 		ch.cacheConfig.ConnectorCacheTTL,
 	)
 }
@@ -306,10 +397,7 @@ func (ch *CacheableHandlers) CacheMarketplaceAppGetByIDGET(handler fiber.Handler
 	}
 	return ch.decoration.WrapWithCache(
 		handler,
-		func(c *fiber.Ctx) string {
-			appID := c.Params("id")
-			return fmt.Sprintf("marketplace:app:%s", appID)
-		},
+		marketplaceAppByIDCacheKey,
 		ch.cacheConfig.MarketplaceAppTTL,
 	)
 }
