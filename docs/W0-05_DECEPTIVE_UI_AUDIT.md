@@ -517,12 +517,18 @@ the secret it enrolled so a re-run can answer a challenge instead of failing wit
 a bare "invalid code", and the `storageState` now carries the real
 `or_access` / `or_refresh` / `or_csrf` cookies.
 
-**Three tests in `dead-controls.spec.ts` fail, and were already stale.** They
-target `universe-node-count`, `universe-filter` and `delete-org` — testids for
-components earlier waves replaced (Asset Universe became `TopologyView`, the
-danger zone became `DangerZonePanel`). None of those surfaces belongs to this
-wave, so they are reported rather than rewritten. The staleness was simply
-invisible while nothing could run.
+**Two tests in `dead-controls.spec.ts` fail, and were already stale.** They
+target `universe-node-count` / `universe-filter` and `delete-org` — testids that
+exist nowhere in the codebase, for components earlier waves replaced (Asset
+Universe became `TopologyView`, the danger zone became `DangerZonePanel`). None
+of those surfaces belongs to this wave, so they are reported rather than
+rewritten. The staleness was simply invisible while nothing could run.
+
+A third (`executive dashboard: Refresh`) failed on the first, 8-worker run and
+**passes serially** — the parallel failures were auth rate-limiting, not
+staleness. CI runs `workers: 1`; local runs default to one per CPU, and eight
+concurrent logins exhaust the auth limiter. Worth knowing before reading a local
+red run as a product defect.
 
 ### The W0-05 scenarios
 
@@ -640,8 +646,10 @@ environment, tenants, commands, observed responses and screenshots of record.
 Recorded in the live-proof document alongside the evidence that bounds them.
 The three that most affect how this wave should be read:
 
-1. Three `dead-controls.spec.ts` tests fail against testids earlier waves
-   removed. Reported, not rewritten.
+1. Two `dead-controls.spec.ts` tests fail against testids earlier waves
+   removed. Reported, not rewritten. (A third failed only under 8-way
+   parallelism, from auth rate-limiting; it passes serially, which is how CI
+   runs.)
 2. `a11y.spec.ts` now runs and surfaces real, pre-existing WCAG violations
    (missing progressbar names, colour contrast) across many routes. Newly
    *visible*, not newly introduced.

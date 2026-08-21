@@ -243,10 +243,11 @@ under E2E Validation).
 
 ## Known Limitations
 
-1. **Three `dead-controls.spec.ts` tests fail.** They target `universe-node-count`,
-   `universe-filter` and `delete-org`, testids for components earlier waves
-   replaced. Reported, not rewritten: those surfaces are not this wave's, and
-   asserting new behaviour on them without studying it would be guessing.
+1. **Two `dead-controls.spec.ts` tests fail.** They target `universe-node-count` /
+   `universe-filter` and `delete-org`, testids that exist nowhere in the
+   codebase, for components earlier waves replaced. Reported, not rewritten:
+   those surfaces are not this wave's, and asserting new behaviour on them
+   without studying it would be guessing.
 2. **The e-mail half of the preference gate is proven by unit test, not by a
    delivered message.** No SMTP server is configured here, so
    `ShouldNotify(...Email)` is asserted at the use-case boundary and at the four
