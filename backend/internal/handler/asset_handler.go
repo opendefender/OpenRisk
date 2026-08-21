@@ -14,6 +14,7 @@ import (
 
 	assetuc "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/domain/timeframe"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/pkg/events"
 	"github.com/opendefender/openrisk/pkg/validation"
@@ -27,6 +28,7 @@ type AssetHandler struct {
 	updateAssetUC        *assetuc.UpdateAssetUseCase
 	deleteAssetUC        *assetuc.DeleteAssetUseCase
 	listAssetSnapshotsUC *assetuc.ListAssetSnapshotsUseCase
+	assetStatisticsUC    *assetuc.AssetStatisticsUseCase
 	redisClient          *redis.Client
 }
 
@@ -37,6 +39,7 @@ func NewAssetHandler(
 	updateAsset *assetuc.UpdateAssetUseCase,
 	deleteAsset *assetuc.DeleteAssetUseCase,
 	listAssetSnapshots *assetuc.ListAssetSnapshotsUseCase,
+	assetStatistics *assetuc.AssetStatisticsUseCase,
 	redisClient *redis.Client,
 ) *AssetHandler {
 	return &AssetHandler{
@@ -46,6 +49,7 @@ func NewAssetHandler(
 		updateAssetUC:        updateAsset,
 		deleteAssetUC:        deleteAsset,
 		listAssetSnapshotsUC: listAssetSnapshots,
+		assetStatisticsUC:    assetStatistics,
 		redisClient:          redisClient,
 	}
 }
@@ -108,6 +112,48 @@ func (h *AssetHandler) ListAssets(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(assets)
+}
+
+// assetStatisticsResponse is the wire shape of GET /assets/statistics.
+//
+// The period is echoed back, and `period_applies_to` names the fields the window
+// actually narrowed. That list is not decoration: a dashboard that shows numbers
+// without saying which period produced them cannot be reconciled against
+// anything, and a period control that appears to filter every tile while filtering
+// one is worse than no control at all.
+type assetStatisticsResponse struct {
+	Period timeframe.Resolved `json:"period"`
+	// PeriodAppliesTo names the period-scoped fields. Everything else is a
+	// point-in-time stock, counted in full.
+	PeriodAppliesTo []string `json:"period_applies_to"`
+	*domain.AssetStatistics
+	GeneratedAt string `json:"generated_at"`
+}
+
+// GetAssetStatistics godoc
+//
+// GET /assets/statistics?period=…  — the inventory's shape, counted in SQL.
+//
+// This exists because the estate dashboard used to answer the same question by
+// downloading the entire inventory (with its risk associations preloaded, since
+// that is what GET /assets does for the topology graph) and reducing it in the
+// browser. The counts were right; obtaining them cost the whole inventory on
+// every dashboard paint, and grew with the tenant.
+func (h *AssetHandler) GetAssetStatistics(c *fiber.Ctx) error {
+	window, errResp := parsePeriod(c)
+	if errResp != nil {
+		return errResp
+	}
+	stats, err := h.assetStatisticsUC.Execute(c.UserContext(), tenantID(c), window)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(assetStatisticsResponse{
+		Period:          window.Resolved(),
+		PeriodAppliesTo: []string{"added_in_period"},
+		AssetStatistics: stats,
+		GeneratedAt:     time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // GetAsset godoc
