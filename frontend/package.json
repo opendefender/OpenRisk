@@ -8,6 +8,7 @@
     "test": "vitest",
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-bundle-budget.mjs",
+    "audit:surfaces": "node scripts/audit-surfaces.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:api-types": "openapi-typescript ../docs/openapi.yaml -o src/types/openapi.generated.ts"
