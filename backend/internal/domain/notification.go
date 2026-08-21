@@ -90,46 +90,62 @@ func (n *Notification) TableName() string {
 }
 
 // NotificationPreference defines user notification preferences
+// JSON tags are explicit, and they are the snake_case names PATCH
+// /notifications/preferences already accepts.
+//
+// Without them encoding/json emitted Go field names — the GET answered
+// {"DisableAllNotifications": false} while the PATCH expected
+// {"disable_all_notifications": false}, so read and write spoke different
+// vocabularies on the same endpoint. No client could round-trip a preference,
+// which is part of why the Settings screen kept its own copy in localStorage
+// instead (W0-05 / D2). Found by driving the screen against a running server.
+//
+// The three credential fields are cut from the payload. They are gorm:"-" so
+// they are always empty today, but a struct that WOULD serialise a webhook URL
+// and an HMAC secret if anything ever populated them is one assignment away
+// from leaking them (RULE #6). The relations are cut for the same reason the
+// Notification's are: a preferences response has no business shipping a whole
+// user record.
 type NotificationPreference struct {
-	ID       uuid.UUID `gorm:"primaryKey"`
-	UserID   uuid.UUID `gorm:"uniqueIndex:idx_user_pref"`
-	TenantID uuid.UUID `gorm:"uniqueIndex:idx_user_pref"`
+	ID       uuid.UUID `gorm:"primaryKey" json:"id"`
+	UserID   uuid.UUID `gorm:"uniqueIndex:idx_user_pref" json:"user_id"`
+	TenantID uuid.UUID `gorm:"uniqueIndex:idx_user_pref" json:"tenant_id"`
 
 	// Email preferences
-	EmailOnMitigationDeadline bool `gorm:"default:true"`
-	EmailOnCriticalRisk       bool `gorm:"default:true"`
-	EmailOnActionAssigned     bool `gorm:"default:true"`
-	EmailOnRiskUpdate         bool `gorm:"default:false"`
-	EmailOnRiskResolved       bool `gorm:"default:true"`
-	EmailDeadlineAdvanceDays  int  `gorm:"default:3"` // Notify N days before deadline
+	EmailOnMitigationDeadline bool `gorm:"default:true" json:"email_on_mitigation_deadline"`
+	EmailOnCriticalRisk       bool `gorm:"default:true" json:"email_on_critical_risk"`
+	EmailOnActionAssigned     bool `gorm:"default:true" json:"email_on_action_assigned"`
+	EmailOnRiskUpdate         bool `gorm:"default:false" json:"email_on_risk_update"`
+	EmailOnRiskResolved       bool `gorm:"default:true" json:"email_on_risk_resolved"`
+	EmailDeadlineAdvanceDays  int  `gorm:"default:3" json:"email_deadline_advance_days"` // Notify N days before deadline
 
 	// Slack preferences
-	SlackEnabled              bool   `gorm:"default:false"`
-	SlackWebhookURL           string `gorm:"-"`            // Not stored in DB
-	SlackChannelOverride      string `gorm:"default:null"` // Override default channel
-	SlackOnMitigationDeadline bool   `gorm:"default:true"`
-	SlackOnCriticalRisk       bool   `gorm:"default:true"`
-	SlackOnActionAssigned     bool   `gorm:"default:true"`
+	SlackEnabled              bool   `gorm:"default:false" json:"slack_enabled"`
+	SlackWebhookURL           string `gorm:"-" json:"-"`                                    // never stored, never returned
+	SlackChannelOverride      string `gorm:"default:null" json:"slack_channel_override"`    // Override default channel
+	SlackOnMitigationDeadline bool   `gorm:"default:true" json:"slack_on_mitigation_deadline"`
+	SlackOnCriticalRisk       bool   `gorm:"default:true" json:"slack_on_critical_risk"`
+	SlackOnActionAssigned     bool   `gorm:"default:true" json:"slack_on_action_assigned"`
 
 	// Webhook preferences
-	WebhookEnabled              bool   `gorm:"default:false"`
-	WebhookURL                  string `gorm:"-"` // Not stored in DB
-	WebhookSecret               string `gorm:"-"` // Not stored in DB
-	WebhookOnMitigationDeadline bool   `gorm:"default:true"`
-	WebhookOnCriticalRisk       bool   `gorm:"default:true"`
-	WebhookOnActionAssigned     bool   `gorm:"default:true"`
+	WebhookEnabled              bool   `gorm:"default:false" json:"webhook_enabled"`
+	WebhookURL                  string `gorm:"-" json:"-"` // never stored, never returned
+	WebhookSecret               string `gorm:"-" json:"-"` // never stored, never returned
+	WebhookOnMitigationDeadline bool   `gorm:"default:true" json:"webhook_on_mitigation_deadline"`
+	WebhookOnCriticalRisk       bool   `gorm:"default:true" json:"webhook_on_critical_risk"`
+	WebhookOnActionAssigned     bool   `gorm:"default:true" json:"webhook_on_action_assigned"`
 
 	// General preferences
-	DisableAllNotifications    bool `gorm:"default:false"`
-	EnableSoundNotifications   bool `gorm:"default:true"`
-	EnableDesktopNotifications bool `gorm:"default:true"`
+	DisableAllNotifications    bool `gorm:"default:false" json:"disable_all_notifications"`
+	EnableSoundNotifications   bool `gorm:"default:true" json:"enable_sound_notifications"`
+	EnableDesktopNotifications bool `gorm:"default:true" json:"enable_desktop_notifications"`
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
-	// Relations
-	User   *User
-	Tenant *Tenant
+	// Relations. Never serialised — see the note above.
+	User   *User   `json:"-"`
+	Tenant *Tenant `json:"-"`
 }
 
 // TableName specifies table name for NotificationPreference

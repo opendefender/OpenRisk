@@ -3,7 +3,11 @@
 
 package domain
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
 
 // W0-05 / D2 — the Settings screen offered eight notification switches, the API
 // stored what they said, and every producer sent regardless. These tests pin the
@@ -120,5 +124,70 @@ func TestNotificationPreference_Allows_InAppOnlyGlobalSwitch(t *testing.T) {
 	np.DisableAllNotifications = true
 	if np.Allows(NotificationTypeCriticalRisk, NotificationChannelInApp) {
 		t.Error("the global switch must silence in-app")
+	}
+}
+
+// The GET and the PATCH must speak the same vocabulary, and neither may carry a
+// credential. Both were broken until W0-05: encoding/json emitted Go field names
+// ("DisableAllNotifications") while PATCH accepted snake_case, so no client
+// could round-trip a preference — which is part of why the Settings screen kept
+// its own copy in localStorage instead.
+func TestNotificationPreference_JSONContract(t *testing.T) {
+	prefs := &NotificationPreference{
+		DisableAllNotifications: true,
+		EmailOnCriticalRisk:     true,
+		// Populated on purpose: these must not appear in the payload even when set.
+		SlackWebhookURL: "https://hooks.slack.com/services/SECRET",
+		WebhookURL:      "https://example.test/hook",
+		WebhookSecret:   "hmac-secret",
+	}
+
+	raw, err := json.Marshal(prefs)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	// The keys the PATCH handler binds, so a client can read one and write it back.
+	for _, key := range []string{
+		"disable_all_notifications",
+		"email_on_mitigation_deadline",
+		"email_on_critical_risk",
+		"email_on_action_assigned",
+		"slack_enabled",
+		"slack_on_critical_risk",
+		"webhook_enabled",
+		"enable_sound_notifications",
+		"enable_desktop_notifications",
+	} {
+		if _, ok := payload[key]; !ok {
+			t.Errorf("payload is missing %q — GET and PATCH must use the same names", key)
+		}
+	}
+
+	// Go field names must be gone, or a client written against the response
+	// cannot write it back.
+	if _, ok := payload["DisableAllNotifications"]; ok {
+		t.Error("payload still carries Go field names")
+	}
+
+	// RULE #6: no secret leaves the server, whatever the struct is holding.
+	for _, forbidden := range []string{"SlackWebhookURL", "slack_webhook_url", "WebhookURL", "webhook_url", "WebhookSecret", "webhook_secret"} {
+		if _, ok := payload[forbidden]; ok {
+			t.Errorf("payload leaks %q", forbidden)
+		}
+	}
+	if bytes.Contains(raw, []byte("hmac-secret")) || bytes.Contains(raw, []byte("hooks.slack.com")) {
+		t.Errorf("a credential appears in the payload: %s", raw)
+	}
+
+	// The relations would ship a whole user record inside every response.
+	for _, rel := range []string{"User", "Tenant", "user", "tenant"} {
+		if _, ok := payload[rel]; ok {
+			t.Errorf("payload carries the %q relation", rel)
+		}
 	}
 }
