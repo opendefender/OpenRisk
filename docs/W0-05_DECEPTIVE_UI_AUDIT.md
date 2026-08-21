@@ -530,6 +530,27 @@ staleness. CI runs `workers: 1`; local runs default to one per CPU, and eight
 concurrent logins exhaust the auth limiter. Worth knowing before reading a local
 red run as a product defect.
 
+**The suite, serially: 91 passed · 27 failed · 4 skipped**, from a starting
+point where nothing ran. Nine of those failures were caused by harness faults
+this wave then fixed (a `baseURL` that dropped the `/api/v1` prefix; a TOTP
+secret the repair left to each call site to remember). Eleven are real,
+pre-existing WCAG violations. The rest sit on member-invitation and
+risk-lifecycle surfaces this wave did not touch, and are reported without a root
+cause — they could not run before this branch, so "pre-existing" cannot be
+demonstrated by re-running them on the baseline.
+
+**The suite also exceeds the auth rate limit**, which is the first thing to
+check before reading any red run. `/auth/login` and `/auth/register` sit behind
+a per-IP limiter of 15 requests per 5 minutes; `journey.members` and
+`risk-lifecycle` each build an admin API context *per test*, and several specs
+register a tenant of their own. A full run therefore throttles itself, and the
+`429`s surface as assertion failures further down each test — a login failure at
+the top looking like a broken feature at the bottom. Re-running the four
+affected specs straight after a full run reproduces it exactly: 10 failed / 12
+passed, with `429 Rate limit exceeded` in every error. The fix is to log in once
+per file rather than per test, in specs this wave does not own — recorded, not
+made.
+
 ### The W0-05 scenarios
 
 `tests/e2e/deceptive-ui.spec.ts` covers the six scenarios the brief requires,
@@ -626,7 +647,7 @@ No new N+1, no waterfall, no duplicated aggregate.
 | Audit states | **PASS** | `/governance/audit-trail` opens the audit trail; a non-admin is refused out loud instead of shown another tab's empty state. |
 | Unit tests | **PASS** | 183 passing (6 session-scope, 15 deceptive-ui guards, 6 Go preference tests, plus the existing suite). 1 pre-existing failure, reproduced on a clean stash. |
 | Integration/API tests | **PASS** | Go suite: 61 packages, 0 failures, including the preference gate and the JSON contract. |
-| E2E tests | **PASS (W0-05) · PARTIAL (suite)** | `deceptive-ui.spec.ts` 11/11. The suite as a whole was **BLOCKED** before this wave and now runs; three `dead-controls` tests fail against testids earlier waves removed, and `a11y.spec.ts` surfaces real pre-existing WCAG violations. |
+| E2E tests | **PASS (W0-05) · PARTIAL (suite)** | `deceptive-ui.spec.ts` **11/11**. The suite as a whole was **BLOCKED** before this wave — no spec executed at all — and now runs: **91 passed · 27 failed · 4 skipped** serially. Of the 27: 9 came from harness faults this wave then fixed, 11 are real pre-existing WCAG violations, 4 are stale specs, and the remainder are on surfaces this wave did not touch and were not root-caused. See §E2E Validation. |
 | Accessibility | **PARTIAL** | New states reuse audited primitives and expose `aria-pressed` / `role="status"` / labels. No dedicated axe pass on the new states; `a11y.spec.ts` shows pre-existing violations elsewhere. |
 | Security | **PASS** | Credential fields cut from the preferences payload (asserted with them populated); no secret rendered by the integrations panel; cross-identity cache leak closed. |
 | Performance | **PASS** | Request counts per changed surface recorded; one indexed read added to the notification path. |

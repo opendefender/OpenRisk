@@ -234,10 +234,53 @@ No new N+1, no waterfall, no duplicated aggregate.
 
 ### Full E2E suite
 
-Before this wave: **BLOCKED** — `global-setup` failed for every run, so no spec
-executed. After the harness repair the suite runs; `dead-controls.spec.ts` has
-three failures against testids removed by earlier waves (documented in the audit
-under E2E Validation).
+Before this wave: **BLOCKED** — `global-setup` failed on every run, so no spec
+executed at all.
+
+After the harness repair, run serially as CI runs it (`--workers=1`):
+**91 passed · 27 failed · 4 skipped**. `deceptive-ui.spec.ts` is 11/11 within
+that run.
+
+The 27 are on surfaces this wave did not touch, and running the suite is what
+made them visible. Three causes were identified and two of them fixed:
+
+| Cause | Count | Disposition |
+| --- | --- | --- |
+| Playwright `baseURL` dropping the `/api/v1` prefix on paths starting with `/` | 4 | **Fixed** — `journey.members` went 5 → 3 |
+| `apiLogin` needing the TOTP secret passed explicitly (a regression introduced by the harness repair itself) | 5 | **Fixed** — now defaulted, so no call site can forget |
+| Real pre-existing WCAG violations (`a11y.spec.ts`) | 11 | Reported. Verified pre-existing: `/governance` fails identically with this branch stashed |
+| Testids removed by earlier waves (`dead-controls`) | 2 | Reported — the testids exist nowhere in the codebase |
+| UI login now requiring MFA (`auth.login.spec.ts`) | 2 | Reported |
+| Not root-caused | the remainder | Reported. On member-invitation and risk-lifecycle surfaces this wave did not touch |
+
+**Honest statement of what that last row means**: those specs could not run
+before this branch, so "pre-existing" cannot be demonstrated by re-running them
+on the baseline — only that the surfaces are not ones this wave changed.
+
+### The suite exceeds the auth rate limit
+
+The dominant cause of the remaining failures, and the one worth acting on first.
+
+`/auth/login` and `/auth/register` sit behind a per-IP limiter of **15 requests
+per 5 minutes** (`main.go`, deliberately widened from 5/15min so a couple of
+mistyped passwords do not lock a real user out). The suite makes far more than
+that from one IP: `journey.members` builds an admin API context **per test**,
+`risk-lifecycle` does the same, and several specs register a tenant of their own.
+
+So a full run throttles itself, and the resulting `429`s surface as assertion
+failures further down each test — a login failure at the top of a test looks
+like a broken feature at the bottom of it. Re-running the four affected specs
+immediately after a full run reproduces this exactly: **10 failed / 12 passed,
+with `429 Rate limit exceeded` in the error of every one.**
+
+This is not a product defect and not a defect in any individual spec; it is the
+suite as a whole outrunning a control that is correctly sized for humans. The
+fix is to log in once per file (or once per run) and share the context, rather
+than per test — a change in specs this wave does not own, so it is recorded
+rather than made.
+
+**Consequence for reading any red run:** check for `429` before concluding
+anything about the product.
 
 ---
 
