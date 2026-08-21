@@ -51,6 +51,12 @@ export interface Risk {
   /** @deprecated superseded by assignee_id. */
   assigned_to?: string;
   source: string; // Important pour l'étape d'intégration (THEHIVE, etc.)
+  /**
+   * The CVE this risk came from, when the CTI engine or the vuln→risk rule
+   * raised it (domain.Risk.SourceCVEID). The drawer's CTI tab uses it to fetch
+   * the real advisory; null on a manually-entered risk.
+   */
+  source_cve_id?: string | null;
   mitigations?: Mitigation[]; // Important pour le drawer de détails
   /**
    * Server-computed count of this risk's mitigation plans. The register and the

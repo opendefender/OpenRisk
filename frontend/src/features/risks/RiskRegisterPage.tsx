@@ -14,11 +14,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Upload, Plus, X, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Rows3, LayoutGrid, Check, ChevronDown, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2, UserCheck, Link2Off } from 'lucide-react';
+import { Upload, Plus, X, FileText, Pencil, Trash2, Eye, Download, ShieldCheck, ShieldAlert, Clock, Rows3, LayoutGrid, Check, ChevronDown, Coins, Route as RouteIcon, SlidersHorizontal, Sparkles, Loader2, UserCheck, Link2Off, Bug } from 'lucide-react';
 import {
   PageFrame, PageHeader, Btn, Card, CritBadge, StatusPill, Avatar, FwBadge, arcPath,
-  SkeletonRows, EmptyState, softFill, type RiskStatus,
+  SkeletonRows, EmptyState, ErrorState, softFill, type RiskStatus,
 } from '../../shared/ui';
 import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { critColor } from '../../shared/riskColors';
@@ -45,6 +46,7 @@ import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingFi
 import { OwnershipFields } from '../../shared/UserPicker';
 import { ownershipPatch, type OwnershipRole } from '../../services/ownershipService';
 import { mappingHref, mappingLabel } from '../../services/taxonomyService';
+import { ctiService } from '../cti/ctiService';
 import { useQueryClient } from '@tanstack/react-query';
 
 /* -------------------------------------------------------------- CSV export */
@@ -130,14 +132,18 @@ export function RiskRegisterPage() {
   const ui: UiRisk[] = useMemo(() => risks.map((r) => mapRisk(r, lang)), [risks, lang]);
   const drawer = drawerId ? ui.find((r) => r.id === drawerId) ?? null : null;
 
-  // Deep-link from universal search (/risks?focus=<id>) → open that risk's drawer.
-  const { focusId, clearFocus } = useFocusParam();
+  // Deep-link from universal search (/risks?focus=<id>) → open that risk's
+  // drawer. `&tab=` selects which tab, which is how the legacy
+  // /risks/:id/timeline URL now resolves to the real timeline (W0-05 / D8).
+  const { focusId, focusTab, clearFocus } = useFocusParam();
+  const [drawerTab, setDrawerTab] = useState<DrawerTab | null>(null);
   useEffect(() => {
     if (focusId && ui.some((r) => r.id === focusId)) {
       setDrawerId(focusId);
+      if (focusTab && DRAWER_TABS.includes(focusTab as DrawerTab)) setDrawerTab(focusTab as DrawerTab);
       clearFocus();
     }
-  }, [focusId, ui, clearFocus]);
+  }, [focusId, focusTab, ui, clearFocus]);
 
   /* ------------------------------------------------------------- deletion */
   // Important + irreversible (a risk carries linked mitigation plans + history) →
@@ -508,8 +514,12 @@ export function RiskRegisterPage() {
 
       {drawer && (
         <RiskDrawer
+          // Keyed on the tab so a deep link that names one lands on it rather
+          // than on whatever the previous open left behind.
+          key={`${drawer.id}:${drawerTab ?? 'details'}`}
           r={drawer}
-          onClose={() => setDrawerId(null)}
+          initialTab={drawerTab}
+          onClose={() => { setDrawerId(null); setDrawerTab(null); }}
           onEdit={() => setEditRaw(drawer.raw)}
           onExport={() => exportRiskCsv(drawer)}
           onCreateMiti={() => setMitiRiskId(drawer.id)}
@@ -742,6 +752,107 @@ function DrawerTimeline({ r }: { r: UiRisk }) {
   );
 }
 
+// DrawerCTI — the "CTI" tab.
+//
+// This tab rendered the string "Coming soon" for every risk, including risks the
+// CTI engine itself created. Those carry `source_cve_id`, and /cti/vulnerabilities/:cve
+// returns the real NVD + CISA-KEV record for it, so the data was one call away
+// (W0-05 / D10).
+//
+// Two honest outcomes, and which one you get depends on the risk rather than on
+// the release:
+//
+//   - the risk names a CVE  → its real advisory: CVSS, CISA-KEV status and due
+//     date, MITRE tactics/techniques, remediation, with a link into Threat Intel;
+//   - the risk names none   → says so, and explains what would populate it,
+//     instead of implying the whole tab is unbuilt.
+function DrawerCTI({ r }: { r: UiRisk }) {
+  const lang = useUIStore((s) => s.lang);
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const navigate = useNavigate();
+  const cve = r.raw.source_cve_id ?? '';
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['cti', 'vulnerability', cve],
+    queryFn: () => ctiService.get(cve),
+    enabled: !!cve,
+  });
+
+  if (!cve) {
+    return (
+      <div className="py-8 px-[22px]">
+        <EmptyState
+          icon={Bug}
+          title={tr('Aucune CVE associée', 'No CVE linked')}
+          description={tr(
+            'Ce risque n’est rattaché à aucune vulnérabilité publique. Les risques créés par le moteur CTI, ou rattachés à une CVE, affichent ici leur avis complet (CVSS, CISA-KEV, MITRE ATT&CK).',
+            'This risk is not linked to a public vulnerability. Risks raised by the CTI engine, or linked to a CVE, show the full advisory here (CVSS, CISA-KEV, MITRE ATT&CK).',
+          )}
+          primaryAction={<Btn label={tr('Ouvrir Threat Intel', 'Open Threat Intel')} onClick={() => navigate('/threat-map')} />}
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) return <div className="py-5 px-[22px]"><SkeletonRows rows={4} /></div>;
+
+  if (isError || !data) {
+    // Not an empty state: the risk DOES name a CVE, so "nothing here" would be
+    // a different and wrong claim.
+    return (
+      <div className="py-8 px-[22px]">
+        <ErrorState
+          title={tr('Avis indisponible', 'Advisory unavailable')}
+          sub={tr(
+            `${cve} n’a pas pu être lu depuis le moteur CTI. Le flux n’a peut-être pas encore été synchronisé.`,
+            `${cve} could not be read from the CTI engine. The feed may not have been synchronised yet.`,
+          )}
+          onRetry={() => navigate('/threat-map')}
+          retryLabel={tr('Ouvrir Threat Intel', 'Open Threat Intel')}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-5 px-[22px] flex flex-col gap-4">
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <span className="mono text-[13px] font-bold text-ink">{data.cve_id}</span>
+        {data.cvss_v3 > 0 && (
+          <span className="mono text-[12px] font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+            CVSS {data.cvss_v3.toFixed(1)}
+          </span>
+        )}
+        {data.cisa_known && (
+          <span className="text-[11px] font-bold uppercase tracking-[.05em] px-2 py-0.5 rounded-full" style={{ color: 'var(--critical)', background: 'color-mix(in srgb,var(--critical) 14%,transparent)' }}>
+            CISA-KEV
+          </span>
+        )}
+      </div>
+
+      {data.description && <div className="text-[13px] text-ink-soft leading-relaxed">{data.description}</div>}
+
+      {data.cisa_known && data.cisa_due_date && (
+        <Fact label={tr('Échéance CISA', 'CISA due date')} value={new Date(data.cisa_due_date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB')} />
+      )}
+      {!!data.mitre_tactics?.length && <Fact label={tr('Tactiques MITRE', 'MITRE tactics')} value={data.mitre_tactics.join(', ')} />}
+      {!!data.mitre_techniques?.length && <Fact label={tr('Techniques MITRE', 'MITRE techniques')} value={data.mitre_techniques.join(', ')} />}
+      {data.remediation && <Fact label={tr('Remédiation', 'Remediation')} value={data.remediation} />}
+
+      <Btn label={tr('Voir dans Threat Intel', 'View in Threat Intel')} onClick={() => navigate(`/threat-map?q=${encodeURIComponent(data.cve_id)}`)} />
+    </div>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[11.5px] font-semibold text-ink-muted uppercase tracking-wide mb-1">{label}</div>
+      <div className="text-[13px] text-ink leading-relaxed">{value}</div>
+    </div>
+  );
+}
+
 // DrawerAI — the "IA" tab: generates a synthesis + suggested treatment plan for
 // this risk via the live /ai/risks/:id/treatment-plan endpoint (spec §12.1). Claude
 // when configured, deterministic template otherwise (shown in the provenance line).
@@ -853,11 +964,17 @@ function DrawerAI({ r }: { r: UiRisk }) {
   );
 }
 
-function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk; onClose: () => void; onEdit: () => void; onExport: () => void; onCreateMiti: () => void }) {
+/** The drawer's tabs. Exported as a value so `?tab=` can be validated against
+ *  the same list the drawer renders — a deep link cannot name a tab that does
+ *  not exist, and adding a tab cannot forget to make it linkable. */
+const DRAWER_TABS = ['details', 'lifecycle', 'score', 'smart', 'financial', 'miti', 'timeline', 'cti', 'ai'] as const;
+type DrawerTab = (typeof DRAWER_TABS)[number];
+
+function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti, initialTab }: { r: UiRisk; onClose: () => void; onEdit: () => void; onExport: () => void; onCreateMiti: () => void; initialTab?: DrawerTab | null }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const [tab, setTab] = useState<'details' | 'lifecycle' | 'score' | 'smart' | 'financial' | 'miti' | 'timeline' | 'cti' | 'ai'>('details');
+  const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'details');
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details], ['lifecycle', tr('Cycle de vie', 'Lifecycle')], ['score', L.tab_score],
     ['smart', tr('Score intelligent', 'Smart score')],
@@ -906,7 +1023,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti }: { r: UiRisk;
           {tab === 'miti' && <DrawerMiti r={r} onCreateMiti={onCreateMiti} />}
           {tab === 'ai' && <DrawerAI r={r} />}
           {tab === 'timeline' && <DrawerTimeline r={r} />}
-          {tab === 'cti' && <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">{L.soon}</div>}
+          {tab === 'cti' && <DrawerCTI r={r} />}
         </div>
       </div>
     </div>
