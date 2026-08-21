@@ -35,6 +35,45 @@ export interface Notification {
   created_at: string;
 }
 
+/**
+ * The stored preference row, mirroring domain.NotificationPreference.
+ *
+ * Every field is a real column the backend reads before it sends
+ * (domain.NotificationPreference.Allows). Nothing here is decorative — which is
+ * the whole point of the change: the screen may only offer switches the server
+ * actually honours.
+ */
+export interface NotificationPreferences {
+  // Email, per event.
+  email_on_mitigation_deadline: boolean;
+  email_on_critical_risk: boolean;
+  email_on_action_assigned: boolean;
+  email_on_risk_update: boolean;
+  email_on_risk_resolved: boolean;
+  email_deadline_advance_days: number;
+
+  // Slack. `slack_enabled` gates the per-event switches: an unconfigured
+  // channel must never read as "yes, send there".
+  slack_enabled: boolean;
+  slack_on_mitigation_deadline: boolean;
+  slack_on_critical_risk: boolean;
+  slack_on_action_assigned: boolean;
+
+  // Outbound webhook, same gating.
+  webhook_enabled: boolean;
+  webhook_on_mitigation_deadline: boolean;
+  webhook_on_critical_risk: boolean;
+  webhook_on_action_assigned: boolean;
+
+  // Global.
+  disable_all_notifications: boolean;
+  enable_sound_notifications: boolean;
+  enable_desktop_notifications: boolean;
+}
+
+/** A partial update — the server applies only the keys present. */
+export type NotificationPreferencePatch = Partial<NotificationPreferences>;
+
 interface ListResponse {
   data: Notification[] | null;
   limit: number;
@@ -59,5 +98,25 @@ export const notificationService = {
 
   async markAllRead(): Promise<void> {
     await api.patch('/notifications/read-all');
+  },
+
+  // --- preferences -------------------------------------------------------
+  //
+  // Settings › Notifications used to write these to localStorage while this API
+  // sat unused (W0-05 / D2). Two consequences: the switches changed nothing,
+  // and they carried to the next person to sign in on the same browser, since
+  // localStorage has no idea who is logged in. They are per user AND per tenant
+  // on the server, keyed `(user_id, tenant_id)`.
+
+  async getPreferences(): Promise<NotificationPreferences> {
+    const { data } = await api.get<NotificationPreferences>('/notifications/preferences');
+    return data;
+  },
+
+  // PATCH, not PUT: the server applies only the fields present, so two switches
+  // flipped in quick succession cannot clobber each other.
+  async updatePreferences(patch: NotificationPreferencePatch): Promise<NotificationPreferences> {
+    const { data } = await api.patch<NotificationPreferences>('/notifications/preferences', patch);
+    return data;
   },
 };
