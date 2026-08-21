@@ -215,3 +215,97 @@ type ActionAssignedNotificationPayload struct {
 	ActionLink  string
 	RiskLink    string
 }
+
+// Allows reports whether a notification of this type may be delivered to this
+// user on this channel.
+//
+// Until W0-05 nothing consulted these columns. The Settings screen offered eight
+// switches, the API stored what they said, and every producer then sent
+// regardless — so a user who turned e-mail off kept receiving e-mail. A
+// preference that is recorded but never read is worse than no preference at all:
+// it is a control that reports success and changes nothing.
+//
+// The decision lives here, on the model, rather than in each producer, for the
+// same reason the ownership rules do: there are seven places that raise a
+// notification and they must not be able to disagree about what a preference
+// means.
+//
+// Two deliberate asymmetries:
+//
+//   - DisableAllNotifications wins over everything, including in-app. It is the
+//     one switch a user reaches for when they want silence, and honouring it
+//     partially would be its own small lie.
+//   - Only the global switch governs in-app. The per-event columns are
+//     EmailOn* / SlackOn* / WebhookOn* — the schema has no in-app equivalent —
+//     so in-app delivery of a specific event type cannot be filtered without
+//     inventing a rule the user never set. An unknown type is therefore allowed:
+//     failing open on a NEW event type shows one notification too many, while
+//     failing closed silently drops it, and a security tool must not silently
+//     drop an alert because a column has not been added yet.
+func (np *NotificationPreference) Allows(notifType NotificationType, channel NotificationChannel) bool {
+	if np == nil {
+		// No stored row: defaults apply, and every default is permissive except
+		// the channels that need configuring (Slack, webhook), which their own
+		// enable flags gate below anyway.
+		return true
+	}
+	if np.DisableAllNotifications {
+		return false
+	}
+
+	switch channel {
+	case NotificationChannelEmail:
+		switch notifType {
+		case NotificationTypeMitigationDeadline:
+			return np.EmailOnMitigationDeadline
+		case NotificationTypeCriticalRisk, NotificationTypeSLABreach:
+			// An SLA breach is the escalation half of a critical-risk alert; it
+			// follows the same switch rather than needing a column nobody set.
+			return np.EmailOnCriticalRisk
+		case NotificationTypeActionAssigned:
+			return np.EmailOnActionAssigned
+		case NotificationTypeRiskUpdate:
+			return np.EmailOnRiskUpdate
+		case NotificationTypeRiskResolved:
+			return np.EmailOnRiskResolved
+		default:
+			// scan_complete, risk_review, automation: no dedicated column.
+			return true
+		}
+
+	case NotificationChannelSlack:
+		if !np.SlackEnabled {
+			return false
+		}
+		switch notifType {
+		case NotificationTypeMitigationDeadline:
+			return np.SlackOnMitigationDeadline
+		case NotificationTypeCriticalRisk, NotificationTypeSLABreach:
+			return np.SlackOnCriticalRisk
+		case NotificationTypeActionAssigned:
+			return np.SlackOnActionAssigned
+		default:
+			return true
+		}
+
+	case NotificationChannelWebhook:
+		if !np.WebhookEnabled {
+			return false
+		}
+		switch notifType {
+		case NotificationTypeMitigationDeadline:
+			return np.WebhookOnMitigationDeadline
+		case NotificationTypeCriticalRisk, NotificationTypeSLABreach:
+			return np.WebhookOnCriticalRisk
+		case NotificationTypeActionAssigned:
+			return np.WebhookOnActionAssigned
+		default:
+			return true
+		}
+
+	default:
+		// In-app (and any channel added later): governed only by the global
+		// switch, checked above.
+		return true
+	}
+}

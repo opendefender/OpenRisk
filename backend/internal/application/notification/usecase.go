@@ -37,12 +37,51 @@ func NewUseCase(repo Repository) *UseCase {
 	return &UseCase{repo: repo}
 }
 
+// ErrSuppressed reports that the recipient's preferences forbid this delivery.
+//
+// A distinct error, not a silent nil: a producer logging "notification failed"
+// for a suppressed one would send whoever reads the logs hunting a bug, and a
+// producer treating suppression as success would have no way to tell the two
+// apart. Callers that only care about "did it get through" can ignore it.
+var ErrSuppressed = errors.New("suppressed by recipient preferences")
+
+// ShouldNotify reports whether this user's preferences allow a notification of
+// this type on this channel.
+//
+// Exported because in-app is not the only channel: the workers in main.go send
+// e-mail alongside the in-app record, and they must ask the same question of the
+// same stored row, or the Settings screen would govern half a delivery.
+//
+// Fails OPEN when the preferences cannot be read. A storage error must not
+// silence a security alert — the cost of one unwanted e-mail is a nuisance, the
+// cost of a swallowed critical-risk alert is the incident nobody saw.
+func (uc *UseCase) ShouldNotify(userID, tenantID uuid.UUID, notifType domain.NotificationType, channel domain.NotificationChannel) bool {
+	if userID == uuid.Nil || tenantID == uuid.Nil {
+		return false
+	}
+	prefs, err := uc.repo.GetUserNotificationPreferences(userID, tenantID)
+	if err != nil {
+		return true
+	}
+	return prefs.Allows(notifType, channel)
+}
+
 // NotifyInApp persists an in-app notification for a user. Best-effort creation
 // point used by cross-cutting producers (e.g. the scan engine). A Nil user or
 // tenant is rejected so we never create an orphan notification.
+//
+// This is the single choke point every in-app producer goes through — the scan
+// sink, the risk-review worker, the mitigation-deadline worker, the evidence
+// worker, the ownership service, the automation notifier, the approval notifier
+// and the vuln-risk notifier all land here — so the preference check belongs
+// here rather than eight times over. Returns ErrSuppressed when the recipient
+// has asked not to be notified.
 func (uc *UseCase) NotifyInApp(userID, tenantID uuid.UUID, notifType domain.NotificationType, subject, message string, resourceID *uuid.UUID, resourceType string) error {
 	if userID == uuid.Nil || tenantID == uuid.Nil {
 		return ErrValidation
+	}
+	if !uc.ShouldNotify(userID, tenantID, notifType, domain.NotificationChannelInApp) {
+		return ErrSuppressed
 	}
 	n := &domain.Notification{
 		ID:           uuid.New(),
