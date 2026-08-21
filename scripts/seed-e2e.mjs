@@ -16,6 +16,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -30,8 +31,21 @@ const ADMIN = {
 
 const dataset = JSON.parse(fs.readFileSync(DATASET_FILE, 'utf8'));
 
+/** A secret recorded by an earlier run, if this database has been seeded before. */
+function previouslyRecordedMfaSecret() {
+  try {
+    return JSON.parse(fs.readFileSync(SEED_IDS_FILE, 'utf8')).adminMfaSecret || '';
+  } catch {
+    return '';
+  }
+}
+
 let TOKEN = '';
 let ADMIN_LOGIN = null; // full login result, reused by global-setup to avoid a 2nd login
+// The seed admin's TOTP secret. Recorded in the seed IDs file so a later run
+// against an already-enrolled account can answer the challenge rather than
+// failing. Overridable for a pre-provisioned CI account.
+let MFA_SECRET = process.env.E2E_ADMIN_MFA_SECRET || previouslyRecordedMfaSecret();
 async function api(method, endpoint, body) {
   const res = await fetch(`${API_URL}${endpoint}`, {
     method,
@@ -72,6 +86,85 @@ function idOf(body) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * RFC 6238 TOTP, from Node's own crypto — no dependency for six digits.
+ *
+ * The seed needs this because MFA is MANDATED for every account (W0-03): a
+ * password alone no longer produces a session, so without completing the second
+ * factor the seed cannot authenticate and global-setup dies before a single
+ * spec runs.
+ */
+function totp(base32Secret, atSeconds = Date.now() / 1000) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const ch of base32Secret.replace(/=+$/, '').toUpperCase()) {
+    const idx = alphabet.indexOf(ch);
+    if (idx < 0) continue;
+    bits += idx.toString(2).padStart(5, '0');
+  }
+  const bytes = Buffer.from((bits.match(/.{8}/g) ?? []).map((b) => parseInt(b, 2)));
+
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(atSeconds / 30)));
+
+  const hmac = crypto.createHmac('sha1', bytes).update(counter).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return String(code).padStart(6, '0');
+}
+
+/**
+ * Completes whichever second factor the login demanded, and returns the session.
+ *
+ * Two shapes come back from /auth/login without a token_pair:
+ *
+ *   - mfa_enrollment_required — the role mandates MFA and nothing is enrolled.
+ *     Enrol (setup + verify); verify itself issues the session.
+ *   - mfa_required — an authenticator already exists. Answer the challenge.
+ *
+ * The MFA secret is written to the seed IDs file so a re-run of the seed against
+ * an already-enrolled account can answer the challenge instead of trying to
+ * enrol again.
+ */
+async function completeMfa(loginBody) {
+  const mfaToken = loginBody?.mfa_token;
+  if (!mfaToken) throw new Error('MFA demanded but no mfa_token was returned');
+
+  const previous = TOKEN;
+  TOKEN = mfaToken; // the MFA endpoints accept only this short-lived token
+  try {
+    if (loginBody.mfa_enrollment_required) {
+      const setup = await api('POST', '/auth/mfa/setup', {});
+      if (!setup.ok || !setup.body?.secret) {
+        throw new Error(`mfa setup failed: ${setup.status} ${JSON.stringify(setup.body)}`);
+      }
+      MFA_SECRET = setup.body.secret;
+      const verify = await api('POST', '/auth/mfa/verify', { code: totp(MFA_SECRET) });
+      if (!verify.ok) throw new Error(`mfa verify failed: ${verify.status} ${JSON.stringify(verify.body)}`);
+      console.log('[seed] MFA enrolled for the seed admin');
+      return verify.body;
+    }
+
+    // Already enrolled: we can only answer if a previous seed recorded the
+    // secret. Say so plainly rather than failing with a bare 400 — the fix is to
+    // reset the account's MFA, which nobody can guess from "invalid code".
+    if (!MFA_SECRET) {
+      throw new Error(
+        'MFA is enrolled for this account but the seed has no stored secret. ' +
+          `Delete the mfa_secrets row for ${ADMIN.email}, or set E2E_ADMIN_MFA_SECRET.`,
+      );
+    }
+    const challenge = await api('POST', '/auth/mfa/challenge', { code: totp(MFA_SECRET) });
+    if (!challenge.ok) {
+      throw new Error(`mfa challenge failed: ${challenge.status} ${JSON.stringify(challenge.body)}`);
+    }
+    return challenge.body;
+  } catch (err) {
+    TOKEN = previous;
+    throw err;
+  }
+}
+
 async function login() {
   // The auth endpoint is rate-limited; back off and retry on 429 so a burst of
   // test logins doesn't wedge the seed.
@@ -87,8 +180,16 @@ async function login() {
     break;
   }
   if (!res.ok) throw new Error(`admin login failed: ${res.status} ${JSON.stringify(res.body)}`);
-  TOKEN = res.body?.token_pair?.access_token;
-  ADMIN_LOGIN = res.body;
+
+  // A 200 is no longer proof of a session: MFA is mandated, so the password step
+  // answers with a short-lived mfa_token and nothing else.
+  let session = res.body;
+  if (!session?.token_pair?.access_token) {
+    session = await completeMfa(res.body);
+  }
+
+  TOKEN = session?.token_pair?.access_token;
+  ADMIN_LOGIN = session;
   if (!TOKEN) throw new Error('admin login returned no access_token');
   console.log(`[seed] logged in as ${ADMIN.email}`);
 }
@@ -249,6 +350,11 @@ async function main() {
     // Reused by global-setup to build the admin storageState WITHOUT a 2nd login
     // (keeps the rate-limited auth endpoint from wedging repeat runs).
     adminLogin: ADMIN_LOGIN,
+    // The TOTP secret this run enrolled (or reused). A second run finds the
+    // account already enrolled and answers the challenge with it instead of
+    // failing; without this, seeding twice against the same database is a dead
+    // end that reads as "invalid code".
+    adminMfaSecret: MFA_SECRET || undefined,
   };
   fs.mkdirSync(path.dirname(SEED_IDS_FILE), { recursive: true });
   fs.writeFileSync(SEED_IDS_FILE, JSON.stringify(out, null, 2));
