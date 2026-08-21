@@ -28,14 +28,25 @@ none of it is a button without a handler:
   API failure as "no changes recorded".
 * **Nothing cleared the client cache at logout**, so the next person to sign in
   on the same browser was shown the previous tenant's data.
+* **`/governance/audit-trail` opened a different screen**, and refused a
+  non-admin by rendering another tab's empty state.
 
 That last one is the reason the wave matters. Every other finding invents data
 that belongs to nobody. This one displays *another organisation's real data* to
 someone who is not entitled to it, and it does so on every screen at once.
 
-Twelve surfaces were classified `DECEPTIVE`. Eleven are fixed; one is downgraded
-to `EXPERIMENTAL` with the reason stated on screen. Five became `REAL` by being
-wired to backends that already existed and were simply never connected.
+Fourteen surfaces were classified `DECEPTIVE`, and all fourteen are resolved.
+Six became `REAL` by being wired to backends that already existed and were
+simply never connected; the rest became honest `UNAVAILABLE` states or were
+removed.
+
+Two of them were found only by driving the product against a running server,
+which is worth naming because no amount of reading would have caught either:
+the notification-preferences endpoint answered `{"DisableAllNotifications":…}`
+while accepting `{"disable_all_notifications":…}`, so no client could read a
+preference and write it back; and `/governance/audit-trail` opened the
+*Approvals* tab, showing a non-admin "nothing to approve" where the honest
+answer was "you may not read this".
 
 ---
 
@@ -181,7 +192,8 @@ Every route declared in `frontend/src/App.tsx`, with the source that fills it.
 | Route | Capability | Source | Status |
 | --- | --- | --- | --- |
 | `/automation` | SOAR rules, SLA, channels | `GET /automation/*` | REAL |
-| `/governance`, `/governance/audit-trail` | Audit trail, approvals | `GET /governance/*` | REAL |
+| `/governance` | Approvals, delegations | `GET /governance/*` | REAL |
+| `/governance/audit-trail` | Audit trail | opened the **Approvals** tab; refused non-admins with an empty state | **DECEPTIVE → fixed (D13, D14)** |
 | `/settings` (general) | Org profile | `GET /organization` + **2 fake policy toggles** | **DECEPTIVE → fixed (D3)** |
 | `/settings/members` | Members & roles | `GET /rbac/members`, `/invitations` | REAL |
 | `?tab=tokens` | API tokens | `GET /auth/pat` | REAL |
@@ -484,6 +496,36 @@ fabrication by *name*, these catch it by *structure*.
 
 ## E2E Validation
 
+### The harness had to be repaired first
+
+No E2E test in this repository could run. `global-setup` died on
+`admin login returned no access_token` before a single spec started, so the
+suite had been dark since two earlier changes landed:
+
+* **MFA is mandated for every account** (W0-03). `/auth/login` answers 200 with a
+  short-lived `mfa_token` and nothing else, and both the seed and the login
+  helper treated a missing `token_pair` as a failure.
+* **The session moved to HttpOnly cookies.** The minted `storageState` put
+  `auth_token` in localStorage, which authenticates nothing — and worse than
+  nothing: `auth_user` was present, so the route guard let the browser through
+  while every API call 401'd. Any authenticated spec would have been asserting
+  against a logged-out app.
+
+Both are fixed: the seed and the helper complete whichever second factor was
+demanded (TOTP computed from Node's own crypto, no dependency), the seed records
+the secret it enrolled so a re-run can answer a challenge instead of failing with
+a bare "invalid code", and the `storageState` now carries the real
+`or_access` / `or_refresh` / `or_csrf` cookies.
+
+**Three tests in `dead-controls.spec.ts` fail, and were already stale.** They
+target `universe-node-count`, `universe-filter` and `delete-org` — testids for
+components earlier waves replaced (Asset Universe became `TopologyView`, the
+danger zone became `DangerZonePanel`). None of those surfaces belongs to this
+wave, so they are reported rather than rewritten. The staleness was simply
+invisible while nothing could run.
+
+### The W0-05 scenarios
+
 `tests/e2e/deceptive-ui.spec.ts` covers the six scenarios the brief requires,
 each asserting an observable effect rather than the presence of an element:
 
@@ -551,20 +593,61 @@ No new N+1, no waterfall, no duplicated aggregate.
 | D10 | Risk drawer CTI tab | `/risks` | DECEPTIVE — bare "coming soon", no next action | **REAL** for CVE-sourced risks, **UNAVAILABLE** otherwise | `GET /cti/vulnerabilities/:cve` | Opens the CVE in Threat Intel | Yes | `deceptive-ui.spec.ts` | Live §CTI tab |
 | D11 | Monte-Carlo `seed` | `/analytics/financial` | build guard failing (false positive) | **REAL** | `GET /analytics/financial` | n/a | Yes | lint | `npm run lint` |
 | D12 | Settings dead components | `/settings` | dead `Toggle` / `ToggleRow` / `Field` (unsaved input) | **removed** | n/a | n/a | n/a | audit script | diff |
+| D13 | Audit-trail URL | `/governance/audit-trail` | DECEPTIVE — opened the Approvals tab instead | **REAL** | `GET /governance/audit-events` | Tab reflected in the URL | Yes | `deceptive-ui.spec.ts` | Live §Governance |
+| D14 | Audit trail for a non-admin | `/governance/audit-trail` | DECEPTIVE — denial rendered as "nothing to approve" | **REAL** (`AccessDenied`) | n/a | Names the permission | Yes | `deceptive-ui.spec.ts` | Live §Governance |
+| D15 | Preferences JSON contract | `/settings?tab=notif` | DECEPTIVE — GET spoke Go field names, PATCH spoke snake_case; three credential fields serialisable | **REAL** | `GET/PATCH /notifications/preferences` | Round-trips | Yes — `(user_id, tenant_id)` | Go unit test | Live §Notifications |
 
 **`DECEPTIVE` remaining at the end of the wave: 0.**
 
 ---
 
+## Acceptance Matrix
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| No fake KPI in production | **PASS** | Every dashboard KPI traced to its query (§Dashboard Audit). The one `no-mock-data` error was a false positive on a Monte-Carlo RNG seed, suppressed with its reason. |
+| No fake integrations in production | **PASS** | Six literals with three "connected" replaced by three real APIs; E2E asserts nothing reads Active with nothing configured, and that Splunk is gone. |
+| No inert primary actions | **PASS** | Automated parse of every `<button>` in 275 reachable modules: zero without a handler. The toast-only *New field* CTA removed. |
+| No deceptive placeholder routes | **PASS** | No route path matches the placeholder patterns; every legacy path asserted to redirect to a real destination. |
+| Fixture-backed production surfaces removed | **PASS** | `openrisk/no-mock-data` at 0; import-graph check finds no test or `dev/fixtures` module reachable from `main.tsx`. |
+| Experimental surfaces explicitly labelled | **PASS** | `/simulations` and `/leaderboard` badged, and E2E asserts the invented gauge, standing and history are absent. |
+| Unavailable surfaces honest and useful | **PASS** | Custom fields, scheduled reports and War Room messaging each state the situation and offer a next action. |
+| Tenant isolation maintained | **PASS** | Cross-tenant reads and writes → 404 live; the client cache, stores and user-scoped storage cleared at both ends of a session change, with unit and E2E coverage. |
+| Loading states | **PASS** | Skeletons on every reachable list and detail; the preferences panel renders a skeleton rather than a guessed switch position. |
+| Empty states | **PASS** | `first-use` vs `no-results` distinguished; a tenant registered during the run shows zero and no invented people. |
+| Error states | **PASS** | 500 on `/risks` and on `/notifications/preferences` both render errors with a retry, and no rows / no switch. |
+| Permission-denied states | **PASS** | API refuses with 404; UI renders `AccessDenied` naming the permission, asserted distinct from the empty state. |
+| Audit states | **PASS** | `/governance/audit-trail` opens the audit trail; a non-admin is refused out loud instead of shown another tab's empty state. |
+| Unit tests | **PASS** | 183 passing (6 session-scope, 15 deceptive-ui guards, 6 Go preference tests, plus the existing suite). 1 pre-existing failure, reproduced on a clean stash. |
+| Integration/API tests | **PASS** | Go suite: 61 packages, 0 failures, including the preference gate and the JSON contract. |
+| E2E tests | **PASS (W0-05) · PARTIAL (suite)** | `deceptive-ui.spec.ts` 11/11. The suite as a whole was **BLOCKED** before this wave and now runs; three `dead-controls` tests fail against testids earlier waves removed, and `a11y.spec.ts` surfaces real pre-existing WCAG violations. |
+| Accessibility | **PARTIAL** | New states reuse audited primitives and expose `aria-pressed` / `role="status"` / labels. No dedicated axe pass on the new states; `a11y.spec.ts` shows pre-existing violations elsewhere. |
+| Security | **PASS** | Credential fields cut from the preferences payload (asserted with them populated); no secret rendered by the integrations panel; cross-identity cache leak closed. |
+| Performance | **PASS** | Request counts per changed surface recorded; one indexed read added to the notification path. |
+| Live proof | **PASS** | [`W0-05_DECEPTIVE_UI_LIVE_PROOF.md`](./W0-05_DECEPTIVE_UI_LIVE_PROOF.md) |
+
+---
+
 ## Live Proof Record
 
-Filled in after execution — see [`W0-05_DECEPTIVE_UI_LIVE_PROOF.md`](./W0-05_DECEPTIVE_UI_LIVE_PROOF.md).
+See [`W0-05_DECEPTIVE_UI_LIVE_PROOF.md`](./W0-05_DECEPTIVE_UI_LIVE_PROOF.md) —
+environment, tenants, commands, observed responses and screenshots of record.
 
 ---
 
 ## Known Limitations
 
 Recorded in the live-proof document alongside the evidence that bounds them.
+The three that most affect how this wave should be read:
+
+1. Three `dead-controls.spec.ts` tests fail against testids earlier waves
+   removed. Reported, not rewritten.
+2. `a11y.spec.ts` now runs and surfaces real, pre-existing WCAG violations
+   (missing progressbar names, colour contrast) across many routes. Newly
+   *visible*, not newly introduced.
+3. The e-mail half of the preference gate is proven by unit test and by reading
+   the four call sites, not by watching an e-mail fail to arrive — no SMTP
+   server is configured here.
 
 ---
 

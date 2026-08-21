@@ -23,8 +23,9 @@
 // backend/internal/handler/risk_lifecycle_e2e_test.go.
 
 import { test, expect, request as pwRequest, type APIRequestContext } from '@playwright/test';
-import { API_URL, ADMIN, FRONTEND_ORIGIN } from './support/env';
-import { apiLogin, buildStorageState } from './support/auth';
+import { API_URL, ADMIN, FRONTEND_ORIGIN, SEED_IDS_FILE } from './support/env';
+import fs from 'node:fs';
+import { apiLogin, storageStateFor } from './support/auth';
 
 interface Ctx {
   api: APIRequestContext;
@@ -34,15 +35,25 @@ interface Ctx {
   subIds: string[];
 }
 
-async function authed(): Promise<{ api: APIRequestContext; token: string; state: ReturnType<typeof buildStorageState> }> {
+async function authed(): Promise<{
+  api: APIRequestContext;
+  token: string;
+  state: Awaited<ReturnType<typeof storageStateFor>>;
+}> {
   const raw = await pwRequest.newContext({ baseURL: API_URL });
-  const login = await apiLogin(raw, ADMIN.email, ADMIN.password);
+  // MFA is mandated, so the password step alone yields no session. The seed
+  // records the TOTP secret it enrolled; without it an enrolled account cannot
+  // be answered.
+  const seed = JSON.parse(fs.readFileSync(SEED_IDS_FILE, 'utf8'));
+  const login = await apiLogin(raw, ADMIN.email, ADMIN.password, seed.adminMfaSecret);
   const token = login.token_pair.access_token;
   const api = await pwRequest.newContext({
     baseURL: API_URL,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
-  return { api, token, state: buildStorageState(login, FRONTEND_ORIGIN) };
+  // Built from `raw`, the context that performed the login and therefore holds
+  // the session cookies.
+  return { api, token, state: await storageStateFor(raw, login) };
 }
 
 /** POST a transition and return { status, error } without throwing on 4xx. */
