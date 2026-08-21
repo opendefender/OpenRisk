@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useUIStore } from './store/uiStore'
 import { ErrorBoundary } from './shared/system/ErrorBoundary'
 import { installGlobalErrorReporting } from './lib/observability'
+import { registerQueryClient } from './lib/sessionScope'
 
 // Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
 // the cached value immediately and revalidate when the network allows (SWR), and
@@ -38,6 +39,12 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Hand the cache to the session scope, so signing out (or in) can empty it.
+// Without this the tab keeps one tenant's responses across a change of user —
+// logout and login are both soft navigations, so nothing else tears the cache
+// down (W0-05 / D9).
+registerQueryClient(queryClient)
 
 // Report uncaught errors and unhandled rejections (Sentry when present).
 installGlobalErrorReporting()
