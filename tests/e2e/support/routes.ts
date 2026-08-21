@@ -90,7 +90,11 @@ export const REDIRECT_ROUTES: RouteDef[] = [
   { path: '/users', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },
   { path: '/roles', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },
   { path: '/tenants', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },
-  { path: '/audit-logs', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },
+  // The audit trail belongs to Governance, not Settings — the Settings tab that
+  // duplicated it was retired, and both legacy paths point at the real one. The
+  // table still said /settings, so the assertion had been wrong (and the whole
+  // suite unrunnable) for long enough that nobody noticed.
+  { path: '/audit-logs', name: '→ Governance audit trail', kind: 'redirect', redirectsTo: '/governance/audit-trail' },
   { path: '/tokens', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },
   { path: '/marketplace', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },
   { path: '/custom-fields', name: '→ Settings', kind: 'redirect', redirectsTo: '/settings' },

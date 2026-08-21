@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { API_URL, FRONTEND_URL, ADMIN, AUTH_DIR, SEED_IDS_FILE, authFileFor } from './support/env';
-import { apiLogin, buildStorageState } from './support/auth';
+import { apiLogin, storageStateFor } from './support/auth';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SEED_SCRIPT = path.resolve(HERE, '../../scripts/seed-e2e.mjs');
@@ -47,10 +47,10 @@ export default async function globalSetup(_config: FullConfig) {
   );
 
   const ctx = await pwRequest.newContext();
-  const loginWithRetry = async (email: string, password: string) => {
+  const loginWithRetry = async (email: string, password: string, mfaSecret?: string) => {
     for (let attempt = 1; attempt <= 8; attempt++) {
       try {
-        return await apiLogin(ctx, email, password);
+        return await apiLogin(ctx, email, password, mfaSecret);
       } catch (e) {
         if (/429/.test((e as Error).message) && attempt < 8) {
           console.warn(`[global-setup] login 429, backing off ${attempt * 6}s`);
@@ -63,11 +63,17 @@ export default async function globalSetup(_config: FullConfig) {
     throw new Error('login retries exhausted');
   };
   try {
-    // Admin is always usable. Reuse the login the seed already performed (avoids a
-    // 2nd hit on the rate-limited auth endpoint); fall back to a fresh login.
-    const adminLogin = seed.adminLogin ?? (await loginWithRetry(ADMIN.email, ADMIN.password));
-    fs.writeFileSync(authFileFor('admin'), JSON.stringify(buildStorageState(adminLogin), null, 2));
-    console.log('[global-setup] minted admin storageState');
+    // The seed's login cannot be reused any more: the credential is now a set of
+    // HttpOnly cookies, and the seed collected them in a `fetch` jar that this
+    // process cannot read. Sign in again through THIS context so it holds them.
+    // The seed still hands over the TOTP secret it enrolled, which is the part
+    // that cannot be re-derived.
+    const adminLogin = await loginWithRetry(ADMIN.email, ADMIN.password, seed.adminMfaSecret);
+    fs.writeFileSync(
+      authFileFor('admin'),
+      JSON.stringify(await storageStateFor(ctx, adminLogin), null, 2),
+    );
+    console.log('[global-setup] minted admin storageState (session cookies + profile)');
 
     // Personas only if the seed confirmed they can authenticate.
     for (const key of ['analyst', 'auditor']) {
@@ -75,8 +81,11 @@ export default async function globalSetup(_config: FullConfig) {
       const creds = dataset.personas?.[key];
       if (p?.usable && creds) {
         try {
-          const login = await apiLogin(ctx, creds.email, creds.password);
-          fs.writeFileSync(authFileFor(key), JSON.stringify(buildStorageState(login), null, 2));
+          const login = await apiLogin(ctx, creds.email, creds.password, p.mfaSecret);
+          fs.writeFileSync(
+            authFileFor(key),
+            JSON.stringify(await storageStateFor(ctx, login), null, 2),
+          );
           console.log(`[global-setup] minted ${key} storageState`);
         } catch (e) {
           console.warn(`[global-setup] ${key} login failed, skipping: ${(e as Error).message}`);

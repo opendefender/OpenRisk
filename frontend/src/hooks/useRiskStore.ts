@@ -4,6 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { create } from 'zustand';
+import { registerTenantStore } from '../lib/sessionScope';
 import { api } from '../lib/api';
 import type { Asset } from './useAssetStore';
 import type { RiskControlMapping } from '../services/taxonomyService';
@@ -50,6 +51,12 @@ export interface Risk {
   /** @deprecated superseded by assignee_id. */
   assigned_to?: string;
   source: string; // Important pour l'étape d'intégration (THEHIVE, etc.)
+  /**
+   * The CVE this risk came from, when the CTI engine or the vuln→risk rule
+   * raised it (domain.Risk.SourceCVEID). The drawer's CTI tab uses it to fetch
+   * the real advisory; null on a manually-entered risk.
+   */
+  source_cve_id?: string | null;
   mitigations?: Mitigation[]; // Important pour le drawer de détails
   /**
    * Server-computed count of this risk's mitigation plans. The register and the
@@ -157,16 +164,21 @@ interface RiskStore {
 
 // --- STORE ZUSTAND ---
 
-export const useRiskStore = create<RiskStore>((set, get) => ({
-  risks: [],
+/** The state a fresh session must start from — see the registration below. */
+const RISK_STORE_INITIAL = {
+  risks: [] as Risk[],
   isLoading: false,
   error: false,
   total: 0,
   page: 1,
   pageSize: 20,
-  selectedRisk: null,
-  filters: {},
-  selectedIds: [],
+  selectedRisk: null as Risk | null,
+  filters: {} as RiskFilters,
+  selectedIds: [] as string[],
+};
+
+export const useRiskStore = create<RiskStore>((set, get) => ({
+  ...RISK_STORE_INITIAL,
   setSelectedRisk: (r: Risk | null) => set({ selectedRisk: r }),
 
   setPage: async (p: number) => {
@@ -402,3 +414,13 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     }
   },
 }));
+
+// The register holds one tenant's risks. Signing out — or in as somebody else —
+// must not leave them on screen for the next person (W0-05 / D9). The SSE stream
+// is torn down first: a live connection opened under the previous session would
+// otherwise keep pushing into the cleared store.
+registerTenantStore(
+  useRiskStore,
+  { ...RISK_STORE_INITIAL },
+  () => useRiskStore.getState().stopSSE(),
+);

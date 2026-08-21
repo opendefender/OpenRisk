@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -2305,11 +2306,16 @@ func main() {
 		if userID == uuid.Nil {
 			return
 		}
-		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil {
+		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 			zeroLogger.Warn().Err(err).Msg("scanner: could not create in-app notification")
 		}
-		if user, err := userRepo.GetByID(ctx, userID); err == nil && user != nil && user.Email != "" {
-			_ = emailTransport.SendEmail(ctx, user.Email, title, message)
+		// The recipient's stored e-mail preference governs the e-mail half too.
+		// Checking it only for the in-app record would leave the Settings screen
+		// governing half a delivery (W0-05 / D2).
+		if notificationUseCase.ShouldNotify(userID, tenantID, domain.NotificationTypeScanComplete, domain.NotificationChannelEmail) {
+			if user, err := userRepo.GetByID(ctx, userID); err == nil && user != nil && user.Email != "" {
+				_ = emailTransport.SendEmail(ctx, user.Email, title, message)
+			}
 		}
 	}
 	scanNotifier := scanpkg.NewRedisNotifier(redisClientInstance, scanInApp)
@@ -2320,11 +2326,13 @@ func main() {
 	riskReviewWorker := workers.NewRiskReviewWorker(riskReviewRepo, func(ctx context.Context, tenantID, ownerID, riskID uuid.UUID, riskTitle string) {
 		subject := "Revue de risque requise"
 		message := "Le risque « " + riskTitle + " » est dû pour revue."
-		if err := notificationUseCase.NotifyInApp(ownerID, tenantID, domain.NotificationTypeRiskReview, subject, message, &riskID, "risk"); err != nil {
+		if err := notificationUseCase.NotifyInApp(ownerID, tenantID, domain.NotificationTypeRiskReview, subject, message, &riskID, "risk"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 			zeroLogger.Warn().Err(err).Msg("risk review: in-app notification failed")
 		}
-		if user, uerr := userRepo.GetByID(ctx, ownerID); uerr == nil && user != nil && user.Email != "" {
-			_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+		if notificationUseCase.ShouldNotify(ownerID, tenantID, domain.NotificationTypeRiskReview, domain.NotificationChannelEmail) {
+			if user, uerr := userRepo.GetByID(ctx, ownerID); uerr == nil && user != nil && user.Email != "" {
+				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			}
 		}
 	}, zeroLogger)
 	go riskReviewWorker.Start(context.Background())
@@ -2337,11 +2345,13 @@ func main() {
 		repository.NewGormMitigationDueRepository(database.DB),
 		func(ctx context.Context, tenantID, userID, mitigationID uuid.UUID, subject, message string) {
 			if err := notificationUseCase.NotifyInApp(userID, tenantID,
-				domain.NotificationTypeMitigationDeadline, subject, message, &mitigationID, "mitigation"); err != nil {
+				domain.NotificationTypeMitigationDeadline, subject, message, &mitigationID, "mitigation"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 				zeroLogger.Warn().Err(err).Msg("mitigation due: in-app notification failed")
 			}
-			if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
-				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			if notificationUseCase.ShouldNotify(userID, tenantID, domain.NotificationTypeMitigationDeadline, domain.NotificationChannelEmail) {
+				if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+					_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+				}
 			}
 		}, zeroLogger)
 	go mitigationDueWorker.Start(context.Background())
@@ -2354,11 +2364,13 @@ func main() {
 		evidenceRepo,
 		func(ctx context.Context, tenantID, userID, evidenceID uuid.UUID, subject, message string) {
 			if err := notificationUseCase.NotifyInApp(userID, tenantID,
-				domain.NotificationTypeRiskReview, subject, message, &evidenceID, "evidence"); err != nil {
+				domain.NotificationTypeRiskReview, subject, message, &evidenceID, "evidence"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 				zeroLogger.Warn().Err(err).Msg("evidence expiry: in-app notification failed")
 			}
-			if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
-				_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+			if notificationUseCase.ShouldNotify(userID, tenantID, domain.NotificationTypeRiskReview, domain.NotificationChannelEmail) {
+				if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+					_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+				}
 			}
 		}, zeroLogger)
 	go evidenceExpiryWorker.Start(context.Background())

@@ -4,6 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { create } from 'zustand';
+import { registerTenantStore } from '../lib/sessionScope';
 import { api } from '../lib/api';
 import type { Risk } from './useRiskStore';
 
@@ -40,3 +41,6 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       get().fetchAssets();
   }
 }));
+
+// Same reason as the risk store: an inventory belongs to exactly one tenant.
+registerTenantStore(useAssetStore, { assets: [], isLoading: false });

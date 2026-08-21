@@ -8,6 +8,7 @@
 //  - Workflows: the admin config of approval chains (trigger = entity_type + action).
 
 import { useMemo, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import {
   Scale, Download, ChevronRight, ChevronDown, Plus, Trash2, Check, X,
@@ -17,6 +18,7 @@ import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, Chip } from
 import { DataTable, useTableState, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { AccessDenied } from '../../shared/AccessDenied';
 import {
   useAuditEvents, useDelegations, useApprovals, useApprovalDetail, useRequestTypes, useWorkflows, useGovernanceMutations,
 } from './useGovernance';
@@ -57,13 +59,39 @@ export function GovernancePage() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const isAdmin = useAuthStore((s) => s.hasPermission)('*');
-  const [tab, setTab] = useState<Tab>('approvals');
+
+  // /governance/audit-trail must open the AUDIT TRAIL.
+  //
+  // It did not: the route rendered this component, which always started on
+  // Approvals, so the URL — and the two legacy redirects that target it,
+  // /audit-logs and /settings/audit-log — silently landed somewhere else. A
+  // link that names one screen and opens another is a dead end that does not
+  // look like one: the page renders fine, it is simply not the page asked for
+  // (W0-05 / D13).
+  const { pathname } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const requestedAudit = pathname.endsWith('/audit-trail') || params.get('tab') === 'audit';
+  const [tab, setTab] = useState<Tab>(() => {
+    if (requestedAudit) return 'audit';
+    const p = params.get('tab');
+    return p === 'delegations' || p === 'workflows' ? p : 'approvals';
+  });
 
   const { data: approvals = [] } = useApprovals({ status: 'pending' });
 
+  const selectTab = (id: Tab) => {
+    setTab(id);
+    // Keep the URL honest about which screen is showing, so a reload or a copied
+    // link reopens the same one.
+    const next = new URLSearchParams(params);
+    if (id === 'approvals') next.delete('tab');
+    else next.set('tab', id);
+    setParams(next, { replace: true });
+  };
+
   const TabBtn = ({ id, label, count }: { id: Tab; label: string; count?: number }) => (
     <button
-      onClick={() => setTab(id)}
+      onClick={() => selectTab(id)}
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
         background: tab === id ? 'var(--accent)' : 'transparent',
@@ -87,13 +115,25 @@ export function GovernancePage() {
         <TabBtn id="approvals" label={tr('Approbations', 'Approvals')} count={approvals.length} />
         <TabBtn id="delegations" label={tr('Délégations', 'Delegations')} />
         {isAdmin && <TabBtn id="workflows" label={tr('Workflows', 'Workflows')} />}
-        {isAdmin && <TabBtn id="audit" label={tr('Piste d’audit', 'Audit trail')} />}
+        {/* Shown to a non-admin only when they asked for it by URL — so the tab
+            they landed on is visibly the one they selected, rather than the page
+            quietly choosing another. */}
+        {(isAdmin || tab === 'audit') && <TabBtn id="audit" label={tr('Piste d’audit', 'Audit trail')} />}
       </div>
 
       {tab === 'approvals' && <ApprovalsView />}
       {tab === 'delegations' && <DelegationsView />}
       {tab === 'workflows' && isAdmin && <WorkflowsView />}
       {tab === 'audit' && isAdmin && <AuditView isAdmin={isAdmin} />}
+      {/* The audit trail is admin-only server-side (/governance/audit-events
+          answers 403). Rendering nothing left a non-admin who followed the URL
+          looking at the Approvals empty state — "nothing to approve" — which
+          reads as "there is no data" when the truth is "you may not see it".
+          Those two call for different actions from whoever is reading, so they
+          must not look the same (W0-05 / D14). */}
+      {tab === 'audit' && !isAdmin && (
+        <AccessDenied permission="governance:audit:read" pathname={pathname} />
+      )}
     </PageFrame>
   );
 }

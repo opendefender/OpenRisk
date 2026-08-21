@@ -12,6 +12,8 @@ import {
   type IncidentListParams,
   type UpdateIncidentInput,
   type PostMortemInput,
+  type CreateIncidentActionInput,
+  type IncidentActionStatus,
 } from './incidentService';
 
 const INCIDENTS_KEY = ['incidents'];
@@ -38,6 +40,50 @@ export function useIncidentTimeline(id: number | undefined) {
     queryFn: () => incidentService.timeline(id as number),
     enabled: !!id,
   });
+}
+
+/**
+ * The incident's response actions — the War Room's task board (W0-05 / D7).
+ *
+ * The endpoints are tenant-scoped server-side (the service checks ownsIncident
+ * before every read and write), so this needs no guard of its own beyond the
+ * incident id.
+ */
+export function useIncidentActions(id: number | undefined) {
+  const qc = useQueryClient();
+  const key = [...INCIDENTS_KEY, 'actions', id];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => incidentService.actions(id as number),
+    enabled: !!id,
+  });
+
+  // Deliberately NOT optimistic. Everywhere else in the app an optimistic
+  // update is right, because a failed mutation rolls back within a frame and
+  // the user is still looking at the screen. A War Room task board is read
+  // during an incident as the record of who is doing what — a row that appears
+  // and silently vanishes on a failed write is the kind of thing people act on.
+  // The list reflects what the server stored.
+  const create = useMutation({
+    mutationFn: (input: CreateIncidentActionInput) => incidentService.createAction(id as number, input),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: key }); },
+  });
+
+  const setStatus = useMutation({
+    mutationFn: ({ actionId, status }: { actionId: number; status: IncidentActionStatus }) =>
+      incidentService.setActionStatus(id as number, actionId, status),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: key }); },
+  });
+
+  return {
+    actions: query.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+    create,
+    setStatus,
+  };
 }
 
 export function useIncidents(params: IncidentListParams = {}) {

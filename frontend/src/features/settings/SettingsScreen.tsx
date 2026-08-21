@@ -24,7 +24,13 @@ import { MembersView } from '../organization/MembersView';
 import { relTime } from '../risks/riskMap';
 import { api } from '../../lib/api';
 import { useTokens, useCustomFields, useTenants, type ApiToken } from './adminData';
-import { useSettingsPrefs, type PrefKey } from './settingsPrefs';
+import {
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from '../notifications/useNotifications';
+import type { NotificationPreferencePatch } from '../notifications/notificationService';
+import { useChannelConfig } from '../automation/useAutomation';
+import { useVulnIntegrations, useVulnTicketing } from '../vulnerabilities/useVulnIntegrations';
 import { DataTable, useTableState, type Column, type Facet, type RowAction } from '../../shared/datatable';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
@@ -35,56 +41,122 @@ import { useOrganization } from '../organization/useOrganization';
 type TabKey = 'general' | 'members' | 'tokens' | 'orgs' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
 
-/* ---- reusable bits ---- */
-function Toggle({ on: initial, label }: { on: boolean; label?: string }) {
-  const [on, setOn] = useState(initial);
-  return (
-    <button onClick={() => setOn((v) => !v)} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on} aria-label={label}>
-      <span className="absolute rounded-full bg-surface-1" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
-    </button>
-  );
-}
-function ToggleRow({ label, sub, on }: { label: string; sub?: string | null; on: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{label}</div>{sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}</div>
-      <Toggle on={on} label={label} />
-    </div>
-  );
-}
-/** Toggle bound to a persisted preference — autosaves and shows "Saved ✓"
- *  briefly (UX-23). Survives a reload. */
-function SavedToggleRow({ label, sub, prefKey, tr }: { label: string; sub?: string | null; prefKey: PrefKey; tr: Tr }) {
-  const on = useSettingsPrefs((s) => s.prefs[prefKey]);
-  const setPref = useSettingsPrefs((s) => s.setPref);
-  const [saved, setSaved] = useState(false);
-  const toggle = () => {
-    setPref(prefKey, !on);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1600);
+/* ---- reusable bits ----
+ *
+ * The three components removed here (W0-05 / D12) were `Toggle` (flipped local
+ * state and persisted nothing), `ToggleRow` (rendered it), and `Field` (an
+ * `<input defaultValue>` with no onChange and no save, so anything typed was
+ * discarded on unmount). All three were unreferenced by the time this wave ran,
+ * but they are exactly the primitives a hurried change reaches for — a settings
+ * screen that looks saved is the easiest lie in the product to write by
+ * accident. Deleted rather than left as a template.
+ *
+ * `SavedToggleRow` (localStorage-backed) is replaced by `ServerToggleRow`, which
+ * writes to an API and reports what the server answered.
+ */
+
+/**
+ * A switch bound to server state.
+ *
+ * Three properties the localStorage version did not have:
+ *
+ *  - the position rendered is the SERVER's, not an optimistic guess;
+ *  - "Saved ✓" appears when the API confirms, and an error appears when it does
+ *    not, instead of a timer that always says success;
+ *  - it is disabled while in flight, so a double-click cannot race two patches.
+ */
+function ServerToggleRow({
+  label, sub, checked, onChange, busy, disabled, disabledReason, tr,
+}: {
+  label: string;
+  sub?: string | null;
+  checked: boolean;
+  onChange: (next: boolean) => Promise<unknown>;
+  busy?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+  tr: Tr;
+}) {
+  const [state, setState] = useState<'idle' | 'saved' | 'error'>('idle');
+  const toggle = async () => {
+    setState('idle');
+    try {
+      await onChange(!checked);
+      setState('saved');
+      window.setTimeout(() => setState((s) => (s === 'saved' ? 'idle' : s)), 1600);
+    } catch {
+      // Left visible: a preference that failed to save is exactly the thing the
+      // user must not be told is fine.
+      setState('error');
+    }
   };
+  const inert = !!disabled || !!busy;
   return (
     <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{label}</div>{sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}</div>
+      <div className="flex-1">
+        <div className="text-[13.5px] font-medium text-ink" style={{ opacity: disabled ? 0.6 : 1 }}>{label}</div>
+        {sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}
+        {disabled && disabledReason && (
+          <div className="text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--medium)' }}>{disabledReason}</div>
+        )}
+      </div>
       <div className="flex items-center gap-2.5 shrink-0">
-        <span className="text-[11.5px] font-semibold transition-opacity" style={{ color: 'var(--low)', opacity: saved ? 1 : 0 }}>{tr('Enregistré ✓', 'Saved ✓')}</span>
-        <button onClick={toggle} className="relative shrink-0" style={{ width: 42, height: 24, borderRadius: 20, background: on ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }} aria-pressed={on} aria-label={label}>
-          <span className="absolute rounded-full bg-surface-1" style={{ width: 20, height: 20, top: 2, left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+        <span
+          className="text-[11.5px] font-semibold transition-opacity"
+          role="status"
+          style={{
+            color: state === 'error' ? 'var(--critical)' : 'var(--low)',
+            opacity: state === 'idle' ? 0 : 1,
+          }}
+        >
+          {state === 'error' ? tr('Échec — réessayez', 'Failed — retry') : tr('Enregistré ✓', 'Saved ✓')}
+        </span>
+        <button
+          onClick={toggle}
+          disabled={inert}
+          className="relative shrink-0 disabled:opacity-50"
+          style={{ width: 42, height: 24, borderRadius: 20, background: checked ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }}
+          aria-pressed={checked}
+          aria-label={label}
+          data-testid={`pref-toggle-${label.replace(/\s+/g, '-').toLowerCase()}`}
+        >
+          <span className="absolute rounded-full bg-surface-1" style={{ width: 20, height: 20, top: 2, left: checked ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
         </button>
       </div>
     </div>
   );
 }
-let fieldSeq = 0;
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  const id = useMemo(() => `field-${(fieldSeq += 1)}`, []);
+
+/**
+ * A statement of behaviour the product enforces and does not let you configure.
+ *
+ * Replaces two switches (W0-05 / D3) whose labels described real server-side
+ * enforcement — evidence required before a control counts as implemented, scores
+ * recalculated after every scan — for which no configuration column exists
+ * anywhere in the backend. They were on by default, could be switched off, and
+ * switching them off changed nothing: the server went on enforcing.
+ *
+ * A lock and a sentence is the honest rendering. Turning them into real settings
+ * would mean letting an administrator disable an evidence requirement, which is
+ * a policy decision this wave is not entitled to make.
+ */
+function EnforcedPolicyRow({ label, sub, tr }: { label: string; sub: string; tr: Tr }) {
   return (
-    <div className="mb-[18px]">
-      <label htmlFor={id} className="block text-[12px] font-semibold text-ink-soft mb-[7px]">{label}</label>
-      <input id={id} aria-label={label} defaultValue={value} className={`w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none ${mono ? 'mono' : ''}`} style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} />
+    <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex-1">
+        <div className="text-[13.5px] font-medium text-ink">{label}</div>
+        <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>
+      </div>
+      <span
+        className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[.05em] px-2 py-1 rounded-full"
+        style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}
+      >
+        <Shield size={12} /> {tr('Toujours actif', 'Always on')}
+      </span>
     </div>
   );
 }
+
 const Title = ({ children }: { children: React.ReactNode }) => <div className="text-[14px] font-semibold text-ink mb-3.5">{children}</div>;
 
 /** Honest state for endpoints whose backing tables aren't provisioned yet. */
@@ -325,7 +397,28 @@ function CustomFieldsTab({ tr }: { tr: Tr }) {
       {isLoading ? (
         <SkeletonRows rows={3} />
       ) : fields.length === 0 ? (
-        <EmptyState icon={SlidersHorizontal} title={tr('Aucun champ personnalisé', 'No custom fields')} description={tr('Ajoutez des champs sur mesure aux risques et aux actifs pour coller à votre méthodologie.', 'Add bespoke fields to risks and assets to match your methodology.')} primaryAction={<Btn label={tr('Nouveau champ', 'New field')} icon={Plus} primary onClick={() => toast(tr('Éditeur de champs — bientôt', 'Field editor — coming soon'))} />} />
+        // The primary action here used to be a button whose entire effect was
+        // `toast('Field editor — coming soon')`. An empty state whose CTA does
+        // nothing is worse than one with no CTA: it reads as "you have not done
+        // this yet" when the truth is "you cannot do this here". No editor
+        // exists, so the state says so and offers the two things that do work —
+        // the documented API, and a way back to a screen that functions
+        // (W0-05 / D4).
+        <EmptyState
+          icon={SlidersHorizontal}
+          title={tr('Éditeur de champs indisponible', 'Field editor unavailable')}
+          description={tr(
+            'Les champs personnalisés se créent aujourd’hui via l’API (POST /custom-fields) ; l’éditeur n’est pas encore disponible dans cet écran. Ceux qui existent déjà sont listés ici.',
+            'Custom fields are created through the API today (POST /custom-fields); the in-app editor is not available yet. Any that already exist are listed here.',
+          )}
+          primaryAction={
+            <Btn
+              label={tr('Voir la documentation API', 'View the API docs')}
+              icon={FileText}
+              onClick={() => window.open('/docs/API_REFERENCE.md', '_blank', 'noopener')}
+            />
+          }
+        />
       ) : (
         <div className="p-3 flex flex-col gap-2">
           {fields.map((f) => (
@@ -442,10 +535,42 @@ function GeneralTab({ tr }: { tr: Tr }) {
         <Title>{tr('Apparence', 'Appearance')}</Title>
         <PersonalizeCard />
       </Card>
+      {/* These were switches until W0-05. Both described enforcement the server
+          really does, neither had a configuration column behind it, and turning
+          one off changed nothing — the guard went on refusing. Stated as policy
+          instead of offered as a choice the product cannot honour. */}
       <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('Préférences', 'Preferences')}</Title>
-        <SavedToggleRow prefKey="strict_compliance" tr={tr} label={tr('Mode conformité stricte', 'Strict compliance mode')} sub={tr('Bloque la clôture d’un risque sans preuve documentée', 'Blocks closing a risk without documented evidence')} />
-        <SavedToggleRow prefKey="auto_recalc" tr={tr} label={tr('Recalcul automatique des scores', 'Automatic score recalculation')} sub={tr('Met à jour les scores à chaque scan d’infrastructure', 'Updates scores after each infrastructure scan')} />
+        <Title>{tr('Règles appliquées', 'Enforced policy')}</Title>
+        <div className="text-[12.5px] text-ink-soft mb-1 leading-relaxed">
+          {tr(
+            'Ces règles sont appliquées par le serveur pour toutes les organisations et ne sont pas configurables.',
+            'These rules are enforced by the server for every organisation and are not configurable.',
+          )}
+        </div>
+        <EnforcedPolicyRow
+          tr={tr}
+          label={tr('Preuve obligatoire', 'Evidence required')}
+          sub={tr(
+            'Un contrôle ne peut pas passer à « Implémenté » sans au moins une preuve attachée.',
+            'A control cannot be marked "Implemented" without at least one piece of evidence attached.',
+          )}
+        />
+        <EnforcedPolicyRow
+          tr={tr}
+          label={tr('Recalcul automatique des scores', 'Automatic score recalculation')}
+          sub={tr(
+            'Les scores sont recalculés à chaque changement de criticité d’actif et après chaque scan.',
+            'Scores are recalculated on every asset-criticality change and after every scan.',
+          )}
+        />
+        <EnforcedPolicyRow
+          tr={tr}
+          label={tr('Gardes du cycle de vie', 'Lifecycle guards')}
+          sub={tr(
+            'Un risque ne peut être « Atténué » que si toutes les sous-actions sont terminées, ni « Risque résiduel accepté » sans approbation.',
+            'A risk can only reach "Mitigated" once every sub-action is complete, and "Residual accepted" only with an approval.',
+          )}
+        />
       </Card>
     </>
   );
@@ -469,51 +594,334 @@ function CountTile({ label, value, color }: { label: string; value: number; colo
   );
 }
 
+/**
+ * Integrations (W0-05 / D1).
+ *
+ * This tab rendered six providers from a literal, with Slack, Microsoft Teams
+ * and Splunk shown as ENABLED — on every tenant, in every deployment, from the
+ * day it shipped. The switches flipped local state and persisted nothing, so a
+ * reload restored the same three "connected" channels.
+ *
+ * That is the most expensive shape of deceptive UI a security product can have.
+ * A user who sees Slack connected stops watching Slack for alerts that are not
+ * going there. It is not a cosmetic defect; it is a monitoring gap the interface
+ * created and then concealed.
+ *
+ * There was no need to invent any of it. OpenRisk has three real, tenant-scoped
+ * integration surfaces, each with its own configuration screen:
+ *
+ *   - /automation/channels        — Slack, Teams, outbound webhook, SMS, e-mail
+ *   - /vulnerabilities/integrations — scanner sources (Nessus, Qualys, Defender…)
+ *   - /vulnerabilities/ticketing  — Jira / ServiceNow
+ *
+ * This tab now reads all three and reports what is actually configured. It shows
+ * a count only when one was measured, and every card routes to the screen that
+ * owns the configuration rather than pretending to own it here. No secret is
+ * read back: the channel API exposes `has_slack`-style booleans precisely so a
+ * UI can say "configured" without ever handling a webhook URL.
+ */
 function IntegrationsTab({ tr }: { tr: Tr }) {
-  const ints: [string, string, string, boolean][] = [
-    ['Slack', 'var(--info)', tr('Alertes incidents dans vos canaux', 'Incident alerts to your channels'), true],
-    ['Microsoft Teams', '#7c6cff', tr('Notifications & rapports', 'Notifications & reports'), true],
-    ['Jira', '#0a84ff', tr('Créer des tickets depuis un risque', 'Create tickets from a risk'), false],
-    ['ServiceNow', 'var(--low)', tr('Synchronisation CMDB', 'CMDB synchronization'), false],
-    ['Splunk', 'var(--high)', tr('Ingestion des logs SIEM', 'SIEM log ingestion'), true],
-    ['Webhook', 'var(--text-secondary)', tr('Événements sortants personnalisés', 'Custom outbound events'), false],
+  const navigate = useNavigate();
+  const channels = useChannelConfig();
+  const scanners = useVulnIntegrations();
+  const ticketing = useVulnTicketing();
+
+  const loading = channels.isLoading || scanners.isLoading || ticketing.isLoading;
+  // Each source degrades on its own. One failing endpoint must not blank the
+  // other two — and must not be rendered as "nothing connected", which would be
+  // the same lie pointing the other way.
+  const ch = channels.data;
+  const scanList = scanners.data ?? [];
+  const tick = ticketing.data;
+
+  type Row = {
+    key: string;
+    name: string;
+    desc: string;
+    configured: boolean;
+    enabled: boolean;
+    unknown: boolean;
+    where: string;
+  };
+
+  const chRow = (
+    key: string,
+    name: string,
+    desc: string,
+    configured: boolean | undefined,
+    enabled: boolean | undefined,
+  ): Row => ({
+    key,
+    name,
+    desc,
+    configured: !!configured,
+    enabled: !!enabled,
+    unknown: channels.isError || !ch,
+    where: '/automation?tab=channels',
+  });
+
+  const rows: Row[] = [
+    chRow('slack', 'Slack', tr('Alertes d’automatisation et d’incident', 'Automation and incident alerts'), ch?.has_slack, ch?.slack_enabled),
+    chRow('teams', 'Microsoft Teams', tr('Alertes d’automatisation et d’incident', 'Automation and incident alerts'), ch?.has_teams, ch?.teams_enabled),
+    chRow('webhook', tr('Webhook sortant', 'Outbound webhook'), tr('Charge utile signée (HMAC-SHA256)', 'Signed payload (HMAC-SHA256)'), ch?.has_webhook, ch?.webhook_enabled),
+    chRow('sms', 'SMS', tr('Passerelle HTTP générique', 'Generic HTTP gateway'), ch?.has_sms, ch?.sms_enabled),
+    {
+      key: 'ticketing',
+      name: tick?.provider === 'servicenow' ? 'ServiceNow' : 'Jira',
+      desc: tr('Ouvrir un ticket depuis une vulnérabilité', 'Open a ticket from a vulnerability'),
+      configured: !!tick?.has_credentials,
+      enabled: !!tick?.enabled,
+      unknown: ticketing.isError,
+      where: '/vulnerabilities',
+    },
   ];
+
+  const scannersConfigured = scanList.filter((s) => s.has_credentials || s.webhook_enabled).length;
+
   return (
     <>
-      <div className="text-[13px] text-ink-soft mb-4">{tr('Connectez OpenRisk à votre écosystème (marketplace complet à venir).', 'Connect OpenRisk to your stack (full marketplace coming soon).')}</div>
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
-        {ints.map(([name, col, desc, on]) => (
-          <Card key={name} style={{ padding: 18 }}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-[11px] flex items-center justify-center" style={{ background: `color-mix(in srgb,${col} 16%,transparent)`, color: col }}><Plug size={20} /></div>
-              <div className="flex-1 text-[14px] font-semibold text-ink">{name}</div>
-              <Toggle on={on} label={name} />
-            </div>
-            <div className="text-[12.5px] text-ink-soft leading-snug">{desc}</div>
-          </Card>
-        ))}
+      <div className="text-[13px] text-ink-soft mb-4 leading-relaxed">
+        {tr(
+          'L’état ci-dessous est lu depuis votre configuration réelle. Chaque intégration se configure sur l’écran qui la possède.',
+          'The state below is read from your real configuration. Each integration is configured on the screen that owns it.',
+        )}
       </div>
+
+      {loading ? (
+        <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={4} /></Card>
+      ) : (
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+          {rows.map((r) => (
+            <Card key={r.key} style={{ padding: 18 }}>
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="w-10 h-10 rounded-[11px] flex items-center justify-center"
+                  style={{
+                    background: r.configured ? 'color-mix(in srgb,var(--low) 16%,transparent)' : 'var(--bg-hover)',
+                    color: r.configured ? 'var(--low)' : 'var(--text-muted)',
+                  }}
+                >
+                  <Plug size={20} />
+                </div>
+                <div className="flex-1 text-[14px] font-semibold text-ink">{r.name}</div>
+                <IntegrationState row={r} tr={tr} />
+              </div>
+              <div className="text-[12.5px] text-ink-soft leading-snug mb-3.5">{r.desc}</div>
+              <button
+                onClick={() => navigate(r.where)}
+                className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
+                style={{ border: '1px solid var(--border-strong)' }}
+              >
+                {r.configured
+                  ? tr('Gérer', 'Manage')
+                  : tr('Configurer', 'Configure')}
+              </button>
+            </Card>
+          ))}
+
+          {/* Scanner sources are a list, not a fixed set, so this card reports a
+              measured count and routes to the register that owns them. */}
+          <Card style={{ padding: 18 }}>
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-10 h-10 rounded-[11px] flex items-center justify-center"
+                style={{
+                  background: scannersConfigured > 0 ? 'color-mix(in srgb,var(--low) 16%,transparent)' : 'var(--bg-hover)',
+                  color: scannersConfigured > 0 ? 'var(--low)' : 'var(--text-muted)',
+                }}
+              >
+                <Plug size={20} />
+              </div>
+              <div className="flex-1 text-[14px] font-semibold text-ink">
+                {tr('Sources de vulnérabilités', 'Vulnerability sources')}
+              </div>
+            </div>
+            <div className="text-[12.5px] text-ink-soft leading-snug mb-3.5">
+              {scanners.isError
+                ? tr('État indisponible.', 'State unavailable.')
+                : scannersConfigured > 0
+                  ? tr(
+                      `${scannersConfigured} source${scannersConfigured > 1 ? 's' : ''} configurée${scannersConfigured > 1 ? 's' : ''} (Nessus, Qualys, Defender…).`,
+                      `${scannersConfigured} source${scannersConfigured > 1 ? 's' : ''} configured (Nessus, Qualys, Defender…).`,
+                    )
+                  : tr(
+                      'Aucune source connectée. Connectez un scanner pour ingérer des vulnérabilités.',
+                      'No source connected. Connect a scanner to start ingesting vulnerabilities.',
+                    )}
+            </div>
+            <button
+              onClick={() => navigate('/vulnerabilities')}
+              className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
+              style={{ border: '1px solid var(--border-strong)' }}
+            >
+              {scannersConfigured > 0 ? tr('Gérer', 'Manage') : tr('Connecter une source', 'Connect a source')}
+            </button>
+          </Card>
+        </div>
+      )}
     </>
   );
 }
 
+/**
+ * The connection state of one integration.
+ *
+ * Three states, and the third is the one that matters: "unknown" is rendered
+ * when the endpoint that would answer failed. Falling back to "not connected"
+ * would be a guess dressed as a fact — and in this tab, a wrong guess in either
+ * direction is the bug being fixed.
+ */
+function IntegrationState({ row, tr }: { row: { configured: boolean; enabled: boolean; unknown: boolean }; tr: Tr }) {
+  if (row.unknown) {
+    return (
+      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--medium)', background: 'color-mix(in srgb,var(--medium) 14%,transparent)' }}>
+        {tr('État inconnu', 'State unknown')}
+      </span>
+    );
+  }
+  if (!row.configured) {
+    return (
+      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}>
+        {tr('Non connecté', 'Not connected')}
+      </span>
+    );
+  }
+  // Configured but switched off is a real and useful distinction: the
+  // credentials are there, the channel is deliberately silent.
+  if (!row.enabled) {
+    return (
+      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--medium)', background: 'color-mix(in srgb,var(--medium) 14%,transparent)' }}>
+        {tr('Configuré · en pause', 'Configured · paused')}
+      </span>
+    );
+  }
+  return (
+    <span className="text-[11px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1" style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}>
+      <Check size={11} /> {tr('Actif', 'Active')}
+    </span>
+  );
+}
+
+/**
+ * Notification preferences (W0-05 / D2).
+ *
+ * Every switch on this screen used to write to localStorage. Three consequences:
+ * nothing changed what was delivered; the settings followed the BROWSER rather
+ * than the person, so they carried to the next user to sign in; and two of the
+ * five "notify me when" rows described events the product does not emit at all
+ * (a score rising by 10%, a weekly digest).
+ *
+ * It now reads and writes GET/PATCH /notifications/preferences — per user, per
+ * tenant — and the backend consults that row before it sends
+ * (domain.NotificationPreference.Allows). Only switches the server honours are
+ * offered; the rows for events that do not exist are gone rather than restyled.
+ */
 function NotifTab({ tr }: { tr: Tr }) {
   const user = useAuthStore((s) => s.user);
+  const { prefs, isLoading, isError, refetch } = useNotificationPreferences();
+  const update = useUpdateNotificationPreferences();
+
+  // No default object while loading: rendering a switch position the server has
+  // not confirmed is the same lie in a smaller frame.
+  if (isLoading) return <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={5} /></Card>;
+  if (isError || !prefs) {
+    return (
+      <Card style={{ padding: '20px 22px' }}>
+        <ErrorState
+          title={tr('Préférences indisponibles', 'Preferences unavailable')}
+          sub={tr(
+            'Impossible de lire vos préférences de notification. Réessayez ; si le problème persiste, contactez un administrateur.',
+            'Could not read your notification preferences. Retry; if it persists, contact an administrator.',
+          )}
+          onRetry={() => void refetch()}
+        />
+      </Card>
+    );
+  }
+
+  const set = (patch: NotificationPreferencePatch) => update.mutateAsync(patch);
+  const muted = prefs.disable_all_notifications;
+
   return (
     <>
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
-        <Title>{tr('Canaux', 'Channels')}</Title>
-        <SavedToggleRow prefKey="notif_email" tr={tr} label="Email" sub={user?.email || tr('Adresse du compte', 'Account address')} />
-        <SavedToggleRow prefKey="notif_slack" tr={tr} label="Slack" sub={tr('Non configuré — connectez Slack dans Intégrations', 'Not configured — connect Slack under Integrations')} />
-        <SavedToggleRow prefKey="notif_sms" tr={tr} label="SMS" sub={tr('Uniquement incidents critiques', 'Critical incidents only')} />
+        <Title>{tr('Tout couper', 'Mute everything')}</Title>
+        <ServerToggleRow
+          tr={tr}
+          label={tr('Suspendre toutes les notifications', 'Pause all notifications')}
+          sub={tr(
+            'Coupe la cloche et les e-mails, quels que soient les réglages ci-dessous.',
+            'Silences the bell and e-mail, whatever the switches below say.',
+          )}
+          checked={muted}
+          busy={update.isPending}
+          onChange={(next) => set({ disable_all_notifications: next })}
+        />
       </Card>
+
+      <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
+        <Title>{tr('E-mail', 'E-mail')}</Title>
+        <div className="text-[12.5px] text-ink-soft mb-1">
+          {user?.email || tr('Adresse du compte', 'Account address')}
+        </div>
+        {([
+          ['email_on_critical_risk', tr('Un risque critique est signalé', 'A critical risk is raised'), tr('Inclut les escalades de SLA.', 'Includes SLA escalations.')],
+          ['email_on_mitigation_deadline', tr('Une échéance de mitigation approche', 'A mitigation deadline approaches'), tr('Rappels à J-7 et J-1.', 'Reminders at D-7 and D-1.')],
+          ['email_on_action_assigned', tr('Une action m’est assignée', 'An action is assigned to me'), null],
+          ['email_on_risk_update', tr('Un risque que je suis est modifié', 'A risk I follow is updated'), null],
+          ['email_on_risk_resolved', tr('Un risque est résolu', 'A risk is resolved'), null],
+        ] as const).map(([key, label, sub]) => (
+          <ServerToggleRow
+            key={key}
+            tr={tr}
+            label={label}
+            sub={sub}
+            checked={prefs[key]}
+            busy={update.isPending}
+            disabled={muted}
+            disabledReason={tr('Toutes les notifications sont suspendues.', 'All notifications are paused.')}
+            onChange={(next) => set({ [key]: next })}
+          />
+        ))}
+      </Card>
+
       <Card style={{ padding: '20px 22px' }}>
-        <Title>{tr('M’alerter quand…', 'Notify me when…')}</Title>
-        <SavedToggleRow prefKey="alert_critical_risk" tr={tr} label={tr('Un risque critique est créé', 'A critical risk is created')} />
-        <SavedToggleRow prefKey="alert_score_up" tr={tr} label={tr('Un score augmente de +10 %', 'A score rises by +10%')} />
-        <SavedToggleRow prefKey="alert_warroom" tr={tr} label={tr('Une War Room est déclenchée', 'A War Room is triggered')} />
-        <SavedToggleRow prefKey="alert_mitigation" tr={tr} label={tr('Une mitigation m’est assignée', 'A mitigation is assigned to me')} />
-        <SavedToggleRow prefKey="alert_digest" tr={tr} label={tr('Résumé hebdomadaire', 'Weekly digest')} />
+        <Title>{tr('Dans l’application', 'In-app')}</Title>
+        {/* The stored row has per-event columns for e-mail, Slack and webhook,
+            but only a global switch for in-app. Offering per-event in-app rows
+            would mean showing switches the server cannot honour, so this says
+            what it actually controls. */}
+        <div className="text-[12.5px] text-ink-soft leading-relaxed">
+          {muted
+            ? tr(
+                'La cloche est suspendue. Réactivez les notifications ci-dessus pour la recevoir à nouveau.',
+                'The bell is paused. Re-enable notifications above to start receiving it again.',
+              )
+            : tr(
+                'La cloche reçoit tous les événements de votre organisation qui vous concernent. Le filtrage par type d’événement n’est disponible que pour l’e-mail pour le moment.',
+                'The bell receives every event in your organisation that concerns you. Filtering by event type is available for e-mail only for now.',
+              )}
+        </div>
+        <div className="mt-3.5">
+          <ServerToggleRow
+            tr={tr}
+            label={tr('Sons de notification', 'Notification sounds')}
+            checked={prefs.enable_sound_notifications}
+            busy={update.isPending}
+            disabled={muted}
+            disabledReason={tr('Toutes les notifications sont suspendues.', 'All notifications are paused.')}
+            onChange={(next) => set({ enable_sound_notifications: next })}
+          />
+          <ServerToggleRow
+            tr={tr}
+            label={tr('Notifications du navigateur', 'Desktop notifications')}
+            checked={prefs.enable_desktop_notifications}
+            busy={update.isPending}
+            disabled={muted}
+            disabledReason={tr('Toutes les notifications sont suspendues.', 'All notifications are paused.')}
+            onChange={(next) => set({ enable_desktop_notifications: next })}
+          />
+        </div>
       </Card>
     </>
   );

@@ -83,7 +83,6 @@ const ReportsScreen = lazy(() => import('./features/reports/ReportsScreen').then
 const AiAdvisor = lazy(() => import('./features/ai/AiAdvisor').then(m => ({ default: m.AiAdvisor })));
 const EmergingRisksPage = lazy(() => import('./features/ai/EmergingRisksPage').then(m => ({ default: m.EmergingRisksPage })));
 const BoardReportPage = lazy(() => import('./features/reports/BoardReportPage').then(m => ({ default: m.BoardReportPage })));
-const RiskTimeline = lazy(() => import('./pages/RiskTimeline'));
 const AuditDetailPage = lazy(() => import('./features/compliance/AuditDetailPage').then(m => ({ default: m.AuditDetailPage })));
 const RemediationDetailPage = lazy(() => import('./features/compliance/RemediationDetailPage').then(m => ({ default: m.RemediationDetailPage })));
 const MitigationDetailPage = lazy(() => import('./features/mitigations/MitigationDetailPage').then(m => ({ default: m.MitigationDetailPage })));
@@ -250,6 +249,17 @@ function LegacyFrameworkRedirect() {
 }
 
 /**
+ * Sends the legacy per-risk timeline URL to the register's Timeline tab.
+ *
+ * `replace` keeps it out of the history stack, so Back from the register goes
+ * where the user came from rather than bouncing through the redirect.
+ */
+function LegacyRiskTimelineRedirect() {
+  const { riskId } = useParams<{ riskId: string }>();
+  return <Navigate to={`/risks?focus=${riskId ?? ''}&tab=timeline`} replace />;
+}
+
+/**
  * Per-route permission guard (frontend defence-in-depth over the backend 403).
  *
  * Permissions come from the route tree, the same declaration the breadcrumb
@@ -353,7 +363,25 @@ function App() {
               this is where it gets caught up. */}
           <Route path="risks/unmapped" element={<UnmappedRisksPage />} />
           <Route path="risks/weighting" element={<RiskWeightsSettings />} />
-          <Route path="risks/:riskId/timeline" element={<RiskTimeline />} />
+          {/* The real risk history is the register drawer's Timeline tab: it
+              goes through the shared API client (so it carries the session
+              cookie and the CSRF header), reads the {timeline,total,count}
+              envelope the endpoint actually returns, and has loading, empty and
+              error states.
+
+              This URL used to render a second, older implementation that did
+              none of that. It hand-rolled a fetch with only a Bearer header —
+              null after any reload, since the session moved to HttpOnly
+              cookies — and handled exactly two outcomes, ok and 404. So an
+              authentication failure fell through to "Total changes: 0", which
+              is a screen telling an auditor this risk was never touched. On the
+              happy path it was worse: it did setTimeline(data || []) against an
+              object, then called .filter on it during render, so any risk WITH
+              history white-screened.
+
+              Redirected rather than repaired: two implementations of one screen
+              is how the second one drifted in the first place (W0-05 / D8). */}
+          <Route path="risks/:riskId/timeline" element={<LegacyRiskTimelineRedirect />} />
           {/* Mitigations sit under Risks: a mitigation exists only to reduce a
               risk, so its detail has an unambiguous parent to return to. */}
           <Route path="risks/mitigations" element={<MitigationsBoard />} />

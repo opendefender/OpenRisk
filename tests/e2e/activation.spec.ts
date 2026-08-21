@@ -22,7 +22,7 @@
 
 import { test, expect, request as pwRequest, type APIRequestContext } from '@playwright/test';
 import { API_URL, FRONTEND_ORIGIN } from './support/env';
-import { apiLogin, buildStorageState } from './support/auth';
+import { apiLogin, storageStateFor } from './support/auth';
 
 /** The eight-minute promise, with headroom for a cold CI runner. */
 const AHA_BUDGET_MS = 8 * 60 * 1000;
@@ -30,7 +30,7 @@ const AHA_BUDGET_MS = 8 * 60 * 1000;
 interface Newcomer {
   email: string;
   password: string;
-  storageState: ReturnType<typeof buildStorageState>;
+  storageState: Awaited<ReturnType<typeof storageStateFor>>;
   token: string;
 }
 
@@ -59,7 +59,9 @@ async function signUp(ctx: APIRequestContext, tag: string): Promise<Newcomer> {
   return {
     email,
     password,
-    storageState: buildStorageState(login),
+    // From the SAME context that logged in, so the session cookies come with
+    // it — they, not a localStorage token, are the credential now.
+    storageState: await storageStateFor(ctx, login),
     token: login.token_pair.access_token,
   };
 }

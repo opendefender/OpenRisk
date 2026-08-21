@@ -47,6 +47,37 @@ export interface IncidentStakeholder {
   channels?: string[];
 }
 
+/**
+ * One response action on an incident — the War Room's task board.
+ *
+ * Mirrors domain.IncidentAction (uint ids, like the rest of the incident
+ * module). `incident` is present in the wire payload as a zero-value struct
+ * because Go's omitempty does not elide structs; it is deliberately not typed
+ * here, so nothing can start reading a field that is never populated.
+ */
+export type IncidentActionStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface IncidentAction {
+  id: number;
+  incident_id: number;
+  title: string;
+  description: string;
+  assigned_to: string;
+  due_date: string;
+  status: IncidentActionStatus;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateIncidentActionInput {
+  title: string;
+  description?: string;
+  assigned_to?: string;
+  /** RFC3339. The backend parses a zero time fine when it is omitted. */
+  due_date?: string;
+}
+
 export interface IncidentOriginInfo {
   key: IncidentOrigin;
   label: string;
@@ -232,6 +263,28 @@ export const incidentService = {
   publishPostMortem: async (id: number): Promise<PublishResult> => {
     const response = await api.post<PublishResult>(`/incidents/${id}/post-mortem/publish`, {});
     return response.data;
+  },
+
+  // --- response actions (War Room task board) ----------------------------
+  //
+  // These endpoints have existed since the incident module shipped and are
+  // tenant-scoped (the service checks ownsIncident before every read and
+  // write). The War Room nevertheless declared its task board unavailable and
+  // offered an ephemeral chat instead — honest about the board, but needlessly:
+  // there was a real, guarded API the whole time (W0-05 / D7).
+
+  actions: async (id: number): Promise<IncidentAction[]> => {
+    const response = await api.get<IncidentAction[] | null>(`/incidents/${id}/actions`);
+    return response.data ?? [];
+  },
+
+  createAction: async (id: number, input: CreateIncidentActionInput): Promise<IncidentAction> => {
+    const response = await api.post<IncidentAction>(`/incidents/${id}/actions`, input);
+    return response.data;
+  },
+
+  setActionStatus: async (id: number, actionId: number, status: IncidentActionStatus): Promise<void> => {
+    await api.put(`/incidents/${id}/actions/${actionId}`, { status });
   },
 };
 
