@@ -1,0 +1,232 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e5]:
+    - link "Aller au contenu principal" [ref=f1e6] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary [ref=f1e7]:
+      - generic [ref=f1e8]:
+        - generic [ref=f1e9]:
+          - generic [ref=f1e10]:
+            - img "OpenRisk" [ref=f1e12]
+            - generic [ref=f1e14]: OpenRisk
+          - button "MO Mon organisation Enterprise" [ref=f1e15] [cursor=pointer]:
+            - generic [ref=f1e16]: MO
+            - generic [ref=f1e17]:
+              - generic [ref=f1e18]: Mon organisation
+              - generic [ref=f1e19]: Enterprise
+        - button "Nouveau risque" [ref=f1e24] [cursor=pointer]
+        - navigation [ref=f1e27]:
+          - button "Tableau de bord" [ref=f1e29] [cursor=pointer]
+          - generic [ref=f1e37]:
+            - generic [ref=f1e38]: Piloter
+            - button "Registre des risques" [ref=f1e39] [cursor=pointer]
+            - button "Vulnérabilités" [ref=f1e44] [cursor=pointer]
+            - button "Mitigations" [ref=f1e56] [cursor=pointer]
+            - button "Incidents" [ref=f1e62] [cursor=pointer]
+            - button "Automatisation" [ref=f1e70] [cursor=pointer]
+          - generic [ref=f1e77]:
+            - generic [ref=f1e78]: Surveiller
+            - button "Tableau exécutif" [ref=f1e79] [cursor=pointer]
+            - button "Quantification financière" [ref=f1e85] [cursor=pointer]
+          - generic [ref=f1e93]:
+            - generic [ref=f1e94]: Identifier
+            - button "Inventaire" [ref=f1e95] [cursor=pointer]
+            - button "Topologie" [ref=f1e102] [cursor=pointer]
+            - button "Vulnérabilités" [ref=f1e109] [cursor=pointer]
+            - button "Threat Intel" [ref=f1e121] [cursor=pointer]
+            - button "Infrastructure" [ref=f1e127] [cursor=pointer]
+          - generic [ref=f1e133]:
+            - generic [ref=f1e134]: Évaluer
+            - button "Registre des risques" [ref=f1e135] [cursor=pointer]
+          - generic [ref=f1e140]:
+            - generic [ref=f1e141]: Traiter
+            - button "Mitigations" [ref=f1e142] [cursor=pointer]
+            - button "Incidents" [ref=f1e148] [cursor=pointer]
+            - button "Automatisation" [ref=f1e156] [cursor=pointer]
+          - generic [ref=f1e163]:
+            - generic [ref=f1e164]: Prouver
+            - button "Conformité" [ref=f1e165] [cursor=pointer]
+            - button "Preuves" [ref=f1e172] [cursor=pointer]
+            - button "Rapports" [ref=f1e178] [cursor=pointer]
+            - button "IA Advisor" [ref=f1e184] [cursor=pointer]
+            - button "Risques émergents" [ref=f1e190] [cursor=pointer]
+            - button "Gouvernance" [ref=f1e196] [cursor=pointer]
+          - generic [ref=f1e203]:
+            - generic [ref=f1e204]: Admin
+            - button "Rôles & accès" [ref=f1e205] [cursor=pointer]
+            - button "Paramètres" [ref=f1e213] [cursor=pointer]
+        - button "Score de sécurité · Faible 0/100" [ref=f1e219] [cursor=pointer]:
+          - generic [ref=f1e220]:
+            - generic [ref=f1e221]: Score de sécurité · Faible
+            - generic [ref=f1e222]: 0/100
+        - generic [ref=f1e225]:
+          - button "Menu du compte" [ref=f1e226] [cursor=pointer]:
+            - generic [ref=f1e227]: AD
+            - generic [ref=f1e228]:
+              - generic [ref=f1e229]: Admin
+              - generic [ref=f1e230]: Membre
+          - button "Collapse sidebar" [ref=f1e231] [cursor=pointer]
+    - generic [ref=f1e235]:
+      - banner [ref=f1e236]:
+        - navigation "Breadcrumb" [ref=f1e237]:
+          - generic [ref=f1e238]: OpenRisk
+          - link "Paramètres" [ref=f1e242] [cursor=pointer]:
+            - /url: /settings
+          - generic [ref=f1e243]: Membres
+        - button "Rechercher… ⌘K" [ref=f1e247] [cursor=pointer]:
+          - generic [ref=f1e251]: Rechercher…
+          - generic [ref=f1e252]: ⌘K
+        - generic [ref=f1e253]:
+          - generic "Connecté au serveur" [ref=f1e254]:
+            - status [ref=f1e256]: Connecté au serveur
+          - button "Toggle language" [ref=f1e257] [cursor=pointer]:
+            - generic [ref=f1e258]: FR
+          - 'button "Densité : Confort" [ref=f1e260] [cursor=pointer]'
+          - button "Raccourcis clavier" [ref=f1e264] [cursor=pointer]
+          - button "Notifications" [ref=f1e268] [cursor=pointer]
+          - button "Toggle theme" [ref=f1e272] [cursor=pointer]
+      - main [ref=f1e275]:
+        - generic [ref=f1e278]:
+          - heading "Paramètres" [level=1] [ref=f1e281]
+          - generic [ref=f1e282]:
+            - generic [ref=f1e283]:
+              - button [ref=f1e284] [cursor=pointer]
+              - button [ref=f1e289] [cursor=pointer]
+              - button [ref=f1e296] [cursor=pointer]
+              - button [ref=f1e301] [cursor=pointer]
+              - button [ref=f1e307] [cursor=pointer]
+              - button [ref=f1e310] [cursor=pointer]
+              - button [ref=f1e314] [cursor=pointer]
+              - button [ref=f1e321] [cursor=pointer]
+              - button [ref=f1e325] [cursor=pointer]
+              - button [ref=f1e329] [cursor=pointer]
+            - generic [ref=f1e333]:
+              - generic [ref=f1e334]:
+                - button "Membres" [ref=f1e335] [cursor=pointer]
+                - button "Invitations" [ref=f1e341] [cursor=pointer]
+                - button "Journal d'accès" [ref=f1e345] [cursor=pointer]
+                - button "Inviter un membre" [ref=f1e350] [cursor=pointer]
+              - generic [ref=f1e551]:
+                - textbox "Rechercher un membre" [ref=f1e556]:
+                  - /placeholder: Nom ou email…
+                - button "Tous" [ref=f1e557] [cursor=pointer]
+                - button "Actif" [ref=f1e558] [cursor=pointer]
+                - button "Désactivé" [ref=f1e559] [cursor=pointer]
+                - button "Révoqué" [ref=f1e560] [cursor=pointer]
+              - table [ref=f1e563]:
+                - caption [ref=f1e564]: Membres de l'organisation
+                - rowgroup [ref=f1e565]:
+                  - row [ref=f1e566]:
+                    - columnheader "Membre" [ref=f1e567]
+                    - columnheader "Statut" [ref=f1e568]
+                    - columnheader "Accès" [ref=f1e569]
+                    - columnheader "Membre depuis" [ref=f1e570]
+                    - columnheader "Actions" [ref=f1e571]
+                - rowgroup [ref=f1e572]:
+                  - row [ref=f1e573]:
+                    - cell "Admin Alpha Propriétaire w4-admin-a@openrisk.test" [ref=f1e574]:
+                      - generic [ref=f1e575]:
+                        - text: Admin Alpha
+                        - generic [ref=f1e576]: Propriétaire
+                      - generic [ref=f1e577]: w4-admin-a@openrisk.test
+                    - cell "Actif" [ref=f1e578]
+                    - cell "Accès complet" [ref=f1e581]
+                    - cell "20 août 2026" [ref=f1e582]
+                    - cell [ref=f1e583]
+                  - row [ref=f1e584]:
+                    - cell "Joiner Person w4-joiner@openrisk.test" [ref=f1e585]:
+                      - generic [ref=f1e586]: Joiner Person
+                      - generic [ref=f1e587]: w4-joiner@openrisk.test
+                    - cell "Révoqué" [ref=f1e588]
+                    - cell "Administrateur (accès complet)" [ref=f1e591]:
+                      - combobox "Rôle de w4-joiner@openrisk.test" [ref=f1e592]:
+                        - option "Administrateur (accès complet)" [selected]
+                        - option "— Aucun rôle métier —"
+                        - option "RSSI"
+                        - option "DSI"
+                        - option "Risk Manager"
+                        - option "Auditeur"
+                        - option "Responsable conformité"
+                        - option "Contrôle interne"
+                        - option "Propriétaire d'actif"
+                        - option "Propriétaire de risque"
+                        - option "Analyste sécurité"
+                        - option "Direction"
+                        - option "Lecteur"
+                    - cell "20 août 2026" [ref=f1e593]
+                    - cell [ref=f1e594]
+                  - row [ref=f1e595]:
+                    - cell "Plain Member w4-plain@openrisk.test" [ref=f1e596]:
+                      - generic [ref=f1e597]: Plain Member
+                      - generic [ref=f1e598]: w4-plain@openrisk.test
+                    - cell "Actif" [ref=f1e599]
+                    - cell "Lecteur" [ref=f1e602]:
+                      - combobox "Rôle de w4-plain@openrisk.test" [ref=f1e603]:
+                        - option "Administrateur (accès complet)"
+                        - option "— Aucun rôle métier —"
+                        - option "RSSI"
+                        - option "DSI"
+                        - option "Risk Manager"
+                        - option "Auditeur"
+                        - option "Responsable conformité"
+                        - option "Contrôle interne"
+                        - option "Propriétaire d'actif"
+                        - option "Propriétaire de risque"
+                        - option "Analyste sécurité"
+                        - option "Direction"
+                        - option "Lecteur" [selected]
+                    - cell "20 août 2026" [ref=f1e604]
+                    - cell [ref=f1e605]:
+                      - generic [ref=f1e606]:
+                        - button "Désactiver" [ref=f1e607] [cursor=pointer]
+                        - button "Révoquer l'accès de w4-plain@openrisk.test" [ref=f1e611] [cursor=pointer]
+                  - row [ref=f1e615]:
+                    - cell "Plain Member w4-plain-1787234733@openrisk.test" [ref=f1e616]:
+                      - generic [ref=f1e617]: Plain Member
+                      - generic [ref=f1e618]: w4-plain-1787234733@openrisk.test
+                    - cell "Actif" [ref=f1e619]
+                    - cell "Lecteur" [ref=f1e622]:
+                      - combobox "Rôle de w4-plain-1787234733@openrisk.test" [ref=f1e623]:
+                        - option "Administrateur (accès complet)"
+                        - option "— Aucun rôle métier —"
+                        - option "RSSI"
+                        - option "DSI"
+                        - option "Risk Manager"
+                        - option "Auditeur"
+                        - option "Responsable conformité"
+                        - option "Contrôle interne"
+                        - option "Propriétaire d'actif"
+                        - option "Propriétaire de risque"
+                        - option "Analyste sécurité"
+                        - option "Direction"
+                        - option "Lecteur" [selected]
+                    - cell "20 août 2026" [ref=f1e624]
+                    - cell [ref=f1e625]:
+                      - generic [ref=f1e626]:
+                        - button "Désactiver" [ref=f1e627] [cursor=pointer]
+                        - button "Révoquer l'accès de w4-plain-1787234733@openrisk.test" [ref=f1e631] [cursor=pointer]
+              - dialog [ref=f1e636]:
+                - generic [ref=f1e637]:
+                  - heading "Inviter un membre" [level=2] [ref=f1e638]
+                  - button "Fermer" [ref=f1e639] [cursor=pointer]
+                - generic [ref=f1e643]:
+                  - generic [ref=f1e644]: Adresse email
+                  - textbox "Adresse email" [active] [ref=f1e645]:
+                    - /placeholder: collegue@exemple.com
+                  - generic [ref=f1e646]: Accès
+                  - combobox "Accès" [ref=f1e647]:
+                    - option "— Aucun rôle métier —" [selected]
+                    - option "RSSI"
+                    - option "DSI"
+                    - option "Risk Manager"
+                    - option "Auditeur"
+                    - option "Responsable conformité"
+                    - option "Contrôle interne"
+                    - option "Propriétaire d'actif"
+                    - option "Propriétaire de risque"
+                    - option "Analyste sécurité"
+                    - option "Direction"
+                    - option "Lecteur"
+                    - option "Administrateur (accès complet)"
+                  - paragraph [ref=f1e648]: L'invitation expire au bout de 7 jours et peut être révoquée à tout moment.
+                  - button "Envoyer l'invitation" [disabled] [ref=f1e649]
+  - region "Notifications alt+T"

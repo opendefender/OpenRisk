@@ -1,0 +1,29 @@
+- generic [ref=f7e2]:
+  - generic [ref=f7e6]:
+    - generic [ref=f7e7]:
+      - img "OpenRisk" [ref=f7e8]
+      - generic [ref=f7e10]: OpenRisk
+    - generic [ref=f7e11]:
+      - generic [ref=f7e18]:
+        - heading "W004 Tenant Alpha" [level=1] [ref=f7e19]
+        - generic [ref=f7e20]: vous invite à rejoindre son espace
+      - generic [ref=f7e21]:
+        - generic [ref=f7e22]:
+          - term [ref=f7e23]: Adresse invitée
+          - definition [ref=f7e24]: w4-browser-proof@openrisk.test
+        - generic [ref=f7e25]:
+          - term [ref=f7e26]: Rôle
+          - definition [ref=f7e27]: user
+      - alert [ref=f7e28]:
+        - generic [ref=f7e31]: Vous êtes connecté en tant que w4-admin-a@openrisk.test. Cette invitation est destinée à w4-browser-proof@openrisk.test.
+      - generic [ref=f7e32]:
+        - generic [ref=f7e33]: Votre nom complet
+        - textbox "Votre nom complet" [ref=f7e34]: w4-admin-a@openrisk.test
+        - generic [ref=f7e35]: Choisissez un mot de passe
+        - textbox "Choisissez un mot de passe" [ref=f7e36]: W0-04-proof-passphrase!
+        - paragraph [ref=f7e37]: 12 caractères minimum.
+        - alert [ref=f7e38]:
+          - generic [ref=f7e41]: this invitation was issued to w4-browser-proof@openrisk.test — sign in as that address to accept it
+        - button "Créer mon compte et rejoindre" [ref=f7e42] [cursor=pointer]
+      - paragraph [ref=f7e43]: Ce lien expire le 27 août 2026.
+  - region "Notifications alt+T"

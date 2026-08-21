@@ -723,6 +723,17 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
           ))}
           <option value={ADMIN_OPTION}>{tr('Administrateur (accès complet)', 'Administrator (full access)')}</option>
         </select>
+        {/* The default option grants nothing — least privilege is the right
+            default, but an admin who does not know that invites a colleague
+            who then sees an almost empty product and assumes it is broken. */}
+        {role === '' && (
+          <p className="text-[11.5px] mb-2 leading-snug" style={{ color: 'var(--high)' }}>
+            {tr(
+              'Sans rôle métier, ce membre pourra se connecter mais ne verra presque rien. Vous pourrez lui en attribuer un à tout moment.',
+              'With no business role, this member can sign in but will see almost nothing. You can assign one at any time.',
+            )}
+          </p>
+        )}
         <p className="text-[11.5px] text-ink-muted mb-4 leading-snug">
           {tr(
             "L'invitation expire au bout de 7 jours et peut être révoquée à tout moment.",

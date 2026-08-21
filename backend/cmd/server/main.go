@@ -2201,6 +2201,11 @@ func main() {
 		// can be minted for them.
 		WithSessionRevoker(tokenManager).
 		WithPasswordHasher(passwordHasher).
+		// An invitee joins an organization that already exists, so the signup
+		// wizard — whose first screen asks you to set one up — has nothing to
+		// ask them. Without this the route guard would hold a newly joined
+		// colleague in front of a form about a tenant they cannot edit.
+		WithOnboarding(activationRepo).
 		WithBaseURL(appBaseURL)
 	memberHandler := handlers.NewOrganizationMemberHandler(membershipSvc)
 

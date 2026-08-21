@@ -297,6 +297,51 @@ func TestInvitations_CrossTenantIsolation(t *testing.T) {
 // Acceptance
 // ---------------------------------------------------------------------------
 
+// An invitee joins an organization that already exists. The signup wizard's
+// first screen asks the user to set one up, and the route guard holds the whole
+// application shut until onboarding is complete — so without this a newly
+// joined colleague's first screen is a form about a tenant they did not create
+// and are not allowed to edit.
+func TestAccept_TakesTheNewMemberPastTheSignupWizard(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	done := &recordingOnboarding{}
+	h.svc.WithOnboarding(done)
+	_, token := h.inviteAndCaptureToken(t, "wizard@x.io", domain.RoleUser)
+
+	if _, err := h.svc.AcceptInvitation(ctx, AcceptInput{
+		Token: token, FullName: "Wizard Skipper", Password: "correct-horse-battery-staple",
+	}); err != nil {
+		t.Fatalf("accept: %v", err)
+	}
+	if len(done.calls) != 1 || done.calls[0].tenant != h.tenantA {
+		t.Fatalf("acceptance must mark onboarding complete for the tenant joined: %+v", done.calls)
+	}
+
+	// And a failure there must never undo a membership that was just created.
+	done.err = errors.New("onboarding store down")
+	_, token2 := h.inviteAndCaptureToken(t, "wizard2@x.io", domain.RoleUser)
+	if _, err := h.svc.AcceptInvitation(ctx, AcceptInput{
+		Token: token2, FullName: "Second Skipper", Password: "correct-horse-battery-staple",
+	}); err != nil {
+		t.Fatalf("an onboarding failure must not fail the acceptance: %v", err)
+	}
+	page, _ := h.svc.ListMembers(ctx, h.tenantA, domain.MemberQuery{Search: "wizard2@x.io"})
+	if page.Total != 1 {
+		t.Fatalf("the membership must exist despite the onboarding failure (got %d)", page.Total)
+	}
+}
+
+type recordingOnboarding struct {
+	calls []struct{ tenant, user uuid.UUID }
+	err   error
+}
+
+func (r *recordingOnboarding) MarkComplete(_ context.Context, tenantID, userID uuid.UUID) error {
+	r.calls = append(r.calls, struct{ tenant, user uuid.UUID }{tenantID, userID})
+	return r.err
+}
+
 func TestAccept_NewAccountJoinsAtTheInvitedRole(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()

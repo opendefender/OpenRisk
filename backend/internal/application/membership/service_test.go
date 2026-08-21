@@ -48,8 +48,13 @@ func (f *fakeRepo) ListMembers(_ context.Context, tenant uuid.UUID, q domain.Mem
 		if q.Role != "" && m.Role != q.Role {
 			continue
 		}
-		if q.Search != "" && m.User != nil && !strings.Contains(strings.ToLower(m.User.Email), strings.ToLower(q.Search)) {
-			continue
+		// A row with no preloaded user does NOT match a search. Skipping the
+		// filter for it — which is what this fake used to do — would let a test
+		// "find" a member the real repository would not return.
+		if q.Search != "" {
+			if m.User == nil || !strings.Contains(strings.ToLower(m.User.Email), strings.ToLower(q.Search)) {
+				continue
+			}
 		}
 		out = append(out, *m)
 	}
@@ -224,6 +229,11 @@ func (f *fakeRepo) AcceptInvitation(_ context.Context, inv *domain.Invitation, m
 		x.Status = domain.InvitationAccepted
 		x.AcceptedAt, x.AcceptedByID = inv.AcceptedAt, inv.AcceptedByID
 		cp := *m
+		if cp.User == nil {
+			// The real repository preloads User on every read; mirroring that
+			// here is what makes a search over the roster behave the same way.
+			cp.User = &domain.User{ID: m.UserID, Email: inv.Email}
+		}
 		f.members = append(f.members, &cp)
 		return nil
 	}

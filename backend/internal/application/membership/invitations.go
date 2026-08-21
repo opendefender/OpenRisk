@@ -331,7 +331,17 @@ func (s *Service) AcceptInvitation(ctx context.Context, in AcceptInput) (*Accept
 			return nil, err
 		}
 		if signedIn == nil || domain.NormalizeEmail(signedIn.Email) != inv.Email {
-			return nil, domain.NewForbiddenError("this invitation was issued to a different address")
+			// The reason goes in Message, not in Detail: handlers serialise
+			// MessageFromError, and NewForbiddenError's Detail never leaves the
+			// process. "access denied" tells someone holding a legitimate link
+			// nothing they can act on, whereas naming the invited address tells
+			// them to switch accounts. It reveals nothing they do not already
+			// hold — the address is in the invitation they are presenting.
+			return nil, &domain.AppError{
+				Err:     domain.ErrForbidden,
+				Message: "this invitation was issued to " + inv.Email + " — sign in as that address to accept it",
+				Code:    http.StatusForbidden,
+			}
 		}
 		user = signedIn
 
@@ -407,7 +417,18 @@ func (s *Service) AcceptInvitation(ctx context.Context, in AcceptInput) (*Accept
 		fmt.Sprintf("%s accepted the invitation and joined as %s", inv.Email, inv.Role), nil,
 		domain.JSONMap{"email": inv.Email, "role": string(inv.Role), "invitation_id": inv.ID.String()})
 
+	s.completeOnboarding(ctx, inv.OrganizationID, user.ID)
 	return s.acceptResult(ctx, inv, user, createdAccount), nil
+}
+
+// completeOnboarding takes a joined member past the signup wizard. Best-effort:
+// the membership is already written, and a wizard flag is not worth undoing it
+// for.
+func (s *Service) completeOnboarding(ctx context.Context, tenantID, userID uuid.UUID) {
+	if s.onboarding == nil {
+		return
+	}
+	_ = s.onboarding.MarkComplete(ctx, tenantID, userID)
 }
 
 // reinstate re-activates a membership that already exists for the invitee,
@@ -431,7 +452,11 @@ func (s *Service) reinstate(ctx context.Context, inv *domain.Invitation, m *doma
 			// A revoked membership is terminal by design; re-admitting somebody
 			// whose access was revoked is a decision an administrator makes, not
 			// something an old link performs.
-			return nil, domain.NewForbiddenError("this membership was revoked — ask an administrator to re-invite you")
+			return nil, &domain.AppError{
+				Err:     domain.ErrForbidden,
+				Message: "access to this organization was revoked — ask an administrator to invite you again",
+				Code:    http.StatusForbidden,
+			}
 		}
 		m.Role = inv.Role
 		m.BusinessRole = inv.BusinessRole
@@ -455,6 +480,7 @@ func (s *Service) reinstate(ctx context.Context, inv *domain.Invitation, m *doma
 	if user == nil {
 		user = &domain.User{ID: m.UserID, Email: inv.Email}
 	}
+	s.completeOnboarding(ctx, inv.OrganizationID, m.UserID)
 	return s.acceptResult(ctx, inv, user, false), nil
 }
 

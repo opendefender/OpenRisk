@@ -127,8 +127,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     // The MFA responses carry the token pair but not the profile, so read it
     // back. Permissions still come from the token, exactly as at login.
+    //
+    // /auth/me answers { organization_id, user: {...} }, NOT a bare user — the
+    // same envelope /auth/login uses. Spreading the envelope stored a profile
+    // whose email, id and full_name were all undefined at the top level, which
+    // survived into localStorage and back out on the next page load. It went
+    // unnoticed because permissions come from the JWT and so kept working;
+    // what broke was everything keyed on identity — the account menu's name,
+    // and the members screen's "this row is you" guard, which then offered
+    // controls the server refuses.
     const { data } = await api.get('/auth/me');
-    const base: User = { ...data, role: data.role?.name ?? '' };
+    const profile = (data?.user ?? data) as Record<string, unknown> & { role?: { name?: string } };
+    const base: User = { ...profile, role: profile.role?.name ?? '' } as User;
     const user = withTokenClaims(base, accessToken);
 
     localStorage.setItem('auth_user', JSON.stringify(user));

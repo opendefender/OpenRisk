@@ -1,0 +1,52 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - button "Passer en anglais" [ref=e5] [cursor=pointer]:
+        - generic [ref=e10]: fr
+      - button "Changer de thème" [ref=e11] [cursor=pointer]
+    - generic [ref=e14]:
+      - generic [ref=e17]:
+        - img "OpenRisk" [ref=e19]
+        - generic [ref=e21]:
+          - generic [ref=e22]: OpenRisk
+          - generic [ref=e23]: La plateforme GRC open source
+      - figure [ref=e49]:
+        - generic [ref=e50]:
+          - blockquote [ref=e51]: “Le risque vient de ne pas savoir ce que l’on fait.”
+          - generic [ref=e52]: — Warren Buffett
+    - generic [ref=e53]:
+      - generic [ref=e55]:
+        - generic [ref=e56]:
+          - heading "Content de vous revoir" [level=1] [ref=e57]
+          - generic [ref=e58]: Connectez-vous pour reprendre votre travail.
+        - generic [ref=e59]:
+          - generic [ref=e60]: E-mail
+          - textbox "E-mail" [active] [ref=e62]
+        - generic [ref=e63]:
+          - generic [ref=e64]: Mot de passe
+          - generic [ref=e66]:
+            - textbox "Mot de passe" [ref=e67]
+            - button "Mot de passe" [ref=e68] [cursor=pointer]
+        - generic [ref=e72]:
+          - generic [ref=e73] [cursor=pointer]:
+            - checkbox "Rester connecté" [ref=e74]
+            - text: Rester connecté
+          - link "Mot de passe oublié ?" [ref=e75] [cursor=pointer]:
+            - /url: /forgot-password
+        - button "Se connecter" [ref=e77] [cursor=pointer]
+        - generic [ref=e78]: ou continuer avec
+        - generic [ref=e82]:
+          - button "Google" [ref=e83] [cursor=pointer]
+          - button "GitHub" [ref=e84] [cursor=pointer]
+          - button "Microsoft" [ref=e85] [cursor=pointer]
+        - generic [ref=e86]:
+          - text: Pas encore de compte ?
+          - link "Créer un compte" [ref=e87] [cursor=pointer]:
+            - /url: "#"
+      - generic [ref=e88]:
+        - text: Un produit
+        - link "OpenDefender" [ref=e89] [cursor=pointer]:
+          - /url: https://github.com/opendefender
+        - text: ·
+        - generic [ref=e90]: © 2026
+  - region "Notifications alt+T"

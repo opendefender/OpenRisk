@@ -1,0 +1,34 @@
+- generic [ref=f6e2]:
+  - generic [ref=f6e5]:
+    - generic [ref=f6e6]:
+      - button "Passer en anglais" [ref=f6e7] [cursor=pointer]:
+        - generic [ref=f6e12]: fr
+      - button "Changer de thème" [ref=f6e13] [cursor=pointer]
+    - generic [ref=f6e16]:
+      - generic [ref=f6e19]:
+        - img "OpenRisk" [ref=f6e21]
+        - generic [ref=f6e23]:
+          - generic [ref=f6e24]: OpenRisk
+          - generic [ref=f6e25]: La plateforme GRC open source
+      - figure [ref=f6e51]:
+        - generic [ref=f6e52]:
+          - blockquote [ref=f6e53]: “Ce que l’on anticipe arrive rarement ; ce que l’on attend le moins arrive généralement.”
+          - generic [ref=f6e54]: — Benjamin Disraeli
+    - generic [ref=f6e55]:
+      - generic [ref=f6e57]:
+        - generic [ref=f6e58]:
+          - heading "Vérification en deux étapes" [level=1] [ref=f6e63]
+          - paragraph [ref=f6e64]: Saisissez le code à 6 chiffres de votre application d’authentification.
+        - generic [ref=f6e65]:
+          - generic [ref=f6e66]: Code de vérification
+          - textbox "Code de vérification" [active] [ref=f6e68]
+          - paragraph [ref=f6e69]: Utiliser un code de récupération
+        - button "Vérifier" [disabled] [ref=f6e71]
+        - button "Retour à la connexion" [ref=f6e73] [cursor=pointer]
+      - generic [ref=f6e74]:
+        - text: Un produit
+        - link "OpenDefender" [ref=f6e75] [cursor=pointer]:
+          - /url: https://github.com/opendefender
+        - text: ·
+        - generic [ref=f6e76]: © 2026
+  - region "Notifications alt+T"

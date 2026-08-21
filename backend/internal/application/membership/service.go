@@ -90,6 +90,22 @@ type PasswordHasher interface {
 	Hash(password string) (string, error)
 }
 
+// OnboardingCompleter marks a newly joined member as past the signup wizard.
+//
+// The wizard's first screen asks the user to set up an organization. That is
+// the right question for someone creating a tenant and the wrong one for
+// someone joining one that already exists — and the route guard blocks the
+// whole application until onboarding is complete, so an invitee would be held
+// in front of a form about an organization they did not create and cannot
+// edit. This is the same reasoning as BackfillExistingMembers, applied to the
+// members who arrive after the upgrade rather than before it.
+//
+// Optional and nil-safe, and never fatal: failing to tick a wizard flag must
+// not undo a membership that was just created.
+type OnboardingCompleter interface {
+	MarkComplete(ctx context.Context, tenantID, userID uuid.UUID) error
+}
+
 // OrganizationReader resolves the tenant's own profile.
 type OrganizationReader interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Organization, error)
@@ -211,16 +227,17 @@ func toInvitationView(inv *domain.Invitation, now time.Time) InvitationView {
 // mailer degrades invitation DELIVERY, never invitation creation; a missing
 // audit sink degrades the journal, never the action.
 type Service struct {
-	repo    domain.MembershipRepository
-	users   UserDirectory
-	orgs    OrganizationReader
-	audit   AuditSink
-	reader  AuditReader
-	mailer  InvitationMailer
-	revoker SessionRevoker
-	hasher  PasswordHasher
-	baseURL string
-	now     func() time.Time
+	repo       domain.MembershipRepository
+	users      UserDirectory
+	orgs       OrganizationReader
+	audit      AuditSink
+	reader     AuditReader
+	mailer     InvitationMailer
+	revoker    SessionRevoker
+	hasher     PasswordHasher
+	onboarding OnboardingCompleter
+	baseURL    string
+	now        func() time.Time
 }
 
 // NewService builds the service over its two required ports.
@@ -234,6 +251,7 @@ func (s *Service) WithAuditReader(r AuditReader) *Service          { s.reader = 
 func (s *Service) WithMailer(m InvitationMailer) *Service          { s.mailer = m; return s }
 func (s *Service) WithSessionRevoker(r SessionRevoker) *Service    { s.revoker = r; return s }
 func (s *Service) WithPasswordHasher(h PasswordHasher) *Service    { s.hasher = h; return s }
+func (s *Service) WithOnboarding(o OnboardingCompleter) *Service   { s.onboarding = o; return s }
 func (s *Service) WithBaseURL(u string) *Service {
 	s.baseURL = strings.TrimRight(strings.TrimSpace(u), "/")
 	return s

@@ -1,0 +1,200 @@
+- generic [ref=f9e2]:
+  - generic [ref=f9e22]:
+    - link "Aller au contenu principal" [ref=f9e23] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary [ref=f9e24]:
+      - generic [ref=f9e25]:
+        - generic [ref=f9e26]:
+          - generic [ref=f9e27]:
+            - img "OpenRisk" [ref=f9e29]
+            - generic [ref=f9e31]: OpenRisk
+          - button "WT W004 Tenant Alpha Enterprise" [ref=f9e32] [cursor=pointer]:
+            - generic [ref=f9e33]: WT
+            - generic [ref=f9e34]:
+              - generic [ref=f9e35]: W004 Tenant Alpha
+              - generic [ref=f9e36]: Enterprise
+        - button "Nouveau risque" [ref=f9e41] [cursor=pointer]
+        - navigation [ref=f9e44]:
+          - button "Tableau de bord" [ref=f9e46] [cursor=pointer]
+          - generic [ref=f9e54]:
+            - generic [ref=f9e55]: Admin
+            - button "Paramètres" [ref=f9e56] [cursor=pointer]
+        - button "Score de sécurité · Moyen 25/100" [ref=f9e62] [cursor=pointer]:
+          - generic [ref=f9e63]:
+            - generic [ref=f9e64]: Score de sécurité · Moyen
+            - generic [ref=f9e65]: 25/100
+        - generic [ref=f9e69]:
+          - button "Menu du compte" [ref=f9e70] [cursor=pointer]:
+            - generic [ref=f9e71]: WS
+            - generic [ref=f9e72]:
+              - generic [ref=f9e73]: Wizard Skipper
+              - generic [ref=f9e74]: Membre
+          - button "Collapse sidebar" [ref=f9e75] [cursor=pointer]
+    - generic [ref=f9e79]:
+      - banner [ref=f9e80]:
+        - navigation "Breadcrumb" [ref=f9e81]:
+          - generic [ref=f9e82]: OpenRisk
+          - generic [ref=f9e83]: Tableau de bord
+        - button "Rechercher… ⌘K" [ref=f9e87] [cursor=pointer]:
+          - generic [ref=f9e91]: Rechercher…
+          - generic [ref=f9e92]: ⌘K
+        - generic [ref=f9e93]:
+          - generic "Connecté au serveur" [ref=f9e94]:
+            - status [ref=f9e96]: Connecté au serveur
+          - button "Toggle language" [ref=f9e97] [cursor=pointer]:
+            - generic [ref=f9e98]: FR
+          - 'button "Densité : Confort" [ref=f9e100] [cursor=pointer]'
+          - button "Raccourcis clavier" [ref=f9e104] [cursor=pointer]
+          - button "Notifications" [ref=f9e108] [cursor=pointer]
+          - button "Toggle theme" [ref=f9e112] [cursor=pointer]
+      - main [ref=f9e115]:
+        - generic [ref=f9e118]:
+          - generic [ref=f9e119]:
+            - generic [ref=f9e120]:
+              - heading "Bonjour, Wizard" [level=1] [ref=f9e121]
+              - generic [ref=f9e122]: Voici l’état de vos risques aujourd’hui
+            - button "Générer un rapport" [ref=f9e123] [cursor=pointer]
+          - region "Prise en main" [ref=f9e127]:
+            - generic [ref=f9e128]:
+              - generic [ref=f9e129]:
+                - generic [ref=f9e130]: Prise en main
+                - generic [ref=f9e134]: Quelques actions pour voir votre exposition réelle.
+              - generic [ref=f9e135]: 2/7
+            - progressbar [ref=f9e136]
+            - list [ref=f9e138]:
+              - listitem [ref=f9e139]:
+                - generic [ref=f9e140]: "1"
+                - generic [ref=f9e142]:
+                  - generic [ref=f9e143]:
+                    - generic [ref=f9e144]: Complétez votre profil
+                    - generic [ref=f9e145]: À faire maintenant
+                  - generic [ref=f9e146]: Votre nom et votre fonction rendent les assignations lisibles par l'équipe.
+                - button "Commencer" [ref=f9e147] [cursor=pointer]
+              - listitem [ref=f9e150]:
+                - generic [ref=f9e154]: Créez votre premier risque
+              - listitem [ref=f9e157]:
+                - generic [ref=f9e161]: Importez un référentiel
+              - listitem [ref=f9e164]:
+                - generic [ref=f9e165]: "4"
+                - generic [ref=f9e167]:
+                  - generic [ref=f9e168]: Cartographiez un actif
+                  - generic [ref=f9e170]: La criticité de l'actif pondère le score de chaque risque qui le touche.
+                - button "Commencer" [ref=f9e171] [cursor=pointer]
+              - listitem [ref=f9e174]:
+                - generic [ref=f9e175]: "5"
+                - generic [ref=f9e177]:
+                  - generic [ref=f9e178]: Planifiez un traitement
+                  - generic [ref=f9e180]: "Un risque identifié sans plan reste un risque : ouvrez votre premier plan."
+                - button "Commencer" [ref=f9e181] [cursor=pointer]
+              - listitem [ref=f9e184]:
+                - generic [ref=f9e185]: "6"
+                - generic [ref=f9e187]:
+                  - generic [ref=f9e188]: Invitez un collègue
+                  - generic [ref=f9e190]: La GRC est un sport d'équipe — assignez risques et contrôles à de vraies personnes.
+                - button "Commencer" [ref=f9e191] [cursor=pointer]
+              - listitem [ref=f9e194]:
+                - generic [ref=f9e195]: "7"
+                - generic [ref=f9e197]:
+                  - generic [ref=f9e198]: Générez votre premier rapport
+                  - generic [ref=f9e200]: De la donnée brute à un document présentable en comité, en une action.
+                - button "Commencer" [ref=f9e201] [cursor=pointer]
+            - button "Revoir la visite guidée" [ref=f9e204] [cursor=pointer]
+          - generic [ref=f9e212]:
+            - generic [ref=f9e213]:
+              - generic [ref=f9e214]:
+                - text: Score de sécurité
+                - button "Comment ce score est-il calculé ?" [ref=f9e215] [cursor=pointer]
+              - generic [ref=f9e218]:
+                - img "Score de sécurité" [ref=f9e219]
+                - generic [ref=f9e222]:
+                  - generic [ref=f9e223]: "23"
+                  - generic [ref=f9e224]: / 100
+                  - generic [ref=f9e225]: Moyen
+              - button "Voir détails" [ref=f9e226] [cursor=pointer]
+            - generic [ref=f9e227]:
+              - button "1 Risques totaux" [ref=f9e228] [cursor=pointer]:
+                - generic [ref=f9e233]: "1"
+                - generic [ref=f9e234]: Risques totaux
+              - button "0 Critiques" [ref=f9e235] [cursor=pointer]:
+                - generic [ref=f9e240]: "0"
+                - generic [ref=f9e241]: Critiques
+              - button "0 En mitigation" [ref=f9e242] [cursor=pointer]:
+                - generic [ref=f9e248]: "0"
+                - generic [ref=f9e249]: En mitigation
+              - button "0 Résolus ce mois" [ref=f9e250] [cursor=pointer]:
+                - generic [ref=f9e256]: "0"
+                - generic [ref=f9e257]: Résolus ce mois
+          - generic [ref=f9e258]:
+            - generic [ref=f9e259]:
+              - generic [ref=f9e260]: Matrice probabilité × impact
+              - generic [ref=f9e261]:
+                - generic [ref=f9e262]: Impact
+                - generic [ref=f9e264]:
+                  - generic [ref=f9e265]:
+                    - generic [ref=f9e266]:
+                      - generic "P1×I5 · 0" [ref=f9e267]
+                      - generic "P2×I5 · 1" [ref=f9e268]: "1"
+                      - generic "P3×I5 · 0" [ref=f9e270]
+                      - generic "P4×I5 · 0" [ref=f9e271]
+                      - generic "P5×I5 · 0" [ref=f9e272]
+                    - generic [ref=f9e273]:
+                      - generic "P1×I4 · 0" [ref=f9e274]
+                      - generic "P2×I4 · 0" [ref=f9e275]
+                      - generic "P3×I4 · 0" [ref=f9e276]
+                      - generic "P4×I4 · 0" [ref=f9e277]
+                      - generic "P5×I4 · 0" [ref=f9e278]
+                    - generic [ref=f9e279]:
+                      - generic "P1×I3 · 0" [ref=f9e280]
+                      - generic "P2×I3 · 0" [ref=f9e281]
+                      - generic "P3×I3 · 0" [ref=f9e282]
+                      - generic "P4×I3 · 0" [ref=f9e283]
+                      - generic "P5×I3 · 0" [ref=f9e284]
+                    - generic [ref=f9e285]:
+                      - generic "P1×I2 · 0" [ref=f9e286]
+                      - generic "P2×I2 · 0" [ref=f9e287]
+                      - generic "P3×I2 · 0" [ref=f9e288]
+                      - generic "P4×I2 · 0" [ref=f9e289]
+                      - generic "P5×I2 · 0" [ref=f9e290]
+                    - generic [ref=f9e291]:
+                      - generic "P1×I1 · 0" [ref=f9e292]
+                      - generic "P2×I1 · 0" [ref=f9e293]
+                      - generic "P3×I1 · 0" [ref=f9e294]
+                      - generic "P4×I1 · 0" [ref=f9e295]
+                      - generic "P5×I1 · 0" [ref=f9e296]
+                  - generic [ref=f9e297]: Probabilité
+            - generic [ref=f9e298]:
+              - generic [ref=f9e299]:
+                - generic [ref=f9e300]: Tendance des risques
+                - generic [ref=f9e301]:
+                  - button "7j" [ref=f9e302] [cursor=pointer]
+                  - button "30j" [ref=f9e303] [cursor=pointer]
+                  - button "90j" [ref=f9e304] [cursor=pointer]
+              - generic [ref=f9e305]:
+                - generic [ref=f9e306]: Critique
+                - generic [ref=f9e308]: Élevé
+                - generic [ref=f9e310]: Moyen
+              - generic [ref=f9e312]: Pas encore de tendance — créez des risques pour la voir apparaître.
+          - generic [ref=f9e313]:
+            - generic [ref=f9e314]:
+              - generic [ref=f9e315]: Activité récente
+              - status [ref=f9e317]:
+                - generic [ref=f9e321]: Aucune activité récente
+                - generic [ref=f9e322]: Les derniers risques ajoutés ou mis à jour apparaîtront ici, du plus critique au moins critique.
+                - button "Créer un risque" [ref=f9e324] [cursor=pointer]
+            - generic [ref=f9e326]:
+              - generic [ref=f9e327]: Incident en cours
+              - generic [ref=f9e330]:
+                - generic [ref=f9e334]: Aucun incident en cours
+                - generic [ref=f9e335]: Tout est calme. Les incidents ouverts s’afficheront ici.
+              - button "Voir les incidents" [ref=f9e336] [cursor=pointer]
+    - dialog "Tout retrouver" [ref=f9e337]:
+      - generic [ref=f9e338]:
+        - generic [ref=f9e339]: Tout retrouver
+        - button "Fermer" [ref=f9e340] [cursor=pointer]
+      - paragraph [ref=f9e344]: "Risques, actifs, vulnérabilités, contrôles, CVE — une seule recherche. Raccourci : ⌘K (ou « / »)."
+      - generic [ref=f9e345]:
+        - generic [ref=f9e346]: 2/3
+        - generic [ref=f9e347]:
+          - button "Passer" [ref=f9e348] [cursor=pointer]
+          - button "Suivant" [ref=f9e349] [cursor=pointer]
+  - region "Notifications alt+T"

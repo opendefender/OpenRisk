@@ -278,6 +278,42 @@ func (r *GormActivationRepository) Get(ctx context.Context, tenantID, userID uui
 	return &p, nil
 }
 
+// MarkComplete takes a user straight past the signup wizard.
+//
+// It exists for members who JOIN an existing organization by invitation. The
+// wizard opens by asking the user to set up an organization, which is the right
+// question for a founder and the wrong one for an invitee — and the route guard
+// holds the whole application shut until onboarding.completed is true, so
+// without this an invited colleague's first screen is a form about a tenant
+// they did not create and are not allowed to edit.
+//
+// Same reasoning as BackfillExistingMembers, applied to members who arrive
+// after the upgrade rather than before it. Idempotent: a user who already has a
+// row keeps it and is only marked complete.
+func (r *GormActivationRepository) MarkComplete(ctx context.Context, tenantID, userID uuid.UUID) error {
+	if tenantID == uuid.Nil || userID == uuid.Nil {
+		return nil
+	}
+	now := time.Now()
+	// Read first, so a user who had already answered some steps keeps those
+	// answers: Save() upserts the whole row, and passing a bare struct would
+	// blank industry / country / goal on the way through.
+	existing, err := r.Get(ctx, tenantID, userID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		existing = &domain.OnboardingProgress{TenantID: tenantID, UserID: userID}
+	}
+	if existing.Completed {
+		return nil
+	}
+	existing.CurrentStep = domain.OnboardingStepTeam
+	existing.Completed = true
+	existing.CompletedAt = &now
+	return r.Save(ctx, existing)
+}
+
 // Save inserts or updates the user's wizard state. The row is keyed by user_id
 // (unique), so a resumed wizard always writes back to the same row.
 func (r *GormActivationRepository) Save(ctx context.Context, p *domain.OnboardingProgress) error {
