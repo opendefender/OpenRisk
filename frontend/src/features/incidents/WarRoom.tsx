@@ -1,24 +1,37 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// War Room (OpenRisk.dc.html §6.5): full-screen incident console for reviewing a
-// REAL incident (/incidents/:id/war-room) — top bar with its live elapsed timer,
-// severity/status, and a Close action (persisted), a chat thread seeded from the
-// incident's real timeline, plus a responder roster and task board. The roster,
-// task board and chat input are still fixtures (no collaboration backend yet) —
-// hence the Aperçu/Preview badge; the incident context + timeline + close are real.
+// War Room (OpenRisk.dc.html §6.5): full-screen console for a REAL incident
+// (/incidents/:id/war-room). Top bar with its live elapsed timer, severity and
+// status, a persisted Close action, the incident's real timeline, the people the
+// record actually names, and a response task board backed by
+// GET/POST/PUT /incidents/:id/actions.
+//
+// Two W0-05 corrections:
+//
+//  D6 — the composer at the foot of the thread appended to local state and sent
+//  nothing anywhere. It carried an "(ephemeral)" placeholder, which vanishes the
+//  moment you start typing; what remained was a message bubble indistinguishable
+//  from a delivered one. In an incident console that is the worst place in the
+//  product to fake a send: somebody writes "@alice take the DB offline", sees it
+//  appear, and believes it was communicated. There is no messaging backend, so
+//  the composer is gone rather than restyled.
+//
+//  D7 — the task board declared itself unavailable while a real, tenant-scoped
+//  actions API had existed since the incident module shipped. It is now wired.
+//
+// Everything on this screen is real; the Preview badge is gone with the fixtures
+// that justified it.
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { Check, Send, AlertTriangle, ArrowLeft } from 'lucide-react';
-import { Avatar, PreviewBadge, SkeletonRows, EmptyState } from '../../shared/ui';
+import { Avatar, SkeletonRows, EmptyState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { relTime } from '../risks/riskMap';
-import { useIncident, useIncidentTimeline, useIncidents } from './useIncidents';
+import { useIncident, useIncidentTimeline, useIncidents, useIncidentActions } from './useIncidents';
 import { sevMeta, statusMeta } from './incidentMeta';
-
-interface Note { who: string; name: string; text: string; time: string }
 
 function elapsedParts(fromISO?: string, toMs?: number): string {
   if (!fromISO) return '00:00:00';
@@ -43,10 +56,15 @@ export function WarRoom() {
   const { updateIncident } = useIncidents();
 
   const [tick, setTick] = useState(0);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [input, setInput] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+
+  // Response actions — the task board. Real, tenant-scoped, persisted.
+  const { actions, isLoading: actionsLoading, isError: actionsError, create, setStatus, refetch: refetchActions } =
+    useIncidentActions(incidentId);
+  const [newAction, setNewAction] = useState('');
+  const [newAssignee, setNewAssignee] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Freeze the timer once the incident is resolved/closed.
   const frozenMs = incident?.resolved_at ? new Date(incident.resolved_at).getTime() : undefined;
@@ -55,17 +73,25 @@ export function WarRoom() {
     const t = setInterval(() => setTick((v) => v + 1), 1000);
     return () => clearInterval(t);
   }, [frozenMs]);
-  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [timeline, notes]);
+  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [timeline]);
   // tick is only read through Date.now() in elapsedParts; reference it so the
   // re-render actually advances the clock.
   void tick;
 
-  const send = () => {
-    const t = input.trim(); if (!t) return;
-    const d = new Date();
-    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    setNotes((m) => [...m, { who: 'ME', name: tr('Vous', 'You'), text: t, time }]);
-    setInput('');
+  const addAction = async () => {
+    const title = newAction.trim();
+    if (!title) return;
+    setActionError(null);
+    try {
+      // Awaited, and the list is refetched from the server on success: an action
+      // that only exists in the browser is exactly what this screen must not
+      // show during an incident.
+      await create.mutateAsync({ title, assigned_to: newAssignee.trim() || undefined });
+      setNewAction('');
+      setNewAssignee('');
+    } catch {
+      setActionError(tr('Ajout impossible — réessayez.', 'Could not add — retry.'));
+    }
   };
 
   const closeIncident = () => {
@@ -78,9 +104,6 @@ export function WarRoom() {
       }
     );
   };
-
-  const mention = (text: string) =>
-    text.split(/(\s+)/).map((w, i) => (w.startsWith('@') ? <span key={i} className="font-semibold" style={{ color: 'var(--accent)' }}>{w}</span> : w));
 
   if (isLoading) {
     return <div className="p-6"><SkeletonRows rows={6} height={56} /></div>;
@@ -125,7 +148,6 @@ export function WarRoom() {
               {tr(st.fr, st.en)}
             </span>
             <span className="mono text-[12px] text-ink-muted">INC-{incident.id}</span>
-            <PreviewBadge label={tr('Aperçu', 'Preview')} />
           </div>
           <div className="disp text-[19px] font-bold text-ink truncate">{incident.title}</div>
         </div>
@@ -146,7 +168,7 @@ export function WarRoom() {
 
       {/* body */}
       <div className="flex-1 flex min-h-0">
-        {/* roster (fixture) */}
+        {/* Responders — the people the incident record actually names. */}
         <div className="w-[240px] shrink-0 overflow-y-auto p-4 hidden md:block" style={{ borderRight: '1px solid var(--border)' }}>
           <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-3.5">{tr('Participants', 'Responders')} · {parts.length}</div>
           {parts.length === 0 ? (
@@ -164,7 +186,9 @@ export function WarRoom() {
           ))}
         </div>
 
-        {/* chat: real timeline + ephemeral notes */}
+        {/* The incident's real timeline. Read-only: there is no messaging
+            backend, and until W0-05 the composer below faked one. Actions taken
+            during the incident are recorded on the task board, which persists. */}
         <div className="flex-1 min-w-0 flex flex-col">
           <div ref={chatRef} className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-3.5">
             <div className="self-center inline-flex items-center gap-2 text-[11px] text-ink-muted px-3 py-1.5 rounded-full" style={{ background: 'var(--bg-hover)' }}>
@@ -175,49 +199,118 @@ export function WarRoom() {
                 <AlertTriangle size={13} /> {e.message} <span className="opacity-70">· {relTime(e.created_at, lang)}</span>
               </div>
             ))}
-            {notes.map((x, i) => (
-              <div key={i} className="flex gap-2.5 max-w-[80%] self-end flex-row-reverse">
-                <Avatar initials={x.who} size={30} />
-                <div>
-                  <div className="flex items-baseline gap-2 mb-1 justify-end">
-                    <span className="text-[12px] font-semibold text-ink">{x.name}</span>
-                    <span className="text-[10.5px] text-ink-muted">{x.time}</span>
-                  </div>
-                  <div className="text-[13.5px] leading-relaxed text-ink px-3 py-2 rounded-[13px]" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-line)' }}>
-                    {mention(x.text)}
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
-          <div className="shrink-0 px-6 py-3.5 flex gap-2.5 items-center" style={{ borderTop: '1px solid var(--border)' }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              placeholder={tr('Note de coordination… (éphémère)', 'Coordination note… (ephemeral)')}
-              className="flex-1 h-11 px-4 rounded-xl text-[14px] text-ink outline-none"
-              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
-            />
-            <button onClick={send} className="w-11 h-11 rounded-xl flex items-center justify-center text-text-primary shrink-0" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}><Send size={19} /></button>
+          <div
+            className="shrink-0 px-6 py-3.5 text-[12px] text-ink-muted leading-relaxed"
+            style={{ borderTop: '1px solid var(--border)' }}
+            data-testid="warroom-no-chat"
+          >
+            {tr(
+              'La messagerie temps réel n’est pas disponible dans OpenRisk. Consignez les décisions dans les tâches de réponse — elles sont enregistrées et restent lisibles après l’incident.',
+              'Real-time messaging is not available in OpenRisk. Record decisions as response tasks — they are persisted and stay readable after the incident.',
+            )}
           </div>
         </div>
 
-        {/* Task board. There is no incident-actions backend wired to this screen
-            yet, so it states that plainly rather than rendering a board of
-            invented tasks assigned to invented people. */}
+        {/* Response task board — real, persisted, tenant-scoped
+            (GET/POST/PUT /incidents/:id/actions). */}
         <div className="w-[290px] shrink-0 overflow-y-auto p-4 hidden lg:block" style={{ borderLeft: '1px solid var(--border)' }}>
-          <div className="text-[12px] font-semibold text-ink mb-2">{tr('Tâches', 'Tasks')}</div>
-          <div className="text-[11.5px] text-ink-muted leading-relaxed mb-4">
-            {tr('Le suivi des tâches de réponse n’est pas encore disponible. Utilisez la chronologie pour tracer les actions.', 'Response task tracking is not available yet. Use the timeline to record actions.')}
+          <div className="text-[12px] font-semibold text-ink mb-2.5">
+            {tr('Tâches de réponse', 'Response tasks')}
+            {!actionsLoading && !actionsError && actions.length > 0 && (
+              <span className="text-ink-muted font-normal"> · {actions.length}</span>
+            )}
           </div>
-          <button
-            onClick={() => navigate('/risks/mitigations')}
-            className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5"
-            style={{ border: '1px solid var(--border-strong)' }}
-          >
-            {tr('Voir les mitigations', 'View mitigations')}
-          </button>
+
+          {!closed && (
+            <div className="mb-4 flex flex-col gap-2">
+              <input
+                value={newAction}
+                onChange={(e) => setNewAction(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void addAction(); }}
+                placeholder={tr('Nouvelle tâche…', 'New task…')}
+                aria-label={tr('Titre de la tâche', 'Task title')}
+                className="h-9 px-3 rounded-[10px] text-[13px] text-ink outline-none"
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+                data-testid="warroom-action-title"
+              />
+              <input
+                value={newAssignee}
+                onChange={(e) => setNewAssignee(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void addAction(); }}
+                placeholder={tr('Assignée à (facultatif)', 'Assignee (optional)')}
+                aria-label={tr('Assignée à', 'Assignee')}
+                className="h-9 px-3 rounded-[10px] text-[13px] text-ink outline-none"
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+              />
+              <button
+                onClick={() => void addAction()}
+                disabled={!newAction.trim() || create.isPending}
+                className="h-9 rounded-[10px] text-[12.5px] font-semibold text-text-on-solid inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                style={{ background: 'var(--accent)' }}
+                data-testid="warroom-action-add"
+              >
+                <Send size={14} /> {create.isPending ? tr('Ajout…', 'Adding…') : tr('Ajouter', 'Add')}
+              </button>
+              {actionError && (
+                <div role="alert" className="text-[11.5px]" style={{ color: 'var(--critical)' }}>{actionError}</div>
+              )}
+            </div>
+          )}
+
+          {actionsLoading ? (
+            <SkeletonRows rows={3} height={44} />
+          ) : actionsError ? (
+            // An error is not an empty board. During an incident, "no tasks" and
+            // "we could not read the tasks" must never look the same.
+            <div className="text-[12px] leading-relaxed" style={{ color: 'var(--critical)' }}>
+              {tr('Lecture des tâches impossible.', 'Could not load the tasks.')}
+              <button onClick={() => void refetchActions()} className="ml-1 underline">{tr('Réessayer', 'Retry')}</button>
+            </div>
+          ) : actions.length === 0 ? (
+            <div className="text-[11.5px] text-ink-muted leading-relaxed">
+              {tr('Aucune tâche de réponse pour le moment.', 'No response tasks yet.')}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {actions.map((a) => {
+                const done = a.status === 'completed';
+                const next: typeof a.status = done ? 'pending' : a.status === 'pending' ? 'in_progress' : 'completed';
+                return (
+                  <div key={a.id} className="rounded-[10px] px-3 py-2.5" style={{ border: '1px solid var(--border)' }}>
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => setStatus.mutate({ actionId: a.id, status: next })}
+                        disabled={setStatus.isPending}
+                        aria-label={tr('Changer le statut', 'Change status')}
+                        className="mt-0.5 w-4 h-4 rounded-[5px] shrink-0 flex items-center justify-center disabled:opacity-50"
+                        style={{
+                          border: `1.5px solid ${done ? 'var(--low)' : 'var(--border-strong)'}`,
+                          background: done ? 'var(--low)' : 'transparent',
+                        }}
+                        data-testid={`warroom-action-toggle-${a.id}`}
+                      >
+                        {done && <Check size={11} className="text-text-on-solid" />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-[12.5px] text-ink leading-snug"
+                          style={{ textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1 }}
+                        >
+                          {a.title}
+                        </div>
+                        <div className="text-[11px] text-ink-muted mt-0.5">
+                          {a.assigned_to || tr('Non assignée', 'Unassigned')}
+                          {' · '}
+                          {a.status === 'in_progress' ? tr('en cours', 'in progress') : done ? tr('terminée', 'done') : tr('à faire', 'to do')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
