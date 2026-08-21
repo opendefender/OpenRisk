@@ -12,8 +12,9 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem } from '../../shared/navModel';
+import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem, type NavCount } from '../../shared/navModel';
 import { useScore } from '../../hooks/useScore';
+import { useOrganizationCounts } from '../../features/organization/useOrganization';
 import { bandColor, bandLabel } from '../../services/scoreService';
 
 interface SidebarProps {
@@ -114,6 +115,14 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const score = tenantScore ? Math.round(tenantScore.value) : undefined;
   const scoreColor = bandColor(tenantScore?.band);
 
+  // Live, tenant-scoped counters for the nav badges. A failed or refused read
+  // leaves every count at zero, which renders no badge at all — the honest
+  // outcome, since we do not know the number.
+  const { data: orgCounts } = useOrganizationCounts();
+  const navCounts: Record<NavCount, number> = {
+    pending_invitations: orgCounts?.pending_invitations ?? 0,
+  };
+
   const navItem = (item: NavItem) => {
     const active = item.key === activeKey;
     const Icon = item.icon;
@@ -147,18 +156,25 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             {L[item.labelKey]}
           </span>
         )}
-        {item.badge &&
+        {/* A badge appears only when its live count is a positive number.
+            While the count is loading, errored, or refused by permission it is
+            absent — a placeholder here would be indistinguishable from a real
+            figure, and the whole point of removing the hardcoded '12' was that
+            a counter must never state something nobody measured. Zero is also
+            absent: a badge means "something is waiting", and nothing is. */}
+        {item.badge && navCounts[item.badge.count] > 0 &&
           (collapsed ? (
             <span
               className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
               style={{ background: item.badge.color ?? 'var(--critical)' }}
+              aria-label={`${navCounts[item.badge.count]}`}
             />
           ) : (
             <span
               className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-text-primary"
               style={{ background: item.badge.color ?? 'var(--critical)' }}
             >
-              {item.badge.text}
+              {navCounts[item.badge.count]}
             </span>
           ))}
       </button>

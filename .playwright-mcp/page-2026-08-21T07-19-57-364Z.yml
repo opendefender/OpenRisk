@@ -1,0 +1,10 @@
+- generic [ref=f8e2]:
+  - generic [ref=f8e6]:
+    - generic [ref=f8e7]:
+      - img "OpenRisk" [ref=f8e8]
+      - generic [ref=f8e10]: OpenRisk
+    - generic [ref=f8e12]:
+      - heading "Bienvenue !" [level=1] [ref=f8e17]
+      - paragraph [ref=f8e18]: Vous faites maintenant partie de W004 Tenant Alpha.
+      - button "Ouvrir OpenRisk" [ref=f8e19] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -143,62 +143,11 @@ func (h *MultitenantOrgHandler) DeleteOrganization(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
-// InviteMembers invites users to an organization
-func (h *MultitenantOrgHandler) InviteMembers(c *fiber.Ctx) error {
-	ctx := middleware.GetContext(c)
-	if ctx == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	orgID, err := uuid.Parse(c.Params("id"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid organization ID"})
-	}
-
-	// Check permission to manage members
-	can, _ := ctx.Permissions.Can("members", "manage")
-	if !can && !ctx.Member.IsAdmin() {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Permission denied"})
-	}
-
-	var req service.InviteMembersRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	}
-
-	result, err := h.orgService.InviteMembers(c.Context(), orgID, &req, ctx.UserID)
-	if err != nil {
-		log.Printf("Failed to invite members: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to invite members"})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(result)
-}
-
-// AcceptInvitation accepts an invitation and adds user to organization
-func (h *MultitenantOrgHandler) AcceptInvitation(c *fiber.Ctx) error {
-	ctx := middleware.GetContext(c)
-	if ctx == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	tokenStr := c.Params("token")
-	token, err := uuid.Parse(tokenStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid invitation token"})
-	}
-
-	org, err := h.orgService.AcceptInvitation(c.Context(), token, ctx.UserID)
-	if err != nil {
-		log.Printf("Failed to accept invitation: %v", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message":      "Invitation accepted",
-		"organization": org,
-	})
-}
+// InviteMembers / AcceptInvitation used to live here. They took the target
+// organization id from the URL and never compared it to the caller's session,
+// so an administrator of one tenant could invite members into another. The
+// replacement is POST /organization/members/invitations, whose tenant comes
+// from the authenticated session and never from the request.
 
 // TransferOwnership transfers root ownership to another user
 func (h *MultitenantOrgHandler) TransferOwnership(c *fiber.Ctx) error {

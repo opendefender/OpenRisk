@@ -47,6 +47,9 @@ const (
 	PermGroupScanner     PermissionGroup = "scanner"
 	PermGroupAutomation  PermissionGroup = "automation"
 	PermGroupReports     PermissionGroup = "reports"
+	// PermGroupOrg covers administering the organization itself: its members,
+	// their invitations, the membership audit trail and the org profile.
+	PermGroupOrg PermissionGroup = "organization"
 )
 
 // PermissionDef documents one permission string with bilingual labels so the
@@ -118,6 +121,16 @@ var PermissionCatalog = []PermissionDef{
 	{"reports:board:update", PermGroupReports, "Éditer les rapports Comex", "Edit board reports"},
 	{"reports:board:approve", PermGroupReports, "Approuver les rapports Comex", "Approve board reports"},
 	{"reports:board:delete", PermGroupReports, "Supprimer des rapports Comex", "Delete board reports"},
+	// Organization administration (W0-04). Admins hold "*" and so already pass
+	// every one of these; the strings exist so a scoped business role CAN be
+	// granted member administration without being handed the whole tenant.
+	{"organization:read", PermGroupOrg, "Voir le profil de l'organisation", "View organization profile"},
+	{"organization:update", PermGroupOrg, "Modifier le profil de l'organisation", "Update organization profile"},
+	{"organization:members:read", PermGroupOrg, "Voir les membres", "View members"},
+	{"organization:members:invite", PermGroupOrg, "Inviter des membres", "Invite members"},
+	{"organization:members:update", PermGroupOrg, "Modifier le rôle des membres", "Change member roles"},
+	{"organization:members:deactivate", PermGroupOrg, "Désactiver ou révoquer des membres", "Deactivate or revoke members"},
+	{"organization:audit:read", PermGroupOrg, "Consulter l'audit des accès", "Read membership audit"},
 }
 
 // catalogIndex is a fast membership set over PermissionCatalog keys.

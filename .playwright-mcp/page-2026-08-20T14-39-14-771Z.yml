@@ -1,0 +1,27 @@
+- generic [ref=f2e2]:
+  - generic [ref=f2e6]:
+    - generic [ref=f2e7]:
+      - img "OpenRisk" [ref=f2e8]
+      - generic [ref=f2e10]: OpenRisk
+    - generic [ref=f2e11]:
+      - generic [ref=f2e18]:
+        - heading "W004 Tenant Alpha" [level=1] [ref=f2e19]
+        - generic [ref=f2e20]: vous invite à rejoindre son espace
+      - generic [ref=f2e21]:
+        - generic [ref=f2e22]:
+          - term [ref=f2e23]: Adresse invitée
+          - definition [ref=f2e24]: w4-browser-proof@openrisk.test
+        - generic [ref=f2e25]:
+          - term [ref=f2e26]: Rôle
+          - definition [ref=f2e27]: user
+      - generic [ref=f2e28]:
+        - generic [ref=f2e29]: Votre nom complet
+        - textbox "Votre nom complet" [ref=f2e30]: Browser Proof
+        - generic [ref=f2e31]: Choisissez un mot de passe
+        - textbox "Choisissez un mot de passe" [ref=f2e32]: browser-proof-passphrase-2026!
+        - paragraph [ref=f2e33]: 12 caractères minimum.
+        - alert [ref=f2e34]:
+          - generic [ref=f2e37]: access denied
+        - button "Créer mon compte et rejoindre" [ref=f2e38] [cursor=pointer]
+      - paragraph [ref=f2e39]: Ce lien expire le 27 août 2026.
+  - region "Notifications alt+T"

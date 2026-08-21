@@ -139,8 +139,6 @@ var decisions = []Decision{
 		"application/vulnerability integrations_test: cross-tenant lookup returns 404"},
 	{"/api/v1/vulnerabilities/*", Covered,
 		"application/vulnerability integrations_test covers status/ticket subpaths"},
-	{"/api/v1/rbac/members/{id}/business-role", Covered,
-		"application/rbac business_role_usecases_test: update scoped to id+org"},
 	{"/api/v1/onboarding/steps/{id}", Covered,
 		"the :step param is a wizard step NAME from a closed vocabulary (domain.ParseOnboardingStep rejects anything else), never an entity id — there is no id in this path to forge. The row it writes is keyed by the caller's own (tenant, user) from the request context: gorm_activation_repository_test TestOnboardingProgress_MissingAndIsolated asserts a cross-tenant Get reads back nil, and application/activation TestWizard_OrganizationWriteRequiresPermission asserts a non-admin cannot write the organization through it"},
 
@@ -170,6 +168,22 @@ var decisions = []Decision{
 		"financial/smart-score/simulate/mitigations subpaths lack cross-tenant assertions"},
 	{"/api/v1/mitigations/*", Pending,
 		"sub-action paths verify ownership through the parent plan; not pinned by a test"},
+	// Organization member management (W0-04). Every one of these resolves its
+	// target through GormMembershipRepository, which carries organization_id in
+	// the WHERE clause of every read AND every write — so a member or invitation
+	// id from another organisation matches no row and reads back as not-found,
+	// and a write aimed at one affects zero rows. The tenant itself is never in
+	// the request: it comes from the session.
+	{"/api/v1/organization/members/{id}", Covered,
+		"application/membership service_test TestGetMember_CrossTenantIsIndistinguishableFromMissing + repository gorm_membership_repository_test TestMembershipRepo_GetAndSaveMember_CrossTenant; end-to-end in handler organization_member_isolation_test"},
+	{"/api/v1/organization/members/{id}/role", Covered,
+		"application/membership service_test TestChangeRole_RefusesEscalationAndLockout (cross-tenant branch) + handler organization_member_isolation_test"},
+	{"/api/v1/organization/members/{id}/status", Covered,
+		"application/membership service_test TestSetStatus_RefusesSelfOwnerAndCrossTenant + handler organization_member_isolation_test"},
+	{"/api/v1/organization/invitations/{id}", Covered,
+		"application/membership invitations_test TestInvitations_CrossTenantIsolation + repository TestMembershipRepo_Invitations_TenantIsolation"},
+	{"/api/v1/organization/invitations/{id}/resend", Covered,
+		"application/membership invitations_test TestInvitations_CrossTenantIsolation (resend branch)"},
 	{"/api/v1/governance/*", Pending,
 		"approvals/workflows/delegations are tenant-scoped in use cases; no cross-tenant test"},
 	{"/api/v1/automation/rules/*", Pending,

@@ -1,0 +1,36 @@
+- generic [ref=f6e2]:
+  - generic [ref=f6e5]:
+    - generic [ref=f6e6]:
+      - button "Passer en anglais" [ref=f6e7] [cursor=pointer]:
+        - generic [ref=f6e12]: fr
+      - button "Changer de thème" [ref=f6e13] [cursor=pointer]
+    - generic [ref=f6e16]:
+      - generic [ref=f6e19]:
+        - img "OpenRisk" [ref=f6e21]
+        - generic [ref=f6e23]:
+          - generic [ref=f6e24]: OpenRisk
+          - generic [ref=f6e25]: La plateforme GRC open source
+      - figure [ref=f6e51]:
+        - generic [ref=f6e52]:
+          - blockquote [ref=f6e53]: “La sécurité est un processus, pas un produit.”
+          - generic [ref=f6e54]: — Bruce Schneier
+    - generic [ref=f6e55]:
+      - generic [ref=f6e57]:
+        - generic [ref=f6e58]:
+          - heading "Vérification en deux étapes" [level=1] [ref=f6e63]
+          - paragraph [ref=f6e64]: Saisissez le code à 6 chiffres de votre application d’authentification.
+        - alert [ref=f6e77]:
+          - generic [ref=f6e80]: Code incorrect. Vérifiez votre application et réessayez.
+        - generic [ref=f6e65]:
+          - generic [ref=f6e66]: Code de vérification
+          - textbox "Code de vérification" [active] [ref=f6e82]: "394665"
+          - paragraph [ref=f6e69]: Utiliser un code de récupération
+        - button "Vérifier" [ref=f6e71] [cursor=pointer]
+        - button "Retour à la connexion" [ref=f6e73] [cursor=pointer]
+      - generic [ref=f6e74]:
+        - text: Un produit
+        - link "OpenDefender" [ref=f6e75] [cursor=pointer]:
+          - /url: https://github.com/opendefender
+        - text: ·
+        - generic [ref=f6e76]: © 2026
+  - region "Notifications alt+T"

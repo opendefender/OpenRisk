@@ -1,0 +1,98 @@
+- generic [ref=f8e2]:
+  - generic [ref=f8e22]:
+    - banner [ref=f8e23]:
+      - generic [ref=f8e24]:
+        - img "OpenRisk" [ref=f8e25]
+        - generic [ref=f8e27]: OpenRisk
+      - generic [ref=f8e28]: Étape 1/5
+    - generic [ref=f8e29]:
+      - progressbar "Progression de la configuration" [ref=f8e30]
+      - list [ref=f8e31]:
+        - listitem [ref=f8e32]:
+          - button "1 Organisation" [ref=f8e33] [cursor=pointer]:
+            - generic [ref=f8e34]: "1"
+            - text: Organisation
+        - listitem [ref=f8e35]:
+          - button "2 Profil" [disabled] [ref=f8e36]:
+            - generic [ref=f8e37]: "2"
+            - text: Profil
+        - listitem [ref=f8e38]:
+          - button "3 Objectif" [disabled] [ref=f8e39]:
+            - generic [ref=f8e40]: "3"
+            - text: Objectif
+        - listitem [ref=f8e41]:
+          - button "4 Référentiel" [disabled] [ref=f8e42]:
+            - generic [ref=f8e43]: "4"
+            - text: Référentiel
+        - listitem [ref=f8e44]:
+          - button "5 Équipe" [disabled] [ref=f8e45]:
+            - generic [ref=f8e46]: "5"
+            - text: Équipe
+    - main [ref=f8e47]:
+      - generic [ref=f8e49]:
+        - heading "Votre organisation" [level=1] [ref=f8e50]
+        - paragraph [ref=f8e51]: Ces réponses choisissent les référentiels et les risques que nous vous proposerons — rien de plus.
+        - generic [ref=f8e52]:
+          - generic [ref=f8e53]: Nom de l'organisation
+          - textbox "Nom de l'organisation" [active] [ref=f8e54]: W004 Tenant Alpha
+        - generic [ref=f8e55]:
+          - generic [ref=f8e56]:
+            - generic [ref=f8e57]: Secteur d'activité
+            - combobox "Secteur d'activité" [ref=f8e58]:
+              - option "— Choisir —" [selected]
+              - option "Banque & finance"
+              - option "Assurance"
+              - option "Télécommunications"
+              - option "Santé"
+              - option "Secteur public"
+              - option "Énergie & utilities"
+              - option "Commerce & e-commerce"
+              - option "Technologie & SaaS"
+              - option "Industrie & logistique"
+              - option "Autre"
+          - generic [ref=f8e59]:
+            - generic [ref=f8e60]: Taille
+            - combobox "Taille" [ref=f8e61]:
+              - option "— Choisir —" [selected]
+              - option "1-50 salariés"
+              - option "51-200 salariés"
+              - option "201-1000 salariés"
+              - option "1000+ salariés"
+          - generic [ref=f8e62]:
+            - generic [ref=f8e63]: Pays
+            - combobox "Pays" [ref=f8e64]:
+              - option "— Choisir —" [selected]
+              - option "Cameroun"
+              - option "Sénégal"
+              - option "Côte d'Ivoire"
+              - option "Gabon"
+              - option "Congo"
+              - option "Bénin"
+              - option "Burkina Faso"
+              - option "Mali"
+              - option "Togo"
+              - option "France"
+              - option "Belgique"
+              - option "Maroc"
+              - option "Tunisie"
+              - option "Algérie"
+              - option "États-Unis"
+              - option "Canada"
+          - generic [ref=f8e65]:
+            - generic [ref=f8e66]: Devise
+            - combobox "Devise" [ref=f8e67]:
+              - option "— Choisir —" [selected]
+              - option "XAF"
+              - option "XOF"
+              - option "EUR"
+              - option "USD"
+              - option "NGN"
+              - option "MAD"
+              - option "GHS"
+              - option "ZAR"
+        - generic [ref=f8e68]:
+          - generic [ref=f8e69]: Fuseau horaire
+          - textbox "Fuseau horaire" [ref=f8e70]: Africa/Douala
+          - generic [ref=f8e71]: Pré-rempli depuis votre navigateur — les échéances et les SLA le suivront.
+        - button "Continuer" [ref=f8e73] [cursor=pointer]
+  - region "Notifications alt+T"

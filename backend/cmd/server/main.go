@@ -41,11 +41,11 @@ import (
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
+	"github.com/opendefender/openrisk/internal/application/membership"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/orgdeletion"
 	"github.com/opendefender/openrisk/internal/application/ownership"
-	apprbac "github.com/opendefender/openrisk/internal/application/rbac"
 	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -201,6 +201,10 @@ func main() {
 		&domain.User{},
 		&domain.Organization{},
 		&domain.OrganizationMember{},
+		// Organization invitations (W0-04, migration 0058). The previous
+		// invitations model was never in AutoMigrate, so the table never existed
+		// and the invitation code that referenced it could not have run.
+		&domain.Invitation{},
 		&coreauth.RefreshToken{},
 		// L2/L4/L5/L7 auth tables. Previously absent from AutoMigrate, so the whole
 		// feature set (MFA setup/challenge, PAT auth, SSO account linking, and the
@@ -599,6 +603,10 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewGormUserRepository(database.DB)
 	orgRepo := repository.NewGormOrganizationRepository(database.DB)
+	// The single tenant-scoped store for organization memberships. Built here
+	// because three call sites read through it: the ownership <UserPicker>, the
+	// global search, and member management (§5.10).
+	membershipRepo := repository.NewGormMembershipRepository(database.DB)
 
 	// Initialize notification service (mock email transport - swap for SMTP in production)
 	emailFromAddr := os.Getenv("EMAIL_FROM")
@@ -609,9 +617,16 @@ func main() {
 	if appBaseURL == "" {
 		appBaseURL = "http://localhost:5173"
 	}
-	// Email transport (mock in dev; swap for SMTP in prod). Kept as a var so the
-	// scan-notification sink below can also send through it.
-	emailTransport := email.NewMockService()
+	// Email transport. Real SMTP when SMTP_HOST is set, a logging transport when
+	// EMAIL_TRANSPORT=log, and otherwise a transport that returns
+	// email.ErrNotConfigured rather than reporting a success it did not achieve.
+	//
+	// This used to be a mock that printed to stdout and returned nil, so every
+	// caller believed its mail had been delivered. Best-effort callers (scan
+	// notices, sign-in alerts) still ignore the error and behave as before; the
+	// invitation flow surfaces it, because "we emailed them" is that feature's
+	// entire user-visible outcome.
+	emailTransport := buildEmailTransport()
 	notificationService := notify.NewEmailService(emailTransport, emailFromAddr, appBaseURL)
 
 	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
@@ -922,6 +937,27 @@ func main() {
 	var mitigationEventsHandler *handlers.MitigationEventsHandler
 	app.Get("/api/v1/mitigations/events", func(c *fiber.Ctx) error { return mitigationEventsHandler.Stream(c) })
 
+	// Invitation preview / acceptance — mounted on `app` BEFORE the /api/v1 JWT
+	// gate, for the same reason as the scanner agent routes: `api.Use(Protected)`
+	// below is registered on the /api/v1 PREFIX and therefore wraps every route
+	// under it, whenever it was declared. An invitee following their link may
+	// have no OpenRisk account at all, so a JWT gate would 401 exactly the people
+	// these endpoints exist for.
+	//
+	// They are not unauthenticated, though: OptionalAuth stamps identity WHEN a
+	// valid session is present (the use case then requires that identity to be
+	// the invited address) and lets the request through anonymously otherwise.
+	// It deliberately never stamps a tenant — the organization comes from the
+	// invitation the token resolves to, never from the caller.
+	var invitationPublicHandler *handlers.OrganizationMemberHandler
+	optionalAuth := middleware.OptionalAuth(rsaKeys, jtiBlacklistChecker)
+	app.Get("/api/v1/invitations/preview", optionalAuth, func(c *fiber.Ctx) error {
+		return invitationPublicHandler.PreviewInvitation(c)
+	})
+	app.Post("/api/v1/invitations/accept", optionalAuth, func(c *fiber.Ctx) error {
+		return invitationPublicHandler.AcceptInvitation(c)
+	})
+
 	// Vulnerability scanner webhook — external tools (Nessus/Qualys/Defender/…) POST
 	// findings here authenticated by the integration's opaque webhook token (NOT a
 	// user JWT). Mounted on `app` BEFORE the /api/v1 JWT gate for the same reason as
@@ -1076,7 +1112,7 @@ func main() {
 	// notifies the newly assigned. Its dependencies are stateless wrappers over
 	// database.DB, so instantiating them here (ahead of the RBAC and notification
 	// blocks further down) costs nothing and keeps the risk module's wiring local.
-	ownershipMembers := repository.NewGormMemberRBACRepository(database.DB)
+	ownershipMembers := memberDirectory{repo: membershipRepo}
 	ownershipService := ownership.NewService().
 		WithMembers(ownershipMembers).
 		WithUsers(repository.NewGormUserRepository(database.DB)).
@@ -2142,25 +2178,84 @@ func main() {
 		}
 	}()
 
-	// Business Roles — the runtime RBAC that actually drives authorization.
-	// The catalog (permissions + presets) is readable by any authenticated member
-	// so the UI can render the matrix; listing members and assigning a business
-	// role are admin-gated. Operates on organization_members (the login-path model),
-	// tenant-scoped by GormMemberRBACRepository. The static /rbac/members/roles
-	// catalog path is a sibling of /rbac/members/:userId (no Fiber :param trap).
-	memberRBACRepo := repository.NewGormMemberRBACRepository(database.DB)
-	businessRoleHandler := handlers.NewBusinessRoleHandler(
-		apprbac.NewListMembersUseCase(memberRBACRepo),
-		apprbac.NewAssignBusinessRoleUseCase(memberRBACRepo),
-		// Invite reuses the shared user repo + password hasher to provision a real
-		// member (user + organization_member) in the tenant (OR-BUG-003).
-		apprbac.NewInviteMemberUseCase(userRepo, passwordHasher).WithActivation(activationRecorder),
-	)
+	// =========================================================================
+	// 5.10 ORGANIZATION MEMBER MANAGEMENT (W0-04)
+	//
+	// Members, invitations, roles, deactivation and the membership audit trail.
+	// The tenant for every route below comes from the authenticated session
+	// (middleware.GetContext) — no path segment, query parameter or body field
+	// names an organization, so there is nothing for a caller to substitute.
+	//
+	// The two acceptance routes are mounted OUTSIDE this group, further down,
+	// because an invitee may not have an account yet.
+	// =========================================================================
+	membershipSvc := membership.NewService(membershipRepo, userRepo).
+		WithOrganizations(orgRepo).
+		// The recorder feeds the request collector, so a membership action lands
+		// as ONE chained trail entry carrying both its meaning and its
+		// before → after — not as a second entry beside the middleware's.
+		WithAudit(governance.NewAuditRecorder(auditChainRepo)).
+		WithAuditReader(auditChainRepo).
+		WithMailer(authmail.NewInvitationMailer(emailTransport)).
+		// Withdrawing access ends the member's refresh lineage, so no new session
+		// can be minted for them.
+		WithSessionRevoker(tokenManager).
+		WithPasswordHasher(passwordHasher).
+		// An invitee joins an organization that already exists, so the signup
+		// wizard — whose first screen asks you to set one up — has nothing to
+		// ask them. Without this the route guard would hold a newly joined
+		// colleague in front of a form about a tenant they cannot edit.
+		WithOnboarding(activationRepo).
+		WithBaseURL(appBaseURL)
+	memberHandler := handlers.NewOrganizationMemberHandler(membershipSvc)
+
+	// Reading the organization and its member roster needs membership-read;
+	// admins hold "*" and pass everything. The counts endpoint is open to any
+	// authenticated member: knowing how many colleagues you have is not
+	// privileged, and gating it would leave the sidebar badge permanently empty
+	// for everyone who is not an administrator.
+	orgRead := middleware.RequirePermission("organization:read", "organization:members:read")
+	protected.Get("/organization", orgRead, memberHandler.GetOrganization)
+	protected.Get("/organization/counts", memberHandler.GetCounts)
+
+	// STATIC SUB-PATHS BEFORE /:memberId — Fiber matches in registration order,
+	// so "audit" would otherwise be parsed as a member id.
+	protected.Get("/organization/members/audit",
+		middleware.RequirePermission("organization:audit:read"), memberHandler.GetMembershipAudit)
+	protected.Get("/organization/members",
+		middleware.RequirePermission("organization:members:read"), memberHandler.ListMembers)
+	protected.Get("/organization/members/:memberId",
+		middleware.RequirePermission("organization:members:read"), memberHandler.GetMember)
+	protected.Put("/organization/members/:memberId/role",
+		middleware.RequirePermission("organization:members:update"), memberHandler.UpdateMemberRole)
+	protected.Put("/organization/members/:memberId/status",
+		middleware.RequirePermission("organization:members:deactivate"), memberHandler.UpdateMemberStatus)
+
+	protected.Get("/organization/invitations",
+		middleware.RequirePermission("organization:members:read"), memberHandler.ListInvitations)
+	protected.Post("/organization/invitations",
+		middleware.RequirePermission("organization:members:invite"), memberHandler.CreateInvitation)
+	protected.Post("/organization/invitations/:invitationId/resend",
+		middleware.RequirePermission("organization:members:invite"), memberHandler.ResendInvitation)
+	protected.Delete("/organization/invitations/:invitationId",
+		middleware.RequirePermission("organization:members:invite"), memberHandler.RevokeInvitation)
+
+	// The two acceptance routes were mounted before the JWT gate (see the
+	// forward declaration above); assign the handler they capture.
+	invitationPublicHandler = memberHandler
+
+	// The RBAC catalog: the permission vocabulary and the business-role presets,
+	// readable by any authenticated member so the UI can render the permission
+	// matrix. It is reference material about the product, not data about anyone's
+	// organization.
+	//
+	// GET/POST /rbac/members and PUT /rbac/members/:userId/business-role were
+	// removed here in favour of /organization/members (§5.10). Keeping both would
+	// have meant two ways to add a colleague — and the one here created the user
+	// immediately and handed the administrator a temporary password to relay,
+	// with no token, no expiry, no revocation and no resend.
+	businessRoleHandler := handlers.NewBusinessRoleHandler()
 	protected.Get("/rbac/business-roles", businessRoleHandler.GetCatalog)
-	protected.Get("/rbac/members", adminRole, businessRoleHandler.ListMembers)
-	// POST /rbac/members (static) is a sibling of /rbac/members/:userId — no trap.
-	protected.Post("/rbac/members", adminRole, businessRoleHandler.InviteMember)
-	protected.Put("/rbac/members/:userId/business-role", adminRole, businessRoleHandler.AssignBusinessRole)
 
 	// =========================================================================
 	// 5.6 SCANNER ENGINE (cloud SDK scans + on-prem Agent, Redis preview)
@@ -2378,7 +2473,11 @@ func main() {
 			WithAudits(complianceAuditRepo).
 			WithReports(boardRepo).
 			WithCVE(ctiService).
-			WithMembers(memberRBACRepo),
+			// The member source is the membership repository behind an adapter:
+			// search wants "every member of this tenant" while the repository's
+			// listing is paged and filtered. Adapting here keeps ONE member store
+			// rather than a second one kept alive for this call site.
+			WithMembers(memberDirectory{repo: membershipRepo}),
 	)
 	protected.Get("/search", searchHandler.Search)
 
@@ -2705,4 +2804,47 @@ func main() {
 	}
 
 	log.Println("Server exited properly")
+}
+
+// buildEmailTransport picks the mail transport from the environment. There is
+// deliberately no default that pretends to send: a deployment either has SMTP,
+// or asks for the logging transport, or gets a transport that says so.
+func buildEmailTransport() email.Service {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("EMAIL_TRANSPORT"))) {
+	case "log":
+		log.Println("Email: log transport (messages are logged, not delivered)")
+		return email.NewLogService()
+	}
+	host := strings.TrimSpace(os.Getenv("SMTP_HOST"))
+	if host == "" {
+		log.Println("Email: no SMTP_HOST configured — outbound mail is unavailable and will be reported as such")
+		return email.NewUnconfigured()
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(os.Getenv("SMTP_PORT")))
+	if err != nil || port <= 0 {
+		port = 587
+	}
+	from := strings.TrimSpace(os.Getenv("EMAIL_FROM"))
+	if from == "" {
+		from = "noreply@openrisk.local"
+	}
+	log.Printf("Email: SMTP transport %s:%d", host, port)
+	return email.FromEnv(host, port, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), from)
+}
+
+// memberDirectory adapts the tenant-scoped membership repository to the narrow
+// "who is in this tenant" shape that the ownership picker and the global search
+// expect: both want the roster, while the repository's listing is paged and
+// filtered. Adapting here keeps ONE membership store rather than a second one
+// kept alive for these two call sites. Both consumers cap their own output, so
+// the page size below is the repository ceiling, not an unbounded read.
+type memberDirectory struct{ repo domain.MembershipRepository }
+
+func (m memberDirectory) ListMembers(ctx context.Context, tenantID uuid.UUID) ([]domain.OrganizationMember, error) {
+	rows, _, err := m.repo.ListMembers(ctx, tenantID, domain.MemberQuery{Limit: 200})
+	return rows, err
+}
+
+func (m memberDirectory) GetMember(ctx context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error) {
+	return m.repo.GetMember(ctx, tenantID, userID)
 }

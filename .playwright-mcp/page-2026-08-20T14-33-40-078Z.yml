@@ -1,0 +1,214 @@
+- generic [ref=e2]:
+  - generic [ref=e108]:
+    - link "Aller au contenu principal" [ref=e109] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary [ref=e110]:
+      - generic [ref=e111]:
+        - generic [ref=e112]:
+          - generic [ref=e113]:
+            - img "OpenRisk" [ref=e115]
+            - generic [ref=e117]: OpenRisk
+          - button "MO Mon organisation Enterprise" [ref=e118] [cursor=pointer]:
+            - generic [ref=e119]: MO
+            - generic [ref=e120]:
+              - generic [ref=e121]: Mon organisation
+              - generic [ref=e122]: Enterprise
+        - button "Nouveau risque" [ref=e127] [cursor=pointer]
+        - navigation [ref=e130]:
+          - button "Tableau de bord" [ref=e132] [cursor=pointer]
+          - generic [ref=e140]:
+            - generic [ref=e141]: Piloter
+            - button "Registre des risques" [ref=e142] [cursor=pointer]
+            - button "Vulnérabilités" [ref=e147] [cursor=pointer]
+            - button "Mitigations" [ref=e159] [cursor=pointer]
+            - button "Incidents" [ref=e165] [cursor=pointer]
+            - button "Automatisation" [ref=e173] [cursor=pointer]
+          - generic [ref=e180]:
+            - generic [ref=e181]: Surveiller
+            - button "Tableau exécutif" [ref=e182] [cursor=pointer]
+            - button "Quantification financière" [ref=e188] [cursor=pointer]
+          - generic [ref=e196]:
+            - generic [ref=e197]: Identifier
+            - button "Inventaire" [ref=e198] [cursor=pointer]
+            - button "Topologie" [ref=e205] [cursor=pointer]
+            - button "Vulnérabilités" [ref=e212] [cursor=pointer]
+            - button "Threat Intel" [ref=e224] [cursor=pointer]
+            - button "Infrastructure" [ref=e230] [cursor=pointer]
+          - generic [ref=e236]:
+            - generic [ref=e237]: Évaluer
+            - button "Registre des risques" [ref=e238] [cursor=pointer]
+          - generic [ref=e243]:
+            - generic [ref=e244]: Traiter
+            - button "Mitigations" [ref=e245] [cursor=pointer]
+            - button "Incidents" [ref=e251] [cursor=pointer]
+            - button "Automatisation" [ref=e259] [cursor=pointer]
+          - generic [ref=e266]:
+            - generic [ref=e267]: Prouver
+            - button "Conformité" [ref=e268] [cursor=pointer]
+            - button "Preuves" [ref=e275] [cursor=pointer]
+            - button "Rapports" [ref=e281] [cursor=pointer]
+            - button "IA Advisor" [ref=e287] [cursor=pointer]
+            - button "Risques émergents" [ref=e293] [cursor=pointer]
+            - button "Gouvernance" [ref=e299] [cursor=pointer]
+          - generic [ref=e306]:
+            - generic [ref=e307]: Admin
+            - button "Rôles & accès" [ref=e308] [cursor=pointer]
+            - button "Paramètres" [ref=e316] [cursor=pointer]
+        - button "Score de sécurité · Faible 0/100" [ref=e322] [cursor=pointer]:
+          - generic [ref=e323]:
+            - generic [ref=e324]: Score de sécurité · Faible
+            - generic [ref=e325]: 0/100
+        - generic [ref=e328]:
+          - button "Menu du compte" [ref=e329] [cursor=pointer]:
+            - generic [ref=e330]: AD
+            - generic [ref=e331]:
+              - generic [ref=e332]: Admin
+              - generic [ref=e333]: Membre
+          - button "Collapse sidebar" [ref=e334] [cursor=pointer]
+    - generic [ref=e338]:
+      - banner [ref=e339]:
+        - navigation "Breadcrumb" [ref=e340]:
+          - generic [ref=e341]: OpenRisk
+          - generic [ref=e342]: Tableau de bord
+        - button "Rechercher… ⌘K" [ref=e346] [cursor=pointer]:
+          - generic [ref=e350]: Rechercher…
+          - generic [ref=e351]: ⌘K
+        - generic [ref=e352]:
+          - generic "Connecté au serveur" [ref=e353]:
+            - status [ref=e355]: Connecté au serveur
+          - button "Toggle language" [ref=e356] [cursor=pointer]:
+            - generic [ref=e357]: FR
+          - 'button "Densité : Confort" [ref=e359] [cursor=pointer]'
+          - button "Raccourcis clavier" [ref=e363] [cursor=pointer]
+          - button "Notifications" [ref=e367] [cursor=pointer]
+          - button "Toggle theme" [ref=e371] [cursor=pointer]
+      - main [ref=e374]:
+        - generic [ref=e377]:
+          - generic [ref=e378]:
+            - generic [ref=e379]:
+              - heading "Bonjour" [level=1] [ref=e380]
+              - generic [ref=e381]: Voici l’état de vos risques aujourd’hui
+            - button "Générer un rapport" [ref=e382] [cursor=pointer]
+          - region "Prise en main" [ref=e386]:
+            - generic [ref=e387]:
+              - generic [ref=e388]:
+                - generic [ref=e389]: Prise en main
+                - generic [ref=e393]: Quelques actions pour voir votre exposition réelle.
+              - generic [ref=e394]: 0/7
+            - progressbar [ref=e395]
+            - list [ref=e396]:
+              - listitem [ref=e397]:
+                - generic [ref=e398]: "1"
+                - generic [ref=e400]:
+                  - generic [ref=e401]: Complétez votre profil
+                  - generic [ref=e403]: Votre nom et votre fonction rendent les assignations lisibles par l'équipe.
+                - button "Commencer" [ref=e404] [cursor=pointer]
+              - listitem [ref=e407]:
+                - generic [ref=e408]: "2"
+                - generic [ref=e410]:
+                  - generic [ref=e411]:
+                    - generic [ref=e412]: Créez votre premier risque
+                    - generic [ref=e413]: À faire maintenant
+                  - generic [ref=e414]: "Le cœur d'OpenRisk : score et exposition financière calculés immédiatement."
+                - button "Commencer" [ref=e415] [cursor=pointer]
+              - listitem [ref=e418]:
+                - generic [ref=e419]: "3"
+                - generic [ref=e421]:
+                  - generic [ref=e422]: Importez un référentiel
+                  - generic [ref=e424]: ISO 27001, COBAC, BCEAO… vos contrôles et vos écarts apparaissent en un clic.
+                - button "Commencer" [ref=e425] [cursor=pointer]
+              - listitem [ref=e428]:
+                - generic [ref=e429]: "4"
+                - generic [ref=e431]:
+                  - generic [ref=e432]: Cartographiez un actif
+                  - generic [ref=e434]: La criticité de l'actif pondère le score de chaque risque qui le touche.
+                - button "Commencer" [ref=e435] [cursor=pointer]
+              - listitem [ref=e438]:
+                - generic [ref=e439]: "5"
+                - generic [ref=e441]:
+                  - generic [ref=e442]: Planifiez un traitement
+                  - generic [ref=e444]: "Un risque identifié sans plan reste un risque : ouvrez votre premier plan."
+                - button "Commencer" [ref=e445] [cursor=pointer]
+              - listitem [ref=e448]:
+                - generic [ref=e449]: "6"
+                - generic [ref=e451]:
+                  - generic [ref=e452]: Invitez un collègue
+                  - generic [ref=e454]: La GRC est un sport d'équipe — assignez risques et contrôles à de vraies personnes.
+                - button "Commencer" [ref=e455] [cursor=pointer]
+              - listitem [ref=e458]:
+                - generic [ref=e459]: "7"
+                - generic [ref=e461]:
+                  - generic [ref=e462]: Générez votre premier rapport
+                  - generic [ref=e464]: De la donnée brute à un document présentable en comité, en une action.
+                - button "Commencer" [ref=e465] [cursor=pointer]
+            - button "Revoir la visite guidée" [ref=e468] [cursor=pointer]
+          - generic [ref=e476]:
+            - generic [ref=e477]:
+              - generic [ref=e478]:
+                - text: Score de sécurité
+                - button "Comment ce score est-il calculé ?" [ref=e479] [cursor=pointer]
+              - generic [ref=e482]:
+                - img "Score de sécurité" [ref=e483]
+                - generic [ref=e485]:
+                  - generic [ref=e486]: "0"
+                  - generic [ref=e487]: / 100
+                  - generic [ref=e488]: Faible
+              - button "Voir détails" [ref=e489] [cursor=pointer]
+            - generic [ref=e490]:
+              - button "0 Risques totaux" [ref=e491] [cursor=pointer]:
+                - generic [ref=e496]: "0"
+                - generic [ref=e497]: Risques totaux
+              - button "0 Critiques" [ref=e498] [cursor=pointer]:
+                - generic [ref=e503]: "0"
+                - generic [ref=e504]: Critiques
+              - button "0 En mitigation" [ref=e505] [cursor=pointer]:
+                - generic [ref=e511]: "0"
+                - generic [ref=e512]: En mitigation
+              - button "0 Résolus ce mois" [ref=e513] [cursor=pointer]:
+                - generic [ref=e519]: "0"
+                - generic [ref=e520]: Résolus ce mois
+          - generic [ref=e521]:
+            - generic [ref=e522]:
+              - generic [ref=e523]: Matrice probabilité × impact
+              - status [ref=e524]:
+                - generic [ref=e528]: Matrice vide
+                - generic [ref=e529]: La matrice croise la probabilité et l’impact de chaque risque pour montrer où se concentre votre exposition. Elle se remplit dès votre premier risque.
+                - generic [ref=e530]:
+                  - button "Créer un risque" [ref=e531] [cursor=pointer]
+                  - button "Importer" [ref=e533] [cursor=pointer]
+            - generic [ref=e534]:
+              - generic [ref=e535]:
+                - generic [ref=e536]: Tendance des risques
+                - generic [ref=e537]:
+                  - button "7j" [ref=e538] [cursor=pointer]
+                  - button "30j" [ref=e539] [cursor=pointer]
+                  - button "90j" [ref=e540] [cursor=pointer]
+              - generic [ref=e541]:
+                - generic [ref=e542]: Critique
+                - generic [ref=e544]: Élevé
+                - generic [ref=e546]: Moyen
+              - generic [ref=e548]: Pas encore de tendance — créez des risques pour la voir apparaître.
+          - generic [ref=e549]:
+            - generic [ref=e550]:
+              - generic [ref=e551]: Activité récente
+              - status [ref=e553]:
+                - generic [ref=e557]: Aucune activité récente
+                - generic [ref=e558]: Les derniers risques ajoutés ou mis à jour apparaîtront ici, du plus critique au moins critique.
+                - button "Créer un risque" [ref=e560] [cursor=pointer]
+            - generic [ref=e562]:
+              - generic [ref=e563]: Incident en cours
+              - generic [ref=e566]:
+                - generic [ref=e570]: Aucun incident en cours
+                - generic [ref=e571]: Tout est calme. Les incidents ouverts s’afficheront ici.
+              - button "Voir les incidents" [ref=e572] [cursor=pointer]
+    - dialog "Tout retrouver" [ref=e573]:
+      - generic [ref=e574]:
+        - generic [ref=e575]: Tout retrouver
+        - button "Fermer" [ref=e576] [cursor=pointer]
+      - paragraph [ref=e580]: "Risques, actifs, vulnérabilités, contrôles, CVE — une seule recherche. Raccourci : ⌘K (ou « / »)."
+      - generic [ref=e581]:
+        - generic [ref=e582]: 2/3
+        - generic [ref=e583]:
+          - button "Passer" [ref=e584] [cursor=pointer]
+          - button "Suivant" [ref=e585] [cursor=pointer]
+  - region "Notifications alt+T"

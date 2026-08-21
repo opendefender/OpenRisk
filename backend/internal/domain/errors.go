@@ -95,6 +95,27 @@ func NewUnauthorizedError(reason string) *AppError {
 	}
 }
 
+// NewGoneError reports a resource that existed and is deliberately finished:
+// a revoked invitation, a consumed one-time link. Distinct from 404 on purpose
+// — "this is over" is a different answer from "this never was", and only the
+// former can be told to someone who legitimately held the link.
+func NewGoneError(message string) *AppError {
+	return &AppError{
+		Err:     ErrValidation,
+		Message: message,
+		Code:    http.StatusGone,
+	}
+}
+
+// NewRateLimitError reports an action refused for being too frequent.
+func NewRateLimitError(message string) *AppError {
+	return &AppError{
+		Err:     ErrValidation,
+		Message: message,
+		Code:    http.StatusTooManyRequests,
+	}
+}
+
 func NewInternalError(detail string) *AppError {
 	return &AppError{
 		Err:     ErrInternal,

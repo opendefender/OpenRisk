@@ -36,6 +36,61 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := backfillRefreshTokenFamilies(db); err != nil {
 		return fmt.Errorf("refresh_tokens: %w", err)
 	}
+	if err := prepareMembershipIntegrity(db); err != nil {
+		return fmt.Errorf("organization_members: %w", err)
+	}
+	return nil
+}
+
+// prepareMembershipIntegrity backfills the membership status column and creates
+// the two uniqueness constraints that member management depends on but that
+// AutoMigrate cannot express (one is partial).
+//
+// The application refuses duplicate memberships and duplicate pending
+// invitations before writing, but that check and the write are two steps: two
+// admins acting at the same instant both pass the check. These indexes are the
+// half that holds under concurrency. They mirror
+// migrations/0058_organization_member_management.up.sql, so a deployment whose
+// migration chain is behind still boots with the constraints in place.
+//
+// Duplicates that predate the index are collapsed first, keeping the oldest
+// membership: creating the index on a table that already violates it would fail
+// the boot, and refusing to start is a worse outcome than converging the data.
+// Idempotent; a no-op on a fresh database and outside Postgres.
+func prepareMembershipIntegrity(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if db.Migrator().HasTable("organization_members") {
+		stmts := []string{
+			`ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS status VARCHAR(16)`,
+			// NULL is a row from before the column; '' is a row from before the
+			// BeforeCreate hook, because GORM sends the Go zero value explicitly
+			// and the column DEFAULT therefore never applied. Both mean "unset".
+			`UPDATE organization_members SET status = CASE WHEN is_active THEN 'active' ELSE 'deactivated' END WHERE COALESCE(status, '') = ''`,
+			// Keep the oldest row per (organization, user); the later ones are the
+			// accidental duplicates.
+			`DELETE FROM organization_members om
+			  WHERE EXISTS (
+			        SELECT 1 FROM organization_members keep
+			         WHERE keep.organization_id = om.organization_id
+			           AND keep.user_id = om.user_id
+			           AND (keep.created_at, keep.id) < (om.created_at, om.id))`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS uq_org_members_org_user
+			     ON organization_members (organization_id, user_id)`,
+		}
+		for _, s := range stmts {
+			if err := db.Exec(s).Error; err != nil {
+				return fmt.Errorf("prepare membership: %w", err)
+			}
+		}
+	}
+	if db.Migrator().HasTable("invitations") && db.Migrator().HasColumn("invitations", "token_hash") {
+		if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_invitations_pending_email
+		                       ON invitations (organization_id, email) WHERE status = 'pending'`).Error; err != nil {
+			return fmt.Errorf("prepare invitations: %w", err)
+		}
+	}
 	return nil
 }
 

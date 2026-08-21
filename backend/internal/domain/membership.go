@@ -36,12 +36,21 @@ type OrganizationMember struct {
 	BusinessRole BusinessRoleKey `gorm:"type:varchar(64);index" json:"business_role,omitempty"`
 	ProfileID    *uuid.UUID      `gorm:"type:uuid;index" json:"profile_id,omitempty"` // For role='user' only
 	Profile      *Profile        `gorm:"foreignKey:ProfileID" json:"profile,omitempty"`
-	IsActive     bool            `gorm:"default:true;index" json:"is_active"`
-	JoinedAt     time.Time       `gorm:"autoCreateTime" json:"joined_at"`
-	InvitedByID  *uuid.UUID      `gorm:"type:uuid" json:"invited_by_id,omitempty"`
-	InvitedBy    *User           `gorm:"foreignKey:InvitedByID" json:"invited_by,omitempty"`
-	CreatedAt    time.Time       `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt    time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
+	// IsActive is the boolean the login/refresh path reads. It is DERIVED from
+	// Status by SetStatus (membership_lifecycle.go), never written by hand — two
+	// fields free to disagree is how "deactivated but still signing in" happens.
+	IsActive bool `gorm:"default:true;index" json:"is_active"`
+	// Status is the explicit lifecycle state (active | deactivated | revoked).
+	// Rows written before this column existed carry "" and are read through
+	// EffectiveStatus, which falls back to IsActive.
+	Status        MembershipStatus `gorm:"type:varchar(16);index" json:"status"`
+	DeactivatedAt *time.Time       `json:"deactivated_at,omitempty"`
+	RevokedAt     *time.Time       `json:"revoked_at,omitempty"`
+	JoinedAt      time.Time        `gorm:"autoCreateTime" json:"joined_at"`
+	InvitedByID   *uuid.UUID       `gorm:"type:uuid" json:"invited_by_id,omitempty"`
+	InvitedBy     *User            `gorm:"foreignKey:InvitedByID" json:"invited_by,omitempty"`
+	CreatedAt     time.Time        `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName specifies the table name for OrganizationMember
