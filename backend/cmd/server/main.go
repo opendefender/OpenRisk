@@ -753,18 +753,22 @@ func main() {
 	// (privileged accounts); a deployment onboarding non-technical members who may
 	// lack an authenticator can widen or narrow it via MFA_REQUIRED_ROLES
 	// (comma-separated; empty string disables mandatory enrolment entirely).
-	mfaRequiredRoles := []string{"admin", "root"}
+	mfaRequiredRoles, mfaRequiredBusinessRoles := domain.DefaultMFAPrivilegeRoles()
 	if v, ok := os.LookupEnv("MFA_REQUIRED_ROLES"); ok {
-		mfaRequiredRoles = mfaRequiredRoles[:0]
-		for _, r := range strings.Split(v, ",") {
-			if r = strings.TrimSpace(r); r != "" {
-				mfaRequiredRoles = append(mfaRequiredRoles, r)
-			}
-		}
+		mfaRequiredRoles = splitCSVEnv(v)
 	}
+	// OR26-03 — the security officer holds org role `user`, so a check on the org
+	// role alone would exempt exactly the account the requirement is written for.
+	if v, ok := os.LookupEnv("MFA_REQUIRED_BUSINESS_ROLES"); ok {
+		mfaRequiredBusinessRoles = splitCSVEnv(v)
+	}
+	// OR26-03 — the tenant's grace window. Deployment decides WHO is privileged;
+	// each tenant decides HOW LONG they may defer (default 7 days).
+	mfaPolicyRepo := repository.NewGormMFAPolicyRepository(database.DB)
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
-		RequireMFAForRoles(mfaRequiredRoles...)
+		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithMFAPolicies(mfaPolicyRepo)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder)
@@ -2872,4 +2876,17 @@ func (m memberDirectory) ListMembers(ctx context.Context, tenantID uuid.UUID) ([
 
 func (m memberDirectory) GetMember(ctx context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error) {
 	return m.repo.GetMember(ctx, tenantID, userID)
+}
+
+// splitCSVEnv parses a comma-separated environment override into a trimmed,
+// blank-free list. An explicitly empty value yields an empty list, which is how
+// a deployment says "nobody" rather than "the default" (OR26-03).
+func splitCSVEnv(v string) []string {
+	out := []string{}
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
