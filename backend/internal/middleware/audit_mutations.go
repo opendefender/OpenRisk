@@ -35,6 +35,21 @@ type AuditAppender interface {
 	Append(ctx context.Context, e *domain.AuditEvent) error
 }
 
+// MutationObserver is notified after a successful mutation has been journaled.
+//
+// It exists so the realtime hub can derive canonical domain events from the SAME
+// observation that produces the audit entry, rather than from a publish call
+// added by hand to several hundred use cases — which is a call somebody
+// eventually forgets, in the one place it mattered. The observer receives the
+// sealed entry, so it can carry the audit event's id as its causation and tie
+// the two records together.
+//
+// An observer must not fail the request and must not block: it is called on the
+// response path of a call the user already made successfully.
+type MutationObserver interface {
+	ObserveMutation(c *fiber.Ctx, ev *domain.AuditEvent)
+}
+
 // auditSkipPrefixes are read-shaped POSTs that would only add noise: they change
 // no tenant data, and one of them (search) would otherwise dominate the trail.
 var auditSkipPrefixes = []string{
@@ -46,7 +61,11 @@ var auditSkipPrefixes = []string{
 
 // AuditMutations returns the mutation-journaling middleware. A nil appender
 // disables journaling rather than failing requests.
-func AuditMutations(appender AuditAppender) fiber.Handler {
+//
+// Observers, if any, are notified after the entry is appended — see
+// MutationObserver. They are variadic so every existing call site keeps
+// compiling and keeps behaving identically with none supplied.
+func AuditMutations(appender AuditAppender, observers ...MutationObserver) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if appender == nil || !isMutation(c.Method()) || skipAudit(c.Path()) {
 			return c.Next()
@@ -74,6 +93,15 @@ func AuditMutations(appender AuditAppender) fiber.Handler {
 		// Best-effort: a trail write must never fail the business call the user
 		// just made successfully.
 		_ = appender.Append(c.UserContext(), ev)
+
+		// Observers run after the append so the entry they see is the sealed
+		// one, with its id assigned. Their failure is their own: the trail is
+		// already written and the business call already succeeded.
+		for _, o := range observers {
+			if o != nil {
+				o.ObserveMutation(c, ev)
+			}
+		}
 		return err
 	}
 }

@@ -70,6 +70,19 @@ func (c *Client) Subscribe(ctx context.Context, channels ...string) *goredis.Pub
 	return c.redis.Subscribe(ctx, channels...)
 }
 
+// PSubscribe s'abonne à un PATTERN de canaux (glob Redis).
+//
+// Utilisé par le relais temps réel : les événements sont publiés sur un canal
+// par tenant (défense en profondeur et lisibilité opérationnelle), mais une
+// instance doit recevoir ceux de tous les tenants dont elle héberge un flux.
+// Un abonnement par pattern évite l'abonnement dynamique par tenant, dont le
+// churn — abonner/désabonner à chaque connexion et déconnexion de navigateur —
+// est exactement le genre de machinerie qui perd un message pendant une fenêtre
+// de reconfiguration.
+func (c *Client) PSubscribe(ctx context.Context, patterns ...string) *goredis.PubSub {
+	return c.redis.PSubscribe(ctx, patterns...)
+}
+
 // Set stocke une clé-valeur avec TTL expiration.
 func (c *Client) Set(ctx context.Context, key string, value string, ttl time.Duration) error {
 	cmd := c.redis.Set(ctx, key, value, ttl)

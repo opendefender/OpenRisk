@@ -55,9 +55,23 @@ func TestViewerIsReadOnly(t *testing.T) {
 // TestExecutiveIsStrategicOnly guards that the board/executive role stays
 // strategic: no operational write access.
 func TestExecutiveIsStrategicOnly(t *testing.T) {
+	// An exact allowlist rather than a "contains no :write" check, on purpose:
+	// the point is to catch a permission being added to this role by accident,
+	// and a rule expressed as a pattern would let a new read permission with
+	// real reach slip in unnoticed. Adding one here has to be a decision.
+	//
+	// events:read holds a realtime stream open. It widens nothing: what travels
+	// on that stream is gated per event by the read permissions above, so an
+	// executive receives risk and compliance events and nothing else.
+	allowed := map[PermissionKey]bool{
+		"risks:read":         true,
+		"compliance:read":    true,
+		"reports:board:read": true,
+		"events:read":        true,
+	}
 	exec, _ := GetBusinessRole(BusinessRoleExecutive)
 	for _, p := range exec.Permissions {
-		if p != "risks:read" && p != "compliance:read" && p != "reports:board:read" {
+		if !allowed[p] {
 			t.Fatalf("executive should be read-only strategic, found %q", p)
 		}
 	}

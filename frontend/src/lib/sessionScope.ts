@@ -35,6 +35,8 @@
 
 import type { QueryClient } from '@tanstack/react-query';
 
+import { realtime } from './realtime';
+
 /**
  * The app's QueryClient, registered by main.tsx at start-up.
  *
@@ -115,6 +117,14 @@ const USER_SCOPED_PREFIXES = ['openrisk.table.'];
  * is idempotent.
  */
 export function clearSessionScope(): void {
+  // 0. The realtime stream. It is torn down FIRST, before the caches it feeds:
+  //    a stream left open across a session boundary would keep delivering the
+  //    previous identity's events into the new one's cache, and its replay
+  //    cursor is a position in the previous tenant's sequence — a number that
+  //    means something different in the next tenant's log. Reconnecting is the
+  //    new session's business, not this function's.
+  realtime.switchTenant();
+
   // 1. Server responses. `clear()` removes cached data AND in-flight queries, so
   //    a request issued by the previous session cannot land in the new one's
   //    cache after the switch.
