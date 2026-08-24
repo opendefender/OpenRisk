@@ -30,6 +30,7 @@ import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
+import { useRealtimeQuerySync } from './features/realtime/useRealtime';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
@@ -144,6 +145,12 @@ const AnimatedOutlet = () => {
  * here so they're reachable from anywhere (sidebar quick action, palette).
  */
 const DashboardLayout = () => {
+  // Opens the tab's single realtime connection and keeps the query cache in
+  // step with it. Mounted once, here, so no feature has to open a connection of
+  // its own — which is what the app used to do, ending up with several sockets
+  // and several reconnect strategies to say the same thing.
+  useRealtimeQuerySync();
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [newRiskOpen, setNewRiskOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);

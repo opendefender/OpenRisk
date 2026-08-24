@@ -26,6 +26,7 @@ import { Hint } from '../../shared/Hint';
 import { categoryMeta, categoryForType, type NotifCategory } from '../../shared/notificationCategory';
 import { Breadcrumbs } from '../../shared/Breadcrumbs';
 import { getConnectionStatus, subscribeConnection, type ConnectionState } from '../../lib/connection';
+import { useRealtimeStatus } from '../../features/realtime/useRealtime';
 import { useNotifications, useUnreadCount, useNotificationActions } from '../../features/notifications/useNotifications';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, SkeletonRows } from '../../shared/ui';
@@ -280,29 +281,77 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
 
 /* ---------- connection status ---------- */
 // Reads lib/connection, which is fed by the browser's online/offline events and
-// by the outcome of every axios call. Green = the API answered; amber = a
-// request could not reach it; grey = the browser reports no network. It only
-// ever reports an observation, never an assumption.
+// by the outcome of every axios call, AND the realtime stream's own state.
+// Green = the API answered; amber = a request could not reach it; grey = the
+// browser reports no network. It only ever reports an observation, never an
+// assumption.
+//
+// The two signals are combined rather than shown as two dots, and the API's
+// verdict wins when it is bad: a browser that cannot reach the API at all is
+// not usefully told that its event stream is also down. When the API is fine,
+// the dot reports whether live updates are actually arriving — which is the
+// difference between a screen that refreshes itself and one the user has to
+// reload, and the user is entitled to know which they are looking at.
 function ConnectionDot({ lang }: { lang: 'fr' | 'en' }) {
   const status = useSyncExternalStore(subscribeConnection, getConnectionStatus, getConnectionStatus);
+  const live = useRealtimeStatus();
+  const fr = lang === 'fr';
+
   const meta: Record<ConnectionState, { color: string; label: [string, string]; pulse: boolean }> = {
     online: { color: 'var(--low)', label: ['Connecté au serveur', 'Connected to the server'], pulse: true },
     degraded: { color: 'var(--high)', label: ['Serveur injoignable', 'Server unreachable'], pulse: false },
     offline: { color: 'var(--text-muted)', label: ['Hors ligne', 'Offline'], pulse: false },
   };
-  const m = meta[status.state];
-  const label = m.label[lang === 'fr' ? 0 : 1];
+  let m = meta[status.state];
+  let state: string = status.state;
+
+  if (status.state === 'online') {
+    switch (live.state) {
+      case 'CONNECTED':
+        m = { color: 'var(--low)', label: ['Mises à jour en direct', 'Live updates on'], pulse: true };
+        state = 'live';
+        break;
+      case 'RECONNECTING':
+      case 'INITIALIZING':
+        m = { color: 'var(--medium)', label: ['Reconnexion au flux…', 'Reconnecting to the live stream…'], pulse: false };
+        state = 'live-reconnecting';
+        break;
+      case 'RESYNCING':
+        m = { color: 'var(--medium)', label: ['Resynchronisation en cours', 'Resynchronising'], pulse: false };
+        state = 'live-resyncing';
+        break;
+      case 'FORBIDDEN':
+        // Said plainly rather than shown as a fault: nothing is broken, this
+        // account simply may not hold a stream.
+        m = { color: 'var(--text-muted)', label: ['Direct non autorisé pour ce compte', 'Live updates not permitted for this account'], pulse: false };
+        state = 'live-forbidden';
+        break;
+      case 'ERROR':
+      case 'DISCONNECTED':
+        m = { color: 'var(--text-muted)', label: ['Direct interrompu — rechargez pour actualiser', 'Live updates stopped — reload to refresh'], pulse: false };
+        state = 'live-off';
+        break;
+    }
+  }
+
+  const label = m.label[fr ? 0 : 1];
   return (
     <div
       className="flex items-center px-2"
       title={label}
       data-testid="connection-status"
-      data-state={status.state}
+      data-state={state}
     >
       <span
         className="w-[7px] h-[7px] rounded-full"
         style={{ background: m.color, animation: m.pulse ? 'or-pulsedot 2.4s infinite' : 'none' }}
       />
+      {/*
+        One polite live region for the CONNECTION STATE, which changes rarely.
+        Individual events are deliberately not announced: a screen reader
+        narrating every risk update in a busy tenant would make the page
+        unusable, and the state is the only part a user needs read aloud.
+      */}
       <span className="sr-only" role="status" aria-live="polite">{label}</span>
     </div>
   );
