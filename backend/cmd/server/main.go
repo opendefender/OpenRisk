@@ -358,6 +358,11 @@ func main() {
 		&domain.Invoice{},
 		&domain.TelemetryConfig{},
 		&domain.OrgDeletionRequest{},
+		// Realtime event hub (W0-07, migration 0059): the durable, per-tenant
+		// ordered log behind GET /realtime/events. It is what lets a client that
+		// reconnects replay what it missed instead of refetching everything, and
+		// it is where the ordering guarantee lives (unique tenant_id+sequence).
+		&domain.RealtimeEvent{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
