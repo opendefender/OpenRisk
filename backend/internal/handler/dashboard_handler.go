@@ -139,9 +139,9 @@ func GetDashboardStats(c *fiber.Ctx) error {
 	if ctx == nil || ctx.OrganizationID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid tenant"})
 	}
-	window, errResp := parsePeriod(c)
-	if errResp != nil {
-		return errResp
+	window, err := parsePeriod(c)
+	if err != nil {
+		return writePeriodError(c, err)
 	}
 
 	stats, err := ComputeDashboardStats(c.UserContext(), database.DB, ctx.OrganizationID, window)

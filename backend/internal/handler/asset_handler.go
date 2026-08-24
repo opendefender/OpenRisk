@@ -140,9 +140,9 @@ type assetStatisticsResponse struct {
 // browser. The counts were right; obtaining them cost the whole inventory on
 // every dashboard paint, and grew with the tenant.
 func (h *AssetHandler) GetAssetStatistics(c *fiber.Ctx) error {
-	window, errResp := parsePeriod(c)
-	if errResp != nil {
-		return errResp
+	window, err := parsePeriod(c)
+	if err != nil {
+		return writePeriodError(c, err)
 	}
 	stats, err := h.assetStatisticsUC.Execute(c.UserContext(), tenantID(c), window)
 	if err != nil {
