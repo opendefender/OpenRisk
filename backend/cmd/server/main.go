@@ -511,8 +511,22 @@ func main() {
 	// scaled.
 	realtimeEventLog := repository.NewGormRealtimeEventRepository(database.DB)
 	realtimeHub := apprealtime.NewHub(apprealtime.HubOptions{})
+	realtimePublisher := apprealtime.NewPublisher(
+		realtimeEventLog,
+		realtimeHub,
+		apprealtime.WithFanout(redisClientInstance),
+	)
 	go apprealtime.NewRelay(redisClientInstance, realtimeHub).Start(context.Background())
-	log.Println("Realtime: event hub started (durable log + per-tenant fanout)")
+
+	// Canonical events for the changes that never pass through an authenticated
+	// mutation: a vulnerability arriving on a webhook with no session, a score
+	// recomputed by the worker minutes later, a finding the scanner stopped
+	// seeing. Each already publishes on an internal channel; this republishes
+	// them through the canonical publisher so they land in the durable log with
+	// a sequence and reach clients as the same envelope as everything else. The
+	// internal channels and their existing consumers are untouched.
+	go apprealtime.NewDomainEventRelay(redisClientInstance, realtimePublisher).Start(context.Background())
+	log.Println("Realtime: event hub started (durable log + per-tenant fanout + domain relay)")
 
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
@@ -1037,7 +1051,14 @@ func main() {
 	// it: each successful POST/PUT/PATCH/DELETE produces exactly one chained
 	// audit entry (actor, tenant, action, resource, before → after, ip, user
 	// agent, request id, timestamp). Adding a route adds coverage automatically.
-	protected.Use(middleware.AuditMutations(auditChainRepo))
+	// The realtime bridge rides the SAME observation. Every successful mutation
+	// already yields the tenant, the actor, the resource that actually changed
+	// and the changed field names; deriving canonical events from that beats
+	// adding a publish call to several hundred use cases, because the call
+	// somebody eventually forgets is the one that mattered. What is published
+	// is still decided by an explicit map onto the catalog, so an unmapped
+	// mutation stays silent and no UI-shaped event can ever be emitted.
+	protected.Use(middleware.AuditMutations(auditChainRepo, apprealtime.NewMutationBridge(realtimePublisher)))
 
 	// =========================================================================
 	// Open-core: entitlements + billing. This is where the plan model becomes
