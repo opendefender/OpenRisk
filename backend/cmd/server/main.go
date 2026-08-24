@@ -47,6 +47,7 @@ import (
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/orgdeletion"
 	"github.com/opendefender/openrisk/internal/application/ownership"
+	apprealtime "github.com/opendefender/openrisk/internal/application/realtime"
 	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/application/risk"
@@ -490,6 +491,28 @@ func main() {
 	// Start Score Worker in background goroutine
 	go scoreWorker.Start(context.Background())
 	log.Println("Workers: Score Engine worker started (listening for risk.updated events)")
+
+	// =========================================================================
+	// 3.6 REALTIME EVENT HUB (W0-07)
+	// =========================================================================
+	//
+	// The backbone every live surface reads from: notifications, incidents,
+	// automation, analytics and the dashboards. It replaces three hand-rolled
+	// SSE loops that each re-implemented auth, tenant filtering and keepalive,
+	// and that lost every event published while a client was reconnecting.
+	//
+	//   publisher → durable log (per-tenant sequence) → hub → SSE
+	//                              ↘ Redis fanout → relay on other instances ↗
+	//
+	// The log is what makes a reconnect a replay instead of a full refetch. The
+	// relay is what makes a two-replica deployment behave like a one-replica
+	// one — without it a change made on instance 1 is invisible to a browser
+	// connected to instance 2, which looks like the feature works until it is
+	// scaled.
+	realtimeEventLog := repository.NewGormRealtimeEventRepository(database.DB)
+	realtimeHub := apprealtime.NewHub(apprealtime.HubOptions{})
+	go apprealtime.NewRelay(redisClientInstance, realtimeHub).Start(context.Background())
+	log.Println("Realtime: event hub started (durable log + per-tenant fanout)")
 
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
@@ -2447,6 +2470,26 @@ func main() {
 	protected.Post("/scanner/jobs/:id/import", scannerImport, scannerHandler.ImportPreview)
 	protected.Post("/scanner/jobs/:id/ignore", scannerImport, scannerHandler.IgnorePreview)
 	protected.Get("/scanner/events", scannerRead, scannerHandler.StreamScanEvents)
+
+	// -------------------------------------------------------------------------
+	// Realtime event hub (W0-07) — the one stream every live surface reads.
+	//
+	// Mounted on `protected`, so the browser authenticates with its HttpOnly
+	// session cookie and any other caller with a bearer token. There is
+	// deliberately no ?token= escape hatch: a credential in a URL ends up in
+	// access logs, proxy logs and browser history, and cookie sessions (W0-03)
+	// make it unnecessary.
+	//
+	// `events:read` says an identity may HOLD a stream. What travels on it is
+	// decided per event by the read permission of its own aggregate, inside the
+	// handler — so the stream can never become a way around the permission
+	// model.
+	realtimeHandler := handlers.NewRealtimeHandler(realtimeHub, realtimeEventLog)
+	realtimeRead := middleware.RequirePermission("events:read")
+	protected.Get("/realtime/catalog", realtimeRead, realtimeHandler.Catalog)
+	protected.Get("/realtime/stats", middleware.RequireRole("admin", "root"), realtimeHandler.Stats)
+	protected.Get("/realtime/events", realtimeRead, realtimeHandler.Stream)
+	log.Println("Realtime: GET /realtime/events mounted (SSE, session-authenticated, tenant-scoped)")
 
 	// The agent-facing routes (register/stream/push) were mounted earlier on `app`
 	// (before the /api/v1 user middleware) — see the note above `var scannerHandler`.

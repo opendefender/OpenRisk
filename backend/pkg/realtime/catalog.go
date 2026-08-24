@@ -120,6 +120,57 @@ type Descriptor struct {
 	// renaming one is a breaking change and requires a version bump. The
 	// contract test asserts no forbidden field ever appears in this list.
 	PayloadFields []string `json:"payloadFields"`
+
+	// Permission is the permission string a subscriber must hold to receive
+	// this event. Derived from the aggregate at init, so a new event type is
+	// authorized the moment it is registered and cannot be added with the
+	// question left open. Filled in by init(); never written by hand.
+	Permission string `json:"permission"`
+}
+
+// aggregatePermission maps each aggregate onto the permission that already
+// governs reading it through the API.
+//
+// This is the rule that keeps the stream from becoming a way around the
+// permission model: opening a stream requires StreamPermission, but WHAT
+// travels down it is decided per event by the same strings that gate the REST
+// endpoints. A viewer holding only risks:read sees risk events and nothing
+// else — not because the client asked for that, but because the server will not
+// send anything more.
+var aggregatePermission = map[string]string{
+	AggregateRisk:            "risks:read",
+	AggregateAsset:           "assets:read",
+	AggregateVulnerability:   "vulnerabilities:read",
+	AggregateIncident:        "incidents:read",
+	AggregateControl:         "compliance:controls:read",
+	AggregateComplianceAudit: "compliance:audits:read",
+	AggregateMitigation:      "mitigations:read",
+}
+
+// StreamPermission is the permission required to open a stream at all.
+//
+// Holding it is necessary and never sufficient: it says "this identity may hold
+// an event stream", while the per-aggregate permissions above say what may
+// travel on it.
+const StreamPermission = "events:read"
+
+// PermissionForAggregate returns the permission required to receive an
+// aggregate's events, and whether one is defined. An aggregate with no entry is
+// a defect, not a wildcard — see the catalog test, which fails rather than let
+// an unmapped aggregate default to visible.
+func PermissionForAggregate(aggregate string) (string, bool) {
+	p, ok := aggregatePermission[aggregate]
+	return p, ok
+}
+
+// init stamps each descriptor with the permission its aggregate requires.
+func init() {
+	for typ, d := range catalog {
+		if perm, ok := aggregatePermission[d.Aggregate]; ok {
+			d.Permission = perm
+			catalog[typ] = d
+		}
+	}
 }
 
 // catalog is the single source of truth for what may be published.
@@ -131,91 +182,91 @@ var catalog = map[EventType]Descriptor{
 	// ---- Risk -------------------------------------------------------------
 	RiskCreated: {RiskCreated, AggregateRisk, 1, OriginMutation,
 		"A risk is created through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	RiskUpdated: {RiskUpdated, AggregateRisk, 1, OriginMutation,
 		"A risk is updated through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	RiskDeleted: {RiskDeleted, AggregateRisk, 1, OriginMutation,
 		"A risk is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	RiskStatusChanged: {RiskStatusChanged, AggregateRisk, 1, OriginMutation,
 		"A risk lifecycle transition is accepted (POST /risks/:id/transition).",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	RiskScoreChanged: {RiskScoreChanged, AggregateRisk, 1, OriginDomain,
 		"The score worker recomputes a risk score (relayed from risk.score_updated).",
-		[]string{"newScore", "oldScore", "delta", "criticality"}},
+		[]string{"newScore", "oldScore", "delta", "criticality"}, ""},
 
 	// ---- Asset ------------------------------------------------------------
 	AssetCreated: {AssetCreated, AggregateAsset, 1, OriginMutation,
 		"An asset is created through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	AssetUpdated: {AssetUpdated, AggregateAsset, 1, OriginMutation,
 		"An asset is updated through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	AssetDeleted: {AssetDeleted, AggregateAsset, 1, OriginMutation,
 		"An asset is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	AssetCriticalityChanged: {AssetCriticalityChanged, AggregateAsset, 1, OriginDomain,
 		"An asset's criticality changes (relayed from asset.criticality_changed).",
-		[]string{"oldCriticality", "newCriticality"}},
+		[]string{"oldCriticality", "newCriticality"}, ""},
 
 	// ---- Vulnerability ----------------------------------------------------
 	VulnerabilityDetected: {VulnerabilityDetected, AggregateVulnerability, 1, OriginDomain,
 		"Ingest records a vulnerability the tenant did not have (relayed from vulnerability.detected).",
-		[]string{"cveId", "severity", "cvss", "kev", "priorityTier", "assetId", "source"}},
+		[]string{"cveId", "severity", "cvss", "kev", "priorityTier", "assetId", "source"}, ""},
 	VulnerabilityUpdated: {VulnerabilityUpdated, AggregateVulnerability, 1, OriginMutation,
 		"A vulnerability's remediation status is changed through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	VulnerabilityDeleted: {VulnerabilityDeleted, AggregateVulnerability, 1, OriginMutation,
 		"A vulnerability is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 
 	// ---- Incident ---------------------------------------------------------
 	IncidentCreated: {IncidentCreated, AggregateIncident, 1, OriginMutation,
 		"An incident is declared through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	IncidentUpdated: {IncidentUpdated, AggregateIncident, 1, OriginMutation,
 		"An incident is updated through the API, including status and severity changes.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	IncidentDeleted: {IncidentDeleted, AggregateIncident, 1, OriginMutation,
 		"An incident is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 
 	// ---- Control ----------------------------------------------------------
 	ControlCreated: {ControlCreated, AggregateControl, 1, OriginMutation,
 		"A compliance control is created through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	ControlUpdated: {ControlUpdated, AggregateControl, 1, OriginMutation,
 		"A compliance control is updated through the API, including its implementation status.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	ControlDeleted: {ControlDeleted, AggregateControl, 1, OriginMutation,
 		"A compliance control is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 
 	// ---- Assessment (compliance audit) ------------------------------------
 	AssessmentCreated: {AssessmentCreated, AggregateComplianceAudit, 1, OriginMutation,
 		"A compliance audit (assessment) is planned through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	AssessmentUpdated: {AssessmentUpdated, AggregateComplianceAudit, 1, OriginMutation,
 		"A compliance audit is updated through the API; completion is an update carrying status in changedFields.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	AssessmentDeleted: {AssessmentDeleted, AggregateComplianceAudit, 1, OriginMutation,
 		"A compliance audit is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 
 	// ---- Mitigation -------------------------------------------------------
 	MitigationCreated: {MitigationCreated, AggregateMitigation, 1, OriginMutation,
 		"A mitigation plan is created through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	MitigationUpdated: {MitigationUpdated, AggregateMitigation, 1, OriginMutation,
 		"A mitigation plan or one of its sub-actions is updated through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	MitigationDeleted: {MitigationDeleted, AggregateMitigation, 1, OriginMutation,
 		"A mitigation plan is deleted through the API.",
-		[]string{"changedFields", "action", "path"}},
+		[]string{"changedFields", "action", "path"}, ""},
 	MitigationAutoCompleted: {MitigationAutoCompleted, AggregateMitigation, 1, OriginDomain,
 		"The scanner can no longer detect a finding and auto-completes a sub-action (relayed from mitigation.auto_completed).",
-		[]string{"planId", "subActionId", "scannerJobId"}},
+		[]string{"planId", "subActionId", "scannerJobId"}, ""},
 }
 
 // Lookup returns the catalog entry for a type.
@@ -253,4 +304,90 @@ func Aggregates() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// AllowedAggregates returns the aggregates a caller may receive, given a
+// predicate that reports whether the caller holds a permission string.
+//
+// The predicate is supplied by the caller rather than the permission model
+// being imported here, so this package stays free of `internal/` — and so the
+// wildcard semantics used everywhere else in the API ("*" and "risks:*") are
+// applied by the one implementation that already knows them, instead of being
+// re-derived here where they could drift.
+func AllowedAggregates(holds func(permission string) bool) []string {
+	if holds == nil {
+		return nil
+	}
+	var out []string
+	for _, agg := range Aggregates() {
+		perm, ok := aggregatePermission[agg]
+		if !ok {
+			// An aggregate with no permission mapping is withheld. Failing
+			// closed here means forgetting the mapping costs visibility, not
+			// confidentiality.
+			continue
+		}
+		if holds(perm) {
+			out = append(out, agg)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Restrict narrows a client's requested filter to what it is allowed to see.
+//
+// Order matters and is the whole point: the caller's request can only ever
+// SUBTRACT from the allowed set. Asking for an aggregate that is not permitted
+// yields nothing rather than an error, because a client legitimately asking for
+// "risks and assets" while holding only risks should get its risks — but it can
+// never widen its way to the assets.
+//
+// The second return value reports whether anything at all can be delivered; a
+// subscription that could never deliver anything is refused rather than left
+// open as a stream that mysteriously stays silent.
+func Restrict(requested Filter, allowedAggregates []string) (Filter, bool) {
+	allowed := map[string]struct{}{}
+	for _, a := range allowedAggregates {
+		allowed[a] = struct{}{}
+	}
+	if len(allowed) == 0 {
+		return Filter{}, false
+	}
+
+	out := Filter{}
+	if len(requested.Types) > 0 {
+		for _, t := range requested.Types {
+			d, ok := catalog[t]
+			if !ok {
+				continue
+			}
+			if _, permitted := allowed[d.Aggregate]; permitted {
+				out.Types = append(out.Types, t)
+			}
+		}
+		if len(out.Types) == 0 {
+			return Filter{}, false
+		}
+	}
+
+	if len(requested.Aggregates) > 0 {
+		for _, a := range requested.Aggregates {
+			if _, permitted := allowed[a]; permitted {
+				out.Aggregates = append(out.Aggregates, a)
+			}
+		}
+		if len(out.Aggregates) == 0 {
+			return Filter{}, false
+		}
+	} else if len(out.Types) == 0 {
+		// No narrowing was requested, so the permitted set IS the filter. This
+		// is what makes an unfiltered subscription safe: it is never "give me
+		// everything", it is "give me everything I am allowed to see".
+		out.Aggregates = append(out.Aggregates, allowedAggregates...)
+	}
+
+	sort.Slice(out.Types, func(i, j int) bool { return out.Types[i] < out.Types[j] })
+	sort.Strings(out.Aggregates)
+	return out, true
 }

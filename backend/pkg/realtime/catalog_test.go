@@ -174,3 +174,112 @@ func TestParseFilter_IgnoresWhitespaceAndEmptyTokens(t *testing.T) {
 		t.Fatalf("unexpected parse: %+v", f)
 	}
 }
+
+// Every aggregate must map to a permission. An aggregate with no mapping is
+// withheld by AllowedAggregates, so forgetting one costs visibility rather than
+// confidentiality — but it is still a defect, and this is what catches it.
+func TestCatalog_EveryAggregateHasAPermission(t *testing.T) {
+	for _, agg := range Aggregates() {
+		if _, ok := PermissionForAggregate(agg); !ok {
+			t.Errorf("aggregate %q has no permission mapping — its events would be withheld from everyone", agg)
+		}
+	}
+	for _, d := range Catalog() {
+		if d.Permission == "" {
+			t.Errorf("%q carries no permission after init", d.Type)
+		}
+	}
+}
+
+func TestAllowedAggregates_ReflectsWhatTheCallerHolds(t *testing.T) {
+	held := map[string]bool{"risks:read": true, "assets:read": true}
+	got := AllowedAggregates(func(p string) bool { return held[p] })
+
+	want := map[string]bool{AggregateRisk: true, AggregateAsset: true}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want exactly %v", got, want)
+	}
+	for _, a := range got {
+		if !want[a] {
+			t.Fatalf("aggregate %q leaked into the allowed set", a)
+		}
+	}
+
+	if got := AllowedAggregates(func(string) bool { return false }); len(got) != 0 {
+		t.Fatalf("a caller holding nothing must be allowed nothing, got %v", got)
+	}
+	if got := AllowedAggregates(nil); got != nil {
+		t.Fatalf("a nil predicate must allow nothing, got %v", got)
+	}
+}
+
+// The core authorization property: a requested filter can only ever subtract.
+func TestRestrict_ARequestCanNeverWidenBeyondWhatIsAllowed(t *testing.T) {
+	allowed := []string{AggregateRisk}
+
+	// Asking for everything yields only what is permitted.
+	unfiltered, ok := Restrict(Filter{}, allowed)
+	if !ok {
+		t.Fatal("a caller with one permitted aggregate must get a stream")
+	}
+	if len(unfiltered.Aggregates) != 1 || unfiltered.Aggregates[0] != AggregateRisk {
+		t.Fatalf("an unfiltered subscription must resolve to the permitted set, got %+v", unfiltered)
+	}
+	assetEvent := validEnvelope()
+	assetEvent.Type = AssetCreated
+	assetEvent.Aggregate.Type = AggregateAsset
+	if unfiltered.Match(assetEvent) {
+		t.Fatal("an unfiltered subscription must not match an aggregate the caller cannot read")
+	}
+
+	// Explicitly asking for a forbidden aggregate does not grant it.
+	requested, err := ParseFilter("", "risk,asset")
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrowed, ok := Restrict(requested, allowed)
+	if !ok {
+		t.Fatal("the permitted part of the request must survive")
+	}
+	if len(narrowed.Aggregates) != 1 || narrowed.Aggregates[0] != AggregateRisk {
+		t.Fatalf("the forbidden aggregate survived: %+v", narrowed)
+	}
+
+	// Same for a type-level request.
+	byType, err := ParseFilter("risk.created,asset.created", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrowedTypes, ok := Restrict(byType, allowed)
+	if !ok {
+		t.Fatal("the permitted type must survive")
+	}
+	for _, ty := range narrowedTypes.Types {
+		if ty == AssetCreated {
+			t.Fatal("asset.created survived for a caller who may not read assets")
+		}
+	}
+}
+
+// A subscription that could never deliver anything is refused rather than left
+// open as a stream that mysteriously stays silent.
+func TestRestrict_RefusesWhenNothingCouldEverBeDelivered(t *testing.T) {
+	if _, ok := Restrict(Filter{}, nil); ok {
+		t.Fatal("a caller allowed no aggregate must be refused, not given a silent stream")
+	}
+	onlyRisk := []string{AggregateRisk}
+	assetOnly, err := ParseFilter("", "asset")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := Restrict(assetOnly, onlyRisk); ok {
+		t.Fatal("asking only for a forbidden aggregate must be refused")
+	}
+	typeOnly, err := ParseFilter("asset.created", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := Restrict(typeOnly, onlyRisk); ok {
+		t.Fatal("asking only for a forbidden type must be refused")
+	}
+}
