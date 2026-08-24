@@ -5,7 +5,7 @@
 // destinations/exports (Board report, Compliance PDFs, risk-register CSV export…),
 // plus a recent-reports list.
 
-import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, Plus, type LucideIcon } from 'lucide-react';
+import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, Plus, CalendarClock, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -15,7 +15,6 @@ import { useBoardReports } from './useBoardReports';
 import { useGenerateReport } from './useReportJobs';
 import { useFrameworks } from '../compliance/useCompliance';
 import { FrameworkPickerDialog } from './FrameworkPickerDialog';
-import { PremiumPeek } from '../../shared/PremiumPeek';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { riskService } from '../../services/riskService';
@@ -84,40 +83,55 @@ export function ReportsScreen() {
           </Card>
         ))}
       </div>
-      {/* Conversion moment "after a win" (UX-18/19): the user just generated reports —
-          tease automatic scheduled delivery (not built yet) as a blurred premium peek
-          with an honest "coming soon" CTA, never a hard paywall. */}
-      <div className="mb-7">
-        <PremiumPeek
-          title={tr('Rapports programmés', 'Scheduled reports')}
-          benefit={tr(
-            'Recevez vos rapports automatiquement par e-mail (hebdo / mensuel) — plus jamais de rapport oublié avant un COMEX.',
-            'Get your reports delivered automatically by email (weekly / monthly) — never scramble for a report before a board meeting again.',
-          )}
-          ctaLabel={tr('Bientôt disponible', 'Coming soon')}
-          onUpgrade={() => toast(tr('Rapports programmés — bientôt disponible.', 'Scheduled reports — coming soon.'), { icon: '🗓️' })}
-        >
-          <div className="p-5">
-            <div className="text-[13px] font-semibold text-ink mb-3">{tr('Planification automatique', 'Automatic scheduling')}</div>
-            <div className="flex flex-col gap-2">
-              {[
-                [tr('Synthèse exécutive', 'Executive summary'), tr('Chaque lundi · 08:00', 'Every Monday · 08:00'), tr('E-mail COMEX', 'Board email')],
-                [tr('Conformité ISO 27001', 'ISO 27001 compliance'), tr('1er du mois', '1st of the month'), tr('E-mail RSSI', 'CISO email')],
-                [tr('Registre des risques', 'Risk register'), tr('Chaque vendredi', 'Every Friday'), tr('E-mail équipe', 'Team email')],
-              ].map(([name, when, to]) => (
-                <div key={name} className="flex items-center gap-3 rounded-[10px] px-3 py-2.5" style={{ border: '1px solid var(--border)' }}>
-                  <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><FileText size={16} /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-ink">{name}</div>
-                    <div className="text-[11.5px] text-ink-muted">{when} · {to}</div>
-                  </div>
-                  <div className="w-9 h-5 rounded-full shrink-0" style={{ background: 'var(--accent)' }} />
-                </div>
-              ))}
-            </div>
+      {/* Scheduled reports do not exist. This block used to render three
+          schedules — "Executive summary · Every Monday 08:00 · Board email" and
+          two more — blurred behind an upsell, each with a lit toggle, on every
+          tenant.
+
+          Blurring invented rows does not make them less invented; it makes them
+          harder to check. The same call was made for the leaderboard's seven
+          invented colleagues, and the reasoning holds here: a user peering at
+          the blur reads three schedules their organisation does not have.
+
+          The capability is described instead. The `PremiumPeek` primitive went
+          with it: this was its only use, and a component whose whole job is
+          "blur this and put an upsell over it" invites exactly this mistake.
+          `FeatureGate`/`UpsellLock` remain for real paywalls — there the blurred
+          children ARE the real component rendering real tenant data, and the
+          backend returns 402 regardless, which is a wall, not a fiction
+          (W0-05 / D5). */}
+      <Card style={{ padding: '18px 22px', marginBottom: 28 }}>
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-[11px] flex items-center justify-center shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+            <CalendarClock size={20} />
           </div>
-        </PremiumPeek>
-      </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="text-[14px] font-semibold text-ink">{tr('Rapports programmés', 'Scheduled reports')}</span>
+              <span
+                className="text-[10.5px] font-bold uppercase tracking-[.06em] px-2 py-0.5 rounded-full"
+                style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}
+                data-testid="scheduled-reports-unavailable"
+              >
+                {tr('Indisponible', 'Unavailable')}
+              </span>
+            </div>
+            <div className="text-[12.5px] text-ink-soft leading-relaxed">
+              {tr(
+                'La livraison automatique par e-mail (hebdomadaire ou mensuelle) n’est pas encore disponible. En attendant, générez un rapport ci-dessus : il est produit à la demande et reste dans la bibliothèque, horodaté et signé.',
+                'Automatic delivery by e-mail (weekly or monthly) is not available yet. In the meantime, generate a report above: it is produced on demand and stays in the library, timestamped and hashed.',
+              )}
+            </div>
+            <button
+              onClick={() => navigate('/reports/library')}
+              className="mt-3 h-9 px-3.5 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5 hover:bg-hover transition-colors"
+              style={{ border: '1px solid var(--border-strong)' }}
+            >
+              <FileText size={14} /> {tr('Ouvrir la bibliothèque', 'Open the library')}
+            </button>
+          </div>
+        </div>
+      </Card>
 
       <Card style={{ padding: '18px 22px' }}>
         <div className="text-[14px] font-semibold text-ink mb-3.5">{tr('Rapports récents', 'Recent reports')}</div>

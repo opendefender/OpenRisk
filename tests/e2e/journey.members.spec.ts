@@ -12,7 +12,7 @@
 // could not be delivered.
 
 import { test, expect, request as pwRequest, type APIRequestContext, type Page } from '@playwright/test';
-import { authFileFor, API_URL, ADMIN } from './support/env';
+import { authFileFor, API_URL, API_BASE, ADMIN } from './support/env';
 import { apiLogin } from './support/auth';
 
 test.use({ storageState: authFileFor('admin') });
@@ -23,10 +23,10 @@ test.use({ storageState: authFileFor('admin') });
  *  token held in localStorage, not with a cookie, so a request made through
  *  the page context arrives unauthenticated. */
 async function adminApi(): Promise<APIRequestContext> {
-  const raw = await pwRequest.newContext({ baseURL: API_URL });
+  const raw = await pwRequest.newContext({ baseURL: API_BASE });
   const login = await apiLogin(raw, ADMIN.email, ADMIN.password);
   return pwRequest.newContext({
-    baseURL: API_URL,
+    baseURL: API_BASE,
     extraHTTPHeaders: { Authorization: `Bearer ${login.token_pair.access_token}` },
   });
 }
@@ -48,7 +48,7 @@ test('the roster renders real members, not a fixture', async ({ page }) => {
   // Cross-check the screen against the API it claims to render. A table that
   // disagrees with /organization/members is a table showing something else.
   const api = await adminApi();
-  const res = await api.get('/organization/members?limit=100');
+  const res = await api.get('organization/members?limit=100');
   expect(res.ok()).toBeTruthy();
   const body = await res.json();
   await expect(rows).toHaveCount(body.total);
@@ -117,7 +117,7 @@ test('revoking an invitation asks first, then kills the link', async ({ page, co
   const email = freshEmail();
   // Created through the API so the test is about the revoke UI, not the invite UI.
   const api = await adminApi();
-  const created = await api.post('/organization/invitations', { data: { email, role: 'user' } });
+  const created = await api.post('organization/invitations', { data: { email, role: 'user' } });
   expect(created.status()).toBe(201);
   const acceptUrl: string | undefined = (await created.json()).accept_url;
 
@@ -151,12 +151,12 @@ test('withdrawing a member’s access asks first and offers the reversible optio
   // A member to act on, provisioned through the real flow.
   const email = freshEmail();
   const api = await adminApi();
-  const created = await api.post('/organization/invitations', { data: { email, role: 'user' } });
+  const created = await api.post('organization/invitations', { data: { email, role: 'user' } });
   expect(created.status()).toBe(201);
   const acceptUrl: string | undefined = (await created.json()).accept_url;
   test.skip(!acceptUrl, 'needs the acceptance link, which is returned only when mail is unavailable');
 
-  const accepted = await api.post('/invitations/accept', {
+  const accepted = await api.post('invitations/accept', {
     data: {
       token: new URL(acceptUrl!).searchParams.get('token'),
       full_name: 'E2E Member',
@@ -200,7 +200,7 @@ test('the access history records what happened, with who and when', async ({ pag
 
 test('the sidebar badge counts real outstanding invitations', async ({ page }) => {
   const api = await adminApi();
-  const counts = await api.get('/organization/counts');
+  const counts = await api.get('organization/counts');
   expect(counts.ok()).toBeTruthy();
   const pending: number = (await counts.json()).pending_invitations;
 

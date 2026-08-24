@@ -11,18 +11,23 @@
 import { useCallback } from 'react';
 import { useSearchParams } from 'react-router';
 
-export function useFocusParam(): { focusId: string | null; clearFocus: () => void } {
+export function useFocusParam(): { focusId: string | null; focusTab: string | null; clearFocus: () => void } {
   const [params, setParams] = useSearchParams();
   const focusId = params.get('focus');
+  // Optional companion: which tab of the focused entity's drawer to open.
+  // /risks/:id/timeline redirects to /risks?focus=<id>&tab=timeline, so the one
+  // real timeline implementation serves the deep link too (W0-05 / D8).
+  const focusTab = params.get('tab');
   const clearFocus = useCallback(() => {
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
         next.delete('focus');
+        next.delete('tab');
         return next;
       },
       { replace: true }
     );
   }, [setParams]);
-  return { focusId, clearFocus };
+  return { focusId, focusTab, clearFocus };
 }

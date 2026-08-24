@@ -4,7 +4,7 @@
 // React Query bindings for the notification bell.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { notificationService } from './notificationService';
+import { notificationService, type NotificationPreferencePatch } from './notificationService';
 
 const NOTIF_KEY = ['notifications'];
 const UNREAD_KEY = ['notifications', 'unread-count'];
@@ -46,4 +46,38 @@ export function useNotificationActions() {
     onSuccess: invalidate,
   });
   return { markRead, markAllRead };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preferences (W0-05 / D2)                                                    */
+/*                                                                             */
+/* Settings › Notifications wrote these to localStorage while the real API sat  */
+/* unused, so the switches changed nothing and carried across a change of user. */
+/* They are now server state: per user, per tenant, and read by the backend     */
+/* before it sends (domain.NotificationPreference.Allows).                      */
+/* -------------------------------------------------------------------------- */
+
+export const NOTIF_PREFS_KEY = ['notifications', 'preferences'];
+
+export function useNotificationPreferences() {
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: NOTIF_PREFS_KEY,
+    queryFn: () => notificationService.getPreferences(),
+    // No placeholder and no default object: rendering a switch position before
+    // the server has said what it is would be the same lie in a smaller frame.
+    // The screen shows a skeleton until it knows.
+    staleTime: 60_000,
+  });
+  return { prefs: data, isLoading, isError, refetch };
+}
+
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: NotificationPreferencePatch) => notificationService.updatePreferences(patch),
+    // The response IS the stored row, so seed the cache with it rather than
+    // refetching: what renders afterwards is what the server holds, not what
+    // the client hoped it would hold.
+    onSuccess: (saved) => qc.setQueryData(NOTIF_PREFS_KEY, saved),
+  });
 }

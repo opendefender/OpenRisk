@@ -357,6 +357,12 @@ function summaryMethodology(d: FinancialSummary): Methodology {
     formula_version: d.formula_version || b.formula_version,
     model: 'FAIR-lite: ALE = LEF × LM (PERT), Monte Carlo (portefeuille)',
     iterations: d.iterations || b.iterations,
+    // `seed` is the Monte-Carlo RNG seed the backend returns with the
+    // simulation, surfaced so a run can be reproduced. The no-mock-data rule
+    // matches the word `seed` in any identifier — the right default, since
+    // seeded fixtures are how fake data gets in — but wrong for this one field:
+    // it comes from the API and is displayed as provenance, not invented.
+    // eslint-disable-next-line openrisk/no-mock-data
     seed: b.seed,
     computed_at: d.computed_at,
     doc_url: '/docs/financial-quantification.md',

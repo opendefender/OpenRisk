@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { api } from '../lib/api';
 import { decodeAccessToken, permitted } from '../lib/jwt';
 import { setAccessToken } from '../lib/session';
+import { clearSessionScope } from '../lib/sessionScope';
 
 interface User {
   id: string;
@@ -107,6 +108,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const base: User = { ...data.user, role: data.user.role?.name ?? '', org_name: data.organization?.name };
     const user = withTokenClaims(base, data.token_pair.access_token, data.business_role);
 
+    // Drop anything the PREVIOUS identity left behind before adopting this one.
+    // A session does not always end through the logout button — it can lapse,
+    // be revoked, or die with a crash — so sign-in is the last chance to
+    // guarantee that no cached response outlives the tenant it came from
+    // (W0-05 / D9, see lib/sessionScope).
+    clearSessionScope();
+
     // Tokens are NOT persisted: the durable credential is the HttpOnly cookie
     // the backend set on this response. Only the display profile is cached.
     setAccessToken(data.token_pair.access_token);
@@ -123,6 +131,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   adoptSession: async (accessToken: string) => {
+    // Same reason as login: this is the other door into a session.
+    clearSessionScope();
     setAccessToken(accessToken);
 
     // The MFA responses carry the token pair but not the profile, so read it
@@ -152,12 +162,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     void api.post('/auth/logout', {}).catch(() => undefined);
 
     setAccessToken(null);
-    localStorage.removeItem('auth_user');
-    // Legacy keys from the pre-cookie era: removed so an old tab's token does
-    // not linger in storage after an upgrade.
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_refresh_token');
-    localStorage.removeItem('auth_expires_in');
+    // Drops the query cache, the tenant stores and every user-scoped storage
+    // key — including the legacy pre-cookie token keys. Clearing only the auth
+    // state left the next user on this browser looking at this tenant's data,
+    // because logout and login are both soft navigations and the tab is never
+    // torn down (W0-05 / D9, see lib/sessionScope).
+    clearSessionScope();
     set({
       token: null,
       user: null,

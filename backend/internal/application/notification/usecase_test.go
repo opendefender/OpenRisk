@@ -113,3 +113,85 @@ func TestUseCase_RepoErrorsBubbleUp(t *testing.T) {
 	_, err := uc.GetUnreadCount(uuid.New(), uuid.New())
 	require.ErrorIs(t, err, expected)
 }
+
+// ---------------------------------------------------------------------------
+// W0-05 / D2 — preferences are consulted before delivery.
+//
+// Until this wave the eight Settings switches were stored and never read: every
+// producer sent regardless. NotifyInApp is the single choke point all eight
+// in-app producers pass through, so these assert the gate is there and that it
+// fails in the safe direction.
+// ---------------------------------------------------------------------------
+
+func TestNotifyInApp_SuppressedWhenUserDisabledNotifications(t *testing.T) {
+	created := 0
+	uc := NewUseCase(&mockRepo{
+		createFn: func(*domain.Notification) error { created++; return nil },
+		getPrefsFn: func(uuid.UUID, uuid.UUID) (*domain.NotificationPreference, error) {
+			return &domain.NotificationPreference{DisableAllNotifications: true}, nil
+		},
+	})
+
+	err := uc.NotifyInApp(uuid.New(), uuid.New(), domain.NotificationTypeCriticalRisk, "s", "m", nil, "risk")
+
+	require.ErrorIs(t, err, ErrSuppressed)
+	require.Zero(t, created, "a suppressed notification must not be written")
+}
+
+func TestNotifyInApp_DeliveredWhenPreferencesAllow(t *testing.T) {
+	var written *domain.Notification
+	uc := NewUseCase(&mockRepo{
+		createFn: func(n *domain.Notification) error { written = n; return nil },
+		getPrefsFn: func(uuid.UUID, uuid.UUID) (*domain.NotificationPreference, error) {
+			return &domain.NotificationPreference{}, nil
+		},
+	})
+
+	err := uc.NotifyInApp(uuid.New(), uuid.New(), domain.NotificationTypeCriticalRisk, "s", "m", nil, "risk")
+
+	require.NoError(t, err)
+	require.NotNil(t, written)
+	require.Equal(t, domain.NotificationChannelInApp, written.Channel)
+}
+
+func TestNotifyInApp_FailsOpenWhenPreferencesCannotBeRead(t *testing.T) {
+	// A storage error must not silence an alert. One unwanted notification is a
+	// nuisance; a swallowed critical-risk alert is the incident nobody saw.
+	created := 0
+	uc := NewUseCase(&mockRepo{
+		createFn: func(*domain.Notification) error { created++; return nil },
+		getPrefsFn: func(uuid.UUID, uuid.UUID) (*domain.NotificationPreference, error) {
+			return nil, errors.New("database unavailable")
+		},
+	})
+
+	err := uc.NotifyInApp(uuid.New(), uuid.New(), domain.NotificationTypeCriticalRisk, "s", "m", nil, "risk")
+
+	require.NoError(t, err)
+	require.Equal(t, 1, created, "an unreadable preference must not suppress delivery")
+}
+
+func TestShouldNotify_GovernsEmailWithTheSameStoredRow(t *testing.T) {
+	// The workers send e-mail alongside the in-app record. They ask this, so the
+	// Settings screen governs the whole delivery rather than half of it.
+	uc := NewUseCase(&mockRepo{
+		getPrefsFn: func(uuid.UUID, uuid.UUID) (*domain.NotificationPreference, error) {
+			return &domain.NotificationPreference{
+				EmailOnMitigationDeadline: false,
+				EmailOnCriticalRisk:       true,
+			}, nil
+		},
+	})
+	user, tenant := uuid.New(), uuid.New()
+
+	require.False(t, uc.ShouldNotify(user, tenant, domain.NotificationTypeMitigationDeadline, domain.NotificationChannelEmail))
+	require.True(t, uc.ShouldNotify(user, tenant, domain.NotificationTypeCriticalRisk, domain.NotificationChannelEmail))
+	// In-app is unaffected by an e-mail switch.
+	require.True(t, uc.ShouldNotify(user, tenant, domain.NotificationTypeMitigationDeadline, domain.NotificationChannelInApp))
+}
+
+func TestShouldNotify_RejectsAnUnidentifiedRecipient(t *testing.T) {
+	uc := NewUseCase(&mockRepo{})
+	require.False(t, uc.ShouldNotify(uuid.Nil, uuid.New(), domain.NotificationTypeCriticalRisk, domain.NotificationChannelEmail))
+	require.False(t, uc.ShouldNotify(uuid.New(), uuid.Nil, domain.NotificationTypeCriticalRisk, domain.NotificationChannelEmail))
+}

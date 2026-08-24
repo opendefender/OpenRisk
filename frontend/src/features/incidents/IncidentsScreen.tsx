@@ -4,8 +4,10 @@
 // Incidents register (routed at /incidents) — the real, backend-wired incident
 // hub: KPI header (from /incidents/stats), status filter chips, a table with
 // inline status change + row click to open the detail/edit drawer, CSV export,
-// and a create dialog. The fixture War Room console lives at
-// /incidents/:id/war-room (Preview) and is reachable per-incident.
+// and a create dialog. The War Room console lives at /incidents/:id/war-room
+// and is reachable per-incident; since W0-05 everything on it is real — the
+// incident context, the timeline, the responders, the persisted response task
+// board and the Close action.
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';

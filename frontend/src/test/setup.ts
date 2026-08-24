@@ -27,8 +27,16 @@ const localStorageMock = (() => {
     clear: () => {
       store = {};
     },
-    length: Object.keys(store).length,
-    key: (index: number) => Object.keys(store)[index] || null,
+    // `length` MUST be a getter. It was a plain property evaluated once at
+    // module load, so it was permanently 0 no matter what the test wrote —
+    // which made `for (let i = 0; i < localStorage.length; i++)` a silent no-op
+    // and any code that enumerates storage impossible to test. Found by the
+    // session-scope tests (W0-05 / D9), where the sweep that clears saved table
+    // views appeared to pass while removing nothing.
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: (index: number) => Object.keys(store)[index] ?? null,
   };
 })();
 

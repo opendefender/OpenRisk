@@ -90,46 +90,62 @@ func (n *Notification) TableName() string {
 }
 
 // NotificationPreference defines user notification preferences
+// JSON tags are explicit, and they are the snake_case names PATCH
+// /notifications/preferences already accepts.
+//
+// Without them encoding/json emitted Go field names — the GET answered
+// {"DisableAllNotifications": false} while the PATCH expected
+// {"disable_all_notifications": false}, so read and write spoke different
+// vocabularies on the same endpoint. No client could round-trip a preference,
+// which is part of why the Settings screen kept its own copy in localStorage
+// instead (W0-05 / D2). Found by driving the screen against a running server.
+//
+// The three credential fields are cut from the payload. They are gorm:"-" so
+// they are always empty today, but a struct that WOULD serialise a webhook URL
+// and an HMAC secret if anything ever populated them is one assignment away
+// from leaking them (RULE #6). The relations are cut for the same reason the
+// Notification's are: a preferences response has no business shipping a whole
+// user record.
 type NotificationPreference struct {
-	ID       uuid.UUID `gorm:"primaryKey"`
-	UserID   uuid.UUID `gorm:"uniqueIndex:idx_user_pref"`
-	TenantID uuid.UUID `gorm:"uniqueIndex:idx_user_pref"`
+	ID       uuid.UUID `gorm:"primaryKey" json:"id"`
+	UserID   uuid.UUID `gorm:"uniqueIndex:idx_user_pref" json:"user_id"`
+	TenantID uuid.UUID `gorm:"uniqueIndex:idx_user_pref" json:"tenant_id"`
 
 	// Email preferences
-	EmailOnMitigationDeadline bool `gorm:"default:true"`
-	EmailOnCriticalRisk       bool `gorm:"default:true"`
-	EmailOnActionAssigned     bool `gorm:"default:true"`
-	EmailOnRiskUpdate         bool `gorm:"default:false"`
-	EmailOnRiskResolved       bool `gorm:"default:true"`
-	EmailDeadlineAdvanceDays  int  `gorm:"default:3"` // Notify N days before deadline
+	EmailOnMitigationDeadline bool `gorm:"default:true" json:"email_on_mitigation_deadline"`
+	EmailOnCriticalRisk       bool `gorm:"default:true" json:"email_on_critical_risk"`
+	EmailOnActionAssigned     bool `gorm:"default:true" json:"email_on_action_assigned"`
+	EmailOnRiskUpdate         bool `gorm:"default:false" json:"email_on_risk_update"`
+	EmailOnRiskResolved       bool `gorm:"default:true" json:"email_on_risk_resolved"`
+	EmailDeadlineAdvanceDays  int  `gorm:"default:3" json:"email_deadline_advance_days"` // Notify N days before deadline
 
 	// Slack preferences
-	SlackEnabled              bool   `gorm:"default:false"`
-	SlackWebhookURL           string `gorm:"-"`            // Not stored in DB
-	SlackChannelOverride      string `gorm:"default:null"` // Override default channel
-	SlackOnMitigationDeadline bool   `gorm:"default:true"`
-	SlackOnCriticalRisk       bool   `gorm:"default:true"`
-	SlackOnActionAssigned     bool   `gorm:"default:true"`
+	SlackEnabled              bool   `gorm:"default:false" json:"slack_enabled"`
+	SlackWebhookURL           string `gorm:"-" json:"-"`                                    // never stored, never returned
+	SlackChannelOverride      string `gorm:"default:null" json:"slack_channel_override"`    // Override default channel
+	SlackOnMitigationDeadline bool   `gorm:"default:true" json:"slack_on_mitigation_deadline"`
+	SlackOnCriticalRisk       bool   `gorm:"default:true" json:"slack_on_critical_risk"`
+	SlackOnActionAssigned     bool   `gorm:"default:true" json:"slack_on_action_assigned"`
 
 	// Webhook preferences
-	WebhookEnabled              bool   `gorm:"default:false"`
-	WebhookURL                  string `gorm:"-"` // Not stored in DB
-	WebhookSecret               string `gorm:"-"` // Not stored in DB
-	WebhookOnMitigationDeadline bool   `gorm:"default:true"`
-	WebhookOnCriticalRisk       bool   `gorm:"default:true"`
-	WebhookOnActionAssigned     bool   `gorm:"default:true"`
+	WebhookEnabled              bool   `gorm:"default:false" json:"webhook_enabled"`
+	WebhookURL                  string `gorm:"-" json:"-"` // never stored, never returned
+	WebhookSecret               string `gorm:"-" json:"-"` // never stored, never returned
+	WebhookOnMitigationDeadline bool   `gorm:"default:true" json:"webhook_on_mitigation_deadline"`
+	WebhookOnCriticalRisk       bool   `gorm:"default:true" json:"webhook_on_critical_risk"`
+	WebhookOnActionAssigned     bool   `gorm:"default:true" json:"webhook_on_action_assigned"`
 
 	// General preferences
-	DisableAllNotifications    bool `gorm:"default:false"`
-	EnableSoundNotifications   bool `gorm:"default:true"`
-	EnableDesktopNotifications bool `gorm:"default:true"`
+	DisableAllNotifications    bool `gorm:"default:false" json:"disable_all_notifications"`
+	EnableSoundNotifications   bool `gorm:"default:true" json:"enable_sound_notifications"`
+	EnableDesktopNotifications bool `gorm:"default:true" json:"enable_desktop_notifications"`
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
-	// Relations
-	User   *User
-	Tenant *Tenant
+	// Relations. Never serialised — see the note above.
+	User   *User   `json:"-"`
+	Tenant *Tenant `json:"-"`
 }
 
 // TableName specifies table name for NotificationPreference
@@ -214,4 +230,98 @@ type ActionAssignedNotificationPayload struct {
 	Priority    string
 	ActionLink  string
 	RiskLink    string
+}
+
+// Allows reports whether a notification of this type may be delivered to this
+// user on this channel.
+//
+// Until W0-05 nothing consulted these columns. The Settings screen offered eight
+// switches, the API stored what they said, and every producer then sent
+// regardless — so a user who turned e-mail off kept receiving e-mail. A
+// preference that is recorded but never read is worse than no preference at all:
+// it is a control that reports success and changes nothing.
+//
+// The decision lives here, on the model, rather than in each producer, for the
+// same reason the ownership rules do: there are seven places that raise a
+// notification and they must not be able to disagree about what a preference
+// means.
+//
+// Two deliberate asymmetries:
+//
+//   - DisableAllNotifications wins over everything, including in-app. It is the
+//     one switch a user reaches for when they want silence, and honouring it
+//     partially would be its own small lie.
+//   - Only the global switch governs in-app. The per-event columns are
+//     EmailOn* / SlackOn* / WebhookOn* — the schema has no in-app equivalent —
+//     so in-app delivery of a specific event type cannot be filtered without
+//     inventing a rule the user never set. An unknown type is therefore allowed:
+//     failing open on a NEW event type shows one notification too many, while
+//     failing closed silently drops it, and a security tool must not silently
+//     drop an alert because a column has not been added yet.
+func (np *NotificationPreference) Allows(notifType NotificationType, channel NotificationChannel) bool {
+	if np == nil {
+		// No stored row: defaults apply, and every default is permissive except
+		// the channels that need configuring (Slack, webhook), which their own
+		// enable flags gate below anyway.
+		return true
+	}
+	if np.DisableAllNotifications {
+		return false
+	}
+
+	switch channel {
+	case NotificationChannelEmail:
+		switch notifType {
+		case NotificationTypeMitigationDeadline:
+			return np.EmailOnMitigationDeadline
+		case NotificationTypeCriticalRisk, NotificationTypeSLABreach:
+			// An SLA breach is the escalation half of a critical-risk alert; it
+			// follows the same switch rather than needing a column nobody set.
+			return np.EmailOnCriticalRisk
+		case NotificationTypeActionAssigned:
+			return np.EmailOnActionAssigned
+		case NotificationTypeRiskUpdate:
+			return np.EmailOnRiskUpdate
+		case NotificationTypeRiskResolved:
+			return np.EmailOnRiskResolved
+		default:
+			// scan_complete, risk_review, automation: no dedicated column.
+			return true
+		}
+
+	case NotificationChannelSlack:
+		if !np.SlackEnabled {
+			return false
+		}
+		switch notifType {
+		case NotificationTypeMitigationDeadline:
+			return np.SlackOnMitigationDeadline
+		case NotificationTypeCriticalRisk, NotificationTypeSLABreach:
+			return np.SlackOnCriticalRisk
+		case NotificationTypeActionAssigned:
+			return np.SlackOnActionAssigned
+		default:
+			return true
+		}
+
+	case NotificationChannelWebhook:
+		if !np.WebhookEnabled {
+			return false
+		}
+		switch notifType {
+		case NotificationTypeMitigationDeadline:
+			return np.WebhookOnMitigationDeadline
+		case NotificationTypeCriticalRisk, NotificationTypeSLABreach:
+			return np.WebhookOnCriticalRisk
+		case NotificationTypeActionAssigned:
+			return np.WebhookOnActionAssigned
+		default:
+			return true
+		}
+
+	default:
+		// In-app (and any channel added later): governed only by the global
+		// switch, checked above.
+		return true
+	}
 }
