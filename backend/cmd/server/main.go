@@ -995,6 +995,18 @@ func main() {
 	// the per-IP limit by spreading traffic across hosts.
 	protected.Use(middleware.TenantRateLimit(quotaStore, apiQuota))
 
+	// OR26-03 — MFA policy, enforced at request time rather than only at the
+	// door. Enforcing at login alone would let a privileged account that signed
+	// in on day one keep working past its deadline simply by never signing out,
+	// which would make the window bound how long you may wait to log in rather
+	// than how long you may go without a second factor.
+	//
+	// Mounted here so it sees the identity the auth gate has just published, and
+	// before every business route. The enrolment endpoints and logout stay
+	// reachable (see mfaGuardExemptSuffixes) — a requirement you cannot satisfy
+	// is a lockout, not a control.
+	protected.Use(middleware.MFAPolicyGuard(mfaStatusResolver))
+
 	// Governance audit trail (spec §15): stamp the acting identity + request
 	// metadata onto the request context for every authenticated route, so any
 	// repository that threads c.UserContext() into GORM lets the audittrail
