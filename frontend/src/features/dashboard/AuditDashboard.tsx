@@ -4,18 +4,27 @@
 // Auditor / compliance dashboard persona (UX-2). Leads with controls: coverage per
 // framework, the gap count, and shortcuts to audits & gap analysis. Real data from
 // the same compliance overview the Compliance screen uses.
+//
+// W0-06: a failed compliance fetch rendered "No framework — import one to start",
+// with all four KPIs at zero. That is not a milder version of the truth, it is a
+// different statement: it tells an auditor their organisation has imported
+// nothing, and points them at a task they have already done. An unreadable
+// posture and an empty one need opposite responses, so they now render
+// differently.
 
 import { useNavigate } from 'react-router';
 import { ClipboardCheck, Layers, AlertTriangle, ListChecks } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useComplianceOverview, frameworkColorFor } from '../compliance/complianceOverview';
+import { WidgetState } from './WidgetState';
 import { DashboardShell, PersonaHeader, KpiRow, Card, type KpiSpec } from './shared';
 
 export function AuditDashboard() {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { data, isLoading } = useComplianceOverview();
+  const query = useComplianceOverview();
+  const { data, isLoading } = query;
   const frameworks = data ?? [];
 
   const totalControls = frameworks.reduce((s, f) => s + f.total, 0);
@@ -40,7 +49,15 @@ export function AuditDashboard() {
       />
 
       <div className="mb-4">
-        <KpiRow items={kpis} />
+        <WidgetState
+          lang={lang}
+          isLoading={isLoading}
+          error={query.error}
+          skeletonHeight={140}
+          retry={() => void query.refetch()}
+        >
+          <KpiRow items={kpis} />
+        </WidgetState>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
@@ -49,21 +66,35 @@ export function AuditDashboard() {
             <div className="text-[14px] font-semibold text-ink">{tr('Couverture par référentiel', 'Coverage by framework')}</div>
             <button onClick={() => navigate('/compliance')} className="text-[12px] font-semibold text-accent hover:underline">{tr('Gérer', 'Manage')}</button>
           </div>
-          {isLoading ? (
-            <div className="space-y-3">{[0, 1, 2, 3].map((i) => <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--bg-hover)' }} />)}</div>
-          ) : frameworks.length === 0 ? (
-            <div className="py-8 text-center">
-              <div className="text-[13px] text-ink-soft mb-3">{tr('Aucun référentiel — importez-en un pour démarrer.', 'No framework — import one to start.')}</div>
+          <WidgetState
+            lang={lang}
+            isLoading={isLoading}
+            error={query.error}
+            skeletonHeight={200}
+            retry={() => void query.refetch()}
+            isEmpty={frameworks.length === 0}
+            emptyIcon={Layers}
+            emptyTitle={tr('Aucun référentiel importé', 'No framework imported')}
+            emptyDescription={tr(
+              'Importez ISO 27001, NIST CSF, PCI DSS ou l’un des autres catalogues : la couverture par référentiel se calcule ensuite automatiquement.',
+              'Import ISO 27001, NIST CSF, PCI DSS or one of the other catalogues: coverage is computed from there automatically.'
+            )}
+            emptyAction={
               <button onClick={() => navigate('/compliance')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'var(--accent)' }}>
                 {tr('Ajouter un référentiel', 'Add a framework')}
               </button>
-            </div>
-          ) : (
+            }
+          >
             <div className="space-y-3.5">
               {frameworks.map((f, i) => {
                 const col = frameworkColorFor(f.name, i);
                 return (
-                  <button key={f.id} onClick={() => navigate('/compliance')} className="w-full text-left group">
+                  <button
+                    key={f.id}
+                    // The row names a framework; the link opens THAT framework.
+                    onClick={() => navigate(`/compliance?framework=${encodeURIComponent(String(f.id))}`)}
+                    className="w-full text-left group"
+                  >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[12.5px] font-medium text-ink truncate">{f.name}</span>
                       <span className="mono text-[12px] font-semibold shrink-0 ml-2" style={{ color: col }}>{f.pct}%</span>
@@ -76,7 +107,7 @@ export function AuditDashboard() {
                 );
               })}
             </div>
-          )}
+          </WidgetState>
         </Card>
 
         <Card style={{ padding: '18px 20px' }}>

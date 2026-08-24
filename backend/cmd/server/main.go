@@ -1564,8 +1564,14 @@ func main() {
 	// Resolve each history snapshot's changed_by UUID to an email so the
 	// inventory's history view shows "qui a modifié" as a human name, not a UUID.
 	listAssetSnapshotsUC := assetapp.NewListAssetSnapshotsUseCase(assetRepo).WithUserLookup(userRepo)
+	// The inventory's shape, counted in SQL rather than reduced in the browser
+	// from the whole collection (W0-06). assetRepo satisfies the narrow
+	// StatisticsReader port structurally — the method is concrete, off the
+	// domain port, so no mock in the suite has to grow it.
+	assetStatisticsUC := assetapp.NewAssetStatisticsUseCase(assetRepo)
 	assetHandler := handlers.NewAssetHandler(
 		createAssetUC, getAssetUC, listAssetsUC, updateAssetUC, deleteAssetUC, listAssetSnapshotsUC,
+		assetStatisticsUC,
 		redisClientInstance,
 	)
 
@@ -1587,6 +1593,10 @@ func main() {
 	// NB: register the static /asset-dependencies resource as a sibling of
 	// /assets (not /assets/:id/...) so "dependencies" is never parsed as an
 	// asset UUID.
+	// Same Fiber trap as /asset-dependencies below: a static sub-path of /assets
+	// must be registered BEFORE /assets/:id, or "statistics" is parsed as an
+	// asset UUID and the route answers 400 for a request that is perfectly valid.
+	protected.Get("/assets/statistics", assetRead, assetHandler.GetAssetStatistics)
 	protected.Get("/asset-dependencies", assetRead, assetDepHandler.ListAssetDependencies)
 	protected.Post("/asset-dependencies", assetUpdate, assetDepHandler.CreateAssetDependency)
 	protected.Delete("/asset-dependencies/:id", assetUpdate, assetDepHandler.DeleteAssetDependency)

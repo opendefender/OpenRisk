@@ -1,35 +1,44 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Signature Dashboard (OpenRisk.dc.html §6.2). Score hero gauge + count-up KPIs,
-// 5×5 probability×impact heatmap, risk-trend sparklines, recent activity and the
-// War Room widget.
+// The Security Command Center.
 //
-// Every number here is real or absent. There are no fixtures and no fallbacks:
-// a widget with nothing to show renders an EmptyState explaining what would fill
-// it. Headline counters come from the /stats SQL aggregate rather than from the
-// risk store, which only ever holds one page of the register.
+// Every number on this page comes from a tenant-scoped server aggregate, and
+// every tile links to the register rows that produced it, carrying the filter
+// the tile expresses. There are no fixtures, no fallbacks and no client-side
+// arithmetic over a page of results: a widget that cannot read its data says so
+// rather than showing a plausible zero.
+//
+// See docs/W0-06_SECURITY_COMMAND_CENTER.md for the contract inventory.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
   ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap, Plus, Grid3x3,
-  type LucideIcon,
+  TrendingUp, type LucideIcon,
 } from 'lucide-react';
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { critColor, frameworkColor, softFill, type Criticality } from '../../shared/riskColors';
-import { useDashboardStats, type MatrixCell } from './useStats';
+import {
+  useDashboardStats,
+  type DashboardStats,
+  type MatrixCell,
+  type RiskTrend,
+} from './useCommandCenter';
+import { useDashboardPeriod, periodLabel, type PeriodSelection } from './period';
+import { deepLink } from './deepLinks';
+import { PeriodControl } from './PeriodControl';
+import { WidgetState } from './WidgetState';
 import { useCountUp } from './shared';
 import { useScore } from '../../hooks/useScore';
 import { ScoreGauge } from '../../shared/ScoreGauge';
 import { EmptyState } from '../../shared/EmptyState';
-import { Btn, Skeleton } from '../../shared/ui';
+import { Btn } from '../../shared/ui';
 import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
-import { InfoHint } from '../../shared/InfoHint';
 import { personaFor } from './dashboardPersona';
 import { AnalystDashboard } from './AnalystDashboard';
 import { ExecDashboard } from './ExecDashboard';
@@ -37,19 +46,6 @@ import { AuditDashboard } from './AuditDashboard';
 import { EstateDashboard } from './EstateDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
 import { ExecutiveDashboard } from '../analytics/ExecutiveDashboard';
-
-/* ---------------- helpers ---------------- */
-
-function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
-  const a = ((deg - 90) * Math.PI) / 180;
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-}
-function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): string {
-  const [x0, y0] = polar(cx, cy, r, a1);
-  const [x1, y1] = polar(cx, cy, r, a0);
-  const large = a1 - a0 <= 180 ? 0 : 1;
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 0 ${x1} ${y1}`;
-}
 
 const Card = ({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
   <div className={`or-card ${className}`} style={style}>
@@ -59,6 +55,7 @@ const Card = ({ children, className = '', style }: { children: React.ReactNode; 
 
 interface RecentRisk {
   id: string;
+  rawId: string;
   name: string;
   crit: Criticality;
   score: number;
@@ -119,7 +116,11 @@ function PostureDashboard() {
     // here is the mapping that drifted away from the number itself.
     ((r.criticality ?? r.level)?.toLowerCase() as Criticality) || 'low';
 
-  const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
+  // The period lives in the URL, so it survives a reload and can be pasted.
+  const { selection, setSelection } = useDashboardPeriod();
+  const statsQuery = useDashboardStats(selection);
+  const stats = statsQuery.data;
+
   // The canonical tenant score — the same query key the sidebar and /score use,
   // so the three render one object from one fetch and cannot disagree.
   const { data: tenantScore, isLoading: scoreLoading } = useScore('tenant');
@@ -133,8 +134,10 @@ function PostureDashboard() {
   // to risks.filter(...).length over the risk store, which holds ONE PAGE of the
   // register — so "12 en cours" meant "12 on the page you happen to be on" and
   // silently disagreed with the register itself. There is no client-side count
-  // here on purpose; if the aggregate has not arrived, the honest answer is 0
-  // with a loading state, not a plausible-looking number derived from a page.
+  // here on purpose, and no `?? 0` either: when the aggregate has not arrived the
+  // tiles render a loading state, and when it FAILED they render an error state.
+  // A zero that was never read is the most reassuring thing this page can print,
+  // and the least true.
   const kpis = useMemo(() => ({
     total: stats?.total_risks ?? 0,
     critical: (sev.CRITICAL ?? sev.critical) ?? 0,
@@ -145,6 +148,7 @@ function PostureDashboard() {
 
   const recent: RecentRisk[] = useMemo(() => {
     return risks.slice(0, 5).map((r) => ({
+      rawId: r.id,
       id: r.id.length > 10 ? `#${r.id.slice(0, 8)}` : r.id,
       name: r.title,
       crit: critOf(r),
@@ -166,14 +170,29 @@ function PostureDashboard() {
             <h1 className="disp text-[27px] font-bold tracking-tight text-ink">{greeting}</h1>
             <div className="text-[14px] text-ink-soft mt-1">{L.dashSub}</div>
           </div>
-          <button
-            onClick={() => navigate('/reports')}
-            className="h-[38px] px-4 rounded-[10px] flex items-center gap-2 text-[13px] font-semibold text-ink hover:bg-hover transition-colors"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
-          >
-            <FileText size={16} strokeWidth={1.75} />
-            {L.genReport}
-          </button>
+          <div className="flex items-start gap-3 flex-wrap">
+            <PeriodControl
+              selection={selection}
+              onChange={setSelection}
+              lang={lang}
+              // The control names its own scope. It filters the trend and the
+              // "opened" counter; it deliberately does NOT filter the stock
+              // tiles, because "how many critical risks do we have" is not a
+              // question a date range changes.
+              scopeNote={tr(
+                'Filtre la tendance et les risques ouverts. Les compteurs (total, critiques, en traitement, atténués) donnent l’état actuel du registre, toutes périodes confondues.',
+                'Filters the trend and risks opened. The counters (total, critical, in treatment, mitigated) show the register as it stands now, across all time.'
+              )}
+            />
+            <button
+              onClick={() => navigate('/reports')}
+              className="h-[38px] px-4 rounded-[10px] flex items-center gap-2 text-[13px] font-semibold text-ink hover:bg-hover transition-colors"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+            >
+              <FileText size={16} strokeWidth={1.75} />
+              {L.genReport}
+            </button>
+          </div>
         </div>
 
         {/* Get-started panel. It takes no props on purpose: the steps, their
@@ -187,7 +206,8 @@ function PostureDashboard() {
           {/* One score, one source. This used to read stats.global_risk_score
               while the sidebar read analytics/executive → cyber_score.score:
               two quantities on two scales pointing in opposite directions,
-              both labelled "score". Both now read the same query key. */}
+              both labelled "score". Both now read the same query key, and the
+              competing formula has been removed from /stats entirely. */}
           <ScoreGauge
             score={tenantScore}
             loading={scoreLoading}
@@ -195,59 +215,142 @@ function PostureDashboard() {
             ctaLabel={L.viewDetails}
             onDetails={() => navigate('/score')}
           />
-          <KpiGrid values={kpis} fmt={fmt} onOpen={() => navigate('/risks')} />
+          <KpiGrid
+            values={kpis}
+            fmt={fmt}
+            lang={lang}
+            query={statsQuery}
+            openedInPeriod={stats?.opened_in_period ?? 0}
+            selection={selection}
+          />
         </div>
 
         {/* row 2 — heatmap + trend */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
-          <HeatmapCard matrix={stats?.risk_matrix} loading={statsLoading} error={statsError} />
-          <TrendCard risks={risks} />
+          <HeatmapCard
+            matrix={stats?.risk_matrix}
+            isLoading={statsQuery.isLoading}
+            error={statsQuery.error}
+            retry={() => void statsQuery.refetch()}
+          />
+          <TrendCard
+            trend={stats?.risk_trend}
+            registerTotal={stats?.total_risks ?? 0}
+            isLoading={statsQuery.isLoading}
+            error={statsQuery.error}
+            retry={() => void statsQuery.refetch()}
+            selection={selection}
+            onWidenPeriod={() => setSelection({ kind: 'preset', preset: 'all' })}
+          />
         </div>
 
         {/* row 3 — recent + war room */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4">
-          <RecentActivityCard risks={recent} onOpen={() => navigate('/risks')} />
+          <RecentActivityCard risks={recent} />
           <WarRoomCard onJoin={(id) => navigate(id ? `/incidents/${id}/war-room` : '/incidents')} />
         </div>
       </div>
     </div>
   );
-};
+}
 
 /* ---------------- KPI grid ---------------- */
+
+interface StatsQuery {
+  isLoading: boolean;
+  error: unknown;
+  refetch: () => unknown;
+}
+
 function KpiGrid({
-  values, fmt, onOpen,
+  values, fmt, lang, query, openedInPeriod, selection,
 }: {
   values: { total: number; critical: number; mitig: number; resolved: number };
   fmt: (n: number) => string;
-  onOpen: () => void;
+  lang: 'fr' | 'en';
+  query: StatsQuery;
+  openedInPeriod: number;
+  selection: PeriodSelection;
 }) {
   const L = useUIStrings();
-  // No fake deltas: real period-over-period trend needs history the API doesn't expose yet.
-  const data: { label: string; val: number; icon: LucideIcon; col: string }[] = [
-    { label: L.kpiTotal, val: values.total, icon: ShieldAlert, col: 'var(--accent)' },
-    { label: L.kpiCrit, val: values.critical, icon: AlertTriangle, col: 'var(--critical)' },
-    { label: L.kpiMiti, val: values.mitig, icon: ShieldCheck, col: 'var(--high)' },
-    { label: L.kpiResolved, val: values.resolved, icon: CheckCircle2, col: 'var(--low)' },
+  const navigate = useNavigate();
+  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+
+  // Each tile carries the filter it expresses onto the register. Clicking
+  // "Critical — 3" used to land on an unfiltered list of everything and leave the
+  // user to rebuild by hand the filter they had just clicked.
+  //
+  // The sort travels too: a critical-risks link that opens sorted by score puts
+  // the three rows the tile counted at the top of the page, which is what the
+  // user came for.
+  const sort = { key: 'score', dir: 'desc' } as const;
+  const data: { label: string; val: number; icon: LucideIcon; col: string; to: string; hint: string }[] = [
+    {
+      label: L.kpiTotal, val: values.total, icon: ShieldAlert, col: 'var(--accent)',
+      to: deepLink('risks', { sort }),
+      hint: tr('Tous les risques du registre', 'Every risk in the register'),
+    },
+    {
+      label: L.kpiCrit, val: values.critical, icon: AlertTriangle, col: 'var(--critical)',
+      to: deepLink('risks', { filters: { criticality: 'critical' }, sort }),
+      hint: tr('Registre filtré sur criticité = critique', 'Register filtered to criticality = critical'),
+    },
+    {
+      label: L.kpiMiti, val: values.mitig, icon: ShieldCheck, col: 'var(--high)',
+      to: deepLink('risks', { filters: { status: 'in_progress' }, sort }),
+      hint: tr('Registre filtré sur statut = en cours', 'Register filtered to status = in progress'),
+    },
+    {
+      label: L.kpiResolved, val: values.resolved, icon: CheckCircle2, col: 'var(--low)',
+      to: deepLink('risks', { filters: { status: 'mitigated' }, sort }),
+      hint: tr('Registre filtré sur statut = atténué', 'Register filtered to status = mitigated'),
+    },
   ];
+
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-4">
-      {data.map((d) => (
-        <KpiCard key={d.label} {...d} fmt={fmt} onClick={onOpen} />
-      ))}
+      <WidgetState
+        lang={lang}
+        isLoading={query.isLoading}
+        error={query.error}
+        skeletonHeight={340}
+        retry={() => query.refetch()}
+      >
+        <>
+          {data.map((d) => (
+            <KpiCard key={d.label} {...d} fmt={fmt} onClick={() => navigate(d.to)} />
+          ))}
+          {/* The one period-scoped counter in this block, labelled with the
+              window so it cannot be read as a stock. */}
+          <div className="col-span-2 -mt-1 text-[11.5px] text-ink-muted flex items-center gap-1.5">
+            <TrendingUp size={13} />
+            {tr(
+              `${fmt(openedInPeriod)} ouvert(s) sur la période (${periodLabel(selection, lang)})`,
+              `${fmt(openedInPeriod)} opened in the selected period (${periodLabel(selection, lang)})`
+            )}
+          </div>
+        </>
+      </WidgetState>
     </div>
   );
 }
 
 function KpiCard({
-  label, val, icon: Icon, col, fmt, onClick,
+  label, val, icon: Icon, col, fmt, onClick, hint,
 }: {
   label: string; val: number; icon: LucideIcon; col: string;
-  fmt: (n: number) => string; onClick: () => void;
+  fmt: (n: number) => string; onClick: () => void; hint: string;
 }) {
   const shown = Math.round(useCountUp(val));
   return (
-    <button onClick={onClick} className="or-card text-left p-[18px] hover:bg-hover transition-colors">
+    <button
+      onClick={onClick}
+      // The tile is a link to a filtered list; the title says which filter, so
+      // the destination is never a surprise.
+      title={hint}
+      aria-label={`${label}: ${fmt(val)} — ${hint}`}
+      className="or-card text-left p-[18px] hover:bg-hover transition-colors"
+    >
       <div className="flex items-center mb-3.5">
         <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center" style={{ color: col, background: softFill(col, 14) }}>
           <Icon size={18} strokeWidth={1.75} />
@@ -264,7 +367,11 @@ function KpiCard({
 // They used to be a hardcoded literal, which meant a brand-new tenant with an
 // empty register was shown a fully populated probability x impact matrix — the
 // single most trust-destroying thing the dashboard did.
-function HeatmapCard({ matrix, loading, error }: { matrix?: MatrixCell[]; loading: boolean; error: boolean }) {
+function HeatmapCard({
+  matrix, isLoading, error, retry,
+}: {
+  matrix?: MatrixCell[]; isLoading: boolean; error: unknown; retry: () => void;
+}) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
@@ -308,157 +415,204 @@ function HeatmapCard({ matrix, loading, error }: { matrix?: MatrixCell[]; loadin
       </div>
     );
   }
-  if (loading) {
-    return (
-      <Card style={{ padding: '18px 20px' }}>
-        <div className="text-[14px] font-semibold text-ink mb-4">{L.heatTitle}</div>
-        <Skeleton style={{ height: 260 }} />
-      </Card>
-    );
-  }
-  if (error) {
-    return (
-      <Card style={{ padding: '18px 20px' }}>
-        <div className="text-[14px] font-semibold text-ink">{L.heatTitle}</div>
-        <EmptyState
-          variant="error"
-          title={tr('Matrice indisponible', 'Matrix unavailable')}
-          description={tr('Impossible de charger la répartition probabilité × impact.', 'Could not load the probability × impact breakdown.')}
-          primaryAction={<Btn label={tr('Réessayer', 'Retry')} onClick={() => window.location.reload()} />}
-        />
-      </Card>
-    );
-  }
-  if (total === 0) {
-    return (
-      <Card style={{ padding: '18px 20px' }}>
-        <div className="text-[14px] font-semibold text-ink">{L.heatTitle}</div>
-        <EmptyState
-          variant="first-use"
-          icon={Grid3x3}
-          title={tr('Matrice vide', 'Empty matrix')}
-          description={tr('La matrice croise la probabilité et l’impact de chaque risque pour montrer où se concentre votre exposition. Elle se remplit dès votre premier risque.', 'The matrix plots every risk by probability and impact to show where your exposure concentrates. It fills in with your first risk.')}
-          primaryAction={<Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
-          secondaryAction={<Btn label={tr('Importer', 'Import')} onClick={() => navigate('/risks/import')} />}
-        />
-      </Card>
-    );
-  }
 
   return (
     <Card style={{ padding: '18px 20px' }}>
       <div className="text-[14px] font-semibold text-ink mb-4">{L.heatTitle}</div>
-      <div className="flex gap-2.5">
-        <div className="flex items-center">
-          <span className="text-[11px] font-semibold text-ink-muted tracking-wide" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-            {L.impact}
-          </span>
+      <WidgetState
+        lang={lang}
+        isLoading={isLoading}
+        error={error}
+        retry={retry}
+        skeletonHeight={260}
+        isEmpty={total === 0}
+        emptyIcon={Grid3x3}
+        emptyTitle={tr('Matrice vide', 'Empty matrix')}
+        emptyDescription={tr(
+          'La matrice croise la probabilité et l’impact de chaque risque pour montrer où se concentre votre exposition. Elle se remplit dès votre premier risque.',
+          'The matrix plots every risk by probability and impact to show where your exposure concentrates. It fills in with your first risk.'
+        )}
+        emptyAction={
+          <div className="flex gap-2">
+            <Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />
+            <Btn label={tr('Importer', 'Import')} onClick={() => navigate('/risks/import')} />
+          </div>
+        }
+      >
+        <div className="flex gap-2.5">
+          <div className="flex items-center">
+            <span className="text-[11px] font-semibold text-ink-muted tracking-wide" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+              {L.impact}
+            </span>
+          </div>
+          <div className="flex-1 flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5">{rows}</div>
+            <div className="text-center text-[11px] font-semibold text-ink-muted mt-2 tracking-wide">{L.proba}</div>
+          </div>
         </div>
-        <div className="flex-1 flex flex-col gap-1.5">
-          <div className="flex flex-col gap-1.5">{rows}</div>
-          <div className="text-center text-[11px] font-semibold text-ink-muted mt-2 tracking-wide">{L.proba}</div>
-        </div>
-      </div>
+      </WidgetState>
     </Card>
   );
 }
 
 /* ---------------- Trend ---------------- */
-// Real risk trend: the cumulative count of risks by severity band as of each day
-// in the window, derived from the tenant's own risks (created_at). A fresh tenant
-// with no risks shows an honest empty state instead of a fabricated series.
-type TrendRisk = { score: number; level?: string | null; created_at?: string };
-function TrendCard({ risks }: { risks: TrendRisk[] }) {
+//
+// The series comes from the server, over the period selected on this page.
+//
+// It used to be computed here, in the browser, from useRiskStore.risks — which
+// holds ONE PAGE of the register. A tenant with 200 risks saw a trend of the 20
+// on page one. It banded them on `level`, a field this same file documents as
+// unreliable, and it plotted a cumulative count by created_at, so the line could
+// only ever rise regardless of what the team actually did. Its 7/30/90 toggle was
+// local component state that changed nothing else on the page.
+//
+// Two series now, and they are labelled apart because they answer different
+// questions: `opened` is a FLOW (risks created in each bucket) and
+// `cumulative_total` is a STOCK (risks in existence at each bucket's end). The
+// band split uses each risk's CURRENT criticality — the register does not version
+// criticality per day, and inventing a per-day band would be a number nobody
+// could reconcile.
+function TrendCard({
+  trend, registerTotal, isLoading, error, retry, selection, onWidenPeriod,
+}: {
+  trend?: RiskTrend;
+  /**
+   * The register's own total, from the same payload. It is what decides which
+   * empty state to show, and it has to come from here rather than be derived
+   * from the series — see the comment on `emptyBecauseOfPeriod` below.
+   */
+  registerTotal: number;
+  isLoading: boolean;
+  error: unknown;
+  retry: () => void;
+  selection: PeriodSelection;
+  onWidenPeriod: () => void;
+}) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const [range, setRange] = useState<'7' | '30' | '90'>('30');
-  const days = Number(range);
-  const bandOf = (r: TrendRisk): Criticality => (r.level?.toLowerCase() as Criticality) || 'low';
-  const series = useMemo(() => {
-    const end0 = new Date(); end0.setHours(23, 59, 59, 999);
-    const crit: number[] = [], high: number[] = [], med: number[] = [];
-    for (let d = 0; d < days; d++) {
-      const end = end0.getTime() - (days - 1 - d) * 864e5;
-      let c = 0, h = 0, m = 0;
-      for (const r of risks) {
-        const created = r.created_at ? new Date(r.created_at).getTime() : 0;
-        if (created > end) continue;
-        const b = bandOf(r);
-        if (b === 'critical') c++; else if (b === 'high') h++; else if (b === 'medium') m++;
-      }
-      crit.push(c); high.push(h); med.push(m);
-    }
-    return { crit, high, med };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [risks, days]);
-  const hasData = risks.length > 0;
+
+  // Memoised because `?? []` allocates a fresh array on every render, which
+  // would re-run the series useMemo below every time regardless of the data.
+  const points = useMemo(() => trend?.points ?? [], [trend]);
+  const opened = points.reduce((n, p) => n + p.opened, 0);
+  const lastCumulative = points.length ? points[points.length - 1].cumulative_total : 0;
+  // Nothing opened in the window, but the register is not empty: that is a period
+  // problem, not an empty register, and the two have opposite remedies.
+  //
+  // This reads the REGISTER's total, not the series' last cumulative point. The
+  // first version used the cumulative, and it was wrong for every window in the
+  // past: `cumulative_total` counts risks created BEFORE each bucket, so a
+  // January window over a register first populated in August reads 0 and the
+  // widget concluded the tenant had no risks. Driving it live is what showed a
+  // tenant with eight risks being told "no trend yet — the line builds up as
+  // risks are opened", which is precisely the wrong fact with the opposite
+  // remedy attached.
+  const emptyBecauseOfPeriod = opened === 0 && registerTotal > 0;
+
   const W = 300, H = 120, pad = 8;
+  const series = useMemo(() => {
+    const band = (key: string) => points.map((p) => p.opened_by_band?.[key] ?? 0);
+    return { crit: band('CRITICAL'), high: band('HIGH'), med: band('MEDIUM') };
+  }, [points]);
   const allMax = Math.max(1, ...series.crit, ...series.high, ...series.med);
   const line = (arr: number[]) => {
     const step = (W - pad * 2) / Math.max(1, arr.length - 1);
     return arr.map((v, i) => `${pad + i * step},${H - pad - (v / allMax) * (H - pad * 2)}`).join(' ');
   };
-  const tab = (v: '7' | '30' | '90', lbl: string) => (
-    <button
-      key={v}
-      onClick={() => setRange(v)}
-      className="h-[26px] px-2.5 rounded-[7px] text-[11.5px] font-semibold transition-colors"
-      style={{
-        background: range === v ? 'var(--accent-hover)' : 'transparent',
-        color: range === v ? '#fff' : 'var(--text-secondary)',
-      }}
-    >
-      {lbl}
-    </button>
-  );
   const leg = (col: string, lbl: string) => (
     <span key={lbl} className="inline-flex items-center gap-1.5 text-[11px] text-ink-soft">
       <span className="w-[9px] h-[3px] rounded-sm" style={{ background: col }} />
       {lbl}
     </span>
   );
+
   return (
     <Card style={{ padding: '18px 20px' }}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-baseline justify-between mb-1">
         <div className="text-[14px] font-semibold text-ink">{L.trendTitle}</div>
-        <div className="flex gap-0.5 p-0.5 rounded-[9px]" style={{ background: 'var(--bg-hover)' }}>
-          {tab('7', '7j')}
-          {tab('30', '30j')}
-          {tab('90', '90j')}
-        </div>
+        <div className="text-[11px] text-ink-muted">{periodLabel(selection, lang)}</div>
       </div>
-      <div className="flex gap-3.5 mb-2.5">
-        {leg('var(--critical)', L.critical)}
-        {leg('var(--high)', L.high)}
-        {leg('var(--medium)', L.medium)}
+      {/* Say what is plotted. "Trend" alone let a cumulative-only line pass for
+          an improving or worsening posture. */}
+      <div className="text-[11.5px] text-ink-muted mb-2.5">
+        {tr('Risques ouverts par ', 'Risks opened per ')}
+        {trend?.granularity === 'week' ? tr('semaine', 'week') : tr('jour', 'day')}
+        {tr(', par criticité actuelle', ', by current criticality')}
       </div>
-      {!hasData ? (
-        <div className="flex items-center justify-center text-center text-[12.5px] text-ink-muted" style={{ height: 150 }}>
-          {tr('Pas encore de tendance — créez des risques pour la voir apparaître.', 'No trend yet — create risks to see it build up.')}
-        </div>
-      ) : (
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="150" preserveAspectRatio="none">
-        {[1, 2, 3].map((i) => (
-          <line key={i} x1={pad} x2={W - pad} y1={pad + (i * (H - pad * 2)) / 3} y2={pad + (i * (H - pad * 2)) / 3} stroke="var(--border)" strokeWidth={1} />
-        ))}
-        <polyline points={line(series.med)} fill="none" stroke="var(--medium)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points={line(series.high)} fill="none" stroke="var(--high)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points={line(series.crit)} fill="none" stroke="var(--critical)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      )}
+      <WidgetState
+        lang={lang}
+        isLoading={isLoading}
+        error={error}
+        retry={retry}
+        skeletonHeight={180}
+        isEmpty={points.length === 0 || opened === 0}
+        emptyBecauseOfPeriod={emptyBecauseOfPeriod}
+        onWidenPeriod={onWidenPeriod}
+        emptyIcon={TrendingUp}
+        emptyTitle={tr('Pas encore de tendance', 'No trend yet')}
+        emptyDescription={tr(
+          'La courbe se construit à mesure que des risques sont ouverts.',
+          'The line builds up as risks are opened.'
+        )}
+      >
+        <>
+          <div className="flex gap-3.5 mb-2.5">
+            {leg('var(--critical)', L.critical)}
+            {leg('var(--high)', L.high)}
+            {leg('var(--medium)', L.medium)}
+          </div>
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            width="100%"
+            height="150"
+            preserveAspectRatio="none"
+            role="img"
+            // The accessible name IS the chart's content for anyone who cannot
+            // see it: totals per band over the stated window, not "a chart".
+            aria-label={tr(
+              `Risques ouverts sur ${periodLabel(selection, lang)} : ${series.crit.reduce((a, b) => a + b, 0)} critiques, ${series.high.reduce((a, b) => a + b, 0)} élevés, ${series.med.reduce((a, b) => a + b, 0)} moyens. Total ${opened}.`,
+              `Risks opened over ${periodLabel(selection, lang)}: ${series.crit.reduce((a, b) => a + b, 0)} critical, ${series.high.reduce((a, b) => a + b, 0)} high, ${series.med.reduce((a, b) => a + b, 0)} medium. Total ${opened}.`
+            )}
+          >
+            {[1, 2, 3].map((i) => (
+              <line key={i} x1={pad} x2={W - pad} y1={pad + (i * (H - pad * 2)) / 3} y2={pad + (i * (H - pad * 2)) / 3} stroke="var(--border)" strokeWidth={1} />
+            ))}
+            <polyline points={line(series.med)} fill="none" stroke="var(--medium)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points={line(series.high)} fill="none" stroke="var(--high)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points={line(series.crit)} fill="none" stroke="var(--critical)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {/* The stock, in words rather than as a second line that would be read
+              against the same axis as the flow. */}
+          <div className="text-[11.5px] text-ink-soft mt-2">
+            {tr(
+              `${opened} ouvert(s) · ${lastCumulative} au registre en fin de période`,
+              `${opened} opened · ${lastCumulative} in the register at the end of the period`
+            )}
+          </div>
+        </>
+      </WidgetState>
     </Card>
   );
 }
 
 /* ---------------- Recent activity ---------------- */
-function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: () => void }) {
+function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
+  const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   return (
     <Card style={{ padding: '18px 14px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-2 px-2">{L.recentTitle}</div>
+      <div className="flex items-center justify-between mb-2 px-2">
+        <div className="text-[14px] font-semibold text-ink">{L.recentTitle}</div>
+        <button
+          onClick={() => navigate(deepLink('risks', { sort: { key: 'updated_at', dir: 'desc' } }))}
+          className="text-[12px] font-semibold text-accent hover:underline"
+        >
+          {tr('Tout voir', 'See all')}
+        </button>
+      </div>
       <div>
         {risks.length === 0 && (
           <EmptyState
@@ -472,8 +626,10 @@ function RecentActivityCard({ risks, onOpen }: { risks: RecentRisk[]; onOpen: ()
         )}
         {risks.map((r) => (
           <button
-            key={r.id}
-            onClick={onOpen}
+            key={r.rawId}
+            // Opens THIS risk's drawer rather than the top of an unfiltered
+            // list, using the same ?focus= contract universal search uses.
+            onClick={() => navigate(deepLink('risks', { focus: r.rawId }))}
             className="w-full flex items-center gap-3 px-2 py-[11px] rounded-[10px] hover:bg-hover transition-colors text-left"
           >
             <span
@@ -565,3 +721,5 @@ function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
     </div>
   );
 }
+
+export type { DashboardStats };

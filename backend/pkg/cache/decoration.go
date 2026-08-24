@@ -34,8 +34,33 @@ func (d *CacheDecoration) BatchInvalidate(ctx context.Context, patterns ...strin
 	return nil
 }
 
-// WrapWithCache currently keeps passthrough behavior when used as middleware wrapper.
-func (d *CacheDecoration) WrapWithCache(handler fiber.Handler, _ func(*fiber.Ctx) string, _ time.Duration) fiber.Handler {
+// KeyFunc builds a cache key for one request.
+//
+// THE BOOLEAN IS THE SAFETY GATE, and it is why this type exists rather than a
+// plain func(*fiber.Ctx) string. A key builder that cannot fully scope its key —
+// most importantly, that cannot resolve the tenant — returns false, and the
+// wrapper must then not cache at all.
+//
+// Before W0-06 the builders returned a bare string and none of the dashboard or
+// register ones carried a tenant: `dashboard:stats:month`, `dashboard:matrix:all`,
+// `risk:list:page:1:sev::status:`. Those keys were harmless only because
+// WrapWithCache below ignores them, which is not a property anyone reading the
+// call sites in main.go could see. With this signature a builder that forgets the
+// tenant cannot return a key at all, so the omission is a compile error and not a
+// cross-tenant disclosure discovered in production.
+type KeyFunc func(*fiber.Ctx) (string, bool)
+
+// WrapWithCache is a PASSTHROUGH. It evaluates nothing and caches nothing.
+//
+// Stated this loudly because the call sites do not look like it: main.go reads
+// `cacheableHandlers.CacheDashboardStatsGET(handlers.GetDashboardStats)`, which
+// reads exactly like a route that is cached. It is not, and has not been.
+//
+// It is left in place rather than deleted because the key builders it is
+// registered with are now tenant-scoped and tested, so the day someone
+// implements response caching here the keys are already correct. Implementing it
+// must honour the gate: `if key, ok := keyFn(c); ok { … }`, and no cache on !ok.
+func (d *CacheDecoration) WrapWithCache(handler fiber.Handler, _ KeyFunc, _ time.Duration) fiber.Handler {
 	return handler
 }
 
