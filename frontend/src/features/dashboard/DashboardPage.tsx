@@ -235,6 +235,7 @@ function PostureDashboard() {
           />
           <TrendCard
             trend={stats?.risk_trend}
+            registerTotal={stats?.total_risks ?? 0}
             isLoading={statsQuery.isLoading}
             error={statsQuery.error}
             retry={() => void statsQuery.refetch()}
@@ -472,9 +473,15 @@ function HeatmapCard({
 // criticality per day, and inventing a per-day band would be a number nobody
 // could reconcile.
 function TrendCard({
-  trend, isLoading, error, retry, selection, onWidenPeriod,
+  trend, registerTotal, isLoading, error, retry, selection, onWidenPeriod,
 }: {
   trend?: RiskTrend;
+  /**
+   * The register's own total, from the same payload. It is what decides which
+   * empty state to show, and it has to come from here rather than be derived
+   * from the series — see the comment on `emptyBecauseOfPeriod` below.
+   */
+  registerTotal: number;
   isLoading: boolean;
   error: unknown;
   retry: () => void;
@@ -488,9 +495,18 @@ function TrendCard({
   const points = trend?.points ?? [];
   const opened = points.reduce((n, p) => n + p.opened, 0);
   const lastCumulative = points.length ? points[points.length - 1].cumulative_total : 0;
-  // Nothing opened in the window, but risks exist outside it: that is a period
+  // Nothing opened in the window, but the register is not empty: that is a period
   // problem, not an empty register, and the two have opposite remedies.
-  const emptyBecauseOfPeriod = opened === 0 && lastCumulative > 0;
+  //
+  // This reads the REGISTER's total, not the series' last cumulative point. The
+  // first version used the cumulative, and it was wrong for every window in the
+  // past: `cumulative_total` counts risks created BEFORE each bucket, so a
+  // January window over a register first populated in August reads 0 and the
+  // widget concluded the tenant had no risks. Driving it live is what showed a
+  // tenant with eight risks being told "no trend yet — the line builds up as
+  // risks are opened", which is precisely the wrong fact with the opposite
+  // remedy attached.
+  const emptyBecauseOfPeriod = opened === 0 && registerTotal > 0;
 
   const W = 300, H = 120, pad = 8;
   const series = useMemo(() => {
