@@ -73,10 +73,9 @@ type MFAPolicy struct {
 // TableName pins the table name.
 func (MFAPolicy) TableName() string { return "mfa_policies" }
 
-// AuditEntityType opts the policy into the GORM audit plugin, so every change to
-// it lands in the immutable governance trail with actor, tenant and before/after
-// — no call site has to remember to log it (see governance_auditable.go).
-func (MFAPolicy) AuditEntityType() string { return "mfa_policy" }
+// The Auditable opt-in lives in governance_auditable.go with every other
+// entity's, so one file answers "what is journalled?" — see the plugin in
+// internal/infrastructure/audittrail.
 
 // DefaultMFAPolicy is what a tenant with no saved row behaves as.
 func DefaultMFAPolicy(tenantID uuid.UUID) MFAPolicy {

@@ -46,16 +46,44 @@ type OrganizationMember struct {
 	Status        MembershipStatus `gorm:"type:varchar(16);index" json:"status"`
 	DeactivatedAt *time.Time       `json:"deactivated_at,omitempty"`
 	RevokedAt     *time.Time       `json:"revoked_at,omitempty"`
-	JoinedAt      time.Time        `gorm:"autoCreateTime" json:"joined_at"`
-	InvitedByID   *uuid.UUID       `gorm:"type:uuid" json:"invited_by_id,omitempty"`
-	InvitedBy     *User            `gorm:"foreignKey:InvitedByID" json:"invited_by,omitempty"`
-	CreatedAt     time.Time        `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt     time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
+	// MFAGraceStartedAt anchors the deferrable-MFA countdown (OR26-03): the
+	// moment this member became subject to the requirement. Set at membership
+	// creation, and RESET when an administrator promotes the member into a
+	// privileged role — a fresh privilege deserves a fresh window, and the
+	// alternative (running from joined_at) would lock a promoted colleague out
+	// the instant their new role took effect.
+	//
+	// Read through MFAGraceAnchor, which falls back to JoinedAt/CreatedAt so a
+	// row written before this column existed still yields a real timestamp
+	// rather than the fail-closed "unknown" DecideMFA reserves for a genuinely
+	// missing anchor.
+	MFAGraceStartedAt *time.Time `gorm:"column:mfa_grace_started_at" json:"mfa_grace_started_at,omitempty"`
+	JoinedAt          time.Time  `gorm:"autoCreateTime" json:"joined_at"`
+	InvitedByID       *uuid.UUID `gorm:"type:uuid" json:"invited_by_id,omitempty"`
+	InvitedBy         *User      `gorm:"foreignKey:InvitedByID" json:"invited_by,omitempty"`
+	CreatedAt         time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName specifies the table name for OrganizationMember
 func (OrganizationMember) TableName() string {
 	return "organization_members"
+}
+
+// MFAGraceAnchor returns the instant the deferrable-MFA countdown runs from.
+//
+// Falls back to the membership start for rows written before the column
+// existed. A zero return means genuinely unknown, which DecideMFA treats as
+// fail-closed — that distinction is why this is a method and not a bare field
+// read at the call sites.
+func (m *OrganizationMember) MFAGraceAnchor() time.Time {
+	if m.MFAGraceStartedAt != nil && !m.MFAGraceStartedAt.IsZero() {
+		return *m.MFAGraceStartedAt
+	}
+	if !m.JoinedAt.IsZero() {
+		return m.JoinedAt
+	}
+	return m.CreatedAt
 }
 
 // IsRoot checks if the member has root role

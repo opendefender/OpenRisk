@@ -212,6 +212,9 @@ func main() {
 		// full-fidelity auth audit trail) errored on non-existent tables.
 		&domain.MFASecret{},
 		&domain.MFABackupCode{},
+		// OR26-03 — how long a privileged member of this tenant may defer
+		// enrolment. One row per tenant; an absent row means the 7-day default.
+		&domain.MFAPolicy{},
 		&domain.PersonalAccessToken{},
 		&domain.OAuthProvider{},
 		&domain.AuthAuditLog{},

@@ -163,3 +163,25 @@ func TestMFAPolicy_IsAuditable(t *testing.T) {
 	var a Auditable = MFAPolicy{}
 	assert.Equal(t, "mfa_policy", a.AuditEntityType())
 }
+
+func TestOrganizationMember_MFAGraceAnchorFallsBackToMembershipStart(t *testing.T) {
+	// Rows written before the column existed carry NULL. Falling back to the
+	// membership start keeps them out of DecideMFA's fail-closed branch, which is
+	// reserved for a genuinely unknown anchor.
+	joined := mfaNow.Add(-30 * 24 * time.Hour)
+	created := mfaNow.Add(-40 * 24 * time.Hour)
+
+	m := &OrganizationMember{JoinedAt: joined, CreatedAt: created}
+	assert.Equal(t, joined, m.MFAGraceAnchor())
+
+	explicit := mfaNow.Add(-2 * 24 * time.Hour)
+	m.MFAGraceStartedAt = &explicit
+	assert.Equal(t, explicit, m.MFAGraceAnchor(),
+		"an explicit anchor wins — that is what a promotion writes")
+
+	bare := &OrganizationMember{CreatedAt: created}
+	assert.Equal(t, created, bare.MFAGraceAnchor())
+
+	assert.True(t, (&OrganizationMember{}).MFAGraceAnchor().IsZero(),
+		"nothing to fall back on must stay zero so DecideMFA can fail closed")
+}
