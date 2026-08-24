@@ -780,7 +780,14 @@ func main() {
 	verifyMFAUseCase := auth.NewVerifyMFAUseCase(mfaRepo, *userRepo, mfaKey[:])
 	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, passwordHasher)
 	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])
-	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit)
+	// OR26-03 — one resolver answers "must this member enrol now?" for /auth/me
+	// and for the request-time guard, so the banner and the enforcement can never
+	// disagree. Cached per (user, tenant) for a minute; enrolment, disabling and
+	// policy changes drop the entry immediately.
+	mfaStatusResolver := auth.NewMFAStatusResolver(mfaRepo, userRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithPolicies(mfaPolicyRepo)
+	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit).
+		WithMFAStatus(mfaStatusResolver)
 	patHandler := authhandler.NewPATHandler(patService, authAudit)
 
 	// Password reset use cases + handler.
@@ -817,7 +824,7 @@ func main() {
 		logoutUseCase,
 		passwordHasher,
 		authAudit,
-	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo)
+	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo).WithMFAStatus(mfaStatusResolver)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused

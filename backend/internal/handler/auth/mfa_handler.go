@@ -26,6 +26,20 @@ type MFAHandler struct {
 	tokens    *coreauth.TokenManager
 	users     *repository.GormUserRepository
 	audit     *coreauth.AuditService
+	// mfaStatus is the cache the request-time guard reads. Optional; when set,
+	// a completed enrolment drops the caller's entry immediately (OR26-03).
+	mfaStatus *appauth.MFAStatusResolver
+}
+
+// WithMFAStatus lets a completed enrolment take effect on the very next request
+// instead of at the end of the resolver's TTL.
+//
+// Without this a user who has just scanned the QR code keeps being told to
+// enrol for up to a minute — which reads as "it didn't work" and produces a
+// second, conflicting authenticator.
+func (h *MFAHandler) WithMFAStatus(r *appauth.MFAStatusResolver) *MFAHandler {
+	h.mfaStatus = r
+	return h
 }
 
 // NewMFAHandler wires the MFA use cases + token manager.
@@ -99,6 +113,9 @@ func (h *MFAHandler) Verify(c *fiber.Ctx) error {
 	if h.audit != nil {
 		_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaVerify, true, nil)
 	}
+	// An authenticator now exists: the guard must see that on the next request,
+	// not a minute from now.
+	h.mfaStatus.Invalidate(userID, tenantID)
 
 	// Mandated enrolment: the caller reached this with an MFA_ENROLLMENT token and
 	// therefore holds no session — their login is still half-finished. Now that an
@@ -158,6 +175,10 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 	if err != nil {
 		return mapAuthError(c, err)
 	}
+	// Turning MFA off must re-arm the requirement immediately: a privileged
+	// account that disables its authenticator past the deadline has to be
+	// stopped on its next request, not after the cache expires.
+	h.mfaStatus.Invalidate(userID, tenantID)
 	return c.JSON(out)
 }
 
