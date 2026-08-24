@@ -526,7 +526,23 @@ func main() {
 	// a sequence and reach clients as the same envelope as everything else. The
 	// internal channels and their existing consumers are untouched.
 	go apprealtime.NewDomainEventRelay(redisClientInstance, realtimePublisher).Start(context.Background())
-	log.Println("Realtime: event hub started (durable log + per-tenant fanout + domain relay)")
+
+	// Retention is what makes the replay promise honest. The stream tells a
+	// client "reconnect inside the window and you are caught up" and tells one
+	// whose cursor predates it to resynchronise; both statements are only true
+	// if something enforces the window. REALTIME_REPLAY_RETENTION_HOURS
+	// overrides the default; 0 disables the sweep, which is a deliberate choice
+	// to let the table grow rather than a default nobody asked for.
+	realtimeRetention := domain.DefaultReplayRetention
+	if raw := os.Getenv("REALTIME_REPLAY_RETENTION_HOURS"); raw != "" {
+		if hours, err := strconv.Atoi(raw); err == nil && hours >= 0 {
+			realtimeRetention = time.Duration(hours) * time.Hour
+		} else {
+			log.Printf("Realtime: ignoring unreadable REALTIME_REPLAY_RETENTION_HOURS=%q, keeping %s", raw, realtimeRetention)
+		}
+	}
+	go workers.NewRealtimeRetentionWorker(realtimeEventLog, realtimeRetention, zeroLogger).Start(context.Background())
+	log.Printf("Realtime: event hub started (durable log + per-tenant fanout + domain relay, replay window %s)", realtimeRetention)
 
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
