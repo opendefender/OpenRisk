@@ -1,0 +1,256 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License v3.0 (see LICENSE).
+
+package realtime
+
+import "sort"
+
+// EventType is a canonical domain event name, always `<aggregate>.<action>`.
+//
+// The name describes a change to the BUSINESS, never a change to a screen.
+// `risk.status_changed` is an event; `risk-card-refresh` is a rendering concern
+// that happens to be triggered by one. The distinction matters because a second
+// consumer — automation, analytics, an export — subscribes to the first and
+// could never subscribe to the second.
+type EventType string
+
+// Risk events.
+const (
+	RiskCreated       EventType = "risk.created"
+	RiskUpdated       EventType = "risk.updated"
+	RiskDeleted       EventType = "risk.deleted"
+	RiskStatusChanged EventType = "risk.status_changed"
+	RiskScoreChanged  EventType = "risk.score_changed"
+)
+
+// Asset events.
+const (
+	AssetCreated            EventType = "asset.created"
+	AssetUpdated            EventType = "asset.updated"
+	AssetDeleted            EventType = "asset.deleted"
+	AssetCriticalityChanged EventType = "asset.criticality_changed"
+)
+
+// Vulnerability events.
+const (
+	VulnerabilityDetected EventType = "vulnerability.detected"
+	VulnerabilityUpdated  EventType = "vulnerability.updated"
+	VulnerabilityDeleted  EventType = "vulnerability.deleted"
+)
+
+// Incident events.
+const (
+	IncidentCreated EventType = "incident.created"
+	IncidentUpdated EventType = "incident.updated"
+	IncidentDeleted EventType = "incident.deleted"
+)
+
+// Control events (compliance controls).
+const (
+	ControlCreated EventType = "control.created"
+	ControlUpdated EventType = "control.updated"
+	ControlDeleted EventType = "control.deleted"
+)
+
+// Assessment events.
+//
+// OpenRisk has no aggregate literally named "assessment": the thing the product
+// calls an assessment is `ComplianceAudit` (its `internal` type is documented in
+// the domain as a self-assessment). Rather than invent an aggregate with no
+// mutations behind it, these events are the compliance audit's, named for what
+// the domain calls them. The aggregate field says `compliance_audit` so a
+// consumer can always find the record.
+const (
+	AssessmentCreated EventType = "assessment.created"
+	AssessmentUpdated EventType = "assessment.updated"
+	AssessmentDeleted EventType = "assessment.deleted"
+)
+
+// Mitigation events.
+const (
+	MitigationCreated       EventType = "mitigation.created"
+	MitigationUpdated       EventType = "mitigation.updated"
+	MitigationDeleted       EventType = "mitigation.deleted"
+	MitigationAutoCompleted EventType = "mitigation.auto_completed"
+)
+
+// Aggregate names. Stable identifiers for the domain object, independent of the
+// table it lives in and the URL it is served at.
+const (
+	AggregateRisk            = "risk"
+	AggregateAsset           = "asset"
+	AggregateVulnerability   = "vulnerability"
+	AggregateIncident        = "incident"
+	AggregateControl         = "control"
+	AggregateComplianceAudit = "compliance_audit"
+	AggregateMitigation      = "mitigation"
+)
+
+// Origin says where an event is produced, which is what tells an operator where
+// to look when one stops arriving.
+type Origin string
+
+const (
+	// OriginMutation: derived from a successful authenticated API mutation, by
+	// the same observation that writes the audit entry.
+	OriginMutation Origin = "mutation"
+	// OriginDomain: published by a background worker or an unauthenticated
+	// ingest path, relayed from an internal domain channel.
+	OriginDomain Origin = "domain"
+)
+
+// Descriptor is one entry of the catalog: everything a consumer needs to decide
+// whether it cares about an event type, and everything an operator needs to
+// know where it comes from.
+type Descriptor struct {
+	Type EventType `json:"type"`
+	// Aggregate the event is about. Validate() refuses an envelope whose
+	// aggregate contradicts this.
+	Aggregate string `json:"aggregate"`
+	// Version is the CURRENT published payload version for this type.
+	Version int `json:"version"`
+	// Origin is the publication path.
+	Origin Origin `json:"origin"`
+	// Trigger, in one line, is the business change that produces it.
+	Trigger string `json:"trigger"`
+	// PayloadFields lists the field names the payload may carry. It is the
+	// compatibility contract: adding a name here is additive, removing or
+	// renaming one is a breaking change and requires a version bump. The
+	// contract test asserts no forbidden field ever appears in this list.
+	PayloadFields []string `json:"payloadFields"`
+}
+
+// catalog is the single source of truth for what may be published.
+//
+// An event type absent from here cannot be published (Validate refuses it) and
+// cannot be subscribed to (Filter refuses it). That is the point: the catalog is
+// not documentation that describes the code, it is the code.
+var catalog = map[EventType]Descriptor{
+	// ---- Risk -------------------------------------------------------------
+	RiskCreated: {RiskCreated, AggregateRisk, 1, OriginMutation,
+		"A risk is created through the API.",
+		[]string{"changedFields", "action", "path"}},
+	RiskUpdated: {RiskUpdated, AggregateRisk, 1, OriginMutation,
+		"A risk is updated through the API.",
+		[]string{"changedFields", "action", "path"}},
+	RiskDeleted: {RiskDeleted, AggregateRisk, 1, OriginMutation,
+		"A risk is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+	RiskStatusChanged: {RiskStatusChanged, AggregateRisk, 1, OriginMutation,
+		"A risk lifecycle transition is accepted (POST /risks/:id/transition).",
+		[]string{"changedFields", "action", "path"}},
+	RiskScoreChanged: {RiskScoreChanged, AggregateRisk, 1, OriginDomain,
+		"The score worker recomputes a risk score (relayed from risk.score_updated).",
+		[]string{"newScore", "oldScore", "delta", "criticality"}},
+
+	// ---- Asset ------------------------------------------------------------
+	AssetCreated: {AssetCreated, AggregateAsset, 1, OriginMutation,
+		"An asset is created through the API.",
+		[]string{"changedFields", "action", "path"}},
+	AssetUpdated: {AssetUpdated, AggregateAsset, 1, OriginMutation,
+		"An asset is updated through the API.",
+		[]string{"changedFields", "action", "path"}},
+	AssetDeleted: {AssetDeleted, AggregateAsset, 1, OriginMutation,
+		"An asset is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+	AssetCriticalityChanged: {AssetCriticalityChanged, AggregateAsset, 1, OriginDomain,
+		"An asset's criticality changes (relayed from asset.criticality_changed).",
+		[]string{"oldCriticality", "newCriticality"}},
+
+	// ---- Vulnerability ----------------------------------------------------
+	VulnerabilityDetected: {VulnerabilityDetected, AggregateVulnerability, 1, OriginDomain,
+		"Ingest records a vulnerability the tenant did not have (relayed from vulnerability.detected).",
+		[]string{"cveId", "severity", "cvss", "kev", "priorityTier", "assetId", "source"}},
+	VulnerabilityUpdated: {VulnerabilityUpdated, AggregateVulnerability, 1, OriginMutation,
+		"A vulnerability's remediation status is changed through the API.",
+		[]string{"changedFields", "action", "path"}},
+	VulnerabilityDeleted: {VulnerabilityDeleted, AggregateVulnerability, 1, OriginMutation,
+		"A vulnerability is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+
+	// ---- Incident ---------------------------------------------------------
+	IncidentCreated: {IncidentCreated, AggregateIncident, 1, OriginMutation,
+		"An incident is declared through the API.",
+		[]string{"changedFields", "action", "path"}},
+	IncidentUpdated: {IncidentUpdated, AggregateIncident, 1, OriginMutation,
+		"An incident is updated through the API, including status and severity changes.",
+		[]string{"changedFields", "action", "path"}},
+	IncidentDeleted: {IncidentDeleted, AggregateIncident, 1, OriginMutation,
+		"An incident is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+
+	// ---- Control ----------------------------------------------------------
+	ControlCreated: {ControlCreated, AggregateControl, 1, OriginMutation,
+		"A compliance control is created through the API.",
+		[]string{"changedFields", "action", "path"}},
+	ControlUpdated: {ControlUpdated, AggregateControl, 1, OriginMutation,
+		"A compliance control is updated through the API, including its implementation status.",
+		[]string{"changedFields", "action", "path"}},
+	ControlDeleted: {ControlDeleted, AggregateControl, 1, OriginMutation,
+		"A compliance control is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+
+	// ---- Assessment (compliance audit) ------------------------------------
+	AssessmentCreated: {AssessmentCreated, AggregateComplianceAudit, 1, OriginMutation,
+		"A compliance audit (assessment) is planned through the API.",
+		[]string{"changedFields", "action", "path"}},
+	AssessmentUpdated: {AssessmentUpdated, AggregateComplianceAudit, 1, OriginMutation,
+		"A compliance audit is updated through the API; completion is an update carrying status in changedFields.",
+		[]string{"changedFields", "action", "path"}},
+	AssessmentDeleted: {AssessmentDeleted, AggregateComplianceAudit, 1, OriginMutation,
+		"A compliance audit is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+
+	// ---- Mitigation -------------------------------------------------------
+	MitigationCreated: {MitigationCreated, AggregateMitigation, 1, OriginMutation,
+		"A mitigation plan is created through the API.",
+		[]string{"changedFields", "action", "path"}},
+	MitigationUpdated: {MitigationUpdated, AggregateMitigation, 1, OriginMutation,
+		"A mitigation plan or one of its sub-actions is updated through the API.",
+		[]string{"changedFields", "action", "path"}},
+	MitigationDeleted: {MitigationDeleted, AggregateMitigation, 1, OriginMutation,
+		"A mitigation plan is deleted through the API.",
+		[]string{"changedFields", "action", "path"}},
+	MitigationAutoCompleted: {MitigationAutoCompleted, AggregateMitigation, 1, OriginDomain,
+		"The scanner can no longer detect a finding and auto-completes a sub-action (relayed from mitigation.auto_completed).",
+		[]string{"planId", "subActionId", "scannerJobId"}},
+}
+
+// Lookup returns the catalog entry for a type.
+func Lookup(t EventType) (Descriptor, bool) {
+	d, ok := catalog[t]
+	return d, ok
+}
+
+// IsRegistered reports whether a type may be published and subscribed to.
+func IsRegistered(t EventType) bool {
+	_, ok := catalog[t]
+	return ok
+}
+
+// Catalog returns every descriptor, sorted by type, for the contract endpoint
+// and the documentation generator.
+func Catalog() []Descriptor {
+	out := make([]Descriptor, 0, len(catalog))
+	for _, d := range catalog {
+		out = append(out, d)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Type < out[j].Type })
+	return out
+}
+
+// Aggregates returns the distinct aggregate names, sorted.
+func Aggregates() []string {
+	seen := map[string]struct{}{}
+	for _, d := range catalog {
+		seen[d.Aggregate] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for a := range seen {
+		out = append(out, a)
+	}
+	sort.Strings(out)
+	return out
+}
