@@ -240,3 +240,136 @@ func TestMutationBridge_NilInputsAreSafe(t *testing.T) {
 	bridge := NewMutationBridge(nil)
 	bridge.ObserveMutation(nil, auditEvent(uuid.New(), "risk", uuid.NewString(), domain.AuditActionCreate))
 }
+
+// A create whose route has no path parameter and whose entity is not audited at
+// row level leaves the trail without an aggregate id. Risk is exactly that
+// case — deliberately excluded from the audit plugin — so without this fallback
+// risk.created could never fire at all. Found by running the thing against a
+// live database rather than by reading it.
+func TestMutationBridge_RecoversACreatedIDFromTheResponse(t *testing.T) {
+	tenant := uuid.New()
+	created := uuid.NewString()
+
+	pub := &capturePublisher{}
+	bridge := NewMutationBridge(pub)
+
+	app := fiber.New()
+	app.Post("/risks", func(c *fiber.Ctx) error {
+		// The handler answers with the record it just made, exactly as the real
+		// one does; the observer runs afterwards, on the response path.
+		if err := c.Status(fiber.StatusCreated).JSON(fiber.Map{"id": created, "title": "a risk"}); err != nil {
+			return err
+		}
+		bridge.ObserveMutation(c, auditEvent(tenant, "risk", "", domain.AuditActionCreate))
+		return nil
+	})
+
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/risks", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+
+	if len(pub.sent) != 1 {
+		t.Fatalf("expected risk.created to be published, got %d events", len(pub.sent))
+	}
+	if pub.sent[0].Type != rt.RiskCreated {
+		t.Fatalf("got %s", pub.sent[0].Type)
+	}
+	if pub.sent[0].Aggregate.ID != created {
+		t.Fatalf("aggregate id %q, want the id from the response %q", pub.sent[0].Aggregate.ID, created)
+	}
+}
+
+// The wrapped shape this API also answers with.
+func TestMutationBridge_RecoversACreatedIDFromAWrappedResponse(t *testing.T) {
+	tenant := uuid.New()
+	created := uuid.NewString()
+
+	pub := &capturePublisher{}
+	bridge := NewMutationBridge(pub)
+
+	app := fiber.New()
+	app.Post("/incidents", func(c *fiber.Ctx) error {
+		if err := c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": fiber.Map{"id": created}}); err != nil {
+			return err
+		}
+		bridge.ObserveMutation(c, auditEvent(tenant, "incident", "", domain.AuditActionCreate))
+		return nil
+	})
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/incidents", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+
+	if len(pub.sent) != 1 || pub.sent[0].Aggregate.ID != created {
+		t.Fatalf("unexpected result: %+v", pub.sent)
+	}
+}
+
+// The fallback is for creations only. An update or a delete that reached the
+// trail without an id is a defect somewhere else, and inventing a subject for
+// it from whatever the response happened to contain would publish an event
+// about the wrong record.
+func TestMutationBridge_DoesNotGuessAnIDForUpdatesOrDeletes(t *testing.T) {
+	tenant := uuid.New()
+	other := uuid.NewString()
+
+	for _, action := range []domain.AuditAction{domain.AuditActionUpdate, domain.AuditActionDelete} {
+		pub := &capturePublisher{}
+		bridge := NewMutationBridge(pub)
+
+		app := fiber.New()
+		app.Patch("/risks", func(c *fiber.Ctx) error {
+			if err := c.JSON(fiber.Map{"id": other}); err != nil {
+				return err
+			}
+			bridge.ObserveMutation(c, auditEvent(tenant, "risk", "", action))
+			return nil
+		})
+		resp, err := app.Test(httptest.NewRequest(fiber.MethodPatch, "/risks", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+
+		if len(pub.sent) != 0 {
+			t.Fatalf("action %s published %+v from a response body it should not have read", action, pub.sent)
+		}
+	}
+}
+
+// A response that is not the record — an empty body, a non-JSON body, or one
+// with no id — yields nothing rather than a malformed event.
+func TestMutationBridge_UnreadableResponsesYieldNoEvent(t *testing.T) {
+	tenant := uuid.New()
+
+	for name, write := range map[string]func(*fiber.Ctx) error{
+		"empty":    func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusCreated) },
+		"not json": func(c *fiber.Ctx) error { return c.Status(fiber.StatusCreated).SendString("created") },
+		"no id":    func(c *fiber.Ctx) error { return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "ok"}) },
+		"empty id": func(c *fiber.Ctx) error { return c.Status(fiber.StatusCreated).JSON(fiber.Map{"id": ""}) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			pub := &capturePublisher{}
+			bridge := NewMutationBridge(pub)
+			app := fiber.New()
+			app.Post("/risks", func(c *fiber.Ctx) error {
+				if err := write(c); err != nil {
+					return err
+				}
+				bridge.ObserveMutation(c, auditEvent(tenant, "risk", "", domain.AuditActionCreate))
+				return nil
+			})
+			resp, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/risks", nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = resp.Body.Close()
+			if len(pub.sent) != 0 {
+				t.Fatalf("published %+v from an unusable response", pub.sent)
+			}
+		})
+	}
+}

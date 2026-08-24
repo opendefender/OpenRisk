@@ -7,10 +7,12 @@ package realtime
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	rt "github.com/opendefender/openrisk/pkg/realtime"
@@ -155,12 +157,28 @@ func (b *MutationBridge) ObserveMutation(c *fiber.Ctx, ev *domain.AuditEvent) {
 
 // envelopeFor decides which event, if any, a journaled mutation produces.
 func (b *MutationBridge) envelopeFor(c *fiber.Ctx, ev *domain.AuditEvent) (rt.Envelope, bool) {
-	if ev.TenantID.String() == "" || ev.EntityID == "" {
+	entity := strings.ToLower(strings.TrimSpace(ev.EntityType))
+
+	aggregateID := ev.EntityID
+	if aggregateID == "" {
+		// A creation can legitimately leave the trail without an id: the route
+		// has no path parameter to take one from, and the entity may not be
+		// audited at row level — Risk is exactly that case, excluded from the
+		// audit plugin on purpose because the score worker writes it on a hot
+		// path. Without a fallback, risk.created could never fire.
+		//
+		// The response of a successful create carries the new id, so it is read
+		// from there. Narrow by construction: only for a create, only when the
+		// trail supplied nothing, and only from a small JSON body.
+		if ev.Action == domain.AuditActionCreate {
+			aggregateID = createdIDFromResponse(c)
+		}
+	}
+	if ev.TenantID == uuid.Nil || aggregateID == "" {
 		// Without an aggregate id the event names no subject, and a consumer
 		// could do nothing with it but refetch everything.
 		return rt.Envelope{}, false
 	}
-	entity := strings.ToLower(strings.TrimSpace(ev.EntityType))
 
 	verb := routeVerb(c)
 	var typ rt.EventType
@@ -192,7 +210,7 @@ func (b *MutationBridge) envelopeFor(c *fiber.Ctx, ev *domain.AuditEvent) (rt.En
 		// call changed it; publishing `created` would tell every consumer that a
 		// mitigation appeared which has existed for weeks. If it is a new id the
 		// row layer just produced, it is genuinely a creation.
-		if ev.Action == domain.AuditActionCreate && idIsAPathParameter(c, ev.EntityID) {
+		if ev.Action == domain.AuditActionCreate && idIsAPathParameter(c, aggregateID) {
 			if upd, ok := byAction[domain.AuditActionUpdate]; ok {
 				t = upd
 			}
@@ -221,7 +239,7 @@ func (b *MutationBridge) envelopeFor(c *fiber.Ctx, ev *domain.AuditEvent) (rt.En
 		Type:      typ,
 		TenantID:  ev.TenantID.String(),
 		ActorID:   actor,
-		Aggregate: rt.Aggregate{Type: desc.Aggregate, ID: ev.EntityID},
+		Aggregate: rt.Aggregate{Type: desc.Aggregate, ID: aggregateID},
 		// The audit entry and the event that describes the same change share a
 		// correlation id, and the event names the entry as its cause. That is
 		// what lets "why did this event fire?" be answered by reading the trail,
@@ -281,4 +299,42 @@ func idIsAPathParameter(c *fiber.Ctx, id string) bool {
 		}
 	}
 	return false
+}
+
+// maxCreateResponseBytes bounds the response body the id fallback will parse.
+//
+// A create answers with the record it just made, which is small. The cap is
+// what keeps this from becoming an unbounded parse of, say, a bulk import's
+// response on the tail of every request.
+const maxCreateResponseBytes = 64 * 1024
+
+// createdIDFromResponse recovers a newly created aggregate's id from the
+// response the handler just wrote.
+//
+// It looks in the two shapes this API actually answers with — the record at the
+// top level, or wrapped in `data` — and nowhere else. Guessing more widely
+// would eventually pick an `id` belonging to something other than the thing
+// that was created, and an event carrying the wrong subject is worse than no
+// event.
+func createdIDFromResponse(c *fiber.Ctx) string {
+	if c == nil {
+		return ""
+	}
+	body := c.Response().Body()
+	if len(body) == 0 || len(body) > maxCreateResponseBytes {
+		return ""
+	}
+	var payload struct {
+		ID   string `json:"id"`
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+	if payload.ID != "" {
+		return payload.ID
+	}
+	return payload.Data.ID
 }
