@@ -30,19 +30,7 @@ import { AlertTriangle, CalendarX, Lock, type LucideIcon } from 'lucide-react';
 
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, Skeleton } from '../../shared/ui';
-
-/** HTTP status from an axios-shaped error, if there is one. */
-function statusOf(error: unknown): number | undefined {
-  if (typeof error !== 'object' || error === null) return undefined;
-  const response = (error as { response?: { status?: number } }).response;
-  return typeof response?.status === 'number' ? response.status : undefined;
-}
-
-/** True when the failure is "you may not read this", not "this broke". */
-export function isPermissionError(error: unknown): boolean {
-  const status = statusOf(error);
-  return status === 401 || status === 403;
-}
+import { isPermissionError } from './widgetError';
 
 export interface WidgetStateProps {
   lang: 'fr' | 'en';

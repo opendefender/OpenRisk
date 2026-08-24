@@ -4,7 +4,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { WidgetState, isPermissionError } from '../WidgetState';
+import { WidgetState } from '../WidgetState';
+import { isPermissionError } from '../widgetError';
 
 /** The value a widget must never show when it has not read its data. */
 const FABRICATED = '0';

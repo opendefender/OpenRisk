@@ -492,7 +492,9 @@ function TrendCard({
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
 
-  const points = trend?.points ?? [];
+  // Memoised because `?? []` allocates a fresh array on every render, which
+  // would re-run the series useMemo below every time regardless of the data.
+  const points = useMemo(() => trend?.points ?? [], [trend]);
   const opened = points.reduce((n, p) => n + p.opened, 0);
   const lastCumulative = points.length ? points[points.length - 1].cumulative_total : 0;
   // Nothing opened in the window, but the register is not empty: that is a period
