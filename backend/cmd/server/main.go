@@ -2253,6 +2253,11 @@ func main() {
 		// can be minted for them.
 		WithSessionRevoker(tokenManager).
 		WithPasswordHasher(passwordHasher).
+		// OR26-03 — promoting somebody into a privileged role re-anchors their MFA
+		// grace window and drops their cached decision, so the new deadline is the
+		// one they actually get and it applies on the next request.
+		WithMFAPrivilegeRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithMFAStatusInvalidator(mfaStatusResolver).
 		// An invitee joins an organization that already exists, so the signup
 		// wizard — whose first screen asks you to set one up — has nothing to
 		// ask them. Without this the route guard would hold a newly joined
