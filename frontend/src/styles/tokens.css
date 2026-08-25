@@ -171,6 +171,12 @@
 
   /* Topology graph. A node is drawn from the risk scale; these are the states
      that are not severity. */
+  /* The caret drawn on a native <select>. A background image cannot use
+     currentColor, so the glyph has to be a per-theme token or the arrow ends
+     up invisible in one of them — which is exactly what happens when a select
+     is styled with appearance:none and nothing else. */
+  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa0af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
   --graph-node: #272c3a;
   --graph-node-stroke: #67707f;
   --graph-edge: #67707f;
@@ -308,6 +314,8 @@
   --chart-axis: #c6c9d6;
   --chart-label: #61636e;
   --chart-track: #f1f2f7;
+
+  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2361636e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   --graph-node: #ffffff;
   --graph-node-stroke: #8b91a1;
