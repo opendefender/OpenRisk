@@ -41,6 +41,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/security/mfa-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the organization's MFA grace policy */
+        get: operations["getMfaPolicy"];
+        /** Set the organization's MFA grace policy */
+        put: operations["updateMfaPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me": {
         parameters: {
             query?: never;
@@ -1490,6 +1508,44 @@ export interface components {
              */
             token?: string;
             user?: components["schemas"]["User"];
+            mfa?: components["schemas"]["MFAStatus"];
+        };
+        /** @description The resolved MFA requirement for the authenticated member (OR26-03). Carries no secret material: no TOTP seed, no QR payload, no backup codes. */
+        MFAStatus: {
+            /**
+             * @description configured — an authenticator is enrolled. recommended — not enrolled, not privileged; encouraged, never enforced. grace_active / grace_expiring — privileged and still able to defer, the second within 48h of the deadline. required — the server refuses protected access until an authenticator exists.
+             * @enum {string}
+             */
+            state: "configured" | "recommended" | "grace_active" | "grace_expiring" | "required";
+            configured: boolean;
+            /** @description When true, protected routes answer 403 MFA_ENROLLMENT_REQUIRED. */
+            required: boolean;
+            /** @description Whether the mandate applies to this member at all. */
+            privileged: boolean;
+            grace_period_active: boolean;
+            /**
+             * Format: date-time
+             * @description Absent for a member the mandate does not apply to, and for an enrolled one.
+             */
+            deadline?: string | null;
+            /** @description The tenant's configured window, echoed so the UI needs no second call. */
+            grace_days: number;
+        };
+        MFAPolicy: {
+            /** @description Days a privileged member may defer enrolment. 0 = required immediately. */
+            grace_days: number;
+            /** @description False when the tenant has never saved the setting, so the screen can say "using the default" rather than imply somebody chose it. */
+            configured: boolean;
+            /** Format: uuid */
+            updated_by_id?: string | null;
+            min_days: number;
+            max_days: number;
+            default_days: number;
+            privileged_org_roles: string[];
+            privileged_business_roles: string[];
+        };
+        UpdateMFAPolicyInput: {
+            grace_days: number;
         };
         User: {
             /** Format: uuid */
@@ -2266,6 +2322,86 @@ export interface operations {
             };
             /** @description Invalid credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getMfaPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's policy, or the shipped default when unset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MFAPolicy"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    updateMfaPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMFAPolicyInput"];
+            };
+        };
+        responses: {
+            /** @description The saved policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MFAPolicy"];
+                };
+            };
+            /** @description grace_days missing or out of the 0..90 range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not an administrator of this organization */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

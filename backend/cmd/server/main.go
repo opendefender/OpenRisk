@@ -788,6 +788,11 @@ func main() {
 		WithPolicies(mfaPolicyRepo)
 	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit).
 		WithMFAStatus(mfaStatusResolver)
+	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
+		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),
+		auth.NewUpdateMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
+			WithCacheInvalidator(mfaStatusResolver),
+	)
 	patHandler := authhandler.NewPATHandler(patService, authAudit)
 
 	// Password reset use cases + handler.
@@ -1109,6 +1114,16 @@ func main() {
 	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
 	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
 	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+
+	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
+	// Reading is open to any authenticated member: everyone subject to a deadline
+	// deserves to see what it is, and the banner needs the bounds to validate
+	// against the server's numbers rather than a copy that can drift. Writing is
+	// admin-only — moving the deadline by which privileged accounts must hold a
+	// second factor is a security decision, and it lands in the governance audit
+	// trail through domain.MFAPolicy's Auditable opt-in.
+	protected.Get("/security/mfa-policy", mfaPolicyHandler.Get)
+	protected.Put("/security/mfa-policy", middleware.RequireRole("admin", "root"), mfaPolicyHandler.Update)
 
 	// --- Sessions / devices (L3) — full session required ---
 	protected.Get("/auth/sessions", sessionHandler.ListSessions)
