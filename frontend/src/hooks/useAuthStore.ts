@@ -34,13 +34,20 @@ interface User {
  * caller has to be able to tell them apart:
  *
  *   - `mfa_required` — an authenticator is enrolled; complete the challenge.
- *   - `mfa_enrollment_required` — the role MANDATES MFA and nothing is enrolled;
- *     enrol first, which completes the login in the same step.
+ *   - `mfa_enrollment_required` — the role mandates MFA, nothing is enrolled,
+ *     AND the grace window has run out; enrol first, which completes the login
+ *     in the same step.
  *
  * Both carry a short-lived, permission-less token that only the corresponding
  * endpoint accepts. Previously this store typed login as Promise<void> and read
  * `data.user` unconditionally, so an MFA-enabled account hit a TypeError and
  * could not sign in from the SPA at all.
+ *
+ * OR26-03: `mfa_enrollment_required` used to fire on the FIRST login of any
+ * privileged account. It is now the end of the road rather than the start of
+ * it — an account still inside its grace window signs in normally and reads a
+ * banner instead. The client does not decide that; the server does, and the
+ * request-time guard refuses everything if the client pretends otherwise.
  */
 export type LoginOutcome =
   | { status: 'signed_in' }

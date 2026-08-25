@@ -140,6 +140,51 @@ api.interceptors.response.use(
     if (status === 401 && TOKEN_ERROR_CODES.has(code)) {
       window.location.href = '/login'; // Redirection forcée
     }
+
+    // OR26-03 — the session is valid but the account's MFA grace period is over,
+    // so the server is refusing everything except the enrolment endpoints.
+    //
+    // Deliberately NOT a redirect to /login: signing the user out would drop
+    // them at a password form that would hand back the very same enrolment
+    // demand, with nothing on screen explaining why. Instead, invalidate the
+    // cached MFA state so the banner re-reads it and escalates to its blocking
+    // copy — the enrolment dialog is one click away from there, and the user
+    // stays on the screen they were on.
+    if (status === 403 && code === 'MFA_ENROLLMENT_REQUIRED') {
+      notifyMFARequired();
+    }
     return Promise.reject(error);
   },
 );
+// ---------------------------------------------------------------------------
+// OR26-03 — MFA enforcement signal
+// ---------------------------------------------------------------------------
+
+/**
+ * Subscribers notified when the server refuses a request because the account's
+ * MFA grace period has expired.
+ *
+ * A callback registry rather than a direct import of the query client, because
+ * lib/api is imported by the query layer itself and the reverse dependency
+ * would be a cycle. The app registers one subscriber at start-up.
+ *
+ * This is a UI signal only. It cannot grant access, and ignoring it changes
+ * nothing: the server has already refused, and will refuse the next request too.
+ */
+const mfaRequiredListeners = new Set<() => void>();
+
+/** Registers a listener. Returns the unsubscribe function. */
+export function onMFARequired(fn: () => void): () => void {
+  mfaRequiredListeners.add(fn);
+  return () => mfaRequiredListeners.delete(fn);
+}
+
+function notifyMFARequired(): void {
+  mfaRequiredListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // A misbehaving listener must not swallow the original API error.
+    }
+  });
+}

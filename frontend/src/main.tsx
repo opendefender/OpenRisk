@@ -16,6 +16,8 @@ import { useUIStore } from './store/uiStore'
 import { ErrorBoundary } from './shared/system/ErrorBoundary'
 import { installGlobalErrorReporting } from './lib/observability'
 import { registerQueryClient } from './lib/sessionScope'
+import { onMFARequired } from './lib/api'
+import { MFA_STATUS_KEY } from './features/auth/useMfa'
 
 // Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
 // the cached value immediately and revalidate when the network allows (SWR), and
@@ -45,6 +47,17 @@ const queryClient = new QueryClient({
 // logout and login are both soft navigations, so nothing else tears the cache
 // down (W0-05 / D9).
 registerQueryClient(queryClient)
+
+// OR26-03 — when the server refuses a request because the account's MFA grace
+// period has expired, re-read the MFA state so the banner escalates to its
+// blocking copy instead of leaving the user staring at a silently failing page.
+//
+// Registered once, here, because lib/api cannot import the query client without
+// creating a cycle. It is a UI signal: it cannot grant access, and the server
+// refuses the next request regardless of whether anything listened.
+onMFARequired(() => {
+  void queryClient.invalidateQueries({ queryKey: MFA_STATUS_KEY })
+})
 
 // Report uncaught errors and unhandled rejections (Sentry when present).
 installGlobalErrorReporting()
