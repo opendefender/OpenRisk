@@ -9,9 +9,9 @@
 // token. For routine content, prefer the soft-delete Undo pattern (useSoftDelete).
 
 import type { ReactNode } from 'react';
-import { AlertTriangle, X, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
-import { useEscapeToClose } from './useBackTo';
+import { Button, Modal } from './ds';
 
 export interface DangerAlternative {
   label: string;
@@ -40,83 +40,86 @@ interface DangerConfirmProps {
 export function DangerConfirm({
   open, onClose, title, subject, intro, impact, alternatives, confirmLabel, onConfirm, busy,
 }: DangerConfirmProps) {
-  // Esc closes this overlay (spec §2).
-  useEscapeToClose(open, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  if (!open) return null;
+
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4"
-      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[440px] rounded-[16px] overflow-hidden shadow-card-lg"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)' }}
-      >
-        <div className="flex items-start gap-3 p-5 pb-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, var(--critical) 14%, transparent)', color: 'var(--critical)' }}>
-            <AlertTriangle size={20} />
-          </div>
-          <div className="flex-1 min-w-0 pt-0.5">
-            <div className="text-[15px] font-bold text-ink">{title}</div>
-            {subject && <div className="text-[13px] text-ink-soft mt-0.5 truncate">{subject}</div>}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-muted hover:bg-hover transition-colors" aria-label={tr('Fermer', 'Close')}>
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="px-5 pb-4 space-y-3">
-          {intro && <p className="text-[13px] text-ink-soft leading-relaxed">{intro}</p>}
-
-          {impact && impact.length > 0 && (
-            <div className="rounded-[10px] p-3 space-y-1.5" style={{ background: 'var(--bg-hover)' }}>
-              {impact.map((r, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 text-[12.5px]">
-                  <span className="text-ink-muted">{r.label}</span>
-                  <span className="text-ink font-medium text-right truncate">{r.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {alternatives && alternatives.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-[10.5px] font-semibold uppercase tracking-[.07em] text-ink-muted">{tr('Alternatives', 'Alternatives')}</div>
-              {alternatives.map((a, i) => {
-                const Icon = a.icon;
-                return (
-                  <button
-                    key={i}
-                    onClick={a.onClick}
-                    disabled={busy}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-[10px] text-left transition-colors hover:bg-hover disabled:opacity-60"
-                    style={{ border: '1px solid var(--border-strong)' }}
-                  >
-                    {Icon && <span className="text-accent shrink-0"><Icon size={17} strokeWidth={1.8} /></span>}
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-semibold text-ink">{a.label}</div>
-                      {a.description && <div className="text-[11.5px] text-ink-muted">{a.description}</div>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-border">
-          <button onClick={onClose} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-ink-soft hover:bg-hover transition-colors disabled:opacity-60">
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={title}
+      subtitle={subject}
+      closeLabel={tr('Fermer', 'Close')}
+      /* While the destructive action is running the dialog cannot be
+         dismissed: closing it would leave the user with no feedback about an
+         operation that is already half-applied. */
+      dismissable={!busy}
+      leading={
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-danger-surface text-danger-text">
+          <AlertTriangle size={18} aria-hidden="true" />
+        </span>
+      }
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             {tr('Annuler', 'Cancel')}
-          </button>
-          <button onClick={onConfirm} disabled={busy} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-on-solid transition-[filter] hover:brightness-110 disabled:opacity-60" style={{ background: 'var(--danger-solid)' }}>
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} loading={busy}>
             {confirmLabel}
-          </button>
-        </div>
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {intro && <p className="text-sm leading-relaxed text-text-secondary">{intro}</p>}
+
+        {impact && impact.length > 0 && (
+          /* The radiography. A definition list rather than divs: the pairs are
+             label/value, and saying so is what lets a screen reader read them
+             as pairs instead of as one run-on line. */
+          <dl className="space-y-1.5 rounded-md bg-surface-3 p-3">
+            {impact.map((r, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                <dt className="text-text-muted">{r.label}</dt>
+                <dd className="truncate text-right font-medium text-text-primary">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {alternatives && alternatives.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-2xs font-semibold uppercase tracking-caps text-text-muted">
+              {tr('Alternatives', 'Alternatives')}
+            </p>
+            {alternatives.map((a, i) => {
+              const Icon = a.icon;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={a.onClick}
+                  disabled={busy}
+                  className="flex w-full items-center gap-3 rounded-md border border-control p-2.5 text-left transition-colors duration-fast ease-out hover:bg-surface-3 disabled:opacity-60"
+                >
+                  {Icon && (
+                    <span className="shrink-0 text-accent">
+                      <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
+                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <span className="block text-sm font-semibold text-text-primary">{a.label}</span>
+                    {a.description && (
+                      <span className="block text-2xs text-text-muted">{a.description}</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }
