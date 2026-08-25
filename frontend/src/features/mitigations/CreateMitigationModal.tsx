@@ -13,8 +13,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 import { mitigationService } from '../../services/mitigationService';
 import type { Mitigation } from '../../types/mitigation';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
 
@@ -134,7 +133,10 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
-                <Input label="Titre" {...register('title')} error={errors.title?.message} disabled={isSubmitting} />
+                <Field label="Titre" message={errors.title?.message} status={errors.title?.message ? 'invalid' : 'default'}>
+                  <Input  {...register('title')}  disabled={isSubmitting}
+                  />
+                </Field>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Description</label>
@@ -162,7 +164,7 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
 
                 <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
                   <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
-                  <Button type="submit" variant="secondary" isLoading={isSubmitting} className="gap-2"><Zap size={16} />Créer</Button>
+                  <Button type="submit" variant="secondary" loading={isSubmitting} className="gap-2"><Zap size={16} />Créer</Button>
                 </div>
               </form>
             </div>

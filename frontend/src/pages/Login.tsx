@@ -7,8 +7,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Lock, ArrowRight, Github, Mail, Shield, Key } from 'lucide-react';
 import { useAuthStore } from '../hooks/useAuthStore';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { Button, Field, Input } from '../shared/ds';
 import { toast } from 'sonner';
 import { useNavigate, Link, useSearchParams } from 'react-router';
 
@@ -107,23 +106,25 @@ export const Login = () => {
             <p className="text-text-secondary text-center mb-8 text-sm">Enter your credentials to access the secure vault.</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                <Input 
-                    label="Email" 
-                    type="email" 
-                    placeholder="name@company.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoFocus
-                />
-                <Input 
-                    label="Password" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                <Field label="Email">
+                  <Input
+                      type="email"
+                      placeholder="name@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoFocus
+                  />
+                </Field>
+                <Field label="Password">
+                  <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                  />
+                </Field>
 
-                <Button className="w-full mt-4 group" isLoading={isLoading}>
+                <Button type="submit" className="w-full mt-4 group" loading={isLoading}>
                     Sign In <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
             </form>

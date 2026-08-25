@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Loader2, Zap, Clock, DollarSign, ShieldAlert } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge'; 
+import { Badge, type BadgeIntent } from '../../shared/ds';
 
 interface RiskData {
   title: string;
@@ -23,12 +23,16 @@ interface MitigationData {
   risk: RiskData; 
 }
 
-const formatCost = (cost: number) => {
+// Business value -> visual intent, as a lookup rather than a styling string.
+// The previous version returned Tailwind classes, which put the design decision
+// inside the data helper: changing how a "high cost" badge looks meant editing
+// business logic.
+const formatCost = (cost: number): { label: string; intent: BadgeIntent } => {
     switch(cost) {
-        case 1: return { label: 'Faible', color: 'bg-success/20 text-success-text' };
-        case 2: return { label: 'Moyen', color: 'bg-warning/20 text-warning-text' };
-        case 3: return { label: 'Élevé', color: 'bg-danger/20 text-danger-text' };
-        default: return { label: 'N/A', color: 'bg-surface-3/20 text-text-secondary' };
+        case 1: return { label: 'Faible', intent: 'success' };
+        case 2: return { label: 'Moyen', intent: 'warning' };
+        case 3: return { label: 'Élevé', intent: 'danger' };
+        default: return { label: 'N/A', intent: 'unavailable' };
     }
 };
 
@@ -77,8 +81,8 @@ export const PrioritizedMitigationsList = () => {
           >
             <div className="flex justify-between items-start">
               <h3 className="text-lg font-semibold text-text-primary">{m.title}</h3>
-              <Badge variant="default" className="flex items-center space-x-1 bg-accent-500 hover:bg-accent-500">
-                <Zap size={12} />
+              <Badge intent="accent" size="md" className="gap-1">
+                <Zap size={12} aria-hidden="true" />
                 <span>SPP: {m.weighted_priority.toFixed(2)}</span>
               </Badge>
             </div>
@@ -90,7 +94,7 @@ export const PrioritizedMitigationsList = () => {
                 </div>
                 <div className="flex items-center">
                     <DollarSign size={14} className="text-text-secondary mr-1" />
-                    <Badge className={costInfo.color}>{costInfo.label} Coût</Badge>
+                    <Badge intent={costInfo.intent}>{costInfo.label} Coût</Badge>
                 </div>
                 <div className="flex items-center">
                     <Clock size={14} className="text-text-secondary mr-1" />

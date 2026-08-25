@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { LayoutGrid, List } from 'lucide-react';
-import { cn } from './ui/Button';
+import { Field, cn } from '../shared/ds';
 
 interface ViewToggleProps {
   view: 'table' | 'card';

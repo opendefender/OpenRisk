@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Download, Calendar, Eye, Share2, Trash2 } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button, Field } from '../shared/ds';
 import { useReportStore } from '../hooks/useReportStore';
 
 export const Reports = () => {

@@ -16,7 +16,7 @@ import {
   ShieldAlert,
   ScrollText,
 } from 'lucide-react';
-import { Button, cn } from '../../components/ui/Button';
+import { Button, Field, cn } from '../../shared/ds';
 import { ProgressState } from '../../shared/ProgressState';
 import { useBoardReports, useBoardReport } from './useBoardReports';
 import type { BoardReport, BoardLocale } from '../../types/board';
@@ -109,7 +109,7 @@ export const BoardReportPage = () => {
             <option value="fr">FR</option>
             <option value="en">EN</option>
           </select>
-          <Button onClick={onGenerate} isLoading={generate.isPending} className="shadow-lg shadow-primary/20">
+          <Button onClick={onGenerate} loading={generate.isPending} className="shadow-lg shadow-primary/20">
             <Sparkles size={16} className="mr-2" />
             Générer
           </Button>
@@ -249,7 +249,7 @@ function EmptyList({ generating, onGenerate }: { generating: boolean; onGenerate
       <p className="text-sm text-text-secondary mb-4">
         Aucun rapport pour l'instant. Générez le premier rapport du conseil en un clic.
       </p>
-      <Button onClick={onGenerate} isLoading={generating}>
+      <Button onClick={onGenerate} loading={generating}>
         <Sparkles size={16} className="mr-2" /> Générer le premier rapport
       </Button>
     </div>
@@ -425,23 +425,23 @@ function ReportDetail({
         <div className="flex flex-wrap items-center gap-2 mt-6 pt-4 border-t border-border">
           {!readOnly && (
             <>
-              <Button onClick={onSave} disabled={!dirty} isLoading={update.isPending}>
+              <Button onClick={onSave} disabled={!dirty} loading={update.isPending}>
                 Enregistrer les modifications
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => approve.mutate()}
-                isLoading={approve.isPending}
+                loading={approve.isPending}
               >
                 <CheckCircle2 size={16} className="mr-2" /> Approuver
               </Button>
             </>
           )}
-          <Button variant="ghost" onClick={() => download.mutate()} isLoading={download.isPending}>
+          <Button variant="ghost" onClick={() => download.mutate()} loading={download.isPending}>
             <Download size={16} className="mr-2" /> Télécharger le PDF
           </Button>
           <div className="flex-1" />
-          <Button variant="danger" onClick={onDeleted} isLoading={deleting} title="Supprimer">
+          <Button variant="destructive" onClick={onDeleted} loading={deleting} title="Supprimer">
             <Trash2 size={16} />
           </Button>
         </div>

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
-import { cn } from '../ui/Button';
+import { Field, cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';

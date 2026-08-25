@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { Plus, Bell, Search, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button, Field } from '../../shared/ds';
 import { useEffect, useRef, useState } from 'react';
 import { useRiskStore } from '../../hooks/useRiskStore';
 

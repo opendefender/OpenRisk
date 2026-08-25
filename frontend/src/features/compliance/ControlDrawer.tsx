@@ -6,8 +6,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, FileText, Trash2, Upload } from 'lucide-react';
-import { Drawer } from '../../components/ui/Drawer';
-import { Button } from '../../components/ui/Button';
+import { Button, Drawer, Field } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
@@ -65,7 +64,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
   };
 
   return (
-    <Drawer isOpen={isControlDrawerOpen} onClose={closeControlDrawer} title={control.name}>
+    <Drawer open={isControlDrawerOpen} onClose={closeControlDrawer} title={control.name}>
       <div className="flex gap-2 border-b border-border-subtle pb-3 mb-6">
         {(['details', 'evidence'] as const).map((tab) => (
           <button
@@ -149,7 +148,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
               type="button"
               variant="secondary"
               size="sm"
-              isLoading={createEvidence.isPending}
+              loading={createEvidence.isPending}
               onClick={() => fileInputRef.current?.click()}
               className="gap-2"
             >

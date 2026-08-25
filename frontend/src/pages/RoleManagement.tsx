@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Shield, Plus, Trash2, Lock, Search, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
-import { Button } from '../components/ui/Button';
+import { Button, Field } from '../shared/ds';
 import { useAuthStore } from '../hooks/useAuthStore';
 
 interface Permission {

@@ -14,8 +14,7 @@ import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
-import { Button } from '../../../components/ui/Button';
-import { Input } from '../../../components/ui/Input';
+import { Button, Field, Input } from '../../../shared/ds';
 
 const riskSchema = z.object({
   title: z.string().min(5).max(100),
@@ -147,7 +146,10 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
             </div>
 
             <form onSubmit={handleSubmit((data: any) => onSubmit(data))} className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]">
-              <Input label="Titre" {...register('title')} error={errors.title?.message} disabled={isLoading} />
+              <Field label="Titre" message={errors.title?.message} status={errors.title?.message ? 'invalid' : 'default'}>
+                <Input  {...register('title')}  disabled={isLoading}
+                />
+              </Field>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Description</label>
@@ -214,7 +216,10 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
               </div>
 
-              <Input label="Tags (séparés par des virgules)" {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading} />
+              <Field label="Tags (séparés par des virgules)">
+                <Input  {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading}
+                />
+              </Field>
 
               {/* Frameworks selector */}
               <div className="space-y-2 pt-2">
@@ -233,7 +238,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-strong/5 sticky bottom-0 bg-surface">
                 <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
-                <Button type="submit" isLoading={isLoading || isSubmitting}>Enregistrer</Button>
+                <Button type="submit" loading={isLoading || isSubmitting}>Enregistrer</Button>
               </div>
             </form>
           </motion.div>

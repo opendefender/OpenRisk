@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRiskStore, type Risk } from '../hooks/useRiskStore';
-import { Button } from '../components/ui/Button';
+import { Button, Field } from '../shared/ds';
 import { EditRiskModal } from '../features/risks/components/EditRiskModal';
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TrendingUp, AlertCircle, Shield } from 'lucide-react';
 import { ViewToggle } from '../components/ViewToggle';

@@ -5,7 +5,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Check } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button, Field } from '../../shared/ds';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -105,7 +105,7 @@ export const FloatingBulkBar = ({
                 variant="secondary"
                 size="sm"
                 onClick={onConfirm}
-                isLoading={isLoading}
+                loading={isLoading}
                 className="gap-1.5 bg-primary hover:bg-primary/90"
               >
                 <Check size={16} />

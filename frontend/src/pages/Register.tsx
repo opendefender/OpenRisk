@@ -6,8 +6,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Lock, ArrowRight, AlertCircle } from 'lucide-react';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { Button, Field, Input } from '../shared/ds';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router';
 import { api } from '../lib/api';
@@ -119,77 +118,77 @@ export const Register = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Input 
-              label="Full Name" 
-              type="text" 
-              placeholder="John Doe" 
-              value={fullName}
-              onChange={(e) => {
-                setFullName(e.target.value);
-                if (errors.fullName) setErrors({ ...errors, fullName: '' });
-              }}
-              error={errors.fullName}
-            />
+            <Field label="Full Name" message={errors.fullName} status={errors.fullName ? 'invalid' : 'default'}>
+              <Input
+                type="text"
+                placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errors.fullName) setErrors({ ...errors, fullName: '' });
+                }}
+              />
+            </Field>
           </div>
 
           <div>
-            <Input 
-              label="Username" 
-              type="text" 
-              placeholder="johndoe" 
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                if (errors.username) setErrors({ ...errors, username: '' });
-              }}
-              error={errors.username}
-            />
+            <Field label="Username" message={errors.username} status={errors.username ? 'invalid' : 'default'}>
+              <Input
+                type="text"
+                placeholder="johndoe"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (errors.username) setErrors({ ...errors, username: '' });
+                }}
+              />
+            </Field>
           </div>
 
           <div>
-            <Input 
-              label="Email" 
-              type="email" 
-              placeholder="name@company.com" 
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (errors.email) setErrors({ ...errors, email: '' });
-              }}
-              error={errors.email}
-            />
+            <Field label="Email" message={errors.email} status={errors.email ? 'invalid' : 'default'}>
+              <Input
+                type="email"
+                placeholder="name@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: '' });
+                }}
+              />
+            </Field>
           </div>
 
           <div>
-            <Input 
-              label="Password" 
-              type="password" 
-              placeholder="••••••••" 
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (errors.password) setErrors({ ...errors, password: '' });
-              }}
-              error={errors.password}
-            />
+            <Field label="Password" message={errors.password} status={errors.password ? 'invalid' : 'default'}>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors({ ...errors, password: '' });
+                }}
+              />
+            </Field>
             <p className="text-xs text-text-muted mt-1">Minimum 8 characters</p>
           </div>
 
           <div>
-            <Input 
-              label="Confirm Password" 
-              type="password" 
-              placeholder="••••••••" 
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' });
-              }}
-              error={errors.confirmPassword}
-            />
+            <Field label="Confirm Password" message={errors.confirmPassword} status={errors.confirmPassword ? 'invalid' : 'default'}>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' });
+                }}
+              />
+            </Field>
           </div>
 
-          <Button className="w-full mt-6 group" isLoading={isLoading}>
+          <Button type="submit" className="w-full mt-6 group" loading={isLoading}>
             Create Account <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
         </form>

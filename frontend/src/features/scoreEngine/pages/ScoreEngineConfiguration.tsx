@@ -14,8 +14,7 @@ import {
   updateScoringConfig,
 } from '../../../api/scoreEngineService';
 import type { ScoringConfig } from '../../../api/scoreEngineService';
-import { Button } from '../../../components/ui/Button';
-import { Input } from '../../../components/ui/Input';
+import { Button, Field, Input } from '../../../shared/ds';
 
 export const ScoreEngineConfiguration = () => {
   const [configs, setConfigs] = useState<any>(null);
@@ -185,21 +184,23 @@ export const ScoreEngineConfiguration = () => {
 
               {/* Form Fields */}
               <div className="space-y-4">
-                <Input
-                  label="ID Configuration"
-                  placeholder="ex: custom-config-1"
-                  value={formData.id || ''}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  disabled={!!selectedConfig || isLoading}
-                />
+                <Field label="ID Configuration">
+                  <Input
+                    placeholder="ex: custom-config-1"
+                    value={formData.id || ''}
+                    onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                    disabled={!!selectedConfig || isLoading}
+                  />
+                </Field>
 
-                <Input
-                  label="Nom"
-                  placeholder="Configuration personnalisée"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  disabled={isLoading}
-                />
+                <Field label="Nom">
+                  <Input
+                    placeholder="Configuration personnalisée"
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    disabled={isLoading}
+                  />
+                </Field>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Description</label>
@@ -212,36 +213,38 @@ export const ScoreEngineConfiguration = () => {
                   />
                 </div>
 
-                <Input
-                  label="Formule de Base"
-                  placeholder="impact*probability"
-                  value={formData.base_formula || ''}
-                  onChange={(e) => setFormData({ ...formData, base_formula: e.target.value })}
-                  disabled={isLoading}
-                />
+                <Field label="Formule de Base">
+                  <Input
+                    placeholder="impact*probability"
+                    value={formData.base_formula || ''}
+                    onChange={(e) => setFormData({ ...formData, base_formula: e.target.value })}
+                    disabled={isLoading}
+                  />
+                </Field>
 
                 {/* Weighting Factors */}
                 <div className="border-t border-border-default pt-4">
                   <h3 className="font-semibold mb-3">Facteurs de Pondération</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {Object.entries(formData.weighting_factors || {}).map(([key, value]) => (
-                      <Input
-                        key={key}
-                        label={`${key.charAt(0).toUpperCase() + key.slice(1)}`}
-                        type="number"
-                        step="0.1"
-                        value={value.toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            weighting_factors: {
-                              ...formData.weighting_factors,
-                              [key]: parseFloat(e.target.value),
-                            },
-                          })
-                        }
-                        disabled={isLoading}
-                      />
+                      <Field label={`${key.charAt(0).toUpperCase() + key.slice(1)}`}>
+                        <Input
+                          key={key}
+                          type="number"
+                          step="0.1"
+                          value={value.toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              weighting_factors: {
+                                ...formData.weighting_factors,
+                                [key]: parseFloat(e.target.value),
+                              },
+                            })
+                          }
+                          disabled={isLoading}
+                        />
+                      </Field>
                     ))}
                   </div>
                 </div>
@@ -251,22 +254,23 @@ export const ScoreEngineConfiguration = () => {
                   <h3 className="font-semibold mb-3">Seuils de Matrice de Risque</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {Object.entries(formData.risk_matrix_thresholds || {}).map(([key, value]) => (
-                      <Input
-                        key={key}
-                        label={key.charAt(0).toUpperCase() + key.slice(1)}
-                        type="number"
-                        value={value.toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            risk_matrix_thresholds: {
-                              ...formData.risk_matrix_thresholds,
-                              [key]: parseInt(e.target.value),
-                            },
-                          })
-                        }
-                        disabled={isLoading}
-                      />
+                      <Field label={key.charAt(0).toUpperCase() + key.slice(1)}>
+                        <Input
+                          key={key}
+                          type="number"
+                          value={value.toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              risk_matrix_thresholds: {
+                                ...formData.risk_matrix_thresholds,
+                                [key]: parseInt(e.target.value),
+                              },
+                            })
+                          }
+                          disabled={isLoading}
+                        />
+                      </Field>
                     ))}
                   </div>
                 </div>
@@ -276,23 +280,24 @@ export const ScoreEngineConfiguration = () => {
                   <h3 className="font-semibold mb-3">Multiplicateurs de Criticité</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {Object.entries(formData.asset_criticality_mult || {}).map(([key, value]) => (
-                      <Input
-                        key={key}
-                        label={key.charAt(0).toUpperCase() + key.slice(1)}
-                        type="number"
-                        step="0.1"
-                        value={value.toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            asset_criticality_mult: {
-                              ...formData.asset_criticality_mult,
-                              [key]: parseFloat(e.target.value),
-                            },
-                          })
-                        }
-                        disabled={isLoading}
-                      />
+                      <Field label={key.charAt(0).toUpperCase() + key.slice(1)}>
+                        <Input
+                          key={key}
+                          type="number"
+                          step="0.1"
+                          value={value.toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              asset_criticality_mult: {
+                                ...formData.asset_criticality_mult,
+                                [key]: parseFloat(e.target.value),
+                              },
+                            })
+                          }
+                          disabled={isLoading}
+                        />
+                      </Field>
                     ))}
                   </div>
                 </div>
@@ -303,7 +308,7 @@ export const ScoreEngineConfiguration = () => {
                 <Button variant="ghost" onClick={handleCancel} disabled={isLoading}>
                   <X className="w-4 h-4 mr-2" /> Annuler
                 </Button>
-                <Button onClick={handleSave} isLoading={isLoading}>
+                <Button onClick={handleSave} loading={isLoading}>
                   <Save className="w-4 h-4 mr-2" /> Sauvegarder
                 </Button>
               </div>

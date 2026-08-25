@@ -15,7 +15,7 @@ import { AlertCircle, RotateCcw, Zap, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SubAction, SubActionStatus } from '../../types/mitigation';
 import { mitigationService } from '../../services/mitigationService';
-import { Button } from '../../components/ui/Button';
+import { Button, Field } from '../../shared/ds';
 import { StatusDot } from '../../components/shared/StatusDot';
 import { AutoDetectedBadge } from '../../components/shared/AutoDetectedBadge';
 import { useI18n } from '../../hooks/useI18n';
