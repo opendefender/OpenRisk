@@ -142,11 +142,11 @@ test.describe('OR26-03 — MFA is deferrable before the Aha moment', () => {
     // THE AHA PATH: create the first risk. This is the value the wall used to
     // stand in front of.
     const created = await api.post('/risks', {
-      name: 'Exposed admin panel on web-prod-01',
+      // `title`, not `name` — POST /risks validates `title` as required.
+      title: 'Exposed admin panel on web-prod-01',
       description: 'Deferred-MFA e2e: the first risk a new tenant creates.',
       probability: 0.6,
       impact: 7,
-      category: 'Cybersécurité',
     });
     expect(created.status(), `first risk must be creatable without MFA: ${await created.text()}`).toBe(201);
 
@@ -165,7 +165,16 @@ test.describe('OR26-03 — MFA is deferrable before the Aha moment', () => {
     const storageState = await storageStateFor(ctx, account.login);
 
     const page = await (await browser.newContext({ storageState })).newPage();
-    await page.goto('/dashboard');
+
+    // The dashboard is the index route ('/'), not '/dashboard' — the latter is a
+    // 404. And a brand-new tenant is held by OnboardingGuard until the wizard is
+    // done, so complete it server-side first: this test is about the banner on
+    // the dashboard, not about the wizard.
+    await ctx.post(`${API_URL}/onboarding/complete`, {
+      headers: { Authorization: `Bearer ${account.token}` },
+      data: {},
+    });
+    await page.goto('/');
 
     // Non-blocking means BOTH: the product is there…
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
@@ -280,7 +289,7 @@ test.describe('OR26-03 — MFA is deferrable before the Aha moment', () => {
 
     // 2. Sending a body that claims compliance on a write route.
     const claimed = await api.post('/risks', {
-      name: 'Bypass attempt',
+      title: 'Bypass attempt',
       probability: 0.5,
       impact: 5,
       mfa: { state: 'configured', configured: true, required: false },
