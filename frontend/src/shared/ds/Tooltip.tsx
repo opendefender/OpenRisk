@@ -26,7 +26,14 @@
  * to be readable.
  */
 
-import { cloneElement, useId, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  cloneElement,
+  useCallback,
+  useId,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import {
   FloatingPortal,
   autoUpdate,
@@ -77,6 +84,18 @@ export function Tooltip({
     middleware: [offset(6), flip({ padding: 8 }), shift({ padding: 8 })],
   });
 
+  /* floating-ui's setReference/setFloating are callback-ref SETTERS, not ref
+     reads, but reaching them through `refs.` during render trips the React
+     refs lint rule. Wrapping them is the pattern already used by RowMenu. */
+  const setReference = useCallback(
+    (node: HTMLElement | null) => refs.setReference(node),
+    [refs],
+  );
+  const setFloating = useCallback(
+    (node: HTMLElement | null) => refs.setFloating(node),
+    [refs],
+  );
+
   const interactions = useInteractions([
     // safePolygon keeps the tooltip open while the pointer travels toward it.
     useHover(context, { delay: { open: delay, close: 80 }, handleClose: safePolygon() }),
@@ -90,7 +109,7 @@ export function Tooltip({
   return (
     <>
       {cloneElement(children, {
-        ref: refs.setReference,
+        ref: setReference,
         // describedby, never labelledby: the trigger keeps its own name.
         'aria-describedby': open ? id : undefined,
         ...interactions.getReferenceProps(children.props),
@@ -98,7 +117,7 @@ export function Tooltip({
       {open && (
         <FloatingPortal>
           <div
-            ref={refs.setFloating}
+            ref={setFloating}
             id={id}
             style={floatingStyles}
             {...interactions.getFloatingProps()}

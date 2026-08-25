@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { critColor, softFill, type Criticality } from './riskColors';
 import { Button, type ButtonVariant } from './ds';
 import { useUIStrings } from './uiStrings';

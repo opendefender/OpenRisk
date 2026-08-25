@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Bell, X, Check, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotificationStore } from '../../hooks/useNotificationStore';
-import { Button, Field } from '../../shared/ds';
+import { Button } from '../../shared/ds';
 
 export const NotificationCenter = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll } = useNotificationStore();

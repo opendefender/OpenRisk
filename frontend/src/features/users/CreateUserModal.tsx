@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
-import { Button, Field, Input } from '../../shared/ds';
+import { Button, Input } from '../../shared/ds';
 import { toast } from 'sonner';
 import { api } from '../../lib/api';
 import { useEscapeToClose } from '../../shared/useBackTo';

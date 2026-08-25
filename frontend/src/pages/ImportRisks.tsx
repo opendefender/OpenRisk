@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useI18n, interpolate } from '../hooks/useI18n';
-import { Button, Field } from '../shared/ds';
+import { Button } from '../shared/ds';
 import { api } from '../lib/api';
 import { useRiskStore } from '../hooks/useRiskStore';
 import { SkeletonTable } from '../components/shared';

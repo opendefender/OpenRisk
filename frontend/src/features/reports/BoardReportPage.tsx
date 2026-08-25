@@ -16,7 +16,7 @@ import {
   ShieldAlert,
   ScrollText,
 } from 'lucide-react';
-import { Button, Field, cn } from '../../shared/ds';
+import { Button, cn } from '../../shared/ds';
 import { ProgressState } from '../../shared/ProgressState';
 import { useBoardReports, useBoardReport } from './useBoardReports';
 import type { BoardReport, BoardLocale } from '../../types/board';

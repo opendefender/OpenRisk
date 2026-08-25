@@ -261,7 +261,7 @@ for (const file of walk(SRC)) {
 
   // 4. Import paths.
   next = rewriteImports(next, file);
-  if (next !== beforeFields && /from '([^']*shared\/ds)'/.test(next)) {
+  if (next !== beforeFields && next.includes('<Field')) {
     // Field is now referenced; add it to the design-system import.
     next = next.replace(
       /import\s*\{([^}]*)\}\s*from\s*'([^']*shared\/ds)'/,

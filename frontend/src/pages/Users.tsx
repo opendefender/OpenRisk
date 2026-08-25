@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Users as UsersIcon, Shield, Trash2, Lock, Unlock, Plus, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
-import { Button, Field } from '../shared/ds';
+import { Button } from '../shared/ds';
 import { useAuthStore } from '../hooks/useAuthStore';
 import { CreateUserModal } from '../features/users/CreateUserModal';
 

@@ -19,7 +19,7 @@ import {
   Search, Bell, Sun, Moon, Menu,
   Rows2, Rows3, Rows4, Keyboard,
 } from 'lucide-react';
-import { Field, cn } from '../../shared/ds';
+import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { Hint } from '../../shared/Hint';

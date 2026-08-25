@@ -22,7 +22,7 @@ import { ViewSwitcher } from './ViewSwitcher';
 import { MitigationTableView } from './MitigationTableView';
 import { MitigationGanttView } from './MitigationGanttView';
 import { CreateMitigationModal } from './CreateMitigationModal';
-import { Button, Field } from '../../shared/ds';
+import { Button } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn } from '../../shared/ui';
 import { useI18n } from '../../hooks/useI18n';

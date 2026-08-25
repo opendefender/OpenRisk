@@ -11,9 +11,8 @@
  * --------------------------
  * A badge takes an `intent` (how it should look) and nothing else. It does NOT
  * know what a risk status is, what a scan result is, or what "P1" means. The
- * mapping from a business enum to an intent is written once per domain, next to
- * that domain, and is a plain lookup table — see riskStatusIntent below for the
- * shape.
+ * mapping from a business enum to an intent is written once per domain and is a
+ * plain lookup table — see ./badgeIntents.ts.
  *
  * Why: the moment a badge switches on business values, every new enum value in
  * the backend becomes a UI change, and two features inevitably disagree about
@@ -119,29 +118,3 @@ export function Badge({
     </span>
   );
 }
-
-/* ------------------------------------------------------------------ mapping --
-   Business enum -> visual intent. One table per domain, exhaustive by type so
-   the compiler flags a new enum value instead of it silently falling through
-   to neutral. */
-
-export type RiskStatusValue = 'open' | 'in_progress' | 'mitigated' | 'accepted' | 'closed';
-
-export const riskStatusIntent: Record<RiskStatusValue, BadgeIntent> = {
-  open: 'danger',
-  in_progress: 'warning',
-  mitigated: 'success',
-  accepted: 'neutral',
-  closed: 'neutral',
-};
-
-export type SeverityValue = 'critical' | 'high' | 'medium' | 'low';
-
-export const severityIntent: Record<SeverityValue, BadgeIntent> = {
-  critical: 'danger',
-  high: 'warning',
-  /* Medium maps to info, not warning: if medium and high share an intent the
-     badge stops distinguishing the two values it exists to distinguish. */
-  medium: 'info',
-  low: 'success',
-};

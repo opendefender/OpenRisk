@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import type { Mitigation, SubAction } from '../../types/mitigation';
 import { mitigationService } from '../../services/mitigationService';
 import { SubActionTable } from './SubActionTable';
-import { Button, Field } from '../../shared/ds';
+import { Button } from '../../shared/ds';
 import { ProgressBar } from '../../components/shared/ProgressBar';
 import { useI18n } from '../../hooks/useI18n';
 import { cn } from '../../utils/cn';

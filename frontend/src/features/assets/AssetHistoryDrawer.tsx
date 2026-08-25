@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { Clock, History, User } from 'lucide-react';
-import { Drawer, Field } from '../../shared/ds';
+import { Drawer } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
 import { useAssets, useAssetHistory } from './useAssets';

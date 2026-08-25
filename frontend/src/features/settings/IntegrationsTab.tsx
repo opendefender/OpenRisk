@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { ShieldAlert, Database, Box, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { Button, Field } from '../../shared/ds';
+import { Button } from '../../shared/ds';
 import { toast } from 'sonner';
 
 const modules = [

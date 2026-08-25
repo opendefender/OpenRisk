@@ -5,7 +5,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Check } from 'lucide-react';
-import { Button, Field } from '../../shared/ds';
+import { Button } from '../../shared/ds';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

@@ -26,16 +26,13 @@ export {
   type TextareaProps,
   type SelectProps,
 } from './Field';
+export { Badge, type BadgeIntent, type BadgeSize, type BadgeProps } from './Badge';
 export {
-  Badge,
   riskStatusIntent,
   severityIntent,
-  type BadgeIntent,
-  type BadgeSize,
-  type BadgeProps,
   type RiskStatusValue,
   type SeverityValue,
-} from './Badge';
+} from './badgeIntents';
 export { Modal, type ModalProps, type ModalSize } from './Modal';
 export { Drawer, type DrawerProps, type DrawerSide, type DrawerSize } from './Drawer';
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs';

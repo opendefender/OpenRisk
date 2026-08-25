@@ -6,7 +6,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, FileText, Trash2, Upload } from 'lucide-react';
-import { Button, Drawer, Field } from '../../shared/ds';
+import { Button, Drawer } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';

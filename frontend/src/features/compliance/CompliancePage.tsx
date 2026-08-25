@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ClipboardList, FileDown, Library, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { Button, Field } from '../../shared/ds';
+import { Button } from '../../shared/ds';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn } from '../../shared/ui';

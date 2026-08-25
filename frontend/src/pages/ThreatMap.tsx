@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Globe, MapPin, AlertTriangle, TrendingUp, RefreshCw } from 'lucide-react';
-import { Button, Field } from '../shared/ds';
+import { Button } from '../shared/ds';
 import { useThreatStore, type Threat } from '../hooks/useThreatStore';
 
 export const ThreatMap = () => {

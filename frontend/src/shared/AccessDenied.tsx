@@ -53,11 +53,11 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
           <Lock size={28} strokeWidth={1.7} />
         </div>
 
-        <h1 className="text-[17px] font-semibold text-ink mb-2">
+        <h1 className="text-md font-semibold text-ink mb-2">
           {tr('Vous n’avez pas accès à cette page', 'You do not have access to this page')}
         </h1>
 
-        <p className="text-[13px] text-ink-soft leading-relaxed mb-4">
+        <p className="text-sm text-ink-soft leading-relaxed mb-4">
           {tr(
             'Elle demande une permission qui n’est pas attribuée à votre rôle.',
             'It requires a permission that is not granted to your role.',
@@ -67,13 +67,13 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
         {/* The exact string the backend guard checks — pasteable into the role
             editor by whoever grants it. */}
         <div
-          className="flex items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 mb-4"
+          className="flex items-center justify-center gap-2 rounded-md px-3 py-2.5 mb-4"
           style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
         >
-          <span className="text-[11px] uppercase tracking-wide text-ink-muted shrink-0">
+          <span className="text-2xs uppercase tracking-wide text-ink-muted shrink-0">
             {tr('Permission requise', 'Required permission')}
           </span>
-          <code data-testid="missing-permission" className="mono text-[12.5px] font-semibold text-ink truncate">
+          <code data-testid="missing-permission" className="mono text-xs font-semibold text-ink truncate">
             {permission}
           </code>
           <button
@@ -85,7 +85,7 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
           </button>
         </div>
 
-        <p className="text-[12.5px] text-ink-muted leading-relaxed mb-6">
+        <p className="text-xs text-ink-muted leading-relaxed mb-6">
           {tr(
             'Demandez-la à un administrateur de votre organisation : il peut vous l’attribuer depuis Paramètres › Membres.',
             'Ask an administrator of your organisation: they can grant it from Settings › Members.',
@@ -96,7 +96,7 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
           <Btn label={tr('Retour', 'Go back')} icon={ArrowLeft} onClick={() => navigate(back)} />
           <Link
             to="/settings/members"
-            className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-[7px] transition-colors text-ink hover:bg-hover"
+            className="h-9 px-3.5 rounded-md text-sm font-semibold inline-flex items-center gap-[7px] transition-colors text-ink hover:bg-hover"
             style={{ border: '1px solid var(--border-strong)' }}
           >
             {tr('Voir les administrateurs', 'View administrators')}

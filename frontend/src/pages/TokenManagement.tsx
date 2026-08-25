@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Key, Trash2, Lock, Copy, Plus, Search, Calendar, ChevronDown } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
-import { Button, Field } from '../shared/ds';
+import { Button } from '../shared/ds';
 
 interface APIToken {
   id: string;

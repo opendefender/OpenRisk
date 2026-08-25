@@ -80,7 +80,9 @@ export function useDismissableLayer<T extends HTMLElement>(
   // Kept in a ref so changing the handler between renders does not tear down
   // and rebuild the listeners (which would drop the layer out of the stack).
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
