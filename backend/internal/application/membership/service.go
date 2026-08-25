@@ -238,6 +238,22 @@ type Service struct {
 	onboarding OnboardingCompleter
 	baseURL    string
 	now        func() time.Time
+	// mfaPrivileged names the roles for which MFA is not negotiable, so a role
+	// change can re-anchor the grace window (OR26-03). Zero value = the feature
+	// is not wired and role changes leave the anchor alone.
+	mfaPrivileged domain.MFAPrivilegeSet
+	// mfaCache drops the resolved MFA decision after a role change. Optional.
+	mfaCache MFAStatusInvalidator
+}
+
+// MFAStatusInvalidator drops a cached MFA decision for one member.
+//
+// Optional and nil-safe. Without it a promotion or demotion takes up to the
+// resolver's TTL to be reflected, which is a stale answer rather than a wrong
+// one — but "I promoted them and nothing happened" is exactly the report that
+// makes an administrator distrust the control.
+type MFAStatusInvalidator interface {
+	Invalidate(userID, tenantID uuid.UUID)
 }
 
 // NewService builds the service over its two required ports.
@@ -254,6 +270,20 @@ func (s *Service) WithPasswordHasher(h PasswordHasher) *Service    { s.hasher = 
 func (s *Service) WithOnboarding(o OnboardingCompleter) *Service   { s.onboarding = o; return s }
 func (s *Service) WithBaseURL(u string) *Service {
 	s.baseURL = strings.TrimRight(strings.TrimSpace(u), "/")
+	return s
+}
+
+// WithMFAPrivilegeRoles tells the service which roles carry a mandatory-MFA
+// deadline, so promoting somebody into one re-anchors their grace window.
+func (s *Service) WithMFAPrivilegeRoles(orgRoles, businessRoles []string) *Service {
+	s.mfaPrivileged = domain.NewMFAPrivilegeSet(orgRoles, businessRoles)
+	return s
+}
+
+// WithMFAStatusInvalidator makes a role change take effect on the MFA decision
+// immediately rather than at the end of the resolver's TTL.
+func (s *Service) WithMFAStatusInvalidator(i MFAStatusInvalidator) *Service {
+	s.mfaCache = i
 	return s
 }
 

@@ -39,6 +39,8 @@ import { EmptyState } from '../../shared/EmptyState';
 import { Btn } from '../../shared/ui';
 import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
+import { MFAEnrollmentBanner } from '../auth/MFAEnrollmentBanner';
+import { MFAPostAhaPrompt } from '../auth/MFAPostAhaPrompt';
 import { personaFor } from './dashboardPersona';
 import { AnalystDashboard } from './AnalystDashboard';
 import { ExecDashboard } from './ExecDashboard';
@@ -199,7 +201,19 @@ function PostureDashboard() {
             completion and the celebration all come from GET /activation/state.
             Deriving them here from local counts is what used to make it tick
             unreliably and fire confetti at random. */}
+        {/* OR26-03 — the non-blocking MFA prompt. It replaces the enrolment wall
+            that used to stand between a new account and its first screen: the
+            server now lets eligible users in and this says what they should do
+            about it. Enforcement is the server's (MFAPolicyGuard) — dismissing
+            this changes nothing about who is allowed in. */}
+        <MFAEnrollmentBanner />
+
         <OnboardingChecklist />
+
+        {/* And the second ask, once the Aha moment has actually been reached.
+            The trigger is activation.aha_reached_at, recorded server-side from
+            the user's own data — never a flag this component sets. */}
+        <MFAPostAhaPrompt />
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">

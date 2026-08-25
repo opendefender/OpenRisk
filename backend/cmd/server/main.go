@@ -213,6 +213,9 @@ func main() {
 		// full-fidelity auth audit trail) errored on non-existent tables.
 		&domain.MFASecret{},
 		&domain.MFABackupCode{},
+		// OR26-03 — how long a privileged member of this tenant may defer
+		// enrolment. One row per tenant; an absent row means the 7-day default.
+		&domain.MFAPolicy{},
 		&domain.PersonalAccessToken{},
 		&domain.OAuthProvider{},
 		&domain.AuthAuditLog{},
@@ -808,18 +811,22 @@ func main() {
 	// (privileged accounts); a deployment onboarding non-technical members who may
 	// lack an authenticator can widen or narrow it via MFA_REQUIRED_ROLES
 	// (comma-separated; empty string disables mandatory enrolment entirely).
-	mfaRequiredRoles := []string{"admin", "root"}
+	mfaRequiredRoles, mfaRequiredBusinessRoles := domain.DefaultMFAPrivilegeRoles()
 	if v, ok := os.LookupEnv("MFA_REQUIRED_ROLES"); ok {
-		mfaRequiredRoles = mfaRequiredRoles[:0]
-		for _, r := range strings.Split(v, ",") {
-			if r = strings.TrimSpace(r); r != "" {
-				mfaRequiredRoles = append(mfaRequiredRoles, r)
-			}
-		}
+		mfaRequiredRoles = splitCSVEnv(v)
 	}
+	// OR26-03 — the security officer holds org role `user`, so a check on the org
+	// role alone would exempt exactly the account the requirement is written for.
+	if v, ok := os.LookupEnv("MFA_REQUIRED_BUSINESS_ROLES"); ok {
+		mfaRequiredBusinessRoles = splitCSVEnv(v)
+	}
+	// OR26-03 — the tenant's grace window. Deployment decides WHO is privileged;
+	// each tenant decides HOW LONG they may defer (default 7 days).
+	mfaPolicyRepo := repository.NewGormMFAPolicyRepository(database.DB)
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
-		RequireMFAForRoles(mfaRequiredRoles...)
+		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithMFAPolicies(mfaPolicyRepo)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder)
@@ -831,7 +838,19 @@ func main() {
 	verifyMFAUseCase := auth.NewVerifyMFAUseCase(mfaRepo, *userRepo, mfaKey[:])
 	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, passwordHasher)
 	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])
-	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit)
+	// OR26-03 — one resolver answers "must this member enrol now?" for /auth/me
+	// and for the request-time guard, so the banner and the enforcement can never
+	// disagree. Cached per (user, tenant) for a minute; enrolment, disabling and
+	// policy changes drop the entry immediately.
+	mfaStatusResolver := auth.NewMFAStatusResolver(mfaRepo, userRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithPolicies(mfaPolicyRepo)
+	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit).
+		WithMFAStatus(mfaStatusResolver)
+	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
+		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),
+		auth.NewUpdateMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
+			WithCacheInvalidator(mfaStatusResolver),
+	)
 	patHandler := authhandler.NewPATHandler(patService, authAudit)
 
 	// Password reset use cases + handler.
@@ -868,7 +887,7 @@ func main() {
 		logoutUseCase,
 		passwordHasher,
 		authAudit,
-	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo)
+	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo).WithMFAStatus(mfaStatusResolver)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused
@@ -1039,6 +1058,18 @@ func main() {
 	// the per-IP limit by spreading traffic across hosts.
 	protected.Use(middleware.TenantRateLimit(quotaStore, apiQuota))
 
+	// OR26-03 — MFA policy, enforced at request time rather than only at the
+	// door. Enforcing at login alone would let a privileged account that signed
+	// in on day one keep working past its deadline simply by never signing out,
+	// which would make the window bound how long you may wait to log in rather
+	// than how long you may go without a second factor.
+	//
+	// Mounted here so it sees the identity the auth gate has just published, and
+	// before every business route. The enrolment endpoints and logout stay
+	// reachable (see mfaGuardExemptSuffixes) — a requirement you cannot satisfy
+	// is a lockout, not a control.
+	protected.Use(middleware.MFAPolicyGuard(mfaStatusResolver))
+
 	// Governance audit trail (spec §15): stamp the acting identity + request
 	// metadata onto the request context for every authenticated route, so any
 	// repository that threads c.UserContext() into GORM lets the audittrail
@@ -1148,6 +1179,16 @@ func main() {
 	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
 	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
 	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+
+	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
+	// Reading is open to any authenticated member: everyone subject to a deadline
+	// deserves to see what it is, and the banner needs the bounds to validate
+	// against the server's numbers rather than a copy that can drift. Writing is
+	// admin-only — moving the deadline by which privileged accounts must hold a
+	// second factor is a security decision, and it lands in the governance audit
+	// trail through domain.MFAPolicy's Auditable opt-in.
+	protected.Get("/security/mfa-policy", mfaPolicyHandler.Get)
+	protected.Put("/security/mfa-policy", middleware.RequireRole("admin", "root"), mfaPolicyHandler.Update)
 
 	// --- Sessions / devices (L3) — full session required ---
 	protected.Get("/auth/sessions", sessionHandler.ListSessions)
@@ -2277,6 +2318,11 @@ func main() {
 		// can be minted for them.
 		WithSessionRevoker(tokenManager).
 		WithPasswordHasher(passwordHasher).
+		// OR26-03 — promoting somebody into a privileged role re-anchors their MFA
+		// grace window and drops their cached decision, so the new deadline is the
+		// one they actually get and it applies on the next request.
+		WithMFAPrivilegeRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithMFAStatusInvalidator(mfaStatusResolver).
 		// An invitee joins an organization that already exists, so the signup
 		// wizard — whose first screen asks you to set one up — has nothing to
 		// ask them. Without this the route guard would hold a newly joined
@@ -2954,4 +3000,17 @@ func (m memberDirectory) ListMembers(ctx context.Context, tenantID uuid.UUID) ([
 
 func (m memberDirectory) GetMember(ctx context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error) {
 	return m.repo.GetMember(ctx, tenantID, userID)
+}
+
+// splitCSVEnv parses a comma-separated environment override into a trimmed,
+// blank-free list. An explicitly empty value yields an empty list, which is how
+// a deployment says "nobody" rather than "the default" (OR26-03).
+func splitCSVEnv(v string) []string {
+	out := []string{}
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

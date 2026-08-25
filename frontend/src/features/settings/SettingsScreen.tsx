@@ -37,6 +37,7 @@ import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 import { BillingPanel } from '../billing/BillingPanel';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
+import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
 
 type TabKey = 'general' | 'members' | 'tokens' | 'orgs' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
 type Tr = (fr: string, en: string) => string;
@@ -930,15 +931,12 @@ function NotifTab({ tr }: { tr: Tr }) {
 function SecurityTab({ tr }: { tr: Tr }) {
   return (
     <>
-      <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
-        <Title>{tr('Authentification', 'Authentication')}</Title>
-        <div className="text-[13px] text-ink-soft leading-relaxed">
-          {tr(
-            'La MFA (TOTP) et les codes de secours sont disponibles par utilisateur (POST /auth/mfa). La politique MFA/SSO au niveau de l’organisation est configurée par un administrateur — sa gestion depuis cet écran arrive prochainement.',
-            'MFA (TOTP) and backup codes are available per user (POST /auth/mfa). Organization-wide MFA/SSO policy is configured by an administrator — managing it from this screen is coming soon.'
-          )}
-        </div>
-      </Card>
+      {/* OR26-03 — this card used to say organization-wide MFA policy was
+          "coming soon". Both halves are real now: your own enrolment state with
+          the button that turns it on, and the grace window an administrator
+          sets for privileged accounts. */}
+      <MFAAccountPanel />
+      <MFAPolicyPanel />
       {/* Real device list, backed by GET/DELETE /auth/sessions. This card used to
           show only the current device and a "multi-device history will arrive"
           note; the sessions API now exists, so it lists every signed-in device

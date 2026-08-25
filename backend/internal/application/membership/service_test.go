@@ -383,6 +383,24 @@ func (s stubOrgs) GetByID(_ context.Context, id uuid.UUID) (*domain.Organization
 // Harness
 // ---------------------------------------------------------------------------
 
+// stubMFAInvalidator records which members' cached MFA decisions were dropped.
+type stubMFAInvalidator struct {
+	dropped []uuid.UUID
+}
+
+func (s *stubMFAInvalidator) Invalidate(userID, _ uuid.UUID) {
+	s.dropped = append(s.dropped, userID)
+}
+
+func (s *stubMFAInvalidator) has(id uuid.UUID) bool {
+	for _, x := range s.dropped {
+		if x == id {
+			return true
+		}
+	}
+	return false
+}
+
 type harness struct {
 	svc     *Service
 	repo    *fakeRepo
@@ -390,6 +408,7 @@ type harness struct {
 	audit   *recordingAudit
 	mailer  *stubMailer
 	revoker *stubRevoker
+	mfa     *stubMFAInvalidator
 	tenantA uuid.UUID
 	tenantB uuid.UUID
 	adminA  *domain.OrganizationMember
@@ -400,7 +419,7 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 	h := &harness{
 		repo: newFakeRepo(), users: newFakeUsers(), audit: &recordingAudit{},
-		mailer: &stubMailer{}, revoker: &stubRevoker{},
+		mailer: &stubMailer{}, revoker: &stubRevoker{}, mfa: &stubMFAInvalidator{},
 		tenantA: uuid.New(), tenantB: uuid.New(),
 		now: time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC),
 	}
@@ -415,6 +434,8 @@ func newHarness(t *testing.T) *harness {
 		WithSessionRevoker(h.revoker).
 		WithPasswordHasher(stubHasher{}).
 		WithBaseURL("https://openrisk.test").
+		WithMFAPrivilegeRoles(domain.DefaultMFAPrivilegeRoles()).
+		WithMFAStatusInvalidator(h.mfa).
 		WithClock(func() time.Time { return h.now })
 
 	h.adminA = h.addMember(t, h.tenantA, "admin@a.io", domain.RoleAdmin, domain.MembershipActive)
@@ -675,5 +696,111 @@ func TestSetStatus_RefusesSelfOwnerAndCrossTenant(t *testing.T) {
 	}
 	if !outsider.IsActive {
 		t.Fatal("tenant B's member was deactivated from tenant A")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// OR26-03 — role transitions and the MFA grace anchor
+// ---------------------------------------------------------------------------
+
+func TestChangeRole_PromotionReAnchorsTheMFAGraceWindow(t *testing.T) {
+	// Running the window from joined_at instead would lock a promoted colleague
+	// out the instant their new role took effect — a routine promotion turned
+	// into a support ticket.
+	h := newHarness(t)
+	ctx := context.Background()
+	target := h.addMember(t, h.tenantA, "user@a.io", domain.RoleUser, domain.MembershipActive)
+
+	long := h.now.Add(-365 * 24 * time.Hour)
+	target.JoinedAt = long
+	target.MFAGraceStartedAt = &long
+
+	if _, err := h.svc.ChangeRole(ctx, h.tenantA, ChangeRoleInput{
+		ActorID: h.adminA.UserID, MemberID: target.ID, Role: domain.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("promote: %v", err)
+	}
+
+	saved, err := h.repo.GetMemberByID(ctx, h.tenantA, target.ID)
+	if err != nil || saved == nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if saved.MFAGraceStartedAt == nil || !saved.MFAGraceStartedAt.Equal(h.now) {
+		t.Fatalf("a fresh privilege deserves a fresh window: got %v, want %v", saved.MFAGraceStartedAt, h.now)
+	}
+	if !h.mfa.has(target.UserID) {
+		t.Error("the cached MFA decision must be dropped so the promotion applies on the next request")
+	}
+}
+
+func TestChangeRole_PromotionToTheRSSIPresetAlsoReAnchors(t *testing.T) {
+	// The security officer keeps org role `user`; the privilege lives in the
+	// preset, so a check on the org role alone would miss the transition.
+	h := newHarness(t)
+	ctx := context.Background()
+	target := h.addMember(t, h.tenantA, "rssi@a.io", domain.RoleUser, domain.MembershipActive)
+	target.MFAGraceStartedAt = nil
+
+	if _, err := h.svc.ChangeRole(ctx, h.tenantA, ChangeRoleInput{
+		ActorID: h.adminA.UserID, MemberID: target.ID, Role: domain.RoleUser,
+		BusinessRole: domain.BusinessRoleRSSI, BusinessRoleSet: true,
+	}); err != nil {
+		t.Fatalf("assign preset: %v", err)
+	}
+
+	saved, _ := h.repo.GetMemberByID(ctx, h.tenantA, target.ID)
+	if saved.MFAGraceStartedAt == nil || !saved.MFAGraceStartedAt.Equal(h.now) {
+		t.Fatalf("becoming the RSSI must start the window: got %v", saved.MFAGraceStartedAt)
+	}
+}
+
+func TestChangeRole_DemotionLeavesTheAnchorAlone(t *testing.T) {
+	// The requirement does not apply to a member who is no longer privileged, so
+	// there is nothing to move; and if they are promoted again, that re-anchors.
+	h := newHarness(t)
+	ctx := context.Background()
+	h.addMember(t, h.tenantA, "admin2@a.io", domain.RoleAdmin, domain.MembershipActive)
+	target := h.addMember(t, h.tenantA, "admin3@a.io", domain.RoleAdmin, domain.MembershipActive)
+
+	original := h.now.Add(-3 * 24 * time.Hour)
+	target.MFAGraceStartedAt = &original
+
+	if _, err := h.svc.ChangeRole(ctx, h.tenantA, ChangeRoleInput{
+		ActorID: h.adminA.UserID, MemberID: target.ID, Role: domain.RoleUser,
+	}); err != nil {
+		t.Fatalf("demote: %v", err)
+	}
+
+	saved, _ := h.repo.GetMemberByID(ctx, h.tenantA, target.ID)
+	if saved.MFAGraceStartedAt == nil || !saved.MFAGraceStartedAt.Equal(original) {
+		t.Fatalf("a demotion must not move the anchor: got %v, want %v", saved.MFAGraceStartedAt, original)
+	}
+	if !h.mfa.has(target.UserID) {
+		t.Error("the cached decision must still be dropped — the member is no longer subject to the deadline")
+	}
+}
+
+func TestChangeRole_MovingBetweenPrivilegedRolesDoesNotExtendTheWindow(t *testing.T) {
+	// admin → user+rssi is privileged on both sides. Re-anchoring here would let
+	// a sideways edit quietly buy another week, which is the one thing the
+	// re-anchor rule must not become.
+	h := newHarness(t)
+	ctx := context.Background()
+	h.addMember(t, h.tenantA, "admin2@a.io", domain.RoleAdmin, domain.MembershipActive)
+	target := h.addMember(t, h.tenantA, "admin3@a.io", domain.RoleAdmin, domain.MembershipActive)
+
+	original := h.now.Add(-6 * 24 * time.Hour)
+	target.MFAGraceStartedAt = &original
+
+	if _, err := h.svc.ChangeRole(ctx, h.tenantA, ChangeRoleInput{
+		ActorID: h.adminA.UserID, MemberID: target.ID, Role: domain.RoleUser,
+		BusinessRole: domain.BusinessRoleRSSI, BusinessRoleSet: true,
+	}); err != nil {
+		t.Fatalf("change role: %v", err)
+	}
+
+	saved, _ := h.repo.GetMemberByID(ctx, h.tenantA, target.ID)
+	if !saved.MFAGraceStartedAt.Equal(original) {
+		t.Fatalf("a member privileged on both sides keeps their deadline: got %v, want %v", saved.MFAGraceStartedAt, original)
 	}
 }

@@ -30,6 +30,11 @@ type Handler struct {
 	// userLookup resolves the authenticated user for /auth/me. Optional; without it
 	// Me returns only the id/tenant it can read from the request context.
 	userLookup UserByIDReader
+	// mfaStatus resolves the caller's MFA requirement for the session contract
+	// (OR26-03). Optional; without it /auth/me omits the mfa block entirely
+	// rather than guessing, and the client treats an absent block as "unknown"
+	// instead of as "not required".
+	mfaStatus *auth.MFAStatusResolver
 }
 
 // UserByIDReader resolves a user by id for /auth/me.
@@ -46,6 +51,12 @@ func (h *Handler) WithNewDeviceNotifier(n *auth.NotifyNewDeviceUseCase) *Handler
 // WithUserLookup makes /auth/me return the real authenticated user.
 func (h *Handler) WithUserLookup(r UserByIDReader) *Handler {
 	h.userLookup = r
+	return h
+}
+
+// WithMFAStatus makes /auth/me carry the resolved MFA requirement (OR26-03).
+func (h *Handler) WithMFAStatus(r *auth.MFAStatusResolver) *Handler {
+	h.mfaStatus = r
 	return h
 }
 
@@ -107,6 +118,11 @@ type LoginResponse struct {
 	// SPA a cookie read on first load; it is not a secret from the client, only
 	// from other origins.
 	CSRFToken string `json:"csrf_token,omitempty"`
+	// MFA is the resolved enrolment state (OR26-03), carried on the response that
+	// already exists rather than behind a second call the SPA would have to make
+	// on every page. It reports state, whether enrolment is mandatory, and the
+	// deadline — and never a secret: no TOTP seed, no QR payload, no backup codes.
+	MFA *domain.MFADecision `json:"mfa,omitempty"`
 }
 
 // Login godoc
@@ -184,6 +200,10 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 			"mfa_enrollment_required": true,
 			"mfa_token":               result.MFAToken,
 			"user_id":                 result.User.ID,
+			// Says WHY enrolment is being demanded now — grace expired, or a
+			// zero-day policy — so the enrolment screen can explain itself rather
+			// than presenting an unexplained wall.
+			"mfa": result.MFAStatus,
 		})
 	}
 
@@ -207,12 +227,14 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	mfaStatus := result.MFAStatus
 	return c.JSON(LoginResponse{
 		User:         result.User,
 		TokenPair:    result.TokenPair,
 		Organization: result.Organization,
 		BusinessRole: result.BusinessRole,
 		CSRFToken:    csrfToken,
+		MFA:          &mfaStatus,
 	})
 }
 
@@ -466,15 +488,25 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 		})
 	}
 
+	// OR26-03 — the session contract. Resolved server-side on every call so the
+	// client cannot manufacture it, and omitted (rather than guessed) when the
+	// resolver is unwired or errors: an absent block reads as "unknown", which
+	// the banner renders as an error state, not as "you are fine".
+	mfaBlock := h.resolveMFABlock(c, mwCtx.UserID, mwCtx.OrganizationID)
+
 	// Resolve the real user. Password/MFA secret/deletion markers are json:"-", so
 	// the domain.User serialises without secrets.
 	if h.userLookup != nil {
 		user, err := h.userLookup.GetByID(c.UserContext(), mwCtx.UserID)
 		if err == nil && user != nil {
-			return c.JSON(fiber.Map{
+			body := fiber.Map{
 				"user":            user,
 				"organization_id": mwCtx.OrganizationID,
-			})
+			}
+			if mfaBlock != nil {
+				body["mfa"] = mfaBlock
+			}
+			return c.JSON(body)
 		}
 		if err == nil && user == nil {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
@@ -484,8 +516,35 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 
 	// No lookup wired: return only what the verified token already carries, rather
 	// than fabricating profile fields.
-	return c.JSON(fiber.Map{
+	body := fiber.Map{
 		"id":              mwCtx.UserID,
 		"organization_id": mwCtx.OrganizationID,
-	})
+	}
+	if mfaBlock != nil {
+		body["mfa"] = mfaBlock
+	}
+	return c.JSON(body)
+}
+
+// resolveMFABlock resolves the caller's MFA requirement, or nil when it cannot
+// be determined.
+//
+// Nil rather than a zero value on purpose: a zero MFADecision serialises as
+// "not configured, not required", which is indistinguishable from a genuine
+// answer and would let a transient database problem quietly tell the UI that a
+// privileged account is fine. Enforcement does not depend on this — the
+// request-time guard is what blocks — so reporting "unknown" here is safe.
+func (h *Handler) resolveMFABlock(c *fiber.Ctx, userID, tenantID uuid.UUID) *domain.MFADecision {
+	if h.mfaStatus == nil {
+		return nil
+	}
+	orgRole := ""
+	if claims := middleware.GetUserClaims(c); claims != nil {
+		orgRole = claims.OrgRoles[tenantID]
+	}
+	decision, err := h.mfaStatus.Resolve(c.UserContext(), userID, tenantID, orgRole)
+	if err != nil {
+		return nil
+	}
+	return &decision
 }

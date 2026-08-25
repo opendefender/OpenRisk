@@ -110,13 +110,42 @@ func (s *Service) ChangeRole(ctx context.Context, tenantID uuid.UUID, in ChangeR
 	}
 
 	before := domain.JSONMap{"role": string(m.Role), "business_role": string(m.BusinessRole)}
+	wasPrivileged := s.mfaPrivileged.Includes(m.Role, m.BusinessRole)
+
 	m.Role = role
 	if in.BusinessRoleSet || role == domain.RoleAdmin {
 		m.BusinessRole = business
 	}
 	m.UpdatedAt = s.clock()
+
+	// OR26-03 — a member who has just been given a privileged role starts their
+	// MFA grace window now.
+	//
+	// Running it from joined_at instead would lock a promoted colleague out the
+	// instant their new role took effect, which turns a routine promotion into a
+	// support ticket. Re-anchoring is safe because only an administrator can
+	// promote, the act is audited, and nobody can promote themselves
+	// (CheckRoleChange refuses ActorID == TargetUserID) — so this is not a
+	// handle anyone can pull on their own behalf.
+	//
+	// A demotion deliberately leaves the anchor alone: the requirement does not
+	// apply to a member who is no longer privileged, and clearing it would only
+	// matter if they were promoted again, which re-anchors anyway.
+	if !wasPrivileged && s.mfaPrivileged.Includes(m.Role, m.BusinessRole) {
+		at := m.UpdatedAt
+		m.MFAGraceStartedAt = &at
+	}
+
 	if err := s.repo.SaveMember(ctx, m); err != nil {
 		return nil, err
+	}
+
+	// The resolved MFA decision for this member has just changed. Dropping the
+	// cached answer means the promotion (or demotion) is visible on the next
+	// request rather than a minute later — "I promoted them and nothing
+	// happened" is the report that makes an administrator distrust the control.
+	if s.mfaCache != nil {
+		s.mfaCache.Invalidate(m.UserID, tenantID)
 	}
 
 	s.record(ctx, tenantID, in.ActorID, domain.AuditActionUpdate, "organization_member", m.ID.String(),

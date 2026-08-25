@@ -46,3 +46,8 @@ func (Vulnerability) AuditEntityType() string { return "vulnerability" }
 func (OrganizationMember) AuditEntityType() string { return "organization_member" }
 
 func (Invitation) AuditEntityType() string { return "invitation" }
+
+// The tenant's MFA grace policy. A change to it moves the deadline by which
+// privileged accounts must hold a second factor, which is exactly the kind of
+// security decision an auditor asks who made and when (OR26-03, invariant 7).
+func (MFAPolicy) AuditEntityType() string { return "mfa_policy" }

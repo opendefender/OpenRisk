@@ -9,6 +9,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileText, type LucideIcon } from 'lucide-react';
 import { InfoHint } from '../../shared/InfoHint';
+import { MFAEnrollmentBanner } from '../auth/MFAEnrollmentBanner';
+import { MFAPostAhaPrompt } from '../auth/MFAPostAhaPrompt';
 
 /** Numeric count-up over ~1.1s, ease-out cubic. Re-runs when target changes. */
 export function useCountUp(target: number, duration = 1100): number {
@@ -207,6 +209,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1320px]" style={{ animation: 'or-fadeup .4s ease' }}>
+        {/* OR26-03 — every persona dashboard frames itself with this shell
+            except the posture one, which mounts the same pair itself. Putting
+            the prompt here means an analyst, an executive or a viewer sees it
+            too: the deadline applies to the account, not to the layout they
+            happen to land on. Both render nothing when MFA is configured. */}
+        <MFAEnrollmentBanner />
+        <MFAPostAhaPrompt />
         {children}
       </div>
     </div>
