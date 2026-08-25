@@ -13,12 +13,34 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// redisForTest returns a client connected to a local Redis, or skips the test.
+//
+// These tests exercise the cache against a REAL Redis rather than a fake, which
+// is the right call — the behaviour under test is TTL handling, deletion and
+// single-flight callbacks, and a fake would be asserting the fake. But a test
+// that needs a server it did not start has to say so when the server is absent,
+// or it reports someone else's missing dependency as a defect in the code.
+//
+// Skipping is what the first test in this file already intended ("Skip if Redis
+// not available"); the others simply never got the same treatment, so every CI
+// job without a Redis service — including the release workflow, which has no
+// service containers at all — failed here and blocked the release.
+func redisForTest(t *testing.T) *redis.Client {
+	t.Helper()
+	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
+		t.Skipf("Redis is not reachable on localhost:6379, skipping: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	return client
+}
+
 func TestCacheService_SetAndGet(t *testing.T) {
-	// In-memory Redis for testing
-	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	defer client.Close()
+	client := redisForTest(t)
 
 	cs := NewCacheService(client, 10*time.Second)
 	ctx := context.Background()
@@ -43,10 +65,7 @@ func TestCacheService_SetAndGet(t *testing.T) {
 }
 
 func TestCacheService_Delete(t *testing.T) {
-	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	defer client.Close()
+	client := redisForTest(t)
 
 	cs := NewCacheService(client, 10*time.Second)
 	ctx := context.Background()
@@ -68,10 +87,7 @@ func TestCacheService_Delete(t *testing.T) {
 }
 
 func TestCacheService_TTL(t *testing.T) {
-	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	defer client.Close()
+	client := redisForTest(t)
 
 	cs := NewCacheService(client, 10*time.Second)
 	ctx := context.Background()
@@ -91,10 +107,7 @@ func TestCacheService_TTL(t *testing.T) {
 }
 
 func TestCacheService_SetWithCallback(t *testing.T) {
-	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-	defer client.Close()
+	client := redisForTest(t)
 
 	cs := NewCacheService(client, 10*time.Second)
 	ctx := context.Background()
