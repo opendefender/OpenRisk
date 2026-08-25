@@ -48,19 +48,27 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/components/layout/NotificationCenter.tsx',
   'frontend/src/components/layout/Sidebar.tsx',
   'frontend/src/components/search/AdvancedSearch.tsx',
-  'frontend/src/components/ui/Drawer.tsx',
   'frontend/src/features/ai/AiAuditReportButton.tsx',
   'frontend/src/features/assets/CreateAssetModal.tsx',
   'frontend/src/features/assets/EditAssetModal.tsx',
+  'frontend/src/features/auth/MFAEnrollmentDialog.tsx',
+  'frontend/src/features/auth/MFAPostAhaPrompt.tsx',
+  'frontend/src/features/automation/AutomationPage.tsx',
+  'frontend/src/features/automation/DryRunPanel.tsx',
   'frontend/src/features/automation/RuleEditorModal.tsx',
   'frontend/src/features/compliance/ComplianceModals.tsx',
   'frontend/src/features/compliance/CreateControlModal.tsx',
   'frontend/src/features/compliance/CreateFrameworkModal.tsx',
   'frontend/src/features/compliance/FrameworkDetail.tsx',
   'frontend/src/features/compliance/ImportCatalogModal.tsx',
+  'frontend/src/features/cti/CveDetailDrawer.tsx',
+  'frontend/src/features/evidence/CreateEvidenceModal.tsx',
+  'frontend/src/features/evidence/EvidenceDrawer.tsx',
+  'frontend/src/features/financial/FinancialDashboard.tsx',
   'frontend/src/features/governance/GovernancePage.tsx',
+  'frontend/src/features/incidents/DeclareIncidentModal.tsx',
   'frontend/src/features/incidents/IncidentDrawer.tsx',
-  'frontend/src/features/incidents/IncidentsScreen.tsx',
+  'frontend/src/features/incidents/PostMortemPanel.tsx',
   'frontend/src/features/incidents/WarRoom.tsx',
   'frontend/src/features/infrastructure/AgentDeployModal.tsx',
   'frontend/src/features/infrastructure/ScanConfigDrawer.tsx',
@@ -68,11 +76,13 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/features/mitigations/MitigationDetailDrawer.tsx',
   'frontend/src/features/mitigations/MitigationEditModal.tsx',
   'frontend/src/features/mitigations/MitigationsBoard.tsx',
-  'frontend/src/features/rbac/RolesAccessPage.tsx',
+  'frontend/src/features/onboarding/ProductTour.tsx',
+  'frontend/src/features/organization/MembersView.tsx',
+  'frontend/src/features/reports/FrameworkPickerDialog.tsx',
+  'frontend/src/features/reports/ReportConfigurator.tsx',
   'frontend/src/features/risks/CreateRiskModal.tsx',
   'frontend/src/features/risks/RiskRegisterPage.tsx',
   'frontend/src/features/risks/components/EditRiskModal.tsx',
-  'frontend/src/features/simulations/SimulationsPage.tsx',
   'frontend/src/features/users/CreateUserModal.tsx',
   'frontend/src/features/vulnerabilities/IngestModal.tsx',
   'frontend/src/features/vulnerabilities/IntegrationsPanel.tsx',
@@ -80,11 +90,27 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/pages/CustomFields.tsx',
   'frontend/src/pages/Marketplace.tsx',
   'frontend/src/pages/RoleManagement.tsx',
-  'frontend/src/pages/TenantManagement.tsx',
+  'frontend/src/shared/FieldHelp.tsx',
   'frontend/src/shared/Hint.tsx',
   'frontend/src/shared/InfoHint.tsx',
+  'frontend/src/shared/ScoreExplainer.tsx',
   'frontend/src/shared/ShortcutsOverlay.tsx',
+  'frontend/src/shared/UserPicker.tsx',
+  'frontend/src/shared/ds/Drawer.tsx',
+  'frontend/src/shared/ds/Modal.tsx',
 ]);
+
+
+/**
+ * Web fonts are fetched at runtime (Inter / DM Sans / JetBrains Mono). A
+ * screenshot taken before they land captures the fallback face, so the same
+ * page yields two different images depending on cache state — a diff that looks
+ * like a typography regression and is not. Waiting for document.fonts is what
+ * makes the suite deterministic.
+ */
+async function waitForFonts(page: import('@playwright/test').Page) {
+  await page.evaluate(() => document.fonts.ready);
+}
 
 function harnessURL(overlay: string, theme: string) {
   return `/e2e/visual/harness.html?overlay=${overlay}&theme=${theme}`;
@@ -98,6 +124,7 @@ for (const overlay of REGISTERED) {
       // Wait for the overlay itself, not just load: screenshotting during mount
       // produces a diff that looks like a colour regression but is a race.
       await page.waitForSelector('[role="dialog"], .fixed.inset-0', { state: 'visible' });
+      await waitForFonts(page);
 
       // Confirms the harness honoured the requested theme. Without this a bug
       // that ignores ?theme would make both snapshots identical and pass.

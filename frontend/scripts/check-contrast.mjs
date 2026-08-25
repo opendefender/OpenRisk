@@ -174,6 +174,21 @@ const NON_TEXT_PAIRS = [
 
 const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS];
 
+/**
+ * The live accent, per theme AND per accent variant.
+ *
+ * `--accent` is a TEXT colour in this product — links, the link button, the
+ * accent badge — so it has a 4.5:1 obligation, and it is the token most likely
+ * to be changed for aesthetic reasons. It was previously declared once for both
+ * themes, in index.css, and measured 3.65:1 on white everywhere it was used as
+ * text. Checking each variant in each theme is what makes that unrepeatable.
+ */
+const VARIANTS = ['azure', 'iris'];
+
+const ACCENT_PAIRS = [
+  ...SURFACES.map((surface) => ({ text: '--accent', surface, min: AA_NORMAL })),
+];
+
 const css = readFileSync(TOKENS, 'utf8');
 const themes = {
   dark: parseBlock(css, ":root[data-theme='dark']"),
@@ -214,6 +229,39 @@ for (const [themeName, scope] of Object.entries(themes)) {
     const mark = ok ? '.' : 'FAIL';
     if (!ok) {
       console.log(`  ${mark} ${text} on ${surface}: ${ratio.toFixed(2)}:1 (needs ${min}:1)`);
+    }
+  }
+}
+
+// Accent variants: the variant block only overrides the accent, so it is
+// layered over its theme's scope to resolve surfaces and the accent ramp.
+for (const [themeName, themeScope] of Object.entries(themes)) {
+  for (const variant of VARIANTS) {
+    const selector =
+      themeName === 'light'
+        ? `:root[data-theme='light'][data-variant='${variant}']`
+        : `:root[data-variant='${variant}']`;
+    const scope = { ...themeScope, ...parseBlock(css, selector) };
+
+    for (const { text, surface, min } of ACCENT_PAIRS) {
+      const fg = parseColor(resolveVar(scope[text], scope));
+      const bgRaw = parseColor(resolveVar(scope[surface], scope));
+      if (!fg || !bgRaw) {
+        console.log(`  ?  ${text} on ${surface} — unresolved in ${themeName}/${variant}`);
+        failures++;
+        continue;
+      }
+      const pageBg = parseColor(resolveVar(scope['--surface-0'], scope));
+      const bg = flatten(bgRaw, pageBg);
+      const ratio = contrast(flatten(fg, bg), bg);
+      checked++;
+      if (ratio < min) {
+        failures++;
+        console.log(
+          `  FAIL ${text} (${variant}) on ${surface} in ${themeName}: ` +
+            `${ratio.toFixed(2)}:1 (needs ${min}:1)`,
+        );
+      }
     }
   }
 }

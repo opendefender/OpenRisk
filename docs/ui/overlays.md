@@ -12,7 +12,7 @@ overlay is the one place a developer is most tempted to hardcode a dark panel.
 `text-text-primary`, `border-border-default`, and `bg-surface-overlay` for the
 scrim. Raw palette classes are rejected by `openrisk/no-raw-colors`.
 
-**Status:** 40/45 overlays carry no raw colour.
+**Status:** 50/57 overlays carry no raw colour.
 The `raw` column counts remaining literal palette classes; anything above zero
 is either a chart hue or a decorative gradient still awaiting a design decision
 (the colour codemod declines to guess those).
@@ -26,31 +26,41 @@ is either a chart hue or a decorative gradient still awaiting a design decision
 | `frontend/src/components/layout/NotificationCenter.tsx` | modal/dialog | — |
 | `frontend/src/components/layout/Sidebar.tsx` | modal/dialog, drawer | — |
 | `frontend/src/components/search/AdvancedSearch.tsx` | modal/dialog | — |
-| `frontend/src/components/ui/Drawer.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/ai/AiAuditReportButton.tsx` | modal/dialog | — |
 | `frontend/src/features/assets/CreateAssetModal.tsx` | modal/dialog | — |
 | `frontend/src/features/assets/EditAssetModal.tsx` | modal/dialog, drawer | — |
+| `frontend/src/features/auth/MFAEnrollmentDialog.tsx` | modal/dialog | — |
+| `frontend/src/features/auth/MFAPostAhaPrompt.tsx` | modal/dialog | — |
+| `frontend/src/features/automation/AutomationPage.tsx` | modal/dialog | — |
+| `frontend/src/features/automation/DryRunPanel.tsx` | modal/dialog | — |
 | `frontend/src/features/automation/RuleEditorModal.tsx` | modal/dialog | — |
 | `frontend/src/features/compliance/ComplianceModals.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/compliance/CreateControlModal.tsx` | modal/dialog | — |
 | `frontend/src/features/compliance/CreateFrameworkModal.tsx` | modal/dialog | — |
 | `frontend/src/features/compliance/FrameworkDetail.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/compliance/ImportCatalogModal.tsx` | modal/dialog | — |
-| `frontend/src/features/governance/GovernancePage.tsx` | modal/dialog | — |
+| `frontend/src/features/cti/CveDetailDrawer.tsx` | modal/dialog, drawer | — |
+| `frontend/src/features/evidence/CreateEvidenceModal.tsx` | modal/dialog | 1 |
+| `frontend/src/features/evidence/EvidenceDrawer.tsx` | modal/dialog, drawer | 1 |
+| `frontend/src/features/financial/FinancialDashboard.tsx` | modal/dialog | — |
+| `frontend/src/features/governance/GovernancePage.tsx` | modal/dialog, drawer | — |
+| `frontend/src/features/incidents/DeclareIncidentModal.tsx` | modal/dialog | — |
 | `frontend/src/features/incidents/IncidentDrawer.tsx` | modal/dialog, drawer | — |
-| `frontend/src/features/incidents/IncidentsScreen.tsx` | modal/dialog, drawer | — |
+| `frontend/src/features/incidents/PostMortemPanel.tsx` | modal/dialog | — |
 | `frontend/src/features/incidents/WarRoom.tsx` | modal/dialog | — |
 | `frontend/src/features/infrastructure/AgentDeployModal.tsx` | modal/dialog | — |
 | `frontend/src/features/infrastructure/ScanConfigDrawer.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/mitigations/CreateMitigationModal.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/mitigations/MitigationDetailDrawer.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/mitigations/MitigationEditModal.tsx` | modal/dialog | — |
-| `frontend/src/features/mitigations/MitigationsBoard.tsx` | modal/dialog, drawer | — |
-| `frontend/src/features/rbac/RolesAccessPage.tsx` | modal/dialog | — |
+| `frontend/src/features/mitigations/MitigationsBoard.tsx` | modal/dialog | — |
+| `frontend/src/features/onboarding/ProductTour.tsx` | modal/dialog | — |
+| `frontend/src/features/organization/MembersView.tsx` | modal/dialog | — |
+| `frontend/src/features/reports/FrameworkPickerDialog.tsx` | modal/dialog | — |
+| `frontend/src/features/reports/ReportConfigurator.tsx` | modal/dialog | 1 |
 | `frontend/src/features/risks/components/EditRiskModal.tsx` | modal/dialog | — |
-| `frontend/src/features/risks/CreateRiskModal.tsx` | modal/dialog | — |
+| `frontend/src/features/risks/CreateRiskModal.tsx` | modal/dialog, drawer | — |
 | `frontend/src/features/risks/RiskRegisterPage.tsx` | modal/dialog, drawer | — |
-| `frontend/src/features/simulations/SimulationsPage.tsx` | modal/dialog | — |
 | `frontend/src/features/users/CreateUserModal.tsx` | modal/dialog | — |
 | `frontend/src/features/vulnerabilities/IngestModal.tsx` | modal/dialog | — |
 | `frontend/src/features/vulnerabilities/IntegrationsPanel.tsx` | modal/dialog | — |
@@ -58,12 +68,14 @@ is either a chart hue or a decorative gradient still awaiting a design decision
 | `frontend/src/pages/CustomFields.tsx` | modal/dialog | 2 |
 | `frontend/src/pages/Marketplace.tsx` | modal/dialog | 7 |
 | `frontend/src/pages/RoleManagement.tsx` | modal/dialog | 10 |
-| `frontend/src/pages/TenantManagement.tsx` | modal/dialog | 1 |
-| `frontend/src/shared/DangerConfirm.tsx` | modal/dialog | — |
+| `frontend/src/shared/ds/Drawer.tsx` | modal/dialog, drawer | — |
+| `frontend/src/shared/ds/Modal.tsx` | modal/dialog, drawer | — |
+| `frontend/src/shared/FieldHelp.tsx` | popover/menu | — |
 | `frontend/src/shared/Hint.tsx` | popover/menu | — |
-| `frontend/src/shared/ImpactDialog.tsx` | modal/dialog | — |
 | `frontend/src/shared/InfoHint.tsx` | modal/dialog, popover/menu | — |
+| `frontend/src/shared/ScoreExplainer.tsx` | modal/dialog | — |
 | `frontend/src/shared/ShortcutsOverlay.tsx` | modal/dialog | — |
+| `frontend/src/shared/UserPicker.tsx` | drawer, popover/menu | — |
 
 ## Portals
 

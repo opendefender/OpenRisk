@@ -103,6 +103,16 @@
      focus indicator. */
   --focus-ring-color: var(--accent-400);
 
+  /* The live accent. Defaulted here so the app is never left without one: the
+     bootstrap script in index.html has a fallback path that sets data-theme
+     but not data-variant, and --accent was undefined down that path. */
+  --accent: var(--accent-400);
+  --accent-hover: var(--accent-300);
+  --accent-2: var(--info);
+  --accent-soft: rgba(79, 141, 255, 0.14);
+  --accent-line: rgba(79, 141, 255, 0.32);
+  --accent-glow: rgba(79, 141, 255, 0.35);
+
   /* semantic — `-text` variants are tuned to pass AA on their `-surface` */
   --success: #30d158;
   --success-surface: #0e2716;
@@ -261,6 +271,13 @@
   /* See the dark block. */
   --focus-ring-color: var(--accent-500);
 
+  --accent: var(--accent-600);
+  --accent-hover: var(--accent-700);
+  --accent-2: var(--info);
+  --accent-soft: rgba(31, 98, 224, 0.1);
+  --accent-line: rgba(31, 98, 224, 0.3);
+  --accent-glow: rgba(31, 98, 224, 0.25);
+
   /* semantic — darker than their dark-theme counterparts so they stay
      readable on white; the `-surface` tints are deliberately very light */
   --success: #1a7f3c;
@@ -366,4 +383,58 @@
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* ------------------------------------------------------ accent variants ---- */
+/*
+   azure / iris are a product feature: the user picks one in Settings. They are
+   still COLOUR, so they belong here and they are theme-dependent.
+
+   They were previously declared once, in index.css, with a single value used in
+   both themes. That is why every `text-accent` in the product measured 3.65:1
+   on white — below AA — while passing comfortably on the dark canvas. A hue
+   bright enough to read on a dark surface is, by construction, too light to
+   read on a pale one. Each variant therefore has two definitions, and both are
+   verified by scripts/check-contrast.mjs.
+
+   --accent-soft and --accent-line are tints, not text colours; they carry no
+   contrast requirement of their own beyond what sits on top of them.
+*/
+
+:root[data-variant='azure'] {
+  --accent: #4f9bff;
+  --accent-hover: #7ab4ff;
+  --accent-2: #64d2ff;
+  --accent-soft: rgba(79, 155, 255, 0.14);
+  --accent-line: rgba(79, 155, 255, 0.32);
+  --accent-glow: rgba(79, 155, 255, 0.35);
+  --font-display: 'Inter';
+}
+
+:root[data-theme='light'][data-variant='azure'] {
+  --accent: #0b62bd;
+  --accent-hover: #094e97;
+  --accent-2: #0b6f96;
+  --accent-soft: rgba(11, 98, 189, 0.1);
+  --accent-line: rgba(11, 98, 189, 0.3);
+  --accent-glow: rgba(11, 98, 189, 0.25);
+}
+
+:root[data-variant='iris'] {
+  --accent: #9d90ff;
+  --accent-hover: #b6acff;
+  --accent-2: #b692ff;
+  --accent-soft: rgba(157, 144, 255, 0.16);
+  --accent-line: rgba(157, 144, 255, 0.34);
+  --accent-glow: rgba(157, 144, 255, 0.35);
+  --font-display: 'DM Sans';
+}
+
+:root[data-theme='light'][data-variant='iris'] {
+  --accent: #5b46c9;
+  --accent-hover: #48369f;
+  --accent-2: #6247d6;
+  --accent-soft: rgba(91, 70, 201, 0.1);
+  --accent-line: rgba(91, 70, 201, 0.3);
+  --accent-glow: rgba(91, 70, 201, 0.25);
 }

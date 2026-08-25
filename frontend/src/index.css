@@ -15,26 +15,10 @@
 @tailwind components;
 @tailwind utilities;
 
-:root[data-variant='azure'] {
-  --accent: #0a84ff;
-  --accent-hover: #0060df;
-  --accent-2: #64d2ff;
-  --accent-soft: rgba(10, 132, 255, 0.14);
-  --accent-line: rgba(10, 132, 255, 0.32);
-  --accent-glow: rgba(10, 132, 255, 0.5);
-  --font-display: 'Inter';
-}
-
-/* accent — iris */
-:root[data-variant='iris'] {
-  --accent: #7c6cff;
-  --accent-hover: #6455e8;
-  --accent-2: #b692ff;
-  --accent-soft: rgba(124, 108, 255, 0.16);
-  --accent-line: rgba(124, 108, 255, 0.34);
-  --accent-glow: rgba(124, 108, 255, 0.5);
-  --font-display: 'DM Sans';
-}
+/* The accent variants (azure / iris) used to live here, defined once for both
+   themes. They are colour, they are theme-dependent, and they are now in
+   tokens.css with the rest — see the note there about why one value cannot
+   serve both themes. */
 
 /* The motion / type / spacing / radius / elevation / density scales used to be
    redeclared here, duplicating (and silently overriding) src/styles/tokens.css.

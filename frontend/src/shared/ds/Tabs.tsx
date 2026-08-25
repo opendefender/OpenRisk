@@ -19,9 +19,15 @@
  *
  * Deep-linking is the caller's job: several screens carry the active tab in
  * `?tab=`, and a component that owned that would have to know about the router.
+ *
+ * `id` is required, and TabPanel's `tabsId` must match it. That looks like
+ * friction until you notice the alternative: with the id generated privately
+ * inside Tabs, `aria-controls` pointed at an element id that no TabPanel could
+ * ever have, so the tab/panel association was broken in every consumer. axe
+ * catches it as aria-valid-attr-value; a person never would.
  */
 
-import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from './cn';
 import { Badge } from './Badge';
 
@@ -35,6 +41,8 @@ export interface TabItem<T extends string = string> {
 }
 
 export interface TabsProps<T extends string = string> {
+  /** Shared with every TabPanel of this group; ties tab to panel. */
+  id: string;
   items: readonly TabItem<T>[];
   value: T;
   onChange: (id: T) => void;
@@ -44,13 +52,13 @@ export interface TabsProps<T extends string = string> {
 }
 
 export function Tabs<T extends string = string>({
+  id: baseId,
   items,
   value,
   onChange,
   label,
   className,
 }: TabsProps<T>) {
-  const baseId = useId();
   const listRef = useRef<HTMLDivElement>(null);
 
   const enabled = items.filter((item) => !item.disabled);
@@ -121,7 +129,12 @@ export function Tabs<T extends string = string>({
             data-tab-id={item.id}
             id={`${baseId}-tab-${item.id}`}
             aria-selected={active}
-            aria-controls={`${baseId}-panel-${item.id}`}
+            /* Only the active tab points at a panel. Inactive panels are not
+               rendered at all (see TabPanel), so an aria-controls on every tab
+               would reference element ids that do not exist — which is a real
+               violation, not a technicality: assistive technology follows that
+               reference and finds nothing. */
+            aria-controls={active ? `${baseId}-panel-${item.id}` : undefined}
             /* Roving tabindex: exactly one tab is in the tab order. */
             tabIndex={active ? 0 : -1}
             disabled={item.disabled}
@@ -158,7 +171,7 @@ export function Tabs<T extends string = string>({
 }
 
 export interface TabPanelProps {
-  /** Must match the TabItem id and the Tabs instance it belongs to. */
+  /** Must equal the `id` given to the Tabs of this group. */
   tabsId: string;
   id: string;
   active: boolean;
