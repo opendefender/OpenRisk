@@ -140,6 +140,27 @@
     transform: translateX(0);
   }
 }
+/* Panel entrances. or-rise is the dialog's: 8px up under a fade, which reads as
+   "this arrived" without the zoom that makes a dialog look like a toast.
+   or-slidein-left is the mirror of or-slidein, for a left-hand drawer. */
+@keyframes or-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes or-slidein-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
 @keyframes or-scalein {
   from {
     opacity: 0;

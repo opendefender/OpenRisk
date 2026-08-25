@@ -243,6 +243,7 @@ export default {
         'or-fadeup': 'or-fadeup var(--dur-slow) var(--ease-out) both',
         'or-fadein': 'or-fadein var(--dur-base) var(--ease-out) both',
         'or-scalein': 'or-scalein var(--dur-base) var(--ease-out) both',
+        'or-rise': 'or-rise var(--dur-base) var(--ease-out) both',
         'or-slidein': 'or-slidein var(--dur-panel) var(--ease-out) both',
         'or-pulsedot': 'or-pulsedot 1.5s infinite',
         'or-shimmer': 'or-shimmer 1.4s infinite linear',
