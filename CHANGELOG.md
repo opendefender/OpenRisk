@@ -15,7 +15,15 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - Slack/Teams notifications
 - Jira integration
 
-## [1.1.0-rc.2] - 2026-08-24
+## [1.1.0-rc.3] - 2026-08-25
+
+> Supersedes `v1.1.0-rc.2`, which was tagged but never published: the release
+> workflow builds and tests from the tag, and three cache tests failed on a
+> runner with no Redis alongside them. Those tests now skip when Redis is absent
+> instead of reporting a missing dependency as a defect. The tag `v1.1.0-rc.2`
+> is left in place — a pushed tag is never moved or deleted (see
+> [docs/VERSIONING.md](docs/VERSIONING.md) §4) — and simply has no release
+> attached to it.
 
 ### Milestone
 
@@ -133,6 +141,12 @@ this is a release candidate, not a GA.
   micro-victories (UX-32). See `docs/UI_ELEVATION_PROPOSAL.md` §10.
 
 ### Fixed
+- **The cache tests no longer fail a CI job that has no Redis.** Three of the
+  four built a client against `localhost:6379` and then asserted on the result
+  unconditionally, so an absent server was reported as a defect in the cache
+  service. All four now ping first and skip with the reason — which is what the
+  first test in the file had always intended. This is what blocked `v1.1.0-rc.2`
+  from publishing.
 - **UX bug registry — all 12 audit findings** (`fix/ux-audit-bug-registry`, atomic
   commits): **OR-BUG-001/009** registration is real (3 fields → account + org
   membership → auto-login → land; fake MFA façade removed); **OR-BUG-002** first-run
@@ -290,8 +304,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.2...HEAD
-[1.1.0-rc.2]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.2
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...HEAD
+[1.1.0-rc.3]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.3
 [1.1.0-rc.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.8...v1.1.0-rc.1
 [1.0.4]: https://github.com/opendefender/OpenRisk/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/opendefender/OpenRisk/compare/v1.0.2...v1.0.3
