@@ -118,3 +118,28 @@ func TestMFAPolicyRepo_RefusesOutOfRangeAndMissingTenant(t *testing.T) {
 	_, err := repo.GetMFAPolicy(ctx, uuid.Nil)
 	require.Error(t, err)
 }
+
+func TestMFAPolicyRepo_ZeroDaysActuallyPersists(t *testing.T) {
+	// REGRESSION. domain.MFAPolicy.GraceDays used to carry `gorm:"default:7"`.
+	// GORM omits a zero-valued field on INSERT when the column declares a
+	// default, so saving 0 — "require MFA immediately", the STRICTEST setting —
+	// silently stored 7, the most permissive one. An administrator would have
+	// set the tightest policy the product offers and got the loosest.
+	repo := setupMFAPolicyRepo(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+
+	require.NoError(t, repo.SaveMFAPolicy(ctx, &domain.MFAPolicy{TenantID: tenant, GraceDays: 0}))
+
+	got, err := repo.GetMFAPolicy(ctx, tenant)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, 0, got.GraceDays, "zero must survive the round trip, not become the default")
+
+	// And the same on the update path, from a non-zero value down to zero.
+	require.NoError(t, repo.SaveMFAPolicy(ctx, &domain.MFAPolicy{TenantID: tenant, GraceDays: 14}))
+	require.NoError(t, repo.SaveMFAPolicy(ctx, &domain.MFAPolicy{TenantID: tenant, GraceDays: 0}))
+	got, err = repo.GetMFAPolicy(ctx, tenant)
+	require.NoError(t, err)
+	assert.Equal(t, 0, got.GraceDays)
+}

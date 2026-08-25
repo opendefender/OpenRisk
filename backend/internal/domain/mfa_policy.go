@@ -61,7 +61,14 @@ type MFAPolicy struct {
 	TenantID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"tenant_id"`
 	// GraceDays is how long a privileged member may hold a session before an
 	// authenticator becomes mandatory. Bounded by MFAGraceDaysMin/Max.
-	GraceDays int `gorm:"not null;default:7" json:"grace_days"`
+	//
+	// NO `default:` tag, deliberately. GORM omits a zero-valued field on INSERT
+	// when the column declares a default, so `default:7` made it impossible to
+	// save 0 — the strictest setting, "require MFA immediately", silently became
+	// the most permissive one. The DB-level default still exists in migration
+	// 0060 for raw inserts; every write from Go carries an explicit value, and
+	// callers that have none use DefaultMFAPolicy.
+	GraceDays int `gorm:"not null" json:"grace_days"`
 	// UpdatedByID is the administrator who last saved it. The full who/when/
 	// before/after record lives in the governance audit trail; this is the
 	// convenience field the settings screen shows.
