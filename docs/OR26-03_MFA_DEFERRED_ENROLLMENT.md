@@ -422,33 +422,34 @@ Voir `docs/OR26-03_MFA_DEFERRED_LIVE_PROOF.md`.
 
 ## Known Limitations
 
-1. **Aucune instance live n'a pu être exercée dans cette session.** Le démon
-   Docker de la machine est bloqué (`500 Internal Server Error` sur la socket) et
-   le Postgres écoutant sur `:5434` est un proxy Docker orphelin dont la poignée
-   de main n'aboutit jamais. Le parcours est prouvé par
-   `mfa_deferred_e2e_test.go`, qui traverse la **vraie** pile HTTP (handler,
-   middleware, garde, repository, modèles) sur sqlite ; `tests/e2e/mfa-deferred.spec.ts`
-   est **listé** par Playwright (14 cas) mais **non exécuté**. Détail et
-   commandes de reprise dans le live-proof.
-2. **Le disque de la machine est plein** (428 Go / 451 Go, 0 octet libre à
-   plusieurs reprises pendant la session). Sans rapport avec ce lot, mais cela a
-   fait échouer des écritures de fichiers et forcé à déporter `GOCACHE` sur
-   tmpfs. À traiter avant tout travail lourd sur cette machine.
-3. **La réancre à la promotion est réinitialisable par un administrateur.**
+1. **La migration SQL `0060` n'a pas été exécutée contre une base peuplée.** La
+   pile live a tourné sur un cluster Postgres jetable dont le schéma vient
+   d'`AutoMigrate`, donc le **backfill**
+   (`mfa_grace_started_at = COALESCE(joined_at, created_at)`) n'avait rien à
+   rétro-remplir. **À appliquer et vérifier avant tout déploiement.**
+2. **Deux cas restent prouvés par la suite HTTP uniquement** : RSSI après la
+   période de grâce (affecter un préset métier exige une invitation) et
+   « l'enrôlement restaure l'accès » (il faudrait calculer un TOTP valide à la
+   main). Les deux passent dans `mfa_deferred_e2e_test.go`.
+3. **Les 7 scénarios E2E ne peuvent pas tourner en parallèle** : chacun
+   enregistre un compte, et le limiteur d'auth (15 req / 5 min par IP) les fait
+   échouer en 429. Ils passent en série avec purge du compteur — un artefact du
+   harnais, pas du produit.
+4. **La réancre à la promotion est réinitialisable par un administrateur.**
    Rétrograder puis re-promouvoir un collègue lui redonne une fenêtre neuve. Cela
    exige des droits d'administrateur — que seul un compte lui-même soumis à
    l'exigence détient — et chaque changement est audité. Documenté plutôt que
    verrouillé : verrouiller signifierait qu'une promotion légitime verrouille son
    bénéficiaire dehors.
-4. **Le blocage d'un PAT est volontairement brutal.** Une intégration dont le
+5. **Le blocage d'un PAT est volontairement brutal.** Une intégration dont le
    propriétaire dépasse son échéance cesse de fonctionner sans préavis
    proportionné. Une alerte anticipée par e-mail au propriétaire est l'itération
    suivante.
-5. **La fenêtre est par tenant, pas par membre.** Un cas « ce collègue précis a
+6. **La fenêtre est par tenant, pas par membre.** Un cas « ce collègue précis a
    30 jours » n'est pas exprimable.
-6. **Le TTL de 60 s du résolveur est un plancher de fraîcheur** pour les
+7. **Le TTL de 60 s du résolveur est un plancher de fraîcheur** pour les
    changements qui ne passent pas par les chemins qui purgent (édition SQL
    directe, par exemple).
-7. **`/auth/refresh` n'est pas gardé** : il peut encore émettre un jeton pour un
+8. **`/auth/refresh` n'est pas gardé** : il peut encore émettre un jeton pour un
    compte bloqué. Le jeton est inutilisable — la garde requête refuse tout — mais
    refuser plus tôt serait plus net.

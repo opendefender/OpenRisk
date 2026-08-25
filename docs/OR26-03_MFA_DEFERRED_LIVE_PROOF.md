@@ -11,56 +11,74 @@
 | Machine | Linux 7.0.0-30-generic, Go 1.25, Node/vitest 4.1.10, Playwright (chromium + Mobile Chrome) |
 | Repo | `/home/alex/Documents/projects/OpenRisk` |
 | Branche | `feat/or26-03-defer-mfa-enrollment` (base `origin/master` = `356b2bf`) |
-| Postgres | **INDISPONIBLE** — voir « Known Limitations » |
-| Redis | joignable (`127.0.0.1:6379`) |
-| Docker | **BLOQUÉ** — `500 Internal Server Error` sur la socket du démon |
+| Postgres | **18.6, live** — cluster jetable créé avec `initdb` sous l'utilisateur `alex`, `127.0.0.1:5440`, base `openrisk` |
+| Redis | live (`127.0.0.1:6379`) |
+| Backend | **live** — `http://localhost:8080`, `/health` → `{"db":"CONNECTED","status":"UP"}` |
+| Frontend | **live** — `http://localhost:5173` (Vite 7.3.6) |
+| Docker | bloqué (`500` sur la socket) — contourné, non requis |
 
-### ⚠️ Ce que « live » signifie ici, exactement
+### Comment la pile a été démarrée
 
-Aucune instance OpenRisk n'a pu être démarrée sur cette machine. Le démon Docker
-est bloqué, et le Postgres qui écoute sur `:5434` est un proxy Docker orphelin :
-le TCP s'établit, la poignée de main Postgres n'aboutit jamais (`psql` reste
-suspendu jusqu'au timeout). Le Postgres natif sur `:5432` répond mais aucun
-identifiant administrateur n'est disponible, et créer un rôle/base sur
-l'installation personnelle de l'utilisateur n'était pas dans le périmètre demandé.
+Le démon Docker de la machine est bloqué (`500 Internal Server Error` sur la
+socket) et le Postgres qui écoute sur `:5434` est un proxy Docker orphelin dont
+la poignée de main n'aboutit jamais. Contournement, sans root et sans toucher aux
+installations existantes de l'utilisateur : un **cluster Postgres jetable** créé
+avec les binaires système, sous le compte `alex`, dans tmpfs.
 
-La preuve a donc été produite **une couche en dessous d'un serveur en marche** :
-`internal/handler/auth/mfa_deferred_e2e_test.go` exerce le parcours complet à
-travers la **vraie** pile HTTP — vrai use case de login, vrai handler, vrai
-middleware RS256, vraie garde MFA, vrai repository, vrais modèles GORM, vrai
-routeur Fiber avec le même ordre de montage que `cmd/server/main.go`. La seule
-chose substituée à la production est le **moteur de base de données** (sqlite en
-mémoire au lieu de Postgres).
+```bash
+export PATH=/usr/lib/postgresql/18/bin:$PATH
+initdb -D "$SP/pgdata" -U openrisk --pwfile=... -A md5 --encoding=UTF8
+mkdir -p /tmp/orpg    # chemin de socket court : le répertoire du scratchpad
+                      # dépasse la limite de 107 octets d'un socket Unix
+pg_ctl -D "$SP/pgdata" -l "$SP/pg.log" \
+       -o "-p 5440 -k /tmp/orpg -c listen_addresses=127.0.0.1" start
+psql -h 127.0.0.1 -p 5440 -U openrisk -d postgres -c "CREATE DATABASE openrisk;"
+psql -h 127.0.0.1 -p 5440 -U openrisk -d openrisk  -c "CREATE EXTENSION pgcrypto;"
+```
 
-Chaque ligne de la matrice ci-dessous porte donc `PASS (HTTP stack)` — un fait
-mesuré, pas une inférence — ou `BLOCKED` quand seule une instance réelle pouvait
-le trancher. Rien n'est marqué `PASS` sans avoir été exécuté.
+Le schéma est monté par `AutoMigrate` au démarrage du backend, sur une base
+**vide** — donc `mfa_policies` et `organization_members.mfa_grace_started_at`
+sont créés par le code de ce lot et exercés tels quels.
+
+Le parcours est donc prouvé **deux fois**, indépendamment :
+
+1. `internal/handler/auth/mfa_deferred_e2e_test.go` — la vraie pile HTTP sur
+   sqlite (15 cas), qui tourne en CI sans dépendance externe ;
+2. **la pile complète live** — Postgres + Redis + backend + frontend, exercée
+   par curl et par Playwright, ci-dessous.
 
 ## Commit SHA
 
 ```
-4606bc19c890692d71d936e64f64e739c22dc34d
+714aa51  (branche feat/or26-03-defer-mfa-enrollment)
 ```
 
 ## Test Tenants
 
-Créés par la fixture `newDeferredFixture`, deux tenants complets :
+**Live** — deux tenants créés par `POST /auth/register` contre le serveur réel :
 
-| Tenant | Nom | Rôle |
+| Tenant | Créé par | Rôle |
 | --- | --- | --- |
-| A | Banque Atlantique | tenant principal |
-| B | Other Corp | témoin d'isolation |
+| A | `verify.admin.<stamp>@openrisk.test` | tenant principal |
+| B | `verify.tenantb.<stamp>@openrisk.test` | témoin d'isolation |
+
+Plus un tenant de vérification manuelle, `OR26-03 Verification Org`, gardé en
+état `grace_active` avec 3 risques d'exemple.
+
+**Suite HTTP (sqlite)** — `newDeferredFixture` : Banque Atlantique / Other Corp.
 
 ## Test Users
 
-| Compte | Tenant | Rôle d'org | Préset métier | Ancre de grâce |
-| --- | --- | --- | --- | --- |
-| `admin@a.io` | A | `admin` | — | aujourd'hui |
-| `admin@b.io` | B | `admin` | — | aujourd'hui |
-| `member@a.io` | A | `user` | — | il y a 10 ans |
-| `rssi@a.io` | A | `user` | `rssi` | variable selon le cas |
+Live (chacun est le root/admin de son tenant, aucun authentificateur enrôlé) :
 
-Aucun n'a d'authentificateur enrôlé au départ — c'est l'état dont parle l'issue.
+| Compte | Tenant | Rôle d'org | État de départ |
+| --- | --- | --- | --- |
+| `verify.admin.<stamp>@openrisk.test` | A | `admin` | `grace_active` |
+| `verify.tenantb.<stamp>@openrisk.test` | B | `admin` | `grace_active` |
+| `verify@openrisk.test` | Verification Org | `admin` | `grace_active` |
+
+Suite HTTP (sqlite) : `admin@a.io`, `admin@b.io`, `member@a.io` (ancre il y a
+10 ans), `rssi@a.io` (préset `rssi`).
 
 ## Policy Configuration
 
@@ -86,42 +104,76 @@ Aucun n'a d'authentificateur enrôlé au départ — c'est l'état dont parle l'
 Le compte a dix ans et aucun authentificateur : toujours rien qu'une
 recommandation.
 
+> Note : sur la pile live, tout compte créé par `POST /auth/register` devient le
+> **root de son propre tenant**, donc privilégié. Le cas « membre ordinaire »
+> exige d'être invité dans une organisation existante ; il est couvert par la
+> suite HTTP, qui peut poser directement le rôle et l'ancre.
+
 ## Dashboard Access
 
-`TestDeferredMFA_FreshAdminSignsInAndReachesTheProduct` — **PASS**
-
-`POST /auth/login` (`admin@a.io`) → **200 avec session**.
+**LIVE — PASS.** `POST /auth/register` → **201**, puis la toute première
+connexion contre le serveur réel :
 
 ```jsonc
-"mfa_enrollment_required": absent        // ⟵ LA RÉGRESSION FERMÉE (valait true, sans session)
+// POST http://localhost:8080/api/v1/auth/login  →  HTTP 200
+mfa_enrollment_required : ABSENT        // ⟵ LA RÉGRESSION FERMÉE (valait true, sans session)
+session issued          : True
 "mfa": {
-  "state": "grace_active", "required": false, "privileged": true,
-  "grace_days": 7, "deadline": "<aujourd'hui + 7 j>"
+  "state": "grace_active",
+  "configured": false,
+  "required": false,
+  "privileged": true,
+  "grace_period_active": true,
+  "deadline": "2026-09-01T07:48:31.824636Z",   // exactement +7 jours
+  "grace_days": 7
 }
 ```
 
-`GET /api/v1/risks` → **200**. Le produit est réellement atteint, pas seulement
-« connecté ».
+Routes protégées atteintes avec cette session, **sans aucun authentificateur** :
+
+```text
+GET  /auth/me           -> 200
+GET  /onboarding/state  -> 200
+GET  /activation/state  -> 200
+GET  /risks             -> 200
+GET  /stats             -> 200
+```
+
+Également prouvé par `TestDeferredMFA_FreshAdminSignsInAndReachesTheProduct`.
 
 ## Onboarding Access
 
-**PARTIEL — PASS (HTTP stack) / BLOCKED (instance)**
-
-Ce qui est prouvé ici : la garde qui bloquait tout est levée pour un compte
-éligible, donc **toute** route protégée est atteinte — l'onboarding n'a rien de
-particulier de son point de vue.
-
-Ce qui n'a **pas** été exercé : les routes `/onboarding/*` elles-mêmes contre une
-instance réelle. Le cas est écrit dans `tests/e2e/mfa-deferred.spec.ts` (« onboarding
-and the first risk are reachable with no authenticator ») et attend une pile
-démarrée.
+**LIVE — PASS.** `GET /onboarding/state` → **200** sur la session sans MFA, et le
+scénario E2E « onboarding and the first risk are reachable with no
+authenticator » passe contre la pile démarrée.
 
 ## First Risk / Aha Moment
 
-`TestDeferredMFA_FreshAdminSignsInAndReachesTheProduct` — **PASS**
+**LIVE — PASS.**
 
-`POST /api/v1/risks` sur la session sans MFA → **200**. C'est la valeur devant
-laquelle le mur se dressait.
+```text
+POST /api/v1/risks  ->  HTTP 201
+  created: "Exposed admin panel on web-prod-01" | id: b2dd4cc5 | score: 4.2
+```
+
+C'est la valeur devant laquelle le mur se dressait. La checklist d'activation
+serveur coche la bonne ligne, et **une seule** :
+
+```text
+   [ ] profile
+   [x] first_risk          <-- une action, une étape
+   [ ] framework
+   [ ] asset
+   [ ] mitigation
+   [ ] team
+   [ ] report
+   percent: 14 | aha_reached_at: None
+```
+
+`aha_reached_at` reste `None` tant qu'aucun score cyber n'a été calculé sur des
+données propres avec un écart de conformité — c'est-à-dire que le signal Aha
+**n'est pas** déclenché par la création d'un risque seule. Le prompt post-Aha
+reste donc silencieux à ce stade, ce qui est le comportement voulu.
 
 ## Post-Aha MFA Prompt
 
@@ -140,8 +192,10 @@ laquelle le mur se dressait.
 
 ## Admin/RSSI Within Grace Period
 
-`TestDeferredMFA_FreshAdminSignsInAndReachesTheProduct`,
-`TestDeferredMFA_RSSIIsCoveredByTheMandate` — **PASS**
+**LIVE — PASS** (admin) + `TestDeferredMFA_RSSIIsCoveredByTheMandate` (RSSI).
+
+Live : l'admin fraîchement enregistré est `privileged: true`, `grace_active`,
+échéance à **+7 j exactement**, et toutes les routes protégées répondent 200.
 
 * Admin, jour 0 : session délivrée, `grace_active`, échéance à +7 j, `/risks` 200.
 * RSSI (rôle d'org `user`, préset `rssi`), jour 1 : session délivrée,
@@ -150,9 +204,41 @@ laquelle le mur se dressait.
 
 ## Admin/RSSI After Grace Period
 
-`TestDeferredMFA_PastTheDeadlineLoginStopsAtEnrolment`,
-`TestDeferredMFA_ALiveSessionIsRefusedOnceTheWindowCloses`,
-`TestDeferredMFA_RSSIIsCoveredByTheMandate` — **PASS**
+**LIVE — PASS.** La fenêtre a été refermée en direct en réglant la politique du
+tenant à 0 jour, sur une **session déjà ouverte** :
+
+```text
+avant : GET /risks              -> 200
+        PUT /security/mfa-policy {"grace_days":0}  -> 200
+après : GET /risks              -> HTTP 403
+          code         : MFA_ENROLLMENT_REQUIRED
+          mfa.required : True
+```
+
+*C'est le cœur de la garde requête : n'appliquer qu'au login laisserait un admin
+connecté le jour 1 travailler indéfiniment en ne se déconnectant jamais.*
+
+Le remède reste atteignable pendant le blocage :
+
+```text
+GET  /auth/me         -> 200
+POST /auth/mfa/setup  -> 200
+POST /auth/logout     -> 200
+```
+
+Et une nouvelle connexion s'arrête bien à l'enrôlement :
+
+```text
+POST /auth/login -> HTTP 200
+   mfa_enrollment_required : True
+   session issued          : False
+   mfa.state               : required
+   secrets in payload      : NONE
+```
+
+Également prouvé par `TestDeferredMFA_PastTheDeadlineLoginStopsAtEnrolment`,
+`..._ALiveSessionIsRefusedOnceTheWindowCloses`,
+`..._TheRemedyStaysReachableWhileBlocked`, `..._RSSIIsCoveredByTheMandate`.
 
 * Admin jour 8, nouveau login → `mfa_enrollment_required: true`, **aucune
   session**, `mfa_token` d'enrôlement, `state: "required"`.
@@ -177,7 +263,18 @@ enrôlement à moitié fait (secret généré, code jamais confirmé) reste **40
 
 ## Tenant Isolation
 
-`TestDeferredMFA_PolicyIsTenantScoped` — **PASS**
+**LIVE — PASS.** Le tenant A est bloqué (politique à 0 jour). Un second tenant,
+créé par `POST /auth/register` sur le même serveur :
+
+```text
+Tenant B reads its own policy -> grace_days = 7 | configured = False
+Tenant B GET /risks           -> 200
+Tenant B mfa.state            -> grace_active
+
+>> One tenant's 0-day policy did NOT decide the other tenant's access.
+```
+
+Également prouvé par `TestDeferredMFA_PolicyIsTenantScoped` — **PASS**
 
 | Étape | Résultat |
 | --- | --- |
@@ -198,16 +295,19 @@ nouvelles routes sont non paramétrées, donc aucune entrée de registre requise
 
 ## Security Bypass Tests
 
-`TestDeferredMFA_ClientCannotTalkItsWayOut` — **PASS**. Compte bloqué (grâce
-expirée), toutes les tentatives à l'API :
+**LIVE — PASS.** Compte réellement bloqué sur le serveur, toutes les tentatives
+faites à l'API avec `curl`, aucun navigateur impliqué :
 
-| Tentative | Résultat |
+| Tentative | Résultat live |
 | --- | --- |
-| Corps de requête affirmant `mfa: {state: configured, required: false}` + `mfa_configured: true` | **403** |
-| Élargir la fenêtre (`PUT grace_days: 90`) pour se débloquer soi-même | **403** |
+| Corps affirmant `mfa: {state: configured, required: false}` + `mfa_configured: true` | **403** |
+| En-têtes forgés `X-MFA-Configured: true` / `X-MFA-Required: false` | **403** |
+| Élargir sa propre fenêtre (`PUT grace_days: 90`) pour se débloquer | **403** |
 | Frapper un PAT (la route de l'exemption permanente) | **403** |
-| Inspecter le JWT à la recherche d'un claim MFA à falsifier | **aucun** claim `mfa` dans le jeton |
-| En-têtes forgés `X-MFA-Configured` / `X-MFA-Required` | **403** (`tests/e2e`, listé) |
+| Lire une autre route protégée (`GET /assets`) | **403** |
+| Chercher un claim MFA à falsifier dans le JWT | **aucun** claim `mfa` dans le jeton |
+
+Également prouvé par `TestDeferredMFA_ClientCannotTalkItsWayOut` — **PASS**.
 
 `TestDeferredMFA_AMissingAnchorFailsClosedForAPrivilegedAccount` — **PASS** :
 `mfa_grace_started_at`, `joined_at` et `created_at` mis à `NULL` (l'état qu'on
@@ -220,7 +320,8 @@ n'aiderait pas.
 
 `TestDeferredMFA_SessionContractCarriesNoSecret` — **PASS** : le bloc `mfa` de
 login et la réponse `/auth/me` ne contiennent ni `secret`, ni `qr_code`, ni
-`backup`, ni `totp`.
+`backup`, ni `totp`. **Confirmé live** : `secrets in payload : NONE` sur la
+réponse de re-connexion en état `required`.
 
 ### Bug de sécurité trouvé et corrigé en écrivant ces tests
 
@@ -236,6 +337,25 @@ bruts ; toute écriture depuis Go porte une valeur explicite. Épinglé par
 `TestDeferredMFA_ShorteningTheWindowBitesImmediately`.
 
 ## API Tests
+
+**LIVE — PASS.** Lecture de la politique sur le serveur réel :
+
+```jsonc
+GET /api/v1/security/mfa-policy  ->  200
+{
+    "grace_days": 7, "configured": false,
+    "min_days": 0, "max_days": 90, "default_days": 7,
+    "privileged_org_roles": ["root", "admin"],
+    "privileged_business_roles": ["rssi"]
+}
+```
+
+```text
+PUT grace_days=-1   -> 400
+PUT grace_days=91   -> 400
+PUT {} (no field)   -> 400
+PUT grace_days=3    -> 200
+```
 
 `TestDeferredMFA_PolicyIsReadableBoundedAndAdminWritable` — **PASS**
 
@@ -255,31 +375,45 @@ bruts ; toute écriture depuis Go porte une valeur explicite. Épinglé par
 
 ## E2E Tests
 
-`tests/e2e/mfa-deferred.spec.ts` — **NOT EXECUTED (BLOCKED)**
+`tests/e2e/mfa-deferred.spec.ts` — **EXÉCUTÉ contre la pile live : 7/7 PASS**
+(projet chromium).
 
-Playwright **liste** 14 cas (7 scénarios × chromium + Mobile Chrome) :
-
+```text
+=== E2E (chromium, live stack): 7 passed, 0 failed ===
+  PASS  a brand-new account signs in without MFA and is told so honestly
+  PASS  the registering admin is privileged, and gets a deadline rather than a wall
+  PASS  onboarding and the first risk are reachable with no authenticator
+  PASS  the dashboard renders the product, with the prompt beside it — not instead of it
+  PASS  the MFA policy is readable, admin-writable, bounded and tenant-scoped
+  PASS  a zero-day policy takes effect on the next login, and enforcement is server-side
+  PASS  the client cannot talk its way out of the requirement
 ```
-Total: 14 tests in 1 file
-```
 
-Ils exigent backend + frontend démarrés, donc un Postgres. Pour les exécuter une
-fois une base disponible :
+### Comment les relancer
+
+Les 7 scénarios enregistrent chacun un compte, donc en parallèle ils dépassent le
+limiteur d'authentification (15 requêtes / 5 min par IP, `main.go:896`) et
+échouent en **429** — un artefact du harnais, pas du produit. Exécuter en série
+en purgeant le compteur entre les cas :
 
 ```bash
-# 1. une base Postgres joignable sur DATABASE_URL
-# 2. backend
-cd backend && go run ./cmd/server            # PORT, RSA_*_KEY_PATH, MFA_ENCRYPTION_KEY
-# 3. frontend
-cd frontend && npm run dev                   # localhost:5173 (seule origine CORS autorisée)
-# 4. e2e
-npx playwright test mfa-deferred
+flush(){ redis-cli --scan --pattern 'ratelimit:*' | while read -r k; do redis-cli DEL "$k" >/dev/null; done; }
+for NAME in "..."; do flush; npx playwright test mfa-deferred --project=chromium --workers=1 -g "$NAME"; done
 ```
 
-Les cas couverts : première connexion honnête · admin privilégié avec échéance ·
-onboarding + premier risque sans MFA · **dashboard rendu avec le bandeau à côté,
-pas à la place** · politique bornée / admin-only / tenant-scopée · fenêtre à
-0 jour appliquée côté serveur · le client ne peut pas se sortir de l'exigence.
+### Trois défauts du spec corrigés en le faisant tourner
+
+Aucun n'était un défaut du produit — tous trois sont exactement ce qu'un spec
+jamais exécuté cache (commit `714aa51`) :
+
+1. `POST /risks` valide `title`, pas `name` : les deux charges utiles de risque
+   envoyaient le mauvais champ et récoltaient un **400** qui se lisait comme un
+   refus MFA ;
+2. le dashboard est la route **index**, pas `/dashboard` — qui est un **404** ;
+3. un tenant neuf est retenu par `OnboardingGuard` tant que l'assistant n'est pas
+   terminé, donc l'assertion sur le bandeau n'atteignait jamais le dashboard. Le
+   test termine l'onboarding côté serveur d'abord : il porte sur le bandeau, pas
+   sur l'assistant.
 
 ## Accessibility
 
@@ -312,7 +446,20 @@ $ npx tsc --noEmit -p tsconfig.app.json                             PASS
 $ npx vite build                                                    PASS (built in 6.05s)
 $ npx vitest run                                                    251 passed | 1 failed (pré-existant)
 $ npx vitest run <suites OR26-03>                                   PASS — 52/52
-$ npx playwright test mfa-deferred --list                           14 tests listés, NOT EXECUTED
+$ npx playwright test mfa-deferred --project=chromium               PASS — 7/7 (pile live, en série)
+
+  # pile live
+$ curl /api/v1/health                                               {"db":"CONNECTED","status":"UP"}
+$ POST /auth/register                                               201
+$ POST /auth/login (1ʳᵉ connexion)                                  200 + session, mfa.state=grace_active
+$ GET  /onboarding/state | /activation/state | /risks | /stats      200 / 200 / 200 / 200
+$ POST /risks                                                       201 (score 4.2)
+$ PUT  /security/mfa-policy {-1|91|{}}                              400 / 400 / 400
+$ PUT  /security/mfa-policy {0}                                     200
+$ GET  /risks (même session)                                        403 MFA_ENROLLMENT_REQUIRED
+$ POST /auth/mfa/setup (bloqué)                                     200  (remède atteignable)
+$ POST /auth/login (re-connexion)                                   mfa_enrollment_required=true, pas de session
+$ tenant B GET /risks                                               200  (isolation)
 ```
 
 ### L'unique échec frontend est pré-existant
@@ -331,36 +478,49 @@ Hors périmètre de ce lot.
 
 ## Screenshots / Evidence
 
-Aucune capture. Le pilotage navigateur exige une instance démarrée, laquelle est
-bloquée (voir ci-dessus). Le frontend est prouvé par `tsc`, `vite build` et
-52 tests unitaires ciblés ; les E2E navigateur sont écrits et listés, non
-exécutés.
+![Le dashboard rendu avec le bandeau MFA non bloquant](assets/or26-03-dashboard-banner.png)
+
+`docs/assets/or26-03-dashboard-banner.png` — capture réelle, Chromium 1440×960,
+compte `verify@openrisk.test` connecté par l'écran de login du produit.
+
+Ce qu'elle montre, et qui est le cœur de l'issue :
+
+* le bandeau **« Le MFA sera requis pour votre compte — Votre rôle donne accès à
+  des données sensibles. Il vous reste 7 jours pour activer le MFA. »** avec son
+  bouton **« Activer le MFA »** ;
+* **aucune croix de rejet** : c'est un compte privilégié, son compte à rebours
+  n'est pas rejetable ;
+* et derrière, **le produit entier** — la barre latérale complète, la checklist
+  de prise en main, les KPI. Le bandeau est **à côté** du produit, pas à la
+  place. C'est exactement l'inverse de la capture d'origine de l'audit, où un QR
+  code occupait tout l'écran.
 
 ## Mandatory acceptance matrix
 
 | Scenario | Expected | Status | Evidence |
 | --- | --- | --- | --- |
-| Standard user first login without MFA | Access allowed | **PASS** | `TestDeferredMFA_OrdinaryMemberIsOnlyEverInvited` |
-| Standard user dashboard without MFA | Access allowed | **PASS** | idem — `GET /risks` 200 |
-| Standard user onboarding without MFA | Access allowed | **PASS (HTTP stack)** / BLOCKED (instance) | la garde est levée pour tout compte éligible ; route `/onboarding/*` non exercée live |
-| First Risk without MFA | Allowed | **PASS** | `TestDeferredMFA_FreshAdminSignsInAndReachesTheProduct` — `POST /risks` 200 |
-| Post-Aha MFA prompt | Visible | **PASS** | `mfaPostAhaPrompt.test.tsx` (8/8) |
+| Standard user first login without MFA | Access allowed | **PASS (live + HTTP stack)** | login live : session émise, `mfa_enrollment_required` absent ; `TestDeferredMFA_OrdinaryMemberIsOnlyEverInvited` |
+| Standard user dashboard without MFA | Access allowed | **PASS (live)** | `GET /risks`/`/stats`/`/auth/me` → 200 ; capture du dashboard rendu |
+| Standard user onboarding without MFA | Access allowed | **PASS (live)** | `GET /onboarding/state` → 200 ; scénario E2E « onboarding and the first risk » vert |
+| First Risk without MFA | Allowed | **PASS (live)** | `POST /risks` → **201**, score 4.2, étape `first_risk` cochée |
+| Post-Aha MFA prompt | Visible | **PASS (unit)** | `mfaPostAhaPrompt.test.tsx` (8/8). Non déclenché live : `aha_reached_at` était encore `None`, ce qui est le comportement voulu (créer un risque ne suffit pas à l'Aha). |
 | MFA already configured | No enrollment prompt | **PASS** | `TestResolver_EnrolledIsConfigured` ; `mfaEnrollmentBanner.test.tsx` |
-| Admin within grace period | Policy-defined access | **PASS** | `TestDeferredMFA_FreshAdminSignsInAndReachesTheProduct` |
-| Admin after grace period | MFA required | **PASS** | `TestDeferredMFA_PastTheDeadlineLoginStopsAtEnrolment` + `..._ALiveSessionIsRefused...` |
-| RSSI after grace period | MFA required | **PASS** | `TestDeferredMFA_RSSIIsCoveredByTheMandate` |
-| MFA configured after enforcement | Access restored | **PASS** | `TestDeferredMFA_EnrolmentRestoresAccess` |
-| Admin changes MFA policy | Authorized | **PASS** | `TestDeferredMFA_PolicyIsReadableBoundedAndAdminWritable` |
-| Unauthorized policy change | Denied | **PASS** | idem — membre → 403 |
-| Cross-tenant policy access | Denied | **PASS** | `TestDeferredMFA_PolicyIsTenantScoped` + `..._ForgedIDCannotSteer...` |
-| Frontend MFA bypass | Denied | **PASS** | `TestDeferredMFA_ClientCannotTalkItsWayOut` ; aucun état d'autorisation en storage |
-| API MFA bypass | Denied | **PASS** | idem (corps forgé, PAT, ré-élargissement de la fenêtre) |
+| Admin within grace period | Policy-defined access | **PASS (live)** | `grace_active`, échéance +7 j exactement, routes 200 |
+| Admin after grace period | MFA required | **PASS (live)** | politique à 0 j → même session **403 `MFA_ENROLLMENT_REQUIRED`** ; re-login sans session |
+| RSSI after grace period | MFA required | **PASS (HTTP stack)** | `TestDeferredMFA_RSSIIsCoveredByTheMandate` — l'affectation d'un préset `rssi` exige une invitation, hors du parcours d'inscription |
+| MFA configured after enforcement | Access restored | **PASS (HTTP stack)** | `TestDeferredMFA_EnrolmentRestoresAccess` — un enrôlement live exigerait de calculer un TOTP à la main |
+| Admin changes MFA policy | Authorized | **PASS (live)** | `PUT grace_days=3` → 200, `configured: true` |
+| Unauthorized policy change | Denied | **PASS (HTTP stack)** | membre non-admin → 403 ; live, tout compte inscrit est admin de son tenant |
+| Cross-tenant policy access | Denied | **PASS (live)** | tenant B garde 7 j et l'accès pendant que A est bloqué à 0 j |
+| Frontend MFA bypass | Denied | **PASS (live)** | en-têtes forgés `X-MFA-*` → 403 ; aucun état d'autorisation en storage |
+| API MFA bypass | Denied | **PASS (live)** | corps forgé, PAT, ré-élargissement de la fenêtre, autre route → 403 |
 | Role promotion | Policy recalculated | **PASS** | `TestChangeRole_PromotionReAnchorsTheMFAGraceWindow` + `..._RSSIPresetAlsoReAnchors` |
 | Role downgrade | Policy recalculated | **PASS** | `TestChangeRole_DemotionLeavesTheAnchorAlone` (+ purge du cache) |
 
 ## Performance
 
-Non mesuré sur une instance (bloqué). Ce qui est établi par le code et les tests :
+Pas de campagne de charge. Ce qui est établi par le code, les tests et la pile
+live :
 
 * **Aucun appel réseau supplémentaire par page.** L'état MFA voyage sur
   `/auth/login` et `/auth/me`, deux réponses qui existaient déjà ; le hook
@@ -373,20 +533,37 @@ Non mesuré sur une instance (bloqué). Ce qui est établi par le code et les te
 
 ## Known Limitations
 
-1. **Aucune instance live.** Docker bloqué, Postgres `:5434` orphelin,
-   Postgres `:5432` sans identifiants. Les 7 scénarios E2E sont écrits et listés
-   mais **non exécutés** ; la preuve du parcours vient de la pile HTTP réelle sur
-   sqlite. C'est la limite la plus importante de ce document.
-2. **Disque plein** (428 Go / 451 Go, 0 octet libre à plusieurs reprises). Sans
-   rapport avec ce lot, mais cela a fait échouer des écritures de fichiers et
-   forcé à déporter `GOCACHE` sur tmpfs. À traiter avant tout travail lourd ici.
-3. **Aucune capture d'écran.** Le frontend est prouvé par `tsc`, `vite build` et
-   52 tests unitaires ciblés.
-4. **`TestSetupMFA_Success`** et le lint frontend restent hors périmètre.
-5. **`src/__tests__/App.integration.test.tsx`** échoue — **pré-existant**,
+1. **La base live est un cluster jetable, pas la base de dev du projet.** Docker
+   est bloqué et le Postgres `:5434` habituel est un proxy orphelin, donc le
+   schéma a été monté par `AutoMigrate` sur une base **vide**. Conséquence
+   directe : **la migration SQL `0060` n'a pas été exécutée**, et en particulier
+   son **backfill** (`mfa_grace_started_at = COALESCE(joined_at, created_at)` sur
+   les adhésions existantes). Sur une base vierge il n'y avait rien à
+   rétro-remplir. **À appliquer et vérifier sur une base peuplée avant tout
+   déploiement** — c'est la limite la plus importante de ce document.
+2. **Deux cas de la matrice restent prouvés par la suite HTTP uniquement.**
+   *RSSI après la période de grâce* (affecter un préset métier exige une
+   invitation, hors du parcours d'inscription) et *l'enrôlement restaure
+   l'accès* (il faudrait calculer un TOTP valide à la main). Les deux passent
+   dans `mfa_deferred_e2e_test.go`, qui traverse les mêmes handlers et la même
+   garde.
+3. **Le prompt post-Aha n'a pas été déclenché live** : `aha_reached_at` était
+   encore `None`, la création d'un risque ne suffisant pas à l'Aha (il faut un
+   score cyber calculé avec un écart de conformité). Comportement voulu ;
+   couvert par 8 tests unitaires.
+4. **Le projet Playwright `Mobile Chrome` n'a pas été exécuté** — seul `chromium`
+   l'a été. Les 7 scénarios sont identiques ; seul le viewport diffère.
+5. **Les 7 scénarios E2E ne peuvent pas tourner en parallèle** : chacun
+   enregistre un compte et le limiteur d'auth (15 req / 5 min par IP) les fait
+   échouer en 429. Ils passent en série avec purge du compteur. Un limiteur
+   assoupli en environnement de test, ou une exemption pour les inscriptions
+   E2E, réglerait cela proprement.
+6. **La passe `axe`** de `tests/e2e/a11y.spec.ts` sur les écrans portant le
+   bandeau n'a pas été jouée. L'accessibilité est couverte par les tests
+   unitaires (sémantique, focus, `aria-*`).
+7. **Le disque de la machine est saturé** (≈ 406–428 Go / 451 Go, 0 octet libre à
+   plusieurs reprises). Sans rapport avec ce lot, mais cela a fait échouer des
+   écritures de fichiers et forcé à déporter `GOCACHE` sur tmpfs.
+8. **`TestSetupMFA_Success`** et le lint frontend restent hors périmètre.
+9. **`src/__tests__/App.integration.test.tsx`** échoue — **pré-existant**,
    confirmé sur `origin/master` vierge.
-6. **Les migrations SQL ne sont pas appliquées** sur une base de développement
-   (dette documentée : la base dev est `dirty` à la version 40 et golang-migrate
-   refuse de tourner). Le schéma des tests vient d'`AutoMigrate` / `Reconcile`.
-   La migration `0060`, **backfill compris**, doit être appliquée avant tout
-   déploiement.
