@@ -1,16 +1,66 @@
 /** @type {import('tailwindcss').Config} */
+
+/*
+ * Tailwind is the delivery mechanism for the design tokens, not a second
+ * design system. Every value below resolves to a CSS variable defined in
+ * src/styles/primitives.css (scales) or src/styles/tokens.css (colour), so a
+ * utility written in a component follows the theme with no per-component work.
+ *
+ * The rule this file encodes: if a visual value is worth using twice, it is a
+ * token and it gets a utility here. An arbitrary value in a component
+ * (text-[13px], rounded-[10px], z-[70]) means either the token is missing or
+ * the component is inventing one — both are bugs. See
+ * docs/W1-01_OPENRISK_DESIGN_SYSTEM.md.
+ */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   // Theme is driven by [data-theme] on <html> + CSS variables, so the `dark:`
   // variant is not used; tokens below resolve to the active theme automatically.
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
+    // Mirrors --bp-* in primitives.css. 3xl is the master-detail threshold.
+    screens: {
+      sm: '640px',
+      md: '768px',
+      lg: '1024px',
+      xl: '1280px',
+      '2xl': '1536px',
+      '3xl': '1920px',
+    },
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['var(--font-display)', 'Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
+
+      /* Type scale. Each step carries its line height, so `text-sm` is a
+         complete typographic decision rather than half of one — the missing
+         half is why 1559 arbitrary `text-[13px]` calls existed, each of them
+         also silently inheriting whatever leading was nearby. */
+      fontSize: {
+        '2xs': ['var(--text-2xs)', { lineHeight: 'var(--leading-snug)' }],
+        xs: ['var(--text-xs)', { lineHeight: 'var(--leading-snug)' }],
+        sm: ['var(--text-sm)', { lineHeight: 'var(--leading-normal)' }],
+        base: ['var(--text-base)', { lineHeight: 'var(--leading-normal)' }],
+        md: ['var(--text-md)', { lineHeight: 'var(--leading-snug)' }],
+        lg: ['var(--text-lg)', { lineHeight: 'var(--leading-snug)' }],
+        xl: ['var(--text-xl)', { lineHeight: 'var(--leading-tight)' }],
+        '2xl': ['var(--text-2xl)', { lineHeight: 'var(--leading-tight)' }],
+        '3xl': ['var(--text-3xl)', { lineHeight: 'var(--leading-tight)' }],
+      },
+      letterSpacing: {
+        display: 'var(--tracking-display)',
+        caps: 'var(--tracking-caps)',
+      },
+      lineHeight: {
+        none: 'var(--leading-none)',
+        tight: 'var(--leading-tight)',
+        snug: 'var(--leading-snug)',
+        normal: 'var(--leading-normal)',
+        relaxed: 'var(--leading-relaxed)',
+      },
+
       colors: {
         // ==== semantic tokens (src/styles/tokens.css) ====
         // These are the utilities components should use. Every one resolves to
@@ -29,6 +79,8 @@ export default {
         'text-inverse': 'var(--text-inverse)',
         'border-subtle': 'var(--border-subtle)',
         'border-default': 'var(--border-default)',
+        'border-control': 'var(--border-control)',
+        focus: 'var(--focus-ring-color)',
         success: {
           DEFAULT: 'var(--success)',
           surface: 'var(--success-surface)',
@@ -98,60 +150,106 @@ export default {
           critical: 'var(--risk-critical)',
           extreme: 'var(--risk-extreme)',
         },
+        // ---- visualisation: one categorical palette for every chart ----
+        chart: {
+          1: 'var(--chart-1)',
+          2: 'var(--chart-2)',
+          3: 'var(--chart-3)',
+          4: 'var(--chart-4)',
+          5: 'var(--chart-5)',
+          6: 'var(--chart-6)',
+          7: 'var(--chart-7)',
+          8: 'var(--chart-8)',
+          grid: 'var(--chart-grid)',
+          axis: 'var(--chart-axis)',
+          label: 'var(--chart-label)',
+          track: 'var(--chart-track)',
+        },
+        graph: {
+          node: 'var(--graph-node)',
+          stroke: 'var(--graph-node-stroke)',
+          edge: 'var(--graph-edge)',
+          active: 'var(--graph-edge-active)',
+        },
       },
       borderColor: {
         DEFAULT: 'var(--border-default)',
         subtle: 'var(--border-subtle)',
         strong: 'var(--border-strong)',
+        control: 'var(--border-control)',
       },
       borderRadius: {
+        xs: 'var(--radius-xs)',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
+        // Legacy aliases from before the scale was named; identical values.
         token: 'var(--radius-md)',
         'token-lg': 'var(--radius-lg)',
         'token-xl': 'var(--radius-xl)',
       },
+
+      /* Elevation. Four steps, theme-aware, and no decorative variants: the
+         `glow`/`neon` shadows that used to live here were removed in W1-01 —
+         a glow on the primary button is what made the product read as a
+         template rather than an instrument. */
       boxShadow: {
-        'card-sm': 'var(--shadow-sm)',
-        'card-md': 'var(--shadow-md)',
-        'card-lg': 'var(--shadow-lg)',
-        overlay: 'var(--shadow-overlay)',
-        glow: '0 3px 12px var(--accent-glow)',
-        'glow-lg': '0 8px 28px var(--accent-glow)',
-        'glow-red': '0 0 20px rgba(255, 69, 58, 0.5)',
-        'glow-orange': '0 0 20px rgba(255, 159, 10, 0.5)',
+        'elev-1': 'var(--elev-1)',
+        'elev-2': 'var(--elev-2)',
+        'elev-3': 'var(--elev-3)',
+        overlay: 'var(--elev-overlay)',
+        // Legacy aliases; same four values.
+        'card-sm': 'var(--elev-1)',
+        'card-md': 'var(--elev-2)',
+        'card-lg': 'var(--elev-3)',
       },
+
+      /* Named stacking layers. Replaces the 10 arbitrary integers that were in
+         use (59, 60, 65, 70, 75, 80, 85, 90, 95, 120). The order is the
+         contract — note that tooltip outranks modal, because a tooltip on a
+         control inside a dialog has to be readable. */
+      zIndex: {
+        base: 'var(--z-base)',
+        raised: 'var(--z-raised)',
+        sticky: 'var(--z-sticky)',
+        nav: 'var(--z-nav)',
+        header: 'var(--z-header)',
+        dropdown: 'var(--z-dropdown)',
+        drawer: 'var(--z-drawer)',
+        modal: 'var(--z-modal)',
+        popover: 'var(--z-popover)',
+        toast: 'var(--z-toast)',
+        tooltip: 'var(--z-tooltip)',
+      },
+
+      transitionDuration: {
+        instant: 'var(--dur-instant)',
+        fast: 'var(--dur-fast)',
+        base: 'var(--dur-base)',
+        slow: 'var(--dur-slow)',
+        panel: 'var(--dur-panel)',
+      },
+      transitionTimingFunction: {
+        out: 'var(--ease-out)',
+        in: 'var(--ease-in)',
+        inout: 'var(--ease-inout)',
+        emphasized: 'var(--ease-emphasized)',
+      },
+
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-out',
-        'glow-pulse': 'glowPulse 3s ease-in-out infinite',
-        'neon-glow': 'neonGlow 2s ease-in-out infinite',
-        // dc.html motion vocabulary (keyframes live in index.css)
-        'or-fadeup': 'or-fadeup .4s ease both',
-        'or-fadein': 'or-fadein .3s ease both',
-        'or-scalein': 'or-scalein .18s cubic-bezier(.2,.8,.2,1) both',
-        'or-slidein': 'or-slidein .3s cubic-bezier(.2,.8,.2,1) both',
+        'fade-in': 'or-fadein var(--dur-slow) var(--ease-out) both',
+        // The OpenRisk motion vocabulary (keyframes live in index.css).
+        'or-fadeup': 'or-fadeup var(--dur-slow) var(--ease-out) both',
+        'or-fadein': 'or-fadein var(--dur-base) var(--ease-out) both',
+        'or-scalein': 'or-scalein var(--dur-base) var(--ease-out) both',
+        'or-slidein': 'or-slidein var(--dur-panel) var(--ease-out) both',
         'or-pulsedot': 'or-pulsedot 1.5s infinite',
-        'or-float': 'or-float 5s ease-in-out infinite',
         'or-shimmer': 'or-shimmer 1.4s infinite linear',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 20px var(--accent-glow)' },
-          '50%': { boxShadow: '0 0 40px var(--accent-glow)' },
-        },
-        neonGlow: {
-          '0%, 100%': { textShadow: '0 0 10px var(--accent-glow)' },
-          '50%': { textShadow: '0 0 20px var(--accent-glow)' },
-        },
       },
       backdropBlur: {
         xl: '20px',
         '2xl': '40px',
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
       },
     },
   },

@@ -2,12 +2,14 @@
    SPDX-License-Identifier: BUSL-1.1 */
 
 /* ============================================================================
-   OpenRisk semantic design tokens
+   OpenRisk semantic tokens — colour and elevation
    ============================================================================
 
+   Layer 2 of four (primitives.css -> THIS -> components.css -> screens).
+
    Single source of truth for colour. Components never name a colour; they name
-   a ROLE (surface, text, border, accent, semantic, risk) and the active theme
-   decides the value.
+   a ROLE (surface, text, border, accent, semantic, risk, chart) and the active
+   theme decides the value.
 
    Why this file exists
    --------------------
@@ -20,6 +22,16 @@
    everything inherits, including anything rendered through a React portal into
    document.body.
 
+   The neutral is not grey
+   -----------------------
+   Both ramps are built on a single cool hue (~228deg) at very low chroma rather
+   than on neutral grey. This is the quietest decision in the system and the one
+   that does the most work: it is what makes an OpenRisk screen recognisable
+   without a logo, it puts the accent blue and the whole risk scale on a field
+   they already belong to, and it costs nothing at render time. It is a hue
+   shift of a few degrees, not a tint — at a glance the canvas reads as neutral;
+   side by side with true grey it reads as deliberate.
+
    Contrast
    --------
    Every text/surface pair below is verified at >= 4.5:1 (WCAG AA) in BOTH
@@ -28,15 +40,15 @@
 
    Naming
    ------
-   --surface-0   page background (furthest back)
+   --surface-0   page canvas (furthest back)
    --surface-1   cards, panels
    --surface-2   raised: modals, dropdowns, popovers
    --surface-3   hover/active on a raised element
    --surface-overlay  the scrim behind a modal
 
-   Legacy aliases (--bg-app, --text-primary…) are kept at the bottom of each
-   block so the ~2000 existing usages keep working; they now resolve to these
-   tokens rather than duplicating values.
+   Legacy aliases (--bg-app, --critical...) are kept at the bottom of each block
+   so the ~2000 existing usages keep working; they resolve to these tokens
+   rather than duplicating values.
    ========================================================================== */
 
 /* ---------------------------------------------------------------- DARK ---- */
@@ -44,24 +56,33 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* surfaces */
-  --surface-0: #08090d;
-  --surface-1: #0c0d12;
-  --surface-2: #15161e;
-  --surface-3: #1b1c26;
-  --surface-overlay: rgba(4, 5, 8, 0.72);
-  --surface-sunken: #101117;
+  /* surfaces — a four-step ramp, each step visible against the one below it
+     without a border. Not black: #000 removes the ability to go darker, which
+     a sunken well and a scrim both need. */
+  --surface-0: #0a0c12;
+  --surface-1: #0e1017;
+  --surface-2: #151823;
+  --surface-3: #1c202c;
+  --surface-overlay: rgba(4, 6, 11, 0.72);
+  --surface-sunken: #070810;
 
   /* text */
-  --text-primary: #f4f4f7;
-  --text-secondary: #b4b4c0;
-  --text-muted: #9a9aa6;
-  --text-inverse: #0c0d12;
+  --text-primary: #f3f5f9;
+  --text-secondary: #b4b9c6;
+  --text-muted: #9aa0af;
+  --text-inverse: #0e1017;
 
-  /* borders */
-  --border-subtle: #1e1f29;
-  --border-default: #2a2b37;
-  --border-strong: #3a3b4a;
+  /* borders — the primary hierarchy device in this system. Rules do the work
+     that drop shadows do elsewhere, which is why there are three of them. */
+  --border-subtle: #1b1f2b;
+  --border-default: #272c3a;
+  --border-strong: #39404f;
+  /* The boundary of an actual CONTROL (input, select, secondary button), as
+     opposed to a decorative rule. WCAG 1.4.11 asks for 3:1 on anything needed
+     to identify a component, and --border-strong measures 1.70:1 on a raised
+     surface — fine for a divider, not for the edge that says "you can type
+     here". Verified by scripts/check-contrast.mjs. */
+  --border-control: #67707f;
 
   /* accent scale */
   --accent-50: #eaf2ff;
@@ -76,6 +97,11 @@
   --accent-700: #1c469b;
   --accent-800: #163875;
   --accent-900: #112a58;
+
+  /* Focus ring. Theme-scoped because accent-400 measures 2.73:1 on the light
+     canvas — a focus indicator that only passes on half the surfaces is not a
+     focus indicator. */
+  --focus-ring-color: var(--accent-400);
 
   /* semantic — `-text` variants are tuned to pass AA on their `-surface` */
   --success: #30d158;
@@ -114,20 +140,69 @@
      severe than critical through the deeper, less orange hue. */
   --risk-extreme: #f2545f;
 
-  /* elevation */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.6);
+  /* ---- visualisation ----------------------------------------------------
+     One categorical palette for every chart and the topology graph, so the
+     same hue means the same thing on two charts side by side. Ordered by
+     distinguishability, not by hue wheel: the first four must stay separable
+     for the most common case (a 3-4 series chart) including for the two most
+     frequent colour-vision deficiencies, which is why green and red are not
+     adjacent and why 5/6 move to violet and cyan rather than to more greens.
+
+     These are NOT the semantic colours. A chart series is a category, not a
+     verdict — reusing --danger for "series 4" is how a neutral bar chart ends
+     up looking like an alert. Charts that DO encode severity use the risk
+     scale above, deliberately and by name. */
+  --chart-1: #4f8dff;
+  --chart-2: #7c6cff;
+  --chart-3: #21c7a8;
+  --chart-4: #ff9f0a;
+  --chart-5: #f2545f;
+  --chart-6: #64d2ff;
+  --chart-7: #b692ff;
+  --chart-8: #8a94a8;
+
+  /* Chart furniture. Grid lines sit below the axis, which sits below the data;
+     making them one token each is what stops every chart file inventing its
+     own rgba(255,255,255,0.06). */
+  --chart-grid: #1b1f2b;
+  --chart-axis: #39404f;
+  --chart-label: #9aa0af;
+  --chart-track: #1c202c;
+
+  /* Topology graph. A node is drawn from the risk scale; these are the states
+     that are not severity. */
+  --graph-node: #272c3a;
+  --graph-node-stroke: #67707f;
+  --graph-edge: #67707f;
+  --graph-edge-active: #4f8dff;
+  --graph-dimmed: 0.22;
+
+  /* ---- elevation --------------------------------------------------------
+     Four steps and an overlay. Dark themes need deeper, softer shadows because
+     a shadow on a dark surface has less luminance range to work with — the
+     same shadow that reads as "lifted" on white is invisible here.
+
+     Used sparingly by design: this system carries hierarchy with surface steps
+     and rules. A shadow means "this floats above the page and can be
+     dismissed", so anything that cannot be dismissed does not get one. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --elev-2: 0 6px 22px rgba(0, 0, 0, 0.4);
+  --elev-3: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --elev-overlay: 0 24px 64px rgba(0, 0, 0, 0.6);
 
   /* ---- legacy aliases: resolve to the tokens above ---- */
+  --shadow-sm: var(--elev-1);
+  --shadow-md: var(--elev-2);
+  --shadow-lg: var(--elev-3);
+  --shadow-overlay: var(--elev-overlay);
   --bg-app: var(--surface-0);
   --bg-primary: var(--surface-1);
   --bg-secondary: var(--surface-sunken);
   --bg-elevated: var(--surface-2);
   --bg-hover: var(--surface-3);
-  --glass: rgba(18, 19, 26, 0.72);
-  --glass-strong: rgba(14, 15, 21, 0.9);
+  --glass: rgba(17, 20, 30, 0.72);
+  --glass-strong: rgba(13, 16, 24, 0.9);
   --glass-border: rgba(255, 255, 255, 0.08);
   --border: var(--border-default);
   --critical: var(--risk-critical);
@@ -140,28 +215,32 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* surfaces */
-  --surface-0: #eeeef1;
+  /* surfaces — the canvas is deliberately NOT white. Cards are white; the page
+     behind them is a step down, so a card reads as a card without needing a
+     shadow to prove it. Same four-step ramp as dark, same cool hue. */
+  --surface-0: #ecedf2;
   --surface-1: #ffffff;
   --surface-2: #ffffff;
-  --surface-3: #f2f2f5;
+  --surface-3: #f1f2f7;
   /* The scrim stays dark in light mode on purpose: a modal needs the page
      behind it pushed back, and a pale scrim reads as a rendering glitch. */
-  --surface-overlay: rgba(16, 17, 23, 0.45);
-  --surface-sunken: #fbfbfd;
+  --surface-overlay: rgba(14, 16, 23, 0.45);
+  --surface-sunken: #fafbfd;
 
   /* text */
-  --text-primary: #161618;
-  --text-secondary: #55555e;
-  --text-muted: #63636d;
+  --text-primary: #15161a;
+  --text-secondary: #53555f;
+  --text-muted: #61636e;
   --text-inverse: #ffffff;
 
   /* borders */
-  --border-subtle: #ececf1;
-  --border-default: #e0e0e8;
-  --border-strong: #c9c9d4;
+  --border-subtle: #e9eaf0;
+  --border-default: #dee0e9;
+  --border-strong: #c6c9d6;
+  /* See the dark block: 3:1 against the surface it sits on. */
+  --border-control: #868c9c;
 
-  /* accent scale — same hue family, ordered light→dark as in dark mode */
+  /* accent scale — same hue family, ordered light->dark as in dark mode */
   --accent-50: #eaf2ff;
   --accent-100: #d3e4ff;
   --accent-200: #a8c9ff;
@@ -172,6 +251,9 @@
   --accent-700: #164294;
   --accent-800: #123574;
   --accent-900: #0e2857;
+
+  /* See the dark block. */
+  --focus-ring-color: var(--accent-500);
 
   /* semantic — darker than their dark-theme counterparts so they stay
      readable on white; the `-surface` tints are deliberately very light */
@@ -208,13 +290,45 @@
   --risk-critical: #c81e14;
   --risk-extreme: #96000d;
 
-  /* elevation */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 6px 22px rgba(20, 20, 40, 0.09);
-  --shadow-lg: 0 16px 48px rgba(20, 20, 40, 0.14);
-  --shadow-overlay: 0 24px 64px rgba(20, 20, 40, 0.22);
+  /* ---- visualisation ----
+     Same eight categories, same order, darkened so each one clears 3:1 against
+     white as a 2px line or a small mark (WCAG 1.4.11 non-text contrast). The
+     dark-theme values would wash out here — this is the half of chart theming
+     that gets skipped and is why light-mode dashboards usually look faded. */
+  --chart-1: #2563d1;
+  --chart-2: #6247d6;
+  --chart-3: #0e7a68;
+  --chart-4: #9a5b00;
+  --chart-5: #c0392f;
+  --chart-6: #0b6f96;
+  --chart-7: #8a5cc4;
+  --chart-8: #5b6376;
+
+  --chart-grid: #e9eaf0;
+  --chart-axis: #c6c9d6;
+  --chart-label: #61636e;
+  --chart-track: #f1f2f7;
+
+  --graph-node: #ffffff;
+  --graph-node-stroke: #8b91a1;
+  --graph-edge: #8b91a1;
+  --graph-edge-active: #2563d1;
+  --graph-dimmed: 0.28;
+
+  /* ---- elevation ----
+     Shallower and tighter than dark: on a light canvas a large soft shadow
+     reads as blur, not as height. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(20, 22, 40, 0.07);
+  --elev-2: 0 6px 22px rgba(20, 22, 40, 0.09);
+  --elev-3: 0 16px 48px rgba(20, 22, 40, 0.14);
+  --elev-overlay: 0 24px 64px rgba(20, 22, 40, 0.22);
 
   /* ---- legacy aliases ---- */
+  --shadow-sm: var(--elev-1);
+  --shadow-md: var(--elev-2);
+  --shadow-lg: var(--elev-3);
+  --shadow-overlay: var(--elev-overlay);
   --bg-app: var(--surface-0);
   --bg-primary: var(--surface-1);
   --bg-secondary: var(--surface-sunken);
@@ -231,16 +345,10 @@
 }
 
 /* ------------------------------------------------- theme-independent ---- */
+/* Radius, spacing, type and motion moved to primitives.css — they were
+   declared here AND in index.css with conflicting values (audit F1). */
 :root {
-  /* radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-full: 9999px;
-
-  /* focus ring — one definition, so keyboard focus is identical everywhere */
-  --focus-ring-color: var(--accent-400);
+  /* focus ring geometry — the colour is theme-scoped above */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
 }

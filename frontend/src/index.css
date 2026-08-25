@@ -5,7 +5,9 @@
    <html>. Must precede the Tailwind layers so utilities can resolve the vars.
    The accent-variant blocks further down refine this scale; they stay in this
    file because azure/iris is a product feature, not part of the base contract. */
+@import './styles/primitives.css';
 @import './styles/tokens.css';
+@import './styles/components.css';
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -34,70 +36,10 @@
   --font-display: 'DM Sans';
 }
 
-/* ── Design tokens (docs/UI_ELEVATION_PROPOSAL.md) — motion, scale, density ──
-   Additive layer on top of the theme/variant tokens above. Consumed by the
-   elevated primitives (DataTable, EmptyState, drawers) and available app-wide. */
-:root {
-  /* Motion — nothing over 300ms; transform/opacity only. */
-  --dur-fast: 120ms;
-  --dur-base: 180ms;
-  --dur-slow: 260ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Type scale (base 14, ratio ~1.2). */
-  --text-2xs: 10.5px;
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-md: 16px;
-  --text-lg: 19px;
-  --text-xl: 23px;
-  --text-2xl: 28px;
-  --text-3xl: 34px;
-
-  /* Spacing (4px grid). */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-
-  /* Radii — max 18px (console register, not mobile-app). */
-  --radius-sm: 7px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-
-  /* Elevation — 5 discreet levels. */
-  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --elev-2: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --elev-3: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --elev-4: 0 16px 48px rgba(0, 0, 0, 0.2);
-
-  /* Density (Confort by default) — drives table/list row rhythm. */
-  --den-row: 40px;
-  --den-cell-y: 10px;
-  --den-gap: 12px;
-  --den-font: 14px;
-}
-:root[data-density='compact'] {
-  --den-row: 32px;
-  --den-cell-y: 6px;
-  --den-gap: 8px;
-  --den-font: 13px;
-}
-:root[data-density='spacious'] {
-  --den-row: 48px;
-  --den-cell-y: 14px;
-  --den-gap: 16px;
-  --den-font: 14px;
-}
+/* The motion / type / spacing / radius / elevation / density scales used to be
+   redeclared here, duplicating (and silently overriding) src/styles/tokens.css.
+   They now live in src/styles/primitives.css, which is imported above and is
+   the only place they are defined. See docs/ui/W1-01_VISUAL_DEBT_AUDIT.md F1/F2. */
 
 @layer base {
   html {
@@ -267,13 +209,16 @@
   }
 }
 
-/* WCAG 2.2 — 2.4.11/2.4.7: a strong, consistent, theme-aware focus indicator on
-   every keyboard-focused control. :focus-visible so it shows for keyboard/AT
-   users without ringing on mouse clicks. */
+/* WCAG 2.2 — 2.4.11/2.4.7: the focus indicator itself is defined once, in
+   tokens.css, against --focus-ring-color (verified >= 3:1 on every surface in
+   both themes). This rule only widens the net to elements that are focusable
+   without being one of the tags listed there; it must not restate the colour,
+   which is how it previously diverged — it used --accent (the variant hue,
+   2.73:1 on the light canvas) while the token said --accent-400. */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 3px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-xs);
 }
 /* Skip-to-content link (WCAG 2.4.1): off-screen until focused, then it lands as a
    real, branded control at the top-left so keyboard users jump past the chrome. */
