@@ -137,3 +137,82 @@ test.describe('reduced motion', () => {
     await expect(primary).toHaveCSS('opacity', '1');
   });
 });
+
+/**
+ * Responsive behaviour.
+ *
+ * The failure this guards against is horizontal overflow: a control with a
+ * fixed width, or a dialog wider than the viewport, pushes the page sideways
+ * and every screen becomes a scroll-to-read. It is invisible on a desktop and
+ * immediate on a phone, which is why it needs a test rather than an eye.
+ */
+const VIEWPORTS = [
+  { name: 'desktop', width: 1440, height: 900 },
+  { name: 'tablet', width: 834, height: 1112 },
+  { name: 'narrow', width: 390, height: 844 },
+] as const;
+
+for (const viewport of VIEWPORTS) {
+  for (const theme of THEMES) {
+    test(`no horizontal overflow — ${viewport.name} — ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+      for (const gallery of GALLERIES) {
+        await page.goto(galleryURL(gallery, theme));
+        await page.waitForSelector('main');
+
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        expect(overflow, `${gallery} overflows horizontally by ${overflow}px`).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+}
+
+test('touch targets clear the WCAG 2.5.8 minimum', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(galleryURL('controls', 'light'));
+  await page.waitForSelector('main');
+
+  // 24x24 CSS pixels is the AA floor. The small control size is 28px, so this
+  // passes with room — the test exists so that shrinking it is a decision
+  // someone has to make deliberately.
+  const undersized = await page.evaluate(() => {
+    const small: string[] = [];
+    for (const el of document.querySelectorAll('button')) {
+      const r = el.getBoundingClientRect();
+      // The link variant is inline text, exempt by 2.5.8's inline exception.
+      if (el.className.includes('underline')) continue;
+      if (r.width < 24 || r.height < 24) small.push(`${el.textContent?.trim()} ${r.width}x${r.height}`);
+    }
+    return small;
+  });
+
+  expect(undersized).toEqual([]);
+});
+
+/**
+ * Theme switching.
+ *
+ * The whole system rests on one claim: flipping data-theme on <html> retints
+ * everything, because components name roles and not colours. This proves it end
+ * to end — the surface actually changes, and it changes without a reload, which
+ * is what a component holding a hardcoded hex would break.
+ */
+test('flipping the theme attribute retints the page, both directions', async ({ page }) => {
+  await page.goto(galleryURL('feedback', 'light'));
+  await page.waitForSelector('main');
+
+  const surfaceOf = () =>
+    page.evaluate(() => getComputedStyle(document.querySelector('main')!).backgroundColor);
+
+  const light = await surfaceOf();
+
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const dark = await surfaceOf();
+  expect(dark).not.toBe(light);
+
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  expect(await surfaceOf()).toBe(light);
+});
