@@ -90,7 +90,7 @@ export function ScanPreviewPage() {
       <PageFrame>
         <ErrorState
           title={tr('Preview indisponible', 'Preview unavailable')}
-          sub={tr('Il a peut-être expiré (48h) ou a déjà été importé.', 'It may have expired (48h) or already been imported.')}
+          description={tr('Il a peut-être expiré (48h) ou a déjà été importé.', 'It may have expired (48h) or already been imported.')}
           onRetry={() => navigate('/infrastructure')}
           retryLabel={tr('Retour', 'Back')}
         />

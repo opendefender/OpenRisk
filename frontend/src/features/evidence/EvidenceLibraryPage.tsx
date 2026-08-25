@@ -144,7 +144,7 @@ export function EvidenceLibraryPage() {
       ) : error ? (
         <ErrorState
           title={tr('Impossible de charger la bibliothèque', 'Could not load the library')}
-          sub={tr('Réessayez, ou contactez un administrateur.', 'Try again, or contact an administrator.')}
+          description={tr('Réessayez, ou contactez un administrateur.', 'Try again, or contact an administrator.')}
           onRetry={() => refetch()}
         />
       ) : items.length === 0 ? (

@@ -46,7 +46,7 @@ export function MFAPolicyPanel() {
       <Card style={{ padding: '20px 22px' }}>
         <ErrorState
           title={tr('Politique MFA indisponible', 'MFA policy unavailable')}
-          sub={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Try again, or contact an administrator if this persists.')}
+          description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Try again, or contact an administrator if this persists.')}
           onRetry={() => void refetch()}
           retryLabel={tr('Réessayer', 'Retry')}
         />

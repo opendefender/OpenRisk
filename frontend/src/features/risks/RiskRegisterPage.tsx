@@ -803,7 +803,7 @@ function DrawerCTI({ r }: { r: UiRisk }) {
       <div className="py-8 px-[22px]">
         <ErrorState
           title={tr('Avis indisponible', 'Advisory unavailable')}
-          sub={tr(
+          description={tr(
             `${cve} n’a pas pu être lu depuis le moteur CTI. Le flux n’a peut-être pas encore été synchronisé.`,
             `${cve} could not be read from the CTI engine. The feed may not have been synchronised yet.`,
           )}

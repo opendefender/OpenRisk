@@ -236,8 +236,9 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
     return (
       <ErrorState
         title={tr('Impossible de charger les membres', 'Could not load members')}
-        sub={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+        description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
         onRetry={() => void refetch()}
+        retryLabel={tr('Réessayer', 'Retry')}
       />
     );
   }
@@ -453,8 +454,9 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
     return (
       <ErrorState
         title={tr('Impossible de charger les invitations', 'Could not load invitations')}
-        sub={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+        description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
         onRetry={() => void refetch()}
+        retryLabel={tr('Réessayer', 'Retry')}
       />
     );
   }
@@ -608,8 +610,9 @@ function AccessHistory({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
     return (
       <ErrorState
         title={tr("Impossible de charger le journal", 'Could not load the history')}
-        sub={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+        description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
         onRetry={() => void refetch()}
+        retryLabel={tr('Réessayer', 'Retry')}
       />
     );
   }

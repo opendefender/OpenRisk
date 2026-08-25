@@ -84,7 +84,7 @@ export function ErrorState({
   description,
   detail,
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel = 'Retry',
   retrying = false,
   secondaryAction,
   className,
@@ -214,13 +214,27 @@ export function Skeleton({ className, style }: { className?: string; style?: Rea
   );
 }
 
-/** A table's worth of skeleton rows, on the density grid so the real rows land
- *  in the same place. */
-export function SkeletonRows({ rows = 6, className }: { rows?: number; className?: string }) {
+/**
+ * A table's worth of skeleton rows.
+ *
+ * Defaults to the current density's row height, so the real rows land exactly
+ * where the placeholders were. `height` overrides it for a list whose rows are
+ * not table rows — a card list, a timeline — because a skeleton that does not
+ * match what replaces it is just a different kind of layout shift.
+ */
+export function SkeletonRows({
+  rows = 6,
+  height,
+  className,
+}: {
+  rows?: number;
+  height?: number;
+  className?: string;
+}) {
   return (
     <div className={cn('flex flex-col gap-1.5 p-2', className)} aria-hidden="true">
       {Array.from({ length: rows }).map((_, index) => (
-        <Skeleton key={index} style={{ height: 'var(--den-row)' }} />
+        <Skeleton key={index} style={{ height: height ?? 'var(--den-row)' }} />
       ))}
     </div>
   );

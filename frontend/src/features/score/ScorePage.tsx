@@ -50,7 +50,7 @@ export function ScorePage() {
         {isError && (
           <ErrorState
             title={tr('Le score n’a pas pu être calculé', 'The score could not be computed')}
-            sub={tr(
+            description={tr(
               'Réessayez dans un instant ; si cela persiste, contactez un administrateur.',
               'Try again in a moment; if it persists, contact an administrator.',
             )}
