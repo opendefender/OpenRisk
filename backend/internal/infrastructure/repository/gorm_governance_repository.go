@@ -45,6 +45,9 @@ func (r *GormAuditEventRepository) List(ctx context.Context, tenantID uuid.UUID,
 	if f.EntityType != "" {
 		q = q.Where("entity_type = ?", f.EntityType)
 	}
+	if len(f.EntityTypes) > 0 {
+		q = q.Where("entity_type IN ?", f.EntityTypes)
+	}
 	if f.EntityID != "" {
 		q = q.Where("entity_id = ?", f.EntityID)
 	}
