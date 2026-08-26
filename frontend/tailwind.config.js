@@ -13,7 +13,13 @@
  * docs/W1-01_OPENRISK_DESIGN_SYSTEM.md.
  */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  /* e2e is scanned too. The visual harness and the design-system gallery are
+     the only places that render some variants (a disabled destructive button,
+     an outlined `experimental` badge), and Tailwind only emits a utility it has
+     seen used. Without this the gallery renders those states with the class
+     absent from the stylesheet — a snapshot suite quietly photographing
+     unstyled markup, which is worse than no suite. */
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', './e2e/**/*.{ts,tsx}'],
   // Theme is driven by [data-theme] on <html> + CSS variables, so the `dark:`
   // variant is not used; tokens below resolve to the active theme automatically.
   darkMode: ['selector', '[data-theme="dark"]'],

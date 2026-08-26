@@ -88,7 +88,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'bg-danger-solid text-text-on-solid border border-transparent hover:brightness-110 active:brightness-95',
   /* Inline, in prose. Underlined always — colour alone is not an affordance
      (WCAG 1.4.1). */
-  link: 'bg-transparent text-accent border-none underline underline-offset-2 hover:text-accent-hover px-0 h-auto',
+  link: 'bg-transparent text-accent border-none underline underline-offset-2 hover:text-accent-hover px-0 h-auto gap-[var(--control-gap)] text-sm',
 };
 
 const SIZE: Record<ButtonSize, string> = {

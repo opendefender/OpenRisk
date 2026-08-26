@@ -25,7 +25,15 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
 
   use: {
-    baseURL: 'http://localhost:5173',
+    /*
+     * Overridable, because a stale dev server is a real hazard for this suite:
+     * Tailwind generates utilities from the config it loaded at startup, so a
+     * server left running from before a config change serves a stylesheet
+     * missing the new utilities — and the snapshots then record unstyled
+     * markup while passing. Pointing the suite at a server you just started is
+     * the cheap way to be sure.
+     */
+    baseURL: process.env.OPENRISK_BASE_URL ?? 'http://localhost:5173',
     // Deterministic rendering: animations mid-flight are the classic source of
     // one-pixel diffs that erode trust in a visual suite until it gets ignored.
     trace: 'retain-on-failure',
@@ -45,7 +53,7 @@ export default defineConfig({
   // run dev` so the usual local loop is untouched; the visual suite ignores it.
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: process.env.OPENRISK_BASE_URL ?? 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 120_000,
   },
