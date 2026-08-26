@@ -188,7 +188,7 @@ export const Register = () => {
             </Field>
           </div>
 
-          <Button type="submit" className="w-full mt-6 group" loading={isLoading}>
+          <Button variant="primary" type="submit" className="w-full mt-6 group" loading={isLoading}>
             Create Account <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
         </form>

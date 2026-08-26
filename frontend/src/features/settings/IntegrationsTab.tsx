@@ -122,7 +122,7 @@ export const IntegrationsTab = () => {
                             </div>
                         </div>
                         <div className="flex gap-2 pt-2">
-                          <Button className="text-sm">Save Configuration</Button>
+                          <Button variant="primary" className="text-sm">Save Configuration</Button>
                           <Button variant="ghost" className="text-sm">Reset</Button>
                         </div>
                     </div>

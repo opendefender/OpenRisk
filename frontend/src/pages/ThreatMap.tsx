@@ -52,7 +52,7 @@ export const ThreatMap = () => {
           <Globe size={64} className="mx-auto text-text-muted mb-4" />
           <p className="text-text-secondary mb-4">Interactive threat map visualization</p>
           <p className="text-sm text-text-muted">Map view would be rendered here with a mapping library</p>
-          <Button className="mt-4">View Full Map</Button>
+          <Button variant="primary" className="mt-4">View Full Map</Button>
         </div>
       </div>
 

@@ -109,7 +109,7 @@ export const BoardReportPage = () => {
             <option value="fr">FR</option>
             <option value="en">EN</option>
           </select>
-          <Button onClick={onGenerate} loading={generate.isPending} className="shadow-lg shadow-primary/20">
+          <Button variant="primary" onClick={onGenerate} loading={generate.isPending} className="shadow-lg shadow-primary/20">
             <Sparkles size={16} className="mr-2" />
             Générer
           </Button>
@@ -249,7 +249,7 @@ function EmptyList({ generating, onGenerate }: { generating: boolean; onGenerate
       <p className="text-sm text-text-secondary mb-4">
         Aucun rapport pour l'instant. Générez le premier rapport du conseil en un clic.
       </p>
-      <Button onClick={onGenerate} loading={generating}>
+      <Button variant="primary" onClick={onGenerate} loading={generating}>
         <Sparkles size={16} className="mr-2" /> Générer le premier rapport
       </Button>
     </div>
@@ -425,7 +425,7 @@ function ReportDetail({
         <div className="flex flex-wrap items-center gap-2 mt-6 pt-4 border-t border-border">
           {!readOnly && (
             <>
-              <Button onClick={onSave} disabled={!dirty} loading={update.isPending}>
+              <Button variant="primary" onClick={onSave} disabled={!dirty} loading={update.isPending}>
                 Enregistrer les modifications
               </Button>
               <Button

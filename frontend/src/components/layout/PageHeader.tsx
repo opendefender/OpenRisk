@@ -213,7 +213,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
             </div>
           </div>
           
-          <Button onClick={onNewRisk} className="shadow-lg shadow-blue-500/20">
+          <Button variant="primary" onClick={onNewRisk} className="shadow-lg shadow-blue-500/20">
             <Plus size={16} className="mr-2" /> New Risk
           </Button>
       </div>

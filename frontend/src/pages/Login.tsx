@@ -124,7 +124,7 @@ export const Login = () => {
                   />
                 </Field>
 
-                <Button type="submit" className="w-full mt-4 group" loading={isLoading}>
+                <Button variant="primary" type="submit" className="w-full mt-4 group" loading={isLoading}>
                     Sign In <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
             </form>

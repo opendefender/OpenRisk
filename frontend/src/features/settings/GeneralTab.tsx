@@ -160,7 +160,7 @@ export const GeneralTab = () => {
 
           {isEditing && (
             <div className="flex gap-3 pt-4">
-              <Button onClick={handleSave} disabled={isSaving}>
+              <Button variant="primary" onClick={handleSave} disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
               <Button variant="ghost" onClick={() => setIsEditing(false)}>

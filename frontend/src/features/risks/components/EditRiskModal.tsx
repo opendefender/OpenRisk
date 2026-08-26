@@ -238,7 +238,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-strong/5 sticky bottom-0 bg-surface">
                 <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
-                <Button type="submit" loading={isLoading || isSubmitting}>Enregistrer</Button>
+                <Button variant="primary" type="submit" loading={isLoading || isSubmitting}>Enregistrer</Button>
               </div>
             </form>
           </motion.div>

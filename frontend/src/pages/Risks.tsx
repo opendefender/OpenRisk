@@ -270,9 +270,9 @@ export const Risks = () => {
       <div className="mt-4 flex items-center justify-between">
         <div className="text-sm text-text-secondary">Total: {total}</div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setLocalPage((p) => Math.max(1, p - 1))} className="p-2"><ChevronLeft /></Button>
+          <Button variant="primary" onClick={() => setLocalPage((p) => Math.max(1, p - 1))} className="p-2"><ChevronLeft /></Button>
           <div className="px-3">{localPage} / {totalPages}</div>
-          <Button onClick={() => setLocalPage((p) => Math.min(totalPages, p + 1))} className="p-2"><ChevronRight /></Button>
+          <Button variant="primary" onClick={() => setLocalPage((p) => Math.min(totalPages, p + 1))} className="p-2"><ChevronRight /></Button>
         </div>
       </div>
     </div>

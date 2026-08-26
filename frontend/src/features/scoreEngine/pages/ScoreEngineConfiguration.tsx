@@ -128,7 +128,7 @@ export const ScoreEngineConfiguration = () => {
           <h1 className="text-3xl font-bold">Configuration du Score Engine</h1>
         </div>
         {!isEditing && (
-          <Button onClick={handleCreateNew} className="flex items-center gap-2">
+          <Button variant="primary" onClick={handleCreateNew} className="flex items-center gap-2">
             <Plus className="w-4 h-4" /> Nouvelle Configuration
           </Button>
         )}
@@ -308,7 +308,7 @@ export const ScoreEngineConfiguration = () => {
                 <Button variant="ghost" onClick={handleCancel} disabled={isLoading}>
                   <X className="w-4 h-4 mr-2" /> Annuler
                 </Button>
-                <Button onClick={handleSave} loading={isLoading}>
+                <Button variant="primary" onClick={handleSave} loading={isLoading}>
                   <Save className="w-4 h-4 mr-2" /> Sauvegarder
                 </Button>
               </div>

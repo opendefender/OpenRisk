@@ -200,7 +200,7 @@ export const MitigationKanbanPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <ViewSwitcher />
-          <Button onClick={() => setIsCreateOpen(true)}>
+          <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
             <Plus size={16} />
             <span className="hidden sm:inline ml-2">Nouveau plan</span>
           </Button>

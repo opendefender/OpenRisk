@@ -71,7 +71,7 @@ export const AssetsPage = () => {
         </div>
         <div className="flex items-center gap-4">
           <ViewToggle view={view} onViewChange={setView} />
-          <Button onClick={openCreateModal}>
+          <Button variant="primary" onClick={openCreateModal}>
             <Plus size={16} className="mr-2" /> {t('assets.createAsset')}
           </Button>
         </div>

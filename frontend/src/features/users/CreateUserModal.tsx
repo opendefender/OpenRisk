@@ -214,7 +214,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 >
                   Cancel
                 </Button>
-                <Button
+                <Button variant="primary"
                   onClick={handleSubmit}
                   disabled={isLoading}
                 >

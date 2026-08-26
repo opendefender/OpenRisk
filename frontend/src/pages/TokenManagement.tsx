@@ -243,7 +243,7 @@ export const TokenManagement = () => {
 
         {/* Controls */}
         <div className="flex gap-4 mb-6">
-          <Button
+          <Button variant="primary"
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="gap-2"
           >
@@ -285,7 +285,7 @@ export const TokenManagement = () => {
                 />
               </div>
               <div className="flex gap-3">
-                <Button type="submit" disabled={isCreating} className="gap-2">
+                <Button variant="primary" type="submit" disabled={isCreating} className="gap-2">
                   {isCreating ? 'Creating...' : 'Create Token'}
                 </Button>
                 <Button

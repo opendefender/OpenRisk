@@ -224,12 +224,12 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
 
                 <div className="flex gap-2 mt-2">
                   <Input value={newSubTitle} onChange={(e:any) => setNewSubTitle(e.target.value)} placeholder="Nouvelle sous-action" />
-                  <Button type="button" onClick={addSubAction}>Ajouter</Button>
+                  <Button variant="primary" type="button" onClick={addSubAction}>Ajouter</Button>
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="ghost" type="button" onClick={onClose}>Annuler</Button>
-                <Button type="submit" loading={isSubmitting}>Sauvegarder</Button>
+                <Button variant="primary" type="submit" loading={isSubmitting}>Sauvegarder</Button>
               </div>
             </form>
           </motion.div>

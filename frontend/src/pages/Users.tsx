@@ -132,7 +132,7 @@ export const Users = () => {
                 <p className="text-sm text-text-secondary">Manage users and permissions</p>
               </div>
             </div>
-            <Button className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
               <Plus size={16} className="mr-2" /> Create User
             </Button>
           </div>

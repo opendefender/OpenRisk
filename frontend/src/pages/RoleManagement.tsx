@@ -202,7 +202,7 @@ export const RoleManagement = () => {
                 <p className="text-sm text-text-secondary">Manage roles and permissions</p>
               </div>
             </div>
-            <Button
+            <Button variant="primary"
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90"
             >
@@ -471,7 +471,7 @@ export const RoleManagement = () => {
               >
                 Cancel
               </Button>
-              <Button
+              <Button variant="primary"
                 onClick={handleCreateRole}
                 disabled={isCreating}
                 className="flex-1"

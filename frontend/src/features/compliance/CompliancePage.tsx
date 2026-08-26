@@ -98,7 +98,7 @@ export const CompliancePage = () => {
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <Button onClick={openImportCatalogModal} className="gap-2">
+            <Button variant="primary" onClick={openImportCatalogModal} className="gap-2">
               <Library size={16} />
               {t('compliance.catalog.buttonLabel')}
             </Button>
