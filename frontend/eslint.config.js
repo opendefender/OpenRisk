@@ -36,6 +36,13 @@ export default defineConfig([
     },
   },
   {
+    // The Playwright harness and the design-system gallery are test fixtures,
+    // not application components: Vite never fast-refreshes them, so the rule
+    // about exporting constants beside a component does not apply.
+    files: ['e2e/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
     // The theme guard, at error level: a raw colour fails the build.
     //
     // Every overlay and every shared UI primitive is covered, which is what

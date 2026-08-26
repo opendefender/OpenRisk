@@ -277,7 +277,6 @@ describe('Modal', () => {
     // Enough tabs to walk past every control in the dialog and out the other
     // side, if the trap were not there.
     for (let i = 0; i < 8; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await user.tab();
       expect(dialog.contains(document.activeElement)).toBe(true);
     }
