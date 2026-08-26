@@ -17,8 +17,7 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
 import { FieldHelp } from '../../shared/FieldHelp';
@@ -238,12 +237,12 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
                   }}
                 />
-                <Input
-                  label={t('risks.riskName')}
-                  {...register('title')}
-                  error={errors.title?.message}
-                  disabled={isSubmitting}
-                />
+                <Field label={t('risks.riskName')} message={errors.title?.message} status={errors.title?.message ? 'invalid' : 'default'}>
+                  <Input
+                    {...register('title')}
+                    disabled={isSubmitting}
+                  />
+                </Field>
                 <div className="space-y-1.5">
                   <label htmlFor="create-risk-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskDescription')}</label>
                   <textarea
@@ -413,20 +412,21 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   </div>
                 </div>
 
-                <Input
-                  label={t('risks.riskTags')}
-                  {...register('tags', {
-                    setValueAs: (value) => typeof value === 'string' ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : value,
-                  })}
-                  placeholder="critical, api, cloud"
-                  disabled={isSubmitting}
-                />
+                <Field label={t('risks.riskTags')}>
+                  <Input
+                    {...register('tags', {
+                      setValueAs: (value) => typeof value === 'string' ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : value,
+                    })}
+                    placeholder="critical, api, cloud"
+                    disabled={isSubmitting}
+                  />
+                </Field>
 
                 </div>
 
                 <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
                   <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
-                  <Button type="submit" variant="secondary" isLoading={isSubmitting} className="gap-2">
+                  <Button type="submit" variant="secondary" loading={isSubmitting} className="gap-2">
                     <Zap size={16} /> {t('common.save')}
                   </Button>
                 </div>

@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Key, Trash2, Lock, Copy, Plus, Search, Calendar, ChevronDown } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
-import { Button } from '../components/ui/Button';
+import { Button } from '../shared/ds';
 
 interface APIToken {
   id: string;
@@ -243,7 +243,7 @@ export const TokenManagement = () => {
 
         {/* Controls */}
         <div className="flex gap-4 mb-6">
-          <Button
+          <Button variant="primary"
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="gap-2"
           >
@@ -285,7 +285,7 @@ export const TokenManagement = () => {
                 />
               </div>
               <div className="flex gap-3">
-                <Button type="submit" disabled={isCreating} className="gap-2">
+                <Button variant="primary" type="submit" disabled={isCreating} className="gap-2">
                   {isCreating ? 'Creating...' : 'Create Token'}
                 </Button>
                 <Button

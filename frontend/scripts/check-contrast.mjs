@@ -130,6 +130,65 @@ const PAIRS = [
   ),
 ];
 
+/**
+ * Non-text contrast (WCAG 2.2 SC 1.4.11, 3:1).
+ *
+ * Text was the only thing checked before, which left the half of the interface
+ * that has no text unverified: a chart line, the ring that tells a keyboard
+ * user where they are, and the border that says "this is an input" all carry
+ * meaning through colour alone and all have a floor.
+ *
+ * Charts are checked against --surface-1 (the card they are drawn on) rather
+ * than the canvas, because that is where they actually render.
+ */
+const CHART_SERIES = [
+  '--chart-1',
+  '--chart-2',
+  '--chart-3',
+  '--chart-4',
+  '--chart-5',
+  '--chart-6',
+  '--chart-7',
+  '--chart-8',
+];
+
+const NON_TEXT_PAIRS = [
+  // Every chart series must be visible on the card it is drawn on.
+  ...CHART_SERIES.map((c) => ({ text: c, surface: '--surface-1', min: AA_LARGE })),
+  // The focus ring is the single most important non-text indicator in the
+  // product: it is the only thing a keyboard user has to locate themselves.
+  // Checked on every surface a focusable control can sit on.
+  ...SURFACES.map((surface) => ({ text: '--focus-ring-color', surface, min: AA_LARGE })),
+  // The boundary of a control (input, secondary button) is what distinguishes
+  // it from the surface behind it. --border-subtle is decorative and exempt;
+  // --border-strong is not.
+  ...['--surface-1', '--surface-2', '--surface-3'].map((surface) => ({
+    text: '--border-control',
+    surface,
+    min: AA_LARGE,
+  })),
+  // Graph edges and node strokes carry the topology.
+  { text: '--graph-edge', surface: '--surface-1', min: AA_LARGE },
+  { text: '--graph-node-stroke', surface: '--surface-1', min: AA_LARGE },
+];
+
+const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS];
+
+/**
+ * The live accent, per theme AND per accent variant.
+ *
+ * `--accent` is a TEXT colour in this product — links, the link button, the
+ * accent badge — so it has a 4.5:1 obligation, and it is the token most likely
+ * to be changed for aesthetic reasons. It was previously declared once for both
+ * themes, in index.css, and measured 3.65:1 on white everywhere it was used as
+ * text. Checking each variant in each theme is what makes that unrepeatable.
+ */
+const VARIANTS = ['azure', 'iris'];
+
+const ACCENT_PAIRS = [
+  ...SURFACES.map((surface) => ({ text: '--accent', surface, min: AA_NORMAL })),
+];
+
 const css = readFileSync(TOKENS, 'utf8');
 const themes = {
   dark: parseBlock(css, ":root[data-theme='dark']"),
@@ -142,7 +201,7 @@ let checked = 0;
 for (const [themeName, scope] of Object.entries(themes)) {
   console.log(`\n${themeName.toUpperCase()}`);
 
-  for (const { text, surface, min } of PAIRS) {
+  for (const { text, surface, min } of ALL_PAIRS) {
     const rawText = scope[text];
     const rawSurface = scope[surface];
     if (!rawText || !rawSurface) {
@@ -170,6 +229,39 @@ for (const [themeName, scope] of Object.entries(themes)) {
     const mark = ok ? '.' : 'FAIL';
     if (!ok) {
       console.log(`  ${mark} ${text} on ${surface}: ${ratio.toFixed(2)}:1 (needs ${min}:1)`);
+    }
+  }
+}
+
+// Accent variants: the variant block only overrides the accent, so it is
+// layered over its theme's scope to resolve surfaces and the accent ramp.
+for (const [themeName, themeScope] of Object.entries(themes)) {
+  for (const variant of VARIANTS) {
+    const selector =
+      themeName === 'light'
+        ? `:root[data-theme='light'][data-variant='${variant}']`
+        : `:root[data-variant='${variant}']`;
+    const scope = { ...themeScope, ...parseBlock(css, selector) };
+
+    for (const { text, surface, min } of ACCENT_PAIRS) {
+      const fg = parseColor(resolveVar(scope[text], scope));
+      const bgRaw = parseColor(resolveVar(scope[surface], scope));
+      if (!fg || !bgRaw) {
+        console.log(`  ?  ${text} on ${surface} — unresolved in ${themeName}/${variant}`);
+        failures++;
+        continue;
+      }
+      const pageBg = parseColor(resolveVar(scope['--surface-0'], scope));
+      const bg = flatten(bgRaw, pageBg);
+      const ratio = contrast(flatten(fg, bg), bg);
+      checked++;
+      if (ratio < min) {
+        failures++;
+        console.log(
+          `  FAIL ${text} (${variant}) on ${surface} in ${themeName}: ` +
+            `${ratio.toFixed(2)}:1 (needs ${min}:1)`,
+        );
+      }
     }
   }
 }

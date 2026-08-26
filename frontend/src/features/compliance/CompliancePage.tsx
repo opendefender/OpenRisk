@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ClipboardList, FileDown, Library, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../shared/ds';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn } from '../../shared/ui';
@@ -98,7 +98,7 @@ export const CompliancePage = () => {
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <Button onClick={openImportCatalogModal} className="gap-2">
+            <Button variant="primary" onClick={openImportCatalogModal} className="gap-2">
               <Library size={16} />
               {t('compliance.catalog.buttonLabel')}
             </Button>

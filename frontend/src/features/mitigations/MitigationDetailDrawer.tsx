@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import type { Mitigation, SubAction } from '../../types/mitigation';
 import { mitigationService } from '../../services/mitigationService';
 import { SubActionTable } from './SubActionTable';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../shared/ds';
 import { ProgressBar } from '../../components/shared/ProgressBar';
 import { useI18n } from '../../hooks/useI18n';
 import { cn } from '../../utils/cn';
@@ -213,7 +213,7 @@ export const MitigationDetailDrawer = ({
                           className="w-full min-h-[100px] px-3 py-2 bg-surface-2 border border-border-default rounded text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-400"
                         />
                         <div className="flex gap-2">
-                          <Button
+                          <Button variant="primary"
                             onClick={handleSaveDescription}
                             disabled={isUpdating}
                           >

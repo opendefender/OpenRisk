@@ -1,0 +1,177 @@
+/* Copyright (c) 2026 OpenDefender Contributors
+   SPDX-License-Identifier: BUSL-1.1 */
+
+/* ============================================================================
+   OpenRisk primitive tokens — the non-colour scales
+   ============================================================================
+
+   Layer 1 of four:
+
+       primitives.css   raw scales, theme-independent   <- you are here
+       tokens.css       semantic colour roles, per theme
+       components.css   component-level tokens
+       (product)        screens compose the above, and nothing else
+
+   Everything here is deliberately theme-INDEPENDENT. A spacing step does not
+   change when the lights go out; a duration does not either. Only colour and
+   elevation do, and those live in tokens.css.
+
+   Before this file, --space-*, --text-* and --elev-* were declared inside
+   index.css and had zero consumers (audit F2), while --radius-* was declared
+   in BOTH index.css and tokens.css with conflicting values (audit F1). This is
+   now the only place any of them are defined.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------- type ---
+     Base is 14px, not 16px. OpenRisk is a console: a risk register, a control
+     table and a vulnerability queue all have to put a usable number of rows on
+     screen at once. The scale is ~1.2 so adjacent steps stay distinguishable
+     without any step becoming marketing-sized. */
+  --text-2xs: 10.5px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 19px;
+  --text-xl: 23px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+
+  /* Line heights. Data-bearing text is set tight; prose is not. */
+  --leading-none: 1;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* Weights. Four, and only four — Inter's 650 was in use in one place and
+     rendered as a synthesised weight on systems without the variable face. */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Tracking. Negative on display sizes (large Inter is loose by default),
+     positive only on the uppercase micro-labels used for table headers. */
+  --tracking-display: -0.02em;
+  --tracking-normal: 0;
+  --tracking-caps: 0.06em;
+
+  /* Families. --font-display is re-pointed by the accent variant. */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* --------------------------------------------------------------- space ---
+     4px grid. Half-steps exist only below 8px, where 2px is a real distinction
+     (icon-to-label) and 6px is not reachable from the grid. */
+  --space-0: 0px;
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* -------------------------------------------------------------- radius ---
+     Capped at 18px. A 24px corner reads as a phone app; a 0px corner reads as
+     a spreadsheet. OpenRisk sits between the two on purpose. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* -------------------------------------------------------------- motion ---
+     Five durations, and the longest is 400ms — reserved for a panel travelling
+     the width of the screen. Anything the user does dozens of times an hour
+     (hover, press, open a menu) is on --dur-fast or --dur-base, which is the
+     difference between a product that feels quick and one that feels animated.
+
+     Four curves. --ease-out is the default for anything entering or settling;
+     --ease-in for anything leaving, because an element that accelerates away
+     reads as dismissed rather than yanked. --ease-emphasized has a slight
+     overshoot and is reserved for the one signature move (see components.css). */
+  --dur-instant: 90ms;
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+  --dur-panel: 400ms;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.9, 0.25, 1.06);
+
+  /* Composed shorthands, so a component writes one token instead of pairing a
+     duration and a curve by hand (and getting a different pair each time). */
+  --motion-hover: var(--dur-fast) var(--ease-out);
+  --motion-press: var(--dur-instant) var(--ease-out);
+  --motion-enter: var(--dur-base) var(--ease-out);
+  --motion-exit: var(--dur-fast) var(--ease-in);
+  --motion-panel: var(--dur-panel) var(--ease-out);
+
+  /* ------------------------------------------------------------- z-index ---
+     Named layers. Before this, stacking order was a guessed integer per file
+     (59, 60, 65, 70, 75, 80, 85, 90, 95, 120 were all in use — audit F4), so
+     every new overlay had to pick a bigger number than whatever it collided
+     with. The ordering below is the contract; the numbers are just spaced far
+     enough apart to insert a layer without renumbering.
+
+     The one rule that matters: a TOOLTIP outranks a MODAL, because a tooltip
+     on a control inside a modal has to be readable. */
+  --z-base: 0;
+  --z-raised: 10; /* a card lifted on hover */
+  --z-sticky: 20; /* sticky table header */
+  --z-nav: 30; /* sidebar, app chrome */
+  --z-header: 40; /* app header, above the sidebar */
+  --z-dropdown: 50; /* select menus, row menus, column pickers */
+  --z-drawer: 60; /* side panels */
+  --z-modal: 70; /* dialogs */
+  --z-popover: 80; /* popovers anchored above a dialog */
+  --z-toast: 90; /* transient notifications */
+  --z-tooltip: 100; /* always readable, over everything */
+
+  /* --------------------------------------------------------- breakpoints ---
+     Mirrors tailwind.config.js. Declared here so a container query or a JS
+     matchMedia reads the same numbers the utilities do. --bp-3xl is the
+     master-detail threshold: at 1920px a detail panel opens BESIDE the list
+     rather than over it. */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+  --bp-3xl: 1920px;
+
+  /* ------------------------------------------------------------- density ---
+     Drives row rhythm for tables and lists. Comfortable is the default; a
+     security analyst working a queue switches to compact and gets ~25% more
+     rows without a different table. */
+  --den-row: 40px;
+  --den-cell-y: 10px;
+  --den-gap: 12px;
+  --den-font: var(--text-base);
+}
+
+:root[data-density='compact'] {
+  --den-row: 32px;
+  --den-cell-y: 6px;
+  --den-gap: 8px;
+  --den-font: var(--text-sm);
+}
+
+:root[data-density='spacious'] {
+  --den-row: 48px;
+  --den-cell-y: 14px;
+  --den-gap: 16px;
+  --den-font: var(--text-base);
+}

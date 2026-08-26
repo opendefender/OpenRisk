@@ -5,8 +5,7 @@
 
 import { useState } from 'react';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { UserLevelCard } from '../gamification/UserLevelCard';
 import { toast } from 'sonner';
 import { Camera, Save } from 'lucide-react';
@@ -91,36 +90,40 @@ export const GeneralTab = () => {
 
         <form className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input 
-              label="Full Name" 
-              value={formData.full_name}
-              onChange={(e) => handleChange('full_name', e.target.value)}
-              disabled={!isEditing}
-            />
-            <Input 
-              label="Email Address" 
-              value={formData.email}
-              disabled
-              className="cursor-not-allowed"
-            />
+            <Field label="Full Name">
+              <Input
+                value={formData.full_name}
+                onChange={(e) => handleChange('full_name', e.target.value)}
+                disabled={!isEditing}
+              />
+            </Field>
+            <Field label="Email Address">
+              <Input
+                value={formData.email}
+                disabled
+                className="cursor-not-allowed"
+              />
+            </Field>
           </div>
 
           {isEditing && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input 
-                  label="Phone Number" 
-                  type="tel"
-                  placeholder="+1 (555) 000-0000"
-                  value={formData.phone}
-                  onChange={(e) => handleChange('phone', e.target.value)}
-                />
-                <Input 
-                  label="Department" 
-                  placeholder="e.g. Security, IT Operations"
-                  value={formData.department}
-                  onChange={(e) => handleChange('department', e.target.value)}
-                />
+                <Field label="Phone Number">
+                  <Input
+                    type="tel"
+                    placeholder="+1 (555) 000-0000"
+                    value={formData.phone}
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                  />
+                </Field>
+                <Field label="Department">
+                  <Input
+                    placeholder="e.g. Security, IT Operations"
+                    value={formData.department}
+                    onChange={(e) => handleChange('department', e.target.value)}
+                  />
+                </Field>
               </div>
 
               <div className="space-y-2">
@@ -157,7 +160,7 @@ export const GeneralTab = () => {
 
           {isEditing && (
             <div className="flex gap-3 pt-4">
-              <Button onClick={handleSave} disabled={isSaving}>
+              <Button variant="primary" onClick={handleSave} disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
               <Button variant="ghost" onClick={() => setIsEditing(false)}>

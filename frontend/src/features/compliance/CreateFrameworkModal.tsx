@@ -8,8 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldCheck } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useFrameworks } from './useCompliance';
@@ -95,19 +94,20 @@ export const CreateFrameworkModal = ({ isOpen, onClose }: CreateFrameworkModalPr
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <Input
-                  label={t('compliance.form.name')}
-                  {...register('name')}
-                  error={errors.name?.message}
-                  disabled={isSubmitting}
-                  autoFocus
-                />
-                <Input
-                  label={t('compliance.form.version')}
-                  {...register('version')}
-                  disabled={isSubmitting}
-                  placeholder="2022"
-                />
+                <Field label={t('compliance.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
+                  <Input
+                    {...register('name')}
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </Field>
+                <Field label={t('compliance.form.version')}>
+                  <Input
+                    {...register('version')}
+                    disabled={isSubmitting}
+                    placeholder="2022"
+                  />
+                </Field>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
                     {t('compliance.form.description')}
@@ -124,7 +124,7 @@ export const CreateFrameworkModal = ({ isOpen, onClose }: CreateFrameworkModalPr
                   <Button type="button" variant="ghost" onClick={handleClose}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit" variant="primary" isLoading={isSubmitting}>
+                  <Button type="submit" variant="primary" loading={isSubmitting}>
                     {t('compliance.createFramework')}
                   </Button>
                 </div>

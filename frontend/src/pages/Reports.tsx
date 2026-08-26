@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Download, Calendar, Eye, Share2, Trash2 } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from '../shared/ds';
 import { useReportStore } from '../hooks/useReportStore';
 
 export const Reports = () => {
@@ -104,7 +104,7 @@ export const Reports = () => {
       {/* Action & Filters */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center">
-          <Button className="shadow-lg shadow-blue-500/20">
+          <Button variant="primary" className="shadow-lg shadow-blue-500/20">
             <FileText size={16} className="mr-2" /> Generate New Report
           </Button>
           <div className="flex gap-4">

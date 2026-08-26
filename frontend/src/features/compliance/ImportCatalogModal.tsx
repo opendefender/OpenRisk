@@ -5,7 +5,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Library, Clock, Loader2 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useCatalogs, useImportCatalogAsFramework } from './useCompliance';

@@ -6,8 +6,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { api } from '../../lib/api';
 import { toast } from 'sonner';
 import { useEscapeToClose } from '../../shared/useBackTo';
@@ -156,7 +155,10 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="fixed inset-0 m-auto w-full max-w-md h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-50 overflow-auto">
             <h3 className="text-lg font-semibold text-text-primary mb-4">Modifier la mitigation</h3>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-              <Input label="Titre" {...register('title')} />
+              <Field label="Titre">
+                <Input  {...register('title')}
+                />
+              </Field>
 
               <div className="space-y-2">
                 <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
@@ -190,11 +192,20 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
                     <span className="ml-2 text-xs text-text-muted">(calculé)</span>
                   </div>
                 </div>
-                <Input type="number" label="Temps (jours)" {...register('mitigation_time')} />
+                <Field label="Temps (jours)">
+                  <Input type="number"  {...register('mitigation_time')}
+                  />
+                </Field>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Input type="number" label="Coût (1-3)" {...register('cost')} />
-                <Input type="date" label="Due date" {...register('due_date')} />
+                <Field label="Coût (1-3)">
+                  <Input type="number"  {...register('cost')}
+                  />
+                </Field>
+                <Field label="Due date">
+                  <Input type="date"  {...register('due_date')}
+                  />
+                </Field>
               </div>
               {/* Sub-actions checklist */}
               <div className="mt-3">
@@ -213,12 +224,12 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
 
                 <div className="flex gap-2 mt-2">
                   <Input value={newSubTitle} onChange={(e:any) => setNewSubTitle(e.target.value)} placeholder="Nouvelle sous-action" />
-                  <Button type="button" onClick={addSubAction}>Ajouter</Button>
+                  <Button variant="primary" type="button" onClick={addSubAction}>Ajouter</Button>
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="ghost" type="button" onClick={onClose}>Annuler</Button>
-                <Button type="submit" isLoading={isSubmitting}>Sauvegarder</Button>
+                <Button variant="primary" type="submit" loading={isSubmitting}>Sauvegarder</Button>
               </div>
             </form>
           </motion.div>

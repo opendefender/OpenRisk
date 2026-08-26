@@ -9,8 +9,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Server, History, Trash2 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useUIStore } from '../../store/uiStore';
@@ -177,13 +176,13 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6 scrollbar-thin">
-                <Input
-                  label={t('assets.form.name')}
-                  {...register('name')}
-                  error={errors.name?.message}
-                  disabled={isSubmitting}
-                  autoFocus
-                />
+                <Field label={t('assets.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
+                  <Input
+                    {...register('name')}
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </Field>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -220,11 +219,12 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
                   </div>
                 </div>
 
-                <Input
-                  label={t('assets.form.owner')}
-                  {...register('owner')}
-                  disabled={isSubmitting}
-                />
+                <Field label={t('assets.form.owner')}>
+                  <Input
+                    {...register('owner')}
+                    disabled={isSubmitting}
+                  />
+                </Field>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
@@ -278,7 +278,7 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
                     <Button type="button" variant="ghost" onClick={handleClose}>
                       {t('common.cancel', 'Cancel')}
                     </Button>
-                    <Button type="submit" variant="primary" isLoading={isSubmitting}>
+                    <Button type="submit" variant="primary" loading={isSubmitting}>
                       {t('common.save', 'Save')}
                     </Button>
                   </div>

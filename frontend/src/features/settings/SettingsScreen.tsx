@@ -470,7 +470,7 @@ function GeneralTab({ tr }: { tr: Tr }) {
       <Card style={{ padding: '20px 22px' }}>
         <ErrorState
           title={tr("Impossible de charger l'organisation", 'Could not load the organization')}
-          sub={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+          description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
           onRetry={() => void refetch()}
         />
       </Card>
@@ -830,7 +830,7 @@ function NotifTab({ tr }: { tr: Tr }) {
       <Card style={{ padding: '20px 22px' }}>
         <ErrorState
           title={tr('Préférences indisponibles', 'Preferences unavailable')}
-          sub={tr(
+          description={tr(
             'Impossible de lire vos préférences de notification. Réessayez ; si le problème persiste, contactez un administrateur.',
             'Could not read your notification preferences. Retry; if it persists, contact an administrator.',
           )}

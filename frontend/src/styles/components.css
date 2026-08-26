@@ -1,0 +1,108 @@
+/* Copyright (c) 2026 OpenDefender Contributors
+   SPDX-License-Identifier: BUSL-1.1 */
+
+/* ============================================================================
+   OpenRisk component tokens
+   ============================================================================
+
+   Layer 3 of four (primitives.css -> tokens.css -> THIS -> screens).
+
+   A component token exists for one reason: two components have to agree on a
+   value that is not a raw scale step. A button and an input must be the same
+   height or a filter bar looks broken; a drawer and a modal must animate over
+   the same distance or opening one after the other feels like two products.
+
+   The rule for adding one: it is shared by more than one component, OR it is a
+   value a screen would otherwise have to hardcode to line something up. A token
+   used by exactly one component that nothing has to align with is just that
+   component's CSS and belongs in the component.
+
+   Everything here is theme-independent by construction — these are sizes and
+   distances. Colour comes from tokens.css.
+   ========================================================================== */
+
+:root {
+  /* --------------------------------------------------------- control size ---
+     One height ramp shared by button, input, select and the search box, so a
+     toolbar composed of four different components still lines up. 36px is the
+     default: it clears the 24x24 minimum target of WCAG 2.5.8 with room to
+     spare while staying dense enough for a filter bar. */
+  --control-h-sm: 28px;
+  --control-h-md: 36px;
+  --control-h-lg: 44px;
+
+  --control-px-sm: var(--space-2);
+  --control-px-md: var(--space-3);
+  --control-px-lg: var(--space-4);
+
+  --control-radius: var(--radius-md);
+  --control-radius-sm: var(--radius-sm);
+
+  /* Gap between an icon and its label inside a control. */
+  --control-gap: var(--space-1-5);
+
+  /* ---------------------------------------------------------------- badge ---
+     Badges are not controls: they are read, not pressed, so they are smaller
+     and rounder. */
+  --badge-h: 20px;
+  --badge-px: var(--space-2);
+  --badge-radius: var(--radius-full);
+  --badge-font: var(--text-2xs);
+
+  /* ----------------------------------------------------------------- card ---
+     The default content container. Radius is the large step, not the extra
+     large one: cards nest inside page frames and an 18px corner inside a 14px
+     corner reads as a mistake. */
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-5);
+  --card-padding-compact: var(--space-4);
+
+  /* ---------------------------------------------------------------- panel ---
+     Modals and drawers. Widths are a small named set rather than a free number,
+     because "how wide is the edit dialog" should have the same answer in every
+     feature. */
+  --modal-w-sm: 380px;
+  --modal-w-md: 520px;
+  --modal-w-lg: 720px;
+  --modal-w-xl: 960px;
+  --modal-radius: var(--radius-lg);
+  --modal-padding: var(--space-5);
+  /* A dialog never exceeds this, so its footer stays reachable on a laptop. */
+  --modal-max-h: 90vh;
+
+  --drawer-w-sm: 380px;
+  --drawer-w-md: 480px;
+  --drawer-w-lg: 620px;
+  --drawer-w-xl: 780px;
+
+  /* -------------------------------------------------------------- overlay ---
+     Backdrop blur is 4px, not 20px. A heavy blur is the single most common
+     "premium" tell and it costs a full-screen filter pass on every frame of the
+     open animation; 4px is enough to push the page back behind a scrim that is
+     already doing most of the work. */
+  --overlay-blur: 4px;
+
+  /* ---------------------------------------------------------------- table ---
+     Row rhythm comes from the --den-* density tokens in primitives.css. These
+     are the parts that do not change with density. */
+  --table-header-h: 34px;
+  --table-cell-px: var(--space-3);
+  --table-radius: var(--radius-lg);
+
+  /* ------------------------------------------------------------- keyline ---
+     The OpenRisk signature: a 2px accent rule marking the active element —
+     the selected nav item, the active tab, the focused panel. It replaces the
+     filled pill / glow / gradient vocabulary that made the product look like
+     every other dashboard, and it costs one border instead of a background. */
+  --keyline-w: 2px;
+
+  /* --------------------------------------------------------------- layout ---
+     Content measure. Prose caps at 68ch for readability; a data page runs wide
+     because a table with 9 columns needs the room. */
+  --content-max: 1180px;
+  --content-max-wide: 1320px;
+  --prose-max: 68ch;
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 64px;
+  --header-h: 56px;
+}

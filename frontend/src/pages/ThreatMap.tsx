@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Globe, MapPin, AlertTriangle, TrendingUp, RefreshCw } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from '../shared/ds';
 import { useThreatStore, type Threat } from '../hooks/useThreatStore';
 
 export const ThreatMap = () => {
@@ -52,7 +52,7 @@ export const ThreatMap = () => {
           <Globe size={64} className="mx-auto text-text-muted mb-4" />
           <p className="text-text-secondary mb-4">Interactive threat map visualization</p>
           <p className="text-sm text-text-muted">Map view would be rendered here with a mapping library</p>
-          <Button className="mt-4">View Full Map</Button>
+          <Button variant="primary" className="mt-4">View Full Map</Button>
         </div>
       </div>
 

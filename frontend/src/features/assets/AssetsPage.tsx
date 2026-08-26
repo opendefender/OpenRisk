@@ -5,7 +5,7 @@
 
 import { Database, Edit2, History, HardDrive, Laptop, Plus, Server, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../shared/ds';
 import { SkeletonTable } from '../../components/shared/SkeletonTable';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn } from '../../shared/ui';
@@ -71,7 +71,7 @@ export const AssetsPage = () => {
         </div>
         <div className="flex items-center gap-4">
           <ViewToggle view={view} onViewChange={setView} />
-          <Button onClick={openCreateModal}>
+          <Button variant="primary" onClick={openCreateModal}>
             <Plus size={16} className="mr-2" /> {t('assets.createAsset')}
           </Button>
         </div>

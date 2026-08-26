@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Shield, Plus, Trash2, Lock, Search, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
-import { Button } from '../components/ui/Button';
+import { Button } from '../shared/ds';
 import { useAuthStore } from '../hooks/useAuthStore';
 
 interface Permission {
@@ -202,7 +202,7 @@ export const RoleManagement = () => {
                 <p className="text-sm text-text-secondary">Manage roles and permissions</p>
               </div>
             </div>
-            <Button
+            <Button variant="primary"
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90"
             >
@@ -471,7 +471,7 @@ export const RoleManagement = () => {
               >
                 Cancel
               </Button>
-              <Button
+              <Button variant="primary"
                 onClick={handleCreateRole}
                 disabled={isCreating}
                 className="flex-1"

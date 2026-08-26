@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { Shield, Plus, Trash2, Users, Edit2 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../shared/ds';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -120,7 +120,7 @@ export const TeamTab = () => {
                             <h3 className="text-2xl font-bold text-text-primary mb-1">Teams</h3>
                             <p className="text-text-secondary text-sm">Create and manage teams for better organization.</p>
                         </div>
-                        <Button onClick={() => setShowCreateTeam(!showCreateTeam)}>
+                        <Button variant="primary" onClick={() => setShowCreateTeam(!showCreateTeam)}>
                             <Plus size={16} className="mr-2" /> Create Team
                         </Button>
                     </div>
@@ -146,7 +146,7 @@ export const TeamTab = () => {
                                 onChange={(e) => setNewTeamDesc(e.target.value)}
                             />
                             <div className="flex gap-2">
-                                <Button onClick={handleCreateTeam}>Create</Button>
+                                <Button variant="primary" onClick={handleCreateTeam}>Create</Button>
                                 <Button variant="ghost" onClick={() => setShowCreateTeam(false)}>Cancel</Button>
                             </div>
                         </motion.div>

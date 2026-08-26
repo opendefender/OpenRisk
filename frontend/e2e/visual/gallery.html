@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Design system gallery</title>
+    <script>
+      // Theme before first paint, for the same reason index.html does it: a
+      // theme applied after mount produces a flash, and in a screenshot suite
+      // a flash is a race that looks like a colour regression.
+      (function () {
+        var theme = new URLSearchParams(location.search).get('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-variant', 'azure');
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="gallery-root"></div>
+    <script type="module" src="./gallery.tsx"></script>
+  </body>
+</html>

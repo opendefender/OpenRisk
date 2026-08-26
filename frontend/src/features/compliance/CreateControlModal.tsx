@@ -8,8 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ListPlus } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button, Field, Input } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
 import { useToast } from '../../hooks/useToast';
 import { useControls } from './useCompliance';
@@ -96,19 +95,20 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <Input
-                  label={t('compliance.form.referenceCode')}
-                  {...register('reference_code')}
-                  disabled={isSubmitting}
-                  placeholder="A.5.1.1"
-                  autoFocus
-                />
-                <Input
-                  label={t('compliance.form.name')}
-                  {...register('name')}
-                  error={errors.name?.message}
-                  disabled={isSubmitting}
-                />
+                <Field label={t('compliance.form.referenceCode')}>
+                  <Input
+                    {...register('reference_code')}
+                    disabled={isSubmitting}
+                    placeholder="A.5.1.1"
+                    autoFocus
+                  />
+                </Field>
+                <Field label={t('compliance.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
+                  <Input
+                    {...register('name')}
+                    disabled={isSubmitting}
+                  />
+                </Field>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
                     {t('compliance.form.description')}
@@ -125,7 +125,7 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
                   <Button type="button" variant="ghost" onClick={handleClose}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit" variant="primary" isLoading={isSubmitting}>
+                  <Button type="submit" variant="primary" loading={isSubmitting}>
                     {t('compliance.addControl')}
                   </Button>
                 </div>

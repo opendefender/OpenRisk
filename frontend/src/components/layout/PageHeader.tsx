@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { Plus, Bell, Search, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button } from '../../shared/ds';
 import { useEffect, useRef, useState } from 'react';
 import { useRiskStore } from '../../hooks/useRiskStore';
 
@@ -213,7 +213,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
             </div>
           </div>
           
-          <Button onClick={onNewRisk} className="shadow-lg shadow-blue-500/20">
+          <Button variant="primary" onClick={onNewRisk} className="shadow-lg shadow-blue-500/20">
             <Plus size={16} className="mr-2" /> New Risk
           </Button>
       </div>

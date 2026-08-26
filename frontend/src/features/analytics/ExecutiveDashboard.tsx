@@ -91,7 +91,7 @@ export function ExecutiveDashboard() {
         <PageHeader title={tr('Tableau de bord exécutif', 'Executive dashboard')} />
         <ErrorState
           title={tr('Impossible de charger le tableau de bord', 'Could not load the dashboard')}
-          sub={tr('Réessayez dans un instant.', 'Please try again in a moment.')}
+          description={tr('Réessayez dans un instant.', 'Please try again in a moment.')}
           onRetry={() => refetch()}
           retryLabel={tr('Réessayer', 'Retry')}
         />

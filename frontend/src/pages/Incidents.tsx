@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Clock, User, Filter, Search, Users } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from '../shared/ds';
 import { ViewToggle } from '../components/ViewToggle';
 import { useIncidentStore } from '../hooks/useIncidentStore';
 

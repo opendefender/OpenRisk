@@ -6,12 +6,19 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import noRawColors from './eslint-rules/no-raw-colors.js'
 import noMockData from './eslint-rules/no-mock-data.js'
+import noAdHocDesignValues from './eslint-rules/no-ad-hoc-design-values.js'
 
 /**
  * Local plugin. Kept in-repo rather than published: the rule encodes this
  * project's token vocabulary and has no meaning outside it.
  */
-const openrisk = { rules: { 'no-raw-colors': noRawColors, 'no-mock-data': noMockData } }
+const openrisk = {
+  rules: {
+    'no-raw-colors': noRawColors,
+    'no-mock-data': noMockData,
+    'no-ad-hoc-design-values': noAdHocDesignValues,
+  },
+}
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -27,6 +34,13 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+  },
+  {
+    // The Playwright harness and the design-system gallery are test fixtures,
+    // not application components: Vite never fast-refreshes them, so the rule
+    // about exporting constants beside a component does not apply.
+    files: ['e2e/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
     // The theme guard, at error level: a raw colour fails the build.
@@ -154,6 +168,27 @@ export default defineConfig([
     plugins: { openrisk },
     rules: {
       'openrisk/no-mock-data': 'error',
+    },
+  },
+  {
+    // The token guard, at error level: an ad-hoc font size, radius, z-index or
+    // duration fails the build.
+    //
+    // An ALLOWLIST, not an ignore list. The migration off 1559 arbitrary values
+    // is partial and this records exactly how far it has got: a file joins the
+    // list when it has been migrated, and the list only grows. The alternative
+    // — enable it everywhere and drop the level to 'warn' to accommodate the
+    // backlog — is what let the backlog happen.
+    files: [
+      'src/shared/ds/**/*.{ts,tsx}',
+      'src/shared/DangerConfirm.tsx',
+      'src/shared/ImpactDialog.tsx',
+      'src/shared/EmptyState.tsx',
+      'src/shared/AccessDenied.tsx',
+    ],
+    plugins: { openrisk },
+    rules: {
+      'openrisk/no-ad-hoc-design-values': 'error',
     },
   },
 ])

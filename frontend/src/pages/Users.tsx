@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Users as UsersIcon, Shield, Trash2, Lock, Unlock, Plus, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from 'sonner';
-import { Button } from '../components/ui/Button';
+import { Button } from '../shared/ds';
 import { useAuthStore } from '../hooks/useAuthStore';
 import { CreateUserModal } from '../features/users/CreateUserModal';
 
@@ -132,7 +132,7 @@ export const Users = () => {
                 <p className="text-sm text-text-secondary">Manage users and permissions</p>
               </div>
             </div>
-            <Button className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
               <Plus size={16} className="mr-2" /> Create User
             </Button>
           </div>

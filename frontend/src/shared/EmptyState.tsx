@@ -95,10 +95,10 @@ export function EmptyState({
         <Icon size={28} strokeWidth={1.7} />
       </div>
 
-      <div className="text-[15px] font-semibold text-ink mb-1.5">{title}</div>
+      <div className="text-md font-semibold text-ink mb-1.5">{title}</div>
 
       {description && (
-        <div className="text-[13px] text-ink-soft max-w-sm leading-relaxed">{description}</div>
+        <div className="text-sm text-ink-soft max-w-sm leading-relaxed">{description}</div>
       )}
 
       {hasActions && (
@@ -113,7 +113,7 @@ export function EmptyState({
           href={learnMoreHref}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-muted hover:text-ink transition-colors mt-4"
+          className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors mt-4"
         >
           {learnMoreLabel ?? 'En savoir plus'}
           <ExternalLink size={13} strokeWidth={1.8} />
