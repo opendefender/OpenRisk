@@ -137,6 +137,24 @@ var decisions = []Decision{
 		"repository/notification_repository_test scopes by user and tenant"},
 	{"/api/v1/vulnerabilities/{id}", Covered,
 		"application/vulnerability integrations_test: cross-tenant lookup returns 404"},
+
+	// --- Universal entity drawer (W1-02) -------------------------------------
+	// The drawer takes an arbitrary (type, id) pair off the URL, which makes it
+	// the broadest id-forging surface in the product: one route reaches assets,
+	// risks, vulnerabilities, controls, incidents, vendors and evidence. Every
+	// read runs as entity.Caller, whose TenantID comes from the signed token and
+	// cannot be influenced by the request; each resolver funnels through a single
+	// load() onto the module's own tenant-scoped repository, and a row belonging
+	// to another tenant is reported not-found — the same answer a fabricated id
+	// gets, so the pair cannot be told apart.
+	{"/api/v1/entities/{id}/{id}", Covered,
+		"application/entity entity_test TestGet_CrossTenantIsNotFound covers all eight types; handler/entity_handler_test TestEntityDrawer_CrossTenantAccessDenied drives it through the real HTTP stack"},
+	{"/api/v1/entities/{id}/{id}/relations", Covered,
+		"application/entity entity_test TestRelations_AreTenantScoped: a relation naming another tenant's row is absent, and a group whose target type the caller cannot read comes back denied rather than populated"},
+	{"/api/v1/entities/{id}/{id}/timeline", Covered,
+		"application/entity timeline_test TestTimeline_CrossTenantIsNotFound + TestTenantTimeline_FiltersByPermission; the supplementary journals (risk_histories, incident_timelines) carry no tenant column and are gated through their parent entity"},
+	{"/api/v1/entities/{id}/{id}/audit", Covered,
+		"application/entity entity_test TestAudit_RequiresAuditPermission and TestAudit_CrossTenantIsNotFound"},
 	{"/api/v1/vulnerabilities/*", Covered,
 		"application/vulnerability integrations_test covers status/ticket subpaths"},
 	{"/api/v1/onboarding/steps/{id}", Covered,

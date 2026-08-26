@@ -193,7 +193,12 @@ func (s *TimelineService) ForEntity(ctx context.Context, c Caller, ref Ref, curs
 		before = &t
 	}
 	for _, src := range s.extra[ref.Type] {
-		events, err := src.Events(ctx, c.TenantID, ref.ID, before, limit+1)
+		// Over-read for the same boundary reason as the trail above: a source
+		// filters on time alone (`<= before`), so rows sharing the cursor's
+		// timestamp come back and are then dropped by the merge. These journals
+		// are per-entity, so a doubled window covers any realistic collision —
+		// one risk does not accumulate a page of history rows in one instant.
+		events, err := src.Events(ctx, c.TenantID, ref.ID, before, limit*2+1)
 		if err != nil {
 			continue
 		}
@@ -268,6 +273,21 @@ func (s *TimelineService) ForTenant(ctx context.Context, c Caller, cursor string
 }
 
 // auditEvents runs the trail query. entityTypes empty means "any type".
+//
+// The repository's upper bound is inclusive (created_at <= To), while a cursor
+// means "strictly after the row I last showed you". The rows in between — those
+// sharing the cursor's exact timestamp and already emitted — sort to the HEAD of
+// the result and are dropped by the merge. If they were simply dropped out of a
+// limit-sized page, they would eat the page: twenty events written in the same
+// millisecond by one import would return a page of nothing and a paginator that
+// stops early, silently hiding the rest of the history.
+//
+// So when a cursor is present this walks the source with a growing offset until
+// it has collected a full page of rows that really are past the cursor, or the
+// source runs out. Batches are disjoint (the offset advances by what came back),
+// so nothing is counted twice. auditScanBudget bounds the walk: a pathological
+// run of identical timestamps longer than that returns a short page rather than
+// scanning forever, and the cursor still advances.
 func (s *TimelineService) auditEvents(ctx context.Context, tenantID uuid.UUID, entityTypes []string, entityID string, cur *cursor, limit int, f TimelineFilter) ([]domain.AuditEvent, error) {
 	filter := domain.AuditEventFilter{
 		EntityTypes: entityTypes,
@@ -280,21 +300,51 @@ func (s *TimelineService) auditEvents(ctx context.Context, tenantID uuid.UUID, e
 	if f.Until != nil {
 		filter.To = f.Until
 	}
-	if cur != nil {
-		// The repository's To bound is inclusive; the merge drops the boundary
-		// rows by comparing the (time, id) pair, which is what makes paging
-		// correct when several events share a timestamp.
-		at := cur.at
-		if filter.To == nil || at.Before(*filter.To) {
-			filter.To = &at
+	if cur == nil {
+		events, _, err := s.audit.List(ctx, tenantID, filter)
+		return events, err
+	}
+
+	at := cur.at
+	if filter.To == nil || at.Before(*filter.To) {
+		filter.To = &at
+	}
+
+	var (
+		kept    []domain.AuditEvent
+		offset  int
+		scanned int
+	)
+	for scanned < auditScanBudget {
+		filter.Offset = offset
+		batch, _, err := s.audit.List(ctx, tenantID, filter)
+		if err != nil {
+			return nil, err
 		}
+		if len(batch) == 0 {
+			break
+		}
+		scanned += len(batch)
+		for _, e := range batch {
+			if beforeCursorAt(e.CreatedAt, e.ID.String(), cur) {
+				kept = append(kept, e)
+			}
+		}
+		if len(kept) >= limit {
+			break
+		}
+		if len(batch) < filter.Limit {
+			// The source is exhausted.
+			break
+		}
+		offset += len(batch)
 	}
-	events, _, err := s.audit.List(ctx, tenantID, filter)
-	if err != nil {
-		return nil, err
-	}
-	return events, nil
+	return kept, nil
 }
+
+// auditScanBudget caps how many trail rows one page may walk past. It only ever
+// binds when more rows than this share the cursor's exact timestamp.
+const auditScanBudget = 2000
 
 // paginate merges, orders and cuts. This is the k-way merge that makes a
 // multi-source timeline pageable: every source is asked for one more row than
@@ -302,7 +352,9 @@ func (s *TimelineService) auditEvents(ctx context.Context, tenantID uuid.UUID, e
 // cursor names the last row emitted. A source that had nothing to add simply
 // contributes nothing to the union.
 func (s *TimelineService) paginate(candidates []TimelineEvent, cur *cursor, limit int, f TimelineFilter) *TimelinePage {
-	filtered := candidates[:0:0]
+	// Never nil: a client that has to guard for both nil and [] will eventually
+	// forget one.
+	filtered := make([]TimelineEvent, 0, len(candidates))
 	for _, e := range candidates {
 		if cur != nil && !beforeCursor(e, cur) {
 			continue
@@ -520,14 +572,20 @@ func decodeCursor(s string) (*cursor, error) {
 	return &cursor{at: time.Unix(0, nanos).UTC(), id: parts[1]}, nil
 }
 
-// beforeCursor reports whether an event sorts strictly after the cursor row in
-// a newest-first listing — i.e. whether it belongs on a LATER page.
+// beforeCursor reports whether an event sorts strictly after the cursor row in a
+// newest-first listing — i.e. whether it belongs on a LATER page.
 func beforeCursor(e TimelineEvent, c *cursor) bool {
-	if e.OccurredAt.Before(c.at) {
+	return beforeCursorAt(e.OccurredAt, e.ID, c)
+}
+
+// beforeCursorAt is the same comparison over the raw (time, id) pair, so the
+// audit walk and the merge cannot disagree about where a page ends.
+func beforeCursorAt(occurredAt time.Time, id string, c *cursor) bool {
+	if occurredAt.Before(c.at) {
 		return true
 	}
-	if e.OccurredAt.Equal(c.at) {
-		return e.ID < c.id
+	if occurredAt.Equal(c.at) {
+		return id < c.id
 	}
 	return false
 }
