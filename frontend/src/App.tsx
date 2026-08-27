@@ -70,6 +70,7 @@ const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'))
 const UnassignedVulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/UnassignedVulnerabilitiesPage'));
 const RiskRulePage = lazy(() => import('./features/attackSurface/RiskRulePage'));
 const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
+const GlobalTimelinePage = lazy(() => import('./features/entity-drawer/GlobalTimelinePage').then(m => ({ default: m.GlobalTimelinePage })));
 const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
 const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
 const LeaderboardPage = lazy(() => import('./features/gamification/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
@@ -444,6 +445,10 @@ function App() {
               hero and the sidebar footer, so all three render one object. */}
           <Route path="score" element={<ScorePage />} />
           <Route path="analytics/financial" element={<FinancialDashboard />} />
+          {/* The tenant-wide activity feed (W1-02). RBAC filtering is the
+              server's, so any authenticated member may open it — they simply see
+              only what they may read. */}
+          <Route path="activity" element={<GlobalTimelinePage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
 
           {/* ---------------- Reports ----------------

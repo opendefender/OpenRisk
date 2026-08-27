@@ -97,6 +97,11 @@ export const ROUTES: RouteNode[] = [
   // a report. It answers "how are we doing", which is the dashboard's question;
   // filing it under Reports is what made people look for it beside PDFs.
   { path: '/analytics/financial', labelKey: 'n_financial', perm: 'risks:read', topLevel: true },
+  // The tenant-wide activity feed (W1-02). No `perm`: the server filters each
+  // event by whether the caller may read the kind of record it is about, so a
+  // route-level gate would only be a second, coarser answer to a question
+  // already answered per row.
+  { path: '/activity', labelKey: 'n_activity', topLevel: true },
   { path: '/leaderboard', labelKey: 'n_leaderboard' },
 
   /* ---------------- Reports ---------------- */

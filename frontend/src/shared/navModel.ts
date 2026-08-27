@@ -15,7 +15,7 @@ import {
   FolderCheck,
   LayoutDashboard, TrendingUp, ShieldAlert, ShieldCheck, Siren, Server,
   ClipboardCheck, Globe, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
-  Workflow, Scale, Users,
+  Workflow, Scale, Users, History,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -102,6 +102,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/', pinned: true },
       { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/', href: '/?view=executive', view: 'executive', perm: 'risks:read' },
       { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial', perm: 'risks:read' },
+      { key: 'activity', labelKey: 'n_activity', icon: History, path: '/activity' },
     ],
   },
   // 1 · Identifier — « Qu'est-ce que je possède et qu'est-ce qui me menace ? »
