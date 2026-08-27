@@ -11,7 +11,7 @@ func TestParsePlan_LegacyAndUnknown(t *testing.T) {
 		"starter": PlanPro, "pro": PlanPro,
 		"professional": PlanBusiness, "business": PlanBusiness,
 		"enterprise": PlanEnterprise,
-		"":            PlanFree, "nonsense": PlanFree, "  PRO  ": PlanPro,
+		"":           PlanFree, "nonsense": PlanFree, "  PRO  ": PlanPro,
 	}
 	for in, want := range cases {
 		if got := ParsePlan(in); got != want {
@@ -30,16 +30,22 @@ func TestPlanOrdering(t *testing.T) {
 }
 
 func TestFinancialQuant_OpensAtPro(t *testing.T) {
-	// Task §2: Monte-Carlo financial quantification is available "à partir du plan Pro".
-	if Has(PlanFree, FeatFinancialQuant) {
-		t.Fatal("financial quantification must NOT be on Free")
+	// Task §2: Monte-Carlo financial quantification is available "à partir du
+	// plan Pro" — and it still is. What changed is that withholding the whole
+	// row from Free also withheld the plain deterministic ALE, so a free user
+	// never saw a figure in euros at all and never met the argument the product
+	// is sold on. Free now carries the deterministic model (LevelBasic); the
+	// Monte-Carlo engine (LevelOn) still opens at Pro, which is what the
+	// requirement was actually protecting.
+	if LevelOf(PlanFree, FeatFinancialQuant) != LevelBasic {
+		t.Fatal("Free should carry the deterministic ALE at LevelBasic")
 	}
 	for _, p := range []Plan{PlanPro, PlanBusiness, PlanEnterprise} {
-		if !Has(p, FeatFinancialQuant) {
-			t.Fatalf("financial quantification must be on %s", p)
+		if LevelOf(p, FeatFinancialQuant) != LevelOn {
+			t.Fatalf("%s should carry Monte-Carlo quantification (LevelOn)", p)
 		}
 	}
-	if got := MinPlanFor(FeatFinancialQuant); got != PlanPro {
+	if got := MinPlanFor(FeatFinancialQuant); got != PlanFree {
 		t.Fatalf("MinPlanFor(financial) = %s, want pro", got)
 	}
 }
@@ -144,6 +150,33 @@ func TestMatrixIntegrity(t *testing.T) {
 	for _, f := range AllFeatures {
 		if MinPlanFor(f) == PlanEnterprise && !Has(PlanEnterprise, f) {
 			t.Errorf("feature %q is granted by no plan", f)
+		}
+	}
+}
+
+// TestMatrixIsMonotonic guards the one property a pricing table must never
+// break: no plan may grant less than a cheaper one. Every cell here is
+// defensible on its own, and it is the ROW read left to right that a customer
+// checks — "Business has unlimited integrations but Enterprise says Custom?"
+// is the kind of thing that reads as a mistake and costs a sale.
+func TestMatrixIsMonotonic(t *testing.T) {
+	for _, f := range AllFeatures {
+		for i := 1; i < len(AllPlans); i++ {
+			lower, higher := AllPlans[i-1], AllPlans[i]
+			if Has(lower, f) && !Has(higher, f) {
+				t.Fatalf("feature %q: %s grants it but %s does not", f, lower, higher)
+			}
+		}
+	}
+	for _, k := range AllLimits {
+		for i := 1; i < len(AllPlans); i++ {
+			lo, hi := LimitOf(AllPlans[i-1], k), LimitOf(AllPlans[i], k)
+			if hi == Unlimited {
+				continue
+			}
+			if lo == Unlimited || hi < lo {
+				t.Fatalf("limit %q: %s allows %d but %s allows %d", k, AllPlans[i-1], lo, AllPlans[i], hi)
+			}
 		}
 	}
 }

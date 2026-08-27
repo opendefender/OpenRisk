@@ -88,14 +88,17 @@ async function post(path: string, body: unknown, token?: string): Promise<Respon
 
 async function register(t: Tenant): Promise<void> {
   const res = await post('/auth/register', t);
-  expect(res.status, `register ${t.company_name}: ${await res.text()}`).toBe(201);
+  const text = await res.text();
+  expect(res.status, `register ${t.company_name}: ${text}`).toBe(201);
 }
 
 async function login(t: Tenant): Promise<string> {
   const res = await post('/auth/login', { email: t.email, password: t.password });
-  expect(res.status, `login ${t.email}: ${await res.text()}`).toBe(200);
-  const body = await res.json();
-  return body.token_pair.access_token as string;
+  // Read the body ONCE: a Response body is a stream, and reading it for the
+  // failure message consumes it before the success path can parse it.
+  const text = await res.text();
+  expect(res.status, `login ${t.email}: ${text}`).toBe(200);
+  return JSON.parse(text).token_pair.access_token as string;
 }
 
 /** Seeds one tenant with an asset and a risk linked to it, so the drawer has a
@@ -105,13 +108,31 @@ async function seed(key: 'a' | 'b', t: Tenant): Promise<void> {
   const assetName = `drawer-host-${key}-${stamp}`;
   const riskName = `Drawer probe risk ${key.toUpperCase()} ${stamp}`;
 
+  // The `server` category's schema requires a hostname and an operating system,
+  // and the attribute validator refuses a create without them. Supplying the
+  // real required set is what makes this a genuine record rather than a
+  // half-formed one the drawer would then render honestly but uselessly.
   const assetRes = await post(
     '/assets',
-    { name: assetName, type: 'Server', criticality: 'CRITICAL', category: 'server', owner: t.email },
+    {
+      name: assetName,
+      type: 'Server',
+      criticality: 'CRITICAL',
+      category: 'server',
+      owner: t.email,
+      attributes: {
+        hostname: assetName,
+        operating_system: 'Ubuntu 24.04',
+        environment: 'production',
+        network_zone: 'dmz',
+        internet_exposed: true,
+      },
+    },
     token
   );
-  expect(assetRes.status, `create asset: ${await assetRes.clone().text()}`).toBe(201);
-  const assetId = (await assetRes.json()).id as string;
+  const assetText = await assetRes.text();
+  expect(assetRes.status, `create asset: ${assetText}`).toBe(201);
+  const assetId = JSON.parse(assetText).id as string;
 
   const riskRes = await post(
     '/risks',
@@ -124,8 +145,15 @@ async function seed(key: 'a' | 'b', t: Tenant): Promise<void> {
     },
     token
   );
-  expect(riskRes.status, `create risk: ${await riskRes.clone().text()}`).toBe(201);
-  const riskId = (await riskRes.json()).id as string;
+  const riskText = await riskRes.text();
+  expect(riskRes.status, `create risk: ${riskText}`).toBe(201);
+  const riskId = JSON.parse(riskText).id as string;
+
+  // A freshly registered tenant starts inside the onboarding wizard, and its
+  // route guard holds every other screen until it is done. Finishing it over
+  // the API keeps this suite about the drawer rather than about the wizard.
+  const done = await post('/onboarding/complete', {}, token);
+  expect(done.status, 'complete onboarding').toBe(200);
 
   seeded[key] = { token, assetId, riskId, riskName, assetName };
 }

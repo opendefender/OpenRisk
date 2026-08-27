@@ -37,3 +37,8 @@ backend/keys/
 /public_key.pem
 backend/openrisk-server
 
+
+# Claude Code — local overrides and runtime artifacts
+.claude/settings.local.json
+.claude/agent-memory-local/
+CLAUDE.md.backup-*

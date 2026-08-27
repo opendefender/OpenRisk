@@ -1,0 +1,54 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "4",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  },
+  "teammateMode": "in-process",
+  "includeGitInstructions": true,
+  "subagentPromptCacheTtl": "1h",
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)", "Bash(go test:*)", "Bash(go vet:*)",
+      "Bash(gofmt:*)", "Bash(goimports:*)", "Bash(golangci-lint:*)",
+      "Bash(govulncheck:*)", "Bash(migrate:*)",
+      "Bash(npm run:*)", "Bash(npm audit:*)", "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)", "Bash(npx playwright:*)", "Bash(npx vite:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(git add:*)", "Bash(git switch:*)", "Bash(git checkout -b:*)",
+      "Bash(git commit:*)", "Bash(git branch:*)",
+      "Bash(gh issue:*)", "Bash(gh pr create:*)", "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)", "Bash(gh pr diff:*)", "Bash(gh pr checks:*)",
+      "Bash(gh pr comment:*)", "Bash(gh label:*)", "Bash(gh search:*)",
+      "Bash(gh api:*)", "Bash(gh run list:*)", "Bash(gh run view:*)",
+      "Bash(grep:*)", "Bash(rg:*)", "Bash(jq:*)",
+      "Bash(docker compose:*)", "Bash(make:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)", "Bash(git push -f:*)",
+      "Bash(gh pr merge:*)", "Bash(gh issue delete:*)", "Bash(gh repo delete:*)",
+      "Bash(gh release create:*)",
+      "Bash(rm -rf /:*)", "Bash(kubectl delete:*)", "Bash(terraform apply:*)",
+      "Read(./.env)", "Read(./.env.*)", "Read(./**/*.pem)", "Read(./**/*.key)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.sh" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [
+        { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/format-and-lint.sh" } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [
+        { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/checkpoint.sh" } ] }
+    ],
+    "TaskCompleted": [
+      { "hooks": [
+        { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/gate-task-complete.sh" } ] }
+    ]
+  }
+}

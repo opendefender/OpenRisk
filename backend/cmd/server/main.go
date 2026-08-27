@@ -415,7 +415,7 @@ func main() {
 			case res.Skipped:
 				log.Println("DEMO_MODE: tenant already contains data, demo fixtures not re-applied")
 			default:
-				log.Printf("DEMO_MODE: seeded %d assets, %d risks, %d incidents", res.Assets, res.Risks, res.Incidents)
+				log.Printf("DEMO_MODE: seeded %d assets, %d dependencies, %d risks, %d incidents", res.Assets, res.Dependencies, res.Risks, res.Incidents)
 			}
 		}
 	}

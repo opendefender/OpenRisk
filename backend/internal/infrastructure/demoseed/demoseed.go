@@ -75,6 +75,17 @@ type fixtureRisk struct {
 	MitigationEffectiveness *float64 `json:"mitigation_effectiveness"`
 }
 
+// fixtureDependency is an edge in the asset graph. Without these the topology
+// view renders twenty unconnected dots, which is the one screen where "what
+// depends on what" is the entire point — a demo tenant that cannot show it is
+// demonstrating the wrong thing.
+type fixtureDependency struct {
+	Source      string `json:"source"`
+	Target      string `json:"target"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
 type fixtureIncident struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -84,17 +95,19 @@ type fixtureIncident struct {
 }
 
 type fixtureFile struct {
-	Assets    []fixtureAsset    `json:"assets"`
-	Risks     []fixtureRisk     `json:"risks"`
-	Incidents []fixtureIncident `json:"incidents"`
+	Assets       []fixtureAsset      `json:"assets"`
+	Dependencies []fixtureDependency `json:"dependencies"`
+	Risks        []fixtureRisk       `json:"risks"`
+	Incidents    []fixtureIncident   `json:"incidents"`
 }
 
 // Result reports what the seeder did, for the startup log.
 type Result struct {
-	Assets    int
-	Risks     int
-	Incidents int
-	Skipped   bool // already seeded
+	Assets       int
+	Dependencies int
+	Risks        int
+	Incidents    int
+	Skipped      bool // already seeded
 }
 
 // Seed loads dev/fixtures/demo.json into the given tenant.
@@ -152,6 +165,32 @@ func Seed(db *gorm.DB, tenantID, createdBy uuid.UUID) (Result, error) {
 			}
 			assetIDs[fa.Name] = a.ID
 			res.Assets++
+		}
+
+		// The dependency graph. Skipped silently when either end is not in the
+		// fixture rather than failing the transaction: a typo in a demo edge
+		// should not cost the whole demo tenant.
+		for _, fd := range fx.Dependencies {
+			src, okS := assetIDs[fd.Source]
+			dst, okT := assetIDs[fd.Target]
+			if !okS || !okT {
+				continue
+			}
+			depType := domain.DependencyType(fd.Type)
+			if depType == "" {
+				depType = domain.DepDependsOn
+			}
+			d := domain.AssetDependency{
+				TenantID:      tenantID,
+				SourceAssetID: src,
+				TargetAssetID: dst,
+				Type:          depType,
+				Description:   fd.Description,
+			}
+			if err := tx.Create(&d).Error; err != nil {
+				return fmt.Errorf("demoseed: create dependency %s->%s: %w", fd.Source, fd.Target, err)
+			}
+			res.Dependencies++
 		}
 
 		for _, fr := range fx.Risks {

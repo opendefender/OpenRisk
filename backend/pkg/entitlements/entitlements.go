@@ -139,33 +139,76 @@ type PlanEntitlements struct {
 
 // matrix — THE plan matrix. Edit here to change the open-core split.
 //
-//	                Free      Pro        Business   Enterprise
-//	Users             2        10          50          ∞
-//	Risks            50       500          ∞           ∞
-//	Assets           50        ∞           ∞           ∞
-//	Integrations      1        10          ∞           Custom(∞)
-//	API           Limited     On          On          On
-//	Automation      off       On       Advanced     Advanced
-//	AI Advisor      off       On       Advanced     Advanced
-//	Compliance     Basic    Standard   Advanced      Custom
-//	SSO             off       off         On         Advanced
-//	Multi-tenant    off       off        off           On
-//	On-premise      off       off        off           On
-//	SLA             off       off       99.5%         99.9%
-//	Support       Community   Email     Priority     Dedicated
+//	                     Free      Pro        Business   Enterprise
+//	-- volume, which is what a plan actually sells -----------------
+//	Users                  2        10          50          ∞
+//	Risks                 50       500          ∞           ∞
+//	Assets                50        ∞           ∞           ∞
+//	Integrations           1        10          ∞           ∞
+//	-- the product. Present on every plan, sized by the volume above
+//	Smart risk score      On        On          On          On
+//	Financial quant.    Basic       On          On          On
+//	Executive dashboard   On        On          On          On
+//	Infra scanner         On        On          On          On
+//	Threat intel        Basic   Standard    Advanced     Advanced
+//	Compliance          Basic   Standard    Advanced      Custom
+//	REST API          Limited       On          On          On
+//	-- machinery a growing team needs ------------------------------
+//	Automation            off       On       Advanced     Advanced
+//	AI Advisor            off       On       Advanced     Advanced
+//	Governance            off      off          On        Advanced
+//	SSO                   off      off          On        Advanced
+//	Multi-tenant          off      off         off          On
+//	Managed on-premise    off      off         off          On
+//	SLA                   off      off       99.5%         99.9%
+//	Support         Community    Email     Priority     Dedicated
 //
-// financial_quantification / smart_score / executive_dashboard / scanner are the
-// marquee paid analytics; they open at Pro (task §2: "la quantification financière
-// Monte-Carlo est disponible à partir du plan Pro"). CTI and governance open at
-// Business.
+// THE SHAPE OF THIS MATRIX IS THE PRICING MODEL, so it is worth stating.
+//
+// It used to withhold the marquee analytics — smart score, financial
+// quantification, the executive dashboard, the scanner, CTI — from Free
+// entirely. That is "fewer features at a similar volume", and it has a
+// specific failure mode: everything the product is MARKETED on (a score whose
+// arithmetic you can read, threat intelligence joined to your estate, an
+// annualised loss figure) was absent from the only tier a stranger ever tries.
+// A free user could not experience the thing that would make them pay.
+//
+// It is now the model everyone already understands from free storage tiers and
+// assistant quotas: the SAME product, THROTTLED BY VOLUME. Every row above the
+// second rule is present on Free — bounded by 2 users, 50 risks and 50 assets,
+// which are enforced (RequireCapacity) and are the ceiling a growing team is
+// meant to feel. Below the rule is machinery that only means anything once
+// several people are working the register at once, which is a genuine reason to
+// move up rather than an artificial one.
+//
+// Two depth distinctions carry real weight and are not decoration:
+//
+//   - financial_quantification: Basic on Free is the DETERMINISTIC annualised
+//     loss model (expected cost per occurrence × expected frequency) — the
+//     simple, explainable one. LevelOn from Pro adds the Monte-Carlo engine,
+//     which preserves the original requirement (task §2, "la quantification
+//     financière Monte-Carlo est disponible à partir du plan Pro") while still
+//     letting a free user see a number in euros.
+//   - cti: Basic on Free is exploitation STATUS (the CISA KEV catalogue, which
+//     is public data — withholding it makes a free user's score quietly wrong).
+//     Standard from Pro is full CVE enrichment.
+//
+// Every row is monotonically non-decreasing left to right. Nothing a lower plan
+// grants may be absent from a higher one — a table that fails that reads as a
+// mistake even when each cell is defensible.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
 		Plan:   PlanFree,
 		Limits: map[LimitKey]int{LimitUsers: 2, LimitRisks: 50, LimitAssets: 50, LimitIntegrations: 1},
 		Features: map[Feature]Level{
-			FeatAPI:        LevelLimited,
-			FeatCompliance: LevelBasic,
-			FeatSupport:    LevelCommunity,
+			FeatAPI:                LevelLimited,
+			FeatCompliance:         LevelBasic,
+			FeatFinancialQuant:     LevelBasic, // deterministic ALE; Monte-Carlo is Pro+
+			FeatSmartScore:         LevelOn,
+			FeatExecutiveDashboard: LevelOn,
+			FeatScanner:            LevelOn,
+			FeatCTI:                LevelBasic, // KEV exploitation status only
+			FeatSupport:            LevelCommunity,
 		},
 	},
 	PlanPro: {
@@ -180,6 +223,7 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatSmartScore:         LevelOn,
 			FeatExecutiveDashboard: LevelOn,
 			FeatScanner:            LevelOn,
+			FeatCTI:                LevelStandard,
 			FeatSupport:            LevelEmail,
 		},
 	},
