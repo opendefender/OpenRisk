@@ -112,7 +112,13 @@ func (s *Service) Relations(ctx context.Context, c Caller, t Type, id string) ([
 	out := make([]RelationGroup, 0, len(groups))
 	for _, g := range groups {
 		if !c.CanRead(g.TargetType) {
-			g.Items = nil
+			// An EMPTY list, never nil. The client's contract types this as an
+			// array and reads .length on it; a nil here marshals to JSON null
+			// and throws in the browser on the one path — permission denied —
+			// that is hardest to notice in testing and worst to break.
+			g.Items = []Relation{}
+			// Total is zeroed with the items. The count alone would tell the
+			// caller how many records of a type they may not read exist.
 			g.Total = 0
 			g.Truncated = false
 			g.Denied = true

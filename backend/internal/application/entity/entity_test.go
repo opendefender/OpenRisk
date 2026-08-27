@@ -540,6 +540,13 @@ func TestRelations_DeniedGroupIsEmptyAndLabelled(t *testing.T) {
 	if len(g.Items) != 0 {
 		t.Errorf("denied group leaked %d items", len(g.Items))
 	}
+	// Empty, not nil. The client types this as an array and reads .length on
+	// it; a nil marshals to JSON null and throws in the browser on exactly the
+	// path that is hardest to notice in testing. Caught by the live run, not by
+	// this suite, because the first version of this test mocked an empty slice.
+	if g.Items == nil {
+		t.Error("denied group returned a nil item list; it marshals to null and breaks the client")
+	}
 	if g.Total != 0 {
 		t.Errorf("denied group leaked a count of %d — the count alone tells the caller how many exist", g.Total)
 	}

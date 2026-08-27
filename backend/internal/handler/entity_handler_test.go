@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -486,6 +487,47 @@ func TestEntityDrawer_MalformedFilterIs400(t *testing.T) {
 	status, _ := f.get(t, "/timeline?actor_id=not-a-uuid")
 	require.Equal(t, http.StatusBadRequest, status,
 		"an unparseable filter must not be silently ignored — the caller would read the unfiltered result as filtered")
+}
+
+// ---------------------------------------------------------------------------
+// The audit trail names what was created
+// ---------------------------------------------------------------------------
+
+// A collection POST names no id in its route, and a model that is not Auditable
+// is never observed by the row layer either — so a creation used to be
+// journalled with an empty entity_id, and an entity's own audit tab could never
+// show its creation.
+//
+// This drives the middleware directly rather than through the drawer, because
+// the defect is in what gets WRITTEN; the drawer only made it visible.
+func TestAuditMutations_RecordsTheCreatedRecordsID(t *testing.T) {
+	f := setupDrawer(t, []string{"*"})
+
+	appender := repository.NewGormAuditChainRepository(f.db)
+	app := fiber.New()
+	app.Use(func(c *fiber.Ctx) error {
+		middleware.SetContext(c, &middleware.RequestContext{UserID: f.userA, OrganizationID: f.tenantA})
+		return c.Next()
+	})
+	app.Use(middleware.AuditMutations(appender))
+	// A handler shaped like every create in this codebase: 201 with the new
+	// record as JSON.
+	app.Post("/api/v1/things", func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"id": "created-id-42", "name": "a thing"})
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodPost, "/api/v1/things", nil), -1)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	events, _, err := appender.List(context.Background(), f.tenantA, domain.AuditEventFilter{
+		EntityType: "thing", Limit: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, "created-id-42", events[0].EntityID,
+		"the trail recorded a creation without saying what was created")
+	require.Equal(t, domain.AuditActionCreate, events[0].Action)
 }
 
 // ---------------------------------------------------------------------------

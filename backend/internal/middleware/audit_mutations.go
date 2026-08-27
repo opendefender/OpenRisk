@@ -7,6 +7,8 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -140,6 +142,21 @@ func buildAuditEvent(c *fiber.Ctx, mw *RequestContext, col *audittrail.Collector
 		ev.After = m.After
 		ev.ChangedFields = m.Changed
 		ev.Summary = m.Summary
+	}
+	// A collection POST names no id in its route, and for a model that is not
+	// Auditable the row layer never observes one either — so a creation was
+	// journalled without saying WHAT was created. Every risk create in the trail
+	// carried an empty entity_id, which meant a risk's own history could never
+	// show its creation: the entity-scoped query filters on that column.
+	//
+	// The created resource's id is in the response the handler just wrote, so
+	// read it from there. Bounded and guarded: only when nothing better is
+	// known, only on a successful create, only for a JSON body small enough
+	// that parsing it is free next to the request that produced it.
+	if ev.EntityID == "" && ev.Action == domain.AuditActionCreate {
+		if id := createdIDFromResponse(c); id != "" {
+			ev.EntityID = id
+		}
 	}
 	if ev.Summary == "" {
 		ev.Summary = defaultSummary(action, ev.EntityType, ev.EntityID, verb)
@@ -331,4 +348,40 @@ func itoa(i int) string {
 		buf[pos] = '-'
 	}
 	return string(buf[pos:])
+}
+
+// maxAuditBodyScan bounds the response body the trail will parse looking for a
+// created id. A create response is a single record; anything larger is a list or
+// an export, and neither names one new entity.
+const maxAuditBodyScan = 64 << 10
+
+// createdIDFromResponse reads the id of the record a successful create just
+// returned.
+//
+// It decodes into a map rather than a struct so it works for every module's
+// response shape without this middleware knowing any of them, and it accepts
+// only a string or a number: an object under "id" is a nested relation, not this
+// record's identity. Anything it cannot read leaves the id empty, which is
+// exactly the behaviour that existed before.
+func createdIDFromResponse(c *fiber.Ctx) string {
+	if !strings.Contains(strings.ToLower(string(c.Response().Header.ContentType())), "json") {
+		return ""
+	}
+	body := c.Response().Body()
+	if len(body) == 0 || len(body) > maxAuditBodyScan {
+		return ""
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+	switch v := payload["id"].(type) {
+	case string:
+		return v
+	case float64:
+		// Sequential integer ids (incidents) arrive as JSON numbers.
+		return strconv.FormatInt(int64(v), 10)
+	default:
+		return ""
+	}
 }

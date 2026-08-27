@@ -60,7 +60,12 @@ export function fetchEntity(type: EntityType, id: string): Promise<EntityView> {
 
 export async function fetchRelations(type: EntityType, id: string): Promise<RelationGroup[]> {
   const data = await get<RelationsResponse>(`${base(type, id)}/relations`);
-  return data.groups ?? [];
+  // Normalise `items` to an array at the boundary. The server guarantees one,
+  // but this is the single place every relation list enters the client, and the
+  // consequence of a null slipping through is a TypeError in the drawer rather
+  // than a missing row — the sections downstream read .length on it. Cheap here,
+  // and it means no section has to defend itself.
+  return (data.groups ?? []).map((g) => ({ ...g, items: g.items ?? [] }));
 }
 
 export function fetchTimeline(
