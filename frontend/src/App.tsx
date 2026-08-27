@@ -30,6 +30,7 @@ import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
+import { EntityDrawerHost } from './features/entity-drawer';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
@@ -219,6 +220,12 @@ const DashboardLayout = () => {
       {/* Three non-blocking coach marks, shown once and replayable from the
           header's help button (spec §8). It never covers the app. */}
       <ProductTour />
+      {/* The universal entity drawer (W1-02). Mounted ONCE for the whole app and
+          driven entirely by the URL, which is what makes it a navigation
+          primitive rather than a per-screen feature: a deep link opens it on any
+          route, Back closes it, and the page behind keeps its filters. It
+          renders nothing until the URL names an entity. */}
+      <EntityDrawerHost />
       <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} lang={lang} />
       {/* Only mounted when opened, and behind its own Suspense — so the form
           stack (react-hook-form + zod) loads on first use, not at app start. */}
