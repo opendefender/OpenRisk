@@ -27,19 +27,21 @@ import { Button, ErrorState, SkeletonRows } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { useDrawerController } from './drawerState';
 import { TimelineSection } from './sections/TimelineSection';
+import { useUIStrings } from '../../shared/uiStrings';
 import { useTenantTimeline } from './useEntityDrawer';
 
 /** The verbs worth filtering by. Deliberately short: §22 warns against adding
  *  filter machinery nobody asked for, and these four cover the real questions
  *  ("what was created today", "what was deleted"). */
 const KINDS = [
-  { id: '', label: 'All activity' },
-  { id: 'create', label: 'Created' },
-  { id: 'update', label: 'Updated' },
-  { id: 'delete', label: 'Deleted' },
+  { id: '', labelKey: 'act_all' },
+  { id: 'create', labelKey: 'act_created' },
+  { id: 'update', labelKey: 'act_updated' },
+  { id: 'delete', labelKey: 'act_deleted' },
 ] as const;
 
 export function GlobalTimelinePage() {
+  const L = useUIStrings();
   const [kind, setKind] = useState('');
   const feed = useTenantTimeline(kind || undefined);
   const { open } = useDrawerController();
@@ -52,16 +54,15 @@ export function GlobalTimelinePage() {
         <div>
           <h1 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
             <History size={18} aria-hidden />
-            Activity
+            {L.act_title}
           </h1>
           <p className="mt-1 max-w-[60ch] text-sm text-text-secondary">
-            Everything that changed in your organisation, newest first. You see the
-            records you have permission to read.
+            {L.act_intro}
           </p>
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by change type">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={L.act_filterLabel}>
         {KINDS.map((k) => (
           <Button
             key={k.id || 'all'}
@@ -70,15 +71,15 @@ export function GlobalTimelinePage() {
             aria-pressed={kind === k.id}
             onClick={() => setKind(k.id)}
           >
-            {k.label}
+            {L[k.labelKey]}
           </Button>
         ))}
       </div>
 
       {feed.isError ? (
         <ErrorState
-          title="Activity could not be loaded"
-          description="Check your connection and try again."
+          title={L.act_loadFailed}
+          description={L.ed_retryDesc}
           onRetry={() => void feed.refetch()}
         />
       ) : feed.isLoading ? (
@@ -86,16 +87,14 @@ export function GlobalTimelinePage() {
       ) : events.length === 0 ? (
         <EmptyState
           variant={kind ? 'no-results' : 'first-use'}
-          title={kind ? 'No matching activity' : 'No activity yet'}
+          title={kind ? L.act_emptyFiltered : L.act_emptyNone}
           description={
-            kind
-              ? 'No changes of this kind are visible to you in this period.'
-              : 'As people create and change records, what they did appears here.'
+            kind ? L.act_emptyFilteredDesc : L.act_emptyNoneDesc
           }
           primaryAction={
             kind ? (
               <Button variant="secondary" size="sm" onClick={() => setKind('')}>
-                Clear filter
+                {L.act_clearFilter}
               </Button>
             ) : undefined
           }

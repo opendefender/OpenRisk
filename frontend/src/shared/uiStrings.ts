@@ -73,6 +73,24 @@ const fr = {
   registerTitle: 'Créer votre compte', registerSub: 'Essai Pro 14 jours · Aucune carte bancaire',
   firstName: 'Prénom', lastName: 'Nom', haveAccount: 'Déjà un compte ?', signinLink: 'Se connecter',
   soon: 'Bientôt disponible', soonSub: 'Ce module fait partie de la feuille de route OpenRisk.',
+  // --- Universal entity drawer + activity feed (W1-02, #411 criterion 17) ---
+  ed_sec_summary: 'Aperçu', ed_sec_relations: 'Relations', ed_sec_timeline: 'Chronologie', ed_sec_audit: 'Audit',
+  ed_loading: 'Chargement…', ed_record: 'Enregistrement',
+  ed_notFound: 'Enregistrement introuvable',
+  ed_notFoundDesc: "Il a peut-être été supprimé, ou le lien n'est plus à jour.",
+  ed_badLink: "Ce lien n'est pas valide",
+  ed_badLinkDesc: "L'adresse ne désigne aucun enregistrement que cette application sait ouvrir.",
+  ed_loadFailed: "Cet enregistrement n'a pas pu être chargé",
+  ed_retryDesc: 'Vérifiez votre connexion et réessayez.',
+  act_title: 'Activité',
+  act_intro: "Tout ce qui a changé dans votre organisation, du plus récent au plus ancien. Vous voyez les enregistrements que vous avez le droit de lire.",
+  act_filterLabel: 'Filtrer par type de changement',
+  act_all: 'Toute l’activité', act_created: 'Créé', act_updated: 'Modifié', act_deleted: 'Supprimé',
+  act_loadFailed: "L'activité n'a pas pu être chargée",
+  act_emptyFiltered: 'Aucune activité correspondante', act_emptyNone: 'Aucune activité pour le moment',
+  act_emptyFilteredDesc: "Aucun changement de ce type ne vous est visible sur cette période.",
+  act_emptyNoneDesc: 'Au fur et à mesure que des enregistrements sont créés et modifiés, ce qui a été fait apparaît ici.',
+  act_clearFilter: 'Effacer le filtre',
 };
 
 const en: typeof fr = {
@@ -138,6 +156,24 @@ const en: typeof fr = {
   firstName: 'First name', lastName: 'Last name', haveAccount: 'Already have an account?',
   signinLink: 'Sign in',
   soon: 'Coming soon', soonSub: 'This module is part of the OpenRisk roadmap.',
+  // --- Universal entity drawer + activity feed (W1-02, #411 criterion 17) ---
+  ed_sec_summary: 'Overview', ed_sec_relations: 'Relations', ed_sec_timeline: 'Timeline', ed_sec_audit: 'Audit',
+  ed_loading: 'Loading…', ed_record: 'Record',
+  ed_notFound: 'Record not found',
+  ed_notFoundDesc: 'It may have been deleted, or the link may be out of date.',
+  ed_badLink: 'That link is not valid',
+  ed_badLinkDesc: 'The address does not name a record this application can open.',
+  ed_loadFailed: 'This record could not be loaded',
+  ed_retryDesc: 'Check your connection and try again.',
+  act_title: 'Activity',
+  act_intro: 'Everything that changed in your organisation, newest first. You see the records you have permission to read.',
+  act_filterLabel: 'Filter by change type',
+  act_all: 'All activity', act_created: 'Created', act_updated: 'Updated', act_deleted: 'Deleted',
+  act_loadFailed: 'Activity could not be loaded',
+  act_emptyFiltered: 'No matching activity', act_emptyNone: 'No activity yet',
+  act_emptyFilteredDesc: 'No changes of this kind are visible to you in this period.',
+  act_emptyNoneDesc: 'As people create and change records, what they did appears here.',
+  act_clearFilter: 'Clear filter',
 };
 
 export type UIStrings = typeof fr;

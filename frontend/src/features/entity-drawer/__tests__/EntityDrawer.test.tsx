@@ -20,6 +20,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useUIStore } from '../../../store/uiStore';
 import { EntityDrawer } from '../EntityDrawer';
 import type { EntityView, RelationGroup, TimelinePage, AuditPage } from '../types';
 
@@ -77,6 +78,14 @@ function view(overrides: Partial<EntityView> = {}): EntityView {
     sections: overrides.sections ?? ['summary', 'relations', 'timeline'],
   };
 }
+
+// The assertions below are written against the ENGLISH copy, so the locale is
+// pinned rather than inherited. The app defaults to French (uiStore.legacyLocale),
+// and before #411 criterion 17 these strings were hardcoded English regardless of
+// locale — which is exactly what this test would otherwise keep enforcing.
+beforeEach(() => {
+  useUIStore.setState({ lang: 'en' });
+});
 
 function renderDrawer(props: Partial<React.ComponentProps<typeof EntityDrawer>> = {}) {
   const client = new QueryClient({
@@ -450,5 +459,34 @@ describe('cache keys', () => {
     // cached answer could outlive the identity that fetched it.
     expect(a).not.toEqual(b);
     expect(a).toContain('tenant-a');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Localisation (#411 criterion 17)
+// ---------------------------------------------------------------------------
+
+describe('localisation', () => {
+  // Proving the strings RESOLVE, not merely that keys exist. Before this, the
+  // drawer rendered English to a French user whatever the locale said, and a
+  // test asserting the English copy passed happily.
+  it('renders its failure copy in French when the locale is French', async () => {
+    useUIStore.setState({ lang: 'fr' });
+    mockEntity.mockRejectedValue({ status: 404, message: 'risk not found' });
+
+    renderDrawer();
+
+    expect(await screen.findByText('Enregistrement introuvable')).toBeInTheDocument();
+    expect(screen.queryByText('Record not found')).not.toBeInTheDocument();
+  });
+
+  it('renders its tabs in French when the locale is French', async () => {
+    useUIStore.setState({ lang: 'fr' });
+    mockEntity.mockResolvedValue(view({ sections: ['summary', 'relations'] }));
+
+    renderDrawer();
+
+    expect(await screen.findByRole('tab', { name: 'Aperçu' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Overview' })).not.toBeInTheDocument();
   });
 });

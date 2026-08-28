@@ -38,13 +38,14 @@ import { AuditSection } from './sections/AuditSection';
 import { RelationsSection } from './sections/RelationsSection';
 import { SummarySection } from './sections/SummarySection';
 import { TimelineSection } from './sections/TimelineSection';
+import { useUIStrings } from '../../shared/uiStrings';
 import type { EntityAction, EntitySection, EntityType } from './types';
 
-const SECTION_LABEL: Record<EntitySection, string> = {
-  summary: 'Overview',
-  relations: 'Relations',
-  timeline: 'Timeline',
-  audit: 'Audit',
+const SECTION_LABEL_KEY: Record<EntitySection, 'ed_sec_summary' | 'ed_sec_relations' | 'ed_sec_timeline' | 'ed_sec_audit'> = {
+  summary: 'ed_sec_summary',
+  relations: 'ed_sec_relations',
+  timeline: 'ed_sec_timeline',
+  audit: 'ed_sec_audit',
 };
 
 export interface EntityDrawerProps {
@@ -59,6 +60,7 @@ export interface EntityDrawerProps {
 }
 
 export function EntityDrawer({ type, id, tab, onTabChange, onClose, onOpenEntity }: EntityDrawerProps) {
+  const L = useUIStrings();
   const entity = useEntity(type, id);
   const sections = useMemo(() => entity.data?.sections ?? [], [entity.data]);
 
@@ -74,8 +76,8 @@ export function EntityDrawer({ type, id, tab, onTabChange, onClose, onOpenEntity
   const audit = useEntityAudit(type, id, activeTab === 'audit');
 
   const items: TabItem<EntitySection>[] = useMemo(
-    () => sections.map((s) => ({ id: s, label: SECTION_LABEL[s] })),
-    [sections]
+    () => sections.map((s) => ({ id: s, label: L[SECTION_LABEL_KEY[s]] })),
+    [sections, L]
   );
 
   const timelineEvents = useMemo(
@@ -93,7 +95,7 @@ export function EntityDrawer({ type, id, tab, onTabChange, onClose, onOpenEntity
     }
   }, [entity.data]);
 
-  const title = entity.data?.summary.title ?? (entity.isLoading ? 'Loading…' : 'Record');
+  const title = entity.data?.summary.title ?? (entity.isLoading ? L.ed_loading : L.ed_record);
   const subtitle = entity.data?.summary.subtitle || entity.data?.summary.type_label;
   const tabsId = `entity-${type}-${id}`;
 
@@ -188,6 +190,7 @@ function EntityLoadError({
   type: EntityType;
   onRetry: () => void;
 }) {
+  const L = useUIStrings();
   if (isEntityError(error)) {
     if (error.status === 403) {
       return <PermissionDenied resource={`this ${type}`} />;
@@ -196,8 +199,8 @@ function EntityLoadError({
       return (
         <EmptyState
           variant="no-results"
-          title="Record not found"
-          description="It may have been deleted, or the link may be out of date."
+          title={L.ed_notFound}
+          description={L.ed_notFoundDesc}
         />
       );
     }
@@ -205,16 +208,16 @@ function EntityLoadError({
       return (
         <EmptyState
           variant="no-results"
-          title="That link is not valid"
-          description="The address does not name a record this application can open."
+          title={L.ed_badLink}
+          description={L.ed_badLinkDesc}
         />
       );
     }
   }
   return (
     <ErrorState
-      title="This record could not be loaded"
-      description="Check your connection and try again."
+      title={L.ed_loadFailed}
+      description={L.ed_retryDesc}
       onRetry={onRetry}
     />
   );

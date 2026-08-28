@@ -26,8 +26,6 @@ interface RiskUIStore {
   filters: RiskFilters;
   selectedIds: string[];
   isCreateModalOpen: boolean;
-  isDrawerOpen: boolean;
-  drawerRiskId?: string | null;
   activeDrawerTab: 'details' | 'score' | 'mitigations' | 'timeline' | 'cti' | 'ai' | 'financial';
   showFilterPanel: boolean;
   setFilters: (filters: Partial<RiskFilters>) => void;
@@ -38,8 +36,6 @@ interface RiskUIStore {
   setSelectedIds: (ids: string[]) => void;
   openCreateModal: () => void;
   closeCreateModal: () => void;
-  openDrawer: (riskId: string) => void;
-  closeDrawer: () => void;
   setActiveDrawerTab: (tab: RiskUIStore['activeDrawerTab']) => void;
   setShowFilterPanel: (value: boolean) => void;
 }
@@ -48,8 +44,6 @@ export const useRiskUIStore = create<RiskUIStore>((set, get) => ({
   filters: {},
   selectedIds: [],
   isCreateModalOpen: false,
-  isDrawerOpen: false,
-  drawerRiskId: null,
   activeDrawerTab: 'details',
   showFilterPanel: false,
 
@@ -78,8 +72,6 @@ export const useRiskUIStore = create<RiskUIStore>((set, get) => ({
   setSelectedIds: (ids) => set({ selectedIds: ids }),
   openCreateModal: () => set({ isCreateModalOpen: true }),
   closeCreateModal: () => set({ isCreateModalOpen: false }),
-  openDrawer: (riskId) => set({ isDrawerOpen: true, drawerRiskId: riskId }),
-  closeDrawer: () => set({ isDrawerOpen: false, drawerRiskId: null }),
   setActiveDrawerTab: (tab) => set({ activeDrawerTab: tab }),
   setShowFilterPanel: (value) => set({ showFilterPanel: value }),
 }));
