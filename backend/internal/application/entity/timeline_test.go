@@ -237,12 +237,12 @@ func TestTimeline_EmptyIsAnEmptyPageNotAnError(t *testing.T) {
 
 func TestTimeline_UnavailableWhenNotWired(t *testing.T) {
 	w := newWorld(t)
-	svc := NewService(NewRegistry().Register(TypeRisk, NewRiskResolver(newFakeRisks(), newFakeRelations())))
+	svc := NewService(NewRegistry().Register(Bind(TypeRisk, NewRiskResolver(newFakeRisks(), newFakeRelations()))))
 	_ = svc
 	// Service with a resolver but no timeline reader.
 	risks := newFakeRisks()
 	r := risks.add(&domain.Risk{TenantID: w.tenantA, Name: "r"})
-	bare := NewService(NewRegistry().Register(TypeRisk, NewRiskResolver(risks, newFakeRelations())))
+	bare := NewService(NewRegistry().Register(Bind(TypeRisk, NewRiskResolver(risks, newFakeRelations()))))
 	_, err := bare.Timeline(context.Background(), w.admin(w.tenantA), TypeRisk, r.ID.String(), "", TimelineFilter{})
 	if err == nil {
 		t.Fatal("a timeline read with no reader wired succeeded")

@@ -21,14 +21,17 @@ import (
 // tenant's data cannot tell a correct predicate from a missing one, because both
 // return the same rows.
 type world struct {
+	tb        testing.TB
 	svc       *Service
 	relations *fakeRelations
 	audit     *fakeAudit
 
 	tenantA, tenantB uuid.UUID
 
+	registry *Registry
+
 	assetA, assetB       *domain.Asset
-	vendorA              *domain.Asset
+	vendorA, vendorB     *domain.Asset
 	riskA, riskB         *domain.Risk
 	vulnA, vulnB         *domain.Vulnerability
 	controlA, controlB   *domain.ComplianceControl
@@ -38,7 +41,7 @@ type world struct {
 
 func newWorld(t *testing.T) *world {
 	t.Helper()
-	w := &world{tenantA: uuid.New(), tenantB: uuid.New()}
+	w := &world{tb: t, tenantA: uuid.New(), tenantB: uuid.New()}
 
 	assets := newFakeAssets()
 	risks := newFakeRisks()
@@ -63,6 +66,18 @@ func newWorld(t *testing.T) *world {
 	})
 	w.vendorA = assets.add(&domain.Asset{
 		TenantID: w.tenantA, Name: "Acme Hosting", Type: "Supplier",
+		Criticality: domain.CriticalityHigh, Category: domain.CategoryVendor,
+		CreatedAt: now, UpdatedAt: now,
+	})
+	// A REAL vendor in tenant B, not merely another tenant's server.
+	//
+	// This matters more than it looks. The vendor fixture used to point at
+	// assetB, a Server, so a cross-tenant vendor read answered 404 for two
+	// independent reasons — wrong tenant AND wrong category — and the test
+	// would still have passed with the tenant predicate removed entirely. A
+	// test that cannot fail for the reason it exists to check is not coverage.
+	w.vendorB = assets.add(&domain.Asset{
+		TenantID: w.tenantB, Name: "Other tenant supplier", Type: "Supplier",
 		Criticality: domain.CriticalityHigh, Category: domain.CategoryVendor,
 		CreatedAt: now, UpdatedAt: now,
 	})
@@ -120,15 +135,16 @@ func newWorld(t *testing.T) *world {
 	})
 
 	registry := NewRegistry().
-		Register(TypeAsset, NewAssetResolver(assets, w.relations)).
-		Register(TypeVendor, NewVendorResolver(assets, w.relations)).
-		Register(TypeRisk, NewRiskResolver(risks, w.relations)).
-		Register(TypeVulnerability, NewVulnerabilityResolver(vulns, w.relations)).
-		Register(TypeFinding, NewFindingResolver(vulns, w.relations)).
-		Register(TypeControl, NewControlResolver(controls, w.relations)).
-		Register(TypeIncident, NewIncidentResolver(incidents, w.relations)).
-		Register(TypeEvidence, NewEvidenceResolver(evidences, w.relations))
+		Register(Bind(TypeAsset, NewAssetResolver(assets, w.relations))).
+		Register(Bind(TypeVendor, NewVendorResolver(assets, w.relations))).
+		Register(Bind(TypeRisk, NewRiskResolver(risks, w.relations))).
+		Register(Bind(TypeVulnerability, NewVulnerabilityResolver(vulns, w.relations))).
+		Register(Bind(TypeFinding, NewFindingResolver(vulns, w.relations))).
+		Register(Bind(TypeControl, NewControlResolver(controls, w.relations))).
+		Register(Bind(TypeIncident, NewIncidentResolver(incidents, w.relations))).
+		Register(Bind(TypeEvidence, NewEvidenceResolver(evidences, w.relations)))
 
+	w.registry = registry
 	w.svc = NewService(registry).WithTimeline(NewTimelineService(w.audit))
 	return w
 }
@@ -136,28 +152,57 @@ func newWorld(t *testing.T) *world {
 // allPerms is an admin.
 func (w *world) admin(tenant uuid.UUID) Caller { return callerIn(tenant, "*") }
 
-// idsOfEveryType returns (type, id in tenant A, id in tenant B).
-func (w *world) idsOfEveryType() []struct {
+// typeFixture is one type's seeded row in each tenant.
+type typeFixture struct {
 	t      Type
 	idA    string
 	idB    string
 	pretty string
-} {
-	return []struct {
-		t      Type
-		idA    string
-		idB    string
-		pretty string
-	}{
-		{TypeAsset, w.assetA.ID.String(), w.assetB.ID.String(), "asset"},
-		{TypeVendor, w.vendorA.ID.String(), w.assetB.ID.String(), "vendor"},
-		{TypeRisk, w.riskA.ID.String(), w.riskB.ID.String(), "risk"},
-		{TypeVulnerability, w.vulnA.ID.String(), w.vulnB.ID.String(), "vulnerability"},
-		{TypeFinding, w.vulnA.ID.String(), w.vulnB.ID.String(), "finding"},
-		{TypeControl, w.controlA.ID.String(), w.controlB.ID.String(), "control"},
-		{TypeIncident, "1", "2", "incident"},
-		{TypeEvidence, w.evidenceA.ID.String(), w.evidenceB.ID.String(), "evidence"},
+}
+
+// fixtures is the seeded data, keyed by type. It is NOT the list of cases any
+// test iterates — idsOfEveryType derives that from the registry, so a type that
+// is registered but absent here is a failure rather than a silent gap.
+func (w *world) fixtures() map[Type]typeFixture {
+	return map[Type]typeFixture{
+		TypeAsset:         {TypeAsset, w.assetA.ID.String(), w.assetB.ID.String(), "asset"},
+		TypeVendor:        {TypeVendor, w.vendorA.ID.String(), w.vendorB.ID.String(), "vendor"},
+		TypeRisk:          {TypeRisk, w.riskA.ID.String(), w.riskB.ID.String(), "risk"},
+		TypeVulnerability: {TypeVulnerability, w.vulnA.ID.String(), w.vulnB.ID.String(), "vulnerability"},
+		TypeFinding:       {TypeFinding, w.vulnA.ID.String(), w.vulnB.ID.String(), "finding"},
+		TypeControl:       {TypeControl, w.controlA.ID.String(), w.controlB.ID.String(), "control"},
+		TypeIncident:      {TypeIncident, "1", "2", "incident"},
+		TypeEvidence:      {TypeEvidence, w.evidenceA.ID.String(), w.evidenceB.ID.String(), "evidence"},
 	}
+}
+
+// idsOfEveryType returns one case per REGISTERED type, in registry order.
+//
+// It is derived from Registry.Registrations() and not written out as a literal,
+// and that is the entire point of the shape. The previous literal silently held
+// seven of eight types for the HTTP test — `vendor` was missing and nothing went
+// red, because the list of things to check was maintained by hand alongside the
+// list of things that exist. Deriving it means adding a type to the registry
+// without seeding it here FAILS, loudly, naming the type.
+func (w *world) idsOfEveryType() []typeFixture {
+	t := w.tb
+	t.Helper()
+	fx := w.fixtures()
+	regs := w.registry.Registrations()
+	if len(regs) == 0 {
+		t.Fatal("the registry is empty; every derived isolation test would vacuously pass")
+	}
+	out := make([]typeFixture, 0, len(regs))
+	for _, reg := range regs {
+		f, ok := fx[reg.Type]
+		if !ok {
+			t.Fatalf("type %q is registered but has no two-tenant fixture: "+
+				"seed one in world.fixtures() so its isolation is actually tested",
+				reg.Type)
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -399,7 +444,7 @@ func TestScore_UnscoredRiskIsHonest(t *testing.T) {
 	risks := newFakeRisks()
 	tenant := uuid.New()
 	r := risks.add(&domain.Risk{TenantID: tenant, Name: "Never scored"})
-	svc := NewService(NewRegistry().Register(TypeRisk, NewRiskResolver(risks, newFakeRelations())))
+	svc := NewService(NewRegistry().Register(Bind(TypeRisk, NewRiskResolver(risks, newFakeRelations()))))
 
 	view, err := svc.Get(context.Background(), callerIn(tenant, "*"), TypeRisk, r.ID.String())
 	if err != nil {

@@ -47,9 +47,16 @@ import (
 //
 //	finding — there is no findings table. A scanner's FindingDiscovery is a
 //	          transient preview struct; a finding becomes persistent only when it
-//	          is upserted as a Vulnerability. TypeFinding is therefore the
-//	          scanner/assessment-sourced projection of a vulnerability, and the
-//	          resolver refuses an id whose row was not produced by a scan.
+//	          is upserted as a Vulnerability. TypeFinding is therefore an ALIAS of
+//	          TypeVulnerability over the same rows: it changes the drawer's label
+//	          and the wording of a 404, and nothing else.
+//
+//	          It does NOT restrict the register to scan-sourced rows. Every member
+//	          of the VulnSource enum — the scanners, and `manual` — is a tool or a
+//	          person reporting presence on this estate, so there is no subset of
+//	          the table that is "findings but not vulnerabilities". Manufacturing
+//	          one would fabricate a distinction the domain does not make. See the
+//	          note on VulnerabilityResolver, which is the authority on this.
 //	vendor  — there is no vendors table. domain.CategoryVendor is a first-class
 //	          asset category with its own attribute schema, so a vendor IS an
 //	          asset, and TypeVendor is the asset resolver restricted to that

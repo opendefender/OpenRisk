@@ -8,9 +8,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,13 +44,17 @@ type drawerFixture struct {
 	tenantA, tenantB uuid.UUID
 	userA            uuid.UUID
 
-	assetA, assetB *domain.Asset
-	riskA, riskB   *domain.Risk
-	vulnA          *domain.Vulnerability
-	controlA       *domain.ComplianceControl
-	incidentA      *domain.Incident
-	incidentB      *domain.Incident
-	evidenceA      *domain.Evidence
+	registry *entity.Registry
+
+	assetA, assetB     *domain.Asset
+	vendorA, vendorB   *domain.Asset
+	riskA, riskB       *domain.Risk
+	vulnA, vulnB       *domain.Vulnerability
+	controlA, controlB *domain.ComplianceControl
+	incidentA          *domain.Incident
+	incidentB          *domain.Incident
+	evidenceA          *domain.Evidence
+	evidenceB          *domain.Evidence
 }
 
 // setupDrawer stands the whole stack up on an in-memory database, migrated from
@@ -106,8 +112,24 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 		Criticality: domain.CriticalityHigh, Category: domain.CategoryServer,
 		CreatedAt: now, UpdatedAt: now,
 	}
+	// A vendor is an asset of category "vendor". Both tenants own one, so the
+	// cross-tenant vendor case fails for the TENANT reason rather than for the
+	// category reason — pointing the vendor case at another tenant's Server
+	// would 404 either way and prove nothing.
+	f.vendorA = &domain.Asset{
+		ID: uuid.New(), TenantID: f.tenantA, Name: "Acme Hosting", Type: "Supplier",
+		Criticality: domain.CriticalityHigh, Category: domain.CategoryVendor,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	f.vendorB = &domain.Asset{
+		ID: uuid.New(), TenantID: f.tenantB, Name: "Other tenant supplier", Type: "Supplier",
+		Criticality: domain.CriticalityHigh, Category: domain.CategoryVendor,
+		CreatedAt: now, UpdatedAt: now,
+	}
 	require.NoError(t, db.Create(f.assetA).Error)
 	require.NoError(t, db.Create(f.assetB).Error)
+	require.NoError(t, db.Create(f.vendorA).Error)
+	require.NoError(t, db.Create(f.vendorB).Error)
 
 	f.riskA = &domain.Risk{
 		ID: uuid.New(), TenantID: f.tenantA, Name: "Log4Shell exposure", Title: "Log4Shell exposure",
@@ -130,7 +152,14 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 		Source: domain.VulnSourceNessus, AssetID: &f.assetA.ID, RiskID: &f.riskA.ID,
 		FirstSeen: now, LastSeen: now,
 	}
+	f.vulnB = &domain.Vulnerability{
+		ID: uuid.New(), TenantID: f.tenantB, CVEID: "CVE-2020-0001", Title: "Other tenant vulnerability",
+		CVSSScore: 3, Severity: domain.VulnSeverityLow, PriorityTier: "P4",
+		Status: domain.VulnStatus("open"), Source: domain.VulnSourceNessus,
+		FirstSeen: now, LastSeen: now,
+	}
 	require.NoError(t, db.Create(f.vulnA).Error)
+	require.NoError(t, db.Create(f.vulnB).Error)
 
 	framework := &domain.ComplianceFramework{
 		ID: uuid.New(), TenantID: f.tenantA, Name: "ISO/IEC 27001", Version: "2022",
@@ -144,6 +173,18 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 	}
 	require.NoError(t, db.Create(f.controlA).Error)
 
+	frameworkB := &domain.ComplianceFramework{
+		ID: uuid.New(), TenantID: f.tenantB, Name: "ISO/IEC 27001", Version: "2022",
+		CreatedAt: now, UpdatedAt: now,
+	}
+	require.NoError(t, db.Create(frameworkB).Error)
+	f.controlB = &domain.ComplianceControl{
+		ID: uuid.New(), TenantID: f.tenantB, FrameworkID: frameworkB.ID,
+		ReferenceCode: "A.5.1", Name: "Other tenant control",
+		Status: domain.ControlStatusNotImplemented, CreatedAt: now, UpdatedAt: now,
+	}
+	require.NoError(t, db.Create(f.controlB).Error)
+
 	// A real risk → control mapping, so the relation query has something to find.
 	require.NoError(t, db.Create(&domain.RiskControlMapping{
 		ID: uuid.New(), TenantID: f.tenantA, RiskID: f.riskA.ID,
@@ -156,7 +197,13 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 		Type: domain.EvidenceTypeDocument, Review: domain.EvidenceReview("accepted"),
 		Source: domain.EvidenceSourceManual, CollectedAt: now, CreatedAt: now, UpdatedAt: now,
 	}
+	f.evidenceB = &domain.Evidence{
+		ID: uuid.New(), TenantID: f.tenantB, Title: "Other tenant proof",
+		Type: domain.EvidenceTypeDocument, Source: domain.EvidenceSourceManual,
+		CollectedAt: now, CreatedAt: now, UpdatedAt: now,
+	}
 	require.NoError(t, db.Create(f.evidenceA).Error)
+	require.NoError(t, db.Create(f.evidenceB).Error)
 	require.NoError(t, db.Create(&domain.EvidenceControlLink{
 		TenantID: f.tenantA, EvidenceID: f.evidenceA.ID, ControlID: f.controlA.ID, CreatedAt: now,
 	}).Error)
@@ -191,15 +238,16 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 		WithSource(entity.TypeAsset, repository.NewAssetSnapshotSource(db))
 
 	registry := entity.NewRegistry().
-		Register(entity.TypeAsset, entity.NewAssetResolver(repository.NewGormAssetRepository(db), relations)).
-		Register(entity.TypeVendor, entity.NewVendorResolver(repository.NewGormAssetRepository(db), relations)).
-		Register(entity.TypeRisk, entity.NewRiskResolver(repository.NewGormRiskRepository(db), relations)).
-		Register(entity.TypeVulnerability, entity.NewVulnerabilityResolver(repository.NewGormVulnerabilityRepository(db), relations)).
-		Register(entity.TypeFinding, entity.NewFindingResolver(repository.NewGormVulnerabilityRepository(db), relations)).
-		Register(entity.TypeControl, entity.NewControlResolver(repository.NewGormComplianceRepository(db), relations)).
-		Register(entity.TypeIncident, entity.NewIncidentResolver(service.NewIncidentService(db), relations)).
-		Register(entity.TypeEvidence, entity.NewEvidenceResolver(repository.NewGormEvidenceRepository(db), relations))
+		Register(entity.Bind(entity.TypeAsset, entity.NewAssetResolver(repository.NewGormAssetRepository(db), relations))).
+		Register(entity.Bind(entity.TypeVendor, entity.NewVendorResolver(repository.NewGormAssetRepository(db), relations))).
+		Register(entity.Bind(entity.TypeRisk, entity.NewRiskResolver(repository.NewGormRiskRepository(db), relations))).
+		Register(entity.Bind(entity.TypeVulnerability, entity.NewVulnerabilityResolver(repository.NewGormVulnerabilityRepository(db), relations))).
+		Register(entity.Bind(entity.TypeFinding, entity.NewFindingResolver(repository.NewGormVulnerabilityRepository(db), relations))).
+		Register(entity.Bind(entity.TypeControl, entity.NewControlResolver(repository.NewGormComplianceRepository(db), relations))).
+		Register(entity.Bind(entity.TypeIncident, entity.NewIncidentResolver(service.NewIncidentService(db), relations))).
+		Register(entity.Bind(entity.TypeEvidence, entity.NewEvidenceResolver(repository.NewGormEvidenceRepository(db), relations)))
 
+	f.registry = registry
 	h := NewEntityHandler(entity.NewService(registry).WithTimeline(timeline))
 
 	app := fiber.New()
@@ -241,22 +289,37 @@ func (f *drawerFixture) get(t *testing.T, path string) (int, map[string]any) {
 func TestEntityDrawer_ResolvesEveryTypeOverHTTP(t *testing.T) {
 	f := setupDrawer(t, []string{"*"})
 
-	cases := []struct{ typ, id, wantTitle string }{
-		{"asset", f.assetA.ID.String(), "web-prod-01"},
-		{"risk", f.riskA.ID.String(), "Log4Shell exposure"},
-		{"vulnerability", f.vulnA.ID.String(), "Log4j RCE"},
-		{"finding", f.vulnA.ID.String(), "Log4j RCE"},
-		{"control", f.controlA.ID.String(), "Policies for information security"},
-		{"incident", "1", "Phishing campaign"},
-		{"evidence", f.evidenceA.ID.String(), "Q1 access review"},
+	// Derived from Registry.Supported(), not written out. As a literal this list
+	// held seven of the eight types — `vendor` was missing — and the suite stayed
+	// green, which is the whole argument for deriving it.
+	titles := map[entity.Type]string{
+		entity.TypeAsset:         "web-prod-01",
+		entity.TypeVendor:        "Acme Hosting",
+		entity.TypeRisk:          "Log4Shell exposure",
+		entity.TypeVulnerability: "Log4j RCE",
+		entity.TypeFinding:       "Log4j RCE",
+		entity.TypeControl:       "Policies for information security",
+		entity.TypeIncident:      "Phishing campaign",
+		entity.TypeEvidence:      "Q1 access review",
 	}
-	for _, tc := range cases {
-		t.Run(tc.typ, func(t *testing.T) {
-			status, body := f.get(t, "/entities/"+tc.typ+"/"+tc.id)
+	ids := f.tenantAIDs()
+
+	supported := f.registry.Supported()
+	require.Len(t, supported, len(entity.Types),
+		"a type in entity.Types has no resolver wired and is unreachable")
+
+	for _, typ := range supported {
+		wantTitle, ok := titles[typ]
+		require.Truef(t, ok, "type %q is supported but has no expected title here", typ)
+		id, ok := ids[typ]
+		require.Truef(t, ok, "type %q is supported but has no tenant-A row seeded", typ)
+
+		t.Run(string(typ), func(t *testing.T) {
+			status, body := f.get(t, "/entities/"+string(typ)+"/"+id)
 			require.Equal(t, http.StatusOK, status, "body: %v", body)
 			summary, ok := body["summary"].(map[string]any)
 			require.True(t, ok, "no summary in %v", body)
-			require.Equal(t, tc.wantTitle, summary["title"])
+			require.Equal(t, wantTitle, summary["title"])
 		})
 	}
 }
@@ -545,4 +608,177 @@ func TestEntityDrawer_CatalogueMarksReadableTypes(t *testing.T) {
 		e := raw.(map[string]any)
 		require.Equal(t, e["type"] == "risk", e["readable"], "type %v", e["type"])
 	}
+}
+
+// ---------------------------------------------------------------------------
+// The derived cross-tenant sweep over the real HTTP stack
+// ---------------------------------------------------------------------------
+
+// tenantBIDs maps each drawer type to a REAL row owned by tenant B.
+//
+// It is a map rather than a slice on purpose: TestEntityDrawer_CrossTenant
+// iterates the registry and looks each type up here, so a type that is
+// registered but unseeded fails the test by name instead of quietly not being
+// checked. That is the exact failure this suite already shipped once — `vendor`
+// was absent from TestEntityDrawer_ResolvesEveryTypeOverHTTP, seven of eight
+// cases ran, and nothing went red.
+func (f *drawerFixture) tenantBIDs() map[entity.Type]string {
+	return map[entity.Type]string{
+		entity.TypeAsset:         f.assetB.ID.String(),
+		entity.TypeVendor:        f.vendorB.ID.String(),
+		entity.TypeRisk:          f.riskB.ID.String(),
+		entity.TypeVulnerability: f.vulnB.ID.String(),
+		entity.TypeFinding:       f.vulnB.ID.String(),
+		entity.TypeControl:       f.controlB.ID.String(),
+		entity.TypeIncident:      "2",
+		entity.TypeEvidence:      f.evidenceB.ID.String(),
+	}
+}
+
+// tenantAIDs is the same table for the caller's OWN tenant, used to prove the
+// positive case before asserting the negative one.
+func (f *drawerFixture) tenantAIDs() map[entity.Type]string {
+	return map[entity.Type]string{
+		entity.TypeAsset:         f.assetA.ID.String(),
+		entity.TypeVendor:        f.vendorA.ID.String(),
+		entity.TypeRisk:          f.riskA.ID.String(),
+		entity.TypeVulnerability: f.vulnA.ID.String(),
+		entity.TypeFinding:       f.vulnA.ID.String(),
+		entity.TypeControl:       f.controlA.ID.String(),
+		entity.TypeIncident:      "1",
+		entity.TypeEvidence:      f.evidenceA.ID.String(),
+	}
+}
+
+// Every registered type, on all four id-bearing routes, read across the tenant
+// boundary through the real stack.
+//
+// This is the criterion that closes the 2026-07-23 defect class. Before it,
+// /relations, /timeline and /audit were each proven for exactly one type out of
+// eight — and those three routes are precisely the ones that leaked.
+func TestEntityDrawer_CrossTenant(t *testing.T) {
+	f := setupDrawer(t, []string{"*"}) // a tenant-A session holding every permission
+
+	regs := f.registry.Registrations()
+	require.Len(t, regs, len(entity.Types),
+		"the registry does not hold every type; an unregistered type is unreachable and untested")
+
+	idsB := f.tenantBIDs()
+	idsA := f.tenantAIDs()
+
+	for _, reg := range regs {
+		idB, ok := idsB[reg.Type]
+		require.Truef(t, ok, "type %q is registered but has no tenant-B row seeded in "+
+			"tenantBIDs(); its isolation is not being tested", reg.Type)
+		idA := idsA[reg.Type]
+
+		t.Run(string(reg.Type), func(t *testing.T) {
+			// The positive case first. Without it a 404 below could simply mean
+			// the route is broken for this type, and the test would "pass" while
+			// proving nothing about tenancy.
+			status, body := f.get(t, "/entities/"+string(reg.Type)+"/"+idA)
+			require.Equalf(t, http.StatusOK, status,
+				"tenant A cannot read its OWN %s (body: %v); the cross-tenant "+
+					"assertions below would pass vacuously", reg.Type, body)
+
+			for _, route := range []string{"", "/relations", "/timeline", "/audit"} {
+				name := strings.TrimPrefix(route, "/")
+				if name == "" {
+					name = "entity"
+				}
+				t.Run(name, func(t *testing.T) {
+					status, body := f.get(t, "/entities/"+string(reg.Type)+"/"+idB+route)
+					require.Equalf(t, http.StatusNotFound, status,
+						"a tenant-A session read tenant-B's %s over %s and got %d (body: %v)",
+						reg.Type, route, status, body)
+				})
+			}
+		})
+	}
+}
+
+// The vendor type is the asset table restricted to one category, so it has a
+// second way to be wrong: naming a NON-vendor asset of the caller's own tenant.
+// The service-level behaviour exists (resolver_asset.go); this is the HTTP
+// assertion that was missing.
+func TestEntityDrawer_CrossTenant_Vendor(t *testing.T) {
+	f := setupDrawer(t, []string{"*"})
+
+	t.Run("another tenant's vendor is not found", func(t *testing.T) {
+		status, _ := f.get(t, "/entities/vendor/"+f.vendorB.ID.String())
+		require.Equal(t, http.StatusNotFound, status)
+	})
+
+	// f.assetA is a Server in the caller's OWN tenant: readable as an asset,
+	// and not addressable as a vendor.
+	t.Run("own tenant's non-vendor asset is not a vendor", func(t *testing.T) {
+		status, _ := f.get(t, "/entities/asset/"+f.assetA.ID.String())
+		require.Equal(t, http.StatusOK, status, "precondition: the row is readable as an asset")
+
+		status, body := f.get(t, "/entities/vendor/"+f.assetA.ID.String())
+		require.Equalf(t, http.StatusNotFound, status,
+			"a Server was served under the vendor type (body: %v)", body)
+	})
+}
+
+// Every collection the contract defines serialises as [] and never as null, on
+// every route, for every type.
+//
+// A nil slice marshals to JSON null, the client's contract types these as
+// arrays and reads .length on them, and null throws in the browser. Commit
+// 7f2b8fa fixed exactly that on the denied-relation path, where the unit test
+// had passed because it mocked an empty slice rather than a nil one.
+func TestEntityContract_NoCollectionSerialisesAsNull(t *testing.T) {
+	f := setupDrawer(t, []string{"*"})
+	idsA := f.tenantAIDs()
+
+	// walk asserts that every named key present in the body is a real array.
+	walk := func(t *testing.T, path string, body map[string]any) {
+		t.Helper()
+		var check func(prefix string, v any)
+		check = func(prefix string, v any) {
+			switch tv := v.(type) {
+			case map[string]any:
+				for _, key := range []string{"sections", "fields", "actions", "groups", "items", "events"} {
+					raw, present := tv[key]
+					if !present {
+						continue
+					}
+					if raw == nil {
+						t.Errorf("%s: %s.%s serialised as null; the client reads .length on it",
+							path, prefix, key)
+						continue
+					}
+					if _, ok := raw.([]any); !ok {
+						t.Errorf("%s: %s.%s is %T, want an array", path, prefix, key, raw)
+					}
+				}
+				for k, nested := range tv {
+					check(prefix+"."+k, nested)
+				}
+			case []any:
+				for i, nested := range tv {
+					check(fmt.Sprintf("%s[%d]", prefix, i), nested)
+				}
+			}
+		}
+		check("$", body)
+	}
+
+	for _, reg := range f.registry.Registrations() {
+		id := idsA[reg.Type]
+		t.Run(string(reg.Type), func(t *testing.T) {
+			for _, route := range []string{"", "/relations", "/timeline", "/audit"} {
+				path := "/entities/" + string(reg.Type) + "/" + id + route
+				status, body := f.get(t, path)
+				require.Equalf(t, http.StatusOK, status, "%s answered %d", path, status)
+				walk(t, path, body)
+			}
+		})
+	}
+
+	// The catalogue is the fifth route and it is a collection in its own right.
+	status, body := f.get(t, "/entities")
+	require.Equal(t, http.StatusOK, status)
+	walk(t, "/entities", body)
 }

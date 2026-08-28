@@ -2165,15 +2165,19 @@ func main() {
 		WithSource(entity.TypeAsset, repository.NewAssetSnapshotSource(database.DB)).
 		WithSource(entity.TypeVendor, repository.NewAssetSnapshotSource(database.DB))
 
+	// Bind joins each resolver to the tenant gate its type declares in
+	// entity.isolationProfiles. Register panics on an incomplete registration,
+	// so a type added without that decision fails here, at boot, in front of
+	// whoever added it — rather than serving an unscoped read.
 	entityRegistry := entity.NewRegistry().
-		Register(entity.TypeAsset, entity.NewAssetResolver(assetRepo, entityRelations)).
-		Register(entity.TypeVendor, entity.NewVendorResolver(assetRepo, entityRelations)).
-		Register(entity.TypeRisk, entity.NewRiskResolver(riskRepo, entityRelations)).
-		Register(entity.TypeVulnerability, entity.NewVulnerabilityResolver(vulnRepo, entityRelations)).
-		Register(entity.TypeFinding, entity.NewFindingResolver(vulnRepo, entityRelations)).
-		Register(entity.TypeControl, entity.NewControlResolver(complianceRepo, entityRelations)).
-		Register(entity.TypeIncident, entity.NewIncidentResolver(incidentService, entityRelations)).
-		Register(entity.TypeEvidence, entity.NewEvidenceResolver(evidenceRepo, entityRelations))
+		Register(entity.Bind(entity.TypeAsset, entity.NewAssetResolver(assetRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeVendor, entity.NewVendorResolver(assetRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeRisk, entity.NewRiskResolver(riskRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeVulnerability, entity.NewVulnerabilityResolver(vulnRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeFinding, entity.NewFindingResolver(vulnRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeControl, entity.NewControlResolver(complianceRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeIncident, entity.NewIncidentResolver(incidentService, entityRelations))).
+		Register(entity.Bind(entity.TypeEvidence, entity.NewEvidenceResolver(evidenceRepo, entityRelations)))
 
 	entityHandler := handlers.NewEntityHandler(entity.NewService(entityRegistry).WithTimeline(entityTimeline))
 

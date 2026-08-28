@@ -206,6 +206,18 @@ func (s *Service) Catalogue(c Caller) []CatalogueEntry {
 // access is the one gate: caller valid, type known, type readable, resolver
 // wired. Everything public above starts here.
 func (s *Service) access(c Caller, t Type) (Descriptor, Resolver, error) {
+	// A tenantless caller is 401, not 403. The two answers are different
+	// statements: 401 says the caller has not proven who they are, 403 says they
+	// have and may not do this. Collapsing them into 403 told an unauthenticated
+	// probe that the type it named exists and is permission-gated, and it made
+	// the "no tenant" defect — the one that turns into an unscoped read —
+	// indistinguishable in the logs from an ordinary permission denial.
+	//
+	// NewTenantScope is the single place that decides this, so the drawer cannot
+	// answer it one way and the timeline another.
+	if _, err := NewTenantScope(c); err != nil {
+		return Descriptor{}, nil, err
+	}
 	if !c.Valid() {
 		return Descriptor{}, nil, domain.NewForbiddenError("authentication required")
 	}

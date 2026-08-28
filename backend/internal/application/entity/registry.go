@@ -179,21 +179,60 @@ type Resolver interface {
 // A type with no registered resolver is *unsupported*, not broken: the service
 // answers a typed validation error naming the type. That is what lets this ship
 // with a resolver missing rather than crashing when one is not wired.
+//
+// What a registration may NOT do is enter the registry without declaring how it
+// is confined to its tenant. Register takes a Registration and panics on an
+// incomplete one, so the failure lands at boot rather than as an unscoped read
+// in production.
 type Registry struct {
-	resolvers map[Type]Resolver
+	resolvers     map[Type]Resolver
+	registrations map[Type]Registration
 }
 
 func NewRegistry() *Registry {
-	return &Registry{resolvers: map[Type]Resolver{}}
+	return &Registry{
+		resolvers:     map[Type]Resolver{},
+		registrations: map[Type]Registration{},
+	}
 }
 
-// Register binds a resolver to a type, replacing any previous binding.
-func (r *Registry) Register(t Type, res Resolver) *Registry {
-	if res == nil {
-		return r
+// Register binds a registration to its type, replacing any previous binding.
+//
+// It PANICS on an incomplete registration. That is deliberate and it is the
+// mechanism this issue exists to install: a type whose tenant gate, id shape or
+// isolation test is unstated is a type nobody has decided how to scope, and
+// serving it is worse than refusing to boot. The panic fires in main(), at
+// wiring time, in front of whoever added the type.
+func (r *Registry) Register(reg Registration) *Registry {
+	if err := reg.validate(); err != nil {
+		panic("entity.Registry.Register: incomplete registration: " + err.Error())
 	}
-	r.resolvers[t] = res
+	r.resolvers[reg.Type] = reg.Resolver
+	r.registrations[reg.Type] = reg
 	return r
+}
+
+// Registrations returns every registration in declaration order.
+//
+// The cross-tenant tests derive their cases from this rather than from a
+// hand-written slice. That is the difference between coverage that grows with
+// the registry and coverage that silently stays behind it: `vendor` fell out of
+// TestEntityDrawer_ResolvesEveryTypeOverHTTP and nothing went red, because the
+// list of types to check was a literal someone forgot to extend.
+func (r *Registry) Registrations() []Registration {
+	out := make([]Registration, 0, len(r.registrations))
+	for _, t := range Types {
+		if reg, ok := r.registrations[t]; ok {
+			out = append(out, reg)
+		}
+	}
+	return out
+}
+
+// RegistrationFor returns one type's registration.
+func (r *Registry) RegistrationFor(t Type) (Registration, bool) {
+	reg, ok := r.registrations[t]
+	return reg, ok
 }
 
 // Resolver returns the resolver for a type.
