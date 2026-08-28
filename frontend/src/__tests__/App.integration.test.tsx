@@ -38,7 +38,7 @@ describe('App Integration', () => {
     vi.clearAllMocks();
   });
 
-  it('should render Login page when not authenticated', () => {
+  it('should render Login page when not authenticated', async () => {
     vi.mocked(useAuthStore).mockImplementation((selector: any) => {
       const store = {
         isAuthenticated: false,
@@ -50,14 +50,22 @@ describe('App Integration', () => {
     // App renders its own <BrowserRouter>; don't double-wrap.
     render(<App />);
 
-    // Assert on the form itself, not on its heading. The previous version matched
-    // the marketing copy verbatim, so an ordinary wording change broke a test
-    // that is supposed to be about routing — and these ids are locale-independent
-    // by construction.
-    expect(screen.getByTestId('login-email')).toBeInTheDocument();
+    // AuthScreen is lazy (App.tsx:42) behind <Suspense fallback={<RouteFallback />}>,
+    // so the first synchronous paint is the fallback, not the form. The previous
+    // version asserted with getByTestId immediately and therefore tested the
+    // fallback — it passed only while the chunk happened to resolve first, and
+    // failed permanently once it did not.
+    //
+    // findBy* is the right tool here specifically BECAUSE the route does render:
+    // probed on this branch, the form appears once the chunk resolves. If the
+    // route rendered nothing, this would time out rather than paper over it —
+    // which is the difference between waiting for a known-good async boundary
+    // and hiding a broken one.
+    expect(await screen.findByTestId('login-email')).toBeInTheDocument();
     expect(screen.getByTestId('login-password')).toBeInTheDocument();
     expect(screen.getByTestId('login-submit')).toBeInTheDocument();
   });
+
 
   it('should render Dashboard when authenticated', async () => {
     vi.mocked(useAuthStore).mockImplementation((selector: any) => {
