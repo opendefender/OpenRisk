@@ -1,16 +1,17 @@
 # 0001 — Polymorphic entity contract, entity registry and tenant gating
 
-Status: proposed
-Blocked on: owner decision D-005 (docs/DECISIONS.md) — acceptance is the owner's
-call, and D-005 is still OPEN. This file stays `proposed` until it is resolved.
+Status: accepted
+Accepted: 2026-08-28 by the owner, via decision D-005 (docs/DECISIONS.md), which
+also settled D2 (panic at boot) and D4 (raw sequential ids) as written below.
 Implemented by: #410 (partially — see "Implementation status" below)
 
 ## Implementation status — as merged on #410
 
-This ADR is NOT yet accepted — D-005 is open — but its D2 recommendation
-(panic at boot on an incomplete registration) is already implemented, because it
-is reversible and is the recommended option. The parts that are BUILT are listed
-here so that a reader can tell the decision from the delivery. Nothing below is aspirational:
+This ADR is accepted. Its D2 decision (panic at boot on an incomplete
+registration) is implemented; D4 (raw sequential incident ids with enumeration
+mitigated rather than hidden) is implemented and is **irreversible once deep
+links are in the wild**. The parts that are BUILT are listed here so a reader can
+tell the decision from the delivery. Nothing below is aspirational:
 each row was checked against the code on 2026-08-28.
 
 | Decision | Status | Where |
