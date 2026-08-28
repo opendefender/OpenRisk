@@ -5,7 +5,47 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-_Nothing open. All six decisions were resolved by the owner on 2026-08-28._
+### D-007 — #411 criterion 14: the eight registers are not one pattern eight times
+**Context** — Criterion 14 requires all eight registers to open the universal
+drawer on row activation, and the issue's PO note is explicit that the milestone
+is cut by dropping a whole issue, "never by shipping four registers of eight",
+because inconsistent navigation is itself a defect. Surveying the eight on
+2026-08-28 shows the criterion's premise — "one pattern applied eight times, one
+commit each" — does not hold. The universal drawer offers four sections
+(summary, relations, timeline, audit). Several registers currently open
+something substantially richer, so wiring their rows to it **removes
+capability**:
+
+| Register | Current drawer | Swapping it costs |
+|---|---|---|
+| Risks | `RiskDrawer`, 9 tabs: details, lifecycle, score, smart, financial, miti, timeline, cti, ai — plus edit, export, create-mitigation | Financial quantification, SmartScore, CTI and AI tabs disappear from the product's most important screen |
+| Evidence | `EvidenceDrawer`, 232 lines, **mutates** — approve/reject review, update validity | It is an editor. The issue's own rule retains editors (`MitigationDetailDrawer`, `ScanConfigDrawer`), and this one was mis-filed as a detail view |
+| Infrastructure | `ScanConfigDrawer`, a scanner-config editor keyed by PROVIDER | The rows are scanner providers, not assets. Criterion 14 maps this register to `asset`; the mapping does not hold |
+| Incidents | `IncidentDrawer`, 250 lines with actions | Needs a per-action check, not yet done |
+| Compliance | `ControlDrawer`, 220 lines, 2 tabs (details/evidence) | Closest to like-for-like; the evidence tab maps onto relations |
+| Vulnerabilities | `VulnDrawer`, inside the page | Needs a check |
+| Assets / Inventory | `AssetHistoryDrawer`, 94 lines, no tabs, no mutations, opened from a "history" row action | **Nothing** — rows do not currently open a detail view at all, so the universal drawer is pure gain here |
+
+So the eight are roughly: two clean wins, three needing a per-feature check, and
+two that are clear regressions as specified.
+**Options** — **A** wire only the registers where nothing is lost (assets,
+inventory, and whichever of the middle three survive a check), retain the rest
+with a stated reason under criterion 16, and accept mixed navigation · **B**
+give the universal drawer an action that opens the rich view ("Open full risk
+view"), so every row opens the drawer and depth stays one click away — uniform
+navigation, no capability lost, but a design change beyond #411 · **C** keep
+#411 to the two clean registers and move the rich ones to their own issue, where
+each rich drawer's tabs are migrated into the universal drawer's sections
+properly · **D** execute criterion 14 literally and accept the regressions.
+**Recommendation** — **B**, and if it will not fit the milestone, **C**. D ships
+a visible capability loss on the risk register. A is the thing the issue's own
+PO note forbids, and it forbids it for a good reason.
+**Cost of delay** — #411 cannot finish. Criterion 14 is its largest remaining
+chunk and blocks the #200 umbrella DoD. Criteria 15 and 17 are done and shipped
+regardless.
+**Reversible?** — Yes, but B and C both cost more the later they start, because
+every register wired the wrong way is rework.
+**Status** — OPEN
 
 ## Resolved
 
