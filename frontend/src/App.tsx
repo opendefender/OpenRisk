@@ -31,6 +31,7 @@ import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
 import { EntityDrawerHost } from './features/entity-drawer';
+import { useRealtimeQuerySync } from './features/realtime/useRealtime';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
 // ScoreEngineVisualizer and white-screened on a null response) was removed in RC1.
