@@ -197,7 +197,7 @@ func (r *GormMembershipRepository) CountActiveAdmins(ctx context.Context, tenant
 
 // Counts computes the membership headline in two aggregate queries — one over
 // memberships, one over invitations — rather than one query per number.
-func (r *GormMembershipRepository) Counts(ctx context.Context, tenantID uuid.UUID) (domain.OrganizationCounts, error) {
+func (r *GormMembershipRepository) Counts(ctx context.Context, tenantID uuid.UUID, asOf time.Time) (domain.OrganizationCounts, error) {
 	var out domain.OrganizationCounts
 
 	// COUNT(*) FILTER is standard SQL and supported by both Postgres and the
@@ -229,9 +229,15 @@ func (r *GormMembershipRepository) Counts(ctx context.Context, tenantID uuid.UUI
 
 	// Pending counts what is actually still redeemable, so a stale invitation
 	// nobody revoked does not inflate the badge forever.
+	//
+	// The instant comes from the caller, not from time.Now(). This query used to
+	// read the wall clock while every other invitation path read the service's
+	// injected clock, so the two disagreed about whether the same row was
+	// expired — invisible in production, where both are the wall clock, and a
+	// wrong number the moment anything sets a clock.
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Invitation{}).
-		Where("organization_id = ? AND status = ? AND expires_at > ?", tenantID, domain.InvitationPending, time.Now()).
+		Where("organization_id = ? AND status = ? AND expires_at > ?", tenantID, domain.InvitationPending, asOf).
 		Count(&out.PendingInvitations).Error; err != nil {
 		return out, err
 	}

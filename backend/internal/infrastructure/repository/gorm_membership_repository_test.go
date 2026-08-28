@@ -176,7 +176,7 @@ func TestMembershipRepo_LegacyNullStatusCountsAsActive(t *testing.T) {
 	if err != nil || n != 1 {
 		t.Fatalf("a legacy admin must count toward administrative capacity: %d %v", n, err)
 	}
-	counts, err := f.repo.Counts(ctx, f.tenantA)
+	counts, err := f.repo.Counts(ctx, f.tenantA, time.Now())
 	if err != nil {
 		t.Fatalf("counts: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestMembershipRepo_MembershipWrittenWithoutAStatusStillCountsAsActive(t *te
 	if err != nil || n != 1 {
 		t.Fatalf("an empty status must count toward administrative capacity: %d %v", n, err)
 	}
-	c, err := f.repo.Counts(ctx, f.tenantA)
+	c, err := f.repo.Counts(ctx, f.tenantA, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -449,7 +449,7 @@ func TestMembershipRepo_Counts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err := f.repo.Counts(ctx, f.tenantA)
+	c, err := f.repo.Counts(ctx, f.tenantA, time.Now())
 	if err != nil {
 		t.Fatalf("counts: %v", err)
 	}
@@ -462,7 +462,7 @@ func TestMembershipRepo_Counts(t *testing.T) {
 	}
 
 	// Tenant B's numbers are its own — a shared counter is how a sidebar leaks.
-	cb, _ := f.repo.Counts(ctx, f.tenantB)
+	cb, _ := f.repo.Counts(ctx, f.tenantB, time.Now())
 	if cb.TotalMembers != 1 || cb.PendingInvitations != 1 || cb.Admins != 1 {
 		t.Fatalf("tenant B counts = %+v", cb)
 	}
@@ -471,3 +471,73 @@ func TestMembershipRepo_Counts(t *testing.T) {
 // Compile-time proof the concrete repository satisfies the port the use cases
 // depend on.
 var _ domain.MembershipRepository = (*GormMembershipRepository)(nil)
+
+// Counts judges invitation expiry against the instant it is GIVEN, not against
+// the wall clock.
+//
+// This is the regression test for #409. The pending-invitation counter used to
+// call time.Now() directly while the whole invitation lifecycle in
+// internal/application/membership reads the service's injected clock. In
+// production both are the wall clock, so the disagreement was invisible — but
+// any caller that sets a clock got two contradictory answers about the same
+// row: the service considered an invitation usable while the badge counted it
+// expired. It surfaced as a test that passed until real time overtook a fixture
+// whose clock was frozen in the past, and then failed every run afterwards.
+//
+// The predicate is `expires_at > asOf`, so an invitation expiring exactly AT
+// asOf is already gone. That boundary is asserted here so it cannot drift
+// silently into >=.
+func TestCounts_JudgesInvitationExpiryAgainstTheGivenInstant(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+
+	expiry := time.Date(2026, 8, 27, 9, 0, 0, 0, time.UTC)
+	inviter := uuid.New()
+	if err := f.db.Create(&domain.Invitation{
+		ID:             uuid.New(),
+		OrganizationID: f.tenantA,
+		Email:          "pending@a.io",
+		Role:           domain.RoleUser,
+		TokenHash:      "409regression",
+		Status:         domain.InvitationPending,
+		ExpiresAt:      expiry,
+		InvitedByID:    inviter,
+		LastSentAt:     expiry.Add(-7 * 24 * time.Hour),
+		SendCount:      1,
+	}).Error; err != nil {
+		t.Fatalf("seed invitation: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		asOf time.Time
+		want int64
+	}{
+		{"a day before expiry it is pending", expiry.Add(-24 * time.Hour), 1},
+		{"a second before expiry it is pending", expiry.Add(-time.Second), 1},
+		{"exactly at expiry it is gone", expiry, 0},
+		{"a day after expiry it is gone", expiry.Add(24 * time.Hour), 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			counts, err := f.repo.Counts(ctx, f.tenantA, tc.asOf)
+			if err != nil {
+				t.Fatalf("counts: %v", err)
+			}
+			if counts.PendingInvitations != tc.want {
+				t.Fatalf("PendingInvitations at %s = %d, want %d — the counter is not "+
+					"using the instant it was given",
+					tc.asOf.Format(time.RFC3339), counts.PendingInvitations, tc.want)
+			}
+		})
+	}
+
+	// And it stays tenant-scoped: tenant B never sees tenant A's invitation,
+	// whatever instant it is asked about.
+	countsB, err := f.repo.Counts(ctx, f.tenantB, expiry.Add(-24*time.Hour))
+	if err != nil {
+		t.Fatalf("counts B: %v", err)
+	}
+	if countsB.PendingInvitations != 0 {
+		t.Fatalf("tenant B sees %d of tenant A's pending invitations", countsB.PendingInvitations)
+	}
+}
