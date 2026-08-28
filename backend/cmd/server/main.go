@@ -2143,7 +2143,12 @@ func main() {
 	protected.Get("/risks/:id/timeline/trend", timelineHandler.GetRiskTrend)
 	protected.Get("/risks/:id/timeline/changes/:type", timelineHandler.GetChangesByType)
 	protected.Get("/risks/:id/timeline/since/:timestamp", timelineHandler.GetChangesSince)
-	protected.Get("/timeline/recent", timelineHandler.GetRecentActivity)
+	// GET /timeline/recent is RETIRED (#412 criterion 16). It returned the risk
+	// history of every tenant in the deployment on 2026-07-23 (docs/JOURNAL.md
+	// item 36), and it still read its tenant through safeGetUUID, which falls
+	// back to uuid.Nil rather than failing closed. GET /timeline supersedes it,
+	// is tenant-scoped from Caller alone, and is covered by a cross-tenant test.
+	// TestIsolationGate_LegacyRecentTimelineIsRetired fails if it is re-mounted.
 
 	// --- Universal Entity Drawer + Global Timeline (W1-02) ---
 	//

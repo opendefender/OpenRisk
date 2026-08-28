@@ -35,6 +35,24 @@ type Route struct {
 // String renders the route as it appears in a failure message.
 func (r Route) String() string { return r.Method + " " + r.Path }
 
+// IsCollection reports whether the route is a read with no id in its path.
+//
+// These are the OTHER tenant-isolation surface, and the one the gate was blind
+// to. A parameterised route leaks when it fails to check that the named row
+// belongs to the caller. A collection route leaks when it forgets the WHERE
+// clause entirely — and then it returns every tenant's rows at once, which is
+// strictly worse. That is not hypothetical: GET /timeline/recent returned the
+// risk history of every tenant in the deployment (docs/JOURNAL.md item 36,
+// 2026-07-23), and because it takes no path parameter, this gate never asked
+// about it.
+//
+// Method matters: a GET with no id is a list. POST/PUT/DELETE without an id are
+// creates and bulk operations, which are a different surface (the target is in
+// the body) and are named as a known blind spot in this package's doc comment.
+func (r Route) IsCollection() bool {
+	return r.Method == "GET" && !r.IsParameterised()
+}
+
 // IsParameterised reports whether the path takes an ID-like segment. These are
 // the direct-object-reference surface an isolation test must probe: they let a
 // caller name someone else's resource.

@@ -101,8 +101,13 @@ func TestEveryDecisionCarriesEvidence(t *testing.T) {
 
 // TestNoStaleDecisions catches the opposite drift: an entry for a route that no
 // longer exists is misleading, and worse, it silently keeps matching a prefix.
+//
+// "Live" must mean every route the gates ask about, not just the parameterised
+// ones. When collection routes were added to the gate (#412 criterion 9) this
+// test still knew only about parameterised routes, so every new collection
+// decision looked stale.
 func TestNoStaleDecisions(t *testing.T) {
-	live := parameterisedRoutes(t)
+	live := append(parameterisedRoutes(t), collectionRoutes(t)...)
 
 	for _, d := range Decisions() {
 		var used bool
@@ -160,4 +165,129 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(digits)
+}
+
+// collectionRoutes returns every read with no id in its path.
+func collectionRoutes(t *testing.T) []routes.Route {
+	t.Helper()
+
+	all, err := routes.Extract(routerPath(t))
+	if err != nil {
+		t.Fatalf("extract routes: %v", err)
+	}
+	var out []routes.Route
+	for _, r := range all {
+		if r.IsCollection() {
+			out = append(out, r)
+		}
+	}
+	if len(out) == 0 {
+		t.Fatal("no collection routes extracted — the gate would pass vacuously")
+	}
+	return out
+}
+
+// TestIsolationGate_DemandsADecisionForCollectionRoutes closes the blind spot
+// that let an all-tenants read ship.
+//
+// The parameterised gate above asks "did anyone check that this id belongs to
+// the caller?". It cannot ask anything about GET /timeline, because there is no
+// id to check — and that is precisely the route shape that leaked. From
+// docs/JOURNAL.md item 36 (2026-07-23): GET /timeline/recent returned the risk
+// history of EVERY tenant in the deployment, because RiskHistory carries no
+// tenant_id and the handler never read the tenant context. No path parameter,
+// so the gate never asked; no leak found by CI; found by a human reading code.
+//
+// A missing predicate on a collection route is worse than a missing check on a
+// parameterised one. The parameterised failure leaks one row that the attacker
+// had to name. This one leaks every row of every tenant to whoever loads the
+// page.
+//
+// Like the parameterised gate, this asserts that a decision was RECORDED, not
+// that isolation works. Pending is a legitimate answer; silence is not.
+func TestIsolationGate_DemandsADecisionForCollectionRoutes(t *testing.T) {
+	var undecided []routes.Route
+	for _, r := range collectionRoutes(t) {
+		if _, ok := Lookup(r.Path); !ok {
+			undecided = append(undecided, r)
+		}
+	}
+
+	if len(undecided) > 0 {
+		var b strings.Builder
+		b.WriteString("collection routes with no tenant-isolation decision:\n\n")
+		for _, r := range undecided {
+			b.WriteString("  " + r.String() + "\n")
+			b.WriteString("      registered at cmd/server/main.go:" + itoa(r.Line) + "\n")
+			b.WriteString("      pattern to declare: " + Normalise(r.Path) + "\n")
+		}
+		b.WriteString("\nAdd an entry to decisions in internal/security/isolation/registry.go.\n")
+		b.WriteString("A read with no id in its path returns MANY rows. If it returns tenant\n")
+		b.WriteString("data, it needs a WHERE tenant_id and a cross-tenant test (Covered).\n")
+		b.WriteString("If it is genuinely public or self-scoped, record which and why.\n")
+		t.Fatal(b.String())
+	}
+}
+
+// The two routes W1-02 adds are named explicitly, because this issue builds the
+// successor to the route that leaked and a prefix pattern elsewhere must never
+// be what silently accounts for them.
+//
+// Their correct statuses differ, and that difference is the point:
+//
+//   - GET /timeline returns tenant ROWS. Nothing but a cross-tenant test makes
+//     it safe, so it must be Covered.
+//   - GET /entities returns the static type catalogue plus the caller's own
+//     permission flags (Service.Catalogue) — no tenant rows at all. Marking it
+//     Covered would claim a cross-tenant assertion that has nothing to assert.
+//     It must be decided and evidenced, but SelfScoped is the honest status.
+func TestIsolationGate_TimelineAndCatalogueAreDecidedByName(t *testing.T) {
+	for _, path := range []string{"/api/v1/timeline", "/api/v1/entities"} {
+		d, ok := Lookup(path)
+		if !ok {
+			t.Fatalf("%s has no isolation decision", path)
+		}
+		if d.Pattern != path {
+			t.Errorf("%s is accounted for by the broader pattern %q; it must carry its own "+
+				"entry — this is the successor to the route that returned every tenant's "+
+				"history, and it may not be covered by inheritance", path, d.Pattern)
+		}
+		if d.Evidence == "" {
+			t.Errorf("%s records no evidence", path)
+		}
+		if d.Status == Pending {
+			t.Errorf("%s is still Pending; W1-02 ships these two routes and may not "+
+				"leave its own surface as debt", path)
+		}
+	}
+
+	if d, _ := Lookup("/api/v1/timeline"); d.Status != Covered {
+		t.Errorf("GET /timeline is %q, want %q — it returns tenant rows, and it is the "+
+			"successor to the route that returned every tenant's history", d.Status, Covered)
+	}
+}
+
+// The route that actually leaked is retired, and must stay retired.
+//
+// GET /timeline/recent returned the risk history of every tenant in the
+// deployment (docs/JOURNAL.md item 36, 2026-07-23). Even after that was fixed it
+// still read its tenant via safeGetUUID, which falls back to uuid.Nil rather
+// than failing closed — the shape the constitution forbids, on a route that had
+// already leaked once. #412 criterion 16 retired it; GET /timeline supersedes it.
+//
+// This test fails if anyone re-mounts it. Re-adding the route is not forbidden
+// outright, but it may not happen silently: whoever does it has to delete this
+// test and say why in the diff.
+func TestIsolationGate_LegacyRecentTimelineIsRetired(t *testing.T) {
+	all, err := routes.Extract(routerPath(t))
+	if err != nil {
+		t.Fatalf("extract routes: %v", err)
+	}
+	for _, r := range all {
+		if Normalise(r.Path) == "/api/v1/timeline/recent" {
+			t.Fatalf("%s is mounted again at cmd/server/main.go:%d. It returned every "+
+				"tenant's risk history once and read its tenant through a uuid.Nil "+
+				"fallback. GET /timeline replaces it.", r.String(), r.Line)
+		}
+	}
 }
