@@ -146,6 +146,12 @@ const AnimatedOutlet = () => {
  * here so they're reachable from anywhere (sidebar quick action, palette).
  */
 const DashboardLayout = () => {
+  // Opens the tab's single realtime connection and keeps the query cache in
+  // step with it. Mounted once, here, so no feature has to open a connection of
+  // its own — which is what the app used to do, ending up with several sockets
+  // and several reconnect strategies to say the same thing.
+  useRealtimeQuerySync();
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [newRiskOpen, setNewRiskOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);

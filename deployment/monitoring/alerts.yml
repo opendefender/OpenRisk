@@ -214,3 +214,128 @@ groups:
         annotations:
           summary: "Signups with zero Aha moments"
           description: "{{ $value }} signups in the last 6h and not one reached the Aha moment."
+
+  # =========================================================================
+  # Realtime event hub (W0-07)
+  # =========================================================================
+  #
+  # The hub's failure mode is silence: a stream that stops delivering looks
+  # exactly like a tenant where nothing is happening. Every rule below is
+  # therefore about the DIFFERENCE between those two, and none of them is
+  # labelled by tenant — that would be unbounded cardinality, and the tenant is
+  # in the structured logs where it belongs.
+  - name: openrisk_realtime
+    rules:
+      # Events are being accepted but nothing is reaching a client while
+      # connections are open. This is the "why does nobody see anything"
+      # condition: a broken fanout, a relay that died, or a filter that excludes
+      # everything.
+      - alert: RealtimeEventsPublishedButNotDelivered
+        expr: |
+          sum(rate(openrisk_realtime_events_published_total[10m])) > 0
+          and sum(openrisk_realtime_active_connections) > 0
+          and sum(rate(openrisk_realtime_events_delivered_total[10m])) == 0
+        for: 10m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Realtime events are published but never delivered"
+          description: "Events are being accepted and clients are connected, yet nothing is being written to a stream. Check the Redis fanout and the relay; a stream that silently stops looks identical to a quiet tenant."
+
+      # Publication is failing. Split by reason at the metric so the response is
+      # obvious: `log` is the database, `fanout` is Redis, `invalid` is a code
+      # defect that shipped.
+      - alert: RealtimePublishFailures
+        expr: sum(rate(openrisk_realtime_publish_failures_total[10m])) by (reason) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime publications failing ({{ $labels.reason }})"
+          description: "{{ $value | printf \"%.2f\" }}/s publications failing with reason={{ $labels.reason }}. log = the durable append is failing and replay will have gaps; fanout = other instances are not seeing events; invalid = an event that does not satisfy the catalog is being published."
+
+      # Sustained dropping means consumers cannot keep up. Every drop is followed
+      # by a resync instruction, so this is not silent data loss — but a client
+      # that resyncs continuously is refetching everything instead of streaming,
+      # which is worse than not streaming at all.
+      - alert: RealtimeConsumersFallingBehind
+        expr: sum(rate(openrisk_realtime_events_dropped_total[15m])) > 1
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime subscribers are being dropped from"
+          description: "{{ $value | printf \"%.2f\" }} events/s are being dropped because subscribers cannot keep up. Each drop triggers a client resync, so clients are refetching rather than streaming."
+
+      # A connection count that only goes up is a leak: streams that ended but
+      # whose goroutine and subscription were never released.
+      - alert: RealtimeConnectionsNotReleased
+        expr: |
+          sum(openrisk_realtime_active_connections) > 100
+          and sum(rate(openrisk_realtime_connection_duration_seconds_count[30m])) == 0
+        for: 30m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime connections are not being released"
+          description: "{{ $value }} streams are open and not one has closed in 30 minutes. Connections that end without being torn down hold a goroutine and a subscription each."
+
+      # A reconnect storm: connections churning far faster than users could be
+      # opening pages. Usually a deploy loop, a proxy killing idle connections
+      # below the keepalive interval, or a client backoff that stopped backing
+      # off.
+      - alert: RealtimeReconnectStorm
+        expr: |
+          sum(rate(openrisk_realtime_subscriptions_total{outcome="accepted"}[5m])) > 20
+          and histogram_quantile(0.5, sum(rate(openrisk_realtime_connection_duration_seconds_bucket[15m])) by (le)) < 30
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime reconnect storm"
+          description: "Streams are being opened at {{ $value | printf \"%.1f\" }}/s and the median one lives under 30s. Check for a proxy idle timeout below the keepalive, or a client that stopped backing off."
+
+      # Subscriptions refused for authorization. A handful is normal (a role
+      # without read permissions loading the app); a sustained rate means a
+      # permission change broke live updates for a whole population.
+      - alert: RealtimeSubscriptionsRefused
+        expr: sum(rate(openrisk_realtime_subscriptions_total{outcome=~"forbidden|capacity"}[15m])) by (outcome) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime subscriptions being refused ({{ $labels.outcome }})"
+          description: "{{ $value | printf \"%.2f\" }}/s subscriptions refused with outcome={{ $labels.outcome }}. forbidden = a population lost the read permissions the stream requires; capacity = the instance connection limit is being hit and clients are being told to retry."
+
+      # Cursors expiring means clients are away longer than the retention window
+      # and must refetch everything on return. Either the window is too short
+      # for how the product is used, or the retention sweep is deleting too
+      # aggressively.
+      - alert: RealtimeCursorsExpiring
+        expr: sum(rate(openrisk_realtime_replays_total{outcome="expired"}[30m])) > 0.2
+        for: 30m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "Reconnecting clients are outside the replay window"
+          description: "{{ $value | printf \"%.2f\" }}/s reconnects carry a cursor older than the retained history and are being told to resynchronise. Consider whether REALTIME_REPLAY_RETENTION_HOURS matches how long clients actually stay away."
+
+      # End-to-end staleness: the number a user would recognise as "my screen is
+      # behind". Measured from the business change, not from publication, so a
+      # slow publisher shows up here too.
+      - alert: RealtimeDeliveryLagHigh
+        expr: histogram_quantile(0.95, sum(rate(openrisk_realtime_delivery_lag_seconds_bucket[10m])) by (le)) > 10
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime delivery lag above 10s (p95)"
+          description: "P95 delay between a business change and it reaching a client socket is {{ $value | humanizeDuration }}. Screens are visibly behind the data."

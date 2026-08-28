@@ -8,7 +8,64 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Planned
+- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
+- Multi-tenant support
+- Mobile app (React Native)
+- Slack/Teams notifications
+- Jira integration
+
+## [1.1.0-rc.3] - 2026-08-25
+
+> Supersedes `v1.1.0-rc.2`, which was tagged but never published: the release
+> workflow builds and tests from the tag, and three cache tests failed on a
+> runner with no Redis alongside them. Those tests now skip when Redis is absent
+> instead of reporting a missing dependency as a defect. The tag `v1.1.0-rc.2`
+> is left in place — a pushed tag is never moved or deleted (see
+> [docs/VERSIONING.md](docs/VERSIONING.md) §4) — and simply has no release
+> attached to it.
+
+### Milestone
+
+**Wave 0 — "Audit & proof" is complete** (8/8 issues, W0-01 → W0-07). The wave did
+not add product surface for its own sake: it established what is actually true
+about the system and closed the gaps the audit found. Waves 1–8 remain open, so
+this is a release candidate, not a GA.
+
 ### Added
+- **W0-07 — Real-time event hub and stream contracts.** One authenticated,
+  tenant-scoped SSE backbone (`GET /api/v1/realtime/events`) replacing three
+  hand-rolled streams and two WebSocket clients that pointed at endpoints the
+  backend never served. A versioned event envelope (id, version, tenant,
+  aggregate, per-tenant sequence, correlation and causation ids) over a closed
+  catalog of 25 canonical domain events across risks, assets, vulnerabilities,
+  incidents, controls, assessments and mitigations. Events are appended to a
+  durable per-tenant ordered log (`realtime_events`, migration `0059`) before
+  delivery, so a reconnect replays from a cursor instead of refetching
+  everything; a cursor older than the retained window gets an explicit resync
+  rather than a silent partial replay. Delivery is **at-least-once** with
+  server-minted ids and idempotent consumers — exactly-once is not claimed.
+  Backpressure is real: bounded per-subscriber buffers, per-instance and
+  per-tenant connection limits, and a coalescing resync instruction instead of
+  blocking. Stream authorization is two-layered (`events:read` to hold a stream,
+  then the read permission of each event's own aggregate to receive it). New
+  permission `events:read`, 18 Prometheus series with no unbounded labels, and 8
+  alert rules built around the hub's real failure mode — silence. The frontend
+  gets one shared transport per tab with jittered backoff, a liveness watchdog,
+  duplicate suppression, sequence-gap detection and tenant-switch teardown.
+  See [docs/W0-07_REALTIME_EVENT_HUB.md](docs/W0-07_REALTIME_EVENT_HUB.md).
+- **W0-04 — Real organization member management.** Inviting a colleague is now an
+  invitation: a hashed, expiring, revocable token, instead of `POST /rbac/members`
+  creating the account immediately and handing the administrator a temporary
+  password to relay by hand. Membership gains an explicit lifecycle (status plus
+  the timestamps that say when it changed), backfilled from the boolean that used
+  to be the only signal (migration `0058`).
+  See [docs/W0-04_ORGANIZATION_MEMBER_MANAGEMENT.md](docs/W0-04_ORGANIZATION_MEMBER_MANAGEMENT.md).
+- **Financial risk quantification** (FAIR + Monte Carlo).
+- **Open-core entitlements and billing**: a plan matrix enforced in the backend,
+  with telemetry consent and a cancelable organization-erasure grace period.
+- **Attack-surface module**, and **compliance evidence crosswalks + reporting**.
+
 - **Guided onboarding to the Aha moment.** After signup (email + password only),
   the dashboard runs a 4-step action-driven checklist — create your first risk (the
   Aha), import a framework, invite a teammate, personalize your workspace — with a
@@ -52,7 +109,23 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   in the application layer, `CountEvidencesByFramework` repo method (single grouped query), and a
   "PDF report" button on the Compliance page (FR/EN). Serves the COBAC/BCEAO/ISO one-click statement goal.
 
+- **Member invite** (`POST /rbac/members`, admin): provision a real tenant member
+  (user + organization_member) with an org role and an optional business-role preset;
+  returns a one-time temporary password. Frontend invite modal on `/settings/roles`.
+
 ### Changed
+- **W0-06 — The home Security Command Center reads what it displays.** Home is a
+  dispatcher over six persona dashboards plus an executive view, which is why the
+  earlier cleanups had not finished the job. Every persona now reads real tenant
+  data, `/stats` gains a period and one score instead of two, the inventory is
+  counted in SQL rather than in the browser, and a rejected period is refused
+  instead of being answered with a dashboard.
+  See [docs/W0-06_SECURITY_COMMAND_CENTER.md](docs/W0-06_SECURITY_COMMAND_CENTER.md).
+- **W0-02 — Release-line integrity.** `master` is established as the single
+  trustworthy release line with zero branch divergence; the P1 operational risks
+  found (hardcoded `latest` image tags, unlocked AutoMigrate on boot) are recorded
+  in [docs/W0-02_RELEASE_LINE_INTEGRITY.md](docs/W0-02_RELEASE_LINE_INTEGRITY.md).
+
 - **Navigation restructured into 5 GRC intentions** (founder-ratified UX proposal).
   The sidebar is regrouped by the user's intention, in the natural order of the work —
   **Piloter → Identifier → Évaluer → Traiter → Prouver** — plus a utility group
@@ -62,7 +135,18 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   Risks/Mitigations. `docs/IA_NAVIGATION_PROPOSAL.md` + `docs/UI_ELEVATION_PROPOSAL.md`
   ratified (accent default azure, density Confort, 4K master-detail); mockups polished.
 
+- **UI elevation lot** (`feat/ia-nav-ui-elevation`): design tokens (motion, type
+  scale, spacing, radii, elevation), a persisted density system (Confort default) with
+  a header control, reusable `DataTable`/`EmptyState` primitives, and confetti
+  micro-victories (UX-32). See `docs/UI_ELEVATION_PROPOSAL.md` §10.
+
 ### Fixed
+- **The cache tests no longer fail a CI job that has no Redis.** Three of the
+  four built a client against `localhost:6379` and then asserted on the result
+  unconditionally, so an absent server was reported as a defect in the cache
+  service. All four now ping first and skip with the reason — which is what the
+  first test in the file had always intended. This is what blocked `v1.1.0-rc.2`
+  from publishing.
 - **UX bug registry — all 12 audit findings** (`fix/ux-audit-bug-registry`, atomic
   commits): **OR-BUG-001/009** registration is real (3 fields → account + org
   membership → auto-login → land; fake MFA façade removed); **OR-BUG-002** first-run
@@ -78,23 +162,34 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   AA — axe-core reports 0 serious/critical on the 6 key screens (labels + contrast
   fixed, a11y gate un-quarantined).
 
-### Added
-- **Member invite** (`POST /rbac/members`, admin): provision a real tenant member
-  (user + organization_member) with an org role and an optional business-role preset;
-  returns a one-time temporary password. Frontend invite modal on `/settings/roles`.
+### Removed
+- **W0-05 — Deceptive UI.** Fixtures, placeholders and dead-end actions removed
+  across the app, with the audit and the disposition of every finding recorded in
+  [docs/W0-05_DECEPTIVE_UI_AUDIT.md](docs/W0-05_DECEPTIVE_UI_AUDIT.md). Two dead
+  WebSocket clients and the unrouted page that consumed them go with W0-07.
 
-### Changed
-- **UI elevation lot** (`feat/ia-nav-ui-elevation`): design tokens (motion, type
-  scale, spacing, radii, elevation), a persisted density system (Confort default) with
-  a header control, reusable `DataTable`/`EmptyState` primitives, and confetti
-  micro-victories (UX-32). See `docs/UI_ELEVATION_PROPOSAL.md` §10.
+### Security
+- **W0-03 — Authentication security baseline.** The identity surface — login,
+  registration, MFA, OAuth2, SAML2, access tokens, refresh-token rotation,
+  revocation, logout, sessions, recovery and tenant switching — is verified and
+  hardened, with its actual state recorded rather than assumed. Refresh-token
+  family rotation (migration `0057`), MFA backup codes moved to a CSPRNG, and
+  HttpOnly cookie sessions with double-submit CSRF.
+  See [docs/W0-03_AUTHENTICATION_SECURITY_BASELINE.md](docs/W0-03_AUTHENTICATION_SECURITY_BASELINE.md).
+- **Tenant-isolation sweep**: every route audited against the tenant predicate,
+  with regression probes for the leaks it found.
+- The audit trail is made append-only (migration `0055`).
 
-### Planned
-- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
-- Multi-tenant support
-- Mobile app (React Native)
-- Slack/Teams notifications
-- Jira integration
+### Known limitations
+
+- The real-time hub is an event log, **not a transactional outbox**: the row is
+  appended after the business transaction commits, so a crash in that window
+  loses the event. Survivable because the stream is never the source of truth and
+  every client has a resync path.
+- Stream authorization happens at connect, so a session revoked mid-stream keeps
+  its stream until it ends (2 h ceiling) or the client reconnects.
+- No load test was run against the real-time hub, so no capacity figure is
+  claimed.
 
 ## [1.1.0-rc.1] - 2026-07-23
 
@@ -209,7 +304,8 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...HEAD
+[1.1.0-rc.3]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.3
 [1.1.0-rc.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.8...v1.1.0-rc.1
 [1.0.4]: https://github.com/opendefender/OpenRisk/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/opendefender/OpenRisk/compare/v1.0.2...v1.0.3
