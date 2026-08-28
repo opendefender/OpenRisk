@@ -77,7 +77,7 @@ func (s *Service) GetOrganization(ctx context.Context, tenantID uuid.UUID, canEd
 	if tz, ok := org.GetSettings()["timezone"].(string); ok {
 		view.Timezone = strings.TrimSpace(tz)
 	}
-	if counts, err := s.repo.Counts(ctx, tenantID); err == nil {
+	if counts, err := s.repo.Counts(ctx, tenantID, s.clock()); err == nil {
 		view.Counts = counts
 	}
 	if owner, err := s.users.GetByID(ctx, org.OwnerID); err == nil && owner != nil {
@@ -96,7 +96,7 @@ func (s *Service) Counts(ctx context.Context, tenantID uuid.UUID) (domain.Organi
 	if tenantID == uuid.Nil {
 		return domain.OrganizationCounts{}, domain.NewUnauthorizedError("no organization in context")
 	}
-	return s.repo.Counts(ctx, tenantID)
+	return s.repo.Counts(ctx, tenantID, s.clock())
 }
 
 // ---------------------------------------------------------------------------

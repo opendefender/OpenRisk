@@ -108,7 +108,7 @@ func (f *fakeRepo) CountActiveAdmins(_ context.Context, tenant uuid.UUID) (int, 
 	return n, nil
 }
 
-func (f *fakeRepo) Counts(_ context.Context, tenant uuid.UUID) (domain.OrganizationCounts, error) {
+func (f *fakeRepo) Counts(_ context.Context, tenant uuid.UUID, _ time.Time) (domain.OrganizationCounts, error) {
 	if f.failCounts {
 		return domain.OrganizationCounts{}, errors.New("counts unavailable")
 	}

@@ -7,6 +7,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -69,7 +70,12 @@ type MembershipRepository interface {
 	// CountActiveAdmins counts memberships that both grant access and hold an
 	// administrative role — the tenant's remaining administrative capacity.
 	CountActiveAdmins(ctx context.Context, tenantID uuid.UUID) (int, error)
-	Counts(ctx context.Context, tenantID uuid.UUID) (OrganizationCounts, error)
+	// Counts takes the instant to judge invitation expiry against, rather than
+	// reading the wall clock itself. The membership service owns a clock seam and
+	// the whole invitation lifecycle is written against it; a repository that
+	// calls time.Now() silently opts out of that seam and answers a different
+	// question from the service that called it.
+	Counts(ctx context.Context, tenantID uuid.UUID, asOf time.Time) (OrganizationCounts, error)
 
 	// Invitations
 	CreateInvitation(ctx context.Context, inv *Invitation) error
