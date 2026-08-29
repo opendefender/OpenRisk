@@ -63,7 +63,7 @@ const AnalyticsDashboardToolbar: React.FC<AnalyticsDashboardToolbarProps> = ({
         {/* Export button */}
         <button
           onClick={onExportClick}
-          className="px-4 py-2 text-sm font-medium text-text-primary bg-accent-500 hover:bg-accent-500 rounded-lg transition flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-text-on-solid bg-accent-solid hover:brightness-110 rounded-lg transition flex items-center gap-2"
           title="Export dashboard"
         >
           <Download size={16} />

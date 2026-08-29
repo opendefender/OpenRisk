@@ -181,7 +181,7 @@ export const RBACTab = () => {
           )}
 
           {isAdmin && allRoles.length > 0 && (
-            <div className="mt-8 p-4 rounded-lg bg-accent-500/10 border border-accent-400/20">
+            <div className="mt-8 p-4 rounded-lg bg-accent-soft border border-accent-line">
               <h4 className="text-sm font-semibold text-info-text mb-3">Admin - All Available Roles</h4>
               <div className="space-y-2">
                 {allRoles.map((role) => (
@@ -248,7 +248,7 @@ export const RBACTab = () => {
       )}
 
       {/* Info Box */}
-      <div className="mt-8 p-4 rounded-lg bg-accent-500/5 border border-accent-400/20">
+      <div className="mt-8 p-4 rounded-lg bg-accent-soft border border-accent-line">
         <div className="flex gap-3">
           <Shield className="w-5 h-5 text-info-text flex-shrink-0 mt-0.5" />
           <div className="text-sm text-info-text">

@@ -23,7 +23,7 @@ interface TeamStats {
 
 const levelColors: Record<number, { bg: string; text: string; icon: string }> = {
   0: { bg: 'bg-surface-3/10', text: 'text-text-secondary', icon: '👁️' },
-  3: { bg: 'bg-accent-500/10', text: 'text-info-text', icon: '🔍' },
+  3: { bg: 'bg-accent-soft', text: 'text-info-text', icon: '🔍' },
   6: { bg: 'bg-purple-500/10', text: 'text-purple-400', icon: '👨‍💼' },
   9: { bg: 'bg-danger/10', text: 'text-danger-text', icon: '👑' },
 };

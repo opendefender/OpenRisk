@@ -188,7 +188,7 @@ export const ScoreEngineVisualizer = ({
       {loading && (
         <div className="text-center py-4">
           <div className="inline-flex items-center gap-2 text-text-muted">
-            <div className="w-4 h-4 bg-accent-500 rounded-full animate-bounce" />
+            <div className="w-4 h-4 bg-accent rounded-full animate-bounce" />
             <span>Calcul du score...</span>
           </div>
         </div>

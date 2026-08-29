@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<string, { bg: string; label: string; textColor: stri
   open: { bg: 'bg-danger', label: 'Ouvert', textColor: 'text-danger-text' },
   draft: { bg: 'bg-surface-3', label: 'Brouillon', textColor: 'text-text-secondary' },
   active: { bg: 'bg-danger', label: 'Actif', textColor: 'text-danger-text' },
-  in_progress: { bg: 'bg-accent-500', label: 'En cours', textColor: 'text-info-text' },
+  in_progress: { bg: 'bg-accent', label: 'En cours', textColor: 'text-info-text' },
   planned: { bg: 'bg-blue-400', label: 'Planifié', textColor: 'text-info-text' },
   review: { bg: 'bg-violet-500', label: 'En revue', textColor: 'text-violet-400' },
   mitigated: { bg: 'bg-warning', label: 'Atténué', textColor: 'text-warning-text' },

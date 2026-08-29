@@ -63,7 +63,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
         {/* Search Input */}
-        <div className="relative flex items-center bg-surface-1 border border-border-default rounded-lg focus-within:border-accent-400 focus-within:ring-1 focus-within:ring-accent-400/20 transition-all">
+        <div className="relative flex items-center bg-surface-1 border border-border-default rounded-lg focus-within:border-accent focus-within:ring-1 focus-within:ring-focus transition-all">
           <Search
             className="absolute left-3 text-text-secondary pointer-events-none"
             size={18}
@@ -119,7 +119,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     onClick={() => handleSelect(result)}
                     className={`w-full text-left px-4 py-3 border-b border-border-subtle last:border-b-0 transition-colors ${
                       index === state.selectedIndex
-                        ? 'bg-accent-500/20 border-l-2 border-l-blue-500'
+                        ? 'bg-accent-soft border-l-2 border-l-blue-500'
                         : 'hover:bg-surface-2'
                     }`}
                   >
@@ -193,7 +193,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                       onClick={() => handleSelect(result)}
                       className={`w-full text-left px-4 py-2 border-b border-border-subtle last:border-b-0 transition-colors ${
                         index === state.selectedIndex
-                          ? 'bg-accent-500/20 border-l-2 border-l-blue-500'
+                          ? 'bg-accent-soft border-l-2 border-l-blue-500'
                           : 'hover:bg-surface-2'
                       }`}
                     >
@@ -357,7 +357,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                     onClick={() => handleExecute(cmd)}
                     className={`w-full text-left px-4 py-3 border-b border-border-subtle last:border-b-0 transition-colors ${
                       index === selectedIndex
-                        ? 'bg-accent-500/20'
+                        ? 'bg-accent-soft'
                         : 'hover:bg-surface-2'
                     }`}
                   >

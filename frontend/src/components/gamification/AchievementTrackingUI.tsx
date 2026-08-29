@@ -65,7 +65,7 @@ const getRarityBorder = (rarity: string) => {
   const borders: Record<string, string> = {
     common: 'border-border-strong',
     uncommon: 'border-success',
-    rare: 'border-accent-400',
+    rare: 'border-accent',
     epic: 'border-purple-500',
     legendary: 'border-warning',
   };
@@ -95,7 +95,7 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
         {achievement.unlocked && (
           <div
             className={`absolute inset-0 rounded-lg blur-xl opacity-20 ${
-              achievement.rarity === 'legendary' ? 'bg-warning' : 'bg-accent-500'
+              achievement.rarity === 'legendary' ? 'bg-warning' : 'bg-accent'
             }`}
           />
         )}
@@ -222,7 +222,7 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
             onClick={() => setFilter(tab)}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
               filter === tab
-                ? 'bg-accent-500 text-text-primary shadow-lg shadow-blue-500/50'
+                ? 'bg-accent-soft text-accent-strong'
                 : 'bg-surface-1 text-text-secondary hover:bg-surface-2'
             }`}
           >

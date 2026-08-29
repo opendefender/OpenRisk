@@ -198,7 +198,7 @@ export default function Marketplace() {
       case 'installed':
         return 'bg-success/20 text-success-text';
       case 'beta':
-        return 'bg-accent-500/20 text-info-text';
+        return 'bg-accent-soft text-info-text';
       case 'pending':
         return 'bg-warning/20 text-warning-text';
       case 'error':
@@ -240,7 +240,7 @@ export default function Marketplace() {
             onClick={() => setActiveTab('connectors')}
             className={`pb-4 px-4 font-medium transition-colors ${
               activeTab === 'connectors'
-                ? 'text-info-text border-b-2 border-accent-400'
+                ? 'text-info-text border-b-2 border-accent'
                 : 'text-text-secondary hover:text-text-secondary'
             }`}
           >
@@ -253,14 +253,14 @@ export default function Marketplace() {
             onClick={() => setActiveTab('installed')}
             className={`pb-4 px-4 font-medium transition-colors ${
               activeTab === 'installed'
-                ? 'text-info-text border-b-2 border-accent-400'
+                ? 'text-info-text border-b-2 border-accent'
                 : 'text-text-secondary hover:text-text-secondary'
             }`}
           >
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               My Applications
-              <span className="bg-accent-500/20 text-info-text px-2 py-0.5 rounded text-sm">
+              <span className="bg-accent-soft text-info-text px-2 py-0.5 rounded text-sm">
                 {installedApps.length}
               </span>
             </div>
@@ -286,7 +286,7 @@ export default function Marketplace() {
                     placeholder="Search connectors..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-2 bg-surface-2 text-text-primary rounded-lg border border-border-default focus:border-accent-400 outline-none transition-colors"
+                    className="w-full pl-12 pr-4 py-2 bg-surface-2 text-text-primary rounded-lg border border-border-default focus:border-accent outline-none transition-colors"
                   />
                 </div>
 
@@ -298,7 +298,7 @@ export default function Marketplace() {
                       onClick={() => setSelectedCategory(cat.id)}
                       className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
                         selectedCategory === cat.id
-                          ? 'bg-accent-500 text-text-primary'
+                          ? 'bg-accent-soft text-accent-strong'
                           : 'bg-surface-2 text-text-secondary hover:bg-surface-3'
                       }`}
                     >
@@ -353,7 +353,7 @@ export default function Marketplace() {
                         {connector.capabilities.slice(0, 3).map((cap) => (
                           <span
                             key={cap}
-                            className="px-2 py-1 text-xs bg-accent-500/10 text-info-text rounded"
+                            className="px-2 py-1 text-xs bg-accent-soft text-info-text rounded"
                           >
                             {cap}
                           </span>
@@ -382,7 +382,7 @@ export default function Marketplace() {
                             setAppName(`${connector.name} Instance`);
                             setShowInstallModal(true);
                           }}
-                          className="flex-1 px-4 py-2 bg-accent-500 hover:bg-accent-500 text-text-primary rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                          className="flex-1 px-4 py-2 bg-accent-solid hover:brightness-110 text-text-on-solid rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           <Plus className="w-4 h-4" />
                           Install
@@ -425,7 +425,7 @@ export default function Marketplace() {
                   <p className="text-text-secondary mb-4">No installed applications yet</p>
                   <button
                     onClick={() => setActiveTab('connectors')}
-                    className="px-4 py-2 bg-accent-500 hover:bg-accent-500 text-text-primary rounded-lg font-medium transition-colors"
+                    className="px-4 py-2 bg-accent-solid hover:brightness-110 text-text-on-solid rounded-lg font-medium transition-colors"
                   >
                     Browse Marketplace
                   </button>
@@ -524,7 +524,7 @@ export default function Marketplace() {
                       type="text"
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
-                      className="w-full px-4 py-2 bg-surface-2 text-text-primary rounded-lg border border-border-default focus:border-accent-400 outline-none"
+                      className="w-full px-4 py-2 bg-surface-2 text-text-primary rounded-lg border border-border-default focus:border-accent outline-none"
                       placeholder="e.g., My Splunk Connector"
                     />
                   </div>
@@ -540,7 +540,7 @@ export default function Marketplace() {
                   <button
                     onClick={() => handleInstall(selectedConnector.id)}
                     disabled={!appName.trim()}
-                    className="flex-1 px-4 py-2 bg-accent-500 hover:bg-accent-500 disabled:bg-surface-3 disabled:cursor-not-allowed text-text-primary rounded-lg font-medium transition-colors"
+                    className="flex-1 px-4 py-2 bg-accent-solid hover:brightness-110 disabled:bg-surface-3 disabled:cursor-not-allowed text-text-on-solid rounded-lg font-medium transition-colors"
                   >
                     Install
                   </button>

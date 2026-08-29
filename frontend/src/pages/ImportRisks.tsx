@@ -211,7 +211,7 @@ export const ImportRisksPage = () => {
             className={cn(
               'relative border-2 border-dashed rounded-xl p-12 text-center',
               'transition-all duration-300 cursor-pointer',
-              dragState === 'dragging' && 'bg-accent-500/10 border-accent-400/50'
+              dragState === 'dragging' && 'bg-accent-soft border-accent-line'
             )}
             onClick={() => fileInputRef.current?.click()}
           >

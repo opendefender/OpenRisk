@@ -226,7 +226,7 @@ export default function BulkOperations() {
                 onClick={() => setFilter(f.value)}
                 className={`px-4 py-2 rounded transition ${
                   filter === f.value
-                    ? 'bg-accent-500 text-text-primary'
+                    ? 'bg-accent-soft text-accent-strong'
                     : 'bg-surface-2 text-text-secondary hover:bg-surface-3'
                 }`}
               >
@@ -237,7 +237,7 @@ export default function BulkOperations() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="ml-auto px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent-400"
+            className="ml-auto px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -269,9 +269,9 @@ export default function BulkOperations() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         onClick={() => handleSelectOperation(operation)}
-                        className={`bg-surface-1 border rounded-lg p-4 cursor-pointer transition hover:border-accent-400 ${
+                        className={`bg-surface-1 border rounded-lg p-4 cursor-pointer transition hover:border-accent ${
                           selectedOperation?.id === operation.id
-                            ? 'border-accent-400'
+                            ? 'border-accent'
                             : 'border-border-subtle'
                         }`}
                       >
@@ -323,7 +323,7 @@ export default function BulkOperations() {
                                   : operation.status === 'failed'
                                   ? 'bg-danger'
                                   : operation.status === 'in_progress'
-                                  ? 'bg-accent-500'
+                                  ? 'bg-accent'
                                   : 'bg-warning'
                               }`}
                             />
@@ -389,7 +389,7 @@ export default function BulkOperations() {
                   </p>
                   <div className="w-full bg-surface-2 rounded-full h-2 mt-2 overflow-hidden">
                     <div
-                      className="h-full bg-accent-500"
+                      className="h-full bg-accent"
                       style={{ width: `${selectedOperation.progress}%` }}
                     />
                   </div>

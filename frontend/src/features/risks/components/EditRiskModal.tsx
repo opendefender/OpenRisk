@@ -209,7 +209,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </label>
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg bg-surface-1/30">
                   {assets.length === 0 ? <div className="text-text-muted text-xs w-full text-center py-2">Aucun asset.</div> : assets.map(a => (
-                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} disabled={isLoading} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-accent-500/20 border-accent-400 text-info-text' : 'bg-surface-2 border-border-default text-text-secondary'} ${isLoading ? 'opacity-70' : ''}`}>
+                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} disabled={isLoading} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-accent-soft border-accent text-info-text' : 'bg-surface-2 border-border-default text-text-secondary'} ${isLoading ? 'opacity-70' : ''}`}>
                       {a.name}
                     </button>
                   ))}

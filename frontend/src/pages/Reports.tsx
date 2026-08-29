@@ -29,7 +29,7 @@ export const Reports = () => {
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'executive':
-        return 'bg-accent-500/10 text-info-text border-accent-400/20';
+        return 'bg-accent-soft text-info-text border-accent-line';
       case 'technical':
         return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
       case 'compliance':
@@ -104,7 +104,7 @@ export const Reports = () => {
       {/* Action & Filters */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center">
-          <Button variant="primary" className="shadow-lg shadow-blue-500/20">
+          <Button variant="primary">
             <FileText size={16} className="mr-2" /> Generate New Report
           </Button>
           <div className="flex gap-4">
