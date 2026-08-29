@@ -147,6 +147,32 @@ jobs:
       - name: Check code formatting (Prettier)
         run: cd frontend && npm run format:check || npm run format
 
+  # The design tokens carry two claims that were, until now, only assertions in
+  # a comment: that every text/surface pair meets its WCAG target in both
+  # themes, and that the product's values match the canonical design system
+  # shared with the marketing site. check-contrast.mjs has said "run in CI"
+  # since W1-01 while nothing ran it. Both are blocking here, because a token
+  # value is exactly the kind of change that looks harmless in review.
+  frontend-design-system:
+    name: Frontend Design Tokens
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Token contract in sync with the canonical design system
+        run: cd frontend && npm run check:design-system
+
+      - name: WCAG contrast, both themes and both accent variants
+        run: cd frontend && npm run check:contrast
+
   # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
   # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
   # dedicated gate. Uses the local binary since the frontend has no `type-check`
