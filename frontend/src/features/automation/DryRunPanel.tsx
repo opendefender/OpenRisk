@@ -185,7 +185,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <FlaskConical size={16} style={{ color: 'var(--accent)' }} />
+              <FlaskConical size={16} style={{ color: 'var(--accent-500)' }} />
               <h2 className="text-[15px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                 {tr('Tester', 'Test')} — {rule.name}
               </h2>

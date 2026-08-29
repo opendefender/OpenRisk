@@ -78,7 +78,7 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
               >
                 <div
                   className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
                 >
                   <ClipboardCheck size={17} />
                 </div>

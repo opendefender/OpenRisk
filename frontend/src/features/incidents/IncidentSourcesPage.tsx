@@ -35,7 +35,7 @@ export function IncidentSourcesPage() {
 
       <Card style={{ padding: '16px 18px', marginBottom: 16 }}>
         <div className="flex items-start gap-2.5">
-          <HelpCircle size={16} style={{ color: 'var(--accent)' }} className="shrink-0 mt-0.5" />
+          <HelpCircle size={16} style={{ color: 'var(--accent-500)' }} className="shrink-0 mt-0.5" />
           <p className="text-[13px]" style={{ color: 'var(--text-primary)' }}>
             {tr(
               'Tout incident ouvert sans intervention humaine porte un bandeau qui nomme la règle et la source exactes, avec un lien vers cette règle. Si un incident vous surprend, ce bandeau vous dit quoi changer — et cette page vous dit où.',
@@ -89,7 +89,7 @@ export function IncidentSourcesPage() {
                     <Link
                       to={origin.where_to_configure}
                       className="text-[12px] font-semibold inline-flex items-center gap-1 mt-1.5"
-                      style={{ color: 'var(--accent)' }}
+                      style={{ color: 'var(--accent-500)' }}
                     >
                       <Settings2 size={12} /> {tr('Configurer cette source', 'Configure this source')}
                       <ArrowRight size={12} />

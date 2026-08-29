@@ -309,7 +309,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                         <div className="font-semibold text-ink flex items-center gap-2">
                           {m.full_name || m.email}
                           {m.is_owner && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
                               {tr('Propriétaire', 'Owner')}
                             </span>
                           )}

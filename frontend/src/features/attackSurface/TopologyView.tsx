@@ -796,7 +796,7 @@ function DependencyEditor({
               setTargetId('');
             }}
             className="w-full rounded-lg px-2 py-1.5 text-[12px] font-medium disabled:opacity-40"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
           >
             {busy ? 'En cours…' : `${assetName} ${type} …`}
           </button>

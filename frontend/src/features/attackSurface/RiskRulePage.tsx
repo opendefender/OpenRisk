@@ -214,7 +214,7 @@ export default function RiskRulePage() {
               ) : preview ? (
                 <span>
                   Sur {preview.evaluated} vulnérabilité(s) ouvertes,{' '}
-                  <strong style={{ color: 'var(--accent)' }}>{preview.would_create}</strong>{' '}
+                  <strong style={{ color: 'var(--accent-500)' }}>{preview.would_create}</strong>{' '}
                   produiraient un brouillon
                   {preview.already_linked > 0
                     ? `, ${preview.already_linked} ont déjà un risque`
@@ -289,7 +289,7 @@ export default function RiskRulePage() {
                 onClick={() => review.mutate({ ids: [...selected], decision: 'accept' })}
                 disabled={review.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium disabled:opacity-40"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
               >
                 <Check size={14} /> Ajouter au registre
               </button>

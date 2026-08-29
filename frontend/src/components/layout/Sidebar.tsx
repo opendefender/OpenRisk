@@ -279,7 +279,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                         'text-[10px] tracking-[0.09em] uppercase font-semibold px-3 pb-[7px] flex items-center gap-1.5',
                         !group.core && 'text-ink-muted'
                       )}
-                      style={group.core ? { color: 'var(--accent)' } : undefined}
+                      style={group.core ? { color: 'var(--accent-500)' } : undefined}
                     >
                       {group.core && <Star size={10} strokeWidth={2.5} fill="var(--accent)" />}
                       {L[group.groupKey]}

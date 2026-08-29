@@ -161,7 +161,7 @@ export function InfrastructurePage() {
                           {onPrem && (
                             <button onClick={() => setDeployConfig(c)} title={tr('Déployer un agent', 'Deploy agent')} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover"><DownloadCloud size={16} /></button>
                           )}
-                          <button onClick={() => handleScan(c)} disabled={scanning} title={tr('Scanner maintenant', 'Scan now')} className="h-8 px-3 rounded-lg inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                          <button onClick={() => handleScan(c)} disabled={scanning} title={tr('Scanner maintenant', 'Scan now')} className="h-8 px-3 rounded-lg inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
                             {scanning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}{tr('Scanner', 'Scan')}
                           </button>
                           <button onClick={() => { if (confirm(tr('Supprimer cette configuration ?', 'Delete this configuration?'))) deleteConfig.mutate(c.id, { onSuccess: () => toast.success(tr('Supprimée', 'Deleted')) }); }} title={tr('Supprimer', 'Delete')} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover"><Trash2 size={15} /></button>

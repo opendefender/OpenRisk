@@ -45,7 +45,7 @@ export const NOTIF_CATEGORIES: NotifCategoryMeta[] = [
     label: { fr: 'Collaboration', en: 'Collaboration' },
     desc: { fr: 'Mentions, commentaires, War Room.', en: 'Mentions, comments, War Room.' },
     icon: Users,
-    color: 'var(--accent)',
+    color: 'var(--accent-500)',
   },
   {
     key: 'billing',

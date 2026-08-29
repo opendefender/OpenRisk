@@ -63,7 +63,7 @@ export function ShortcutsOverlay({ open, onClose, lang }: { open: boolean; onClo
         aria-label={fr ? 'Raccourcis clavier' : 'Keyboard shortcuts'}
       >
         <div className="flex items-center gap-3 p-5" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
             <Keyboard size={18} />
           </div>
           <div className="flex-1 text-[15px] font-bold text-ink">{fr ? 'Raccourcis clavier' : 'Keyboard shortcuts'}</div>

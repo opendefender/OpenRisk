@@ -130,7 +130,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
           style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
           <div>
             <h2 className="text-[15px] font-bold inline-flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <ClipboardList size={16} style={{ color: 'var(--accent)' }} />
+              <ClipboardList size={16} style={{ color: 'var(--accent-500)' }} />
               {tr('Post-mortem', 'Post-mortem')} — INC-{incidentId}
             </h2>
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -194,7 +194,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
                     {tr('Chronologie', 'Timeline')}
                   </span>
                   {!published && (
-                    <button onClick={addTimelineEntry} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+                    <button onClick={addTimelineEntry} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}>
                       <Plus size={13} /> {tr('Ajouter un moment', 'Add a moment')}
                     </button>
                   )}
@@ -231,7 +231,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
                     {tr('Actions correctives', 'Corrective actions')}
                   </span>
                   {!published && (
-                    <button onClick={addAction} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+                    <button onClick={addAction} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}>
                       <Plus size={13} /> {tr('Ajouter', 'Add')}
                     </button>
                   )}
@@ -264,7 +264,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
                             <p className="text-[11.5px] inline-flex items-center gap-1" style={{ color: 'var(--low)' }}>
                               <CheckCircle2 size={12} />
                               {tr('Suivi comme plan de mitigation', 'Tracked as a mitigation plan')}
-                              <a href={`/mitigations?focus=${a.mitigation_id}`} className="inline-flex items-center gap-0.5 font-semibold" style={{ color: 'var(--accent)' }}>
+                              <a href={`/mitigations?focus=${a.mitigation_id}`} className="inline-flex items-center gap-0.5 font-semibold" style={{ color: 'var(--accent-500)' }}>
                                 {tr('ouvrir', 'open')} <ArrowRight size={11} />
                               </a>
                             </p>

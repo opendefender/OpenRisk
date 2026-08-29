@@ -122,7 +122,7 @@ function AttributeField({ def, value, onChange, disabled, error }: FieldProps) {
           <span
             title="Sert d'empreinte pour corréler les vulnérabilités à cet actif"
             className="inline-flex items-center"
-            style={{ color: 'var(--accent)' }}
+            style={{ color: 'var(--accent-500)' }}
           >
             <Fingerprint size={12} />
           </span>

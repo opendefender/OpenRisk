@@ -75,7 +75,7 @@ export function LeaderboardPage() {
                 className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left hover:bg-hover transition-colors"
                 style={{ border: '1px solid var(--border)' }}
               >
-                <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
                   <Trophy size={15} />
                 </div>
                 <div className="flex-1 min-w-0">

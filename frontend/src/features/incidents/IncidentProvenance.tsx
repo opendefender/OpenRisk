@@ -40,7 +40,7 @@ export function IncidentProvenance({ incident }: { incident: Incident }) {
         border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
       }}
     >
-      <Bot size={16} style={{ color: 'var(--accent)' }} className="shrink-0 mt-0.5" />
+      <Bot size={16} style={{ color: 'var(--accent-500)' }} className="shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
         <p className="text-[12.5px]" style={{ color: 'var(--text-primary)' }}>
           {incident.origin_rule_name ? (
@@ -69,7 +69,7 @@ export function IncidentProvenance({ incident }: { incident: Incident }) {
             <Link
               to={`/automation?tab=rules&focus=${incident.origin_rule_id}`}
               className="text-[12px] font-semibold inline-flex items-center gap-1"
-              style={{ color: 'var(--accent)' }}
+              style={{ color: 'var(--accent-500)' }}
             >
               {tr('Voir la règle', 'View the rule')} <ExternalLink size={12} />
             </Link>
@@ -101,7 +101,7 @@ export function OriginChip({ incident }: { incident: Incident }) {
           : undefined
       }
       className="h-5 px-1.5 rounded-full text-[10.5px] font-semibold inline-flex items-center gap-1"
-      style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}
+      style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent-500)' }}
     >
       <Bot size={10} /> {lang === 'fr' ? source.fr : source.en}
     </span>

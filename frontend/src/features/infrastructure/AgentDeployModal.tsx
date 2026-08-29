@@ -94,7 +94,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
               >
                 <o.icon size={18} strokeWidth={1.7} style={{ color: o.key === os ? 'var(--accent)' : 'var(--text-secondary)' }} />
                 <span className="text-[12.5px] font-semibold text-ink">{o.label}</span>
-                {o.key === os && <span className="ml-auto text-[10px] font-bold uppercase" style={{ color: 'var(--accent)' }}>{tr('détecté', 'detected')}</span>}
+                {o.key === os && <span className="ml-auto text-[10px] font-bold uppercase" style={{ color: 'var(--accent-500)' }}>{tr('détecté', 'detected')}</span>}
               </a>
             ))}
           </div>
@@ -106,7 +106,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-semibold text-ink-soft">{tr("Jeton d'enrôlement (valide 24h)", 'Registration token (valid 24h)')}</span>
-                  <button onClick={() => copy('token', data.registration_token)} className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: 'var(--accent)' }}>
+                  <button onClick={() => copy('token', data.registration_token)} className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: 'var(--accent-500)' }}>
                     {copied === 'token' ? <Check size={13} /> : <Copy size={13} />}{tr('Copier', 'Copy')}
                   </button>
                 </div>

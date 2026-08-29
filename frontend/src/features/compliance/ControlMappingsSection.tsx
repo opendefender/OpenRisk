@@ -146,7 +146,7 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
             const fwName = otherIsTarget ? m.target_framework_name : m.source_framework_name;
             return (
               <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
-                <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><Link2 size={16} /></div>
+                <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}><Link2 size={16} /></div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium text-ink truncate">
                     <span className="mono text-ink-soft">{code}</span> · {name}

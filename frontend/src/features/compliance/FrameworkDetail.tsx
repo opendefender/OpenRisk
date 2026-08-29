@@ -259,7 +259,7 @@ function EvidenceButton({ count, onClick }: { count: number; onClick: () => void
       className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[12px] font-semibold transition-all hover:brightness-110"
       style={
         has
-          ? { border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'var(--accent-soft)', color: 'var(--accent)' }
+          ? { border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'var(--accent-soft)', color: 'var(--accent-500)' }
           : { border: '1px dashed var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }
       }
       title={tr('Gérer les preuves', 'Manage evidence')}
@@ -342,7 +342,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
               {visibleEvidences.map((e) => (
                 <div key={e.id} className="rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
                   <div className="flex items-center gap-3 px-3 py-2.5">
-                    <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><FileText size={17} /></div>
+                    <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}><FileText size={17} /></div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium text-ink truncate">{e.filename}</div>
                       <div className="text-[11.5px] text-ink-muted truncate">{e.description || tr('Sans description', 'No description')} · {relTime(e.created_at, lang)}</div>

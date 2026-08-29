@@ -80,7 +80,7 @@ export function OnboardingChecklist() {
       <div className="flex items-start justify-between gap-4 mb-3.5">
         <div>
           <div className="text-[15.5px] font-bold text-ink flex items-center gap-2">
-            <Sparkles size={16} style={{ color: 'var(--accent)' }} />
+            <Sparkles size={16} style={{ color: 'var(--accent-500)' }} />
             {tr('Prise en main', 'Get started')}
           </div>
           <div className="text-[13px] text-ink-soft mt-0.5">

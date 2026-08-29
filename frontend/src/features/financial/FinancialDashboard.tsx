@@ -299,7 +299,7 @@ function MethodologyModal({ m, lang, tr, onClose }: { m: Methodology; lang: stri
       <div className="or-scalein w-full max-w-lg max-h-[88vh] flex flex-col rounded-[14px] overflow-hidden" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
-            <BookOpen size={16} style={{ color: 'var(--accent)' }} />
+            <BookOpen size={16} style={{ color: 'var(--accent-500)' }} />
             <span className="text-[14px] font-semibold text-ink">{tr('Méthodologie', 'Methodology')}</span>
           </div>
           <button onClick={onClose} className="text-ink-muted hover:text-ink"><X size={18} /></button>
@@ -533,7 +533,7 @@ function SimulatorCard({ rows, summary, lang, tr, onExplain }: { rows: TopRiskFi
   return (
     <Card className="or-fadeup" style={{ padding: '18px 20px', animationDelay: '200ms' }}>
       <div className="flex items-center gap-2 mb-1">
-        <FlaskConical size={16} style={{ color: 'var(--accent)' }} />
+        <FlaskConical size={16} style={{ color: 'var(--accent-500)' }} />
         <div className="text-[14px] font-semibold text-ink">{tr('Simulateur d’investissement', 'Investment simulator')}</div>
       </div>
       <div className="text-[11.5px] text-ink-muted mb-4">{tr('Trois réglages → une phrase de décision. Rien n’est enregistré.', 'Three settings → one decision sentence. Nothing is saved.')}</div>

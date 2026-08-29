@@ -32,7 +32,7 @@ export function AiEvidenceAnalysis({ evidenceId }: { evidenceId: string }) {
         onClick={() => analyze.mutate({ evidenceId, locale })}
         disabled={analyze.isPending}
         className="inline-flex items-center gap-1.5 text-[11.5px] font-medium px-2.5 py-1 rounded-full disabled:opacity-60"
-        style={{ border: '1px solid var(--accent-line)', background: 'var(--accent-soft)', color: 'var(--accent)' }}
+        style={{ border: '1px solid var(--accent-line)', background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
       >
         {analyze.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
         {analyze.isPending ? tr('Analyse…', 'Analysing…') : res ? tr('Ré-analyser (IA)', 'Re-analyse (AI)') : tr('Analyser (IA)', 'Analyse (AI)')}

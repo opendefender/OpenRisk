@@ -115,7 +115,7 @@ export function ComplianceMappingField({ value, onChange, onImportFramework, dis
             <span
               key={`${m.framework_id}-${m.control_id ?? 'fw'}`}
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
-              style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent)' }}
+              style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent-500)' }}
             >
               <Check size={11} />
               {m.label}

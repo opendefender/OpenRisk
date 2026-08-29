@@ -239,7 +239,7 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
                     disabled={!canSaveView || !viewName.trim()}
                     data-testid="saved-view-save"
                     className="h-8 px-2.5 rounded-[8px] text-[12px] font-semibold disabled:opacity-40"
-                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
                   >
                     {labels.save}
                   </button>

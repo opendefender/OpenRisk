@@ -67,7 +67,7 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
                 const cfg = bySource[src];
                 return (
                   <button key={src} onClick={() => setView(src)} className="w-full flex items-center gap-3.5 rounded-[12px] p-3.5 text-left transition-colors hover:bg-hover" style={{ border: '1px solid var(--border)' }}>
-                    <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon size={18} /></div>
+                    <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}><Icon size={18} /></div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13.5px] font-semibold text-ink">{meta.label}</div>
                       <div className="text-[12px] text-ink-muted flex items-center gap-1.5 mt-0.5">
@@ -83,7 +83,7 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {meta.livePull && <span className="inline-flex items-center gap-1 h-[22px] px-2 rounded-full text-[10.5px] font-semibold" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}><Radio size={11} /> Live</span>}
+                      {meta.livePull && <span className="inline-flex items-center gap-1 h-[22px] px-2 rounded-full text-[10.5px] font-semibold" style={{ color: 'var(--accent-500)', background: 'var(--accent-soft)' }}><Radio size={11} /> Live</span>}
                       {cfg?.has_credentials && <CheckCircle2 size={16} style={{ color: 'var(--low)' }} />}
                       <ChevronRight size={16} className="text-ink-muted" />
                     </div>
@@ -282,7 +282,7 @@ function IntegrationForm({ source, meta, existing, canWrite, onDone }: {
             </button>
           )}
           {existing && meta.livePull && (
-            <button onClick={runPull} disabled={pull.isPending} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--accent)' }}>
+            <button onClick={runPull} disabled={pull.isPending} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--accent-500)' }}>
               <PlayCircle size={14} /> {tr('Pull maintenant', 'Pull now')}
             </button>
           )}

@@ -480,7 +480,7 @@ export function RiskRegisterPage() {
               className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0"
               style={
                 mine
-                  ? { background: softFill('var(--accent)', 16), color: 'var(--accent)', border: '1px solid transparent' }
+                  ? { background: softFill('var(--accent)', 16), color: 'var(--accent-500)', border: '1px solid transparent' }
                   : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
               }
             >
@@ -926,7 +926,7 @@ function DrawerAI({ r }: { r: UiRisk }) {
             <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">{tr('Stratégie', 'Strategy')}</span>
             <span
               className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-line)' }}
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)', border: '1px solid var(--accent-line)' }}
             >
               {stratLabel[res.plan.recommended_strategy] ?? res.plan.recommended_strategy}
             </span>
@@ -1116,7 +1116,7 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
               <span
                 key={m.id}
                 className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
-                style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent)' }}
+                style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent-500)' }}
               >
                 <button type="button" onClick={() => navigate(mappingHref(m))} className="hover:underline">
                   {mappingLabel(m)}

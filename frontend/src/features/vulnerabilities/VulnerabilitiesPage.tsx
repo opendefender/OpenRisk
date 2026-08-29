@@ -451,11 +451,11 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
             {v.ticket_key ? (
               // The ITSM base URL comes from tenant-configured integration data,
               // so the href is allowlisted to http(s) rather than trusted.
-              <a href={safeExternalUrl(v.ticket_url) ?? '#'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+              <a href={safeExternalUrl(v.ticket_url) ?? '#'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--accent-500)' }}>
                 {v.ticket_key} <ExternalLink size={13} />
               </a>
             ) : canWrite ? (
-              <button onClick={openTicket} disabled={createTicket.isPending} className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--accent)' }}>
+              <button onClick={openTicket} disabled={createTicket.isPending} className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--accent-500)' }}>
                 <Ticket size={13} /> {tr('Ouvrir un ticket', 'Open a ticket')}
               </button>
             ) : (

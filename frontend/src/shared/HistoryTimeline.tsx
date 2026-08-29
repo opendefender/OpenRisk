@@ -39,7 +39,7 @@ interface HistoryTimelineProps {
 
 const KIND_META: Record<string, { color: string; Icon: typeof Plus }> = {
   create: { color: 'var(--low)', Icon: Plus },
-  mitigate: { color: 'var(--accent)', Icon: ShieldCheck },
+  mitigate: { color: 'var(--accent-500)', Icon: ShieldCheck },
   update: { color: 'var(--text-soft)', Icon: Pencil },
   delete: { color: 'var(--critical)', Icon: Trash2 },
 };

@@ -752,7 +752,7 @@ export function TeamStep() {
         className="rounded-[12px] p-4 flex items-center gap-3"
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
       >
-        <Users size={18} style={{ color: 'var(--accent)' }} />
+        <Users size={18} style={{ color: 'var(--accent-500)' }} />
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-ink">
             {tr('Lien de partage', 'Share link')}

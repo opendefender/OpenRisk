@@ -187,7 +187,7 @@ export function AcceptInvitationPage() {
             <>
               <div className="flex items-center gap-3 mb-5">
                 <span aria-hidden className="w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
                   <Building2 size={21} />
                 </span>
                 <div className="min-w-0">

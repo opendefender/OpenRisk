@@ -857,7 +857,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
       <div>
         <div className="flex items-center justify-between">
           <label className="text-[12px] font-semibold">{tr('Étapes d’approbation', 'Approval steps')}</label>
-          <button onClick={addStep} className="text-[12px] inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}><Plus size={12} /> {tr('Ajouter', 'Add')}</button>
+          <button onClick={addStep} className="text-[12px] inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}><Plus size={12} /> {tr('Ajouter', 'Add')}</button>
         </div>
         <div className="space-y-2 mt-1">
           {steps.map((s, i) => (

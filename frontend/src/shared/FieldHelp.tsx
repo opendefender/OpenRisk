@@ -227,7 +227,7 @@ export function FieldHelp({
               <span key={row.level} className="flex items-start gap-2 text-[11.5px] mb-0.5">
                 <span
                   className="mono shrink-0 font-bold"
-                  style={{ color: 'var(--accent)', minWidth: 44 }}
+                  style={{ color: 'var(--accent-500)', minWidth: 44 }}
                 >
                   {row.level} · {row.value}
                 </span>
@@ -249,7 +249,7 @@ export function FieldHelp({
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-[11.5px] font-semibold"
-            style={{ color: 'var(--accent)' }}
+            style={{ color: 'var(--accent-500)' }}
           >
             {tr('Documentation', 'Documentation')}
             <ExternalLink size={11} />

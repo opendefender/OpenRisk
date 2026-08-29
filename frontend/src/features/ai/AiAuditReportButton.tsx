@@ -49,7 +49,7 @@ export function AiAuditReportButton({ auditId, title }: { auditId: string; title
       <button
         onClick={start}
         className="h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
-        style={{ border: '1px solid var(--accent-line)', background: 'var(--accent-soft)', color: 'var(--accent)' }}
+        style={{ border: '1px solid var(--accent-line)', background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
         title={tr('Générer un rapport exécutif avec l’IA', 'Generate an executive report with AI')}
       >
         <Sparkles size={13} /> {tr('Rapport IA', 'AI report')}

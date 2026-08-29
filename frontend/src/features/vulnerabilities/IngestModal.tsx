@@ -86,7 +86,7 @@ export function IngestModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
             <div className="flex items-center justify-between mb-1.5">
               <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">{tr('Findings (JSON du tableau exporté)', 'Findings (exported array JSON)')}</div>
               {FORMAT_EXAMPLES[source] && (
-                <button onClick={() => setRaw(FORMAT_EXAMPLES[source])} className="text-[11.5px] font-semibold" style={{ color: 'var(--accent)' }}>{tr('Insérer un exemple', 'Insert sample')}</button>
+                <button onClick={() => setRaw(FORMAT_EXAMPLES[source])} className="text-[11.5px] font-semibold" style={{ color: 'var(--accent-500)' }}>{tr('Insérer un exemple', 'Insert sample')}</button>
               )}
             </div>
             <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={10} spellCheck={false} placeholder={FORMAT_EXAMPLES[source] ?? '[ { ... } ]'} className="w-full rounded-[10px] px-3 py-2.5 text-[12.5px] mono text-ink outline-none" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }} />
