@@ -113,6 +113,14 @@ const PAIRS = [
   { text: '--info-text', surface: '--surface-2', min: AA_NORMAL },
   // Inverse text sits on the accent fill of a primary button.
   { text: '--text-inverse', surface: '--accent-500', min: AA_NORMAL },
+  // The accent has two steps and they are held to DIFFERENT bars, because they
+  // do different jobs. --accent is the MARK: a keyline, an active border, a
+  // focus ring, a fill — non-text, so 3:1 (WCAG 1.4.11). --accent-500 is the
+  // TEXT step behind the `accent-strong` utility and behind `text-accent`, so
+  // it carries the full 4.5:1 on every surface a label can sit on. Collapsing
+  // the two is what forces the signature hue to be chosen for legibility
+  // rather than for identity.
+  ...SURFACES.map((surface) => ({ text: '--accent-500', surface, min: AA_NORMAL })),
   // Text on a solid semantic fill (destructive button, status badge). axe
   // caught this pair missing: the button used --danger as a fill with the
   // ordinary text token on top, which measured 3.1:1.
@@ -172,7 +180,17 @@ const NON_TEXT_PAIRS = [
   { text: '--graph-node-stroke', surface: '--surface-1', min: AA_LARGE },
 ];
 
-const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS];
+/**
+ * The mark step of the accent, in the DEFAULT variant. Non-text, so 3:1 — the
+ * text obligation belongs to --accent-500 and is asserted in PAIRS above.
+ */
+const MARK_PAIRS = SURFACES.map((surface) => ({
+  text: '--accent',
+  surface,
+  min: AA_LARGE,
+}));
+
+const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS, ...MARK_PAIRS];
 
 /**
  * The live accent, per theme AND per accent variant.
@@ -186,7 +204,13 @@ const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS];
 const VARIANTS = ['azure', 'iris'];
 
 const ACCENT_PAIRS = [
-  ...SURFACES.map((surface) => ({ text: '--accent', surface, min: AA_NORMAL })),
+  // The mark step: non-text, 3:1.
+  ...SURFACES.map((surface) => ({ text: '--accent', surface, min: AA_LARGE })),
+  // The text step: 4.5:1. A variant that overrides --accent without overriding
+  // --accent-500 would leave every accent-coloured LABEL in the product on the
+  // default ultramarine while its rules and fills turned violet, so the variant
+  // blocks declare both and this pair is what proves they did.
+  ...SURFACES.map((surface) => ({ text: '--accent-500', surface, min: AA_NORMAL })),
 ];
 
 const css = readFileSync(TOKENS, 'utf8');
