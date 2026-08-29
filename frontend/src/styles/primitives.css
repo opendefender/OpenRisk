@@ -38,6 +38,17 @@
   --text-2xl: 28px;
   --text-3xl: 34px;
 
+  /* The marketing display scale. The console tops out at --text-3xl, which is a
+     console decision, not a product-wide one: the sign-in screen, the empty
+     states and the upgrade surfaces are read at arm's length, not scanned in a
+     queue. Fluid, so one declaration covers every viewport and no heading needs
+     a breakpoint of its own. Shared verbatim with the marketing site. */
+  --display-1: clamp(2.75rem, 1.75rem + 4vw, 5rem);
+  --display-2: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
+  --display-3: clamp(1.625rem, 1.25rem + 1.5vw, 2.375rem);
+  --display-4: clamp(1.35rem, 1.1rem + 1.1vw, 1.75rem);
+  --lead: clamp(1.0625rem, 1rem + 0.3vw, 1.3125rem);
+
   /* Line heights. Data-bearing text is set tight; prose is not. */
   --leading-none: 1;
   --leading-tight: 1.15;
@@ -57,9 +68,15 @@
   --tracking-display: -0.02em;
   --tracking-normal: 0;
   --tracking-caps: 0.06em;
+  /* Wider than --tracking-caps and reserved for the eyebrow: a 11px uppercase
+     label above a heading. At that size the letters need the air or the word
+     reads as a single grey smear. */
+  --tracking-eyebrow: 0.14em;
 
-  /* Families. --font-display is re-pointed by the accent variant. */
+  /* Families. --font-display carries a default so the app always has a display
+     face; the accent variant re-points it (azure -> Inter, iris -> DM Sans). */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'DM Sans', 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
   /* --------------------------------------------------------------- space ---
@@ -79,6 +96,13 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+
+  /* The chapter rhythm — the vertical air between one section of a long,
+     read-not-scanned page and the next. Not for console screens, where 64px is
+     already generous; used by the marketing-shaped surfaces inside the product
+     (sign-in, onboarding, upgrade). */
+  --space-section: clamp(4.5rem, 2.75rem + 6vw, 7.5rem);
+  --space-section-sm: clamp(3.25rem, 2.25rem + 3.5vw, 5rem);
 
   /* -------------------------------------------------------------- radius ---
      Capped at 18px. A 24px corner reads as a phone app; a 0px corner reads as
@@ -145,6 +169,9 @@
      matchMedia reads the same numbers the utilities do. --bp-3xl is the
      master-detail threshold: at 1920px a detail panel opens BESIDE the list
      rather than over it. */
+  /* At 390px the header carries a logo, a language switch, a menu and the
+     primary action. This is the stop where something has to give. */
+  --bp-xs: 400px;
   --bp-sm: 640px;
   --bp-md: 768px;
   --bp-lg: 1024px;
