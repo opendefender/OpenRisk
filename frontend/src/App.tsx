@@ -30,6 +30,7 @@ import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
+import { EntityDrawerHost } from './features/entity-drawer';
 import { useRealtimeQuerySync } from './features/realtime/useRealtime';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
 // The older duplicate (features/risks/components/CreateRiskModal, which embedded
@@ -70,6 +71,7 @@ const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'))
 const UnassignedVulnerabilitiesPage = lazy(() => import('./features/vulnerabilities/UnassignedVulnerabilitiesPage'));
 const RiskRulePage = lazy(() => import('./features/attackSurface/RiskRulePage'));
 const FinancialDashboard = lazy(() => import('./features/financial/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
+const GlobalTimelinePage = lazy(() => import('./features/entity-drawer/GlobalTimelinePage').then(m => ({ default: m.GlobalTimelinePage })));
 const AutomationPage = lazy(() => import('./features/automation/AutomationPage').then(m => ({ default: m.AutomationPage })));
 const GovernancePage = lazy(() => import('./features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
 const LeaderboardPage = lazy(() => import('./features/gamification/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
@@ -226,6 +228,12 @@ const DashboardLayout = () => {
       {/* Three non-blocking coach marks, shown once and replayable from the
           header's help button (spec §8). It never covers the app. */}
       <ProductTour />
+      {/* The universal entity drawer (W1-02). Mounted ONCE for the whole app and
+          driven entirely by the URL, which is what makes it a navigation
+          primitive rather than a per-screen feature: a deep link opens it on any
+          route, Back closes it, and the page behind keeps its filters. It
+          renders nothing until the URL names an entity. */}
+      <EntityDrawerHost />
       <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} lang={lang} />
       {/* Only mounted when opened, and behind its own Suspense — so the form
           stack (react-hook-form + zod) loads on first use, not at app start. */}
@@ -444,6 +452,10 @@ function App() {
               hero and the sidebar footer, so all three render one object. */}
           <Route path="score" element={<ScorePage />} />
           <Route path="analytics/financial" element={<FinancialDashboard />} />
+          {/* The tenant-wide activity feed (W1-02). RBAC filtering is the
+              server's, so any authenticated member may open it — they simply see
+              only what they may read. */}
+          <Route path="activity" element={<GlobalTimelinePage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
 
           {/* ---------------- Reports ----------------

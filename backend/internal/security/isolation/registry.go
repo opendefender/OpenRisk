@@ -137,6 +137,24 @@ var decisions = []Decision{
 		"repository/notification_repository_test scopes by user and tenant"},
 	{"/api/v1/vulnerabilities/{id}", Covered,
 		"application/vulnerability integrations_test: cross-tenant lookup returns 404"},
+
+	// --- Universal entity drawer (W1-02) -------------------------------------
+	// The drawer takes an arbitrary (type, id) pair off the URL, which makes it
+	// the broadest id-forging surface in the product: one route reaches assets,
+	// risks, vulnerabilities, controls, incidents, vendors and evidence. Every
+	// read runs as entity.Caller, whose TenantID comes from the signed token and
+	// cannot be influenced by the request; each resolver funnels through a single
+	// load() onto the module's own tenant-scoped repository, and a row belonging
+	// to another tenant is reported not-found — the same answer a fabricated id
+	// gets, so the pair cannot be told apart.
+	{"/api/v1/entities/{id}/{id}", Covered,
+		"application/entity entity_test TestGet_CrossTenantIsNotFound covers all eight types; handler/entity_handler_test TestEntityDrawer_CrossTenantAccessDenied drives it through the real HTTP stack"},
+	{"/api/v1/entities/{id}/{id}/relations", Covered,
+		"application/entity entity_test TestRelations_AreTenantScoped: a relation naming another tenant's row is absent, and a group whose target type the caller cannot read comes back denied rather than populated"},
+	{"/api/v1/entities/{id}/{id}/timeline", Covered,
+		"application/entity timeline_test TestTimeline_CrossTenantIsNotFound + TestTenantTimeline_FiltersByPermission; the supplementary journals (risk_histories, incident_timelines) carry no tenant column and are gated through their parent entity"},
+	{"/api/v1/entities/{id}/{id}/audit", Covered,
+		"application/entity entity_test TestAudit_RequiresAuditPermission and TestAudit_CrossTenantIsNotFound"},
 	{"/api/v1/vulnerabilities/*", Covered,
 		"application/vulnerability integrations_test covers status/ticket subpaths"},
 	{"/api/v1/onboarding/steps/{id}", Covered,
@@ -236,6 +254,79 @@ var decisions = []Decision{
 		"application/assetschema: same as above — deletes only the caller's tenant row"},
 	{"/api/v1/attack-surface/topology/{id}/compromise-chain", Covered,
 		"application/asset topology: the origin asset is loaded with GetByID(id, tenant) FIRST, so another tenant's id is a 404 before any graph is walked"},
+	// =====================================================================
+	// Collection routes — reads with no id in the path (#412 criterion 9)
+	// =====================================================================
+	//
+	// These became visible to the gate only when it was extended past
+	// parameterised routes. Until then GET /timeline/recent — which returned the
+	// risk history of every tenant in the deployment — was a route CI had never
+	// been able to ask a question about.
+	//
+	// Read the Pending entries below as what they say: NOT ASSESSED. They are
+	// recorded so the surface is countable and so a new collection route cannot
+	// be added in silence. None of them is a claim that the route is safe.
+
+	// --- W1-02's own two routes: decided by name, never by inheritance -----
+	{"/api/v1/timeline", Covered,
+		"application/entity: TenantTimelineService.ForTenant reads audit_events filtered on the caller's tenant, taken from Caller alone. TestTenantTimeline_NeverCrossesTenants (service) and TestEntityDrawer_TenantTimelineIsScopedAndLinked (HTTP, real SQL) both seed a second tenant and assert its rows are absent"},
+	{"/api/v1/entities", SelfScoped,
+		"application/entity: Service.Catalogue returns the static type descriptors plus this caller's own permission flags (CanRead per type). It reads no tenant table, so there are no rows to leak; TestEntityContract_NoCollectionSerialisesAsNull exercises it"},
+
+	// --- Public / pre-authentication --------------------------------------
+	{"/api/v1/health", PublicByDesign, "liveness probe; returns no tenant data"},
+	{"/api/v1/status", PublicByDesign, "public status page feed; returns no tenant data"},
+	{"/metrics", PublicByDesign, "Prometheus scrape endpoint; carries no tenant rows and is not mounted on the authenticated router"},
+	{"/api/v1/auth/saml2/metadata", PublicByDesign, "SAML service-provider metadata, published pre-authentication by design"},
+	{"/api/v1/auth/saml2/login", PublicByDesign, "SAML authentication entry point; runs before any session exists"},
+
+	// --- Self-scoped: the answer is a function of the caller's own token ---
+	{"/api/v1/auth/me", SelfScoped, "returns the authenticated identity taken from the signed token, not from any parameter"},
+	{"/api/v1/users/me", SelfScoped, "returns the authenticated caller own profile, keyed on the signed token user id rather than on any parameter"},
+	{"/api/v1/gamification/me", SelfScoped, "the caller's own score and streak, keyed on the token's user id"},
+	{"/api/v1/ownership/me", SelfScoped, "the caller's own ownership assignments, keyed on the token's user id"},
+
+	// --- Not assessed. Visible debt, not a safety claim. -------------------
+	//
+	// Each of these returns a list. If any has lost its WHERE tenant_id, it
+	// returns every tenant's rows to whoever loads the page — the /timeline/recent
+	// shape. They are grouped by module so the remaining work is countable;
+	// tracked as #412's honest remainder rather than asserted to be safe.
+	{"/api/v1/activation/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/analytics/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/asset-dependencies", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/assets", Pending, "not assessed — collection route made visible by #412 criterion 9; this is the asset inventory list, one of the largest tenant collections in the product"},
+	{"/api/v1/ownership/assignable", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/assets/statistics", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/attack-surface/draft-risks", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/attack-surface/risk-rule", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/attack-surface/schemas", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/attack-surface/topology", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/attack-surface/topology/edge-types", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/auth/organizations", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/auth/pat", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/auth/sessions", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/automation/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/billing/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/bulk-operations", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/cti/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/dashboard/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/entitlements/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/export/pdf", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/invitations/preview", Pending, "not assessed — pre-authentication token preview; needs a decision on whether the token alone is sufficient addressing"},
+	{"/api/v1/notifications/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/onboarding/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/organization/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/realtime/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/reports/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/risk-categories", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/risk-scoring/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/score/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/search", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/security/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/stats/*", Pending, "not assessed — collection route made visible by #412 criterion 9; these return tenant statistics and are the same shape as the route that leaked"},
+	{"/api/v1/telemetry/*", Pending, "not assessed — collection route made visible by #412 criterion 9"},
+	{"/api/v1/vulnerability-connectors", Pending, "not assessed — collection route made visible by #412 criterion 9"},
 }
 
 // Normalise rewrites a concrete route path into registry pattern form, so

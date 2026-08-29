@@ -210,6 +210,32 @@ func GetTenantID(c *fiber.Ctx) (uuid.UUID, error) {
 	return tenantID, nil
 }
 
+// PermissionsOf returns the caller's resolved permission strings as the auth
+// layer put them on the request. It is exported so a handler can ask the SAME
+// question RequirePermission asks — anything finer-grained than a whole route
+// (the entity drawer decides per section and per relation) must not re-derive
+// permissions from the JWT itself, or the two answers will drift.
+func PermissionsOf(c *fiber.Ctx) []string {
+	perms, _ := c.Locals("permissions").([]string)
+	return perms
+}
+
+// PermissionChecker adapts a permission list to the wildcard-aware check used by
+// RequirePermission. Zero value denies everything, so a caller built from a
+// request with no permissions fails closed.
+type PermissionChecker struct{ perms []string }
+
+// NewPermissionChecker builds a checker from the request context.
+func NewPermissionChecker(c *fiber.Ctx) PermissionChecker {
+	return PermissionChecker{perms: PermissionsOf(c)}
+}
+
+// HasPermission applies the product's wildcard semantics: an exact match, the
+// "*" admin wildcard, or a resource wildcard such as "risks:*".
+func (p PermissionChecker) HasPermission(required string) bool {
+	return hasPermission(p.perms, required)
+}
+
 // hasPermission checks if permissions array contains required permission.
 // Supports wildcards: "risk:*" matches "risk:read", "risk:write", etc.
 // Supports admin wildcard: "*" matches everything.

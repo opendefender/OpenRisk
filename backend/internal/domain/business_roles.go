@@ -50,11 +50,12 @@ const (
 	// PermGroupOrg covers administering the organization itself: its members,
 	// their invitations, the membership audit trail and the org profile.
 	PermGroupOrg PermissionGroup = "organization"
-	// PermGroupRealtime covers holding a live event stream. It is one
-	// permission, because the question it answers is "may this identity keep a
-	// stream open"; WHAT travels on that stream is decided per event by the
-	// read permissions above.
-	PermGroupRealtime PermissionGroup = "realtime"
+
+	// PermGroupGovernance covers the immutable audit trail and the approval
+	// machinery. Its routes are guarded by the admin ROLE today, so an admin
+	// already passes through "*"; the strings exist so an auditor or an internal
+	// controller can be granted the audit trail without being handed the tenant.
+	PermGroupGovernance PermissionGroup = "governance"
 )
 
 // PermissionDef documents one permission string with bilingual labels so the
@@ -136,11 +137,11 @@ var PermissionCatalog = []PermissionDef{
 	{"organization:members:update", PermGroupOrg, "Modifier le rôle des membres", "Change member roles"},
 	{"organization:members:deactivate", PermGroupOrg, "Désactiver ou révoquer des membres", "Deactivate or revoke members"},
 	{"organization:audit:read", PermGroupOrg, "Consulter l'audit des accès", "Read membership audit"},
-	// Realtime event stream (W0-07). Necessary to open GET /realtime/events and
-	// never sufficient for its contents: each event is additionally gated on the
-	// read permission of its own aggregate, so this cannot become a way around
-	// the permission model.
-	{"events:read", PermGroupRealtime, "Recevoir les événements temps réel", "Receive realtime events"},
+	// Governance. The entity drawer's audit tab (W1-02) gates on this: the
+	// timeline says what changed, the audit trail carries the before/after
+	// snapshot, the actor's IP and the request id, and those are not the same
+	// disclosure.
+	{"governance:audit:read", PermGroupGovernance, "Consulter la piste d'audit", "Read the audit trail"},
 }
 
 // catalogIndex is a fast membership set over PermissionCatalog keys.

@@ -145,7 +145,15 @@ func (AuditEvent) TableName() string { return "audit_events" }
 // AuditEventFilter narrows an audit-trail query. Zero-value fields are ignored.
 type AuditEventFilter struct {
 	EntityType string
-	EntityID   string
+	// EntityTypes matches ANY of several entity types. It exists because one
+	// business entity can have been journalled under more than one name: the
+	// GORM plugin names a row by its model (a control is "compliance_control")
+	// while the HTTP middleware derives it from the route (the same control is
+	// "control"). Both are real rows, so reading one entity's history means
+	// asking for both names in one query rather than one query per alias.
+	// Ignored when empty; EntityType still applies on its own.
+	EntityTypes []string
+	EntityID    string
 	Action     string
 	ActorID    *uuid.UUID
 	RequestID  string

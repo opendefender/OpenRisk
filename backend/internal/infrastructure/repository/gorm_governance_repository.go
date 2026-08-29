@@ -45,6 +45,9 @@ func (r *GormAuditEventRepository) List(ctx context.Context, tenantID uuid.UUID,
 	if f.EntityType != "" {
 		q = q.Where("entity_type = ?", f.EntityType)
 	}
+	if len(f.EntityTypes) > 0 {
+		q = q.Where("entity_type IN ?", f.EntityTypes)
+	}
 	if f.EntityID != "" {
 		q = q.Where("entity_id = ?", f.EntityID)
 	}
@@ -75,7 +78,13 @@ func (r *GormAuditEventRepository) List(ctx context.Context, tenantID uuid.UUID,
 		limit = 50
 	}
 	var events []domain.AuditEvent
-	if err := q.Order("created_at DESC").Limit(limit).Offset(f.Offset).Find(&events).Error; err != nil {
+	// created_at alone is not a total order: an import writes many rows in the
+	// same instant, and a listing whose ties come back in whatever order the
+	// planner chose cannot be paginated — a cursor would skip rows on one page
+	// and repeat them on the next. id breaks the tie, and it is the SAME
+	// tie-break the timeline merge applies (uuid text order equals uuid byte
+	// order, so the database and the merge agree).
+	if err := q.Order("created_at DESC, id DESC").Limit(limit).Offset(f.Offset).Find(&events).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list audit events: %w", err)
 	}
 	return events, total, nil

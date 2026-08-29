@@ -1,9 +1,45 @@
 {
-  "_comment": "Demonstration dataset. Loaded ONLY by the Go seeder when DEMO_MODE=true (backend/internal/infrastructure/demoseed). Never shipped to the frontend, never imported by application code. Any tenant seeded from this file shows a permanent 'demonstration data' banner. Impact 0-10, probability 0-1 (Score Engine bounds).",
+  "_comment": "Demonstration dataset. Loaded ONLY by the Go seeder when DEMO_MODE=true (backend/internal/infrastructure/demoseed). Never shipped to the frontend, never imported by application code. Any tenant seeded from this file shows a permanent 'demonstration data' banner. Impact 0-10, probability 0-1 (Score Engine bounds). The estate is deliberately coherent — one payments platform, one customer portal, the infrastructure under both — so the register reads like a real organisation's week rather than a list of unrelated rows.",
   "assets": [
+    {
+      "name": "payments-api",
+      "type": "Application",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "ledger-db",
+      "type": "Database",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
     {
       "name": "web-prod-01",
       "type": "Server",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "web-prod-02",
+      "type": "Server",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "edge-lb",
+      "type": "Network",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "customer-portal",
+      "type": "Application",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "identity-provider",
+      "type": "Application",
       "criticality": "CRITICAL",
       "owner": "demo@opendefender.io"
     },
@@ -14,9 +50,51 @@
       "owner": "demo@opendefender.io"
     },
     {
+      "name": "db-replica-01",
+      "type": "Database",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
       "name": "backup-nas",
       "type": "Storage",
       "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "object-store",
+      "type": "Storage",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "k8s-prod",
+      "type": "Infrastructure",
+      "criticality": "CRITICAL",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "k8s-staging",
+      "type": "Infrastructure",
+      "criticality": "MEDIUM",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "ci-runner-fleet",
+      "type": "Infrastructure",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "vpn-gateway",
+      "type": "Network",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "mail-relay",
+      "type": "Server",
+      "criticality": "MEDIUM",
       "owner": "demo@opendefender.io"
     },
     {
@@ -24,39 +102,259 @@
       "type": "Laptop",
       "criticality": "MEDIUM",
       "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "finance-workstations",
+      "type": "Laptop",
+      "criticality": "HIGH",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "branch-wifi",
+      "type": "Network",
+      "criticality": "LOW",
+      "owner": "demo@opendefender.io"
+    },
+    {
+      "name": "legacy-reporting",
+      "type": "Application",
+      "criticality": "LOW",
+      "owner": "demo@opendefender.io"
+    }
+  ],
+  "dependencies": [
+    {
+      "source": "payments-api",
+      "target": "ledger-db",
+      "type": "stores_data_in",
+      "description": "Transaction ledger"
+    },
+    {
+      "source": "payments-api",
+      "target": "k8s-prod",
+      "type": "runs_on",
+      "description": "Production cluster"
+    },
+    {
+      "source": "payments-api",
+      "target": "identity-provider",
+      "type": "authenticates_via",
+      "description": "Service tokens"
+    },
+    {
+      "source": "customer-portal",
+      "target": "payments-api",
+      "type": "depends_on",
+      "description": "Checkout flow"
+    },
+    {
+      "source": "customer-portal",
+      "target": "identity-provider",
+      "type": "authenticates_via",
+      "description": "Customer sign-in"
+    },
+    {
+      "source": "customer-portal",
+      "target": "k8s-prod",
+      "type": "runs_on",
+      "description": "Production cluster"
+    },
+    {
+      "source": "customer-portal",
+      "target": "object-store",
+      "type": "stores_data_in",
+      "description": "Identity documents"
+    },
+    {
+      "source": "edge-lb",
+      "target": "web-prod-01",
+      "type": "connects_to",
+      "description": "Upstream pool"
+    },
+    {
+      "source": "edge-lb",
+      "target": "web-prod-02",
+      "type": "connects_to",
+      "description": "Upstream pool"
+    },
+    {
+      "source": "web-prod-01",
+      "target": "customer-portal",
+      "type": "depends_on",
+      "description": "Serves the portal"
+    },
+    {
+      "source": "web-prod-02",
+      "target": "customer-portal",
+      "type": "depends_on",
+      "description": "Serves the portal"
+    },
+    {
+      "source": "ledger-db",
+      "target": "db-core-01",
+      "type": "hosted_on",
+      "description": "Primary instance"
+    },
+    {
+      "source": "db-replica-01",
+      "target": "db-core-01",
+      "type": "depends_on",
+      "description": "Streaming replica"
+    },
+    {
+      "source": "legacy-reporting",
+      "target": "db-replica-01",
+      "type": "depends_on",
+      "description": "Nightly extract"
+    },
+    {
+      "source": "db-core-01",
+      "target": "backup-nas",
+      "type": "backs_up_to",
+      "description": "Nightly snapshot"
+    },
+    {
+      "source": "object-store",
+      "target": "backup-nas",
+      "type": "backs_up_to",
+      "description": "Weekly archive"
+    },
+    {
+      "source": "k8s-prod",
+      "target": "identity-provider",
+      "type": "authenticates_via",
+      "description": "Cluster RBAC"
+    },
+    {
+      "source": "ci-runner-fleet",
+      "target": "k8s-prod",
+      "type": "connects_to",
+      "description": "Deploy pipeline"
+    },
+    {
+      "source": "ci-runner-fleet",
+      "target": "k8s-staging",
+      "type": "connects_to",
+      "description": "Deploy pipeline"
+    },
+    {
+      "source": "vpn-gateway",
+      "target": "identity-provider",
+      "type": "authenticates_via",
+      "description": "Remote access"
+    },
+    {
+      "source": "finance-workstations",
+      "target": "vpn-gateway",
+      "type": "connects_to",
+      "description": "Remote access"
+    },
+    {
+      "source": "hr-laptop-fleet",
+      "target": "vpn-gateway",
+      "type": "connects_to",
+      "description": "Remote access"
+    },
+    {
+      "source": "branch-wifi",
+      "target": "finance-workstations",
+      "type": "connects_to",
+      "description": "Shared VLAN"
+    },
+    {
+      "source": "mail-relay",
+      "target": "identity-provider",
+      "type": "authenticates_via",
+      "description": "Directory lookup"
+    },
+    {
+      "source": "k8s-staging",
+      "target": "db-replica-01",
+      "type": "stores_data_in",
+      "description": "Restored snapshot"
     }
   ],
   "risks": [
     {
-      "title": "Unpatched web framework on web-prod-01",
-      "description": "The public front end runs a framework release with known remote-code-execution CVEs. An exploit is publicly available.",
-      "probability": 0.8,
-      "impact": 9.0,
+      "title": "Known-exploited RCE in the payments framework",
+      "description": "payments-api runs a release with a remote-code-execution CVE now listed in the CISA KEV catalogue. A working exploit is public and the service is internet-facing.",
+      "probability": 0.85,
+      "impact": 9.5,
       "criticality": "critical",
       "status": "open",
       "lifecycle_phase": "evaluated",
       "treatment_plan": "mitigate",
       "tags": [
-        "web",
-        "cve"
+        "cve",
+        "kev",
+        "payments"
       ],
       "frameworks": [
         "ISO27001",
-        "OWASP"
+        "PCI-DSS"
       ],
-      "asset": "web-prod-01",
-      "sle_xaf": 45000000,
-      "aro": 0.6,
-      "downtime_hours": 48,
-      "hourly_downtime_cost_xaf": 350000,
-      "remediation_cost_xaf": 8000000,
-      "mitigation_effectiveness": 0.75
+      "asset": "payments-api",
+      "sle_xaf": 78000000,
+      "aro": 0.7,
+      "downtime_hours": 36,
+      "hourly_downtime_cost_xaf": 650000,
+      "remediation_cost_xaf": 9000000,
+      "mitigation_effectiveness": 0.85
     },
     {
-      "title": "Backup restoration never tested",
-      "description": "Nightly snapshots complete, but no restoration drill has been run. Recovery time is unverified.",
+      "title": "Service account holds superuser rights on the ledger",
+      "description": "The payments service account is granted superuser on ledger-db. A compromise of the API becomes a full financial data breach in one step.",
+      "probability": 0.4,
+      "impact": 9.5,
+      "criticality": "critical",
+      "status": "open",
+      "lifecycle_phase": "analyzed",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "iam",
+        "pii",
+        "payments"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "RGPD",
+        "PCI-DSS"
+      ],
+      "asset": "ledger-db",
+      "sle_xaf": 95000000,
+      "aro": 0.3,
+      "fines_xaf": 40000000,
+      "remediation_cost_xaf": 1800000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "No enforced MFA on the identity provider",
+      "description": "Administrative accounts on the identity provider can still authenticate with a password alone; the enrolment deadline has passed for four accounts.",
+      "probability": 0.5,
+      "impact": 9.0,
+      "criticality": "critical",
+      "status": "in_progress",
+      "lifecycle_phase": "treated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "iam",
+        "mfa"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "COBAC"
+      ],
+      "asset": "identity-provider",
+      "sle_xaf": 64000000,
+      "aro": 0.45,
+      "remediation_cost_xaf": 900000,
+      "mitigation_effectiveness": 0.92
+    },
+    {
+      "title": "Backup restoration has never been tested",
+      "description": "Nightly snapshots complete and are monitored, but no restoration drill has ever been run. Recovery time is an assumption, not a measurement.",
       "probability": 0.35,
-      "impact": 8.0,
+      "impact": 8.5,
       "criticality": "high",
       "status": "in_progress",
       "lifecycle_phase": "treated",
@@ -66,64 +364,23 @@
         "continuity"
       ],
       "frameworks": [
-        "ISO27001"
+        "ISO27001",
+        "BCEAO"
       ],
       "asset": "backup-nas",
-      "sle_xaf": 30000000,
+      "sle_xaf": 41000000,
       "aro": 0.25,
+      "downtime_hours": 72,
+      "hourly_downtime_cost_xaf": 350000,
       "remediation_cost_xaf": 2500000,
       "mitigation_effectiveness": 0.8
     },
     {
-      "title": "Excessive database privileges for application account",
-      "description": "The portal's service account holds superuser rights on db-core-01; a portal compromise becomes a full data breach.",
-      "probability": 0.4,
-      "impact": 9.5,
-      "criticality": "high",
-      "status": "open",
-      "lifecycle_phase": "analyzed",
-      "treatment_plan": "mitigate",
-      "tags": [
-        "iam",
-        "pii"
-      ],
-      "frameworks": [
-        "ISO27001",
-        "RGPD"
-      ],
-      "asset": "db-core-01",
-      "sle_xaf": 60000000,
-      "aro": 0.3,
-      "fines_xaf": 20000000,
-      "remediation_cost_xaf": 1500000,
-      "mitigation_effectiveness": 0.9
-    },
-    {
-      "title": "Phishing exposure across the HR fleet",
-      "description": "HR endpoints handle payroll attachments daily; no simulated phishing campaign has been run this year.",
-      "probability": 0.55,
-      "impact": 5.0,
-      "criticality": "medium",
-      "status": "open",
-      "lifecycle_phase": "identified",
-      "treatment_plan": "mitigate",
-      "tags": [
-        "phishing",
-        "endpoint"
-      ],
-      "frameworks": [
-        "ISO27001"
-      ],
-      "asset": "hr-laptop-fleet",
-      "sle_xaf": 8000000,
-      "aro": 0.9
-    },
-    {
-      "title": "Legacy TLS ciphers accepted on the portal",
-      "description": "The load balancer still negotiates TLS 1.0/1.1 for a handful of legacy clients.",
+      "title": "Customer portal accepts legacy TLS ciphers",
+      "description": "The edge load balancer still negotiates TLS 1.0 and 1.1 for a small set of legacy branch clients.",
       "probability": 0.2,
-      "impact": 3.5,
-      "criticality": "low",
+      "impact": 4.0,
+      "criticality": "medium",
       "status": "mitigated",
       "lifecycle_phase": "monitored",
       "treatment_plan": "mitigate",
@@ -134,22 +391,481 @@
       "frameworks": [
         "PCI-DSS"
       ],
-      "asset": "web-prod-01"
+      "asset": "edge-lb",
+      "sle_xaf": 6000000,
+      "aro": 0.15,
+      "remediation_cost_xaf": 400000,
+      "mitigation_effectiveness": 0.95
+    },
+    {
+      "title": "Unencrypted personal data in the object store",
+      "description": "Customer identity documents are written to the object store without server-side encryption; the bucket policy allows read from the whole VPC.",
+      "probability": 0.3,
+      "impact": 9.0,
+      "criticality": "critical",
+      "status": "open",
+      "lifecycle_phase": "evaluated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "pii",
+        "storage"
+      ],
+      "frameworks": [
+        "RGPD",
+        "ISO27001"
+      ],
+      "asset": "object-store",
+      "sle_xaf": 72000000,
+      "aro": 0.25,
+      "fines_xaf": 35000000,
+      "remediation_cost_xaf": 1200000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Kubernetes API server exposed to the office network",
+      "description": "The production cluster's API endpoint answers from the corporate range rather than only from the bastion.",
+      "probability": 0.4,
+      "impact": 8.0,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "analyzed",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "k8s",
+        "network"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "k8s-prod",
+      "sle_xaf": 38000000,
+      "aro": 0.3,
+      "remediation_cost_xaf": 600000,
+      "mitigation_effectiveness": 0.88
+    },
+    {
+      "title": "CI runners hold long-lived cloud credentials",
+      "description": "Build runners authenticate with static access keys that have not been rotated in fourteen months.",
+      "probability": 0.45,
+      "impact": 8.0,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "ci",
+        "secrets"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "ci-runner-fleet",
+      "sle_xaf": 34000000,
+      "aro": 0.35,
+      "remediation_cost_xaf": 750000,
+      "mitigation_effectiveness": 0.85
+    },
+    {
+      "title": "Phishing exposure across the finance workstations",
+      "description": "Finance endpoints process supplier invoices daily and no simulated phishing campaign has run this year.",
+      "probability": 0.6,
+      "impact": 7.0,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "phishing",
+        "endpoint"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "finance-workstations",
+      "sle_xaf": 22000000,
+      "aro": 0.8,
+      "remediation_cost_xaf": 1100000,
+      "mitigation_effectiveness": 0.6
+    },
+    {
+      "title": "VPN gateway firmware two majors behind",
+      "description": "The remote-access gateway runs firmware with three advisories fixed upstream, one rated critical.",
+      "probability": 0.5,
+      "impact": 8.5,
+      "criticality": "high",
+      "status": "in_progress",
+      "lifecycle_phase": "treated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "cve",
+        "network",
+        "remote"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "vpn-gateway",
+      "sle_xaf": 45000000,
+      "aro": 0.4,
+      "downtime_hours": 24,
+      "hourly_downtime_cost_xaf": 300000,
+      "remediation_cost_xaf": 500000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Replica database reachable without network policy",
+      "description": "db-replica-01 accepts connections from any pod in the cluster; no NetworkPolicy scopes it to the reporting service.",
+      "probability": 0.35,
+      "impact": 7.5,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "analyzed",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "database",
+        "network"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "db-replica-01",
+      "sle_xaf": 28000000,
+      "aro": 0.3,
+      "remediation_cost_xaf": 350000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Access review evidence expired for three controls",
+      "description": "The quarterly access-review artefact answering A.5.15, A.5.18 and A.8.2 passed its expiry date eleven days ago.",
+      "probability": 0.45,
+      "impact": 6.0,
+      "criticality": "medium",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "evidence",
+        "audit"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "COBAC"
+      ],
+      "asset": "identity-provider",
+      "sle_xaf": 14000000,
+      "aro": 0.5,
+      "fines_xaf": 8000000,
+      "remediation_cost_xaf": 300000,
+      "mitigation_effectiveness": 0.95
+    },
+    {
+      "title": "Mail relay permits unauthenticated internal relay",
+      "description": "Hosts inside the corporate range can relay through the mail server without authenticating, enabling internal spoofing.",
+      "probability": 0.4,
+      "impact": 5.5,
+      "criticality": "medium",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "mail",
+        "spoofing"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "mail-relay",
+      "sle_xaf": 9000000,
+      "aro": 0.4,
+      "remediation_cost_xaf": 250000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Second web node missing from the patch baseline",
+      "description": "web-prod-02 was built from an older image and is absent from the configuration baseline, so patch runs skip it silently.",
+      "probability": 0.55,
+      "impact": 7.0,
+      "criticality": "high",
+      "status": "in_progress",
+      "lifecycle_phase": "treated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "patching",
+        "drift"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "web-prod-02",
+      "sle_xaf": 26000000,
+      "aro": 0.5,
+      "remediation_cost_xaf": 400000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Legacy reporting app has no owner",
+      "description": "legacy-reporting still queries production data nightly. Its last named owner left the organisation in March.",
+      "probability": 0.3,
+      "impact": 5.0,
+      "criticality": "medium",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "ownership",
+        "legacy"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "legacy-reporting",
+      "sle_xaf": 7000000,
+      "aro": 0.3,
+      "remediation_cost_xaf": 200000,
+      "mitigation_effectiveness": 0.7
+    },
+    {
+      "title": "Branch Wi-Fi shares a flat network with finance",
+      "description": "Guest and branch Wi-Fi terminate in the same VLAN as the finance workstations.",
+      "probability": 0.35,
+      "impact": 6.5,
+      "criticality": "medium",
+      "status": "open",
+      "lifecycle_phase": "analyzed",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "network",
+        "segmentation"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "PCI-DSS"
+      ],
+      "asset": "branch-wifi",
+      "sle_xaf": 16000000,
+      "aro": 0.3,
+      "remediation_cost_xaf": 900000,
+      "mitigation_effectiveness": 0.85
+    },
+    {
+      "title": "Staging cluster restored from a production snapshot",
+      "description": "k8s-staging was seeded with a production database copy that still contains live customer records.",
+      "probability": 0.5,
+      "impact": 8.0,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "evaluated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "pii",
+        "staging"
+      ],
+      "frameworks": [
+        "RGPD"
+      ],
+      "asset": "k8s-staging",
+      "sle_xaf": 31000000,
+      "aro": 0.4,
+      "fines_xaf": 18000000,
+      "remediation_cost_xaf": 300000,
+      "mitigation_effectiveness": 0.95
+    },
+    {
+      "title": "No rate limiting on the portal authentication endpoint",
+      "description": "The customer portal's login route accepts unlimited attempts per source address; credential stuffing would be undetected.",
+      "probability": 0.55,
+      "impact": 7.0,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "analyzed",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "web",
+        "auth"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "OWASP"
+      ],
+      "asset": "customer-portal",
+      "sle_xaf": 24000000,
+      "aro": 0.5,
+      "remediation_cost_xaf": 350000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Single administrator for the core database",
+      "description": "One engineer holds the only administrative credential for db-core-01. Absence or departure stops recovery.",
+      "probability": 0.25,
+      "impact": 8.5,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "keyperson",
+        "continuity"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "BCEAO"
+      ],
+      "asset": "db-core-01",
+      "sle_xaf": 36000000,
+      "aro": 0.2,
+      "remediation_cost_xaf": 150000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "HR fleet disk encryption not verified",
+      "description": "Full-disk encryption is configured by policy but compliance has never been reported from the endpoints themselves.",
+      "probability": 0.3,
+      "impact": 5.5,
+      "criticality": "medium",
+      "status": "in_progress",
+      "lifecycle_phase": "treated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "endpoint",
+        "encryption"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "RGPD"
+      ],
+      "asset": "hr-laptop-fleet",
+      "sle_xaf": 11000000,
+      "aro": 0.25,
+      "remediation_cost_xaf": 450000,
+      "mitigation_effectiveness": 0.85
+    },
+    {
+      "title": "Edge load balancer logs retained for seven days",
+      "description": "Access logs roll after a week, below the ninety days the incident-response procedure assumes.",
+      "probability": 0.4,
+      "impact": 4.5,
+      "criticality": "low",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "logging",
+        "forensics"
+      ],
+      "frameworks": [
+        "ISO27001"
+      ],
+      "asset": "edge-lb",
+      "sle_xaf": 5000000,
+      "aro": 0.35,
+      "remediation_cost_xaf": 180000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Third-party analytics script on the payment page",
+      "description": "A vendor tag loads on the checkout page, placing an uncontrolled third party inside the cardholder data flow.",
+      "probability": 0.3,
+      "impact": 7.5,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "evaluated",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "vendor",
+        "pci"
+      ],
+      "frameworks": [
+        "PCI-DSS",
+        "RGPD"
+      ],
+      "asset": "customer-portal",
+      "sle_xaf": 27000000,
+      "aro": 0.25,
+      "fines_xaf": 15000000,
+      "remediation_cost_xaf": 120000,
+      "mitigation_effectiveness": 0.98
+    },
+    {
+      "title": "Object store lifecycle policy deletes audit evidence",
+      "description": "A cost-saving lifecycle rule expires objects after 180 days, including the evidence bucket referenced by the audit trail.",
+      "probability": 0.35,
+      "impact": 6.5,
+      "criticality": "medium",
+      "status": "mitigated",
+      "lifecycle_phase": "monitored",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "evidence",
+        "storage"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "COBAC"
+      ],
+      "asset": "object-store",
+      "sle_xaf": 13000000,
+      "aro": 0.3,
+      "remediation_cost_xaf": 100000,
+      "mitigation_effectiveness": 0.95
+    },
+    {
+      "title": "No documented recovery objective for the ledger",
+      "description": "ledger-db has no agreed RTO or RPO, so restoration priority during an incident is decided in the moment.",
+      "probability": 0.3,
+      "impact": 8.0,
+      "criticality": "high",
+      "status": "open",
+      "lifecycle_phase": "identified",
+      "treatment_plan": "mitigate",
+      "tags": [
+        "continuity",
+        "governance"
+      ],
+      "frameworks": [
+        "ISO27001",
+        "BCEAO"
+      ],
+      "asset": "ledger-db",
+      "sle_xaf": 33000000,
+      "aro": 0.25,
+      "remediation_cost_xaf": 200000,
+      "mitigation_effectiveness": 0.8
     }
   ],
   "incidents": [
     {
       "title": "Suspicious outbound traffic from web-prod-01",
-      "description": "Egress spike to an unfamiliar ASN observed overnight. Contained; forensics in progress.",
+      "description": "Egress spike to an unfamiliar ASN observed overnight. Host isolated; forensics in progress.",
       "type": "security_breach",
       "severity": "high",
       "status": "in_progress"
     },
     {
       "title": "Payroll phishing attempt reported by HR",
-      "description": "An employee reported a credential-harvesting email impersonating the payroll provider. No credentials entered.",
+      "description": "An employee reported a credential-harvesting email impersonating the payroll provider. No credentials were entered.",
       "type": "phishing",
       "severity": "medium",
+      "status": "resolved"
+    },
+    {
+      "title": "Failed backup job on backup-nas",
+      "description": "Three consecutive nightly jobs failed on a full volume. Capacity extended, jobs re-run and verified.",
+      "type": "system_failure",
+      "severity": "medium",
+      "status": "resolved"
+    },
+    {
+      "title": "Credential stuffing against the customer portal",
+      "description": "Nine thousand login attempts from a single ASN over two hours. Rate limiting applied at the edge.",
+      "type": "unauthorized_access",
+      "severity": "high",
+      "status": "in_progress"
+    },
+    {
+      "title": "Expired certificate on the VPN gateway",
+      "description": "Remote access unavailable for forty minutes on a Sunday morning. Certificate renewed and monitoring added.",
+      "type": "system_failure",
+      "severity": "low",
       "status": "resolved"
     }
   ]

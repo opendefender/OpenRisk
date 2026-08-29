@@ -39,6 +39,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
+	"github.com/opendefender/openrisk/internal/application/entity"
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
@@ -420,7 +421,7 @@ func main() {
 			case res.Skipped:
 				log.Println("DEMO_MODE: tenant already contains data, demo fixtures not re-applied")
 			default:
-				log.Printf("DEMO_MODE: seeded %d assets, %d risks, %d incidents", res.Assets, res.Risks, res.Incidents)
+				log.Printf("DEMO_MODE: seeded %d assets, %d dependencies, %d risks, %d incidents", res.Assets, res.Dependencies, res.Risks, res.Incidents)
 			}
 		}
 	}
@@ -2142,7 +2143,61 @@ func main() {
 	protected.Get("/risks/:id/timeline/trend", timelineHandler.GetRiskTrend)
 	protected.Get("/risks/:id/timeline/changes/:type", timelineHandler.GetChangesByType)
 	protected.Get("/risks/:id/timeline/since/:timestamp", timelineHandler.GetChangesSince)
-	protected.Get("/timeline/recent", timelineHandler.GetRecentActivity)
+	// GET /timeline/recent is RETIRED (#412 criterion 16). It returned the risk
+	// history of every tenant in the deployment on 2026-07-23 (docs/JOURNAL.md
+	// item 36), and it still read its tenant through safeGetUUID, which falls
+	// back to uuid.Nil rather than failing closed. GET /timeline supersedes it,
+	// is tenant-scoped from Caller alone, and is covered by a cross-tenant test.
+	// TestIsolationGate_LegacyRecentTimelineIsRetired fails if it is re-mounted.
+
+	// --- Universal Entity Drawer + Global Timeline (W1-02) ---
+	//
+	// Five routes for eight entity types. The type is a path parameter so the
+	// permission gate is applied ONCE, from one descriptor table, instead of
+	// thirty-two per-type routes each free to answer differently.
+	//
+	// Nothing here owns data. Every resolver composes a repository that is
+	// already tenant-scoped, and the relation reader is the single place the
+	// cross-module joins live so there is one file to audit rather than five.
+	entityRelations := repository.NewGormEntityRelationRepository(database.DB)
+	entityTimeline := entity.NewTimelineService(auditChainRepo).
+		WithUserLookup(userRepo).
+		// The journals the canonical audit trail structurally cannot see: the
+		// score worker runs outside any request, and the incident service keeps
+		// its own log.
+		WithSource(entity.TypeRisk, repository.NewRiskHistorySource(database.DB)).
+		WithSource(entity.TypeIncident, repository.NewIncidentTimelineSource(database.DB)).
+		WithSource(entity.TypeAsset, repository.NewAssetSnapshotSource(database.DB)).
+		WithSource(entity.TypeVendor, repository.NewAssetSnapshotSource(database.DB))
+
+	// Bind joins each resolver to the tenant gate its type declares in
+	// entity.isolationProfiles. Register panics on an incomplete registration,
+	// so a type added without that decision fails here, at boot, in front of
+	// whoever added it — rather than serving an unscoped read.
+	entityRegistry := entity.NewRegistry().
+		Register(entity.Bind(entity.TypeAsset, entity.NewAssetResolver(assetRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeVendor, entity.NewVendorResolver(assetRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeRisk, entity.NewRiskResolver(riskRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeVulnerability, entity.NewVulnerabilityResolver(vulnRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeFinding, entity.NewFindingResolver(vulnRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeControl, entity.NewControlResolver(complianceRepo, entityRelations))).
+		Register(entity.Bind(entity.TypeIncident, entity.NewIncidentResolver(incidentService, entityRelations))).
+		Register(entity.Bind(entity.TypeEvidence, entity.NewEvidenceResolver(evidenceRepo, entityRelations)))
+
+	entityHandler := handlers.NewEntityHandler(entity.NewService(entityRegistry).WithTimeline(entityTimeline))
+
+	// The tenant-wide feed and the catalogue are static paths and are mounted
+	// BEFORE /entities/:type/:id (the Fiber trap this codebase has hit before).
+	protected.Get("/timeline", entityHandler.GetTenantTimeline)
+	protected.Get("/entities", entityHandler.GetCatalogue)
+	// No RequirePermission middleware here on purpose: the required permission
+	// depends on :type, so the gate has to be inside the service where the type
+	// is known. Mounting a fixed guard would either lock out every caller who is
+	// not an admin, or gate a control behind the risk permission.
+	protected.Get("/entities/:type/:id", entityHandler.GetEntity)
+	protected.Get("/entities/:type/:id/relations", entityHandler.GetRelations)
+	protected.Get("/entities/:type/:id/timeline", entityHandler.GetTimeline)
+	protected.Get("/entities/:type/:id/audit", entityHandler.GetAudit)
 
 	// --- Analytics & Advanced Reporting (Protected routes) ---
 	analyticsService := service.NewAnalyticsService(database.DB)
