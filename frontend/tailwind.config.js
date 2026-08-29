@@ -156,7 +156,6 @@ export default {
           2: 'var(--accent-2)',
           soft: 'var(--accent-soft)',
           line: 'var(--accent-line)',
-          glow: 'var(--accent-glow)',
         },
         // ---- text ----
         ink: {
@@ -219,7 +218,6 @@ export default {
           2: 'var(--accent-2)',
           soft: 'var(--accent-soft)',
           line: 'var(--accent-line)',
-          glow: 'var(--accent-glow)',
         },
       },
 

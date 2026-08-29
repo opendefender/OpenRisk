@@ -228,11 +228,12 @@
 
   /* ---- legacy aliases: resolve to the tokens above ----
      DEPRECATED. Kept so the ~2000 call sites written before the contract keep
-     rendering. Nothing new should reference one. --accent-glow in particular
-     is an anti-pattern the design guide names by hand ("never with a glow");
-     its 27 remaining call sites are tracked separately. */
+     rendering. Nothing new should reference one.
+
+     --accent-glow used to live here. It is gone: the design guide names the
+     glow by hand ("never with a glow"), and a token that exists is a token
+     someone reaches for. Deleting the value is what makes the rule stick. */
   --accent-2: var(--info);
-  --accent-glow: rgba(91, 124, 255, 0.35);
   --shadow-sm: var(--elev-1);
   --shadow-md: var(--elev-2);
   --shadow-lg: var(--elev-3);
@@ -371,7 +372,6 @@
 
   /* ---- legacy aliases — see the dark block ---- */
   --accent-2: var(--info);
-  --accent-glow: rgba(27, 58, 224, 0.25);
   --shadow-sm: var(--elev-1);
   --shadow-md: var(--elev-2);
   --shadow-lg: var(--elev-3);
@@ -433,7 +433,6 @@
   --accent-hover: #7ab4ff;
   --accent-soft: rgba(79, 155, 255, 0.14);
   --accent-line: rgba(79, 155, 255, 0.32);
-  --accent-glow: rgba(79, 155, 255, 0.35);
   --font-display: 'Inter';
 }
 
@@ -443,7 +442,6 @@
   --accent-hover: #094e97;
   --accent-soft: rgba(11, 98, 189, 0.1);
   --accent-line: rgba(11, 98, 189, 0.3);
-  --accent-glow: rgba(11, 98, 189, 0.25);
 }
 
 :root[data-variant='iris'] {
@@ -452,7 +450,6 @@
   --accent-hover: #b6acff;
   --accent-soft: rgba(157, 144, 255, 0.16);
   --accent-line: rgba(157, 144, 255, 0.34);
-  --accent-glow: rgba(157, 144, 255, 0.35);
   --font-display: 'DM Sans';
 }
 
@@ -462,5 +459,4 @@
   --accent-hover: #48369f;
   --accent-soft: rgba(91, 70, 201, 0.1);
   --accent-line: rgba(91, 70, 201, 0.3);
-  --accent-glow: rgba(91, 70, 201, 0.25);
 }
