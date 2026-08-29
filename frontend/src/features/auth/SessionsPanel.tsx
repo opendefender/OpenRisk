@@ -182,7 +182,7 @@ export function SessionsPanel() {
                     {s.current && (
                       <span
                         className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded"
-                        style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                        style={{ background: 'var(--accent-glow)', color: 'var(--accent-500)' }}
                       >
                         {t.thisDevice}
                       </span>

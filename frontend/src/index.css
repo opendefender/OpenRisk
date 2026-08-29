@@ -386,7 +386,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: var(--accent-500);
     background: var(--accent-soft);
     margin-bottom: 4px;
   }

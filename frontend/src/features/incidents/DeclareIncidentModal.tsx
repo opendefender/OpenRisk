@@ -192,7 +192,7 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
                 {tr('Parties prenantes à notifier', 'Stakeholders to notify')}
               </span>
               <button onClick={() => setStakeholders((s) => [...s, { channels: ['in_app', 'email'] }])}
-                className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+                className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}>
                 <Plus size={13} /> {tr('Ajouter', 'Add')}
               </button>
             </div>

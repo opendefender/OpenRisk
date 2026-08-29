@@ -84,7 +84,7 @@ export function IncidentsScreen() {
   };
 
   const kpis = [
-    { icon: Siren, label: tr('Total', 'Total'), value: stats?.total_incidents ?? 0, color: 'var(--accent)' },
+    { icon: Siren, label: tr('Total', 'Total'), value: stats?.total_incidents ?? 0, color: 'var(--accent-500)' },
     { icon: Radio, label: tr('Ouverts', 'Open'), value: stats?.open_incidents ?? 0, color: 'var(--critical)' },
     { icon: ShieldAlert, label: tr('Critiques', 'Critical'), value: stats?.critical_incidents ?? 0, color: 'var(--high)' },
     { icon: CheckCircle2, label: tr('Taux de résolution', 'Resolution rate'), value: `${Math.round(stats?.resolution_rate ?? 0)}%`, color: 'var(--low)' },

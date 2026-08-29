@@ -105,4 +105,12 @@
   --sidebar-w: 248px;
   --sidebar-w-collapsed: 64px;
   --header-h: 56px;
+  /* The two measures the marketing site sets and the console has to agree with,
+     because a user crosses between them in one session: the shell a landing
+     page is set in, and the height of the header above it. Carried here so the
+     shared contract is complete on this side rather than half-vendored — a
+     token that exists in only one of the two repositories is how the last
+     divergence started. */
+  --shell-max: 76rem;
+  --header-h-site: 64px;
 }

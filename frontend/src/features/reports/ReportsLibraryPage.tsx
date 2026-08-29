@@ -27,7 +27,7 @@ const LIFECYCLE_META: Record<ReportLifecycle, { color: string; fr: string; en: s
   draft: { color: 'var(--ink-muted)', fr: 'Brouillon', en: 'Draft' },
   in_review: { color: 'var(--medium)', fr: 'En relecture', en: 'In review' },
   approved: { color: 'var(--low)', fr: 'Approuvé', en: 'Approved' },
-  published: { color: 'var(--accent)', fr: 'Publié', en: 'Published' },
+  published: { color: 'var(--accent-500)', fr: 'Publié', en: 'Published' },
 };
 
 /** The next step in the lifecycle, and what to call the button. */

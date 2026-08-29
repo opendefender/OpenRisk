@@ -44,11 +44,11 @@ export const TRIGGER_META: Record<AutomationTrigger, { label: { fr: string; en: 
 };
 
 export const ACTION_META: Record<AutomationActionType, { label: { fr: string; en: string }; icon: LucideIcon; color: string }> = {
-  scan_asset: { label: { fr: 'Scanner l’actif', en: 'Scan asset' }, icon: Radar, color: 'var(--accent)' },
+  scan_asset: { label: { fr: 'Scanner l’actif', en: 'Scan asset' }, icon: Radar, color: 'var(--accent-500)' },
   create_risk: { label: { fr: 'Créer un risque', en: 'Create risk' }, icon: FilePlus2, color: 'var(--high)' },
   assign_owner: { label: { fr: 'Assigner', en: 'Assign owner' }, icon: UserCheck, color: 'var(--medium)' },
   create_ticket: { label: { fr: 'Ouvrir un ticket', en: 'Open ticket' }, icon: Ticket, color: 'var(--iris, #5A6ACF)' },
-  notify: { label: { fr: 'Notifier', en: 'Notify' }, icon: Bell, color: 'var(--accent)' },
+  notify: { label: { fr: 'Notifier', en: 'Notify' }, icon: Bell, color: 'var(--accent-500)' },
   start_sla: { label: { fr: 'Démarrer un SLA', en: 'Start SLA' }, icon: Timer, color: 'var(--critical)' },
   resolve_risk: { label: { fr: 'Résoudre le risque', en: 'Resolve risk' }, icon: CheckCircle2, color: 'var(--low)' },
   close_ticket: { label: { fr: 'Clôturer le ticket', en: 'Close ticket' }, icon: XCircle, color: 'var(--low)' },
@@ -67,13 +67,13 @@ export const EXEC_STATUS_META: Record<ExecutionStatus, { label: { fr: string; en
   success: { label: { fr: 'Succès', en: 'Success' }, color: 'var(--low)' },
   partial: { label: { fr: 'Partiel', en: 'Partial' }, color: 'var(--medium)' },
   failed: { label: { fr: 'Échec', en: 'Failed' }, color: 'var(--critical)' },
-  running: { label: { fr: 'En cours', en: 'Running' }, color: 'var(--accent)' },
+  running: { label: { fr: 'En cours', en: 'Running' }, color: 'var(--accent-500)' },
   pending: { label: { fr: 'En attente', en: 'Pending' }, color: 'var(--text-secondary)' },
   skipped: { label: { fr: 'Ignoré', en: 'Skipped' }, color: 'var(--text-secondary)' },
 };
 
 export const SLA_STATUS_META: Record<SLAStatus, { label: { fr: string; en: string }; color: string }> = {
-  open: { label: { fr: 'En cours', en: 'Open' }, color: 'var(--accent)' },
+  open: { label: { fr: 'En cours', en: 'Open' }, color: 'var(--accent-500)' },
   breached: { label: { fr: 'Dépassé', en: 'Breached' }, color: 'var(--high)' },
   escalated: { label: { fr: 'Escaladé', en: 'Escalated' }, color: 'var(--critical)' },
   met: { label: { fr: 'Respecté', en: 'Met' }, color: 'var(--low)' },

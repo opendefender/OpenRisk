@@ -202,7 +202,7 @@ function FinancialCard({ data, lang, tr }: { data: ExecData; lang: string; tr: (
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 text-[12.5px] text-ink-soft mb-2">
-            <Coins size={15} style={{ color: 'var(--accent)' }} />
+            <Coins size={15} style={{ color: 'var(--accent-500)' }} />
             {tr('Exposition financière annuelle (ALE)', 'Annual financial exposure (ALE)')}
           </div>
           <div className="disp mono text-[30px] font-bold text-ink leading-none">{fmtCompactFCFA(f.total_ale.xaf, lang)}</div>

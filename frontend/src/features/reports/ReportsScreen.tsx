@@ -74,7 +74,7 @@ export function ReportsScreen() {
       <div className="grid gap-4 mb-7" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
         {tpls.map(([title, desc, Icon, run], i) => (
           <Card key={title} style={{ padding: 20, animation: 'or-fadeup .4s ease both', animationDelay: `${i * 0.04}s` }}>
-            <div className="w-[42px] h-[42px] rounded-xl flex items-center justify-center mb-3.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><Icon size={21} /></div>
+            <div className="w-[42px] h-[42px] rounded-xl flex items-center justify-center mb-3.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}><Icon size={21} /></div>
             <div className="text-[14.5px] font-semibold text-ink mb-1.5">{title}</div>
             <div className="text-[12.5px] text-ink-soft leading-relaxed mb-4" style={{ minHeight: 36 }}>{desc}</div>
             <button onClick={run} className="w-full h-9 rounded-[10px] text-[13px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)' }}>

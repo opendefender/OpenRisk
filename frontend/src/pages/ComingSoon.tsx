@@ -24,7 +24,7 @@ export default function ComingSoon() {
       <div className="min-h-full flex flex-col items-center justify-center px-6 py-20 text-center" style={{ animation: 'or-fadeup .4s ease' }}>
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
-          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
         >
           <Icon size={30} strokeWidth={1.6} />
         </div>

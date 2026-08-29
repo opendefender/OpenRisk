@@ -287,7 +287,7 @@ function VulnRow({
                         disabled={busy}
                         onClick={() => onAttribute(vuln, c.asset_id)}
                         className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-medium disabled:opacity-40"
-                        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                        style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
                       >
                         Rattacher
                       </button>
@@ -331,7 +331,7 @@ function VulnRow({
                 disabled={!manualAsset || busy}
                 onClick={() => onAttribute(vuln, manualAsset)}
                 className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium disabled:opacity-40"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
               >
                 Rattacher
               </button>

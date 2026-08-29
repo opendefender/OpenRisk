@@ -446,7 +446,7 @@ function OrgsTab({ tr }: { tr: Tr }) {
         <div className="p-3 flex flex-col gap-2">
           {tenants.map((t, i) => (
             <div key={t.id ?? i} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]" style={{ border: '1px solid var(--border)' }}>
-              <div className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[11px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{(t.name ?? '?').slice(0, 2).toUpperCase()}</div>
+              <div className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[11px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>{(t.name ?? '?').slice(0, 2).toUpperCase()}</div>
               <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{t.name}</div><div className="mono text-[11.5px] text-ink-muted">{t.slug ?? t.id}</div></div>
             </div>
           ))}
@@ -488,7 +488,7 @@ function GeneralTab({ tr }: { tr: Tr }) {
         <Title>{tr('Profil de l’organisation', 'Organization profile')}</Title>
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold overflow-hidden"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
             {org.logo_url ? <img src={org.logo_url} alt="" className="w-full h-full object-cover" /> : initials}
           </div>
           <div className="min-w-0">

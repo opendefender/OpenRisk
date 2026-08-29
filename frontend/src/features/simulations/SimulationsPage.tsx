@@ -59,7 +59,7 @@ export function SimulationsPage() {
                 className="text-left rounded-[12px] p-4 hover:bg-hover transition-colors"
                 style={{ border: '1px solid var(--border)' }}
               >
-                <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
                   <Icon size={17} />
                 </div>
                 <div className="text-[13.5px] font-semibold text-ink mb-1">{title}</div>

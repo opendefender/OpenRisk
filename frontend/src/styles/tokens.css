@@ -7,9 +7,15 @@
 
    Layer 2 of four (primitives.css -> THIS -> components.css -> screens).
 
-   Single source of truth for colour. Components never name a colour; they name
-   a ROLE (surface, text, border, accent, semantic, risk, chart) and the active
-   theme decides the value.
+   SOURCE OF TRUTH. The values in this file implement the canonical OpenRisk
+   design system, vendored at design-system/openrisk.tokens.css and authored
+   against both surfaces — the console and the marketing site. Do not edit a
+   value here without editing it there: `npm run check:design-system` fails the
+   build when the two diverge.
+
+   Single source of truth for colour in the product. Components never name a
+   colour; they name a ROLE (surface, text, border, accent, semantic, risk,
+   chart, graph) and the active theme decides the value.
 
    Why this file exists
    --------------------
@@ -22,21 +28,32 @@
    everything inherits, including anything rendered through a React portal into
    document.body.
 
-   The neutral is not grey
-   -----------------------
-   Both ramps are built on a single cool hue (~228deg) at very low chroma rather
-   than on neutral grey. This is the quietest decision in the system and the one
-   that does the most work: it is what makes an OpenRisk screen recognisable
-   without a logo, it puts the accent blue and the whole risk scale on a field
-   they already belong to, and it costs nothing at render time. It is a hue
-   shift of a few degrees, not a tint — at a glance the canvas reads as neutral;
-   side by side with true grey it reads as deliberate.
+   The neutral is warm, and it is true
+   -----------------------------------
+   Both ramps are true neutrals, very slightly warm. They read as paper and
+   graphite rather than as a blue screen, and that single decision is what makes
+   an OpenRisk surface recognisable without a logo on it. This replaces the cool
+   ~228deg ramp the console shipped through W1-01: a faintly blue canvas put the
+   accent, the risk scale and every chart series on a field that was already
+   competing with them.
 
    Contrast
    --------
    Every text/surface pair below is verified at >= 4.5:1 (WCAG AA) in BOTH
    themes by scripts/check-contrast.mjs, which runs in CI. Changing a value here
    without re-running it will fail the build.
+
+   Two values deliberately DIVERGE from the canonical file, both upward, both
+   because this product holds a bar the marketing site does not:
+
+     --border-control   canonical #6b6a66 / #8a867a measure 2.87:1 and 2.92:1
+                        against --surface-3, and --surface-3 is where a control
+                        sits while it is hovered. Raised to clear 3:1 (WCAG
+                        1.4.11) on every surface a control can rest on.
+     --graph-edge       canonical #43422f is a decorative dim. In this product a
+                        graph edge CARRIES THE TOPOLOGY — it is the only thing
+                        saying which asset feeds which — so it is held to 3:1
+                        like any other meaningful non-text mark.
 
    Naming
    ------
@@ -59,59 +76,52 @@
   /* surfaces — a four-step ramp, each step visible against the one below it
      without a border. Not black: #000 removes the ability to go darker, which
      a sunken well and a scrim both need. */
-  --surface-0: #0a0c12;
-  --surface-1: #0e1017;
-  --surface-2: #151823;
-  --surface-3: #1c202c;
-  --surface-overlay: rgba(4, 6, 11, 0.72);
-  --surface-sunken: #070810;
+  --surface-0: #111111;
+  --surface-1: #171717;
+  --surface-2: #1c1c1c;
+  --surface-3: #242423;
+  --surface-overlay: rgba(8, 8, 8, 0.76);
+  --surface-sunken: #0c0c0c;
 
   /* text */
-  --text-primary: #f3f5f9;
-  --text-secondary: #b4b9c6;
-  --text-muted: #9aa0af;
-  --text-inverse: #0e1017;
+  --text-primary: #f6f4ef;
+  --text-secondary: #b5b2aa;
+  --text-muted: #8d8a83;
+  --text-inverse: #111111;
 
   /* borders — the primary hierarchy device in this system. Rules do the work
      that drop shadows do elsewhere, which is why there are three of them. */
-  --border-subtle: #1b1f2b;
-  --border-default: #272c3a;
-  --border-strong: #39404f;
+  --border-subtle: #222221;
+  --border-default: #2e2e2c;
+  --border-strong: #43423f;
   /* The boundary of an actual CONTROL (input, select, secondary button), as
      opposed to a decorative rule. WCAG 1.4.11 asks for 3:1 on anything needed
-     to identify a component, and --border-strong measures 1.70:1 on a raised
+     to identify a component, and --border-strong measures 1.53:1 on a raised
      surface — fine for a divider, not for the edge that says "you can type
-     here". Verified by scripts/check-contrast.mjs. */
-  --border-control: #67707f;
+     here". See the divergence note in the header. */
+  --border-control: #767570;
 
-  /* accent scale */
-  --accent-50: #eaf2ff;
-  --accent-100: #d3e4ff;
-  --accent-200: #a8c9ff;
-  --accent-300: #7aabff;
-  --accent-400: #4f8dff;
-  /* Light enough that --text-inverse clears 4.5:1 on a filled primary button
-     (measured 5.05:1). #2f6fee looked right but only reached 4.28:1. */
-  --accent-500: #3d7ef2;
-  --accent-600: #2358c4;
-  --accent-700: #1c469b;
-  --accent-800: #163875;
-  --accent-900: #112a58;
+  /* THE SIGNATURE COLOUR — the ultramarine at the heart of the OpenRisk mark.
+     Used FLAT: never as a gradient, never with a glow.
 
-  /* Focus ring. Theme-scoped because accent-400 measures 2.73:1 on the light
-     canvas — a focus indicator that only passes on half the surfaces is not a
-     focus indicator. */
-  --focus-ring-color: var(--accent-400);
+     Two steps, and the difference between them is load-bearing:
+       --accent      the MARK. Rules, keylines, active borders, focus, fills.
+                     Held to 3:1 (non-text contrast).
+       --accent-500  the TEXT step, exposed as the `accent-strong` utility and
+                     as `text-accent`. Held to 4.5:1 on every surface. */
+  --accent: #5b7cff;
+  --accent-hover: #7a94ff;
+  --accent-soft: rgba(91, 124, 255, 0.14);
+  --accent-line: rgba(91, 124, 255, 0.32);
+  --accent-400: #8aa1ff;
+  --accent-500: #6e8bff;
+  /* Dark enough that --text-on-solid clears 4.5:1 on a filled primary button
+     (measured 6.49:1). */
+  --accent-solid: #2547f0;
 
-  /* The live accent. Defaulted here so the app is never left without one: the
-     bootstrap script in index.html has a fallback path that sets data-theme
-     but not data-variant, and --accent was undefined down that path. */
-  --accent: var(--accent-400);
-  --accent-hover: var(--accent-300);
-  --accent-2: var(--info);
-  --accent-soft: rgba(79, 141, 255, 0.14);
-  --accent-line: rgba(79, 141, 255, 0.32);
-  --accent-glow: rgba(79, 141, 255, 0.35);
+  /* Focus ring. Theme-scoped: a hue bright enough to read on a dark canvas is
+     by construction too light to read on a pale one. */
+  --focus-ring-color: var(--accent);
 
   /* semantic — `-text` variants are tuned to pass AA on their `-surface` */
   --success: #30d158;
@@ -137,10 +147,10 @@
   --success-solid: #1a7f3c;
   --warning-solid: #9a5b00;
   --info-solid: #0b6f96;
-  --accent-solid: #1f62e0;
   --text-on-solid: #ffffff;
 
-  /* risk criticality scale */
+  /* risk criticality scale — five steps, and they are NOT the semantic
+     colours: a risk is a measurement, not a system state. */
   --risk-low: #30d158;
   --risk-moderate: #ffd426;
   --risk-high: #ff9f0a;
@@ -174,24 +184,33 @@
   /* Chart furniture. Grid lines sit below the axis, which sits below the data;
      making them one token each is what stops every chart file inventing its
      own rgba(255,255,255,0.06). */
-  --chart-grid: #1b1f2b;
-  --chart-axis: #39404f;
-  --chart-label: #9aa0af;
-  --chart-track: #1c202c;
+  --chart-grid: #222221;
+  --chart-axis: #43423f;
+  --chart-label: #8d8a83;
+  --chart-track: #242423;
 
-  /* Topology graph. A node is drawn from the risk scale; these are the states
-     that are not severity. */
   /* The caret drawn on a native <select>. A background image cannot use
      currentColor, so the glyph has to be a per-theme token or the arrow ends
      up invisible in one of them — which is exactly what happens when a select
-     is styled with appearance:none and nothing else. */
-  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa0af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+     is styled with appearance:none and nothing else. Stroked in --text-muted. */
+  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238d8a83' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
-  --graph-node: #272c3a;
-  --graph-node-stroke: #67707f;
-  --graph-edge: #67707f;
-  --graph-edge-active: #4f8dff;
+  /* Topology graph. A node's severity is drawn from the risk scale above;
+     these are the states that are not severity. Warm-neutral to match the
+     surfaces — the cool #272c3a these inherited reads as a blue smudge on a
+     #111111 ground. Edge and stroke both resolve to --border-control: they are
+     the same role (a structural line that has to be seen) and they are held to
+     the same 3:1 bar. */
+  --graph-node: #242423;
+  --graph-node-stroke: var(--border-control);
+  --graph-edge: var(--border-control);
+  --graph-edge-active: var(--accent);
   --graph-dimmed: 0.22;
+
+  /* Hairlines and the measured field. Both neutral — the grid is a coordinate
+     space, not an atmosphere. */
+  --hairline: rgba(255, 255, 255, 0.075);
+  --grid-line: rgba(255, 255, 255, 0.035);
 
   /* ---- elevation --------------------------------------------------------
      Four steps and an overlay. Dark themes need deeper, softer shadows because
@@ -207,7 +226,13 @@
   --elev-3: 0 16px 48px rgba(0, 0, 0, 0.5);
   --elev-overlay: 0 24px 64px rgba(0, 0, 0, 0.6);
 
-  /* ---- legacy aliases: resolve to the tokens above ---- */
+  /* ---- legacy aliases: resolve to the tokens above ----
+     DEPRECATED. Kept so the ~2000 call sites written before the contract keep
+     rendering. Nothing new should reference one. --accent-glow in particular
+     is an anti-pattern the design guide names by hand ("never with a glow");
+     its 27 remaining call sites are tracked separately. */
+  --accent-2: var(--info);
+  --accent-glow: rgba(91, 124, 255, 0.35);
   --shadow-sm: var(--elev-1);
   --shadow-md: var(--elev-2);
   --shadow-lg: var(--elev-3);
@@ -217,8 +242,8 @@
   --bg-secondary: var(--surface-sunken);
   --bg-elevated: var(--surface-2);
   --bg-hover: var(--surface-3);
-  --glass: rgba(17, 20, 30, 0.72);
-  --glass-strong: rgba(13, 16, 24, 0.9);
+  --glass: rgba(23, 23, 23, 0.72);
+  --glass-strong: rgba(17, 17, 17, 0.9);
   --glass-border: rgba(255, 255, 255, 0.08);
   --border: var(--border-default);
   --critical: var(--risk-critical);
@@ -233,53 +258,46 @@
 
   /* surfaces — the canvas is deliberately NOT white. Cards are white; the page
      behind them is a step down, so a card reads as a card without needing a
-     shadow to prove it. Same four-step ramp as dark, same cool hue. */
-  --surface-0: #ecedf2;
-  --surface-1: #ffffff;
+     shadow to prove it. Same warm neutral as dark, inverted. */
+  --surface-0: #f6f4ef;
+  --surface-1: #fdfcfa;
   --surface-2: #ffffff;
-  --surface-3: #f1f2f7;
+  --surface-3: #e9e6de;
   /* The scrim stays dark in light mode on purpose: a modal needs the page
      behind it pushed back, and a pale scrim reads as a rendering glitch. */
-  --surface-overlay: rgba(14, 16, 23, 0.45);
-  --surface-sunken: #fafbfd;
+  --surface-overlay: rgba(17, 17, 17, 0.42);
+  --surface-sunken: #efece5;
 
   /* text */
-  --text-primary: #15161a;
-  --text-secondary: #53555f;
-  --text-muted: #61636e;
-  --text-inverse: #ffffff;
+  --text-primary: #111111;
+  --text-secondary: #4b4945;
+  --text-muted: #57554f;
+  --text-inverse: #f6f4ef;
 
   /* borders */
-  --border-subtle: #e9eaf0;
-  --border-default: #dee0e9;
-  --border-strong: #c6c9d6;
-  /* See the dark block: 3:1 against the surface it sits on. */
-  --border-control: #868c9c;
+  --border-subtle: #e5e1d8;
+  --border-default: #d8d3c8;
+  --border-strong: #bdb8ab;
+  /* See the dark block and the divergence note: 3:1 against every surface a
+     control can sit on, --surface-3 included. */
+  --border-control: #7c786d;
 
-  /* accent scale — same hue family, ordered light->dark as in dark mode */
-  --accent-50: #eaf2ff;
-  --accent-100: #d3e4ff;
-  --accent-200: #a8c9ff;
-  --accent-300: #7aabff;
-  --accent-400: #4f8dff;
-  --accent-500: #1f62e0;
-  --accent-600: #1a51bb;
-  --accent-700: #164294;
-  --accent-800: #123574;
-  --accent-900: #0e2857;
+  /* THE SIGNATURE COLOUR. In light the mark step is already dark enough to
+     serve as text, so --accent and --accent-500 coincide; the split exists so
+     a component never has to know which theme it is in. */
+  --accent: #1b3ae0;
+  --accent-hover: #142ec0;
+  --accent-soft: rgba(27, 58, 224, 0.09);
+  --accent-line: rgba(27, 58, 224, 0.26);
+  --accent-400: #2547f0;
+  --accent-500: #1b3ae0;
+  --accent-solid: #1b3ae0;
 
   /* See the dark block. */
-  --focus-ring-color: var(--accent-500);
-
-  --accent: var(--accent-600);
-  --accent-hover: var(--accent-700);
-  --accent-2: var(--info);
-  --accent-soft: rgba(31, 98, 224, 0.1);
-  --accent-line: rgba(31, 98, 224, 0.3);
-  --accent-glow: rgba(31, 98, 224, 0.25);
+  --focus-ring-color: var(--accent);
 
   /* semantic — darker than their dark-theme counterparts so they stay
-     readable on white; the `-surface` tints are deliberately very light */
+     readable on the warm canvas; the `-surface` tints are deliberately light */
   --success: #1a7f3c;
   --success-surface: #e8f7ed;
   --success-text: #15682f;
@@ -299,7 +317,6 @@
   --success-solid: #1a7f3c;
   --warning-solid: #9a5b00;
   --info-solid: #0b6f96;
-  --accent-solid: #1f62e0;
   --text-on-solid: #ffffff;
 
   /* risk criticality scale */
@@ -315,9 +332,9 @@
 
   /* ---- visualisation ----
      Same eight categories, same order, darkened so each one clears 3:1 against
-     white as a 2px line or a small mark (WCAG 1.4.11 non-text contrast). The
-     dark-theme values would wash out here — this is the half of chart theming
-     that gets skipped and is why light-mode dashboards usually look faded. */
+     the canvas as a 2px line or a small mark (WCAG 1.4.11 non-text contrast).
+     The dark-theme values would wash out here — this is the half of chart
+     theming that gets skipped and is why light-mode dashboards look faded. */
   --chart-1: #2563d1;
   --chart-2: #6247d6;
   --chart-3: #0e7a68;
@@ -327,18 +344,21 @@
   --chart-7: #8a5cc4;
   --chart-8: #5b6376;
 
-  --chart-grid: #e9eaf0;
-  --chart-axis: #c6c9d6;
-  --chart-label: #61636e;
-  --chart-track: #f1f2f7;
+  --chart-grid: #e5e1d8;
+  --chart-axis: #bdb8ab;
+  --chart-label: #57554f;
+  --chart-track: #e9e6de;
 
-  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2361636e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2357554f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   --graph-node: #ffffff;
-  --graph-node-stroke: #8b91a1;
-  --graph-edge: #8b91a1;
-  --graph-edge-active: #2563d1;
+  --graph-node-stroke: var(--border-control);
+  --graph-edge: var(--border-control);
+  --graph-edge-active: var(--accent);
   --graph-dimmed: 0.28;
+
+  --hairline: rgba(17, 17, 17, 0.1);
+  --grid-line: rgba(17, 17, 17, 0.05);
 
   /* ---- elevation ----
      Shallower and tighter than dark: on a light canvas a large soft shadow
@@ -349,7 +369,9 @@
   --elev-3: 0 16px 48px rgba(20, 22, 40, 0.14);
   --elev-overlay: 0 24px 64px rgba(20, 22, 40, 0.22);
 
-  /* ---- legacy aliases ---- */
+  /* ---- legacy aliases — see the dark block ---- */
+  --accent-2: var(--info);
+  --accent-glow: rgba(27, 58, 224, 0.25);
   --shadow-sm: var(--elev-1);
   --shadow-md: var(--elev-2);
   --shadow-lg: var(--elev-3);
@@ -359,9 +381,9 @@
   --bg-secondary: var(--surface-sunken);
   --bg-elevated: var(--surface-2);
   --bg-hover: var(--surface-3);
-  --glass: rgba(255, 255, 255, 0.72);
+  --glass: rgba(253, 252, 250, 0.72);
   --glass-strong: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(0, 0, 0, 0.07);
+  --glass-border: rgba(17, 17, 17, 0.07);
   --border: var(--border-default);
   --critical: var(--risk-critical);
   --high: var(--risk-high);
@@ -370,7 +392,7 @@
 }
 
 /* ------------------------------------------------- theme-independent ---- */
-/* Radius, spacing, type and motion moved to primitives.css — they were
+/* Radius, spacing, type and motion live in primitives.css — they were
    declared here AND in index.css with conflicting values (audit F1). */
 :root {
   /* focus ring geometry — the colour is theme-scoped above */
@@ -380,22 +402,26 @@
 
 /* A single focus treatment for every interactive element. :focus-visible keeps
    it off for mouse users while guaranteeing it for keyboard navigation. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
 /* ------------------------------------------------------ accent variants ---- */
 /*
-   azure / iris are a product feature: the user picks one in Settings. They are
-   still COLOUR, so they belong here and they are theme-dependent.
+   azure / iris are a PRODUCT feature: the user picks one in Settings. They are
+   not part of the canonical design-system file, which declares one accent — so
+   they live here, below the contract, and they override only the accent.
 
-   They were previously declared once, in index.css, with a single value used in
-   both themes. That is why every `text-accent` in the product measured 3.65:1
-   on white — below AA — while passing comfortably on the dark canvas. A hue
-   bright enough to read on a dark surface is, by construction, too light to
-   read on a pale one. Each variant therefore has two definitions, and both are
-   verified by scripts/check-contrast.mjs.
+   They are still COLOUR, so they are theme-dependent. Each variant declares
+   --accent-500 alongside --accent because `text-accent` and `accent-strong`
+   resolve to the 500 step; a variant that set only --accent would leave every
+   accent-coloured LABEL in the product ultramarine while its rules and fills
+   turned violet.
+
+   Both variants already clear 4.5:1 on every warm surface at their existing
+   values, so --accent-500 equals --accent in both. Verified per variant, per
+   theme, by scripts/check-contrast.mjs.
 
    --accent-soft and --accent-line are tints, not text colours; they carry no
    contrast requirement of their own beyond what sits on top of them.
@@ -403,8 +429,8 @@
 
 :root[data-variant='azure'] {
   --accent: #4f9bff;
+  --accent-500: #4f9bff;
   --accent-hover: #7ab4ff;
-  --accent-2: #64d2ff;
   --accent-soft: rgba(79, 155, 255, 0.14);
   --accent-line: rgba(79, 155, 255, 0.32);
   --accent-glow: rgba(79, 155, 255, 0.35);
@@ -413,8 +439,8 @@
 
 :root[data-theme='light'][data-variant='azure'] {
   --accent: #0b62bd;
+  --accent-500: #0b62bd;
   --accent-hover: #094e97;
-  --accent-2: #0b6f96;
   --accent-soft: rgba(11, 98, 189, 0.1);
   --accent-line: rgba(11, 98, 189, 0.3);
   --accent-glow: rgba(11, 98, 189, 0.25);
@@ -422,8 +448,8 @@
 
 :root[data-variant='iris'] {
   --accent: #9d90ff;
+  --accent-500: #9d90ff;
   --accent-hover: #b6acff;
-  --accent-2: #b692ff;
   --accent-soft: rgba(157, 144, 255, 0.16);
   --accent-line: rgba(157, 144, 255, 0.34);
   --accent-glow: rgba(157, 144, 255, 0.35);
@@ -432,8 +458,8 @@
 
 :root[data-theme='light'][data-variant='iris'] {
   --accent: #5b46c9;
+  --accent-500: #5b46c9;
   --accent-hover: #48369f;
-  --accent-2: #6247d6;
   --accent-soft: rgba(91, 70, 201, 0.1);
   --accent-line: rgba(91, 70, 201, 0.3);
   --accent-glow: rgba(91, 70, 201, 0.25);

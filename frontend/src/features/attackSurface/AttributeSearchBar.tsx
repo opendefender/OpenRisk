@@ -152,7 +152,7 @@ export function AttributeSearchBar({
               onClick={addTerm}
               disabled={!pendingKey || !pendingValue.trim()}
               className="rounded-lg px-3 py-1.5 text-[13px] font-medium disabled:opacity-40"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
             >
               Filtrer
             </button>
@@ -181,7 +181,7 @@ export function AttributeSearchBar({
                 style={{
                   borderColor: 'var(--accent)',
                   background: 'var(--accent-soft)',
-                  color: 'var(--accent)',
+                  color: 'var(--accent-500)',
                 }}
               >
                 {def?.label ?? key} = {value}

@@ -34,7 +34,7 @@ export function ScorePage() {
       >
         <header className="mb-5">
           <h1 className="disp text-[22px] font-bold text-ink flex items-center gap-2">
-            <ShieldAlert size={20} style={{ color: 'var(--accent)' }} />
+            <ShieldAlert size={20} style={{ color: 'var(--accent-500)' }} />
             {tr('Score de risque', 'Risk score')}
           </h1>
           <p className="text-[13.5px] text-ink-soft mt-1">

@@ -1,0 +1,561 @@
+/* Copyright (c) 2026 OpenDefender Contributors
+   SPDX-License-Identifier: AGPL-3.0-only
+
+   ============================================================================
+   OPENRISK DESIGN TOKENS - the single source of truth
+   ============================================================================
+
+   This file is the whole colour, motion and measurement contract for OpenRisk:
+   the console, the marketing site, and anything either of them grows into. It
+   supersedes the split that produced the bug this file exists to prevent - the
+   site declaring a brand palette on a bare `:root` while the console declared
+   the product palette on `:root[data-theme='dark']`, so the brand layer lost
+   the cascade in the DEFAULT theme and the two products drifted apart in dark
+   mode without either team noticing.
+
+   LAYERS. Four, in this order, and nothing skips a layer:
+
+     1. PRIMITIVES   raw scales. Theme-independent by construction: a spacing
+                     step does not change when the lights go out.
+     2. SEMANTIC     roles per theme. A component never names a colour; it
+                     names a role (surface, text, border, accent, risk) and the
+                     active theme decides the value.
+     3. COMPONENT    values two components must agree on. A button and an input
+                     have to be the same height or a filter bar looks broken.
+     4. SCREENS      compose the above, and nothing else.
+
+   THE ONE RULE. A component that writes `#171717`, `bg-zinc-900` or `24px`
+   cannot respond to a theme or a density change, and will be the modal that is
+   dark while the app is light. Name the role. Always.
+
+   SELECTOR SHAPE IS LOAD-BEARING. Every theme block below is written as
+   `:root, :root[data-theme='dark']` / `:root[data-theme='light']` - matching
+   specificity, dark first. Redeclaring any of these on a bare `:root` from
+   another file loses to `[data-theme]` (0,1,0 against 0,1,1) no matter what
+   order the files are imported in. If a colour "will not apply", this is why.
+   ========================================================================== */
+
+/* ==========================================================================
+   LAYER 1 - PRIMITIVES
+   Raw scales. No colour. Identical in every theme and every density.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------- type ---
+     Base is 14px, not 16px. OpenRisk is a console: a risk register, a control
+     table and a vulnerability queue all have to put a usable number of rows on
+     screen at once. Ratio is ~1.2 so adjacent steps stay distinguishable
+     without any step becoming marketing-sized. */
+  --text-2xs: 10.5px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 19px;
+  --text-xl: 23px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+
+  /* The marketing display scale. The console tops out at --text-3xl, which is
+     a console decision; a landing page needs more. Fluid, so one declaration
+     covers every viewport and no heading needs a breakpoint of its own. */
+  --display-1: clamp(2.75rem, 1.75rem + 4vw, 5rem);
+  --display-2: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
+  --display-3: clamp(1.625rem, 1.25rem + 1.5vw, 2.375rem);
+  --display-4: clamp(1.35rem, 1.1rem + 1.1vw, 1.75rem);
+  --lead: clamp(1.0625rem, 1rem + 0.3vw, 1.3125rem);
+
+  /* Data-bearing text is set tight; prose is not. */
+  --leading-none: 1;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* Four weights, and only four. A fifth renders as a synthesised face on
+     systems without the variable font and reads as a rendering fault. */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Negative on display sizes (large type is loose by default), positive only
+     on the uppercase micro-labels. */
+  --tracking-display: -0.02em;
+  --tracking-normal: 0;
+  --tracking-caps: 0.06em;
+  --tracking-eyebrow: 0.14em;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'DM Sans', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* --------------------------------------------------------------- space ---
+     4px grid. Half-steps exist only below 8px, where 2px is a real distinction
+     (icon-to-label) and 6px is not reachable from the grid. */
+  --space-0: 0px;
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* The marketing chapter rhythm. Not for console screens. */
+  --space-section: clamp(4.5rem, 2.75rem + 6vw, 7.5rem);
+  --space-section-sm: clamp(3.25rem, 2.25rem + 3.5vw, 5rem);
+
+  /* -------------------------------------------------------------- radius ---
+     Capped at 18px. A 24px corner reads as a phone app; a 0px corner reads as
+     a spreadsheet. OpenRisk sits between the two, on purpose. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* -------------------------------------------------------------- motion ---
+     Five durations and the longest is 400ms, reserved for a panel crossing the
+     screen. Anything a user does dozens of times an hour lives on --dur-fast
+     or --dur-base; that is the whole difference between a product that feels
+     quick and one that feels animated. */
+  --dur-instant: 90ms;
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+  --dur-panel: 400ms;
+
+  /* --ease-out for anything entering or settling. --ease-in for anything
+     leaving: an element that accelerates away reads as dismissed rather than
+     yanked. --ease-emphasized has a slight overshoot and is reserved for the
+     one signature move per surface. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.9, 0.25, 1.06);
+
+  --motion-hover: var(--dur-fast) var(--ease-out);
+  --motion-press: var(--dur-instant) var(--ease-out);
+  --motion-enter: var(--dur-base) var(--ease-out);
+  --motion-exit: var(--dur-fast) var(--ease-in);
+  --motion-panel: var(--dur-panel) var(--ease-out);
+
+  /* ------------------------------------------------------------- z-index ---
+     Named layers. The ordering is the contract; the numbers are spaced far
+     enough apart to insert a layer without renumbering. The one rule that
+     matters: a TOOLTIP outranks a MODAL, because a tooltip on a control inside
+     a dialog has to be readable. */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-header: 40;
+  --z-dropdown: 50;
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-popover: 80;
+  --z-toast: 90;
+  --z-tooltip: 100;
+
+  /* --------------------------------------------------------- breakpoints ---
+     Mirrors the Tailwind preset, so a container query or a matchMedia reads
+     the same numbers the utilities do. --bp-xs exists because at 390px the
+     header carries a logo, a language switch, a menu and the primary action.
+     --bp-3xl is the master-detail threshold: at 1920px a detail panel opens
+     BESIDE the list rather than over it. */
+  --bp-xs: 400px;
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+  --bp-3xl: 1920px;
+
+  /* ------------------------------------------------------------- density ---
+     Row rhythm for tables and lists. Comfortable is the default; an analyst
+     working a queue switches to compact and gets ~25% more rows out of the
+     same table, not a different table. */
+  --den-row: 40px;
+  --den-cell-y: 10px;
+  --den-gap: 12px;
+  --den-font: var(--text-base);
+
+  /* ---------------------------------------------------------------- focus ---
+     Geometry here; the colour is theme-scoped below. */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+}
+
+:root[data-density='compact'] {
+  --den-row: 32px;
+  --den-cell-y: 6px;
+  --den-gap: 8px;
+  --den-font: var(--text-sm);
+}
+
+:root[data-density='spacious'] {
+  --den-row: 48px;
+  --den-cell-y: 14px;
+  --den-gap: 16px;
+  --den-font: var(--text-base);
+}
+
+/* ==========================================================================
+   LAYER 2 - SEMANTIC ROLES, DARK
+   Dark is the default: `:root` and `[data-theme='dark']` carry the same block,
+   so a document with no stamp renders dark rather than unstyled.
+   ========================================================================== */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces. A four-step ramp, each step visible against the one below it
+     without a border. TRUE NEUTRALS, very slightly warm - they read as paper
+     and graphite rather than as a blue screen, and that single decision is
+     what makes an OpenRisk surface recognisable without a logo on it.
+     Not #000: black removes the ability to go darker, which a sunken well and
+     a scrim both need. */
+  --surface-0: #111111;   /* page canvas, furthest back */
+  --surface-1: #171717;   /* cards, panels, table body */
+  --surface-2: #1c1c1c;   /* raised: modals, dropdowns, popovers */
+  --surface-3: #242423;   /* hover/active on a raised element */
+  --surface-sunken: #0c0c0c;
+  --surface-overlay: rgba(8, 8, 8, 0.76);
+
+  --text-primary: #f6f4ef;
+  --text-secondary: #b5b2aa;
+  --text-muted: #8d8a83;
+  --text-inverse: #111111;
+
+  /* Borders are the primary hierarchy device in this system - rules do the
+     work drop shadows do elsewhere, which is why there are three of them. */
+  --border-subtle: #222221;
+  --border-default: #2e2e2c;
+  --border-strong: #43423f;
+  /* The edge of an actual CONTROL, as opposed to a decorative rule. WCAG
+     1.4.11 wants 3:1 on anything needed to identify a component, and
+     --border-strong does not reach it. An input's edge is not a divider. */
+  --border-control: #6b6a66;
+
+  /* THE SIGNATURE COLOUR. One accent, used FLAT - never as a gradient, never
+     with a glow. The ultramarine at the heart of the OpenRisk mark. */
+  --accent: #5b7cff;
+  --accent-hover: #7a94ff;
+  --accent-soft: rgba(91, 124, 255, 0.14);
+  --accent-line: rgba(91, 124, 255, 0.32);
+  --accent-400: #8aa1ff;
+  --accent-500: #6e8bff;   /* the step that is safe as small TEXT */
+  --accent-solid: #2547f0; /* dark enough for white text on a filled button */
+
+  --focus-ring-color: var(--accent);
+
+  /* Semantic. The `-text` variants are tuned to pass AA on their `-surface`. */
+  --success: #30d158;
+  --success-surface: #0e2716;
+  --success-text: #5fe07f;
+  --warning: #ff9f0a;
+  --warning-surface: #2c1c04;
+  --warning-text: #ffb545;
+  --danger: #ff453a;
+  --danger-surface: #2e0f0d;
+  --danger-text: #ff7b73;
+  --info: #64d2ff;
+  --info-surface: #0b2430;
+  --info-text: #7edcff;
+
+  /* Solid fills for buttons and badges. Distinct from the expressive colours
+     above: --danger is tuned to be readable AS TEXT on a neutral surface,
+     which makes it too light to sit UNDER text. These are identical in both
+     themes so a destructive button does not change meaning when the theme
+     flips. */
+  --danger-solid: #c81e14;
+  --success-solid: #1a7f3c;
+  --warning-solid: #9a5b00;
+  --info-solid: #0b6f96;
+  --text-on-solid: #ffffff;
+
+  /* Risk criticality. Five steps, and they are NOT the semantic colours: a
+     risk is a measurement, not a system state. */
+  --risk-low: #30d158;
+  --risk-moderate: #ffd426;
+  --risk-high: #ff9f0a;
+  --risk-critical: #ff453a;
+  --risk-extreme: #f2545f;
+
+  /* Visualisation. One categorical palette everywhere, so the same hue means
+     the same thing on two charts side by side. Ordered by distinguishability,
+     not by hue wheel: the first four stay separable for a 3-4 series chart
+     including under the two commonest colour-vision deficiencies, which is why
+     green and red are not adjacent and 5/6 move to violet and cyan.
+     A chart series is a CATEGORY, not a verdict - reusing --danger for
+     "series 4" is how a neutral bar chart ends up looking like an alert. */
+  --chart-1: #4f8dff;
+  --chart-2: #7c6cff;
+  --chart-3: #21c7a8;
+  --chart-4: #ff9f0a;
+  --chart-5: #f2545f;
+  --chart-6: #64d2ff;
+  --chart-7: #b692ff;
+  --chart-8: #8a94a8;
+
+  --chart-grid: #222221;
+  --chart-axis: #43423f;
+  --chart-label: #8d8a83;
+  --chart-track: #242423;
+
+  /* Topology graph. A node's severity is drawn from the risk scale above;
+     these are the states that are not severity. Warm-neutral to match the
+     surfaces - the cool #272c3a these inherited from the console reads as a
+     blue smudge on a #111111 ground. */
+  --graph-node: #242423;
+  --graph-node-stroke: #6b6a66;
+  --graph-edge: #43423f;
+  --graph-edge-active: var(--accent);
+  --graph-dimmed: 0.22;
+
+  /* Elevation. Deeper and softer than light, because a shadow on a dark
+     surface has less luminance range to work with. Used sparingly by design:
+     a shadow means "this floats above the page and can be dismissed", so
+     anything that cannot be dismissed does not get one. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --elev-2: 0 6px 22px rgba(0, 0, 0, 0.4);
+  --elev-3: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --elev-overlay: 0 24px 64px rgba(0, 0, 0, 0.6);
+
+  /* Hairlines and the measured field. Both neutral - the grid is a coordinate
+     space, not an atmosphere. */
+  --hairline: rgba(255, 255, 255, 0.075);
+  --grid-line: rgba(255, 255, 255, 0.035);
+}
+
+/* ==========================================================================
+   LAYER 2 - SEMANTIC ROLES, LIGHT
+   ========================================================================== */
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* The canvas is deliberately NOT white. Cards are white; the page behind
+     them is a step down, so a card reads as a card without a shadow to prove
+     it. Same warm neutral as dark, inverted. */
+  --surface-0: #f6f4ef;
+  --surface-1: #fdfcfa;
+  --surface-2: #ffffff;
+  --surface-3: #e9e6de;
+  --surface-sunken: #efece5;
+  /* The scrim stays dark in light mode on purpose: a modal needs the page
+     behind it pushed back, and a pale scrim reads as a rendering glitch. */
+  --surface-overlay: rgba(17, 17, 17, 0.42);
+
+  --text-primary: #111111;
+  --text-secondary: #4b4945;
+  --text-muted: #57554f;
+
+  --text-inverse: #f6f4ef;
+
+  --border-subtle: #e5e1d8;
+  --border-default: #d8d3c8;
+  --border-strong: #bdb8ab;
+  --border-control: #8a867a;
+
+  --accent: #1b3ae0;
+  --accent-hover: #142ec0;
+  --accent-soft: rgba(27, 58, 224, 0.09);
+  --accent-line: rgba(27, 58, 224, 0.26);
+  --accent-400: #2547f0;
+  --accent-500: #1b3ae0;
+  --accent-solid: #1b3ae0;
+
+  --focus-ring-color: var(--accent);
+
+  --success: #1a7f3c;
+  --success-surface: #e8f7ed;
+  --success-text: #15682f;
+  --warning: #9a5b00;
+  --warning-surface: #fdf1e0;
+  --warning-text: #7d4a00;
+  --danger: #c81e14;
+  --danger-surface: #fdecea;
+  --danger-text: #a5170f;
+  --info: #0b6f96;
+  --info-surface: #e6f4fa;
+  --info-text: #095b7b;
+
+  --danger-solid: #c81e14;
+  --success-solid: #1a7f3c;
+  --warning-solid: #9a5b00;
+  --info-solid: #0b6f96;
+  --text-on-solid: #ffffff;
+
+  --risk-low: #1a7f3c;
+  /* Dark enough to clear 4.5:1 as small text on its own tinted chip, which is
+     how it is actually used. A brighter yellow measured 3.62:1 there. */
+  --risk-moderate: #6b5300;
+  --risk-high: #9a5b00;
+  --risk-critical: #c81e14;
+  --risk-extreme: #96000d;
+
+  /* Same eight categories, same order, darkened so each clears 3:1 against the
+     canvas as a 2px line or a small mark (WCAG 1.4.11). The dark-theme values
+     wash out here - this is the half of chart theming that gets skipped, and
+     it is why light-mode dashboards usually look faded. */
+  --chart-1: #2563d1;
+  --chart-2: #6247d6;
+  --chart-3: #0e7a68;
+  --chart-4: #9a5b00;
+  --chart-5: #c0392f;
+  --chart-6: #0b6f96;
+  --chart-7: #8a5cc4;
+  --chart-8: #5b6376;
+
+  --chart-grid: #e5e1d8;
+  --chart-axis: #bdb8ab;
+  --chart-label: #57554f;
+  --chart-track: #e9e6de;
+
+  --graph-node: #ffffff;
+  --graph-node-stroke: #8a867a;
+  --graph-edge: #bdb8ab;
+  --graph-edge-active: var(--accent);
+  --graph-dimmed: 0.28;
+
+  /* Shallower and tighter than dark: on a light canvas a large soft shadow
+     reads as blur, not as height. */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(20, 22, 40, 0.07);
+  --elev-2: 0 6px 22px rgba(20, 22, 40, 0.09);
+  --elev-3: 0 16px 48px rgba(20, 22, 40, 0.14);
+  --elev-overlay: 0 24px 64px rgba(20, 22, 40, 0.22);
+
+  --hairline: rgba(17, 17, 17, 0.10);
+  --grid-line: rgba(17, 17, 17, 0.05);
+}
+
+/* ==========================================================================
+   LAYER 3 - COMPONENT TOKENS
+
+   A component token exists for one reason: two components have to agree on a
+   value that is not a raw scale step. A button and an input must be the same
+   height or a filter bar looks broken; a drawer and a modal must travel the
+   same distance or opening one after the other feels like two products.
+
+   The rule for adding one: it is shared by more than one component, OR it is a
+   value a screen would otherwise hardcode to line something up. A token used
+   by exactly one component that nothing aligns with is that component's CSS
+   and belongs in the component.
+   ========================================================================== */
+
+:root {
+  /* One height ramp shared by button, input, select, combobox and search, so a
+     toolbar built from four different components still lines up. 36px is the
+     default: it clears the 24x24 minimum target of WCAG 2.5.8 with room to
+     spare while staying dense enough for a filter bar. */
+  --control-h-sm: 28px;
+  --control-h-md: 36px;
+  --control-h-lg: 44px;
+  --control-px-sm: var(--space-2);
+  --control-px-md: var(--space-3);
+  --control-px-lg: var(--space-4);
+  --control-radius: var(--radius-md);
+  --control-radius-sm: var(--radius-sm);
+  --control-gap: var(--space-1-5);
+
+  /* Badges are not controls: they are read, not pressed, so they are smaller
+     and rounder. */
+  --badge-h: 20px;
+  --badge-px: var(--space-2);
+  --badge-radius: var(--radius-full);
+  --badge-font: var(--text-2xs);
+
+  /* Cards. Radius is the large step, not the extra large one: cards nest
+     inside page frames, and an 18px corner inside a 14px corner reads as a
+     mistake. */
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-5);
+  --card-padding-compact: var(--space-4);
+
+  /* Panels. A small named set rather than a free number, because "how wide is
+     the edit dialog" should have the same answer in every feature. */
+  --modal-w-sm: 380px;
+  --modal-w-md: 520px;
+  --modal-w-lg: 720px;
+  --modal-w-xl: 960px;
+  --modal-radius: var(--radius-lg);
+  --modal-padding: var(--space-5);
+  --modal-max-h: 90vh;
+
+  --drawer-w-sm: 380px;
+  --drawer-w-md: 480px;
+  --drawer-w-lg: 620px;
+  --drawer-w-xl: 780px;
+
+  /* Backdrop blur is 4px, not 20px. A heavy blur is the single most common
+     "premium" tell, and it costs a full-screen filter pass on every frame of
+     the open animation; 4px is enough to push the page back behind a scrim
+     that is already doing most of the work. */
+  --overlay-blur: 4px;
+
+  /* Tables. Row rhythm comes from the --den-* tokens; these are the parts that
+     do not change with density. */
+  --table-header-h: 34px;
+  --table-cell-px: var(--space-3);
+  --table-radius: var(--radius-lg);
+
+  /* THE KEYLINE - the OpenRisk signature. A 2px accent rule marking the active
+     element: the selected nav item, the current tab, the focused panel, the
+     row you are acting on. It replaces the filled-pill / glow / gradient
+     vocabulary that makes every dashboard look like every other dashboard, and
+     it costs one border instead of a background. Where another product would
+     fill something, OpenRisk draws a line beside it. */
+  --keyline-w: 2px;
+
+  /* Layout. Prose caps at 68ch for readability; a data page runs wider because
+     a table with nine columns needs the room. */
+  --content-max: 1180px;
+  --content-max-wide: 1320px;
+  --prose-max: 68ch;
+  --shell-max: 76rem;          /* marketing shell */
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 64px;
+  --header-h: 56px;            /* console */
+  --header-h-site: 64px;       /* marketing */
+}
+
+/* ==========================================================================
+   BASE - the few global rules the token contract implies
+   ========================================================================== */
+
+/* One focus treatment for every interactive element, everywhere. :focus-visible
+   keeps it off for pointer users while guaranteeing it for keyboard. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* A visitor who asked their OS to stop moving things gets a product that does
+   not move. Not "moves less" - the smooth-scroll jump on an in-page anchor is
+   itself motion, and it is the one that most reliably triggers vestibular
+   symptoms. Note that collapsing durations stops the ANIMATION but still moves
+   the element: any hover transform must ALSO be neutralised, per component. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

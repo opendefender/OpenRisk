@@ -62,7 +62,7 @@ const HEALTH_META: Record<RuleHealth, { color: string; fr: string; en: string }>
   degraded: { color: 'var(--medium)', fr: 'Dégradée', en: 'Degraded' },
   failing: { color: 'var(--critical)', fr: 'En échec', en: 'Failing' },
   suspended: { color: 'var(--text-secondary)', fr: 'Suspendue', en: 'Suspended' },
-  idle: { color: 'var(--accent)', fr: 'En attente', en: 'Waiting' },
+  idle: { color: 'var(--accent-500)', fr: 'En attente', en: 'Waiting' },
 };
 
 export function AutomationPage() {
@@ -204,7 +204,7 @@ function RulesView({
           ))}
           {canWrite && (
             <button onClick={() => setShowTemplates(true)}
-              className="ml-auto inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>
+              className="ml-auto inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--accent-500)' }}>
               <Sparkles size={13} /> {tr('Modèles prêts à l’emploi', 'Ready-made templates')}
             </button>
           )}
@@ -269,7 +269,7 @@ function RulesView({
                 {/* Testing is read-only, so it is offered to readers too. */}
                 <button title={tr('Tester sans rien exécuter', 'Test without running anything')} onClick={() => setTesting(r)}
                   className="h-8 px-2.5 rounded-[8px] flex items-center gap-1.5 text-[12px] font-semibold"
-                  style={{ background: 'var(--bg-hover)', color: 'var(--accent)' }}>
+                  style={{ background: 'var(--bg-hover)', color: 'var(--accent-500)' }}>
                   <FlaskConical size={14} /> {tr('Tester', 'Test')}
                 </button>
                 {canWrite && (
@@ -330,7 +330,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
           <div>
             <h2 className="text-[15px] font-bold text-ink inline-flex items-center gap-2">
-              <Sparkles size={16} style={{ color: 'var(--accent)' }} />
+              <Sparkles size={16} style={{ color: 'var(--accent-500)' }} />
               {tr('Modèles prêts à l’emploi', 'Ready-made templates')}
             </h2>
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -514,7 +514,7 @@ function HistoryView() {
               {canWrite && (
                 <button title={tr('Rejouer avec les mêmes données', 'Replay with the same input')} onClick={() => replay(e.id)}
                   className="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--bg-hover)', color: 'var(--accent)' }}>
+                  style={{ background: 'var(--bg-hover)', color: 'var(--accent-500)' }}>
                   <RotateCcw size={14} />
                 </button>
               )}
@@ -724,7 +724,7 @@ function ChannelsView({ canWrite }: { canWrite: boolean }) {
               </span>
               <button onClick={() => runTest(key)} disabled={isTesting}
                 className="ml-auto h-8 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold"
-                style={{ background: 'var(--bg-hover)', color: 'var(--accent)' }}>
+                style={{ background: 'var(--bg-hover)', color: 'var(--accent-500)' }}>
                 {isTesting ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />}
                 {tr('Tester', 'Test')}
               </button>

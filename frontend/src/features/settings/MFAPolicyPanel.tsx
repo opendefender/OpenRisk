@@ -196,7 +196,7 @@ export function MFAAccountPanel() {
           <span className="text-[13px] text-ink-soft">
             {tr("État du MFA indisponible pour le moment.", 'MFA status unavailable right now.')}
           </span>
-          <button type="button" onClick={() => void refetch()} className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+          <button type="button" onClick={() => void refetch()} className="text-[13px] font-semibold" style={{ color: 'var(--accent-500)' }}>
             {tr('Réessayer', 'Retry')}
           </button>
         </div>

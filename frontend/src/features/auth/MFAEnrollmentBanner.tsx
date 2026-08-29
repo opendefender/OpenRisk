@@ -166,7 +166,7 @@ export function MFAEnrollmentBanner() {
           type="button"
           onClick={() => void refetch()}
           className="text-[12.5px] font-semibold shrink-0"
-          style={{ color: 'var(--accent)' }}
+          style={{ color: 'var(--accent-500)' }}
         >
           {tr('Réessayer', 'Retry')}
         </button>

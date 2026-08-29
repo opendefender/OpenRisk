@@ -180,7 +180,7 @@ export function CveDetailDrawer({
                 target="_blank"
                 rel="noreferrer noopener"
                 className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
-                style={{ color: 'var(--accent)' }}
+                style={{ color: 'var(--accent-500)' }}
               >
                 {tr('Voir sur le NVD', 'View on the NVD')} <ExternalLink size={13} />
               </a>

@@ -170,7 +170,7 @@ export function RuleEditorModal({
           {/* Trigger */}
           <div>
             <div className={lbl}>
-              <span style={{ color: 'var(--accent)' }}>{tr('QUAND', 'WHEN')}</span>{' '}
+              <span style={{ color: 'var(--accent-500)' }}>{tr('QUAND', 'WHEN')}</span>{' '}
               {tr('cet événement survient', 'this happens')}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -195,7 +195,7 @@ export function RuleEditorModal({
           {/* Conditions */}
           <div>
             <div className={lbl}>
-              <span style={{ color: 'var(--accent)' }}>{tr('SI', 'IF')}</span>{' '}
+              <span style={{ color: 'var(--accent-500)' }}>{tr('SI', 'IF')}</span>{' '}
               {tr('ces conditions sont réunies (optionnel — sans condition, la règle s’applique à tout)',
                   'these conditions hold (optional — with none, the rule matches everything)')}
             </div>
@@ -227,7 +227,7 @@ export function RuleEditorModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <div className={lbl + ' mb-0'}>
-                <span style={{ color: 'var(--accent)' }}>{tr('ALORS', 'THEN')}</span>{' '}
+                <span style={{ color: 'var(--accent-500)' }}>{tr('ALORS', 'THEN')}</span>{' '}
                 {tr('faire ceci, dans cet ordre', 'do this, in this order')}
               </div>
             </div>

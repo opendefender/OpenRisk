@@ -327,7 +327,7 @@ export function UserPicker({
                           {tr('sans droit', 'no access')}
                         </span>
                       ) : null}
-                      {isSelected ? <Check size={14} style={{ color: 'var(--accent)' }} /> : null}
+                      {isSelected ? <Check size={14} style={{ color: 'var(--accent-500)' }} /> : null}
                     </button>
                   );
                 })}

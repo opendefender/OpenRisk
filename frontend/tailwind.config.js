@@ -26,6 +26,9 @@ export default {
   theme: {
     // Mirrors --bp-* in primitives.css. 3xl is the master-detail threshold.
     screens: {
+      // At 390px the header carries a logo, a language switch, a menu and the
+      // primary action. This is the stop where something has to give.
+      xs: '400px',
       sm: '640px',
       md: '768px',
       lg: '1024px',
@@ -54,10 +57,23 @@ export default {
         xl: ['var(--text-xl)', { lineHeight: 'var(--leading-tight)' }],
         '2xl': ['var(--text-2xl)', { lineHeight: 'var(--leading-tight)' }],
         '3xl': ['var(--text-3xl)', { lineHeight: 'var(--leading-tight)' }],
+
+        /* The display scale. Fluid, so no heading needs a breakpoint of its
+           own, and the line height and tracking are baked in for the same
+           reason the console steps are: a size is half a typographic decision
+           and the other half is what goes missing. Used by the surfaces that
+           are read rather than scanned — sign-in, empty states, upgrade. */
+        eyebrow: ['0.6875rem', { lineHeight: '1rem', letterSpacing: 'var(--tracking-eyebrow)' }],
+        'display-1': ['var(--display-1)', { lineHeight: '1.02', letterSpacing: '-0.034em' }],
+        'display-2': ['var(--display-2)', { lineHeight: '1.08', letterSpacing: '-0.028em' }],
+        'display-3': ['var(--display-3)', { lineHeight: '1.16', letterSpacing: '-0.022em' }],
+        'display-4': ['var(--display-4)', { lineHeight: '1.25', letterSpacing: '-0.015em' }],
+        lead: ['var(--lead)', { lineHeight: '1.55', letterSpacing: '-0.008em' }],
       },
       letterSpacing: {
         display: 'var(--tracking-display)',
         caps: 'var(--tracking-caps)',
+        eyebrow: 'var(--tracking-eyebrow)',
       },
       lineHeight: {
         none: 'var(--leading-none)',
@@ -103,6 +119,16 @@ export default {
           text: 'var(--danger-text)',
           solid: 'var(--danger-solid)',
         },
+        // The accent step that is safe as small TEXT in both themes. `accent` is
+        // the MARK — a keyline, an active border, a fill — and is held to 3:1;
+        // this one carries the 4.5:1 that a label needs. `text-accent` already
+        // resolves here (see textColor below), so reach for this name when the
+        // accent has to colour something that is not text but sits next to it.
+        'accent-strong': 'var(--accent-500)',
+        // Hairlines and the measured field. Both neutral: a grid is a
+        // coordinate space, not an atmosphere.
+        hairline: 'var(--hairline)',
+        'grid-line': 'var(--grid-line)',
         'success-solid': 'var(--success-solid)',
         'warning-solid': 'var(--warning-solid)',
         'info-solid': 'var(--info-solid)',
@@ -178,12 +204,60 @@ export default {
           active: 'var(--graph-edge-active)',
         },
       },
+      /* `text-accent` resolves to the TEXT step, `bg-accent` and `border-accent`
+         to the MARK. One utility name cannot fork by property, so the fork is
+         declared here — which is what lets the signature ultramarine stay the
+         signature ultramarine on a rule while every accent LABEL in the product
+         still clears 4.5:1 on every surface it can land on. The rest of the
+         accent keys are repeated verbatim; a bare string here would replace the
+         whole nested object and silently delete `text-accent-hover`. */
+      textColor: {
+        accent: {
+          DEFAULT: 'var(--accent-500)',
+          strong: 'var(--accent-500)',
+          hover: 'var(--accent-hover)',
+          2: 'var(--accent-2)',
+          soft: 'var(--accent-soft)',
+          line: 'var(--accent-line)',
+          glow: 'var(--accent-glow)',
+        },
+      },
+
       borderColor: {
         DEFAULT: 'var(--border-default)',
         subtle: 'var(--border-subtle)',
         strong: 'var(--border-strong)',
         control: 'var(--border-control)',
       },
+      /* THE KEYLINE — the OpenRisk signature. A 2px accent rule marking the
+         active element: the selected nav item, the current tab, the focused
+         panel, the row being acted on. It replaces the filled-pill / glow /
+         gradient vocabulary that makes every dashboard look like every other
+         dashboard, and it costs one border instead of a background. Until now
+         the token existed with no utility to spend it through. */
+      borderWidth: {
+        keyline: 'var(--keyline-w)',
+      },
+
+      maxWidth: {
+        content: 'var(--content-max)',
+        'content-wide': 'var(--content-max-wide)',
+        prose: 'var(--prose-max)',
+        shell: 'var(--shell-max)',
+      },
+
+      spacing: {
+        section: 'var(--space-section)',
+        'section-sm': 'var(--space-section-sm)',
+        /* Density-aware: a row built from these responds to the density switch
+           without the component knowing which density is active. */
+        row: 'var(--den-row)',
+        'cell-y': 'var(--den-cell-y)',
+        control: 'var(--control-h-md)',
+        header: 'var(--header-h)',
+        sidebar: 'var(--sidebar-w)',
+      },
+
       borderRadius: {
         xs: 'var(--radius-xs)',
         sm: 'var(--radius-sm)',

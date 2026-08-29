@@ -728,7 +728,7 @@ export function DataTable<T>({
         <div
           data-testid="select-scope-banner"
           className="mb-2 px-3 py-2 rounded-[10px] text-[12.5px] flex flex-wrap items-center gap-2"
-          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
         >
           <span>{allMatching ? L.allMatchingSelected(resultCount) : L.pageSelected(pageIds.length)}</span>
           {allMatching ? (

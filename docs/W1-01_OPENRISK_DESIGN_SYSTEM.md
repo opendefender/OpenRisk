@@ -41,13 +41,17 @@ data and decide what to do about it. Everything below follows from that:
 
 ## Visual Direction
 
-### The neutral is not grey
+### The neutral is warm, and it is true
 
-Both ramps are built on a single cool hue (~228°) at very low chroma. It is the
-quietest decision in the system and it does the most work: at a glance the
-canvas reads as neutral, side by side with true grey it reads as deliberate, and
-it puts the accent blue and the whole risk scale on a field they already belong
-to. It costs nothing at render time.
+Both ramps are true neutrals, very slightly warm: they read as paper and
+graphite rather than as a blue screen. It is the quietest decision in the system
+and it does the most work — it is what makes an OpenRisk surface recognisable
+without a logo on it, and it costs nothing at render time.
+
+This replaces the cool ~228° ramp W1-01 originally shipped. That ramp was
+defensible on its own terms, but it put the accent, the risk scale and every
+chart series on a field that was already competing with them, and it was not
+what the canonical design system specifies. See "The canonical contract" below.
 
 ### The keyline
 
@@ -110,7 +114,7 @@ Defined in `tokens.css`, per theme. Components name a **role**, never a colour.
 | Surface ramp | `--surface-0` canvas · `--surface-1` cards · `--surface-2` raised · `--surface-3` hover-on-raised · `--surface-sunken` · `--surface-overlay` scrim |
 | Text | `--text-primary` · `--text-secondary` · `--text-muted` · `--text-inverse` · `--text-on-solid` |
 | Border | `--border-subtle` divider · `--border-default` · `--border-strong` · `--border-control` (the edge that identifies a control, ≥3:1) |
-| Accent | `--accent-50…900` ramp · `--accent` live (per theme AND per variant) · `--accent-solid` for fills |
+| Accent | `--accent` the MARK (rules, keylines, fills; 3:1) · `--accent-500` the TEXT step, exposed as `accent-strong` and as `text-accent` (4.5:1 on every surface) · `--accent-hover` · `--accent-soft`/`-line` tints · `--accent-solid` for fills. Live per theme AND per variant |
 | Semantic | `--success` / `--warning` / `--danger` / `--info`, each with `-surface` and `-text` |
 | Solid fills | `--danger-solid` · `--success-solid` · `--warning-solid` · `--info-solid` · `--accent-solid` — identical in both themes, so a destructive button does not change meaning when the theme flips |
 | Risk scale | `--risk-low` · `--risk-moderate` · `--risk-high` · `--risk-critical` · `--risk-extreme` |
@@ -244,7 +248,7 @@ write; measured style recalculation is **1.6ms p50** (see the live proof).
 
 ### White Mode
 
-The canvas is deliberately **not** white: `--surface-0` is `#ecedf2` and cards
+The canvas is deliberately **not** white: `--surface-0` is `#f6f4ef` and cards
 are white, so a card reads as a card without needing a shadow to prove it.
 Shadows are shallower and tighter than in dark — on a light canvas a large soft
 shadow reads as blur, not as height. Semantic colours are darker than their
@@ -253,7 +257,7 @@ tints are very light.
 
 ### Dark Mode
 
-A four-step ramp from `#0a0c12`, each step visible against the one below it
+A four-step ramp from `#111111`, each step visible against the one below it
 without a border. Not black: `#000` removes the ability to go darker, which both
 a sunken well and a scrim need. Shadows are deeper and softer. The scrim behind a
 modal stays dark in *both* themes — a pale scrim reads as a rendering glitch.
@@ -271,11 +275,55 @@ accent.
 
 ### Accent variants
 
-`azure` (default) and `iris`, chosen by the user in Settings, applied as
-`data-variant`. **Each has two definitions, one per theme.** They previously had
-one, which is why every `text-accent` in the product measured 3.65:1 on white: a
-hue bright enough to read on a dark surface is by construction too light to read
-on a pale one.
+`azure` and `iris`, chosen by the user in Settings, applied as `data-variant`.
+They are a **product** feature and are not part of the canonical design system,
+which declares one accent; they live below the contract in `tokens.css` and
+override only the accent.
+
+**Each has two definitions, one per theme.** They previously had one, which is
+why every `text-accent` in the product measured 3.65:1 on white: a hue bright
+enough to read on a dark surface is by construction too light to read on a pale
+one.
+
+Each variant also declares `--accent-500` alongside `--accent`. A variant that
+set only the latter would leave every accent-coloured *label* in the product on
+the default ultramarine while its rules and fills turned violet. Both variants
+already clear 4.5:1 on every warm surface at their existing values, so the two
+steps coincide for them — `check-contrast.mjs` is what proves that, per variant,
+per theme, rather than the sentence you are reading.
+
+### The canonical contract
+
+The token *values* are not this repository's to choose. They are authored in
+`opendefender-website/design-system/openrisk.tokens.css`, which is the single
+source of truth for both surfaces — the console and the marketing site — and a
+verbatim copy is vendored here at `frontend/design-system/openrisk.tokens.css`.
+
+The product does not import it. It cannot: the console carries three things a
+shared contract has no room for — the azure/iris accent variants, the
+`--select-caret` glyph, and ~2000 call sites' worth of legacy aliases. So the
+copy is **compared against** instead:
+
+```
+npm run check:tokens        # drift + contrast, both blocking in CI
+```
+
+`check-design-system.mjs` asserts that every token the canonical file declares
+has the same value in the same scope here. Tokens the product adds on top are
+its own business and are ignored. Six differences are deliberate and recorded in
+that script with their reasons; an unlisted difference fails the build.
+
+Two of those six are worth naming, because they are the only places this product
+knowingly departs from the shared contract, and both depart *upward*:
+
+| Token | Canonical | Here | Why |
+| --- | --- | --- | --- |
+| `--border-control` | `#6b6a66` / `#8a867a` | `#767570` / `#7c786d` | Canonical measures 2.87:1 and 2.92:1 against `--surface-3`, which is where a control sits while it is hovered. Raised to clear WCAG 1.4.11 on every surface a control can rest on. |
+| `--graph-edge` | a decorative dim | `var(--border-control)` | In the console a graph edge *carries the topology* — it is the only thing saying which asset feeds which — so it is held to 3:1 like any other meaningful non-text mark. |
+
+The direction of the contract matters: fix the product, or fix upstream and
+re-vendor. Editing the vendored copy to make the check pass inverts it, and the
+next person to sync from upstream silently reverts you.
 
 ---
 
