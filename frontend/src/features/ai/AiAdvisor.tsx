@@ -114,8 +114,8 @@ export function AiAdvisor() {
             x.role === 'ai' ? (
               <div key={i} className="flex gap-3.5">
                 <div
-                  className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary shrink-0"
-                  style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 2px 10px var(--accent-glow)' }}
+                  className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-accent-strong shrink-0"
+                  style={{ background: 'var(--accent-soft)' }}
                 >
                   <Sparkles size={18} />
                 </div>
@@ -152,8 +152,8 @@ export function AiAdvisor() {
           {ask.isPending && (
             <div className="flex gap-3.5 items-center">
               <div
-                className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-text-primary shrink-0"
-                style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
+                className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-accent-strong shrink-0"
+                style={{ background: 'var(--accent-soft)' }}
               >
                 <Sparkles size={18} />
               </div>
@@ -196,7 +196,7 @@ export function AiAdvisor() {
               onClick={() => send()}
               disabled={ask.isPending}
               className="w-12 h-12 rounded-[14px] flex items-center justify-center text-text-primary shrink-0 disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
+              style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
             >
               {ask.isPending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
             </button>

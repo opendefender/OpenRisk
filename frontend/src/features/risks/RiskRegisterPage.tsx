@@ -889,7 +889,7 @@ function DrawerAI({ r }: { r: UiRisk }) {
         onClick={() => plan.mutate({ riskId: r.id, locale })}
         disabled={plan.isPending}
         className="w-full h-11 rounded-[12px] flex items-center justify-center gap-2 text-text-primary text-[13.5px] font-semibold disabled:opacity-60"
-        style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 2px 12px var(--accent-glow)' }}
+        style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
       >
         {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {plan.isPending ? tr('Génération…', 'Generating…') : res ? tr('Régénérer', 'Regenerate') : tr('Générer avec l’IA', 'Generate with AI')}
@@ -1169,7 +1169,7 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
           <ShieldCheck size={16} /> {tr(`Voir les mitigations (${mitiCount})`, `View mitigations (${mitiCount})`)}
         </button>
       ) : (
-        <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-all hover:brightness-110" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+        <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid transition-all hover:brightness-110" style={{ background: 'var(--accent-solid)' }}>
           <ShieldCheck size={16} /> {L.createMiti}
         </button>
       )}
@@ -1423,7 +1423,7 @@ function DrawerFinancial({ r }: { r: UiRisk }) {
               <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-3 w-full accent-[var(--accent)]" />
             </label>
           </div>
-          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
             <Coins size={16} /> {tr('Recalculer l’exposition', 'Recalculate exposure')}
           </button>
           <div className="text-[11px] text-ink-muted mt-2">{tr('SLE explicite prioritaire ; sinon composé depuis interruptions + amendes + perte de données ; sinon référence par criticité.', 'Explicit SLE wins; else composed from downtime + fines + data loss; else reference by criticality.')}</div>

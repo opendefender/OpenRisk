@@ -111,9 +111,8 @@ function StepShell({
           data-testid="wizard-next"
           className="h-11 px-5 rounded-[10px] text-[13.5px] font-semibold inline-flex items-center gap-2 disabled:opacity-50"
           style={{
-            background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-            color: '#fff',
-            boxShadow: '0 3px 12px var(--accent-glow)',
+            background: 'var(--accent-solid)',
+            color: 'var(--text-on-solid)',
           }}
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : null}
@@ -631,8 +630,8 @@ export function FrameworkStep() {
                         color: 'var(--low)',
                       }
                     : {
-                        background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-                        color: '#fff',
+                        background: 'var(--accent-solid)',
+                        color: 'var(--text-on-solid)',
                       }
                 }
               >

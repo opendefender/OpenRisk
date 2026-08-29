@@ -35,7 +35,7 @@ export function UpsellLock({ title, description, ctaLabel, onUpgrade, moment, ch
         style={{ background: 'radial-gradient(120% 90% at 50% 30%, transparent, var(--bg-primary) 78%)' }}
       >
         <div className="max-w-sm" style={{ animation: 'or-fadeup .4s ease' }}>
-          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', boxShadow: '0 4px 16px var(--accent-glow)' }}>
+          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center text-accent-strong" style={{ background: 'var(--accent-soft)' }}>
             <Lock size={22} />
           </div>
           {moment && (
@@ -48,7 +48,7 @@ export function UpsellLock({ title, description, ctaLabel, onUpgrade, moment, ch
           <button
             onClick={onUpgrade}
             className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-text-primary transition-[filter] hover:brightness-110"
-            style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 4px 14px var(--accent-glow)' }}
+            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             {ctaLabel} <ArrowRight size={16} />
           </button>

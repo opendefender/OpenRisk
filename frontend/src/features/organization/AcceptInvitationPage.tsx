@@ -177,7 +177,7 @@ export function AcceptInvitationPage() {
               </p>
               <button onClick={() => navigate('/')}
                 className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold inline-flex items-center justify-center gap-2"
-                style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', color: 'var(--text-on-solid)' }}>
+                style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
                 {tr("Ouvrir OpenRisk", 'Open OpenRisk')} <ArrowRight size={16} />
               </button>
             </div>
@@ -255,7 +255,7 @@ export function AcceptInvitationPage() {
 
                 <button type="submit" disabled={submitting}
                   className="w-full h-[44px] rounded-[10px] text-[14px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', color: 'var(--text-on-solid)' }}>
+                  style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
                   {submitting && <Loader2 size={15} className="animate-spin" />}
                   {submitting
                     ? tr('Un instant…', 'One moment…')

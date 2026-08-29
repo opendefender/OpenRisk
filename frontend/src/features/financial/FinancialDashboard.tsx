@@ -570,7 +570,7 @@ function SimulatorCard({ rows, summary, lang, tr, onExplain }: { rows: TopRiskFi
         <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-2 w-full accent-[var(--accent)]" />
       </label>
 
-      <button onClick={run} disabled={!riskId || sim.isPending} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+      <button onClick={run} disabled={!riskId || sim.isPending} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)' }}>
         <Coins size={16} /> {tr('Calculer le retour', 'Compute return')}
       </button>
 

@@ -297,7 +297,7 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
       <div style={cascade(0, reduced)}>
         <div
           className="w-11 h-11 rounded-[13px] flex items-center justify-center mb-4"
-          style={{ background: 'var(--accent-glow)', color: 'var(--accent-500)' }}
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
         >
           <ShieldCheck size={22} />
         </div>

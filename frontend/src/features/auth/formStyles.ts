@@ -25,6 +25,5 @@ export const primaryBtn =
   'w-full h-[46px] rounded-xl text-[14px] font-semibold text-text-primary transition-opacity';
 
 export const primaryStyle: React.CSSProperties = {
-  background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-  boxShadow: '0 4px 16px var(--accent-glow)',
+  background: 'var(--accent-solid)', color: 'var(--text-on-solid)',
 };

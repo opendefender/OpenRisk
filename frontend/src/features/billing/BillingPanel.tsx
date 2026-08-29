@@ -190,7 +190,6 @@ export function BillingPanel() {
               style={{
                 background: 'var(--bg-elev)',
                 border: `1px solid ${plan === 'pro' ? 'var(--accent)' : 'var(--border)'}`,
-                boxShadow: plan === 'pro' ? '0 4px 20px var(--accent-glow)' : 'none',
               }}
             >
               <div className="flex items-center gap-1.5">
@@ -213,7 +212,7 @@ export function BillingPanel() {
                 style={
                   isCurrent
                     ? { border: '1px solid var(--border)', color: 'var(--ink-soft)' }
-                    : { background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', color: 'var(--text-primary)' }
+                    : { background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }
                 }
               >
                 {isCurrent

@@ -212,7 +212,7 @@ export function MFAEnrollmentBanner() {
             type="button"
             onClick={() => setDialogOpen(true)}
             className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-text-primary transition-all"
-            style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
+            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             {copy.cta}
           </button>

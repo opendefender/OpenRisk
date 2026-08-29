@@ -133,7 +133,7 @@ export function MFAPostAhaPrompt() {
             type="button"
             onClick={() => setEnrolling(true)}
             className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary transition-all"
-            style={{ border: 'none', background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', boxShadow: '0 3px 12px var(--accent-glow)' }}
+            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             {tr('Activer le MFA', 'Enable MFA')}
           </button>

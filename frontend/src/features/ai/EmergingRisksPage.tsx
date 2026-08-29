@@ -44,7 +44,7 @@ export function EmergingRisksPage() {
   return (
     <div className="max-w-[900px] mx-auto px-6 py-7">
       <div className="flex items-center gap-3 mb-1.5">
-        <div className="w-9 h-9 rounded-[11px] flex items-center justify-center text-text-primary" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}>
+        <div className="w-9 h-9 rounded-[11px] flex items-center justify-center text-accent-strong" style={{ background: 'var(--accent-soft)' }}>
           <Sparkles size={19} />
         </div>
         <h1 className="disp text-[22px] font-bold text-ink">{tr('Détection de risques émergents', 'Emerging risk detection')}</h1>
@@ -90,7 +90,7 @@ export function EmergingRisksPage() {
             onClick={analyze}
             disabled={detect.isPending || !text.trim()}
             className="h-10 px-5 rounded-[11px] flex items-center gap-2 text-text-primary text-[13px] font-semibold disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
+            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             {detect.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {detect.isPending ? tr('Analyse…', 'Analysing…') : tr('Analyser avec l’IA', 'Analyse with AI')}
