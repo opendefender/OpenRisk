@@ -35,7 +35,7 @@ interface RoleWithPermissions extends Role {
 
 const levelLabels: Record<number, { name: string; color: string; badge: string }> = {
   0: { name: 'Viewer', color: 'bg-surface-3', badge: 'text-text-secondary' },
-  3: { name: 'Analyst', color: 'bg-accent-500', badge: 'text-info-text' },
+  3: { name: 'Analyst', color: 'bg-accent', badge: 'text-info-text' },
   6: { name: 'Manager', color: 'bg-purple-500', badge: 'text-purple-300' },
   9: { name: 'Admin', color: 'bg-danger', badge: 'text-danger-text' },
 };
@@ -160,7 +160,7 @@ export const RoleManagement = () => {
 
   const getResourceColor = (resource: string) => {
     const colors: Record<string, string> = {
-      reports: 'bg-accent-500/10 text-info-text border-accent-400/20',
+      reports: 'bg-accent-soft text-info-text border-accent-line',
       audit: 'bg-warning/10 text-warning-text border-warning/20',
       connector: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
       user: 'bg-success/10 text-success-text border-success/20',

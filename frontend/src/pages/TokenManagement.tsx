@@ -269,7 +269,7 @@ export const TokenManagement = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., CI/CD Pipeline, DataSync"
-                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-400"
+                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent"
                 />
               </div>
               <div>
@@ -280,7 +280,7 @@ export const TokenManagement = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="What is this token for?"
-                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-400 resize-none"
+                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
                   rows={3}
                 />
               </div>
@@ -308,7 +308,7 @@ export const TokenManagement = () => {
             placeholder="Search tokens..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-surface-1 border border-border-subtle rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-400"
+            className="flex-1 bg-surface-1 border border-border-subtle rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent"
           />
         </div>
 
@@ -380,7 +380,7 @@ export const TokenManagement = () => {
                           {token.permissions.map((perm) => (
                             <span
                               key={perm}
-                              className="text-xs bg-accent-500/10 text-info-text border border-accent-400/20 rounded px-2 py-1"
+                              className="text-xs bg-accent-soft text-info-text border border-accent-line rounded px-2 py-1"
                             >
                               {perm}
                             </span>
@@ -394,7 +394,7 @@ export const TokenManagement = () => {
                       <>
                         <button
                           onClick={() => handleRotateToken(token.id)}
-                          className="p-2 text-info-text hover:bg-accent-500/10 rounded transition"
+                          className="p-2 text-info-text hover:bg-accent-soft rounded transition"
                           title="Rotate token"
                         >
                           <ChevronDown className="w-4 h-4" />

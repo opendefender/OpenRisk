@@ -32,7 +32,7 @@ type KanbanColumn = MitigationStatus;
 
 const KANBAN_COLUMNS: Array<{ id: KanbanColumn; label: string; color: string }> = [
   { id: 'TODO', label: 'À faire', color: 'bg-surface-3/20' },
-  { id: 'IN_PROGRESS', label: 'En cours', color: 'bg-accent-500/20' },
+  { id: 'IN_PROGRESS', label: 'En cours', color: 'bg-accent-soft' },
   { id: 'REVIEW', label: 'Vérification', color: 'bg-warning/20' },
   { id: 'DONE', label: 'Complété', color: 'bg-success/20' },
 ];

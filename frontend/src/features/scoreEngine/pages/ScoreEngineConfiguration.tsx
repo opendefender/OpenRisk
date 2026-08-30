@@ -149,7 +149,7 @@ export const ScoreEngineConfiguration = () => {
                 onClick={() => !isEditing && handleEdit(configs.default)}
                 className={`w-full text-left p-4 border rounded-lg transition-all ${
                   selectedConfig?.id === 'default'
-                    ? 'bg-accent-500/10 border-accent-400'
+                    ? 'bg-accent-soft border-accent'
                     : 'bg-surface-1 border-border-default hover:border-border-default'
                 }`}
                 disabled={isEditing}

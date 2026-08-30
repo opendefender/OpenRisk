@@ -38,7 +38,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
       case 'warning':
         return 'border-l-4 border-warning bg-warning-surface';
       default:
-        return 'border-l-4 border-accent-400 bg-info-surface';
+        return 'border-l-4 border-accent bg-info-surface';
     }
   };
 

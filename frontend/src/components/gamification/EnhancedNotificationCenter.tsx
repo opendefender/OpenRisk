@@ -94,14 +94,14 @@ export const EnhancedNotificationCenter = () => {
       milestone: {
         icon: Zap,
         color: 'text-info-text',
-        bg: 'bg-accent-500/10',
+        bg: 'bg-accent-soft',
         textColor: 'text-info-text',
         gradient: 'from-blue-600 to-blue-700',
       },
       info: {
         icon: Info,
         color: 'text-info-text',
-        bg: 'bg-accent-500/10',
+        bg: 'bg-accent-soft',
         textColor: 'text-info-text',
         gradient: 'from-blue-600 to-blue-700',
       },
@@ -287,7 +287,7 @@ export const EnhancedNotificationCenter = () => {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       onClick={requestNotificationPermission}
-                      className="w-full mt-4 px-3 py-2 bg-accent-500 hover:bg-accent-500 text-text-primary text-sm rounded-lg transition-colors"
+                      className="w-full mt-4 px-3 py-2 bg-accent-solid hover:brightness-110 text-text-on-solid text-sm rounded-lg transition-colors"
                     >
                       Enable Desktop Notifications
                     </motion.button>
@@ -350,7 +350,7 @@ export const EnhancedNotificationCenter = () => {
                                   <motion.div
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
-                                    className="w-2 h-2 bg-accent-500 rounded-full flex-shrink-0 mt-1"
+                                    className="w-2 h-2 bg-accent rounded-full flex-shrink-0 mt-1"
                                   />
                                 )}
                               </div>
@@ -365,7 +365,7 @@ export const EnhancedNotificationCenter = () => {
                                       notification.action?.onClick();
                                       markAsRead(notification.id);
                                     }}
-                                    className="text-xs px-3 py-1 bg-accent-500 hover:bg-accent-500 text-text-primary rounded transition-colors"
+                                    className="text-xs px-3 py-1 bg-accent-solid hover:brightness-110 text-text-on-solid rounded transition-colors"
                                   >
                                     {notification.action.label}
                                   </motion.button>
@@ -399,7 +399,7 @@ export const EnhancedNotificationCenter = () => {
                 >
                   <button
                     onClick={markAllAsRead}
-                    className="flex-1 text-xs px-3 py-2 bg-accent-500/20 hover:bg-accent-500/30 text-info-text rounded-lg transition-colors"
+                    className="flex-1 text-xs px-3 py-2 bg-accent-soft hover:bg-accent-line text-info-text rounded-lg transition-colors"
                   >
                     Mark All as Read
                   </button>

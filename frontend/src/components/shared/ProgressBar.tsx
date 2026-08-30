@@ -41,7 +41,7 @@ export const ProgressBar = ({
   };
 
   const variantClasses = {
-    default: 'bg-accent-500',
+    default: 'bg-accent',
     success: 'bg-success',
     warning: 'bg-warning',
     danger: 'bg-danger',

@@ -27,7 +27,7 @@ const getStatusColor = (status: string) => {
     case 'TODO':
       return 'bg-surface-3';
     case 'IN_PROGRESS':
-      return 'bg-accent-500';
+      return 'bg-accent';
     case 'REVIEW':
       return 'bg-warning';
     case 'DONE':
@@ -127,7 +127,7 @@ export const MitigationDetailDrawer = ({
                 className={cn(
                   'px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
                   activeTab === tab
-                    ? 'border-accent-400 text-text-primary'
+                    ? 'border-accent text-text-primary'
                     : 'border-transparent text-text-secondary hover:text-text-secondary'
                 )}
               >
@@ -210,7 +210,7 @@ export const MitigationDetailDrawer = ({
                           value={descriptionValue}
                           onChange={(e) => setDescriptionValue(e.currentTarget.value)}
                           placeholder="Description..."
-                          className="w-full min-h-[100px] px-3 py-2 bg-surface-2 border border-border-default rounded text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-400"
+                          className="w-full min-h-[100px] px-3 py-2 bg-surface-2 border border-border-default rounded text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
                         />
                         <div className="flex gap-2">
                           <Button variant="primary"
@@ -242,7 +242,7 @@ export const MitigationDetailDrawer = ({
                     <div className="flex gap-2">
                       {mitigation.assigned_to_user ? (
                         <div
-                          className="w-8 h-8 rounded-full bg-accent-500 flex items-center justify-center text-xs text-text-primary font-medium"
+                          className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center text-xs text-accent-strong font-medium"
                           title={mitigation.assigned_to_user.name}
                         >
                           {mitigation.assigned_to_user.name.slice(0, 1).toUpperCase()}
@@ -281,7 +281,7 @@ export const MitigationDetailDrawer = ({
 
               {activeTab === 'ai' && (
                 <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-accent-500/10 border border-accent-400/30">
+                  <div className="p-4 rounded-lg bg-accent-soft border border-accent-line">
                     <div className="flex items-start gap-3">
                       <MessageCircle size={16} className="text-info-text flex-shrink-0 mt-1" />
                       <div>
