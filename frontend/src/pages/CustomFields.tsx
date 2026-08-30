@@ -227,7 +227,7 @@ export default function CustomFields() {
               });
               setShowCreateModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-500 rounded-lg transition"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-solid text-text-on-solid hover:brightness-110 rounded-lg transition"
           >
             <Plus className="w-5 h-5" />
             New Field
@@ -240,7 +240,7 @@ export default function CustomFields() {
             onClick={() => setActiveTab('fields')}
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'fields'
-                ? 'border-b-2 border-accent-400 text-info-text'
+                ? 'border-b-2 border-accent text-info-text'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
@@ -250,7 +250,7 @@ export default function CustomFields() {
             onClick={() => setActiveTab('templates')}
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'templates'
-                ? 'border-b-2 border-accent-400 text-info-text'
+                ? 'border-b-2 border-accent text-info-text'
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
@@ -379,7 +379,7 @@ export default function CustomFields() {
                     {template.fields.map((field) => (
                       <span
                         key={field.id}
-                        className="px-3 py-1 bg-info-surface border border-accent-400/50 rounded-full text-sm text-blue-200"
+                        className="px-3 py-1 bg-info-surface border border-accent-line rounded-full text-sm text-blue-200"
                       >
                         {field.name}
                       </span>
@@ -427,7 +427,7 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent-400"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
                     placeholder="e.g., Department, Cost Center"
                   />
                 </div>
@@ -445,7 +445,7 @@ export default function CustomFields() {
                         }
                         className={`p-3 border rounded text-center transition ${
                           formData.type === type.value
-                            ? 'bg-accent-500 border-accent-400'
+                            ? 'bg-accent border-accent'
                             : 'bg-surface-2 border-border-default hover:border-border-default'
                         }`}
                       >
@@ -465,7 +465,7 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent-400 resize-none"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent resize-none"
                     rows={3}
                     placeholder="Field description"
                   />
@@ -480,7 +480,7 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, scope: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent-400"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent"
                   >
                     {scopes.map((scope) => (
                       <option key={scope} value={scope}>
@@ -531,7 +531,7 @@ export default function CustomFields() {
                       onChange={(e) =>
                         setFormData({ ...formData, default_value: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent-400"
+                      className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
                       placeholder="Optional default value"
                     />
                   </div>
@@ -552,7 +552,7 @@ export default function CustomFields() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleCreateField}
-                  className="flex-1 px-4 py-2 bg-accent-500 hover:bg-accent-500 rounded transition font-medium"
+                  className="flex-1 px-4 py-2 bg-accent-solid text-text-on-solid hover:brightness-110 rounded transition font-medium"
                 >
                   {editingField ? 'Update' : 'Create'}
                 </motion.button>

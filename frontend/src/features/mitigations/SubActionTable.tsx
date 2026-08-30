@@ -175,7 +175,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={cn('space-y-2', snapshot.isDraggingOver && 'bg-accent-500/10 rounded-lg p-2')}
+            className={cn('space-y-2', snapshot.isDraggingOver && 'bg-accent-soft rounded-lg p-2')}
           >
             {displaySubActions.length === 0 ? (
               <div className="text-center py-8 text-text-muted text-sm">
@@ -200,7 +200,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         {...provided.dragHandleProps}
                         className={cn(
                           'flex items-center gap-3 p-3 rounded-lg border border-border-default bg-surface-2/40 transition-all',
-                          snapshot.isDragging && 'bg-accent-500/20 shadow-lg',
+                          snapshot.isDragging && 'bg-accent-soft shadow-lg',
                           (subAction.depends_on?.length || 0) > 0 && 'border-l-2 border-l-yellow-500',
                           isReverting && 'opacity-50'
                         )}
@@ -237,7 +237,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                               scanId={subAction.scanner_details?.scan_id || 'unknown'}
                             />
                           ) : (
-                            <span className="text-xs px-2 py-1 rounded-full bg-accent-500/20 text-info-text">
+                            <span className="text-xs px-2 py-1 rounded-full bg-accent-soft text-info-text">
                               Manuel
                             </span>
                           )}

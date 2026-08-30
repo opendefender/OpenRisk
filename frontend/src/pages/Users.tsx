@@ -101,7 +101,7 @@ export const Users = () => {
       case 'admin':
         return 'bg-danger/10 text-danger-text border-danger/20';
       case 'analyst':
-        return 'bg-accent-500/10 text-info-text border-accent-400/20';
+        return 'bg-accent-soft text-info-text border-accent-line';
       case 'viewer':
         return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
       default:
@@ -132,7 +132,7 @@ export const Users = () => {
                 <p className="text-sm text-text-secondary">Manage users and permissions</p>
               </div>
             </div>
-            <Button variant="primary" className="shadow-lg shadow-blue-500/20" onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               <Plus size={16} className="mr-2" /> Create User
             </Button>
           </div>

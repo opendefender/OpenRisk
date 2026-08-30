@@ -135,7 +135,7 @@ const AnalyticsDashboard: React.FC = () => {
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value)}
-                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-400"
+                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-focus"
               >
                 <option value="latency_ms">Latency (ms)</option>
                 <option value="throughput_rps">Throughput (RPS)</option>
@@ -152,7 +152,7 @@ const AnalyticsDashboard: React.FC = () => {
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-400"
+                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-focus"
               >
                 <option value="hourly">Hourly</option>
                 <option value="daily">Daily</option>
@@ -206,7 +206,7 @@ const AnalyticsDashboard: React.FC = () => {
           <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
             <h2 className="text-2xl font-bold text-text-primary mb-4">Trend Analysis</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="border-l-4 border-accent-400 pl-4">
+              <div className="border-l-4 border-accent pl-4">
                 <p className="text-text-muted text-sm">Direction</p>
                 <p className="text-xl font-bold text-text-primary">{trendData.direction}</p>
               </div>

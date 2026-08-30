@@ -176,7 +176,6 @@ export function ProductTour() {
           width: rect.width + 8,
           height: rect.height + 8,
           border: '2px solid var(--accent)',
-          boxShadow: '0 0 0 4px var(--accent-glow)',
           transition: 'all .2s ease',
         }}
       />
@@ -225,8 +224,8 @@ export function ProductTour() {
               onClick={() => (isLast ? close() : setStep((s) => (s ?? 0) + 1))}
               className="h-8 px-3 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5"
               style={{
-                background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-                color: '#fff',
+                background: 'var(--accent-solid)',
+                color: 'var(--text-on-solid)',
               }}
             >
               {isLast ? tr('Terminer', 'Done') : tr('Suivant', 'Next')}

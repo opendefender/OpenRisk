@@ -176,7 +176,7 @@ const ComplianceReportDashboard: React.FC = () => {
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-400"
+                className="rounded border-border-subtle border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-focus"
               >
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
@@ -195,7 +195,7 @@ const ComplianceReportDashboard: React.FC = () => {
               onClick={() => setSelectedFramework(framework.name)}
               className={`rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
                 selectedFramework === framework.name
-                  ? 'ring-2 ring-accent-400 bg-info-surface'
+                  ? 'ring-2 ring-focus bg-info-surface'
                   : 'bg-surface-1 hover:bg-surface-sunken'
               }`}
             >

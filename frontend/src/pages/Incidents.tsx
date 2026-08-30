@@ -43,7 +43,7 @@ export const Incidents = () => {
       case 'medium':
         return 'bg-warning/10 text-warning-text border-warning/20';
       case 'low':
-        return 'bg-accent-500/10 text-info-text border-accent-400/20';
+        return 'bg-accent-soft text-info-text border-accent-line';
       default:
         return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
     }

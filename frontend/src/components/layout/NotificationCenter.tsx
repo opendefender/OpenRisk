@@ -23,7 +23,7 @@ export const NotificationCenter = () => {
         return { icon: AlertTriangle, color: 'text-warning-text', bg: 'bg-warning/10' };
       case 'info':
       default:
-        return { icon: Info, color: 'text-info-text', bg: 'bg-accent-500/10' };
+        return { icon: Info, color: 'text-info-text', bg: 'bg-accent-soft' };
     }
   };
 
@@ -124,7 +124,7 @@ export const NotificationCenter = () => {
                                   </p>
                                 </div>
                                 {!notification.read && (
-                                  <div className="w-2 h-2 bg-accent-500 rounded-full flex-shrink-0 mt-1" />
+                                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0 mt-1" />
                                 )}
                               </div>
                               <div className="flex gap-2 mt-3">

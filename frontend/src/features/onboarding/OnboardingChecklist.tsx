@@ -112,7 +112,7 @@ export function OnboardingChecklist() {
           className="h-full rounded-full"
           style={{
             width: `${state.percent}%`,
-            background: 'linear-gradient(90deg,var(--accent),var(--accent-2))',
+            background: 'var(--accent)',
             transition: 'width .5s var(--ease-out, ease)',
           }}
         />
@@ -223,9 +223,8 @@ function StepRow({
           style={
             isCurrent
               ? {
-                  background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-                  color: '#fff',
-                  boxShadow: '0 3px 12px var(--accent-glow)',
+                  background: 'var(--accent-solid)',
+                  color: 'var(--text-on-solid)',
                 }
               : {
                   background: 'var(--bg-hover)',

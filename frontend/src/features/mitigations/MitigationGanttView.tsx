@@ -125,7 +125,7 @@ export const MitigationGanttView = memo(function MitigationGanttView({
                   <motion.div
                     className={cn(
                       'absolute top-0 bottom-0 rounded transition-colors',
-                      isOverdue ? 'bg-danger/40 hover:bg-danger/50' : 'bg-accent-500/40 hover:bg-accent-500/50'
+                      isOverdue ? 'bg-danger/40 hover:bg-danger/50' : 'bg-accent-line hover:bg-accent-line'
                     )}
                     style={{
                       left: `${startPos}%`,
@@ -150,7 +150,7 @@ export const MitigationGanttView = memo(function MitigationGanttView({
             <span>En retard</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-accent-500" />
+            <div className="w-3 h-3 bg-accent" />
             <span>En cours</span>
           </div>
           <div className="flex items-center gap-2">

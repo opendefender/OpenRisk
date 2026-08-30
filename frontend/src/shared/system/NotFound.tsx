@@ -31,7 +31,7 @@ export function NotFound() {
           <button
             onClick={() => navigate('/')}
             className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-text-primary"
-            style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
+            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             <Home size={16} /> {tr('Tableau de bord', 'Dashboard')}
           </button>

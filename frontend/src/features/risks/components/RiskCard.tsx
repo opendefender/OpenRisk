@@ -33,8 +33,8 @@ export const RiskCard = ({ risk, onClick }: RiskCardProps) => {
     CRITICAL: 'bg-danger-surface border-danger/50',
     HIGH: 'bg-warning-surface border-warning/50',
     MEDIUM: 'bg-warning-surface border-warning/50',
-    LOW: 'bg-info-surface border-accent-400/50',
-  }[band] || 'bg-info-surface border-accent-400/50';
+    LOW: 'bg-info-surface border-accent-line',
+  }[band] || 'bg-info-surface border-accent-line';
 
   return (
     <div
