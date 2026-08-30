@@ -7,6 +7,7 @@ package actioncenter
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -467,6 +468,31 @@ func TestActionCenter_Paginates(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, beyond.Data)
 	require.Len(t, beyond.Data, 0)
+}
+
+// An absurd offset must not overflow int when added to the limit. The early
+// "offset past the end" return is what makes that safe, so it is asserted here
+// rather than left as a property of the arithmetic.
+func TestActionCenter_PagingExtremesDoNotPanic(t *testing.T) {
+	s := newStub()
+	s.role = domain.BusinessRoleRiskManager
+	s.risks = []domain.Risk{{ID: uuid.New(), TenantID: tenantA, Title: "r", Score: 9}}
+
+	for _, tc := range []struct {
+		name          string
+		limit, offset int
+	}{
+		{"max int offset", 100, math.MaxInt},
+		{"max int on both", math.MaxInt, math.MaxInt},
+		{"max int limit", math.MaxInt, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := newUC(s).GetActionCenter(caller(), tc.limit, tc.offset)
+			require.NoError(t, err)
+			require.NotNil(t, res.Data)
+			require.LessOrEqual(t, res.Limit, MaxLimit)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
