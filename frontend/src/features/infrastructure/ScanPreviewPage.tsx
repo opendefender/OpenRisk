@@ -144,7 +144,7 @@ export function ScanPreviewPage() {
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2 transition-all" style={{ background: tab === t.key ? 'var(--accent-soft)' : 'transparent', color: tab === t.key ? 'var(--accent)' : 'var(--text-secondary)', border: `1px solid ${tab === t.key ? 'transparent' : 'var(--border)'}` }}>
             <t.icon size={15} /> {t.label}
-            <span className="text-[11px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: 'var(--bg-hover)' }}>{t.n}</span>
+            <span className="text-[11px] font-bold px-1.5 py-px rounded-full" style={{ background: 'var(--bg-hover)' }}>{t.n}</span>
           </button>
         ))}
       </div>
@@ -154,7 +154,7 @@ export function ScanPreviewPage() {
           assets.length === 0 ? <EmptyState icon={Boxes} title={tr('Aucun actif découvert', 'No assets discovered')} /> : (
             <div>
               <div className="flex items-center gap-3 px-4 py-2.5 text-[11.5px] font-semibold text-ink-soft uppercase tracking-wide" style={{ borderBottom: '1px solid var(--border)' }}>
-                {canImport && <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-[var(--accent)]" />}
+                {canImport && <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-(--accent)" />}
                 <span className="flex-1">{tr('Actif', 'Asset')}</span>
                 <span className="w-24 hidden sm:block">{tr('Type', 'Type')}</span>
                 <span className="w-28">{tr('Criticité', 'Criticality')}</span>
@@ -165,7 +165,7 @@ export function ScanPreviewPage() {
                 const crit = sel ?? inferred;
                 return (
                   <div key={a.external_id} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-                    {canImport && <input type="checkbox" checked={!!sel} onChange={() => toggle(a.external_id, inferred)} className="accent-[var(--accent)]" />}
+                    {canImport && <input type="checkbox" checked={!!sel} onChange={() => toggle(a.external_id, inferred)} className="accent-(--accent)" />}
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-semibold text-ink truncate">{a.name || a.external_id}</div>
                       <div className="text-[11.5px] text-ink-soft truncate">{[a.ip, a.os, a.environment].filter(Boolean).join(' · ') || a.external_id}{a.cpe?.length ? ` · ${a.cpe.length} CPE` : ''}</div>
@@ -198,7 +198,7 @@ export function ScanPreviewPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] font-semibold text-ink">{f.title}</span>
-                      {f.cve && <span className="mono text-[11px] font-semibold px-1.5 py-[1px] rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{f.cve}</span>}
+                      {f.cve && <span className="mono text-[11px] font-semibold px-1.5 py-px rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{f.cve}</span>}
                     </div>
                     <div className="text-[11.5px] text-ink-soft mt-0.5">{f.asset_external_id} · {f.evidence}</div>
                   </div>
@@ -218,7 +218,7 @@ export function ScanPreviewPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] font-semibold text-ink">{mit.title}</span>
-                      {mit.cve && <span className="mono text-[11px] font-semibold px-1.5 py-[1px] rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{mit.cve}</span>}
+                      {mit.cve && <span className="mono text-[11px] font-semibold px-1.5 py-px rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{mit.cve}</span>}
                     </div>
                     <div className="text-[11.5px] text-ink-soft mt-0.5">{mit.evidence}</div>
                   </div>

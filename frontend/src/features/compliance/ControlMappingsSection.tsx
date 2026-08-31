@@ -69,7 +69,7 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
         {canEdit && !adding && (
           <button
             onClick={() => setAdding(true)}
-            className="h-7 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-accent transition-colors"
+            className="h-7 px-2.5 rounded-[8px] inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-soft hover:text-accent-strong transition-colors"
             style={{ border: '1px solid var(--border-strong)' }}
           >
             <Plus size={13} /> {tr('Lier', 'Link')}

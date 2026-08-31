@@ -97,7 +97,7 @@ export const Login = () => {
             className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-border-strong/10 p-8 rounded-2xl shadow-2xl relative z-10"
         >
             <div className="flex justify-center mb-8">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
                     <Zap className="text-text-primary" fill="currentColor" />
                 </div>
             </div>

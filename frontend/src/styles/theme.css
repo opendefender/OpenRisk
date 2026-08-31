@@ -1,0 +1,400 @@
+/* Copyright (c) 2026 OpenDefender Contributors
+   SPDX-License-Identifier: AGPL-3.0-only */
+
+/* ============================================================================
+   OpenRisk Tailwind theme — the v4 replacement for tailwind.config.js
+   ============================================================================
+
+   Tailwind is the delivery mechanism for the design tokens, not a second design
+   system. Every utility below resolves to a token, so a component written
+   against them follows the theme with no per-component work.
+
+   Two blocks, and the difference between them is load-bearing:
+
+     @theme          Layer 1 primitives. Theme-INDEPENDENT by construction — a
+                     spacing step does not change when the lights go out. These
+                     both define the scale AND generate the utility, so
+                     `text-sm` and `var(--text-sm)` can no longer disagree,
+                     which is what let 1559 arbitrary `text-[13px]` calls exist.
+
+     @theme inline   Layers 2-3, the semantic and component roles. These are
+                     swapped at runtime by [data-theme] / [data-accent] /
+                     [data-density] in tokens.css. `inline` makes the utility
+                     emit the RUNTIME variable (`var(--surface-1)`) rather than
+                     a second indirection through a theme variable — one hop,
+                     and the theme switch reaches the utility.
+
+   THE DOCUMENTED TRAP: --breakpoint-* cannot hold a var(). A media query does
+   not resolve custom properties, so `--breakpoint-xs: var(--bp-xs)` silently
+   generates no utilities at all. The values below are literal; --bp-* in
+   primitives.css is their runtime twin, read by matchMedia and container
+   queries. CHANGE ONE, CHANGE BOTH.
+   ========================================================================== */
+
+/* The e2e tree is scanned for classes too. The visual harness and the
+   design-system gallery are the only places that render some variants (a
+   disabled destructive button, an outlined `experimental` badge), and Tailwind
+   only emits a utility it has seen used. Without this the gallery renders those
+   states with the class absent from the stylesheet — a snapshot suite quietly
+   photographing unstyled markup, which is worse than no suite. */
+@source '../../e2e';
+
+/* Theme is driven by [data-theme] on <html> plus CSS variables, so the `dark:`
+   variant is not how colour is chosen. It is redefined here anyway so that a
+   stray `dark:` in a vendored component resolves to the same signal the rest of
+   the app uses, instead of the OS preference. */
+@custom-variant dark ([data-theme='dark'] &);
+
+@theme {
+  /* ------------------------------------------------------------ breakpoints */
+  /* Literal — see THE DOCUMENTED TRAP above. Mirrors --bp-* in primitives.css.
+     3xl is the master-detail threshold: at 1920px a detail panel opens BESIDE
+     the list rather than over it. At 400px the header carries a logo, a
+     language switch, a menu and the primary action; that is the stop where
+     something has to give. */
+  --breakpoint-xs: 400px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  --breakpoint-3xl: 1920px;
+
+  /* ---------------------------------------------------------------- families */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  /* Carries a default so the app always has a display face. The accent variant
+     re-points it at runtime (azure -> Inter, iris -> DM Sans) from tokens.css,
+     which sits in @layer base and therefore outranks this @layer theme value.
+     Non-inline on purpose: the utility emits var(--font-display), so the
+     runtime override reaches it. */
+  --font-display: 'DM Sans', 'Inter', system-ui, sans-serif;
+
+  /* --------------------------------------------------------------- type scale */
+  /* Base is 14px, not 16px. OpenRisk is a console: a risk register, a control
+     table and a vulnerability queue all have to put a usable number of rows on
+     screen at once. Ratio ~1.2 so adjacent steps stay distinguishable without
+     any step becoming marketing-sized.
+
+     Each step carries its line height, so `text-sm` is a complete typographic
+     decision rather than half of one — the missing half is why the arbitrary
+     `text-[13px]` calls existed, each also silently inheriting whatever leading
+     was nearby. */
+  --text-2xs: 10.5px;
+  --text-2xs--line-height: 1.3;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.3;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.45;
+  --text-base: 14px;
+  --text-base--line-height: 1.45;
+  --text-md: 16px;
+  --text-md--line-height: 1.3;
+  --text-lg: 19px;
+  --text-lg--line-height: 1.3;
+  --text-xl: 23px;
+  --text-xl--line-height: 1.15;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 1.15;
+  --text-3xl: 34px;
+  --text-3xl--line-height: 1.15;
+
+  /* The display scale. Fluid, so no heading needs a breakpoint of its own, and
+     the line height and tracking are baked in for the same reason the console
+     steps are. Used by the surfaces that are READ rather than scanned —
+     sign-in, empty states, upgrade. Shared verbatim with the marketing site. */
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.14em;
+  --text-display-1: clamp(2.75rem, 1.75rem + 4vw, 5rem);
+  --text-display-1--line-height: 1.02;
+  --text-display-1--letter-spacing: -0.034em;
+  --text-display-2: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
+  --text-display-2--line-height: 1.08;
+  --text-display-2--letter-spacing: -0.028em;
+  --text-display-3: clamp(1.625rem, 1.25rem + 1.5vw, 2.375rem);
+  --text-display-3--line-height: 1.16;
+  --text-display-3--letter-spacing: -0.022em;
+  --text-display-4: clamp(1.35rem, 1.1rem + 1.1vw, 1.75rem);
+  --text-display-4--line-height: 1.25;
+  --text-display-4--letter-spacing: -0.015em;
+  --text-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.3125rem);
+  --text-lead--line-height: 1.55;
+  --text-lead--letter-spacing: -0.008em;
+
+  /* Line heights, addressable on their own for the cases that need to break the
+     pairing. Data-bearing text is set tight; prose is not. */
+  --leading-none: 1;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* Tracking. Negative on display sizes (large Inter is loose by default),
+     positive only on the uppercase micro-labels used for table headers.
+     --tracking-eyebrow is wider still and reserved for the 11px uppercase label
+     above a heading: at that size the letters need the air or the word reads as
+     a single grey smear. */
+  --tracking-display: -0.02em;
+  --tracking-normal: 0;
+  --tracking-caps: 0.06em;
+  --tracking-eyebrow: 0.14em;
+
+  /* Weights. Four, and only four — Inter's 650 was in use in one place and
+     rendered as a synthesised weight on systems without the variable face. */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ------------------------------------------------------------------ radius */
+  /* Capped at 18px. A 24px corner reads as a phone app; a 0px corner reads as a
+     spreadsheet. OpenRisk sits between the two on purpose. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+  /* Legacy aliases from before the scale was named; identical values. */
+  --radius-token: 10px;
+  --radius-token-lg: 14px;
+  --radius-token-xl: 18px;
+
+  /* ------------------------------------------------------------------ easing */
+  /* --ease-out is the default for anything entering or settling; --ease-in for
+     anything leaving, because an element that accelerates away reads as
+     dismissed rather than yanked. --ease-emphasized has a slight overshoot and
+     is reserved for the one signature move (see components.css). */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.9, 0.25, 1.06);
+
+  /* ---------------------------------------------------------------- backdrop */
+  /* Only the two steps the glass surfaces actually use. */
+  --blur-xl: 20px;
+  --blur-2xl: 40px;
+
+  /* --------------------------------------------------------------- animation */
+  /* The OpenRisk motion vocabulary. Keyframes live in index.css. */
+  --animate-fade-in: or-fadein var(--dur-slow) var(--ease-out) both;
+  --animate-or-fadeup: or-fadeup var(--dur-slow) var(--ease-out) both;
+  --animate-or-fadein: or-fadein var(--dur-base) var(--ease-out) both;
+  --animate-or-scalein: or-scalein var(--dur-base) var(--ease-out) both;
+  --animate-or-rise: or-rise var(--dur-base) var(--ease-out) both;
+  --animate-or-slidein: or-slidein var(--dur-panel) var(--ease-out) both;
+  --animate-or-pulsedot: or-pulsedot 1.5s infinite;
+  --animate-or-shimmer: or-shimmer 1.4s infinite linear;
+
+  /* ------------------------------------------------------- named line lengths */
+  /* --container-* backs max-w-*. A measure, not a box width. */
+  --container-content: var(--content-max);
+  --container-content-wide: var(--content-max-wide);
+  --container-prose: var(--prose-max);
+  --container-shell: var(--shell-max);
+}
+
+/* ============================================================================
+   Semantic + component roles — swapped at runtime, so `inline`
+   ========================================================================== */
+@theme inline {
+  /* ---------------------------------------------------------------- surfaces */
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-overlay: var(--surface-overlay);
+
+  /* Legacy surface aliases kept so existing utility classes retint cleanly. */
+  --color-app: var(--bg-app);
+  --color-panel: var(--bg-primary);
+  --color-elevated: var(--bg-elevated);
+  --color-hover: var(--bg-hover);
+  --color-background: var(--bg-app);
+  --color-surface: var(--bg-elevated);
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-glass-border: var(--glass-border);
+
+  /* -------------------------------------------------------------------- text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-text-on-solid: var(--text-on-solid);
+  /* Shorthand set, by far the most used in the product. */
+  --color-ink: var(--text-primary);
+  --color-ink-soft: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+
+  /* ----------------------------------------------------------------- borders */
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-control: var(--border-control);
+  --color-border-strong: var(--border-strong);
+  --color-hairline: var(--hairline);
+  --color-grid-line: var(--grid-line);
+  --color-focus: var(--focus-ring-color);
+
+  /* ------------------------------------------------------------------ accent */
+  /* `accent` is the MARK — a keyline, an active border, a fill — held to 3:1.
+     `accent-strong` is the step that is safe as small TEXT in both themes, at
+     4.5:1. See the text-accent override at the bottom of this file for why the
+     two cannot be the same utility name. */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-2: var(--accent-2);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-accent-strong: var(--accent-500);
+  --color-accent-solid: var(--accent-solid);
+  --color-primary: var(--accent);
+
+  /* ------------------------------------------------------------------ status */
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+  --color-success-text: var(--success-text);
+  --color-success-solid: var(--success-solid);
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-text: var(--warning-text);
+  --color-warning-solid: var(--warning-solid);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-text: var(--danger-text);
+  --color-danger-solid: var(--danger-solid);
+  --color-info: var(--info);
+  --color-info-surface: var(--info-surface);
+  --color-info-text: var(--info-text);
+  --color-info-solid: var(--info-solid);
+
+  /* -------------------------------------------------------------- risk scale */
+  --color-critical: var(--critical);
+  --color-high: var(--high);
+  --color-medium: var(--medium);
+  --color-low: var(--low);
+  --color-risk-low: var(--risk-low);
+  --color-risk-moderate: var(--risk-moderate);
+  --color-risk-medium: var(--risk-moderate);
+  --color-risk-high: var(--risk-high);
+  --color-risk-critical: var(--risk-critical);
+  --color-risk-extreme: var(--risk-extreme);
+
+  /* ----------------------------------------------------- one chart palette */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
+  --color-chart-label: var(--chart-label);
+  --color-chart-track: var(--chart-track);
+  --color-graph-node: var(--graph-node);
+  --color-graph-stroke: var(--graph-node-stroke);
+  --color-graph-edge: var(--graph-edge);
+  --color-graph-active: var(--graph-edge-active);
+
+  /* --------------------------------------------------------------- elevation */
+  /* Four steps, theme-aware, and no decorative variants: the glow/neon shadows
+     that used to live here were removed in W1-01 — a glow on the primary button
+     is what made the product read as a template rather than an instrument. */
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
+  --shadow-elev-3: var(--elev-3);
+  --shadow-overlay: var(--elev-overlay);
+  --shadow-card-sm: var(--elev-1);
+  --shadow-card-md: var(--elev-2);
+  --shadow-card-lg: var(--elev-3);
+
+  /* --------------------------------------------------------- named spacing */
+  /* The chapter rhythm, and the density-aware steps. A row built from --spacing-row
+     responds to the density switch without the component knowing which density
+     is active. */
+  --spacing-section: var(--space-section);
+  --spacing-section-sm: var(--space-section-sm);
+  --spacing-row: var(--den-row);
+  --spacing-cell-y: var(--den-cell-y);
+  --spacing-control: var(--control-h-md);
+  --spacing-header: var(--header-h);
+  --spacing-sidebar: var(--sidebar-w);
+}
+
+/* ============================================================================
+   Utilities Tailwind v4 has no theme namespace for
+   ============================================================================
+   v4 exposes namespaces for colour, type, radius, shadow, easing and animation
+   but NOT for z-index, transition-duration or border-width. Those three were
+   real parts of the v3 config, so they are re-declared as explicit utilities
+   rather than dropped.
+   ========================================================================== */
+
+/* Named stacking layers. Replaces the 10 arbitrary integers that were in use
+   (59, 60, 65, 70, 75, 80, 85, 90, 95, 120). The ORDER is the contract — note
+   that tooltip outranks modal, because a tooltip on a control inside a dialog
+   has to be readable. */
+@utility z-base { z-index: var(--z-base); }
+@utility z-raised { z-index: var(--z-raised); }
+@utility z-sticky { z-index: var(--z-sticky); }
+@utility z-nav { z-index: var(--z-nav); }
+@utility z-header { z-index: var(--z-header); }
+@utility z-dropdown { z-index: var(--z-dropdown); }
+@utility z-drawer { z-index: var(--z-drawer); }
+@utility z-modal { z-index: var(--z-modal); }
+@utility z-popover { z-index: var(--z-popover); }
+@utility z-toast { z-index: var(--z-toast); }
+@utility z-tooltip { z-index: var(--z-tooltip); }
+
+/* Five durations, and the longest is 400ms — reserved for a panel travelling
+   the width of the screen. Anything the user does dozens of times an hour
+   (hover, press, open a menu) is on fast or base, which is the difference
+   between a product that feels quick and one that feels animated. */
+@utility duration-instant { transition-duration: var(--dur-instant); }
+@utility duration-fast { transition-duration: var(--dur-fast); }
+@utility duration-base { transition-duration: var(--dur-base); }
+@utility duration-slow { transition-duration: var(--dur-slow); }
+@utility duration-panel { transition-duration: var(--dur-panel); }
+
+/* THE KEYLINE — the OpenRisk signature. A 2px accent rule marking the active
+   element: the selected nav item, the current tab, the focused panel, the row
+   being acted on. It replaces the filled-pill / glow / gradient vocabulary that
+   makes every dashboard look like every other dashboard, and it costs one
+   border instead of a background. */
+@utility border-keyline { border-width: var(--keyline-w); }
+
+/* The v3 config carried a `borderColor` scale ALONGSIDE the colour scale, so
+   both `border-subtle` (from borderColor) and `border-border-subtle` (from
+   colors) were valid and both are in use. v4 has no borderColor namespace — a
+   colour key generates every property at once — so the short forms are declared
+   here rather than rewritten across the 7 files that use them. */
+@utility border-subtle { border-color: var(--border-subtle); }
+@utility border-strong { border-color: var(--border-strong); }
+@utility border-control { border-color: var(--border-control); }
+
+/* `text-accent` resolves to the TEXT step, `bg-accent` and `border-accent` to
+   the MARK. One theme key cannot fork by property, so the fork is declared
+   here — which is what lets the signature ultramarine stay the signature
+   ultramarine on a rule while every accent LABEL in the product still clears
+   4.5:1 on every surface it can land on.
+
+   Why a plain rule and not @utility: a custom @utility LOSES to the utility
+   Tailwind generates from --color-accent, so the fork silently disappeared when
+   it was written that way. A plain rule in @layer utilities, declared after
+   `@import 'tailwindcss'` in index.css, wins on source order within the layer.
+
+   The cost is that it only covers the bare class — a plain rule cannot be
+   expanded per variant the way v3's textColor fork was. So the variant call
+   sites (hover:, group-hover:) were rewritten to `text-accent-strong`, which is
+   the same colour arrived at through the theme rather than through this rule.
+   If you add a new `<variant>:text-accent`, use `text-accent-strong` instead. */
+@layer utilities {
+  .text-accent {
+    color: var(--accent-500);
+  }
+}

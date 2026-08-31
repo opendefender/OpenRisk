@@ -224,7 +224,7 @@ export const EnhancedNotificationCenter = () => {
               className="absolute right-0 mt-2 w-96 max-h-[600px] bg-surface-1 border border-border-subtle rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-border-default p-4 flex items-center justify-between flex-shrink-0">
+              <div className="bg-linear-to-r from-zinc-800 to-zinc-900 border-b border-border-default p-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <Bell size={18} className="text-info-text" />
                   <h3 className="font-semibold text-text-primary text-lg">Notifications</h3>
@@ -327,7 +327,7 @@ export const EnhancedNotificationCenter = () => {
                           <div className="flex gap-3">
                             <motion.div
                               whileHover={{ scale: 1.1 }}
-                              className={`p-2 rounded-full ${config.bg} flex-shrink-0`}
+                              className={`p-2 rounded-full ${config.bg} shrink-0`}
                             >
                               <Icon size={16} className={config.color} />
                             </motion.div>
@@ -350,7 +350,7 @@ export const EnhancedNotificationCenter = () => {
                                   <motion.div
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
-                                    className="w-2 h-2 bg-accent rounded-full flex-shrink-0 mt-1"
+                                    className="w-2 h-2 bg-accent rounded-full shrink-0 mt-1"
                                   />
                                 )}
                               </div>
@@ -395,7 +395,7 @@ export const EnhancedNotificationCenter = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="border-t border-border-strong/5 p-3 flex gap-2 flex-shrink-0"
+                  className="border-t border-border-strong/5 p-3 flex gap-2 shrink-0"
                 >
                   <button
                     onClick={markAllAsRead}

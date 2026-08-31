@@ -69,9 +69,9 @@ export const UserLevelCard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-border-strong/20 rounded-2xl overflow-hidden shadow-2xl"
+        className="bg-linear-to-br from-white/10 to-white/5 backdrop-blur-xl border border-border-strong/20 rounded-2xl overflow-hidden shadow-2xl"
       >
-        <div className={`h-32 bg-gradient-to-r ${levelGradient} opacity-20`} />
+        <div className={`h-32 bg-linear-to-r ${levelGradient} opacity-20`} />
 
         <div className="px-8 pb-8 -mt-16 relative z-10">
           {/* Level Badge */}
@@ -79,7 +79,7 @@ export const UserLevelCard = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className={`w-32 h-32 rounded-full bg-gradient-to-br ${levelGradient} flex items-center justify-center shadow-glow border-4 border-border-strong/20 mb-6`}
+            className={`w-32 h-32 rounded-full bg-linear-to-br ${levelGradient} flex items-center justify-center shadow-glow border-4 border-border-strong/20 mb-6`}
           >
             <div className="text-center">
               <div className="text-5xl font-black text-text-primary">{stats.level}</div>
@@ -101,7 +101,7 @@ export const UserLevelCard = () => {
                   initial={{ width: 0 }}
                   animate={{ width: `${stats.progress_percent}%` }}
                   transition={{ delay: 0.4, duration: 0.8, ease: 'easeOut' }}
-                  className={`h-full bg-gradient-to-r ${levelGradient} rounded-full`}
+                  className={`h-full bg-linear-to-r ${levelGradient} rounded-full`}
                 />
               </div>
               <p className="text-xs text-text-muted mt-2">
@@ -163,7 +163,7 @@ export const UserLevelCard = () => {
                     transition-all duration-300
                     ${
                       badge.unlocked
-                        ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-warning/50 shadow-glow'
+                        ? 'bg-linear-to-br from-yellow-500/20 to-orange-500/20 border-warning/50 shadow-glow'
                         : 'bg-surface-1/5 border-border-strong/10 opacity-50'
                     }
                   `}

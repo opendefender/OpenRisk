@@ -153,7 +153,7 @@ const ComplianceReportDashboard: React.FC = () => {
         </div>
 
         {/* Overall Score Card */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-text-primary">
+        <div className="bg-linear-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-text-primary">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">Overall Compliance Score</p>
@@ -312,7 +312,7 @@ const ComplianceReportDashboard: React.FC = () => {
                       key={idx}
                       className="flex gap-3 p-3 bg-danger-surface border border-red-200 rounded text-danger-text text-sm"
                     >
-                      <span className="flex-shrink-0">⚠</span>
+                      <span className="shrink-0">⚠</span>
                       <span>{issue}</span>
                     </li>
                   ))}
@@ -335,7 +335,7 @@ const ComplianceReportDashboard: React.FC = () => {
                       key={idx}
                       className="flex gap-3 p-3 bg-success-surface border border-green-200 rounded text-success-text text-sm"
                     >
-                      <span className="flex-shrink-0">✓</span>
+                      <span className="shrink-0">✓</span>
                       <span>{rec}</span>
                     </li>
                   ))}

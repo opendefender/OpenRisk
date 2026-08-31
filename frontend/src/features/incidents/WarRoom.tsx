@@ -315,7 +315,7 @@ export function WarRoom() {
       </div>
 
       {confirmClose && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }} onClick={() => setConfirmClose(false)}>
+        <div className="fixed inset-0 z-90 flex items-center justify-center" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }} onClick={() => setConfirmClose(false)}>
           <div onClick={(e) => e.stopPropagation()} className="glass-strong rounded-[18px] shadow-card-lg p-[26px]" style={{ width: 'min(90vw,420px)', animation: 'or-scalein .18s ease' }}>
             <div className="w-[46px] h-[46px] rounded-[13px] flex items-center justify-center mb-4" style={{ background: 'color-mix(in srgb,var(--critical) 14%,transparent)', color: 'var(--critical)' }}><AlertTriangle size={24} /></div>
             <div className="disp text-[18px] font-bold text-ink mb-2">{tr('Clore cet incident ?', 'Close this incident?')}</div>

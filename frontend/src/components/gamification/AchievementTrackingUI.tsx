@@ -87,7 +87,7 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
       <div
         className={`relative rounded-lg p-4 border-2 transition-all duration-300 ${
           achievement.unlocked
-            ? `bg-gradient-to-br ${getRarityColor(achievement.rarity)} ${getRarityBorder(achievement.rarity)}`
+            ? `bg-linear-to-br ${getRarityColor(achievement.rarity)} ${getRarityBorder(achievement.rarity)}`
             : 'bg-surface-1 border-border-default opacity-60'
         } ${isHovered && achievement.unlocked ? 'shadow-lg shadow-white/20 scale-105' : ''}`}
       >
@@ -132,7 +132,7 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
               </div>
               <div className="w-full h-2 bg-surface-overlay rounded-full overflow-hidden backdrop-blur-sm">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                  className="h-full bg-linear-to-r from-blue-500 to-cyan-400"
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPercent}%` }}
                   transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -174,7 +174,7 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
     <div className="space-y-6">
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-purple-900/30 to-purple-800/20 border-purple-700/50">
+        <Card className="bg-linear-to-br from-purple-900/30 to-purple-800/20 border-purple-700/50">
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -186,7 +186,7 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border-success/50">
+        <Card className="bg-linear-to-br from-emerald-900/30 to-emerald-800/20 border-success/50">
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -201,7 +201,7 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 border-warning/50">
+        <Card className="bg-linear-to-br from-yellow-900/30 to-yellow-800/20 border-warning/50">
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>

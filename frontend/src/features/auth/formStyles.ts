@@ -8,7 +8,7 @@
 // repo enforces via react-refresh/only-export-components.
 
 export const inputCls =
-  'w-full h-11 px-3.5 rounded-[11px] text-[14px] text-ink outline-none transition-colors focus:border-[var(--accent)]';
+  'w-full h-11 px-3.5 rounded-[11px] text-[14px] text-ink outline-none transition-colors focus:border-(--accent)';
 
 /** Field chrome. `invalid` swaps the border to the critical token. */
 export function inputStyle(invalid = false): React.CSSProperties {

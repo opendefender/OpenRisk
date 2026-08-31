@@ -842,7 +842,7 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
 
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+    <div className="fixed inset-0 z-90 flex items-center justify-center p-4"
       style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
       <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[460px] rounded-[16px] p-5"

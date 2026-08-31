@@ -35,7 +35,7 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+      className="fixed inset-0 z-90 flex items-center justify-center p-4"
       style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
       onClick={onClose}
       role="dialog"

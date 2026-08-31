@@ -46,7 +46,7 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
       role="toolbar"
       aria-label={labels.selected(count)}
       data-testid="bulk-bar"
-      className="fixed bottom-6 left-1/2 z-[60] glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
+      className="fixed bottom-6 left-1/2 z-60 glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
       style={{ transform: 'translateX(-50%)', animation: 'or-fadeup .2s ease' }}
     >
       <span className="text-[13px] font-semibold text-ink" data-testid="bulk-count">{labels.selected(count)}</span>

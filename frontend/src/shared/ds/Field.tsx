@@ -167,7 +167,7 @@ const STATUS_BORDER: Record<FieldStatus, string> = {
 function controlClasses(status: FieldStatus, extra?: string): string {
   return cn(
     'w-full bg-surface-1 text-text-primary placeholder:text-text-muted',
-    'border rounded-md px-[var(--control-px-md)]',
+    'border rounded-md px-(--control-px-md)',
     'transition-[border-color,background-color] duration-fast ease-out',
     'hover:border-strong',
     'focus:border-accent',
@@ -217,7 +217,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       ref={ref}
       id={fieldId}
       className={cn(
-        controlClasses(status, 'h-[var(--control-h-md)] text-sm'),
+        controlClasses(status, 'h-(--control-h-md) text-sm'),
         hasLead && 'pl-9',
         hasTrail && 'pr-9',
         className,
@@ -289,8 +289,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       ref={ref}
       id={fieldId}
       className={cn(
-        controlClasses(status, 'h-[var(--control-h-md)] text-sm pr-8 appearance-none'),
-        'bg-[image:var(--select-caret)] bg-[length:10px] bg-[position:right_12px_center] bg-no-repeat',
+        controlClasses(status, 'h-(--control-h-md) text-sm pr-8 appearance-none'),
+        'bg-(image:--select-caret) bg-size-[10px] bg-position-[right_12px_center] bg-no-repeat',
         className,
       )}
       {...aria}

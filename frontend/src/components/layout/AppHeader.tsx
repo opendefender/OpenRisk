@@ -186,10 +186,10 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
   return (
     <>
       {/* invisible backdrop closes on outside click */}
-      <div className="fixed inset-0 z-[65]" onClick={onClose} />
+      <div className="fixed inset-0 z-65" onClick={onClose} />
       <div
         onClick={(e) => e.stopPropagation()}
-        className="glass-strong absolute top-[44px] right-0 w-[352px] rounded-[16px] overflow-hidden shadow-card-lg z-[70]"
+        className="glass-strong absolute top-[44px] right-0 w-[352px] rounded-[16px] overflow-hidden shadow-card-lg z-70"
         style={{ animation: 'or-scalein .16s cubic-bezier(.2,.8,.2,1)' }}
       >
         <div className="flex items-center justify-between px-[17px] py-[15px] border-b border-border">
@@ -262,7 +262,7 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
                     {it.body && <div className="text-[12px] text-ink-soft leading-snug">{it.body}</div>}
                     <div className="text-[11px] text-ink-muted mt-1 flex items-center gap-1.5">
                       {it.time}
-                      <span className="px-1.5 py-[1px] rounded-full text-[10px] font-semibold" style={{ color: categoryMeta(it.category).color, background: `color-mix(in srgb, ${categoryMeta(it.category).color} 14%, transparent)` }}>
+                      <span className="px-1.5 py-px rounded-full text-[10px] font-semibold" style={{ color: categoryMeta(it.category).color, background: `color-mix(in srgb, ${categoryMeta(it.category).color} 14%, transparent)` }}>
                         {categoryMeta(it.category).label[lang]}
                       </span>
                     </div>

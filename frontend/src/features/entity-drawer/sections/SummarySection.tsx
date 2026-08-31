@@ -173,7 +173,7 @@ export function SummarySection({ summary }: { summary: EntitySummary }) {
           {compact.map((f) => (
             <div key={f.key} className="min-w-0">
               <dt className="text-2xs uppercase tracking-wide text-text-muted">{f.label}</dt>
-              <dd className="mt-0.5 break-words">
+              <dd className="mt-0.5 wrap-break-word">
                 <FieldValue field={f} />
               </dd>
             </div>

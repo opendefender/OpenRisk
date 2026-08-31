@@ -166,7 +166,7 @@ export function ProductTour() {
   return (
     // No backdrop: the app must stay clickable. `pointer-events-none` on the
     // layer, re-enabled on the card only.
-    <div className="fixed inset-0 z-[70] pointer-events-none" data-testid="product-tour">
+    <div className="fixed inset-0 z-70 pointer-events-none" data-testid="product-tour">
       {/* A ring around the anchor, so the words point at something. */}
       <div
         className="absolute rounded-[10px]"

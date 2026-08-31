@@ -47,7 +47,7 @@ export const ThreatMap = () => {
 
       {/* Map Section */}
       <div className="bg-surface border border-border rounded-lg p-6 mb-6 h-96 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
+        <div className="absolute inset-0 bg-linear-to-br from-blue-500/5 to-purple-500/5" />
         <div className="relative z-10 text-center">
           <Globe size={64} className="mx-auto text-text-muted mb-4" />
           <p className="text-text-secondary mb-4">Interactive threat map visualization</p>
@@ -111,7 +111,7 @@ export const ThreatMap = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
               onClick={() => setSelectedThreat(threat)}
-              className={`bg-gradient-to-br ${getSeverityColor(threat.severity)} rounded-lg p-4 cursor-pointer transform transition-transform hover:scale-105 ${
+              className={`bg-linear-to-br ${getSeverityColor(threat.severity)} rounded-lg p-4 cursor-pointer transform transition-transform hover:scale-105 ${
                 selectedThreat?.code === threat.code ? 'ring-2 ring-white' : ''
               }`}
             >

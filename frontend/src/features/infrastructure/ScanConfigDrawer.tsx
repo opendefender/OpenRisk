@@ -121,7 +121,7 @@ export function ScanConfigDrawer({
                 </Field>
               )}
               <div className="flex items-start gap-2 text-[12px] text-ink-soft rounded-lg px-3 py-2.5" style={{ background: 'var(--bg-hover)' }}>
-                <ShieldCheck size={15} className="shrink-0 mt-[1px]" style={{ color: 'var(--low)' }} />
+                <ShieldCheck size={15} className="shrink-0 mt-px" style={{ color: 'var(--low)' }} />
                 <span>{tr('Chiffré en AES-256-GCM, déchiffré uniquement au moment du scan.', 'Encrypted with AES-256-GCM, decrypted only at scan time.')}</span>
               </div>
             </>
@@ -131,7 +131,7 @@ export function ScanConfigDrawer({
                 <textarea style={monoStyle} rows={5} value={targets} onChange={(e) => setTargets(e.target.value)} placeholder={'10.0.0.0/24\n192.168.1.10\nsrv-db-01'} />
               </Field>
               <div className="flex items-start gap-2 text-[12px] text-ink-soft rounded-lg px-3 py-2.5" style={{ background: 'var(--bg-hover)' }}>
-                <Info size={15} className="shrink-0 mt-[1px]" style={{ color: 'var(--info)' }} />
+                <Info size={15} className="shrink-0 mt-px" style={{ color: 'var(--info)' }} />
                 <span>{tr('Le scan est exécuté par un Agent sur site (nmap/osquery), jamais par le SaaS. Déployez un agent après la création.', 'Scans run on an on-prem Agent (nmap/osquery), never on the SaaS. Deploy an agent after creating.')}</span>
               </div>
             </>

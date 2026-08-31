@@ -12,7 +12,7 @@
  *
  * What is NOT flagged, deliberately:
  *
- *   - `h-[var(--control-h-md)]` and anything else whose arbitrary value is a
+ *   - `h-(--control-h-md)` and anything else whose arbitrary value is a
  *     token reference. That IS using the scale; Tailwind just has no utility
  *     for the property.
  *   - `max-w-[46ch]`, `w-[min(560px,92vw)]` and other layout values that are
@@ -51,7 +51,7 @@ function isTokenReference(value) {
 }
 
 /**
- * `text-[color:var(--x)]` and `text-[#fff]` are colour, not type size — colour
+ * `text-(--x)` and `text-[#fff]` are colour, not type size — colour
  * is the other rule's job (no-raw-colors), so this one stays out of it.
  */
 function isColourValue(value) {

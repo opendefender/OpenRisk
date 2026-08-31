@@ -333,7 +333,7 @@ export const ImportRisksPage = () => {
         >
           {importResult.success > 0 && (
             <div className="flex items-center gap-4 p-4 rounded-lg bg-success/10 border border-success/50">
-              <CheckCircle2 size={24} className="text-success-text flex-shrink-0" />
+              <CheckCircle2 size={24} className="text-success-text shrink-0" />
               <div>
                 <h4 className="font-semibold text-text-primary">{t('messages.importCompleted')}</h4>
                 <p className="text-sm text-text-secondary">
@@ -345,7 +345,7 @@ export const ImportRisksPage = () => {
 
           {importResult.errors.length > 0 && (
             <div className="flex items-start gap-4 p-4 rounded-lg bg-danger/10 border border-danger/50">
-              <AlertCircle size={24} className="text-danger-text flex-shrink-0 mt-0.5" />
+              <AlertCircle size={24} className="text-danger-text shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-semibold text-text-primary">
                   {interpolate(t('risks.errorCount'), { count: importResult.errors.length })}

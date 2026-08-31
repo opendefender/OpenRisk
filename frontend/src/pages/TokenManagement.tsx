@@ -166,7 +166,7 @@ export const TokenManagement = () => {
   return (
     <div className="min-h-screen bg-surface-0">
       {/* Header */}
-      <div className="border-b border-border-subtle bg-gradient-to-b from-zinc-900 to-zinc-950 p-6">
+      <div className="border-b border-border-subtle bg-linear-to-b from-zinc-900 to-zinc-950 p-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
             <Key className="w-8 h-8 text-warning-text" />

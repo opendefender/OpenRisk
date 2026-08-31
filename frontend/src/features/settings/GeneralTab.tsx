@@ -72,7 +72,7 @@ export const GeneralTab = () => {
         </div>
 
         <div className="flex items-center gap-6 pb-8 border-b border-border-strong/5">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-text-primary shadow-glow relative group">
+          <div className="w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-text-primary shadow-glow relative group">
             {formData.full_name?.charAt(0) || 'U'}
             <button className="absolute inset-0 rounded-full bg-surface-overlay opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <Camera size={20} className="text-text-primary" />

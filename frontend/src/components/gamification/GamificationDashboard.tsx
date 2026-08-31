@@ -60,7 +60,7 @@ export const GamificationDashboard = ({
     <div className="space-y-6">
       {/* User Level Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className={`bg-gradient-to-br ${getLevelColor(userStats.level)} border-2 border-border-strong/20`}>
+        <Card className={`bg-linear-to-br ${getLevelColor(userStats.level)} border-2 border-border-strong/20`}>
           <div className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Level Circle */}
@@ -231,7 +231,7 @@ export const GamificationDashboard = ({
                     transition={{ delay: index * 0.1 }}
                     className="flex items-center gap-4 p-3 bg-surface-2/50 rounded-lg hover:bg-surface-3/50 transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0">
                       <Medal size={20} className="text-text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -289,12 +289,12 @@ export const GamificationDashboard = ({
                         transition={{ delay: index * 0.05 }}
                         className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
                           isCurrent
-                            ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-accent-line'
+                            ? 'bg-linear-to-r from-blue-900/30 to-purple-900/30 border border-accent-line'
                             : 'bg-surface-2/30 hover:bg-surface-2/50'
                         }`}
                       >
                         {/* Rank */}
-                        <div className="flex-shrink-0 w-8">
+                        <div className="shrink-0 w-8">
                           {user.rank === 1 && (
                             <div className="text-2xl">🥇</div>
                           )}
@@ -312,7 +312,7 @@ export const GamificationDashboard = ({
                         {/* User Info */}
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div
-                            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 text-text-primary font-semibold text-sm"
+                            className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0 text-text-primary font-semibold text-sm"
                           >
                             {user.username.charAt(0).toUpperCase()}
                           </div>
@@ -326,7 +326,7 @@ export const GamificationDashboard = ({
                         </div>
 
                         {/* XP */}
-                        <div className="text-right flex-shrink-0">
+                        <div className="text-right shrink-0">
                           <p className="text-lg font-bold text-text-primary">{user.totalXP.toLocaleString()}</p>
                           <p className="text-xs text-text-secondary">XP</p>
                         </div>

@@ -5,15 +5,17 @@
    <html>. Must precede the Tailwind layers so utilities can resolve the vars.
    The accent-variant blocks further down refine this scale; they stay in this
    file because azure/iris is a product feature, not part of the base contract. */
-@import './styles/primitives.css';
-@import './styles/tokens.css';
-@import './styles/components.css';
+@import './styles/primitives.css' layer(base);
+@import './styles/tokens.css' layer(base);
+@import './styles/components.css' layer(base);
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap')
+layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+/* The Tailwind theme itself: the v4 replacement for tailwind.config.js.
+   Must follow the import — @theme extends the layer the import opens. */
+@import './styles/theme.css';
 
 /* The accent variants (azure / iris) used to live here, defined once for both
    themes. They are colour, they are theme-dependent, and they are now in
@@ -24,6 +26,20 @@
    redeclared here, duplicating (and silently overriding) src/styles/tokens.css.
    They now live in src/styles/primitives.css, which is imported above and is
    the only place they are defined. See docs/ui/W1-01_VISUAL_DEBT_AUDIT.md F1/F2. */
+
+@layer base {
+  /* Tailwind v4 changed the default border colour from a palette grey to
+     `currentColor`. The v3 config set borderColor.DEFAULT to --border-default,
+     and a bare `border` class appears throughout the product, so the old
+     default is restored here rather than annotated onto every call site. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border-default);
+  }
+}
 
 @layer base {
   html {
@@ -69,185 +85,187 @@
   }
 }
 
-/* ============ keyframes (dc.html §11) ============ */
-@keyframes or-shimmer {
-  0% {
-    background-position: -400px 0;
+@layer utilities {
+  /* ============ keyframes (dc.html §11) ============ */
+  @keyframes or-shimmer {
+    0% {
+      background-position: -400px 0;
+    }
+    100% {
+      background-position: 400px 0;
+    }
   }
-  100% {
-    background-position: 400px 0;
+  @keyframes or-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 var(--critical);
+    }
+    50% {
+      box-shadow: 0 0 0 5px rgba(255, 69, 58, 0);
+    }
   }
-}
-@keyframes or-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--critical);
+  @keyframes or-pulsedot {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(1.35);
+    }
   }
-  50% {
-    box-shadow: 0 0 0 5px rgba(255, 69, 58, 0);
+  @keyframes or-fadeup {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-}
-@keyframes or-pulsedot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
+  @keyframes or-fadein {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
-  50% {
-    opacity: 0.55;
-    transform: scale(1.35);
+  @keyframes or-slidein {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
   }
-}
-@keyframes or-fadeup {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes or-fadein {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes or-slidein {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-/* Panel entrances. or-rise is the dialog's: 8px up under a fade, which reads as
+  /* Panel entrances. or-rise is the dialog's: 8px up under a fade, which reads as
    "this arrived" without the zoom that makes a dialog look like a toast.
    or-slidein-left is the mirror of or-slidein, for a left-hand drawer. */
-@keyframes or-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+  @keyframes or-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  @keyframes or-slidein-left {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
   }
-}
-@keyframes or-slidein-left {
-  from {
-    transform: translateX(-100%);
+  @keyframes or-scalein {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
-  to {
-    transform: translateX(0);
+  @keyframes or-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
-}
-@keyframes or-scalein {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
+  @keyframes or-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-9px);
+    }
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
+  @keyframes or-bounce {
+    0%,
+    80%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    40% {
+      transform: translateY(-5px);
+      opacity: 1;
+    }
   }
-}
-@keyframes or-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes or-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-9px);
-  }
-}
-@keyframes or-bounce {
-  0%,
-  80%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  40% {
-    transform: translateY(-5px);
-    opacity: 1;
-  }
-}
-/* Slow continuous rotation for the auth screen's orbit visual. Applied to whole
+  /* Slow continuous rotation for the auth screen's orbit visual. Applied to whole
    SVG groups so the browser composites one transform per ring rather than
    animating each node. Periods are 12–30s: ambient, never attention-seeking. */
-@keyframes or-orbit {
-  to {
-    transform: rotate(360deg);
+  @keyframes or-orbit {
+    to {
+      transform: rotate(360deg);
+    }
   }
-}
-/* Error feedback on an auth field. Deliberately small (4px) and short (300ms) —
+  /* Error feedback on an auth field. Deliberately small (4px) and short (300ms) —
    it has to read as "that was rejected", not as the form throwing a tantrum.
    Killed outright by the reduced-motion block below, where the static red
    border carries the message on its own. */
-@keyframes or-shake {
-  0%,
-  100% {
-    transform: translateX(0);
+  @keyframes or-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
   }
-  20%,
-  60% {
-    transform: translateX(-4px);
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
   }
-  40%,
-  80% {
-    transform: translateX(4px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
-}
 
-/* WCAG 2.2 — 2.4.11/2.4.7: the focus indicator itself is defined once, in
+  /* WCAG 2.2 — 2.4.11/2.4.7: the focus indicator itself is defined once, in
    tokens.css, against --focus-ring-color (verified >= 3:1 on every surface in
    both themes). This rule only widens the net to elements that are focusable
    without being one of the tags listed there; it must not restate the colour,
    which is how it previously diverged — it used --accent (the variant hue,
    2.73:1 on the light canvas) while the token said --accent-400. */
-:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-xs);
-}
-/* Skip-to-content link (WCAG 2.4.1): off-screen until focused, then it lands as a
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+    border-radius: var(--radius-xs);
+  }
+  /* Skip-to-content link (WCAG 2.4.1): off-screen until focused, then it lands as a
    real, branded control at the top-left so keyboard users jump past the chrome. */
-.skip-link {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000;
-  transform: translateY(-120%);
-  transition: transform 0.15s ease;
-  margin: 8px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text-on-solid);
-  background: var(--accent-solid);
-}
-.skip-link:focus {
-  transform: translateY(0);
-}
-@media (prefers-reduced-motion: reduce) {
   .skip-link {
-    transition: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transform: translateY(-120%);
+    transition: transform 0.15s ease;
+    margin: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-on-solid);
+    background: var(--accent-solid);
+  }
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link {
+      transition: none;
+    }
   }
 }
 

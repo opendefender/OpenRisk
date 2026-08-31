@@ -293,7 +293,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }} onClick={onClose}>
+    <div className="fixed inset-0 z-70 flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
         className="h-full flex flex-col"
@@ -324,7 +324,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
           <button
             onClick={() => fileRef.current?.click()}
             disabled={createEvidence.isPending}
-            className="w-full h-[92px] rounded-[12px] flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-medium text-ink-soft hover:text-accent hover:border-accent transition-colors disabled:opacity-60"
+            className="w-full h-[92px] rounded-[12px] flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-medium text-ink-soft hover:text-accent-strong hover:border-accent transition-colors disabled:opacity-60"
             style={{ border: '1.5px dashed var(--border-strong)', background: 'var(--bg-elevated)' }}
           >
             <Upload size={20} />

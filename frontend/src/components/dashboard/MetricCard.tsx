@@ -61,7 +61,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
           <p className="text-sm font-medium text-text-muted">{title}</p>
           {description && <p className="text-xs text-text-muted mt-1">{description}</p>}
         </div>
-        {status === 'critical' && <AlertCircle size={16} className="text-danger-text flex-shrink-0" />}
+        {status === 'critical' && <AlertCircle size={16} className="text-danger-text shrink-0" />}
       </div>
 
       {/* Value */}

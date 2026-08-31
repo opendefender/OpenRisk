@@ -23,38 +23,12 @@
    ========================================================================== */
 
 :root {
-  /* ---------------------------------------------------------------- type ---
-     Base is 14px, not 16px. OpenRisk is a console: a risk register, a control
-     table and a vulnerability queue all have to put a usable number of rows on
-     screen at once. The scale is ~1.2 so adjacent steps stay distinguishable
-     without any step becoming marketing-sized. */
-  --text-2xs: 10.5px;
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-md: 16px;
-  --text-lg: 19px;
-  --text-xl: 23px;
-  --text-2xl: 28px;
-  --text-3xl: 34px;
-
-  /* The marketing display scale. The console tops out at --text-3xl, which is a
-     console decision, not a product-wide one: the sign-in screen, the empty
-     states and the upgrade surfaces are read at arm's length, not scanned in a
-     queue. Fluid, so one declaration covers every viewport and no heading needs
-     a breakpoint of its own. Shared verbatim with the marketing site. */
-  --display-1: clamp(2.75rem, 1.75rem + 4vw, 5rem);
-  --display-2: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
-  --display-3: clamp(1.625rem, 1.25rem + 1.5vw, 2.375rem);
-  --display-4: clamp(1.35rem, 1.1rem + 1.1vw, 1.75rem);
-  --lead: clamp(1.0625rem, 1rem + 0.3vw, 1.3125rem);
-
-  /* Line heights. Data-bearing text is set tight; prose is not. */
-  --leading-none: 1;
-  --leading-tight: 1.15;
-  --leading-snug: 1.3;
-  --leading-normal: 1.45;
-  --leading-relaxed: 1.6;
+  /* The type scale, the display scale, the line heights, the tracking and the
+     families all moved into @theme in src/styles/theme.css. In Tailwind v4 a
+     @theme entry BOTH defines the scale and generates the utility, so keeping
+     a second copy here is how `text-sm` and var(--text-sm) drift apart. They
+     are still readable as var(--text-sm) etc: @theme emits them into :root.
+     ---------------------------------------------------------------------- */
 
   /* Weights. Four, and only four — Inter's 650 was in use in one place and
      rendered as a synthesised weight on systems without the variable face. */
@@ -62,22 +36,6 @@
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
-
-  /* Tracking. Negative on display sizes (large Inter is loose by default),
-     positive only on the uppercase micro-labels used for table headers. */
-  --tracking-display: -0.02em;
-  --tracking-normal: 0;
-  --tracking-caps: 0.06em;
-  /* Wider than --tracking-caps and reserved for the eyebrow: a 11px uppercase
-     label above a heading. At that size the letters need the air or the word
-     reads as a single grey smear. */
-  --tracking-eyebrow: 0.14em;
-
-  /* Families. --font-display carries a default so the app always has a display
-     face; the accent variant re-points it (azure -> Inter, iris -> DM Sans). */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'DM Sans', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
   /* --------------------------------------------------------------- space ---
      4px grid. Half-steps exist only below 8px, where 2px is a real distinction
@@ -104,15 +62,9 @@
   --space-section: clamp(4.5rem, 2.75rem + 6vw, 7.5rem);
   --space-section-sm: clamp(3.25rem, 2.25rem + 3.5vw, 5rem);
 
-  /* -------------------------------------------------------------- radius ---
-     Capped at 18px. A 24px corner reads as a phone app; a 0px corner reads as
-     a spreadsheet. OpenRisk sits between the two on purpose. */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-full: 9999px;
+  /* The radius scale moved into @theme (src/styles/theme.css) for the same
+     reason as the type scale. --radius-* still resolves in plain CSS.
+     ---------------------------------------------------------------------- */
 
   /* -------------------------------------------------------------- motion ---
      Five durations, and the longest is 400ms — reserved for a panel travelling
@@ -130,10 +82,11 @@
   --dur-slow: 260ms;
   --dur-panel: 400ms;
 
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-emphasized: cubic-bezier(0.2, 0.9, 0.25, 1.06);
+  /* The four curves moved into @theme (src/styles/theme.css), which is what
+     generates ease-out / ease-emphasized. The DURATIONS stay here: v4 has no
+     transition-duration namespace, so duration-fast is an explicit @utility
+     in theme.css reading --dur-* from this file.
+     ---------------------------------------------------------------------- */
 
   /* Composed shorthands, so a component writes one token instead of pairing a
      duration and a curve by hand (and getting a different pair each time). */
@@ -165,7 +118,8 @@
   --z-tooltip: 100; /* always readable, over everything */
 
   /* --------------------------------------------------------- breakpoints ---
-     Mirrors tailwind.config.js. Declared here so a container query or a JS
+     Mirrors --breakpoint-* in src/styles/theme.css. Declared here so a
+     container query or a JS
      matchMedia reads the same numbers the utilities do. --bp-3xl is the
      master-detail threshold: at 1920px a detail panel opens BESIDE the list
      rather than over it. */

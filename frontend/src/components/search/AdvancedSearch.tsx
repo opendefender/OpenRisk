@@ -137,7 +137,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
                       {/* Score Badge */}
                       {result.score !== undefined && (
-                        <div className="ml-2 flex-shrink-0">
+                        <div className="ml-2 shrink-0">
                           <div
                             className={`text-xs font-bold px-2 py-1 rounded ${
                               result.score >= 15
@@ -216,7 +216,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               </div>
             ) : state.error ? (
               <div className="px-4 py-4 flex items-start gap-3">
-                <AlertCircle className="text-danger-text flex-shrink-0 mt-0.5" size={16} />
+                <AlertCircle className="text-danger-text shrink-0 mt-0.5" size={16} />
                 <div>
                   <p className="text-sm text-danger-text">Search Error</p>
                   <p className="text-xs text-text-secondary mt-1">{state.error}</p>

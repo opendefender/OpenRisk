@@ -234,7 +234,7 @@ export function UserPicker({
               ref={panelRef}
               role="listbox"
               onKeyDown={onKeyDown}
-              className="fixed z-[70] overflow-hidden rounded-3xl border border-border bg-elevated shadow-2xl"
+              className="fixed z-70 overflow-hidden rounded-3xl border border-border bg-elevated shadow-2xl"
               style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
             >
               <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">

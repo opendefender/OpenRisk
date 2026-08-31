@@ -101,7 +101,7 @@ export const Register = () => {
         className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-border-strong/10 p-8 rounded-2xl shadow-2xl relative z-10"
       >
         <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
+          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
             <Zap className="text-text-primary" fill="currentColor" />
           </div>
         </div>
@@ -111,7 +111,7 @@ export const Register = () => {
 
         {errors.form && (
           <div className="mb-6 p-3 bg-danger/10 border border-danger/20 rounded-lg flex items-start gap-3">
-            <AlertCircle size={16} className="text-danger-text flex-shrink-0 mt-0.5" />
+            <AlertCircle size={16} className="text-danger-text shrink-0 mt-0.5" />
             <p className="text-sm text-danger-text">{errors.form}</p>
           </div>
         )}

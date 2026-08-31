@@ -558,7 +558,7 @@ function SimulatorCard({ rows, summary, lang, tr, onExplain }: { rows: TopRiskFi
           {tr('Budget', 'Budget')}
           <span className="mono text-ink">{f.xafCompact(cost)}</span>
         </span>
-        <input value={cost} onChange={(e) => setCost(Number(e.target.value))} type="range" min={0} max={costMax} step={Math.max(500_000, Math.round(costMax / 40))} className="mt-2 w-full accent-[var(--accent)]" />
+        <input value={cost} onChange={(e) => setCost(Number(e.target.value))} type="range" min={0} max={costMax} step={Math.max(500_000, Math.round(costMax / 40))} className="mt-2 w-full accent-(--accent)" />
       </label>
 
       {/* 3b. Effectiveness slider */}
@@ -567,7 +567,7 @@ function SimulatorCard({ rows, summary, lang, tr, onExplain }: { rows: TopRiskFi
           {tr('Efficacité de la mesure', 'Measure effectiveness')}
           <span className="mono text-ink">{Math.round(eff * 100)}%</span>
         </span>
-        <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-2 w-full accent-[var(--accent)]" />
+        <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-2 w-full accent-(--accent)" />
       </label>
 
       <button onClick={run} disabled={!riskId || sim.isPending} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)' }}>

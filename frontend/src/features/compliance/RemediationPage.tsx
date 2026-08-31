@@ -116,7 +116,7 @@ export function RemediationPage() {
                         <td className="px-4 py-3">
                           {/* A link, not a row click: the detail is a route, so
                               it must be openable in a new tab and shareable. */}
-                          <Link to={`/compliance/remediation/${p.id}`} className="font-semibold text-ink hover:text-accent transition-colors">
+                          <Link to={`/compliance/remediation/${p.id}`} className="font-semibold text-ink hover:text-accent-strong transition-colors">
                             {p.title}
                           </Link>
                           {p.description && <div className="text-[11.5px] text-ink-muted truncate max-w-[300px]" title={p.description}>{p.description}</div>}

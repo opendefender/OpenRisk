@@ -107,7 +107,7 @@ export const NotificationCenter = () => {
                           className={`p-4 hover:bg-surface-1/5 transition-colors ${!notification.read ? 'bg-surface-1/2' : ''}`}
                         >
                           <div className="flex gap-3">
-                            <div className={`p-2 rounded-full ${bg} flex-shrink-0`}>
+                            <div className={`p-2 rounded-full ${bg} shrink-0`}>
                               <Icon size={16} className={color} />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -124,7 +124,7 @@ export const NotificationCenter = () => {
                                   </p>
                                 </div>
                                 {!notification.read && (
-                                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0 mt-1" />
+                                  <div className="w-2 h-2 bg-accent rounded-full shrink-0 mt-1" />
                                 )}
                               </div>
                               <div className="flex gap-2 mt-3">

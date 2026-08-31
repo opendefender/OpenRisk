@@ -982,7 +982,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti, initialTab }: 
     ['timeline', L.tab_timeline], ['cti', L.tab_cti], ['ai', L.tab_ai],
   ];
   return (
-    <div className="fixed inset-0 z-[70] flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }} onClick={onClose}>
+    <div className="fixed inset-0 z-70 flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
         className="h-full flex flex-col"
@@ -1420,7 +1420,7 @@ function DrawerFinancial({ r }: { r: UiRisk }) {
               <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
                 {tr('Efficacité', 'Effectiveness')}<span className="mono text-ink">{Math.round(eff * 100)}%</span>
               </span>
-              <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-3 w-full accent-[var(--accent)]" />
+              <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-3 w-full accent-(--accent)" />
             </label>
           </div>
           <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
