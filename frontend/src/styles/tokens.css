@@ -437,8 +437,14 @@
 }
 
 :root[data-theme='light'][data-variant='azure'] {
-  --accent: #0b62bd;
-  --accent-500: #0b62bd;
+  /* #0b62bd measured 4.42:1 as small bold text on this variant's own
+     --accent-soft tint (the sidebar's org and account badges) — caught by axe
+     on the live dashboard, not by the token check, which only compared the
+     accent against page backgrounds. Two percent darker clears 4.5:1 there
+     (4.56) and improves every other accent-on-light pairing. Same class of fix
+     as --risk-moderate above. */
+  --accent: #0b60b9;
+  --accent-500: #0b60b9;
   --accent-hover: #094e97;
   --accent-soft: rgba(11, 98, 189, 0.1);
   --accent-line: rgba(11, 98, 189, 0.3);

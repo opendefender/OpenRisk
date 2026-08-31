@@ -104,6 +104,10 @@ export function OnboardingChecklist() {
         className="h-1.5 rounded-full overflow-hidden mb-4"
         style={{ background: 'var(--bg-hover)' }}
         role="progressbar"
+        // A progressbar with no accessible name is announced as a bare
+        // percentage with nothing to say what it measures. Named, not
+        // aria-hidden: the number IS the useful part of this card.
+        aria-label={tr("Progression de la prise en main", 'Onboarding progress')}
         aria-valuenow={state.percent}
         aria-valuemin={0}
         aria-valuemax={100}

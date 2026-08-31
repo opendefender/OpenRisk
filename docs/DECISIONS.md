@@ -5,51 +5,51 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-007 — #411 criterion 14: the eight registers are not one pattern eight times
-**Context** — Criterion 14 requires all eight registers to open the universal
-drawer on row activation, and the issue's PO note is explicit that the milestone
-is cut by dropping a whole issue, "never by shipping four registers of eight",
-because inconsistent navigation is itself a defect. Surveying the eight on
-2026-08-28 shows the criterion's premise — "one pattern applied eight times, one
-commit each" — does not hold. The universal drawer offers four sections
-(summary, relations, timeline, audit). Several registers currently open
-something substantially richer, so wiring their rows to it **removes
-capability**:
-
-| Register | Current drawer | Swapping it costs |
-|---|---|---|
-| Risks | `RiskDrawer`, 9 tabs: details, lifecycle, score, smart, financial, miti, timeline, cti, ai — plus edit, export, create-mitigation | Financial quantification, SmartScore, CTI and AI tabs disappear from the product's most important screen |
-| Evidence | `EvidenceDrawer`, 232 lines, **mutates** — approve/reject review, update validity | It is an editor. The issue's own rule retains editors (`MitigationDetailDrawer`, `ScanConfigDrawer`), and this one was mis-filed as a detail view |
-| Infrastructure | `ScanConfigDrawer`, a scanner-config editor keyed by PROVIDER | The rows are scanner providers, not assets. Criterion 14 maps this register to `asset`; the mapping does not hold |
-| Incidents | `IncidentDrawer`, 250 lines with actions | Needs a per-action check, not yet done |
-| Compliance | `ControlDrawer`, 220 lines, 2 tabs (details/evidence) | Closest to like-for-like; the evidence tab maps onto relations |
-| Vulnerabilities | `VulnDrawer`, inside the page | Needs a check |
-| Assets / Inventory | `AssetHistoryDrawer`, 94 lines, no tabs, no mutations, opened from a "history" row action | **Nothing** — rows do not currently open a detail view at all, so the universal drawer is pure gain here |
-
-So the eight are roughly: two clean wins, three needing a per-feature check, and
-two that are clear regressions as specified.
-**Options** — **A** wire only the registers where nothing is lost (assets,
-inventory, and whichever of the middle three survive a check), retain the rest
-with a stated reason under criterion 16, and accept mixed navigation · **B**
-give the universal drawer an action that opens the rich view ("Open full risk
-view"), so every row opens the drawer and depth stays one click away — uniform
-navigation, no capability lost, but a design change beyond #411 · **C** keep
-#411 to the two clean registers and move the rich ones to their own issue, where
-each rich drawer's tabs are migrated into the universal drawer's sections
-properly · **D** execute criterion 14 literally and accept the regressions.
-**Recommendation** — **B**, and if it will not fit the milestone, **C**. D ships
-a visible capability loss on the risk register. A is the thing the issue's own
-PO note forbids, and it forbids it for a good reason.
-**Cost of delay** — #411 cannot finish. Criterion 14 is its largest remaining
-chunk and blocks the #200 umbrella DoD. Criteria 15 and 17 are done and shipped
-regardless.
-**Reversible?** — Yes, but B and C both cost more the later they start, because
-every register wired the wrong way is rework.
-**Status** — OPEN
+_Nothing open. Last cleared 2026-08-31._
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-008 — One Time to First Value number: 8 minutes · 2026-08-31
+**Decided** — Option A. The committed public promise is **8 minutes** from
+signup to the Aha moment.
+**Rationale (owner)** — Matches the recommendation. Eight is the only number an
+automated test asserts, so it is the only one defensible under RULE #12. Five
+minutes through a five-step wizard, a framework import and a first risk is not
+provable today; publishing it would be the exact failure the claim matrix exists
+to prevent, on a launch-gate claim.
+**Consequence** — `AHA_BUDGET_MS` in `tests/e2e/activation.spec.ts` stays at
+8 minutes and its assertion is the proof. `docs/MARKETING_CLAIM_MATRIX.md` C-002
+carries the promise and names the test; the same file states explicitly that the
+12-minute `SlowTimeToAha` threshold in `deployment/monitoring/alerts.yml` is an
+operational warning with deliberate headroom and **not** the promise.
+`ROADMAP.md` 17.6 no longer says 5. Changing the number later means changing all
+three in one commit.
+**Unblocked** — #234 needed no label change: it was never blocked on this, and
+shipped on 8 in PR #437. The decision confirms what is already in review.
+
+### D-007 — #411 criterion 14: universal drawer keeps an "Open full view" action · 2026-08-31
+**Decided** — Option B. Every register row opens the universal drawer, and the
+drawer carries a prominent action that opens the rich view where one exists.
+**Rationale (owner)** — Matches the recommendation. Navigation becomes uniform
+without deleting capability: the 9-tab risk surface (details · lifecycle · score
+· smart · financial · miti · ai · timeline · cti, inline in
+`features/risks/RiskRegisterPage.tsx`), the Evidence approve/reject editor and
+the Infrastructure scanner-config editor all stay reachable, one click deeper.
+Option D was rejected because it ships a visible capability regression on the
+product's most important screen; option A because the issue's own PO note
+forbids mixed navigation, and forbids it for a good reason.
+**Consequence** — The universal drawer gains an "open full view" affordance, a
+design change beyond #411 as originally written: `art-director` and
+`ux-designer` should confirm the pattern and its copy before it is built. The
+per-register mapping in criterion 14 still needs the per-feature check for
+Incidents, Compliance and Vulnerabilities; Assets and Inventory remain pure gain.
+**Unblocked** — nothing yet, and this needs saying: **#411 is already CLOSED**
+(a merged PR closed it while criterion 14 was unfinished) and still carries a
+stale `status:in-progress`. Option B therefore has no home. It needs either a
+reopen of #411 or a new issue carrying criterion 14 plus this decision; see the
+comment posted on #411.
 
 ### D-001 — Brand: OpenRisk everywhere · 2026-08-28
 **Decided** — Option A. OpenRisk is both the company and the product name.

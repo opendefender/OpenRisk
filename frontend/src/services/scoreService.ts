@@ -125,6 +125,21 @@ export function bandColor(band: ScoreBand | undefined): string {
   }
 }
 
+/**
+ * The band token for SMALL TEXT, as opposed to a fill.
+ *
+ * The low band's green (--risk-low, #1a7f3c) is a fill colour: as 12px text on
+ * --surface-sunken it measures 4.29:1, just under AA. The design system already
+ * carries --success-text (#15682f, 5.83:1) for text-weight green, which is what
+ * this returns. The other three bands clear 4.5:1 on that surface unchanged, so
+ * they are passed through — the scale itself is not redefined here.
+ *
+ * Use bandColor for bars, chips and fills; use this for a number or a label.
+ */
+export function bandTextColor(band: ScoreBand | undefined): string {
+  return band === 'low' ? 'var(--success-text)' : bandColor(band);
+}
+
 /** FR/EN label for a band, keyed by the server's i18n key. */
 export function bandLabel(band: ScoreBand | undefined, lang: 'fr' | 'en'): string {
   const labels: Record<ScoreBand, { fr: string; en: string }> = {

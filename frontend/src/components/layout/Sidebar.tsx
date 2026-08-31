@@ -15,7 +15,7 @@ import { OpenRiskLogo } from '../../shared/Logo';
 import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem, type NavCount } from '../../shared/navModel';
 import { useScore } from '../../hooks/useScore';
 import { useOrganizationCounts } from '../../features/organization/useOrganization';
-import { bandColor, bandLabel } from '../../services/scoreService';
+import { bandColor, bandLabel, bandTextColor } from '../../services/scoreService';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -114,6 +114,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   // token — so this cannot disagree with the server about where a cut lies.
   const score = tenantScore ? Math.round(tenantScore.value) : undefined;
   const scoreColor = bandColor(tenantScore?.band);
+  // The bar uses the fill colour; the number is small text and needs the
+  // text-weight token (see bandTextColor).
+  const scoreTextColor = bandTextColor(tenantScore?.band);
 
   // Live, tenant-scoped counters for the nav badges. A failed or refused read
   // leaves every count at zero, which renders no badge at all — the honest
@@ -300,7 +303,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 <span className="text-[10.5px] text-ink-soft font-medium">
                   {L.globalScore} · {bandLabel(tenantScore?.band, lang)}
                 </span>
-                <span className="mono text-[12px] font-semibold" style={{ color: scoreColor }}>
+                <span className="mono text-[12px] font-semibold" style={{ color: scoreTextColor }}>
                   {score}/100
                 </span>
               </div>
