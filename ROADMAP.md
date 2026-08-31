@@ -392,6 +392,21 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
 **Bloc D — Monétisation & croissance (Partie C + 17)**
 11. **Billing & Plans (17.2)** + conversion (Partie C) + **Onboarding (17.6)** + **Super Admin (17.4)**.
 
+**Bloc W1 — Wave 1, fondations produit**
+- [~] **W1-03 — Action Center contextuel** (épique #201, scindée en #429 backend / #430 frontend).
+  **Backend livré** (#429, branche `429-feat-build-the-action-center-aggregation-api-backend`) :
+  `GET /api/v1/action-center` — agrégation **en lecture seule** de six sources existantes (mitigation en
+  retard · risque critique sans mitigation active · approbation dont l'appelant est l'approbateur de
+  l'étape courante · incident ouvert · preuve expirée/expirante · plan de remédiation en retard), tri
+  déterministe (rang de catégorie 1→6 puis clé secondaire propre à chaque catégorie), périmètre par
+  `BusinessRole`, `tenant_id` filtré sur **chacune** des six requêtes (test de mutation à l'appui).
+  Aucune table nouvelle, aucune migration. `internal/application/actioncenter/`,
+  `internal/infrastructure/repository/actioncenter_repository.go`,
+  `internal/handler/action_center_handler.go`. Contrat publié dans `docs/openapi.yaml` +
+  `frontend/src/types/openapi.generated.ts`.
+  **⚠️ Aucun utilisateur ne peut encore l'atteindre** : il n'existe pas d'écran. La capacité ne sera
+  déclarée livrée, et n'entrera dans la matrice de claims, qu'au merge de **#430** (UI). Règle 12.
+
 **Bloc E — Wave 2/3 (gamechangers restants)**
 12. Digital Twin (14.13), War Room (14.14), Attack Path (14.15), Access Review (14.10), Offline (14.17),
     Plugin Marketplace complet (14.18), Vendor (14.2), Policy (14.3), Trust Center (14.4), BCP (14.6),

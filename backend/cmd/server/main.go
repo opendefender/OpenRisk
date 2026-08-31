@@ -28,6 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 
+	actioncenterapp "github.com/opendefender/openrisk/internal/application/actioncenter"
 	appactivation "github.com/opendefender/openrisk/internal/application/activation"
 	appai "github.com/opendefender/openrisk/internal/application/ai"
 	assetapp "github.com/opendefender/openrisk/internal/application/asset"
@@ -2134,6 +2135,16 @@ func main() {
 	notificationsGroup.Get("/preferences", notificationHandler.GetNotificationPreferences)
 	notificationsGroup.Patch("/preferences", notificationHandler.UpdateNotificationPreferences)
 	notificationsGroup.Post("/test", notificationHandler.TestNotification)
+
+	// --- Action Center (#429) --------------------------------------------------
+	// A live, role-aware read over six existing tables. Registered on `protected`
+	// so it inherits the same auth middleware as /notifications: the endpoint has
+	// no identity of its own to fall back on, and an unauthenticated call must
+	// reach the handler with an empty context and be refused, never be served.
+	actionCenterHandler := handlers.NewActionCenterHandler(
+		actioncenterapp.NewUseCase(repository.NewActionCenterRepository(database.DB)),
+	)
+	protected.Get("/action-center", actionCenterHandler.GetActionCenter)
 
 	// --- Risk Timeline (Protected routes) ---
 	timelineHandler := handlers.NewRiskTimelineHandler()

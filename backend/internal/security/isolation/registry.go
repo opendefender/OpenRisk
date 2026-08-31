@@ -97,6 +97,8 @@ var decisions = []Decision{
 			"not-found rather than forbidden (covered by TestRevoke_CrossUser_IsNotFound)"},
 
 	// --- Covered by automated isolation tests -----------------------------
+	{"/api/v1/action-center", Covered,
+		"repository/actioncenter_repository_test TestActionCenter_TenantIsolation seeds the same qualifying row in two tenants and asserts each of the SIX source queries (mitigations, risks, approvals, incidents, evidence, remediation plans) returns only the caller's; TestActionCenter_NilTenantIsRefused proves a zero tenant fails closed with ErrForbidden rather than returning an unscoped set, and TestActionCenter_BusinessRoleIsScopedToTheTenant proves the role driving what is shown is read per (user, tenant). The caller's tenant comes only from the JWT (handler.callerFromCtx), never from the query string. Note incidents.tenant_id is a VARCHAR, compared as a string on purpose"},
 	{"/api/v1/assets/{id}", Covered,
 		"application/asset get/update/delete cross-tenant tests + gorm_asset_repository_test"},
 	{"/api/v1/assets/{id}/history", Covered,

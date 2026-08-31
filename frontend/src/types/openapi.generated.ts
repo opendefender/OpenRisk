@@ -1250,10 +1250,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/action-center": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Prioritised outstanding work for the caller
+         * @description Returns the items the caller can personally act on right now, ordered by category rank then by that category's own secondary key. A live read over risks, mitigations, incidents, evidence, remediation plans and approvals — nothing is persisted and there is no dismiss: an item disappears when the underlying work is done.
+         *
+         *     Which categories are returned depends on the caller's business role. Pending approvals are NOT role-gated: they are evaluated per request against the current step's approver, so a caller who is the named approver always sees them, and a caller who would be refused at the Approve button never does.
+         */
+        get: operations["getActionCenter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description One thing the caller needs to act on. Assembled on read from an existing record; it has no table of its own and no lifecycle. */
+        ActionItem: {
+            /**
+             * @description Stable composite id, "<source>:<uuid>" (e.g. "mitigation:8f1e..."). Namespaced because two categories can otherwise carry the same underlying uuid, and React would then see duplicate keys.
+             * @example mitigation:8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0
+             */
+            id: string;
+            /** @enum {string} */
+            type: "overdue_mitigation" | "critical_risk" | "pending_approval" | "open_incident" | "expiring_evidence" | "overdue_remediation";
+            /** @description The underlying record's own title, never a generated sentence. */
+            title: string;
+            /** @enum {string} */
+            subject_resource_type: "mitigation" | "risk" | "approval_request" | "incident" | "evidence" | "remediation_plan";
+            /** @description The record's own id. A uuid for every type except incident, which is an integer rendered as a string. */
+            subject_resource_id: string;
+            /**
+             * @description Relative frontend path that resolves to a real route. Detail pages take the id in the path (/risks/mitigations/{id}); risks and evidence have no detail page and open the universal entity drawer instead (/risks?drawer=risk&entity={id}).
+             * @example /risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0
+             */
+            deep_link: string;
+            /**
+             * Format: date-time
+             * @description Due date, expiry or approval deadline, depending on the type. Null when the category has no date.
+             */
+            due_at?: string | null;
+            /** @description 1 overdue_mitigation, 2 critical_risk, 3 pending_approval, 4 open_incident, 5 expiring_evidence, 6 overdue_remediation. This is the primary sort key, exposed so a client can group without re-deriving the rule. */
+            category_rank: number;
+            /** Format: uuid */
+            tenant_id: string;
+        };
+        ActionCenterResponse: {
+            /** @description Always an array. Empty when nothing is outstanding. */
+            data: components["schemas"]["ActionItem"][];
+            /**
+             * Format: date-time
+             * @description When the aggregation ran. The list is a live read, so this is its as-of instant.
+             */
+            generated_at: string;
+            limit: number;
+            offset: number;
+            /** @description Total outstanding items for this caller, not the size of this page. */
+            total: number;
+        };
         /** @description An amount in both currencies (XAF canonical, USD derived). */
         Money: {
             xaf: number;
@@ -4728,6 +4793,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getActionCenter: {
+        parameters: {
+            query?: {
+                /** @description Page size. Defaults to 20, clamped to 100. */
+                limit?: number;
+                /** @description Rows to skip. A negative value is rejected with 400. */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's prioritised action items, possibly empty */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionCenterResponse"];
+                };
+            };
+            /** @description Invalid offset */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
