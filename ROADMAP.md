@@ -135,8 +135,8 @@ il n'est pas encore la plateforme différenciante du Master Prompt V5 (Wave 2/3)
 | **17.2 Billing & Plans (Stripe/Mobile Money)** | ❌ | Rien. | Middleware `CheckPlanLimits`, Stripe, Wave/MTN/Orange. |
 | **17.3 Feature Flags** | 🟡 | Claim `FeatureFlags` dans le JWT (`internal/auth/jwt.go`). | **Pas de table `feature_flags`, pas de middleware `FeatureFlag()`, pas d'admin.** Scaffolding claim seulement. |
 | **17.4 Super Admin Panel** | ❌ | Aucun package superadmin. | Tenants/impersonation/metrics globales/équipe OpenDefender. |
-| **17.5 Accessibilité (WCAG 2.1 AA)** | 🟡 | Design system partiel, Framer Motion. | Pas d'audit `axe-core`, focus/ARIA/contraste non garantis. |
-| **17.6 Onboarding Flow (5 étapes)** | ❌ | Aucun package onboarding. | Critique pour l'activation (« 1er risque en < 5 min »). |
+| **17.5 Accessibilité (WCAG 2.1 AA)** | 🟡 | Balayage `axe-core` automatisé (`tests/e2e/a11y.spec.ts`) : 15 écrans principaux + les 5 routes du wizard d'onboarding et la checklist d'activation, porte à zéro violation *serious/critical*, `A11Y_KNOWN` vide. | Le balayage couvre les écrans principaux, pas encore toutes les modales ni tous les tiroirs ; parcours clavier et lecteur d'écran non audités de bout en bout. |
+| **17.6 Onboarding Flow (5 étapes)** | ✅ | Wizard 5 étapes reprenable (`frontend/src/features/onboarding/wizard/`), garde de route `OnboardingGuard`, état serveur `internal/application/activation/onboarding.go` + `internal/domain/activation.go`, endpoints `/onboarding/*` et `/activation/state`. Checklist d'activation à 7 étapes, dérivée d'événements serveur ; amorcée pour les tenants déjà configurés (`gorm_activation_backfill.go`). | Promesse d'activation : **Aha en < 8 min** (assertion `tests/e2e/activation.spec.ts` ; l'alerte `SlowTimeToAha` à P50 > 12 min est un seuil d'exploitation, pas la promesse). Étapes « intégrations » et « première évaluation » : hors périmètre, voir #234. |
 | **17.7 Sync Engine & Intégrations** | 🟡 | `infrastructure/integrations/thehive` + `SyncEngine` lancé dans `main.go`. | OpenCTI/Splunk/Elastic/AWS Security Hub/Azure Defender/Jira : ❌. |
 
 ### 1.4 Product Growth — Partie C (go-to-market)

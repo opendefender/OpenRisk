@@ -132,3 +132,26 @@ it is reviewed as a pricing change, with the stale
 `internal/application/entitlements/service_test.go` updated as part of THAT work.
 **Unblocked** — `feat/w1-02-universal-entity-drawer` stops carrying a red test
 unrelated to its own scope.
+
+### D-007 — One Time to First Value number: 8 minutes · 2026-08-31
+**Recommendation (po)** — Commit publicly to **8 minutes** from signup to the
+Aha moment, and stop using 5 and 12 as if they meant the same thing.
+**Context** — The tree currently promises three numbers.
+`tests/e2e/activation.spec.ts:6-7,27,279` asserts under 8 min and
+`docs/JOURNAL.md` states 8 min. `ROADMAP.md:139` and the original #234 text say
+5 min. `deployment/monitoring/alerts.yml:195` warns at P50 > 12 min.
+`docs/MARKETING_CLAIM_MATRIX.md` has no onboarding row at all, so none of them
+is backed by anything. #234 is a `launch-gate`.
+**Rationale** — 8 min is the only number an automated test actually asserts, so
+it is the only one we can defend under RULE #12. Five minutes through a
+five-step wizard plus a first risk plus a framework import is not provable
+today. The 12-minute figure is an operational alert threshold with deliberate
+headroom for a warning to be actionable; it is not a promise and must be
+documented as not being one.
+**Cost of delay** — Marketing can publish "5 minutes" while the test asserts 8
+and the alert fires at 12. That is the exact failure mode the claim matrix
+exists to prevent, on a launch-gate claim.
+**Proceeding on** — 8 minutes, written into #234 criterion 5 so the work is not
+blocked. An override to 5 changes one number in that criterion and nothing else
+about the work.
+**Owner call needed on** — whether the public promise is 5 or 8.
