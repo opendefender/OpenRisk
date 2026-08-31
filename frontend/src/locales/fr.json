@@ -325,5 +325,30 @@
       "HIGH": "Élevée",
       "CRITICAL": "Critique"
     }
+  },
+  "actionCenter": {
+    "title": "Centre d'actions",
+    "subtitle": "Ce qui vous attend, par ordre de priorité",
+    "loading": "Chargement de vos actions",
+    "showing": "{shown} sur {total}",
+    "moreOutstanding": "{count} autre(s) en attente",
+    "openItem": "Ouvrir {title}",
+    "due": "Échéance {date}",
+    "noDueDate": "Sans échéance",
+    "overdue": "En retard",
+    "emptyTitle": "Vous êtes à jour",
+    "emptyDescription": "Rien n'est en attente de votre part. Les éléments apparaissent ici d'eux-mêmes lorsqu'une échéance approche, et disparaissent une fois le travail terminé.",
+    "errorTitle": "Impossible de charger la liste d'actions",
+    "errorDescription": "Rien n'est affiché plutôt qu'une liste partielle, pour ne pas vous faire agir sur une vue incomplète. Réessayez.",
+    "retry": "Réessayer",
+    "types": {
+      "overdue_mitigation": "Mitigation en retard",
+      "critical_risk": "Risque critique",
+      "pending_approval": "Approbation en attente",
+      "open_incident": "Incident ouvert",
+      "expiring_evidence": "Preuve bientôt expirée",
+      "overdue_remediation": "Remédiation en retard",
+      "unknown": "Action requise"
+    }
   }
 }

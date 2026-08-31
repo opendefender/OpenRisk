@@ -325,5 +325,30 @@
       "HIGH": "High",
       "CRITICAL": "Critical"
     }
+  },
+  "actionCenter": {
+    "title": "Action Center",
+    "subtitle": "What needs you now, in priority order",
+    "loading": "Loading your action items",
+    "showing": "{shown} of {total}",
+    "moreOutstanding": "{count} more outstanding",
+    "openItem": "Open {title}",
+    "due": "Due {date}",
+    "noDueDate": "No deadline",
+    "overdue": "Overdue",
+    "emptyTitle": "You are all clear",
+    "emptyDescription": "Nothing is outstanding for you right now. Items appear here on their own as work falls due, and disappear once it is done.",
+    "errorTitle": "The action list could not be loaded",
+    "errorDescription": "Nothing is shown rather than a partial list, so you are not acting on an incomplete picture. Try again.",
+    "retry": "Try again",
+    "types": {
+      "overdue_mitigation": "Overdue mitigation",
+      "critical_risk": "Critical risk",
+      "pending_approval": "Pending approval",
+      "open_incident": "Open incident",
+      "expiring_evidence": "Expiring evidence",
+      "overdue_remediation": "Overdue remediation",
+      "unknown": "Action required"
+    }
   }
 }
