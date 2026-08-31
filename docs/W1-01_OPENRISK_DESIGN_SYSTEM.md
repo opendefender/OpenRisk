@@ -112,7 +112,7 @@ Defined in `tokens.css`, per theme. Components name a **role**, never a colour.
 | Role | Tokens |
 | --- | --- |
 | Surface ramp | `--surface-0` canvas · `--surface-1` cards · `--surface-2` raised · `--surface-3` hover-on-raised · `--surface-sunken` · `--surface-overlay` scrim |
-| Text | `--text-primary` · `--text-secondary` · `--text-muted` · `--text-inverse` · `--text-on-solid` |
+| Text | `--fg-primary` · `--fg-secondary` · `--fg-muted` · `--fg-inverse` · `--fg-on-solid` |
 | Border | `--border-subtle` divider · `--border-default` · `--border-strong` · `--border-control` (the edge that identifies a control, ≥3:1) |
 | Accent | `--accent` the MARK (rules, keylines, fills; 3:1) · `--accent-500` the TEXT step, exposed as `accent-strong` and as `text-accent` (4.5:1 on every surface) · `--accent-hover` · `--accent-soft`/`-line` tints · `--accent-solid` for fills. Live per theme AND per variant |
 | Semantic | `--success` / `--warning` / `--danger` / `--info`, each with `-surface` and `-text` |
@@ -129,6 +129,14 @@ Two distinctions that are easy to get wrong:
 - **`--border-strong` vs `--border-control`.** The first is the strongest
   decorative rule; the second is the boundary of an actual control and meets
   WCAG 1.4.11's 3:1.
+- **`--fg-*` vs `--text-*`.** Text *colour* is `--fg-*`; `--text-*` is the
+  font-size scale in the Typography section below. They are not two names for
+  one idea — since the Tailwind v4 migration `--text-*` is a reserved theme
+  namespace, so a colour declared as `--text-primary` emits
+  `text-primary { font-size: #f6f4ef }` and the browser drops it without a
+  word. The utilities are `text-fg-primary` / `text-fg-secondary` /
+  `text-fg-muted`, or the `ink` shorthand set (`text-ink`, `text-ink-soft`,
+  `text-ink-muted`).
 
 ### Typography
 
