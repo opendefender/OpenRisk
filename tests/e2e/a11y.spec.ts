@@ -87,11 +87,19 @@ test.describe('a11y — onboarding', () => {
   // This block owns its identity; the shared admin storageState must not leak in.
   test.use({ storageState: { cookies: [], origins: [] } });
 
+  // ONE tenant for all five routes. The wizard guard only redirects a user who
+  // has COMPLETED it, so an unfinished account can open any step directly — and
+  // signing up five separate tenants in a row trips the registration rate limit.
+  let wizard: Awaited<ReturnType<typeof signUp>>;
+  test.beforeAll(async () => {
+    const api = await pwRequest.newContext();
+    wizard = await signUp(api, 'a11ywiz');
+    await api.dispose();
+  });
+
   for (const step of WIZARD_STEPS) {
     test(`a11y: onboarding wizard — ${step} (/onboarding/${step})`, async ({ browser }, info) => {
-      const api = await pwRequest.newContext();
-      const newcomer = await signUp(api, `a11y${step}`);
-      const ctx = await browser.newContext({ storageState: newcomer.storageState });
+      const ctx = await browser.newContext({ storageState: wizard.storageState });
       const page = await ctx.newPage();
 
       await page.goto(`/onboarding/${step}`, { waitUntil: 'domcontentloaded' });
@@ -107,7 +115,6 @@ test.describe('a11y — onboarding', () => {
       await expectNoBlockingViolations(page, info, `onboarding-${step}`, `/onboarding/${step}`);
 
       await ctx.close();
-      await api.dispose();
     });
   }
 
