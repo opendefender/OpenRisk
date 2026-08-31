@@ -423,8 +423,13 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   - Ligne W1-03 dans `docs/MARKETING_CLAIM_MATRIX.md` : **non ajoutée**. Le fichier réserve explicitement
     le statut `VERIFIED` à l'agent `product-verifier` ; la ligne doit venir de `/verify-claims`, pas d'une
     saisie manuelle. C'est le dernier élément de la DoD de #201.
-  - Route dédiée `/action-center` (page pleine, pagination au-delà des 8 premières lignes) — fast-follow
-    explicitement autorisé par #430, suivi dans **#433**.
+  - ~~Route dédiée `/action-center`~~ — **livrée par #433** : page pleine à `/action-center`, entrée
+    `routeModel` (parent `/`, donc fil d'Ariane et retour), entrée sidebar, pagination serveur
+    (`limit`/`offset`) dont le numéro de page vit dans l'URL (`?page=`), donc partageable et compatible
+    avec le bouton Retour. Le lien « Tout voir » du panneau remplace le texte mort « N autres en attente ».
+    Une seule implémentation de ligne (`ActionItemRow.tsx`) partagée par le panneau et la page : c'est ce
+    qui empêche une deuxième surface de contourner la validation des `deep_link`. 22 tests
+    (`__tests__/actionCenterPage.test.tsx`), axe compris.
   - Jamais exercé contre un backend vivant : tous les tests bouchonnent à la frontière du service. Le
     panneau n'a pas été rendu contre un `GET /api/v1/action-center` en fonctionnement, et la passe axe
     Playwright sur `/` avec des éléments présents n'a pas été faite.
