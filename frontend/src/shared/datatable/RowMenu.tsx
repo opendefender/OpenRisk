@@ -105,7 +105,7 @@ export function RowMenu<T>({ row, actions, label }: RowMenuProps<T>) {
         data-testid="row-menu-trigger"
         data-open={open || undefined}
         className="w-7 h-7 rounded-[7px] inline-flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"
-        style={open ? { background: 'var(--bg-hover)', color: 'var(--text-primary)' } : undefined}
+        style={open ? { background: 'var(--bg-hover)', color: 'var(--fg-primary)' } : undefined}
       >
         <MoreHorizontal size={17} />
       </button>
@@ -153,7 +153,7 @@ export function RowMenu<T>({ row, actions, label }: RowMenuProps<T>) {
                         },
                       })}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-[13px] font-medium text-left transition-colors hover:bg-hover disabled:opacity-50 disabled:pointer-events-none"
-                      style={{ color: action.danger ? 'var(--critical)' : 'var(--text-primary)' }}
+                      style={{ color: action.danger ? 'var(--critical)' : 'var(--fg-primary)' }}
                     >
                       {Icon && <Icon size={15} />}
                       {action.label}

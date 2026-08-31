@@ -138,7 +138,7 @@ export function VulnerabilitiesPage() {
       exportValue: (v) => `${v.priority_tier} (${v.priority_score.toFixed(0)})`,
       render: (v) => (
         <div className="inline-flex items-center gap-2">
-          <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: 'var(--text-inverse)' }}>{v.priority_tier}</span>
+          <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: 'var(--fg-inverse)' }}>{v.priority_tier}</span>
           <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
           {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
         </div>
@@ -394,7 +394,7 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
     </div>
   );
   const signal = (on: boolean, label: string) => (
-    <span className="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full text-[12px] font-semibold" style={{ color: on ? 'var(--critical)' : 'var(--text-muted)', background: on ? 'color-mix(in srgb,var(--critical) 12%,transparent)' : 'var(--bg-hover)' }}>
+    <span className="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full text-[12px] font-semibold" style={{ color: on ? 'var(--critical)' : 'var(--fg-muted)', background: on ? 'color-mix(in srgb,var(--critical) 12%,transparent)' : 'var(--bg-hover)' }}>
       {label}
     </span>
   );

@@ -97,7 +97,7 @@ export function ComplianceMappingField({ value, onChange, onImportFramework, dis
             onClick={onImportFramework}
             disabled={disabled}
             className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-semibold"
-            style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--text-primary))' }}
+            style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--fg-primary))' }}
           >
             <Plus size={14} />
             {tr('Importer un référentiel', 'Import a framework')}
@@ -175,7 +175,7 @@ export function ComplianceMappingField({ value, onChange, onImportFramework, dis
           onClick={add}
           disabled={disabled || !frameworkId}
           className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-3.5 py-2.5 text-[12.5px] font-semibold disabled:opacity-50"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--text-primary))' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--fg-primary))' }}
         >
           {controlsLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           {tr('Ajouter', 'Add')}

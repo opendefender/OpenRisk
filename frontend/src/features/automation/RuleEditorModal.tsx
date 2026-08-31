@@ -153,7 +153,7 @@ export function RuleEditorModal({
               you can read aloud is one a reviewer can check without opening its
               payload. */}
           <div className="rounded-[10px] p-3 text-[13px]"
-            style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>
+            style={{ background: 'var(--bg-hover)', color: 'var(--fg-primary)' }}>
             {sentence}
           </div>
 
@@ -181,7 +181,7 @@ export function RuleEditorModal({
                 return (
                   <button key={t} onClick={() => setTrigger(t)} className="text-left p-2.5 rounded-[10px] flex items-start gap-2"
                     style={{ border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`, background: active ? 'var(--accent-soft, rgba(90,106,207,.08))' : 'transparent' }}>
-                    <Icon size={15} style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)', marginTop: 1 }} />
+                    <Icon size={15} style={{ color: active ? 'var(--accent)' : 'var(--fg-secondary)', marginTop: 1 }} />
                     <div>
                       <div className="text-[12.5px] font-semibold text-ink">{pick(meta.label, lang)}</div>
                       <div className="text-[11px] text-ink-muted">{pick(meta.hint, lang)}</div>
@@ -251,7 +251,7 @@ export function RuleEditorModal({
                           const on = (a.channels ?? []).includes(ch);
                           return (
                             <button key={ch} onClick={() => toggleChannel(i, ch)} className="h-7 px-2.5 rounded-[7px] text-[11.5px] font-medium"
-                              style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`, color: on ? 'var(--accent)' : 'var(--text-secondary)', background: on ? 'var(--accent-soft, rgba(90,106,207,.08))' : 'transparent' }}>
+                              style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`, color: on ? 'var(--accent)' : 'var(--fg-secondary)', background: on ? 'var(--accent-soft, rgba(90,106,207,.08))' : 'transparent' }}>
                               {CHANNEL_META[ch].label}
                             </button>
                           );
@@ -282,7 +282,7 @@ export function RuleEditorModal({
                 const meta = ACTION_META[t];
                 const Icon = meta.icon;
                 return (
-                  <button key={t} onClick={() => addAction(t)} className="h-7 px-2.5 rounded-[7px] text-[11.5px] inline-flex items-center gap-1.5" style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-secondary)' }}>
+                  <button key={t} onClick={() => addAction(t)} className="h-7 px-2.5 rounded-[7px] text-[11.5px] inline-flex items-center gap-1.5" style={{ border: '1px dashed var(--border-strong)', color: 'var(--fg-secondary)' }}>
                     <Plus size={12} /> <Icon size={12} style={{ color: meta.color }} /> {pick(meta.label, lang)}
                   </button>
                 );

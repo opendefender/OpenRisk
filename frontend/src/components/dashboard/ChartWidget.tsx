@@ -39,8 +39,8 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between p-4 border-b border-border-subtle">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
-          {subtitle && <p className="text-sm text-text-muted mt-1">{subtitle}</p>}
+          <h3 className="text-lg font-semibold text-fg-primary">{title}</h3>
+          {subtitle && <p className="text-sm text-fg-muted mt-1">{subtitle}</p>}
         </div>
         {action && (
           <button

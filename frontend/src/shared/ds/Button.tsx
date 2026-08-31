@@ -34,7 +34,7 @@
  *           - Focus uses the global :focus-visible ring; it is never removed.
  *
  * WHY NOT the two that came before: components/ui/Button used
- * `text-text-primary` on an accent fill, which measures 3.1:1 in White mode,
+ * `text-fg-primary` on an accent fill, which measures 3.1:1 in White mode,
  * and shared/ui.Btn took `primary?: boolean; danger?: boolean` — magic booleans
  * that cannot express "tertiary" and made a third state (both true) legal.
  */
@@ -70,22 +70,22 @@ const VARIANT: Record<ButtonVariant, string> = {
   /* The only filled accent in the product. No gradient and no glow: the
      previous primary was `linear-gradient(135deg, …)` under a 12px accent
      shadow, which is the single strongest "generic dashboard" signal a UI can
-     send, on its most-used control. --accent-solid + --text-on-solid is a
+     send, on its most-used control. --accent-solid + --fg-on-solid is a
      contrast-verified pair (checked in CI). */
   primary:
-    'bg-accent-solid text-text-on-solid border border-transparent hover:brightness-[1.08] active:brightness-95',
+    'bg-accent-solid text-fg-on-solid border border-transparent hover:brightness-[1.08] active:brightness-95',
   /* The default. A real surface with a control-grade border, so it is
      identifiable as a control at 3:1 without being loud. */
   secondary:
-    'bg-surface-2 text-text-primary border border-control hover:bg-surface-3 active:bg-surface-3',
+    'bg-surface-2 text-fg-primary border border-control hover:bg-surface-3 active:bg-surface-3',
   /* No border, no fill until hover. For toolbars and row actions, where five
      bordered buttons in a row would read as a fence. */
   ghost:
-    'bg-transparent text-text-secondary border border-transparent hover:bg-surface-3 hover:text-text-primary',
+    'bg-transparent text-fg-secondary border border-transparent hover:bg-surface-3 hover:text-fg-primary',
   /* Filled, not tinted. A destructive action that looks like a secondary
      button is a trap; --danger-solid is dark enough to carry white text. */
   destructive:
-    'bg-danger-solid text-text-on-solid border border-transparent hover:brightness-110 active:brightness-95',
+    'bg-danger-solid text-fg-on-solid border border-transparent hover:brightness-110 active:brightness-95',
   /* Inline, in prose. Underlined always — colour alone is not an affordance
      (WCAG 1.4.1). */
   link: 'bg-transparent text-accent border-none underline underline-offset-2 hover:text-accent-strong-hover px-0 h-auto gap-(--control-gap) text-sm',

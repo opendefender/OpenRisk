@@ -109,8 +109,8 @@ export function InfrastructurePage() {
                   <m.icon size={20} strokeWidth={1.8} />
                 </div>
                 {provider === 'nmap' && (
-                  <span className="text-[11px] font-semibold inline-flex items-center gap-1.5" style={{ color: onlineAgents.length ? 'var(--low)' : 'var(--text-muted)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: onlineAgents.length ? 'var(--low)' : 'var(--text-muted)' }} />
+                  <span className="text-[11px] font-semibold inline-flex items-center gap-1.5" style={{ color: onlineAgents.length ? 'var(--low)' : 'var(--fg-muted)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: onlineAgents.length ? 'var(--low)' : 'var(--fg-muted)' }} />
                     {onlineAgents.length} {tr('en ligne', 'online')}
                   </span>
                 )}
@@ -210,7 +210,7 @@ export function InfrastructurePage() {
         {/* Right: agents */}
         <div className="flex flex-col gap-5">
           <Card style={{ padding: 0 }}>
-            <SectionHead icon={Server} title={tr('Agents connectés', 'Connected agents')} right={<span className="text-[12px] font-semibold" style={{ color: onlineAgents.length ? 'var(--low)' : 'var(--text-muted)' }}>{onlineAgents.length}/{agents.length}</span>} />
+            <SectionHead icon={Server} title={tr('Agents connectés', 'Connected agents')} right={<span className="text-[12px] font-semibold" style={{ color: onlineAgents.length ? 'var(--low)' : 'var(--fg-muted)' }}>{onlineAgents.length}/{agents.length}</span>} />
             {agents.length === 0 ? (
               <div className="px-4 pb-5 pt-1">
                 <EmptyState icon={ShieldOff} title={tr('Aucun agent', 'No agents')} description={tr('Déployez un agent depuis une config sur site.', 'Deploy one from an on-prem config.')} />

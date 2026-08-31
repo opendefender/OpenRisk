@@ -98,7 +98,7 @@ export default function AuditLogs() {
       login: 'bg-info-surface text-info-text',
       login_failed: 'bg-danger-surface text-danger-text',
       register: 'bg-success-surface text-success-text',
-      logout: 'bg-surface-sunken text-text-primary',
+      logout: 'bg-surface-sunken text-fg-primary',
       token_refresh: 'bg-purple-100 text-purple-800',
       role_change: 'bg-warning-surface text-warning-text',
       user_delete: 'bg-danger-surface text-danger-text',
@@ -106,14 +106,14 @@ export default function AuditLogs() {
       user_activate: 'bg-success-surface text-success-text',
       password_change: 'bg-info-surface text-info-text',
     };
-    return colors[action] || 'bg-surface-sunken text-text-primary';
+    return colors[action] || 'bg-surface-sunken text-fg-primary';
   };
 
   if (loading && logs.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
+          <h1 className="text-3xl font-bold text-fg-primary">Audit Logs</h1>
         </div>
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
@@ -126,7 +126,7 @@ export default function AuditLogs() {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
+          <h1 className="text-3xl font-bold text-fg-primary">Audit Logs</h1>
         </div>
         <div className="bg-danger-surface border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -141,7 +141,7 @@ export default function AuditLogs() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
+        <h1 className="text-3xl font-bold text-fg-primary">Audit Logs</h1>
       </div>
 
       {error && (
@@ -156,13 +156,13 @@ export default function AuditLogs() {
       {/* Filters */}
       <div className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-text-muted" />
-          <h2 className="text-lg font-semibold text-text-primary">Filters</h2>
+          <Filter className="w-5 h-5 text-fg-muted" />
+          <h2 className="text-lg font-semibold text-fg-primary">Filters</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
+            <label className="block text-sm font-medium text-fg-primary mb-2">
               Action
             </label>
             <select
@@ -187,7 +187,7 @@ export default function AuditLogs() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
+            <label className="block text-sm font-medium text-fg-primary mb-2">
               Result
             </label>
             <select
@@ -212,20 +212,20 @@ export default function AuditLogs() {
           <table className="w-full">
             <thead className="bg-surface-sunken border-b border-border-subtle">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-fg-primary">
                   <Clock className="w-4 h-4 inline mr-2" />
                   Timestamp
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-fg-primary">
                   Action
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-fg-primary">
                   Result
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-fg-primary">
                   IP Address
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text-primary">
+                <th className="px-6 py-3 text-left text-sm font-semibold text-fg-primary">
                   Details
                 </th>
               </tr>
@@ -236,7 +236,7 @@ export default function AuditLogs() {
                   key={log.id}
                   className="hover:bg-surface-sunken transition-colors"
                 >
-                  <td className="px-6 py-4 text-sm text-text-muted whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm text-fg-muted whitespace-nowrap">
                     {format(new Date(log.timestamp), 'MMM d, yyyy HH:mm:ss')}
                   </td>
                   <td className="px-6 py-4 text-sm">
@@ -254,15 +254,15 @@ export default function AuditLogs() {
                       <span className="capitalize">{log.result}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-text-muted font-mono">
+                  <td className="px-6 py-4 text-sm text-fg-muted font-mono">
                     {log.ip_address || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-text-muted">
+                  <td className="px-6 py-4 text-sm text-fg-muted">
                     {log.error_message && (
                       <div className="text-xs text-danger-text">{log.error_message}</div>
                     )}
                     {log.resource && (
-                      <div className="text-xs text-text-muted">
+                      <div className="text-xs text-fg-muted">
                         Resource: {log.resource}
                       </div>
                     )}
@@ -275,8 +275,8 @@ export default function AuditLogs() {
 
         {logs.length === 0 && !loading && (
           <div className="px-6 py-12 text-center">
-            <Clock className="w-12 h-12 text-text-secondary mx-auto mb-4" />
-            <p className="text-text-muted">No audit logs found</p>
+            <Clock className="w-12 h-12 text-fg-secondary mx-auto mb-4" />
+            <p className="text-fg-muted">No audit logs found</p>
           </div>
         )}
       </div>
@@ -285,7 +285,7 @@ export default function AuditLogs() {
       {logs.length > 0 && (
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-text-muted">Items per page:</label>
+            <label className="text-sm text-fg-muted">Items per page:</label>
             <select
               value={limit}
               onChange={(e) => {
@@ -305,17 +305,17 @@ export default function AuditLogs() {
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="px-4 py-2 border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-border-subtle rounded-lg text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
-            <span className="px-4 py-2 text-sm text-text-muted">
+            <span className="px-4 py-2 text-sm text-fg-muted">
               Page {page}
             </span>
             <button
               onClick={() => setPage(page + 1)}
               disabled={logs.length < limit}
-              className="px-4 py-2 border border-border-subtle rounded-lg text-sm font-medium text-text-primary hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 border border-border-subtle rounded-lg text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>

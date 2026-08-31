@@ -116,7 +116,7 @@ export function jobStatusColor(s: ScanJobStatus): string {
     case 'queued': return 'var(--medium)';
     case 'failed':
     case 'timeout': return 'var(--critical)';
-    default: return 'var(--text-muted)';
+    default: return 'var(--fg-muted)';
   }
 }
 
@@ -125,8 +125,8 @@ export function agentStatusColor(s: AgentStatus): string {
     case 'online': return 'var(--low)';
     case 'scanning': return 'var(--info)';
     case 'error': return 'var(--critical)';
-    case 'revoked': return 'var(--text-muted)';
-    default: return 'var(--text-muted)'; // offline
+    case 'revoked': return 'var(--fg-muted)';
+    default: return 'var(--fg-muted)'; // offline
   }
 }
 

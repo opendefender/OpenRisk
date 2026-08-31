@@ -33,7 +33,7 @@ export function InfoHint({ text, className = '' }: { text: string; className?: s
           <span
             role="tooltip"
             className="absolute z-60 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[240px] px-2.5 py-1.5 rounded-[8px] text-[11.5px] leading-snug text-left normal-case tracking-normal font-normal shadow-card-lg"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--fg-secondary)' }}
           >
             {text}
           </span>

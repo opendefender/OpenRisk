@@ -45,7 +45,7 @@ export const Incidents = () => {
       case 'low':
         return 'bg-accent-soft text-info-text border-accent-line';
       default:
-        return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
+        return 'bg-surface-3/10 text-fg-secondary border-border-strong/20';
     }
   };
 
@@ -58,7 +58,7 @@ export const Incidents = () => {
       case 'resolved':
         return 'bg-success/10 text-success-text';
       default:
-        return 'bg-surface-3/10 text-text-secondary';
+        return 'bg-surface-3/10 text-fg-secondary';
     }
   };
 
@@ -68,7 +68,7 @@ export const Incidents = () => {
       <div className="mb-6 flex justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold mb-2">Incidents</h2>
-          <p className="text-text-secondary">Track and manage security incidents across your infrastructure</p>
+          <p className="text-fg-secondary">Track and manage security incidents across your infrastructure</p>
         </div>
         <ViewToggle view={view} onViewChange={setView} />
       </div>
@@ -76,19 +76,19 @@ export const Incidents = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-text-secondary text-sm mb-2">Total Incidents</div>
+          <div className="text-fg-secondary text-sm mb-2">Total Incidents</div>
           <div className="text-3xl font-bold">{total}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-text-secondary text-sm mb-2">Critical</div>
+          <div className="text-fg-secondary text-sm mb-2">Critical</div>
           <div className="text-3xl font-bold text-danger-text">{incidents.filter((i) => i.severity === 'critical').length}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-text-secondary text-sm mb-2">Open</div>
+          <div className="text-fg-secondary text-sm mb-2">Open</div>
           <div className="text-3xl font-bold text-warning-text">{incidents.filter((i) => i.status === 'open').length}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
-          <div className="text-text-secondary text-sm mb-2">Resolved</div>
+          <div className="text-fg-secondary text-sm mb-2">Resolved</div>
           <div className="text-3xl font-bold text-success-text">{incidents.filter((i) => i.status === 'resolved').length}</div>
         </div>
       </div>
@@ -96,18 +96,18 @@ export const Incidents = () => {
       {/* Filters & Search */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center gap-2 bg-surface border border-border-strong/5 px-3 py-2 rounded-lg flex-1">
-          <Search size={16} className="text-text-muted" />
+          <Search size={16} className="text-fg-muted" />
           <input
             type="text"
             placeholder="Search incidents..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-text-muted"
+            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-fg-muted"
           />
         </div>
         <div className="flex gap-4">
           <div className="flex items-center gap-2">
-            <Filter size={16} className="text-text-muted" />
+            <Filter size={16} className="text-fg-muted" />
             <select
               value={filterSeverity}
               onChange={(e) => setFilterSeverity(e.target.value)}
@@ -138,7 +138,7 @@ export const Incidents = () => {
         <div className="space-y-3">
           {isLoading && (
             <div className="text-center py-12">
-              <p className="text-text-secondary">Loading incidents...</p>
+              <p className="text-fg-secondary">Loading incidents...</p>
             </div>
           )}
           {error && (
@@ -148,8 +148,8 @@ export const Incidents = () => {
           )}
           {!isLoading && filteredIncidents.length === 0 ? (
             <div className="text-center py-12">
-              <AlertTriangle size={48} className="mx-auto text-text-muted mb-4" />
-              <p className="text-text-secondary">No incidents found</p>
+              <AlertTriangle size={48} className="mx-auto text-fg-muted mb-4" />
+              <p className="text-fg-secondary">No incidents found</p>
             </div>
           ) : (
             filteredIncidents.map((incident, index) => (
@@ -163,7 +163,7 @@ export const Incidents = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-text-primary">{incident.title}</h3>
+                      <h3 className="font-semibold text-fg-primary">{incident.title}</h3>
                       <span className={`text-xs font-bold px-2 py-1 rounded border ${getSeverityColor(incident.severity)}`}>
                         {incident.severity.toUpperCase()}
                       </span>
@@ -171,8 +171,8 @@ export const Incidents = () => {
                         {incident.status.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-sm text-text-secondary mb-3">{incident.description}</p>
-                    <div className="flex items-center gap-6 text-xs text-text-muted">
+                    <p className="text-sm text-fg-secondary mb-3">{incident.description}</p>
+                    <div className="flex items-center gap-6 text-xs text-fg-muted">
                       <div className="flex items-center gap-2">
                         <Clock size={14} />
                         {new Date(incident.date).toLocaleDateString()}
@@ -195,7 +195,7 @@ export const Incidents = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading && (
             <div className="col-span-full text-center py-12">
-              <p className="text-text-secondary">Loading incidents...</p>
+              <p className="text-fg-secondary">Loading incidents...</p>
             </div>
           )}
           {error && (
@@ -205,8 +205,8 @@ export const Incidents = () => {
           )}
           {!isLoading && filteredIncidents.length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <AlertTriangle size={48} className="mx-auto text-text-muted mb-4" />
-              <p className="text-text-secondary">No incidents found</p>
+              <AlertTriangle size={48} className="mx-auto text-fg-muted mb-4" />
+              <p className="text-fg-secondary">No incidents found</p>
             </div>
           ) : (
             filteredIncidents.map((incident) => (
@@ -219,10 +219,10 @@ export const Incidents = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-text-primary group-hover:text-primary transition-colors mb-2">
+                    <h3 className="font-semibold text-fg-primary group-hover:text-primary transition-colors mb-2">
                       {incident.title}
                     </h3>
-                    <p className="text-xs text-text-muted">{incident.description?.slice(0, 100)}</p>
+                    <p className="text-xs text-fg-muted">{incident.description?.slice(0, 100)}</p>
                   </div>
                   <span className={`text-xs font-bold px-2 py-1 rounded ml-2 shrink-0 ${getSeverityColor(incident.severity)}`}>
                     {incident.severity.charAt(0).toUpperCase()}
@@ -231,13 +231,13 @@ export const Incidents = () => {
 
                 <div className="space-y-3 mb-4 border-t border-border pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <AlertTriangle size={14} /> Severity
                     </span>
                     <span className="text-sm font-medium capitalize">{incident.severity}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <Users size={14} /> Status
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(incident.status)}`}>
@@ -245,13 +245,13 @@ export const Incidents = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <User size={14} /> Assignee
                     </span>
                     <span className="text-sm">{incident.assignee}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <Clock size={14} /> Date
                     </span>
                     <span className="text-sm">{new Date(incident.date).toLocaleDateString()}</span>

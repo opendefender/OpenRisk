@@ -58,15 +58,15 @@ export const PrioritizedMitigationsList = () => {
   }
   
   if (mitigations.length === 0) {
-      return <div className="p-6 text-center text-text-muted">Aucune mitigation en cours. Créez des risques pour générer des actions !</div>;
+      return <div className="p-6 text-center text-fg-muted">Aucune mitigation en cours. Créez des risques pour générer des actions !</div>;
   }
 
   return (
     <div className="space-y-4 p-4">
-      <h2 className="text-xl font-bold text-text-primary flex items-center">
+      <h2 className="text-xl font-bold text-fg-primary flex items-center">
         <Zap size={20} className="text-warning-text mr-2" /> Priorité Intelligente
       </h2>
-      <p className="text-text-secondary text-sm">
+      <p className="text-fg-secondary text-sm">
         Liste des actions classées par leur impact maximal par rapport à l'effort minimal (Coût/Temps).
       </p>
 
@@ -80,24 +80,24 @@ export const PrioritizedMitigationsList = () => {
             className={`p-4 border border-border-default rounded-lg shadow-xl transition-all duration-200 hover:border-accent ${priorityColor}`}
           >
             <div className="flex justify-between items-start">
-              <h3 className="text-lg font-semibold text-text-primary">{m.title}</h3>
+              <h3 className="text-lg font-semibold text-fg-primary">{m.title}</h3>
               <Badge intent="accent" size="md" className="gap-1">
                 <Zap size={12} aria-hidden="true" />
                 <span>SPP: {m.weighted_priority.toFixed(2)}</span>
               </Badge>
             </div>
 
-            <div className="mt-2 text-sm text-text-secondary flex flex-wrap gap-x-4 gap-y-2">
+            <div className="mt-2 text-sm text-fg-secondary flex flex-wrap gap-x-4 gap-y-2">
                 <div className="flex items-center">
                     <ShieldAlert size={14} className="text-danger-text mr-1" />
                     <span>Risque: {m.risk?.title || 'N/A'} (Score: {m.risk?.score || '?'})</span>
                 </div>
                 <div className="flex items-center">
-                    <DollarSign size={14} className="text-text-secondary mr-1" />
+                    <DollarSign size={14} className="text-fg-secondary mr-1" />
                     <Badge intent={costInfo.intent}>{costInfo.label} Coût</Badge>
                 </div>
                 <div className="flex items-center">
-                    <Clock size={14} className="text-text-secondary mr-1" />
+                    <Clock size={14} className="text-fg-secondary mr-1" />
                     <span>{m.mitigation_time} Jours Est.</span>
                 </div>
             </div>
@@ -108,7 +108,7 @@ export const PrioritizedMitigationsList = () => {
                     style={{ width: `${m.progress}%` }}
                 ></div>
             </div>
-            <p className="text-xs text-text-secondary mt-1">{m.progress}% Complété</p>
+            <p className="text-xs text-fg-secondary mt-1">{m.progress}% Complété</p>
           </div>
         );
       })}

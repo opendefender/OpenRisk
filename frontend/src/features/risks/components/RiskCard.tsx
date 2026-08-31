@@ -15,7 +15,7 @@ const SourceIcon = ({ source }: { source: string }) => {
     case 'OPENCTI':
       return <Box size={12} className="text-purple-500" />;
     default:
-      return <User size={12} className="text-text-muted" />; // Manual
+      return <User size={12} className="text-fg-muted" />; // Manual
   }
 };
 
@@ -42,18 +42,18 @@ export const RiskCard = ({ risk, onClick }: RiskCardProps) => {
       className={`border rounded-lg p-4 cursor-pointer transition-colors hover:bg-surface-2/50 ${riskLevelColor}`}
     >
       <div className="flex items-start justify-between mb-3">
-        <h3 className="font-semibold text-text-primary flex-1">{risk.title}</h3>
+        <h3 className="font-semibold text-fg-primary flex-1">{risk.title}</h3>
         <div className="flex items-center gap-2 ml-2">
-          <span className="text-lg font-bold text-text-primary">{Math.round(risk.score || 0)}</span>
-          <span className="text-xs text-text-secondary">/ 100</span>
+          <span className="text-lg font-bold text-fg-primary">{Math.round(risk.score || 0)}</span>
+          <span className="text-xs text-fg-secondary">/ 100</span>
         </div>
       </div>
 
-      <p className="text-sm text-text-secondary mb-3 line-clamp-2">{risk.description}</p>
+      <p className="text-sm text-fg-secondary mb-3 line-clamp-2">{risk.description}</p>
 
       <div className="flex items-center gap-1 text-[10px] font-bold border border-border-strong/10 px-2 py-1 rounded bg-surface-1">
         <SourceIcon source={risk.source} />
-        <span className="text-text-secondary">{risk.source}</span>
+        <span className="text-fg-secondary">{risk.source}</span>
       </div>
     </div>
   );

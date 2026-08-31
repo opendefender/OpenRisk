@@ -61,7 +61,7 @@ export function Hint({ id, text, side = 'top', children }: HintProps) {
             width: 'max-content',
             maxWidth: 240,
             background: 'var(--bg-elevated)',
-            color: 'var(--text-primary)',
+            color: 'var(--fg-primary)',
             border: '1px solid var(--border-strong)',
             boxShadow: 'var(--shadow-lg)',
             animation: 'or-fadein .15s ease',

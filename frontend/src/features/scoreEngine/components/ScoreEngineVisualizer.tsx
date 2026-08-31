@@ -37,7 +37,7 @@ const getRiskLevelColor = (level: string): string => {
     case 'low':
       return 'bg-success/10 border-success text-success-text';
     default:
-      return 'bg-surface-3/10 border-border-strong text-text-primary';
+      return 'bg-surface-3/10 border-border-strong text-fg-primary';
   }
 };
 
@@ -187,7 +187,7 @@ export const ScoreEngineVisualizer = ({
 
       {loading && (
         <div className="text-center py-4">
-          <div className="inline-flex items-center gap-2 text-text-muted">
+          <div className="inline-flex items-center gap-2 text-fg-muted">
             <div className="w-4 h-4 bg-accent rounded-full animate-bounce" />
             <span>Calcul du score...</span>
           </div>
@@ -219,7 +219,7 @@ export const ScoreEngineVisualizer = ({
             ))}
           </div>
 
-          <p className="text-xs text-text-muted dark:text-text-secondary mt-3">
+          <p className="text-xs text-fg-muted dark:text-fg-secondary mt-3">
             Formule: <span className="font-mono">{matrix.formula}</span>
           </p>
         </motion.div>
@@ -240,17 +240,17 @@ export const ScoreEngineVisualizer = ({
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-surface-1 dark:bg-surface-2 border border-border-subtle dark:border-border-default rounded-lg p-3">
-              <p className="text-xs text-text-muted dark:text-text-secondary mb-1">Score Moyen</p>
+              <p className="text-xs text-fg-muted dark:text-fg-secondary mb-1">Score Moyen</p>
               <p className="text-2xl font-bold">{metrics.avg_score.toFixed(2)}</p>
             </div>
             <div className="bg-surface-1 dark:bg-surface-2 border border-border-subtle dark:border-border-default rounded-lg p-3">
-              <p className="text-xs text-text-muted dark:text-text-secondary mb-1">Score Max</p>
+              <p className="text-xs text-fg-muted dark:text-fg-secondary mb-1">Score Max</p>
               <p className="text-2xl font-bold">{metrics.max_score.toFixed(2)}</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-text-primary dark:text-text-secondary">Distribution:</p>
+            <p className="text-xs font-semibold text-fg-primary dark:text-fg-secondary">Distribution:</p>
             {metrics.risk_stats.map((stat) => (
               <div key={stat.level} className="flex items-center justify-between text-sm">
                 <span className="capitalize">{stat.level}</span>

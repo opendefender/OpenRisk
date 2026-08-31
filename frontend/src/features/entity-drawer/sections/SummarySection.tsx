@@ -50,14 +50,14 @@ function ScoreBlock({ score }: { score: EntityScore }) {
   if (!score.available) {
     return (
       <div className="rounded-md border border-subtle bg-surface-sunken px-3 py-2.5">
-        <div className="text-2xs uppercase tracking-wide text-text-muted">{score.label}</div>
+        <div className="text-2xs uppercase tracking-wide text-fg-muted">{score.label}</div>
         <div className="mt-0.5" data-testid="score-unavailable">
           {/* The one intent that says "no data here" — and, per its own
               definition in the design system, must never be mistaken for a
               healthy zero. That is exactly this case. */}
           <Badge intent="unavailable">Not available</Badge>
         </div>
-        {score.unavailable && <div className="mt-1 text-2xs text-text-muted">{score.unavailable}</div>}
+        {score.unavailable && <div className="mt-1 text-2xs text-fg-muted">{score.unavailable}</div>}
       </div>
     );
   }
@@ -66,10 +66,10 @@ function ScoreBlock({ score }: { score: EntityScore }) {
   return (
     <div className="rounded-md border border-subtle bg-surface-sunken px-3 py-2.5">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-2xs uppercase tracking-wide text-text-muted">{score.label}</span>
-        <span className="font-mono text-md font-semibold tabular-nums text-text-primary">
+        <span className="text-2xs uppercase tracking-wide text-fg-muted">{score.label}</span>
+        <span className="font-mono text-md font-semibold tabular-nums text-fg-primary">
           {formatNumber(score.value)}
-          <span className="ml-0.5 text-2xs font-normal text-text-muted">/ {formatNumber(score.max)}</span>
+          <span className="ml-0.5 text-2xs font-normal text-fg-muted">/ {formatNumber(score.max)}</span>
         </span>
       </div>
       <div
@@ -87,7 +87,7 @@ function ScoreBlock({ score }: { score: EntityScore }) {
       </div>
       {/* Naming the engine is what lets a reader tell a CVSS from a P×I×AC
           product without inferring it from the magnitude. */}
-      {score.basis && <div className="mt-1.5 text-2xs text-text-muted">{score.basis}</div>}
+      {score.basis && <div className="mt-1.5 text-2xs text-fg-muted">{score.basis}</div>}
     </div>
   );
 }
@@ -121,11 +121,11 @@ function FieldValue({ field }: { field: EntityField }): ReactNode {
           {field.value}
         </a>
       ) : (
-        <span className="text-sm text-text-primary">{field.value}</span>
+        <span className="text-sm text-fg-primary">{field.value}</span>
       );
     case 'date':
       return (
-        <time dateTime={field.value} className="font-mono text-sm tabular-nums text-text-primary">
+        <time dateTime={field.value} className="font-mono text-sm tabular-nums text-fg-primary">
           {formatDate(field.value)}
         </time>
       );
@@ -133,16 +133,16 @@ function FieldValue({ field }: { field: EntityField }): ReactNode {
     case 'money':
       return (
         <span
-          className="font-mono text-sm tabular-nums text-text-primary"
+          className="font-mono text-sm tabular-nums text-fg-primary"
           style={field.tone ? { color: `var(--${field.tone})` } : undefined}
         >
           {field.value}
         </span>
       );
     case 'multiline':
-      return <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-primary">{field.value}</p>;
+      return <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg-primary">{field.value}</p>;
     default:
-      return <span className="text-sm text-text-primary">{field.value}</span>;
+      return <span className="text-sm text-fg-primary">{field.value}</span>;
   }
 }
 
@@ -172,7 +172,7 @@ export function SummarySection({ summary }: { summary: EntitySummary }) {
         <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
           {compact.map((f) => (
             <div key={f.key} className="min-w-0">
-              <dt className="text-2xs uppercase tracking-wide text-text-muted">{f.label}</dt>
+              <dt className="text-2xs uppercase tracking-wide text-fg-muted">{f.label}</dt>
               <dd className="mt-0.5 wrap-break-word">
                 <FieldValue field={f} />
               </dd>
@@ -183,7 +183,7 @@ export function SummarySection({ summary }: { summary: EntitySummary }) {
 
       {wide.map((f) => (
         <div key={f.key} className="min-w-0">
-          <div className="text-2xs uppercase tracking-wide text-text-muted">{f.label}</div>
+          <div className="text-2xs uppercase tracking-wide text-fg-muted">{f.label}</div>
           <div className="mt-1">
             <FieldValue field={f} />
           </div>
@@ -193,21 +193,21 @@ export function SummarySection({ summary }: { summary: EntitySummary }) {
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-subtle pt-3">
         {summary.owner && (
           <div className="col-span-2">
-            <dt className="text-2xs uppercase tracking-wide text-text-muted">Owner</dt>
-            <dd className="mt-0.5 text-sm text-text-primary">
+            <dt className="text-2xs uppercase tracking-wide text-fg-muted">Owner</dt>
+            <dd className="mt-0.5 text-sm text-fg-primary">
               {summary.owner.email || summary.owner.label || shortId(summary.owner.id)}
             </dd>
           </div>
         )}
         <div>
-          <dt className="text-2xs uppercase tracking-wide text-text-muted">Created</dt>
-          <dd className="mt-0.5 font-mono text-2xs tabular-nums text-text-secondary">
+          <dt className="text-2xs uppercase tracking-wide text-fg-muted">Created</dt>
+          <dd className="mt-0.5 font-mono text-2xs tabular-nums text-fg-secondary">
             {formatDate(summary.created_at)}
           </dd>
         </div>
         <div>
-          <dt className="text-2xs uppercase tracking-wide text-text-muted">Updated</dt>
-          <dd className="mt-0.5 font-mono text-2xs tabular-nums text-text-secondary">
+          <dt className="text-2xs uppercase tracking-wide text-fg-muted">Updated</dt>
+          <dd className="mt-0.5 font-mono text-2xs tabular-nums text-fg-secondary">
             {formatDate(summary.updated_at)}
           </dd>
         </div>

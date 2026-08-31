@@ -34,7 +34,7 @@ const inputCls =
 const inputSty = {
   background: 'var(--surface-2)',
   borderColor: 'var(--border)',
-  color: 'var(--text-primary)',
+  color: 'var(--fg-primary)',
 } as const;
 
 /**
@@ -110,13 +110,13 @@ export default function AssetSchemaSettings() {
   if (isError) {
     return (
       <div className="p-6">
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm" style={{ color: 'var(--fg-secondary)' }}>
           Les schémas n'ont pas pu être chargés.
         </p>
         <button
           onClick={() => refetch()}
           className="mt-3 rounded-lg border px-3 py-1.5 text-sm"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          style={{ borderColor: 'var(--border)', color: 'var(--fg-primary)' }}
         >
           Réessayer
         </button>
@@ -127,10 +127,10 @@ export default function AssetSchemaSettings() {
   return (
     <div className="p-6 space-y-5">
       <header>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--fg-primary)' }}>
           Attributs par catégorie d'actif
         </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 text-sm" style={{ color: 'var(--fg-muted)' }}>
           Ce que vous décrivez ici devient le formulaire de saisie et la validation
           serveur pour chaque actif de cette catégorie.
         </p>
@@ -148,7 +148,7 @@ export default function AssetSchemaSettings() {
               style={{
                 borderColor: on ? 'var(--accent)' : 'var(--border)',
                 background: on ? 'var(--accent-soft)' : 'transparent',
-                color: on ? 'var(--accent)' : 'var(--text-secondary)',
+                color: on ? 'var(--accent)' : 'var(--fg-secondary)',
               }}
             >
               {CATEGORY_LABELS[cat]}
@@ -164,7 +164,7 @@ export default function AssetSchemaSettings() {
       >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--fg-muted)' }}>
               Nom affiché de la catégorie
             </label>
             <input
@@ -176,7 +176,7 @@ export default function AssetSchemaSettings() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs" style={{ color: 'var(--fg-muted)' }}>
               {draft.length} attribut{draft.length > 1 ? 's' : ''}
               {current?.customized ? ' · personnalisé' : ' · par défaut'}
               {current?.version ? ` · v${current.version}` : ''}
@@ -187,7 +187,7 @@ export default function AssetSchemaSettings() {
                   onClick={reset}
                   disabled={resetSchema.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                  style={{ borderColor: 'var(--border)', color: 'var(--fg-secondary)' }}
                 >
                   <RotateCcw size={14} /> Valeurs par défaut
                 </button>
@@ -195,7 +195,7 @@ export default function AssetSchemaSettings() {
                   onClick={save}
                   disabled={!dirty || updateSchema.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-                  style={{ background: 'var(--accent)', color: 'var(--text-inverse)' }}
+                  style={{ background: 'var(--accent)', color: 'var(--fg-inverse)' }}
                 >
                   <Save size={14} />
                   {updateSchema.isPending ? 'Enregistrement…' : 'Enregistrer'}
@@ -206,7 +206,7 @@ export default function AssetSchemaSettings() {
         </div>
 
         {!isAdmin && (
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>
             Lecture seule — modifier un schéma est une action d'administrateur.
           </p>
         )}
@@ -259,7 +259,7 @@ export default function AssetSchemaSettings() {
                 <div className="flex items-center gap-1 sm:col-span-2">
                   <label
                     className="flex items-center gap-1 text-xs"
-                    style={{ color: 'var(--text-secondary)' }}
+                    style={{ color: 'var(--fg-secondary)' }}
                   >
                     <input
                       type="checkbox"
@@ -319,7 +319,7 @@ export default function AssetSchemaSettings() {
                 )}
                 <label
                   className="flex items-center gap-1.5 text-xs sm:col-span-5"
-                  style={{ color: 'var(--text-muted)' }}
+                  style={{ color: 'var(--fg-muted)' }}
                   title="Marque cet attribut comme signal d'identité pour corréler les vulnérabilités"
                 >
                   <Fingerprint size={13} />
@@ -354,7 +354,7 @@ export default function AssetSchemaSettings() {
               ])
             }
             className="inline-flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+            style={{ borderColor: 'var(--border)', color: 'var(--fg-secondary)' }}
           >
             <Plus size={14} /> Ajouter un attribut
           </button>
@@ -381,7 +381,7 @@ function IconBtn({
       onClick={onClick}
       disabled={disabled}
       className="rounded p-1.5 transition disabled:opacity-30"
-      style={{ color: danger ? 'var(--critical)' : 'var(--text-muted)' }}
+      style={{ color: danger ? 'var(--critical)' : 'var(--fg-muted)' }}
     >
       {children}
     </button>

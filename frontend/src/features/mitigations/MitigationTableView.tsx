@@ -59,7 +59,7 @@ export const MitigationTableView = memo(function MitigationTableView({
   }, [mitigations, sortField, sortDir]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronsUpDown size={14} className="text-text-muted" />;
+    if (sortField !== field) return <ChevronsUpDown size={14} className="text-fg-muted" />;
     return sortDir === 'asc' ? (
       <ChevronUp size={14} className="text-info-text" />
     ) : (
@@ -77,7 +77,7 @@ export const MitigationTableView = memo(function MitigationTableView({
 
   if (mitigations.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-text-secondary">
+      <div className="flex items-center justify-center h-64 text-fg-secondary">
         Aucun plan d'atténuation
       </div>
     );
@@ -88,53 +88,53 @@ export const MitigationTableView = memo(function MitigationTableView({
       <table className="w-full text-sm">
         <thead className="border-b border-border-default bg-surface-1/50">
           <tr>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">
               <button
                 onClick={() => handleSort('title')}
-                className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                className="flex items-center gap-2 hover:text-fg-primary transition-colors"
               >
                 Titre
                 <SortIcon field="title" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">
               <button
                 onClick={() => handleSort('status')}
-                className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                className="flex items-center gap-2 hover:text-fg-primary transition-colors"
               >
                 Statut
                 <SortIcon field="status" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">
               <button
                 onClick={() => handleSort('priority')}
-                className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                className="flex items-center gap-2 hover:text-fg-primary transition-colors"
               >
                 Priorité
                 <SortIcon field="priority" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">
               <button
                 onClick={() => handleSort('progress')}
-                className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                className="flex items-center gap-2 hover:text-fg-primary transition-colors"
               >
                 Progression
                 <SortIcon field="progress" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">
               <button
                 onClick={() => handleSort('due_date')}
-                className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                className="flex items-center gap-2 hover:text-fg-primary transition-colors"
               >
                 Deadline
                 <SortIcon field="due_date" />
               </button>
             </th>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">Assigné</th>
-            <th className="text-left px-4 py-3 font-semibold text-text-secondary">Actions</th>
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">Assigné</th>
+            <th className="text-left px-4 py-3 font-semibold text-fg-secondary">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border-subtle">
@@ -146,7 +146,7 @@ export const MitigationTableView = memo(function MitigationTableView({
               onClick={() => onRowClick?.(mitigation)}
               className="hover:bg-surface-2/30 transition-colors cursor-pointer"
             >
-              <td className="px-4 py-3 text-text-primary">{mitigation.title}</td>
+              <td className="px-4 py-3 text-fg-primary">{mitigation.title}</td>
               <td className="px-4 py-3">
                 <StatusDot
                   status={mitigation.status.toLowerCase() as any}
@@ -165,10 +165,10 @@ export const MitigationTableView = memo(function MitigationTableView({
                   {mitigation.priority}
                 </span>
               </td>
-              <td className="px-4 py-3 text-text-secondary">
+              <td className="px-4 py-3 text-fg-secondary">
                 {mitigation.progress_percentage}%
               </td>
-              <td className="px-4 py-3 text-text-secondary">
+              <td className="px-4 py-3 text-fg-secondary">
                 {new Date(mitigation.due_date).toLocaleDateString('fr-FR')}
               </td>
               <td className="px-4 py-3">
@@ -180,7 +180,7 @@ export const MitigationTableView = memo(function MitigationTableView({
                     tooltip={true}
                   />
                 ) : (
-                  <span className="text-xs text-text-muted">−</span>
+                  <span className="text-xs text-fg-muted">−</span>
                 )}
               </td>
               <td className="px-4 py-3">

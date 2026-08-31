@@ -167,7 +167,7 @@ export function EstateDashboard() {
             emptyAction={
               <button
                 onClick={() => navigate('/assets')}
-                className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-text-primary"
+                className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-fg-primary"
                 style={{ background: 'var(--accent)' }}
               >
                 {tr('Nouvel actif', 'New asset')}
@@ -176,7 +176,7 @@ export function EstateDashboard() {
           >
             <>
               {critical.map((a) => {
-                const col = CRIT_COL[norm(a.criticality)] ?? 'var(--text-muted)';
+                const col = CRIT_COL[norm(a.criticality)] ?? 'var(--fg-muted)';
                 return (
                   <button key={a.id} onClick={() => navigate(deepLink('assets', { focus: String(a.id) }))} className="w-full flex items-center gap-3 px-2 py-[11px] rounded-[10px] hover:bg-hover transition-colors text-left">
                     <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: col }} />

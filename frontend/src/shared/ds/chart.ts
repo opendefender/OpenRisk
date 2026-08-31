@@ -64,7 +64,7 @@ export type SeverityKey = keyof typeof severity;
 export const trend = {
   positive: 'var(--success)',
   negative: 'var(--danger)',
-  neutral: 'var(--text-muted)',
+  neutral: 'var(--fg-muted)',
   /** The bar/area behind a value: a track, not data. */
   track: 'var(--chart-track)',
 } as const;
@@ -96,11 +96,11 @@ export const chartTooltip = {
     borderRadius: 'var(--radius-sm)',
     boxShadow: 'var(--elev-2)',
     fontSize: 'var(--text-xs)',
-    color: 'var(--text-primary)',
+    color: 'var(--fg-primary)',
     padding: '8px 10px',
   },
-  labelStyle: { color: 'var(--text-secondary)', marginBottom: 4 },
-  itemStyle: { color: 'var(--text-primary)' },
+  labelStyle: { color: 'var(--fg-secondary)', marginBottom: 4 },
+  itemStyle: { color: 'var(--fg-primary)' },
   cursor: { fill: 'var(--surface-3)' },
 } as const;
 

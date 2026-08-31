@@ -15,6 +15,8 @@
  * The check is one-directional and deliberately narrow: for every token the
  * CANONICAL file declares, the product must declare the same value in the same
  * scope. Tokens the product adds on top are its own business and are ignored.
+ * A token the product had to RENAME is followed through the rename and its
+ * value still compared — see RENAMED below.
  *
  * The last time these two drifted, the site declared a brand palette on a bare
  * `:root` while the console declared the product palette on
@@ -62,6 +64,32 @@ const ALLOWED = {
     '--graph-edge': 'See the dark block.',
     '--graph-node-stroke': 'See the dark block.',
   },
+};
+
+/**
+ * Tokens the product declares under a DIFFERENT NAME than the canonical file.
+ * The value contract still holds — the check follows the rename and compares
+ * the values — but the name is allowed to diverge, with a reason.
+ *
+ * This exists because the two surfaces do not run the same Tailwind. A rename
+ * forced by the console's build is not drift in the design system; refusing it
+ * would mean either shipping a token that silently breaks, or editing the
+ * vendored copy, and the second is how the last split started.
+ */
+const RENAMED = {
+  '--text-primary': {
+    to: '--fg-primary',
+    why:
+      'Tailwind v4 (#441) makes --text-* the font-size namespace: theme.css ' +
+      'declares --text-sm/--text-lg/--text-display-1 in @theme, where the name ' +
+      'both defines the scale and generates the utility. A colour left at ' +
+      '--text-primary emits `text-primary { font-size: #f6f4ef }`, which the ' +
+      'browser drops in silence. #442.',
+  },
+  '--text-secondary': { to: '--fg-secondary', why: 'See --text-primary.' },
+  '--text-muted': { to: '--fg-muted', why: 'See --text-primary.' },
+  '--text-inverse': { to: '--fg-inverse', why: 'See --text-primary.' },
+  '--text-on-solid': { to: '--fg-on-solid', why: 'See --text-primary.' },
 };
 
 /**
@@ -129,6 +157,7 @@ const product = scopesOf(PRODUCT);
 
 let drift = 0;
 let allowed = 0;
+let renamed = 0;
 let checked = 0;
 
 for (const [selector, wanted] of canonical) {
@@ -142,30 +171,34 @@ for (const [selector, wanted] of canonical) {
 
   for (const [token, want] of Object.entries(wanted)) {
     checked++;
-    const have = got[token];
+    const rename = RENAMED[token];
+    const productToken = rename?.to ?? token;
+    const have = got[productToken];
 
     if (have === undefined) {
-      console.log(`MISSING  ${token}  in  ${selector}`);
-      console.log(`  canonical: ${want}\n`);
+      console.log(`MISSING  ${productToken}  in  ${selector}`);
+      console.log(`  canonical: ${token}: ${want}\n`);
       drift++;
       continue;
     }
+    if (rename) renamed++;
     if (normalise(have) === normalise(want)) continue;
 
-    const reason = ALLOWED[selector]?.[token];
+    const reason = ALLOWED[selector]?.[productToken];
     if (reason) {
       allowed++;
       continue;
     }
-    console.log(`DRIFT    ${token}  in  ${selector}`);
-    console.log(`  canonical: ${want}`);
+    console.log(`DRIFT    ${productToken}  in  ${selector}`);
+    console.log(`  canonical: ${token}: ${want}`);
     console.log(`  product:   ${have}\n`);
     drift++;
   }
 }
 
 console.log(
-  `${checked} canonical tokens checked, ${allowed} deliberate divergence(s), ${drift} drifting.`,
+  `${checked} canonical tokens checked, ${renamed} renamed, ` +
+    `${allowed} deliberate divergence(s), ${drift} drifting.`,
 );
 
 if (drift > 0) {
@@ -173,7 +206,8 @@ if (drift > 0) {
     '\nDesign-system check FAILED.\n' +
       'Either bring the product value back in line with design-system/openrisk.tokens.css,\n' +
       'or — if the difference is deliberate and this product needs it — record it in\n' +
-      'ALLOWED in this file with the reason. Do not edit the vendored copy.',
+      'ALLOWED (a different value) or RENAMED (a different name) in this file with the\n' +
+      'reason. Do not edit the vendored copy.',
   );
   process.exit(1);
 }

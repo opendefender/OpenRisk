@@ -29,7 +29,7 @@ export function SystemMessage({ icon: Icon, code, title, message, actions, tone,
     <div
       role="alert"
       className="min-h-screen w-full flex items-center justify-center p-6"
-      style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+      style={{ background: 'var(--bg-primary)', color: 'var(--fg-primary)' }}
     >
       <div className="max-w-md w-full text-center or-fadeup">
         <div className="flex justify-center mb-6">
@@ -38,13 +38,13 @@ export function SystemMessage({ icon: Icon, code, title, message, actions, tone,
 
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 mx-auto"
-          style={{ background: 'var(--bg-hover)', color: tone ?? 'var(--text-muted)' }}
+          style={{ background: 'var(--bg-hover)', color: tone ?? 'var(--fg-muted)' }}
         >
           <Icon size={28} strokeWidth={1.7} />
         </div>
 
         {code && (
-          <div className="disp mono text-[40px] font-bold leading-none mb-2" style={{ color: tone ?? 'var(--text-muted)' }}>
+          <div className="disp mono text-[40px] font-bold leading-none mb-2" style={{ color: tone ?? 'var(--fg-muted)' }}>
             {code}
           </div>
         )}

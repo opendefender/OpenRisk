@@ -79,7 +79,7 @@ export function PeriodControl({
               className="h-[26px] px-2.5 rounded-[7px] text-[11.5px] font-semibold transition-colors"
               style={{
                 background: active ? 'var(--accent-hover)' : 'transparent',
-                color: active ? 'var(--text-inverse)' : 'var(--text-secondary)',
+                color: active ? 'var(--fg-inverse)' : 'var(--fg-secondary)',
               }}
             >
               {periodLabel({ kind: 'preset', preset }, lang)}
@@ -94,7 +94,7 @@ export function PeriodControl({
           className="h-[26px] px-2 rounded-[7px] text-[11.5px] font-semibold transition-colors flex items-center gap-1"
           style={{
             background: selection.kind === 'custom' ? 'var(--accent-hover)' : 'transparent',
-            color: selection.kind === 'custom' ? 'var(--text-inverse)' : 'var(--text-secondary)',
+            color: selection.kind === 'custom' ? 'var(--fg-inverse)' : 'var(--fg-secondary)',
           }}
         >
           <CalendarRange size={13} />
@@ -135,7 +135,7 @@ export function PeriodControl({
             disabled={!rangeValid}
             onClick={() => rangeValid && onChange({ kind: 'custom', from, to })}
             className="h-[28px] px-2.5 rounded-[7px] text-[12px] font-semibold flex items-center gap-1 disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: 'var(--text-inverse)' }}
+            style={{ background: 'var(--accent)', color: 'var(--fg-inverse)' }}
           >
             <Check size={13} />
             {tr('Appliquer', 'Apply')}

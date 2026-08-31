@@ -20,7 +20,7 @@ import { AiAuditReportButton } from '../ai/AiAuditReportButton';
 import type { AuditStatus, ComplianceAudit } from '../../types/compliance';
 
 const STATUS_META: Record<AuditStatus, { color: string; fr: string; en: string }> = {
-  planned: { color: 'var(--text-muted)', fr: 'Planifié', en: 'Planned' },
+  planned: { color: 'var(--fg-muted)', fr: 'Planifié', en: 'Planned' },
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
   completed: { color: 'var(--low)', fr: 'Terminé', en: 'Completed' },
   cancelled: { color: 'var(--critical)', fr: 'Annulé', en: 'Cancelled' },

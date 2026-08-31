@@ -80,7 +80,7 @@ export function AuditDashboard() {
               'Import ISO 27001, NIST CSF, PCI DSS or one of the other catalogues: coverage is computed from there automatically.'
             )}
             emptyAction={
-              <button onClick={() => navigate('/compliance')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'var(--accent)' }}>
+              <button onClick={() => navigate('/compliance')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-fg-primary" style={{ background: 'var(--accent)' }}>
                 {tr('Ajouter un référentiel', 'Add a framework')}
               </button>
             }

@@ -26,7 +26,7 @@ export function IncidentSourcesPage() {
   return (
     <PageFrame>
       <PageHeader title={tr('D’où viennent les incidents ?', 'Where do incidents come from?')} />
-      <p className="text-[13px] -mt-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-[13px] -mt-2 mb-4" style={{ color: 'var(--fg-secondary)' }}>
         {tr(
           'Cinq chemins mènent à un incident dans OpenRisk. Un seul part d’un jugement humain.',
           'Five paths lead to an incident in OpenRisk. Only one starts from a human judgement.',
@@ -36,7 +36,7 @@ export function IncidentSourcesPage() {
       <Card style={{ padding: '16px 18px', marginBottom: 16 }}>
         <div className="flex items-start gap-2.5">
           <HelpCircle size={16} style={{ color: 'var(--accent-500)' }} className="shrink-0 mt-0.5" />
-          <p className="text-[13px]" style={{ color: 'var(--text-primary)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--fg-primary)' }}>
             {tr(
               'Tout incident ouvert sans intervention humaine porte un bandeau qui nomme la règle et la source exactes, avec un lien vers cette règle. Si un incident vous surprend, ce bandeau vous dit quoi changer — et cette page vous dit où.',
               'Any incident opened without a human carries a banner naming the exact rule and source, with a link to that rule. If an incident surprises you, that banner tells you what to change — and this page tells you where.',
@@ -60,14 +60,14 @@ export function IncidentSourcesPage() {
                     background: origin.automatic
                       ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
                       : 'var(--bg-hover)',
-                    color: origin.automatic ? 'var(--accent)' : 'var(--text-secondary)',
+                    color: origin.automatic ? 'var(--accent)' : 'var(--fg-secondary)',
                   }}
                 >
                   <Icon size={17} />
                 </span>
                 <div className="flex-1 min-w-[240px]">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-[14px] font-bold" style={{ color: 'var(--fg-primary)' }}>
                       {lang === 'fr' ? origin.label : origin.label_en}
                     </span>
                     <span
@@ -76,13 +76,13 @@ export function IncidentSourcesPage() {
                         background: origin.automatic
                           ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
                           : 'var(--bg-hover)',
-                        color: origin.automatic ? 'var(--accent)' : 'var(--text-secondary)',
+                        color: origin.automatic ? 'var(--accent)' : 'var(--fg-secondary)',
                       }}
                     >
                       {origin.automatic ? tr('automatique', 'automatic') : tr('humain', 'human')}
                     </span>
                   </div>
-                  <p className="text-[12.5px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-[12.5px] mt-1" style={{ color: 'var(--fg-secondary)' }}>
                     {origin.description}
                   </p>
                   {origin.where_to_configure && (
@@ -97,10 +97,10 @@ export function IncidentSourcesPage() {
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="mono text-[22px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                  <div className="mono text-[22px] font-bold" style={{ color: 'var(--fg-primary)' }}>
                     {count}
                   </div>
-                  <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="text-[11px]" style={{ color: 'var(--fg-secondary)' }}>
                     {count === 0
                       ? tr('jamais déclenchée', 'never fired')
                       : `${share}% ${tr('de vos incidents', 'of your incidents')}`}
@@ -112,7 +112,7 @@ export function IncidentSourcesPage() {
         })}
       </div>
 
-      <p className="text-[12px] mt-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-[12px] mt-4" style={{ color: 'var(--fg-secondary)' }}>
         {tr(
           'Une source manquante ici signifie qu’aucun code ne l’utilise : cette liste est dérivée des chemins qui créent réellement des incidents, pas d’une documentation à jour séparément.',
           'A source missing here means no code uses it: this list is derived from the paths that actually create incidents, not from documentation maintained separately.',

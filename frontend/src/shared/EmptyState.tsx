@@ -38,9 +38,9 @@ interface VariantStyle {
 
 const VARIANTS: Record<EmptyStateVariant, VariantStyle> = {
   'first-use': { icon: Inbox, tone: 'var(--accent)', tinted: true },
-  'no-results': { icon: SearchX, tone: 'var(--text-muted)', tinted: false },
+  'no-results': { icon: SearchX, tone: 'var(--fg-muted)', tinted: false },
   error: { icon: AlertTriangle, tone: 'var(--critical)', tinted: true },
-  'no-permission': { icon: Lock, tone: 'var(--text-muted)', tinted: false },
+  'no-permission': { icon: Lock, tone: 'var(--fg-muted)', tinted: false },
 };
 
 export interface EmptyStateProps {

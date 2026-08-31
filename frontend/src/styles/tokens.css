@@ -83,11 +83,19 @@
   --surface-overlay: rgba(8, 8, 8, 0.76);
   --surface-sunken: #0c0c0c;
 
-  /* text */
-  --text-primary: #f6f4ef;
-  --text-secondary: #b5b2aa;
-  --text-muted: #8d8a83;
-  --text-inverse: #111111;
+  /* text — named --fg-*, NOT --text-*.
+     Since the Tailwind v4 migration (#441) `--text-*` is the FONT-SIZE
+     namespace: theme.css declares --text-sm, --text-lg, --text-display-1 in
+     @theme, where the name both defines the scale and generates the utility.
+     A colour called --text-primary sitting in the same namespace generates
+     `text-primary` as a font-size of #f6f4ef — a rule the browser drops in
+     silence. Renamed here rather than bridged, because a bridge fixes the
+     utility and leaves the trap in the token file for the next hand-written
+     CSS rule to fall into. See #442. */
+  --fg-primary: #f6f4ef;
+  --fg-secondary: #b5b2aa;
+  --fg-muted: #8d8a83;
+  --fg-inverse: #111111;
 
   /* borders — the primary hierarchy device in this system. Rules do the work
      that drop shadows do elsewhere, which is why there are three of them. */
@@ -115,7 +123,7 @@
   --accent-line: rgba(91, 124, 255, 0.32);
   --accent-400: #8aa1ff;
   --accent-500: #6e8bff;
-  /* Dark enough that --text-on-solid clears 4.5:1 on a filled primary button
+  /* Dark enough that --fg-on-solid clears 4.5:1 on a filled primary button
      (measured 6.49:1). */
   --accent-solid: #2547f0;
 
@@ -140,14 +148,14 @@
   /* Solid fills for buttons and badges.
      Distinct from the expressive colours above: --danger is tuned to be
      readable AS TEXT on a neutral surface, which makes it too light to sit
-     UNDER text. These are dark enough that --text-on-solid clears 4.5:1, and
+     UNDER text. These are dark enough that --fg-on-solid clears 4.5:1, and
      they are identical in both themes so a filled destructive button does not
      change meaning when the theme flips. */
   --danger-solid: #c81e14;
   --success-solid: #1a7f3c;
   --warning-solid: #9a5b00;
   --info-solid: #0b6f96;
-  --text-on-solid: #ffffff;
+  --fg-on-solid: #ffffff;
 
   /* risk criticality scale — five steps, and they are NOT the semantic
      colours: a risk is a measurement, not a system state. */
@@ -192,7 +200,7 @@
   /* The caret drawn on a native <select>. A background image cannot use
      currentColor, so the glyph has to be a per-theme token or the arrow ends
      up invisible in one of them — which is exactly what happens when a select
-     is styled with appearance:none and nothing else. Stroked in --text-muted. */
+     is styled with appearance:none and nothing else. Stroked in --fg-muted. */
   --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238d8a83' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   /* Topology graph. A node's severity is drawn from the risk scale above;
@@ -269,11 +277,11 @@
   --surface-overlay: rgba(17, 17, 17, 0.42);
   --surface-sunken: #efece5;
 
-  /* text */
-  --text-primary: #111111;
-  --text-secondary: #4b4945;
-  --text-muted: #57554f;
-  --text-inverse: #f6f4ef;
+  /* text — see the --fg-* note in the dark scope. */
+  --fg-primary: #111111;
+  --fg-secondary: #4b4945;
+  --fg-muted: #57554f;
+  --fg-inverse: #f6f4ef;
 
   /* borders */
   --border-subtle: #e5e1d8;
@@ -318,7 +326,7 @@
   --success-solid: #1a7f3c;
   --warning-solid: #9a5b00;
   --info-solid: #0b6f96;
-  --text-on-solid: #ffffff;
+  --fg-on-solid: #ffffff;
 
   /* risk criticality scale */
   --risk-low: #1a7f3c;

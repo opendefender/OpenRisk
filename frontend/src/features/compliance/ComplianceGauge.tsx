@@ -24,10 +24,10 @@ export const ComplianceGauge = ({ progress }: ComplianceGaugeProps) => {
       className="rounded-2xl border border-border-subtle bg-surface-0/60 p-5"
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-text-secondary">
+        <span className="text-sm font-medium text-fg-secondary">
           {t('compliance.progress').replace('{percent}', String(percent))}
         </span>
-        <span className="text-xs text-text-muted">
+        <span className="text-xs text-fg-muted">
           {progress.total} {t('compliance.controls')}
         </span>
       </div>

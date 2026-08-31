@@ -29,7 +29,7 @@ interface AchievementTrackingUIProps {
 const AchievementIcon = ({ icon, rarity }: { icon: string; rarity: string }) => {
   const iconSize = 24;
   const rarityColors = {
-    common: 'text-text-secondary',
+    common: 'text-fg-secondary',
     uncommon: 'text-success-text',
     rare: 'text-info-text',
     epic: 'text-purple-400',
@@ -118,17 +118,17 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
           </div>
 
           {/* Title & Description */}
-          <h3 className="font-semibold text-text-primary text-sm mb-1">{achievement.name}</h3>
-          <p className="text-xs text-text-primary/70 mb-3 line-clamp-2">{achievement.description}</p>
+          <h3 className="font-semibold text-fg-primary text-sm mb-1">{achievement.name}</h3>
+          <p className="text-xs text-fg-primary/70 mb-3 line-clamp-2">{achievement.description}</p>
 
           {/* Progress Bar */}
           {!achievement.unlocked && (
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-text-primary/60">
+                <span className="text-xs font-medium text-fg-primary/60">
                   {achievement.progress} / {achievement.maxProgress}
                 </span>
-                <span className="text-xs font-medium text-text-primary/60">{Math.round(progressPercent)}%</span>
+                <span className="text-xs font-medium text-fg-primary/60">{Math.round(progressPercent)}%</span>
               </div>
               <div className="w-full h-2 bg-surface-overlay rounded-full overflow-hidden backdrop-blur-sm">
                 <motion.div
@@ -143,13 +143,13 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
 
           {/* Unlocked Badge */}
           {achievement.unlocked && achievement.unlockedAt && (
-            <div className="text-xs text-text-primary/60 text-center">
+            <div className="text-xs text-fg-primary/60 text-center">
               Unlocked {new Date(achievement.unlockedAt).toLocaleDateString()}
             </div>
           )}
 
           {/* Rarity Label */}
-          <div className="text-xs font-semibold uppercase text-text-primary/80 tracking-wide text-center mt-2">
+          <div className="text-xs font-semibold uppercase text-fg-primary/80 tracking-wide text-center mt-2">
             {achievement.rarity}
           </div>
         </div>
@@ -178,8 +178,8 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm">Total Achievements</p>
-                <p className="text-3xl font-bold text-text-primary mt-1">{totalCount}</p>
+                <p className="text-fg-secondary text-sm">Total Achievements</p>
+                <p className="text-3xl font-bold text-fg-primary mt-1">{totalCount}</p>
               </div>
               <Trophy size={32} className="text-purple-400 opacity-60" />
             </div>
@@ -190,10 +190,10 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm">Unlocked</p>
+                <p className="text-fg-secondary text-sm">Unlocked</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <p className="text-3xl font-bold text-text-primary">{unlockedCount}</p>
-                  <p className="text-sm text-text-secondary">({Math.round((unlockedCount / totalCount) * 100)}%)</p>
+                  <p className="text-3xl font-bold text-fg-primary">{unlockedCount}</p>
+                  <p className="text-sm text-fg-secondary">({Math.round((unlockedCount / totalCount) * 100)}%)</p>
                 </div>
               </div>
               <CheckCircle2 size={32} className="text-success-text opacity-60" />
@@ -205,8 +205,8 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm">Completion</p>
-                <p className="text-3xl font-bold text-text-primary mt-1">{Math.round((unlockedCount / totalCount) * 100)}%</p>
+                <p className="text-fg-secondary text-sm">Completion</p>
+                <p className="text-3xl font-bold text-fg-primary mt-1">{Math.round((unlockedCount / totalCount) * 100)}%</p>
               </div>
               <Flame size={32} className="text-warning-text opacity-60" />
             </div>
@@ -223,7 +223,7 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
               filter === tab
                 ? 'bg-accent-soft text-accent-strong'
-                : 'bg-surface-1 text-text-secondary hover:bg-surface-2'
+                : 'bg-surface-1 text-fg-secondary hover:bg-surface-2'
             }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -247,8 +247,8 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
               exit={{ opacity: 0 }}
               className="text-center py-12"
             >
-              <Star size={48} className="mx-auto text-text-muted mb-3 opacity-50" />
-              <p className="text-text-secondary">No achievements to display</p>
+              <Star size={48} className="mx-auto text-fg-muted mb-3 opacity-50" />
+              <p className="text-fg-secondary">No achievements to display</p>
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -263,17 +263,17 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
       {/* Category Breakdown */}
       <Card className="bg-surface-1/50 border-border-subtle">
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Achievements by Category</h3>
+          <h3 className="text-lg font-semibold text-fg-primary mb-4">Achievements by Category</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {['risks', 'mitigations', 'compliance', 'performance'].map((category) => {
               const categoryAchievements = achievements.filter((a) => a.category === category);
               const unlockedInCategory = categoryAchievements.filter((a) => a.unlocked).length;
               return (
                 <div key={category} className="bg-surface-2/50 p-4 rounded-lg">
-                  <p className="text-text-secondary text-sm capitalize mb-2">{category}</p>
+                  <p className="text-fg-secondary text-sm capitalize mb-2">{category}</p>
                   <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-bold text-text-primary">{unlockedInCategory}</p>
-                    <p className="text-sm text-text-secondary">/ {categoryAchievements.length}</p>
+                    <p className="text-2xl font-bold text-fg-primary">{unlockedInCategory}</p>
+                    <p className="text-sm text-fg-secondary">/ {categoryAchievements.length}</p>
                   </div>
                 </div>
               );

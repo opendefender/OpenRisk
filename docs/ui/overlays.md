@@ -9,7 +9,7 @@ tooltips. These are where the "dark modal on a light app" bug lived, because an
 overlay is the one place a developer is most tempted to hardcode a dark panel.
 
 **Rule:** an overlay names roles, never colours — `bg-surface-2`,
-`text-text-primary`, `border-border-default`, and `bg-surface-overlay` for the
+`text-fg-primary`, `border-border-default`, and `bg-surface-overlay` for the
 scrim. Raw palette classes are rejected by `openrisk/no-raw-colors`.
 
 **Status:** 50/57 overlays carry no raw colour.

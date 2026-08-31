@@ -28,7 +28,7 @@ export const Settings = () => {
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Settings Sidebar */}
       <div className="w-64 border-r border-border bg-surface/30 p-6 flex flex-col">
-        <h2 className="text-lg font-bold text-text-primary mb-6 px-3">Settings</h2>
+        <h2 className="text-lg font-bold text-fg-primary mb-6 px-3">Settings</h2>
         <nav className="space-y-1">
           {tabs.map((tab) => (
             <button
@@ -37,7 +37,7 @@ export const Settings = () => {
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.id 
                   ? 'bg-primary/10 text-primary' 
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-1/5'
+                  : 'text-fg-secondary hover:text-fg-primary hover:bg-surface-1/5'
               }`}
             >
               <tab.icon size={18} />
@@ -60,7 +60,7 @@ export const Settings = () => {
             {activeTab === 'integrations' && <IntegrationsTab />}
             {activeTab === 'team' && <TeamTab />}
             {activeTab === 'rbac' && <RBACTab />}
-            {activeTab === 'security' && <div className="text-text-muted">Security Audit Logs (Coming Soon)</div>}
+            {activeTab === 'security' && <div className="text-fg-muted">Security Audit Logs (Coming Soon)</div>}
           </motion.div>
         </div>
       </div>

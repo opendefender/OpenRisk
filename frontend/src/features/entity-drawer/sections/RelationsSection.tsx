@@ -66,11 +66,11 @@ export function RelationsSection({ groups, isLoading, error, onRetry, onOpen }: 
       {visible.map((group) => (
         <section key={group.key} aria-labelledby={`rel-${group.key}`}>
           <div className="mb-2 flex items-baseline justify-between gap-2">
-            <h3 id={`rel-${group.key}`} className="text-2xs font-semibold uppercase tracking-wide text-text-muted">
+            <h3 id={`rel-${group.key}`} className="text-2xs font-semibold uppercase tracking-wide text-fg-muted">
               {group.label}
             </h3>
             {group.items.length > 0 && (
-              <span className="font-mono text-2xs tabular-nums text-text-muted">
+              <span className="font-mono text-2xs tabular-nums text-fg-muted">
                 {/* "5 of 312" rather than "5": a preview that looks complete is
                     worse than one that says it is not. */}
                 {group.truncated ? `${group.items.length} of ${group.total}` : group.total}
@@ -80,17 +80,17 @@ export function RelationsSection({ groups, isLoading, error, onRetry, onOpen }: 
 
           {group.denied ? (
             <div
-              className="flex items-center gap-2 rounded-md border border-subtle bg-surface-sunken px-3 py-2.5 text-sm text-text-secondary"
+              className="flex items-center gap-2 rounded-md border border-subtle bg-surface-sunken px-3 py-2.5 text-sm text-fg-secondary"
               data-testid={`relation-denied-${group.key}`}
             >
-              <Lock size={14} className="shrink-0 text-text-muted" aria-hidden />
+              <Lock size={14} className="shrink-0 text-fg-muted" aria-hidden />
               <span>
                 You do not have permission to see linked {group.label.toLowerCase()}. Ask an
                 administrator for access.
               </span>
             </div>
           ) : group.error ? (
-            <div className="rounded-md border border-subtle bg-surface-sunken px-3 py-2.5 text-sm text-text-secondary">
+            <div className="rounded-md border border-subtle bg-surface-sunken px-3 py-2.5 text-sm text-fg-secondary">
               These links could not be loaded. The rest of this record is unaffected.
             </div>
           ) : (
@@ -103,11 +103,11 @@ export function RelationsSection({ groups, isLoading, error, onRetry, onOpen }: 
                     className="group flex w-full items-center gap-2 rounded-md border border-subtle bg-surface-2 px-3 py-2 text-left transition-colors hover:border-default hover:bg-surface-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-text-primary">
+                      <span className="block truncate text-sm font-medium text-fg-primary">
                         {rel.title || rel.id}
                       </span>
                       {(rel.subtitle || rel.relation_label) && (
-                        <span className="block truncate text-2xs text-text-muted">
+                        <span className="block truncate text-2xs text-fg-muted">
                           {rel.relation_label && (
                             <span className="font-mono">{rel.relation_label}</span>
                           )}
@@ -129,7 +129,7 @@ export function RelationsSection({ groups, isLoading, error, onRetry, onOpen }: 
                     <ArrowRight
                       size={14}
                       aria-hidden
-                      className="shrink-0 text-text-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                      className="shrink-0 text-fg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
                     />
                   </button>
                 </li>

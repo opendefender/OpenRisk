@@ -56,8 +56,8 @@ export function ActionItemRow({ item, href }: ActionItemRowProps) {
         <Icon size={16} strokeWidth={1.75} className={`shrink-0 ${tone}`} aria-hidden="true" />
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-text-primary">{item.title}</span>
-          <span className="mt-0.5 block text-xs text-text-muted">
+          <span className="block truncate text-sm font-medium text-fg-primary">{item.title}</span>
+          <span className="mt-0.5 block text-xs text-fg-muted">
             {typeLabel}
             {due && (
               <>
@@ -77,7 +77,7 @@ export function ActionItemRow({ item, href }: ActionItemRowProps) {
           size={15}
           strokeWidth={1.75}
           aria-hidden="true"
-          className="shrink-0 text-text-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          className="shrink-0 text-fg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
         />
         <span className="sr-only">{interpolate(t('actionCenter.openItem'), { title: item.title })}</span>
       </Link>

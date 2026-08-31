@@ -77,7 +77,7 @@ const ComplianceReportDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-surface-sunken p-8 flex items-center justify-center">
-        <p className="text-text-muted">Loading compliance report...</p>
+        <p className="text-fg-muted">Loading compliance report...</p>
       </div>
     );
   }
@@ -85,7 +85,7 @@ const ComplianceReportDashboard: React.FC = () => {
   if (!report) {
     return (
       <div className="min-h-screen bg-surface-sunken p-8">
-        <p className="text-text-muted">Failed to load compliance report</p>
+        <p className="text-fg-muted">Failed to load compliance report</p>
       </div>
     );
   }
@@ -102,7 +102,7 @@ const ComplianceReportDashboard: React.FC = () => {
       case 'non-compliant':
         return 'bg-danger-surface text-danger-text border-red-300';
       default:
-        return 'bg-surface-sunken text-text-primary border-border-subtle';
+        return 'bg-surface-sunken text-fg-primary border-border-subtle';
     }
   };
 
@@ -115,7 +115,7 @@ const ComplianceReportDashboard: React.FC = () => {
       case 'non-compliant':
         return <AlertCircle size={20} className="text-danger-text" />;
       default:
-        return <Shield size={20} className="text-text-muted" />;
+        return <Shield size={20} className="text-fg-muted" />;
     }
   };
 
@@ -148,12 +148,12 @@ const ComplianceReportDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-text-primary">Compliance Report</h1>
-          <p className="text-text-muted mt-2">Multi-framework compliance dashboard</p>
+          <h1 className="text-4xl font-bold text-fg-primary">Compliance Report</h1>
+          <p className="text-fg-muted mt-2">Multi-framework compliance dashboard</p>
         </div>
 
         {/* Overall Score Card */}
-        <div className="bg-linear-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-text-primary">
+        <div className="bg-linear-to-r from-blue-500 to-purple-600 rounded-lg shadow p-8 mb-8 text-fg-primary">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">Overall Compliance Score</p>
@@ -170,7 +170,7 @@ const ComplianceReportDashboard: React.FC = () => {
         <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
           <div className="flex gap-4 flex-wrap items-center">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label className="block text-sm font-medium text-fg-primary mb-2">
                 Time Range
               </label>
               <select
@@ -200,13 +200,13 @@ const ComplianceReportDashboard: React.FC = () => {
               }`}
             >
               <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-bold text-text-primary">{framework.name}</h3>
+                <h3 className="text-lg font-bold text-fg-primary">{framework.name}</h3>
                 {getStatusIcon(framework.status)}
               </div>
               <div className="mb-4">
                 <div className="flex items-baseline gap-1">
-                  <p className="text-3xl font-bold text-text-primary">{framework.score}</p>
-                  <p className="text-text-muted">/100</p>
+                  <p className="text-3xl font-bold text-fg-primary">{framework.score}</p>
+                  <p className="text-fg-muted">/100</p>
                 </div>
               </div>
               <div className="w-full bg-surface-sunken rounded-full h-2">
@@ -236,7 +236,7 @@ const ComplianceReportDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Framework Scores */}
           <div className="bg-surface-1 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Framework Scores</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-4">Framework Scores</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={frameworkScores}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -250,7 +250,7 @@ const ComplianceReportDashboard: React.FC = () => {
 
           {/* Compliance Status Distribution */}
           <div className="bg-surface-1 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Compliance Status</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-4">Compliance Status</h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -276,7 +276,7 @@ const ComplianceReportDashboard: React.FC = () => {
         {/* Compliance Trend */}
         {report.trend.length > 0 && (
           <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Compliance Trend</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-4">Compliance Trend</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={report.trend}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -301,7 +301,7 @@ const ComplianceReportDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Issues */}
             <div className="bg-surface-1 rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-text-primary mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-fg-primary mb-4 flex items-center gap-2">
                 <AlertCircle size={24} className="text-danger-text" />
                 Issues Found
               </h2>
@@ -318,13 +318,13 @@ const ComplianceReportDashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-text-muted text-center py-4">No issues found</p>
+                <p className="text-fg-muted text-center py-4">No issues found</p>
               )}
             </div>
 
             {/* Recommendations */}
             <div className="bg-surface-1 rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-text-primary mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-fg-primary mb-4 flex items-center gap-2">
                 <CheckCircle size={24} className="text-success-text" />
                 Recommendations
               </h2>
@@ -341,7 +341,7 @@ const ComplianceReportDashboard: React.FC = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-text-muted text-center py-4">No recommendations</p>
+                <p className="text-fg-muted text-center py-4">No recommendations</p>
               )}
             </div>
           </div>
@@ -349,7 +349,7 @@ const ComplianceReportDashboard: React.FC = () => {
 
         {/* Recent Audit Events */}
         <div className="bg-surface-1 rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-text-primary mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-fg-primary mb-4 flex items-center gap-2">
             <Clock size={24} />
             Recent Audit Events
           </h2>
@@ -357,20 +357,20 @@ const ComplianceReportDashboard: React.FC = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border-subtle">
-                  <th className="text-left px-4 py-3 font-semibold text-text-primary">User</th>
-                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Action</th>
-                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Resource</th>
-                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Timestamp</th>
-                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Status</th>
+                  <th className="text-left px-4 py-3 font-semibold text-fg-primary">User</th>
+                  <th className="text-left px-4 py-3 font-semibold text-fg-primary">Action</th>
+                  <th className="text-left px-4 py-3 font-semibold text-fg-primary">Resource</th>
+                  <th className="text-left px-4 py-3 font-semibold text-fg-primary">Timestamp</th>
+                  <th className="text-left px-4 py-3 font-semibold text-fg-primary">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {report.auditEvents.slice(0, 10).map((event) => (
                   <tr key={event.id} className="border-b border-border-subtle hover:bg-surface-sunken">
-                    <td className="px-4 py-3 text-text-primary">{event.user}</td>
-                    <td className="px-4 py-3 text-text-muted">{event.action}</td>
-                    <td className="px-4 py-3 text-text-muted">{event.resource}</td>
-                    <td className="px-4 py-3 text-text-muted text-sm">
+                    <td className="px-4 py-3 text-fg-primary">{event.user}</td>
+                    <td className="px-4 py-3 text-fg-muted">{event.action}</td>
+                    <td className="px-4 py-3 text-fg-muted">{event.resource}</td>
+                    <td className="px-4 py-3 text-fg-muted text-sm">
                       {new Date(event.timestamp).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">

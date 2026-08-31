@@ -102,7 +102,7 @@ export function ReportsScreen() {
           (W0-05 / D5). */}
       <Card style={{ padding: '18px 22px', marginBottom: 28 }}>
         <div className="flex items-start gap-3.5">
-          <div className="w-10 h-10 rounded-[11px] flex items-center justify-center shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+          <div className="w-10 h-10 rounded-[11px] flex items-center justify-center shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}>
             <CalendarClock size={20} />
           </div>
           <div className="flex-1 min-w-0">
@@ -110,7 +110,7 @@ export function ReportsScreen() {
               <span className="text-[14px] font-semibold text-ink">{tr('Rapports programmés', 'Scheduled reports')}</span>
               <span
                 className="text-[10.5px] font-bold uppercase tracking-[.06em] px-2 py-0.5 rounded-full"
-                style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}
+                style={{ color: 'var(--fg-muted)', background: 'var(--bg-hover)' }}
                 data-testid="scheduled-reports-unavailable"
               >
                 {tr('Indisponible', 'Unavailable')}
@@ -169,7 +169,7 @@ export function ReportsScreen() {
                   {r.period_label} · {new Date(r.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </div>
               </div>
-              <span className="text-[11.5px] font-semibold px-2 py-[3px] rounded-md shrink-0" style={{ color: 'var(--text-secondary)', background: 'var(--bg-hover)' }}>
+              <span className="text-[11.5px] font-semibold px-2 py-[3px] rounded-md shrink-0" style={{ color: 'var(--fg-secondary)', background: 'var(--bg-hover)' }}>
                 {r.status === 'approved' ? tr('Approuvé', 'Approved') : tr('Brouillon', 'Draft')}
               </span>
             </button>

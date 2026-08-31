@@ -17,7 +17,7 @@ export interface Meta {
 }
 
 export const AUDIT_STATUS_META: Record<AuditStatus, Meta> = {
-  planned: { color: 'var(--text-muted)', fr: 'Planifié', en: 'Planned' },
+  planned: { color: 'var(--fg-muted)', fr: 'Planifié', en: 'Planned' },
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
   completed: { color: 'var(--low)', fr: 'Terminé', en: 'Completed' },
   cancelled: { color: 'var(--critical)', fr: 'Annulé', en: 'Cancelled' },
@@ -36,7 +36,7 @@ export const REMEDIATION_STATUS_META: Record<RemediationStatus, Meta> = {
   open: { color: 'var(--critical)', fr: 'Ouvert', en: 'Open' },
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
   completed: { color: 'var(--low)', fr: 'Terminé', en: 'Completed' },
-  cancelled: { color: 'var(--text-muted)', fr: 'Annulé', en: 'Cancelled' },
+  cancelled: { color: 'var(--fg-muted)', fr: 'Annulé', en: 'Cancelled' },
 };
 
 export const REMEDIATION_PRIORITY_META: Record<RemediationPriority, Meta> = {

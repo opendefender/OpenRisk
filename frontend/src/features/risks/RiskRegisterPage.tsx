@@ -404,7 +404,7 @@ export function RiskRegisterPage() {
                   key={v}
                   onClick={() => setView(v)}
                   className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors"
-                  style={{ background: view === v ? 'var(--accent-hover)' : 'transparent', color: view === v ? '#fff' : 'var(--text-secondary)' }}
+                  style={{ background: view === v ? 'var(--accent-hover)' : 'transparent', color: view === v ? '#fff' : 'var(--fg-secondary)' }}
                   title={lbl}
                 >
                   <Icon size={15} /> <span className="hidden sm:inline">{lbl}</span>
@@ -465,7 +465,7 @@ export function RiskRegisterPage() {
               style={
                 (state.filters.criticality ?? []).includes('critical')
                   ? { background: softFill('var(--critical)', 16), color: 'var(--critical)', border: '1px solid transparent' }
-                  : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
+                  : { background: 'var(--bg-elevated)', color: 'var(--fg-secondary)', border: '1px solid var(--border-strong)' }
               }
             >
               <ShieldAlert size={14} /> {L.critical}{critCount ? ` · ${critCount}` : ''}
@@ -481,7 +481,7 @@ export function RiskRegisterPage() {
               style={
                 mine
                   ? { background: softFill('var(--accent)', 16), color: 'var(--accent-500)', border: '1px solid transparent' }
-                  : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
+                  : { background: 'var(--bg-elevated)', color: 'var(--fg-secondary)', border: '1px solid var(--border-strong)' }
               }
             >
               <UserCheck size={14} /> {tr('Mes risques', 'My risks')}
@@ -494,7 +494,7 @@ export function RiskRegisterPage() {
               style={
                 unmappedOnly
                   ? { background: softFill('var(--medium)', 16), color: 'var(--medium)', border: '1px solid transparent' }
-                  : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)' }
+                  : { background: 'var(--bg-elevated)', color: 'var(--fg-secondary)', border: '1px solid var(--border-strong)' }
               }
             >
               <Link2Off size={14} /> {tr('Non mappés', 'Unmapped')}
@@ -670,7 +670,7 @@ function RiskMatrixView({ risks, onOpen }: { risks: UiRisk[]; onOpen: (id: strin
                           key={r.id}
                           onClick={() => onOpen(r.id)}
                           title={`${r.name} · ${r.score.toFixed(1)}`}
-                          className="w-5 h-5 rounded-full text-[9px] font-bold text-text-primary flex items-center justify-center transition-transform hover:scale-110"
+                          className="w-5 h-5 rounded-full text-[9px] font-bold text-fg-primary flex items-center justify-center transition-transform hover:scale-110"
                           style={{ background: col }}
                         >
                           {r.score.toFixed(0)}
@@ -819,7 +819,7 @@ function DrawerCTI({ r }: { r: UiRisk }) {
       <div className="flex items-center gap-2.5 flex-wrap">
         <span className="mono text-[13px] font-bold text-ink">{data.cve_id}</span>
         {data.cvss_v3 > 0 && (
-          <span className="mono text-[12px] font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+          <span className="mono text-[12px] font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
             CVSS {data.cvss_v3.toFixed(1)}
           </span>
         )}
@@ -888,8 +888,8 @@ function DrawerAI({ r }: { r: UiRisk }) {
       <button
         onClick={() => plan.mutate({ riskId: r.id, locale })}
         disabled={plan.isPending}
-        className="w-full h-11 rounded-[12px] flex items-center justify-center gap-2 text-text-primary text-[13.5px] font-semibold disabled:opacity-60"
-        style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+        className="w-full h-11 rounded-[12px] flex items-center justify-center gap-2 text-fg-primary text-[13.5px] font-semibold disabled:opacity-60"
+        style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
       >
         {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {plan.isPending ? tr('Génération…', 'Generating…') : res ? tr('Régénérer', 'Regenerate') : tr('Générer avec l’IA', 'Generate with AI')}
@@ -938,7 +938,7 @@ function DrawerAI({ r }: { r: UiRisk }) {
               {res.plan.actions.map((a, i) => (
                 <div key={i} className="p-3 rounded-[11px]" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-text-primary shrink-0" style={{ background: prioColor[a.priority] ?? 'var(--accent)' }}>{i + 1}</span>
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-fg-primary shrink-0" style={{ background: prioColor[a.priority] ?? 'var(--accent)' }}>{i + 1}</span>
                     <span className="text-[13px] font-semibold text-ink flex-1">{a.title}</span>
                     <span className="text-[10.5px] font-semibold uppercase" style={{ color: prioColor[a.priority] ?? 'var(--accent)' }}>{a.priority}</span>
                   </div>
@@ -1010,7 +1010,7 @@ function RiskDrawer({ r, onClose, onEdit, onExport, onCreateMiti, initialTab }: 
 
         <div className="flex gap-0.5 px-[22px] overflow-x-auto" style={{ borderBottom: '1px solid var(--border)' }}>
           {tabDef.map(([k, lbl]) => (
-            <button key={k} onClick={() => setTab(k)} className="px-3 py-[11px] text-[13px] whitespace-nowrap" style={{ color: tab === k ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: tab === k ? 600 : 500, borderBottom: `2px solid ${tab === k ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>{lbl}</button>
+            <button key={k} onClick={() => setTab(k)} className="px-3 py-[11px] text-[13px] whitespace-nowrap" style={{ color: tab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)', fontWeight: tab === k ? 600 : 500, borderBottom: `2px solid ${tab === k ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>{lbl}</button>
           ))}
         </div>
 
@@ -1148,7 +1148,7 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
                 type="button"
                 onClick={addMappings}
                 className="mt-2 rounded-full px-3 py-1.5 text-[12px] font-semibold"
-                style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--text-primary))' }}
+                style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--fg-primary))' }}
               >
                 {tr('Rattacher', 'Map')}
               </button>
@@ -1164,12 +1164,12 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
         <button
           onClick={() => navigate(`/risks/mitigations?risk_id=${r.id}`)}
           className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold transition-all hover:brightness-110"
-          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
         >
           <ShieldCheck size={16} /> {tr(`Voir les mitigations (${mitiCount})`, `View mitigations (${mitiCount})`)}
         </button>
       ) : (
-        <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid transition-all hover:brightness-110" style={{ background: 'var(--accent-solid)' }}>
+        <button onClick={onCreateMiti} className="mt-2 w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-on-solid transition-all hover:brightness-110" style={{ background: 'var(--accent-solid)' }}>
           <ShieldCheck size={16} /> {L.createMiti}
         </button>
       )}
@@ -1244,7 +1244,7 @@ function DrawerSmart({ r }: { r: UiRisk }) {
       <button
         onClick={() => navigate('/risks/weighting')}
         className="mt-4 w-full h-9 rounded-[10px] flex items-center justify-center gap-2 text-[12.5px] font-semibold transition-all hover:bg-hover"
-        style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+        style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
       >
         <SlidersHorizontal size={15} /> {tr('Configurer les pondérations', 'Configure weights')}
       </button>
@@ -1269,7 +1269,7 @@ function DrawerSmart({ r }: { r: UiRisk }) {
 /** State pill for the register row, from the single canonical lifecycle. */
 function PhasePill({ phase, lang }: { phase: RiskPhase; lang: 'fr' | 'en' }) {
   const closed = phase === 'closed';
-  const col = closed ? 'var(--text-secondary)' : 'var(--accent)';
+  const col = closed ? 'var(--fg-secondary)' : 'var(--accent)';
   const labels: Record<RiskPhase, [string, string]> = {
     identified: ['Identifié', 'Identified'],
     analyzed: ['Évalué', 'Assessed'],
@@ -1423,7 +1423,7 @@ function DrawerFinancial({ r }: { r: UiRisk }) {
               <input value={eff} onChange={(e) => setEff(Number(e.target.value))} type="range" min={0} max={1} step={0.05} className="mt-3 w-full accent-(--accent)" />
             </label>
           </div>
-          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+          <button disabled={busy} onClick={save} className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
             <Coins size={16} /> {tr('Recalculer l’exposition', 'Recalculate exposure')}
           </button>
           <div className="text-[11px] text-ink-muted mt-2">{tr('SLE explicite prioritaire ; sinon composé depuis interruptions + amendes + perte de données ; sinon référence par criticité.', 'Explicit SLE wins; else composed from downtime + fines + data loss; else reference by criticality.')}</div>

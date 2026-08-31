@@ -213,7 +213,7 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
                   key={c}
                   onClick={() => setFilter(c)}
                   className="shrink-0 h-[26px] px-2.5 rounded-full text-[11.5px] font-semibold transition-colors"
-                  style={{ background: active ? 'var(--accent-soft)' : 'var(--bg-hover)', color: active ? 'var(--accent)' : 'var(--text-secondary)' }}
+                  style={{ background: active ? 'var(--accent-soft)' : 'var(--bg-hover)', color: active ? 'var(--accent)' : 'var(--fg-secondary)' }}
                 >
                   {label}
                 </button>
@@ -300,7 +300,7 @@ function ConnectionDot({ lang }: { lang: 'fr' | 'en' }) {
   const meta: Record<ConnectionState, { color: string; label: [string, string]; pulse: boolean }> = {
     online: { color: 'var(--low)', label: ['Connecté au serveur', 'Connected to the server'], pulse: true },
     degraded: { color: 'var(--high)', label: ['Serveur injoignable', 'Server unreachable'], pulse: false },
-    offline: { color: 'var(--text-muted)', label: ['Hors ligne', 'Offline'], pulse: false },
+    offline: { color: 'var(--fg-muted)', label: ['Hors ligne', 'Offline'], pulse: false },
   };
   let m = meta[status.state];
   let state: string = status.state;
@@ -323,12 +323,12 @@ function ConnectionDot({ lang }: { lang: 'fr' | 'en' }) {
       case 'FORBIDDEN':
         // Said plainly rather than shown as a fault: nothing is broken, this
         // account simply may not hold a stream.
-        m = { color: 'var(--text-muted)', label: ['Direct non autorisé pour ce compte', 'Live updates not permitted for this account'], pulse: false };
+        m = { color: 'var(--fg-muted)', label: ['Direct non autorisé pour ce compte', 'Live updates not permitted for this account'], pulse: false };
         state = 'live-forbidden';
         break;
       case 'ERROR':
       case 'DISCONNECTED':
-        m = { color: 'var(--text-muted)', label: ['Direct interrompu — rechargez pour actualiser', 'Live updates stopped — reload to refresh'], pulse: false };
+        m = { color: 'var(--fg-muted)', label: ['Direct interrompu — rechargez pour actualiser', 'Live updates stopped — reload to refresh'], pulse: false };
         state = 'live-off';
         break;
     }

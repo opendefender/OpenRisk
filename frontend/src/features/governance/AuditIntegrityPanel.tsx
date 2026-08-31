@@ -113,7 +113,7 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
       <Card style={{ padding: '14px 16px' }}>
         <div className="flex items-start gap-3 flex-wrap">
           {report.isLoading ? (
-            <Loader2 size={18} className="animate-spin shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
+            <Loader2 size={18} className="animate-spin shrink-0 mt-0.5" style={{ color: 'var(--fg-secondary)' }} />
           ) : valid ? (
             <ShieldCheck size={18} style={{ color: 'var(--low)' }} className="shrink-0 mt-0.5" />
           ) : (
@@ -128,14 +128,14 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
                   ? tr('Chaîne intacte — aucune altération détectée', 'Chain intact — no alteration detected')
                   : tr('Chaîne rompue — le journal a été altéré', 'Chain broken — the journal has been altered')}
             </p>
-            <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
               {tr(
                 'Chaque entrée contient le hachage de la précédente. Modifier, supprimer ou réordonner une entrée casse la chaîne à partir de ce point.',
                 'Each entry carries the hash of the previous one. Editing, deleting or reordering any entry breaks the chain from that point on.',
               )}
             </p>
             {r && (
-              <p className="text-[11.5px] mt-1 mono" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-[11.5px] mt-1 mono" style={{ color: 'var(--fg-secondary)' }}>
                 {r.verified}/{r.total_events} {tr('vérifiées', 'verified')}
                 {r.seals > 0 && ` · ${r.seals} ${tr('scellé(s) de rétention', 'retention seal(s)')}`}
                 {r.head_hash && ` · ${tr('tête', 'head')} ${r.head_hash.slice(0, 12)}…`}
@@ -156,20 +156,20 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
           <div className="mt-3 space-y-1.5">
             {breaks.slice(0, 8).map((b, i) => (
               <div key={i} className="text-[12px] rounded-[8px] px-2.5 py-1.5"
-                style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', color: 'var(--text-primary)' }}>
+                style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', color: 'var(--fg-primary)' }}>
                 <span className="mono font-bold" style={{ color: 'var(--critical)' }}>#{b.sequence}</span>{' '}
                 <span className="font-semibold">{b.kind}</span> — {b.detail}
               </div>
             ))}
             {breaks.length > 8 && (
-              <p className="text-[11.5px]" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-[11.5px]" style={{ color: 'var(--fg-secondary)' }}>
                 {tr(`… et ${breaks.length - 8} autre(s).`, `… and ${breaks.length - 8} more.`)}
               </p>
             )}
           </div>
         )}
 
-        <p className="text-[11.5px] mt-2" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-[11.5px] mt-2" style={{ color: 'var(--fg-secondary)' }}>
           {tr(
             'L’export emporte le verdict de la chaîne et une signature du déploiement : un export d’un journal altéré le dit sur sa face.',
             'The export carries the chain verdict and a deployment signature: an export of a tampered journal says so on its face.',
@@ -180,12 +180,12 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
       {isAdmin && (
         <Card style={{ padding: '14px 16px' }}>
           <div className="flex items-center gap-3 flex-wrap">
-            <Clock size={16} style={{ color: 'var(--text-secondary)' }} />
+            <Clock size={16} style={{ color: 'var(--fg-secondary)' }} />
             <div className="flex-1 min-w-[240px]">
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[13px] font-semibold" style={{ color: 'var(--fg-primary)' }}>
                 {tr('Rétention', 'Retention')}
               </p>
-              <p className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
                 {days === 0
                   ? tr('Conservation illimitée — rien n’est jamais supprimé.', 'Kept forever — nothing is ever deleted.')
                   : tr(
@@ -201,16 +201,16 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
               value={days}
               onChange={(e) => setDraftDays(Number(e.target.value))}
               className="h-9 w-[110px] px-2.5 rounded-[9px] text-[13px] mono"
-              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text-primary)' }}
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--fg-primary)' }}
             />
-            <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>{tr('jours', 'days')}</span>
+            <span className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>{tr('jours', 'days')}</span>
             <Btn label={tr('Enregistrer', 'Save')} onClick={() => saveRetention.mutate(days)} disabled={saveRetention.isPending} />
             {retentionDays > 0 && (
               <Btn label={tr('Purger maintenant', 'Prune now')} icon={Download}
                 onClick={() => applyRetention.mutate()} disabled={applyRetention.isPending} />
             )}
           </div>
-          <p className="text-[11.5px] mt-1.5" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[11.5px] mt-1.5" style={{ color: 'var(--fg-secondary)' }}>
             {tr('0 = conserver indéfiniment. Minimum 30 jours si une fenêtre est définie.',
                 '0 = keep forever. Minimum 30 days when a window is set.')}
           </p>

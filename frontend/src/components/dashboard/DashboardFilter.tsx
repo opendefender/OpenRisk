@@ -45,7 +45,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
       <div className="space-y-4">
         {/* Period Selection */}
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-3">Time Period</label>
+          <label className="block text-sm font-medium text-fg-primary mb-3">Time Period</label>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
             {PERIOD_OPTIONS.map((option) => (
               <button
@@ -54,7 +54,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                   selectedPeriod === option.value
                     ? 'bg-accent-soft text-accent-strong'
-                    : 'bg-surface-sunken text-text-primary hover:bg-surface-sunken'
+                    : 'bg-surface-sunken text-fg-primary hover:bg-surface-sunken'
                 }`}
               >
                 {option.label}
@@ -68,9 +68,9 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Start Date</label>
+                <label className="block text-sm font-medium text-fg-primary mb-1">Start Date</label>
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-text-secondary" />
+                  <Calendar size={16} className="text-fg-secondary" />
                   <input
                     type="date"
                     value={dateRange.start}
@@ -80,9 +80,9 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">End Date</label>
+                <label className="block text-sm font-medium text-fg-primary mb-1">End Date</label>
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-text-secondary" />
+                  <Calendar size={16} className="text-fg-secondary" />
                   <input
                     type="date"
                     value={dateRange.end}
@@ -98,7 +98,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
         {/* Metric Selection */}
         {onMetricsChange && (
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Metrics</label>
+            <label className="block text-sm font-medium text-fg-primary mb-2">Metrics</label>
             <div className="space-y-2">
               {[
                 { id: 'risks', label: 'Risks' },
@@ -119,7 +119,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
                     }}
                     className="w-4 h-4 rounded border-border-subtle text-info-text focus:ring-focus"
                   />
-                  <span className="text-sm text-text-primary">{metric.label}</span>
+                  <span className="text-sm text-fg-primary">{metric.label}</span>
                 </label>
               ))}
             </div>

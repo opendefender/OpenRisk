@@ -97,7 +97,7 @@ const AnalyticsDashboard: React.FC = () => {
     <div key={card.title} className="bg-surface-1 rounded-lg shadow p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-text-muted text-sm font-medium">{card.title}</p>
+          <p className="text-fg-muted text-sm font-medium">{card.title}</p>
           <p className="text-3xl font-bold mt-2">
             {card.value}
             {card.unit && <span className="text-lg ml-1">{card.unit}</span>}
@@ -121,15 +121,15 @@ const AnalyticsDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-text-primary">Analytics Dashboard</h1>
-          <p className="text-text-muted mt-2">Real-time performance metrics and trend analysis</p>
+          <h1 className="text-4xl font-bold text-fg-primary">Analytics Dashboard</h1>
+          <p className="text-fg-muted mt-2">Real-time performance metrics and trend analysis</p>
         </div>
 
         {/* Controls */}
         <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
           <div className="flex gap-4 flex-wrap items-center">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label className="block text-sm font-medium text-fg-primary mb-2">
                 Metric
               </label>
               <select
@@ -146,7 +146,7 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
+              <label className="block text-sm font-medium text-fg-primary mb-2">
                 Period
               </label>
               <select
@@ -183,19 +183,19 @@ const AnalyticsDashboard: React.FC = () => {
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-surface-1 rounded-lg shadow p-6">
-              <p className="text-text-muted text-sm font-medium">Average</p>
+              <p className="text-fg-muted text-sm font-medium">Average</p>
               <p className="text-3xl font-bold mt-2">{metrics.average.toFixed(2)}</p>
             </div>
             <div className="bg-surface-1 rounded-lg shadow p-6">
-              <p className="text-text-muted text-sm font-medium">Minimum</p>
+              <p className="text-fg-muted text-sm font-medium">Minimum</p>
               <p className="text-3xl font-bold mt-2">{metrics.min.toFixed(2)}</p>
             </div>
             <div className="bg-surface-1 rounded-lg shadow p-6">
-              <p className="text-text-muted text-sm font-medium">Maximum</p>
+              <p className="text-fg-muted text-sm font-medium">Maximum</p>
               <p className="text-3xl font-bold mt-2">{metrics.max.toFixed(2)}</p>
             </div>
             <div className="bg-surface-1 rounded-lg shadow p-6">
-              <p className="text-text-muted text-sm font-medium">Std Dev</p>
+              <p className="text-fg-muted text-sm font-medium">Std Dev</p>
               <p className="text-3xl font-bold mt-2">{metrics.stdDev.toFixed(2)}</p>
             </div>
           </div>
@@ -204,23 +204,23 @@ const AnalyticsDashboard: React.FC = () => {
         {/* Trend Analysis */}
         {trendData && (
           <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
-            <h2 className="text-2xl font-bold text-text-primary mb-4">Trend Analysis</h2>
+            <h2 className="text-2xl font-bold text-fg-primary mb-4">Trend Analysis</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="border-l-4 border-accent pl-4">
-                <p className="text-text-muted text-sm">Direction</p>
-                <p className="text-xl font-bold text-text-primary">{trendData.direction}</p>
+                <p className="text-fg-muted text-sm">Direction</p>
+                <p className="text-xl font-bold text-fg-primary">{trendData.direction}</p>
               </div>
               <div className="border-l-4 border-purple-500 pl-4">
-                <p className="text-text-muted text-sm">Magnitude</p>
-                <p className="text-xl font-bold text-text-primary">{trendData.magnitude.toFixed(2)}</p>
+                <p className="text-fg-muted text-sm">Magnitude</p>
+                <p className="text-xl font-bold text-fg-primary">{trendData.magnitude.toFixed(2)}</p>
               </div>
               <div className="border-l-4 border-success pl-4">
-                <p className="text-text-muted text-sm">Confidence</p>
-                <p className="text-xl font-bold text-text-primary">{(trendData.confidence * 100).toFixed(1)}%</p>
+                <p className="text-fg-muted text-sm">Confidence</p>
+                <p className="text-xl font-bold text-fg-primary">{(trendData.confidence * 100).toFixed(1)}%</p>
               </div>
               <div className="border-l-4 border-warning pl-4">
-                <p className="text-text-muted text-sm">Forecast</p>
-                <p className="text-xl font-bold text-text-primary">{trendData.forecast.toFixed(2)}</p>
+                <p className="text-fg-muted text-sm">Forecast</p>
+                <p className="text-xl font-bold text-fg-primary">{trendData.forecast.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -230,7 +230,7 @@ const AnalyticsDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Time Series Chart */}
           <div className="bg-surface-1 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Time Series Data</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-4">Time Series Data</h2>
             {timeSeriesData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={timeSeriesData}>
@@ -249,13 +249,13 @@ const AnalyticsDashboard: React.FC = () => {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-text-muted text-center py-8">No data available</p>
+              <p className="text-fg-muted text-center py-8">No data available</p>
             )}
           </div>
 
           {/* Aggregated Data Chart */}
           <div className="bg-surface-1 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Aggregated Data</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-4">Aggregated Data</h2>
             {aggregatedData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={aggregatedData}>
@@ -274,7 +274,7 @@ const AnalyticsDashboard: React.FC = () => {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-text-muted text-center py-8">No data available</p>
+              <p className="text-fg-muted text-center py-8">No data available</p>
             )}
           </div>
         </div>
@@ -282,7 +282,7 @@ const AnalyticsDashboard: React.FC = () => {
         {/* Distribution Chart */}
         {aggregatedData.length > 0 && (
           <div className="bg-surface-1 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Min/Max Distribution</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-4">Min/Max Distribution</h2>
             <ResponsiveContainer width="100%" height={300}>
               <ComposedChart data={aggregatedData}>
                 <CartesianGrid strokeDasharray="3 3" />

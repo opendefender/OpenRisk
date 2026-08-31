@@ -47,7 +47,7 @@ layer(base);
   }
   body {
     background: var(--bg-app);
-    color: var(--text-primary);
+    color: var(--fg-primary);
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -80,7 +80,7 @@ layer(base);
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: var(--fg-muted);
     background-clip: padding-box;
   }
 }
@@ -256,7 +256,7 @@ layer(base);
     border-radius: 10px;
     font-size: 13.5px;
     font-weight: 600;
-    color: var(--text-on-solid);
+    color: var(--fg-on-solid);
     background: var(--accent-solid);
   }
   .skip-link:focus {
@@ -342,7 +342,7 @@ layer(base);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--fg-muted);
     background: var(--bg-secondary);
     padding: var(--den-cell-y) 12px;
     border-bottom: 1px solid var(--border);
@@ -353,7 +353,7 @@ layer(base);
     cursor: pointer;
   }
   .or-table thead th.sortable:hover {
-    color: var(--text-secondary);
+    color: var(--fg-secondary);
   }
   .or-table tbody td {
     padding: var(--den-cell-y) 12px;
@@ -394,7 +394,7 @@ layer(base);
     text-align: center;
     gap: 10px;
     padding: 56px 24px;
-    color: var(--text-secondary);
+    color: var(--fg-secondary);
   }
   .or-empty .or-empty-icon {
     width: 52px;
@@ -410,7 +410,7 @@ layer(base);
   .or-empty h3 {
     font-size: var(--text-md);
     font-weight: 650;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     margin: 0;
   }
   .or-empty p {

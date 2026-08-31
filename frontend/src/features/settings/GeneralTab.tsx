@@ -43,20 +43,20 @@ export const GeneralTab = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-bold text-text-primary mb-1">My Profile</h3>
-        <p className="text-text-secondary text-sm">Manage your personal information and track your progress.</p>
+        <h3 className="text-2xl font-bold text-fg-primary mb-1">My Profile</h3>
+        <p className="text-fg-secondary text-sm">Manage your personal information and track your progress.</p>
       </div>
 
       {/* Gamification Section */}
       <div className="bg-surface-1/5 backdrop-blur-xl border border-border-strong/10 rounded-2xl p-6">
-        <h4 className="text-lg font-bold text-text-primary mb-6">🎮 Your Profile</h4>
+        <h4 className="text-lg font-bold text-fg-primary mb-6">🎮 Your Profile</h4>
         <UserLevelCard />
       </div>
 
       {/* Profile Information Section */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h4 className="text-lg font-bold text-text-primary">Account Information</h4>
+          <h4 className="text-lg font-bold text-fg-primary">Account Information</h4>
           <Button 
             variant={isEditing ? "secondary" : "ghost"}
             onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -72,19 +72,19 @@ export const GeneralTab = () => {
         </div>
 
         <div className="flex items-center gap-6 pb-8 border-b border-border-strong/5">
-          <div className="w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-text-primary shadow-glow relative group">
+          <div className="w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-fg-primary shadow-glow relative group">
             {formData.full_name?.charAt(0) || 'U'}
             <button className="absolute inset-0 rounded-full bg-surface-overlay opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera size={20} className="text-text-primary" />
+              <Camera size={20} className="text-fg-primary" />
             </button>
           </div>
           <div>
-            <p className="text-sm text-text-primary font-medium mb-2">{user?.role || 'User'}</p>
+            <p className="text-sm text-fg-primary font-medium mb-2">{user?.role || 'User'}</p>
             <Button variant="secondary" className="text-sm">
               <Camera size={16} className="mr-2" />
               Change Avatar
             </Button>
-            <p className="text-xs text-text-muted mt-2">JPG, GIF or PNG. 1MB max.</p>
+            <p className="text-xs text-fg-muted mt-2">JPG, GIF or PNG. 1MB max.</p>
           </div>
         </div>
 
@@ -127,9 +127,9 @@ export const GeneralTab = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-text-primary">Bio</label>
+                <label className="text-sm font-medium text-fg-primary">Bio</label>
                 <textarea 
-                  className="w-full bg-surface-1 border border-border rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                  className="w-full bg-surface-1 border border-border rounded-lg px-4 py-3 text-sm text-fg-primary placeholder:text-fg-muted focus:ring-2 focus:ring-primary/50 outline-none resize-none"
                   placeholder="Tell us about yourself..."
                   value={formData.bio}
                   onChange={(e) => handleChange('bio', e.target.value)}
@@ -138,9 +138,9 @@ export const GeneralTab = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-text-primary block mb-2">Timezone</label>
+                <label className="text-sm font-medium text-fg-primary block mb-2">Timezone</label>
                 <select 
-                  className="w-full bg-surface-1 border border-border rounded-lg px-4 py-2 text-sm text-text-primary focus:ring-2 focus:ring-primary/50 outline-none"
+                  className="w-full bg-surface-1 border border-border rounded-lg px-4 py-2 text-sm text-fg-primary focus:ring-2 focus:ring-primary/50 outline-none"
                   value={formData.timezone}
                   onChange={(e) => handleChange('timezone', e.target.value)}
                 >
@@ -173,29 +173,29 @@ export const GeneralTab = () => {
 
       {/* Preferences Section */}
       <div className="space-y-6 border-t border-border-strong/10 pt-8">
-        <h4 className="text-lg font-bold text-text-primary">Preferences</h4>
+        <h4 className="text-lg font-bold text-fg-primary">Preferences</h4>
         
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
-              <p className="text-sm font-medium text-text-primary">Email Notifications</p>
-              <p className="text-xs text-text-secondary">Receive risk alerts and updates</p>
+              <p className="text-sm font-medium text-fg-primary">Email Notifications</p>
+              <p className="text-xs text-fg-secondary">Receive risk alerts and updates</p>
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
           </div>
           
           <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
-              <p className="text-sm font-medium text-text-primary">Desktop Notifications</p>
-              <p className="text-xs text-text-secondary">Get notified in real-time</p>
+              <p className="text-sm font-medium text-fg-primary">Desktop Notifications</p>
+              <p className="text-xs text-fg-secondary">Get notified in real-time</p>
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
           </div>
 
           <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
-              <p className="text-sm font-medium text-text-primary">Two-Factor Authentication</p>
-              <p className="text-xs text-text-secondary">Enhance your account security</p>
+              <p className="text-sm font-medium text-fg-primary">Two-Factor Authentication</p>
+              <p className="text-xs text-fg-secondary">Enhance your account security</p>
             </div>
             <Button variant="ghost" className="text-sm">Enable</Button>
           </div>

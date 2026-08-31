@@ -154,7 +154,7 @@ export function AcceptInvitationPage() {
               <p role="alert" className="text-[13.5px] text-ink-soft leading-relaxed mb-5">{loadError.message}</p>
               <button onClick={() => navigate('/login')}
                 className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold"
-                style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-primary)' }}>
                 {tr('Aller à la connexion', 'Go to sign in')}
               </button>
             </div>
@@ -177,7 +177,7 @@ export function AcceptInvitationPage() {
               </p>
               <button onClick={() => navigate('/')}
                 className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold inline-flex items-center justify-center gap-2"
-                style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+                style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
                 {tr("Ouvrir OpenRisk", 'Open OpenRisk')} <ArrowRight size={16} />
               </button>
             </div>
@@ -255,7 +255,7 @@ export function AcceptInvitationPage() {
 
                 <button type="submit" disabled={submitting}
                   className="w-full h-[44px] rounded-[10px] text-[14px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+                  style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
                   {submitting && <Loader2 size={15} className="animate-spin" />}
                   {submitting
                     ? tr('Un instant…', 'One moment…')

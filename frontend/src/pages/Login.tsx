@@ -98,12 +98,12 @@ export const Login = () => {
         >
             <div className="flex justify-center mb-8">
                 <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
-                    <Zap className="text-text-primary" fill="currentColor" />
+                    <Zap className="text-fg-primary" fill="currentColor" />
                 </div>
             </div>
 
-            <h1 className="text-2xl font-bold text-center text-text-primary mb-2">Welcome back</h1>
-            <p className="text-text-secondary text-center mb-8 text-sm">Enter your credentials to access the secure vault.</p>
+            <h1 className="text-2xl font-bold text-center text-fg-primary mb-2">Welcome back</h1>
+            <p className="text-fg-secondary text-center mb-8 text-sm">Enter your credentials to access the secure vault.</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <Field label="Email">
@@ -132,14 +132,14 @@ export const Login = () => {
             {/* SSO Divider */}
             <div className="mt-6 flex items-center gap-3">
                 <div className="flex-1 h-px bg-surface-3" />
-                <span className="text-xs text-text-muted px-2">OR</span>
+                <span className="text-xs text-fg-muted px-2">OR</span>
                 <div className="flex-1 h-px bg-surface-3" />
             </div>
 
             {/* SSO Button */}
             <motion.button
                 onClick={() => setShowSSOOptions(!showSSOOptions)}
-                className="w-full mt-4 px-4 py-2 border border-border-default rounded-lg text-sm text-text-secondary hover:bg-surface-2/50 hover:border-border-default transition-all"
+                className="w-full mt-4 px-4 py-2 border border-border-default rounded-lg text-sm text-fg-secondary hover:bg-surface-2/50 hover:border-border-default transition-all"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
             >
@@ -165,7 +165,7 @@ export const Login = () => {
                                             ? handleSAML2Login()
                                             : handleOAuth2Login(provider.id)
                                     }
-                                    className={`flex items-center justify-center gap-2 px-3 py-2 border border-border-default rounded-lg text-xs font-medium text-text-secondary transition-all ${provider.color}`}
+                                    className={`flex items-center justify-center gap-2 px-3 py-2 border border-border-default rounded-lg text-xs font-medium text-fg-secondary transition-all ${provider.color}`}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                 >
@@ -179,13 +179,13 @@ export const Login = () => {
             </AnimatePresence>
 
             <div className="mt-6 text-center text-sm">
-              <span className="text-text-secondary">Don't have an account? </span>
+              <span className="text-fg-secondary">Don't have an account? </span>
               <Link to="/register" className="text-primary hover:text-info-text font-medium transition-colors">
                 Create one
               </Link>
             </div>
 
-            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-text-muted">
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-fg-muted">
                 <Lock size={12} />
                 <span>End-to-end encrypted connection</span>
             </div>

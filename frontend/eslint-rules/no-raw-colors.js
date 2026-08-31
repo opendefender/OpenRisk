@@ -10,7 +10,7 @@
  * bug cannot come back. A class like `bg-zinc-900` is a constant: it renders
  * identically in both themes, so any component using one is permanently wrong
  * in whichever theme it was not written for. Tokens (`bg-surface-2`,
- * `text-text-primary`) resolve through CSS variables and follow the theme.
+ * `text-fg-primary`) resolve through CSS variables and follow the theme.
  *
  * Reviewers cannot be relied on to catch this — 707 such classes reached the
  * overlays before anyone noticed — so it is enforced mechanically.
@@ -50,7 +50,7 @@ const FUNCTIONAL = /\b(?:rgba?|hsla?)\s*\(/;
 /** Suggests the token that replaces a given raw class, where one maps cleanly. */
 const SUGGESTIONS = {
   bg: 'bg-surface-1 / bg-surface-2 / bg-surface-3',
-  text: 'text-text-primary / text-text-secondary / text-text-muted',
+  text: 'text-fg-primary / text-fg-secondary / text-fg-muted',
   border: 'border-border-default / border-border-subtle',
   ring: 'ring-accent-400',
 };

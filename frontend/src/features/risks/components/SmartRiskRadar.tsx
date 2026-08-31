@@ -35,7 +35,7 @@ function factorLabel(key: FactorKey, lang: 'fr' | 'en'): string {
 // that drifts the first time the backend re-tunes a boundary — the exact defect
 // this codebase carried in four places. See docs/scoring/SCORE_MODEL.md.
 function smartColor(criticality: SmartRiskScore['criticality']): string {
-  return critColor[criticality] ?? 'var(--text-muted)';
+  return critColor[criticality] ?? 'var(--fg-muted)';
 }
 
 export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr' | 'en' }) {
@@ -81,7 +81,7 @@ export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr
             <PolarGrid stroke="var(--border)" />
             <PolarAngleAxis
               dataKey="factor"
-              tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+              tick={{ fill: 'var(--fg-secondary)', fontSize: 10 }}
             />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
             <Radar

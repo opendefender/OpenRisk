@@ -71,7 +71,7 @@ function initialsFrom(email: string): string {
 function AvatarDot({ id, initials, size = 24 }: { id: string; initials: string; size?: number }) {
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full font-semibold text-text-primary shrink-0"
+      className="inline-flex items-center justify-center rounded-full font-semibold text-fg-primary shrink-0"
       style={{ width: size, height: size, fontSize: size * 0.42, background: tintFor(id) }}
       aria-hidden
     >

@@ -273,6 +273,6 @@ describe('bandColor', () => {
     expect(bandColor('medium')).toBe('var(--medium)');
     expect(bandColor('low')).toBe('var(--low)');
     // No band → neutral, not "low". An unknown posture is not a good one.
-    expect(bandColor(undefined)).toBe('var(--text-muted)');
+    expect(bandColor(undefined)).toBe('var(--fg-muted)');
   });
 });

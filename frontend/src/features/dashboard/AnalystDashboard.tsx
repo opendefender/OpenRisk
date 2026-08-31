@@ -22,7 +22,7 @@ import { WidgetState } from './WidgetState';
 import { DashboardShell, PersonaHeader, KpiRow, Card, type KpiSpec } from './shared';
 
 const SEV_COLOR: Record<string, string> = {
-  critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)', info: 'var(--text-muted)',
+  critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)', info: 'var(--fg-muted)',
 };
 const TIER_COLOR: Record<string, string> = { P1: 'var(--critical)', P2: 'var(--high)', P3: 'var(--medium)', P4: 'var(--low)' };
 const soft = (c: string, p = 15) => `color-mix(in srgb, ${c} ${p}%, transparent)`;
@@ -108,14 +108,14 @@ export function AnalystDashboard() {
               'Import a scan or connect a source: prioritised vulnerabilities appear here, P1 and KEV first.'
             )}
             emptyAction={
-              <button onClick={() => navigate('/vulnerabilities')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-text-primary" style={{ background: 'var(--accent)' }}>
+              <button onClick={() => navigate('/vulnerabilities')} className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-fg-primary" style={{ background: 'var(--accent)' }}>
                 {tr('Importer des vulnérabilités', 'Import vulnerabilities')}
               </button>
             }
           >
             <>
             {top.map((v) => {
-              const tierCol = TIER_COLOR[v.priority_tier] ?? 'var(--text-muted)';
+              const tierCol = TIER_COLOR[v.priority_tier] ?? 'var(--fg-muted)';
               return (
                 <button
                   key={v.id}
@@ -132,7 +132,7 @@ export function AnalystDashboard() {
                     </div>
                     <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">{v.cve_id || v.asset_name || '—'}</div>
                   </div>
-                  <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ color: SEV_COLOR[v.severity] ?? 'var(--text-muted)', background: soft(SEV_COLOR[v.severity] ?? 'var(--text-muted)') }}>
+                  <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ color: SEV_COLOR[v.severity] ?? 'var(--fg-muted)', background: soft(SEV_COLOR[v.severity] ?? 'var(--fg-muted)') }}>
                     {v.severity}
                   </span>
                   <span className="mono text-[13px] font-bold w-[38px] text-right" style={{ color: tierCol }}>

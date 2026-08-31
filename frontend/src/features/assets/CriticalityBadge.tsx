@@ -12,7 +12,7 @@ const COLORS: Record<string, string> = {
 
 export const CriticalityBadge = ({ level }: { level: string }) => (
   <span
-    className={`px-2 py-0.5 rounded text-[10px] font-bold border ${COLORS[level] ?? 'bg-surface-3/10 border-border-strong/20 text-text-secondary'}`}
+    className={`px-2 py-0.5 rounded text-[10px] font-bold border ${COLORS[level] ?? 'bg-surface-3/10 border-border-strong/20 text-fg-secondary'}`}
   >
     {level}
   </span>

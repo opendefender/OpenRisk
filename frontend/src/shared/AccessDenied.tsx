@@ -48,7 +48,7 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
       <div className="max-w-md w-full text-center">
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 mx-auto"
-          style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}
+          style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}
         >
           <Lock size={28} strokeWidth={1.7} />
         </div>

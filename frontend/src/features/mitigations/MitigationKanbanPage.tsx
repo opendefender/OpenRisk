@@ -195,8 +195,8 @@ export const MitigationKanbanPage = () => {
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-text-primary">Plans d'atténuation</h1>
-          <p className="text-sm text-text-secondary mt-1">Gérez et suivez vos plans d'atténuation des risques</p>
+          <h1 className="text-2xl font-bold text-fg-primary">Plans d'atténuation</h1>
+          <p className="text-sm text-fg-secondary mt-1">Gérez et suivez vos plans d'atténuation des risques</p>
         </div>
         <div className="flex items-center gap-3">
           <ViewSwitcher />
@@ -250,14 +250,14 @@ export const MitigationKanbanPage = () => {
                       <div className="flex items-center justify-between">
                         <h2 className={cn(
                           'font-semibold text-sm',
-                          isReviewColumn ? 'text-warning-text' : 'text-text-primary'
+                          isReviewColumn ? 'text-warning-text' : 'text-fg-primary'
                         )}>
                           {column.label}
                         </h2>
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             'text-xs font-medium px-2 py-1 rounded-full',
-                            isReviewColumn ? 'bg-warning/30 text-warning-text' : 'bg-surface-3 text-text-secondary'
+                            isReviewColumn ? 'bg-warning/30 text-warning-text' : 'bg-surface-3 text-fg-secondary'
                           )}>
                             {items.length}
                           </span>
@@ -311,7 +311,7 @@ export const MitigationKanbanPage = () => {
                           </AnimatePresence>
 
                           {items.length === 0 && (
-                            <div className="text-center py-8 text-text-muted text-sm">
+                            <div className="text-center py-8 text-fg-muted text-sm">
                               Glissez des plans ici
                             </div>
                           )}

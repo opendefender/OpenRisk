@@ -98,7 +98,7 @@ export function MitigationDetailPage() {
                     disabled={setStatus.isPending}
                     onClick={() => !active && setStatus.mutate(COL_TO_STATUS[col])}
                     className="flex-1 h-9 rounded-[8px] text-[12px] font-semibold transition-colors disabled:opacity-60"
-                    style={{ background: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--text-on-solid)' : 'var(--text-secondary)' }}
+                    style={{ background: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)' }}
                   >
                     {label}
                   </button>
@@ -129,7 +129,7 @@ export function MitigationDetailPage() {
               </div>
               <div
                 className="text-[13px] inline-flex items-center gap-1.5"
-                style={{ color: miti.overdue ? 'var(--critical)' : 'var(--text-secondary)' }}
+                style={{ color: miti.overdue ? 'var(--critical)' : 'var(--fg-secondary)' }}
               >
                 {miti.overdue && <Clock size={13} />}
                 {miti.deadline}

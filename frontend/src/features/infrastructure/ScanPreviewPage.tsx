@@ -142,7 +142,7 @@ export function ScanPreviewPage() {
       {/* tabs */}
       <div className="flex items-center gap-1.5 mb-4">
         {tabs.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)} className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2 transition-all" style={{ background: tab === t.key ? 'var(--accent-soft)' : 'transparent', color: tab === t.key ? 'var(--accent)' : 'var(--text-secondary)', border: `1px solid ${tab === t.key ? 'transparent' : 'var(--border)'}` }}>
+          <button key={t.key} onClick={() => setTab(t.key)} className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2 transition-all" style={{ background: tab === t.key ? 'var(--accent-soft)' : 'transparent', color: tab === t.key ? 'var(--accent)' : 'var(--fg-secondary)', border: `1px solid ${tab === t.key ? 'transparent' : 'var(--border)'}` }}>
             <t.icon size={15} /> {t.label}
             <span className="text-[11px] font-bold px-1.5 py-px rounded-full" style={{ background: 'var(--bg-hover)' }}>{t.n}</span>
           </button>
@@ -198,7 +198,7 @@ export function ScanPreviewPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] font-semibold text-ink">{f.title}</span>
-                      {f.cve && <span className="mono text-[11px] font-semibold px-1.5 py-px rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{f.cve}</span>}
+                      {f.cve && <span className="mono text-[11px] font-semibold px-1.5 py-px rounded" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>{f.cve}</span>}
                     </div>
                     <div className="text-[11.5px] text-ink-soft mt-0.5">{f.asset_external_id} · {f.evidence}</div>
                   </div>
@@ -218,7 +218,7 @@ export function ScanPreviewPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] font-semibold text-ink">{mit.title}</span>
-                      {mit.cve && <span className="mono text-[11px] font-semibold px-1.5 py-px rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{mit.cve}</span>}
+                      {mit.cve && <span className="mono text-[11px] font-semibold px-1.5 py-px rounded" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>{mit.cve}</span>}
                     </div>
                     <div className="text-[11.5px] text-ink-soft mt-0.5">{mit.evidence}</div>
                   </div>

@@ -30,7 +30,7 @@ export const ViewSwitcher = memo(function ViewSwitcher() {
             'px-3 py-2 rounded flex items-center gap-2 transition-colors text-sm font-medium',
             viewMode === view.id
               ? 'bg-accent-soft text-accent-strong'
-              : 'text-text-secondary hover:text-text-primary'
+              : 'text-fg-secondary hover:text-fg-primary'
           )}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

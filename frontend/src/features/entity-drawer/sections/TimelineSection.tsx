@@ -28,7 +28,7 @@ const KIND_ICON: Record<string, { icon: LucideIcon; tone: string }> = {
 };
 
 function iconFor(kind: string) {
-  return KIND_ICON[kind] ?? { icon: Clock, tone: 'var(--text-muted)' };
+  return KIND_ICON[kind] ?? { icon: Clock, tone: 'var(--fg-muted)' };
 }
 
 /** Where an event came from, said plainly. A reader who sees a score change with
@@ -109,8 +109,8 @@ export function TimelineSection({
                 <Icon size={12} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-text-primary">{ev.summary}</p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-text-muted">
+                <p className="text-sm text-fg-primary">{ev.summary}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-fg-muted">
                   <time dateTime={ev.occurred_at} className="font-mono tabular-nums">
                     {formatDate(ev.occurred_at)}
                   </time>
@@ -128,7 +128,7 @@ export function TimelineSection({
                     {ev.changes.map((c) => (
                       <span
                         key={c.field}
-                        className="rounded-xs bg-surface-3 px-1.5 py-0.5 font-mono text-2xs text-text-secondary"
+                        className="rounded-xs bg-surface-3 px-1.5 py-0.5 font-mono text-2xs text-fg-secondary"
                       >
                         {c.field}
                         {c.from || c.to ? `: ${c.from || '—'} → ${c.to || '—'}` : ''}

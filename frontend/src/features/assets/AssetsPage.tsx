@@ -27,7 +27,7 @@ const TypeIcon = ({ type }: { type: string }) => {
     case 'database':
       return <Database size={16} className="text-success-text" />;
     case 'laptop':
-      return <Laptop size={16} className="text-text-secondary" />;
+      return <Laptop size={16} className="text-fg-secondary" />;
     default:
       return <HardDrive size={16} className="text-purple-400" />;
   }
@@ -66,8 +66,8 @@ export const AssetsPage = () => {
     <div className="p-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">{t('assets.title')}</h1>
-          <p className="text-text-secondary text-sm">{t('assets.description')}</p>
+          <h1 className="text-2xl font-bold text-fg-primary">{t('assets.title')}</h1>
+          <p className="text-fg-secondary text-sm">{t('assets.description')}</p>
         </div>
         <div className="flex items-center gap-4">
           <ViewToggle view={view} onViewChange={setView} />
@@ -94,7 +94,7 @@ export const AssetsPage = () => {
       ) : view === 'table' ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto scrollbar-thin shadow-sm">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-surface-1/5 text-text-secondary font-medium uppercase text-xs">
+            <thead className="bg-surface-1/5 text-fg-secondary font-medium uppercase text-xs">
               <tr>
                 <th className="px-6 py-4">{t('assets.form.name')}</th>
                 <th className="px-6 py-4">{t('assets.form.type')}</th>
@@ -106,8 +106,8 @@ export const AssetsPage = () => {
             <tbody className="divide-y divide-border-subtle">
               {assets.map((asset) => (
                 <tr key={asset.id} className="hover:bg-surface-1/5 transition-colors group">
-                  <td className="px-6 py-4 font-medium text-text-primary">{asset.name}</td>
-                  <td className="px-6 py-4 text-text-secondary flex items-center gap-2">
+                  <td className="px-6 py-4 font-medium text-fg-primary">{asset.name}</td>
+                  <td className="px-6 py-4 text-fg-secondary flex items-center gap-2">
                     <TypeIcon type={asset.type ?? ''} /> {asset.type}
                   </td>
                   <td className="px-6 py-4">
@@ -119,7 +119,7 @@ export const AssetsPage = () => {
                         {asset.risks.length} <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                       </span>
                     ) : (
-                      <span className="text-text-muted">-</span>
+                      <span className="text-fg-muted">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
@@ -127,21 +127,21 @@ export const AssetsPage = () => {
                       <button
                         title={t('assets.history')}
                         onClick={() => asset.id && openHistoryDrawer(asset.id)}
-                        className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
+                        className="p-1.5 rounded-lg text-fg-secondary hover:bg-surface-1/10 hover:text-fg-primary transition-colors"
                       >
                         <History size={14} />
                       </button>
                       <button
                         title={t('common.edit', 'Edit')}
                         onClick={() => asset.id && openEditModal(asset.id)}
-                        className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
+                        className="p-1.5 rounded-lg text-fg-secondary hover:bg-surface-1/10 hover:text-fg-primary transition-colors"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         title={t('common.delete', 'Delete')}
                         onClick={() => handleDelete(asset)}
-                        className="p-1.5 rounded-lg text-text-secondary hover:bg-danger/10 hover:text-danger-text transition-colors"
+                        className="p-1.5 rounded-lg text-fg-secondary hover:bg-danger/10 hover:text-danger-text transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -168,27 +168,27 @@ export const AssetsPage = () => {
                     <TypeIcon type={asset.type ?? ''} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-text-primary group-hover:text-primary transition-colors">
+                    <h3 className="font-semibold text-fg-primary group-hover:text-primary transition-colors">
                       {asset.name}
                     </h3>
-                    <p className="text-xs text-text-muted">{asset.type}</p>
+                    <p className="text-xs text-fg-muted">{asset.type}</p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3 mb-4 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-secondary">{t('assets.form.criticality')}</span>
+                  <span className="text-xs text-fg-secondary">{t('assets.form.criticality')}</span>
                   <CriticalityBadge level={asset.criticality ?? 'MEDIUM'} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-secondary">{t('assets.activeRisks')}</span>
+                  <span className="text-xs text-fg-secondary">{t('assets.activeRisks')}</span>
                   {asset.risks && asset.risks.length > 0 ? (
                     <span className="text-danger-text font-bold flex items-center gap-1">
                       {asset.risks.length} <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                     </span>
                   ) : (
-                    <span className="text-text-muted">-</span>
+                    <span className="text-fg-muted">-</span>
                   )}
                 </div>
               </div>

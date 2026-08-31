@@ -57,11 +57,11 @@ export const FloatingBulkBar = ({
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-text-primary text-xs font-bold"
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-fg-primary text-xs font-bold"
               >
                 {selectedCount}
               </motion.div>
-              <span className="text-sm text-text-secondary">
+              <span className="text-sm text-fg-secondary">
                 {selectedCount} {selectedCount === 1 ? 'risque sélectionné' : 'risques sélectionnés'}
               </span>
             </div>
@@ -79,7 +79,7 @@ export const FloatingBulkBar = ({
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                     action.variant === 'danger'
                       ? 'hover:bg-danger/20 text-danger-text'
-                      : 'hover:bg-surface-3 text-text-secondary'
+                      : 'hover:bg-surface-3 text-fg-secondary'
                   )}
                   title={action.label}
                 >

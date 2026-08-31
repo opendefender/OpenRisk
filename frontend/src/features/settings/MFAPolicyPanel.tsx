@@ -117,8 +117,8 @@ export function MFAPolicyPanel() {
           <button
             type="submit"
             disabled={!valid || !dirty || save.isPending}
-            className="h-10 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            className="h-10 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
+            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             {save.isPending && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
             {tr('Enregistrer', 'Save')}
@@ -218,8 +218,8 @@ export function MFAAccountPanel() {
         <button
           type="button"
           onClick={() => setEnrolling(true)}
-          className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary transition-all"
-          style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+          className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary transition-all"
+          style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
         >
           {tr('Activer le MFA', 'Enable MFA')}
         </button>

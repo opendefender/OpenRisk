@@ -47,8 +47,8 @@ export function UpsellLock({ title, description, ctaLabel, onUpgrade, moment, ch
           <p className="text-[13.5px] text-ink-soft leading-relaxed mb-5">{description}</p>
           <button
             onClick={onUpgrade}
-            className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-text-primary transition-[filter] hover:brightness-110"
-            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
+            style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             {ctaLabel} <ArrowRight size={16} />
           </button>

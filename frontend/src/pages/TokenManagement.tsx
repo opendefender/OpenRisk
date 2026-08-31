@@ -170,9 +170,9 @@ export const TokenManagement = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
             <Key className="w-8 h-8 text-warning-text" />
-            <h1 className="text-3xl font-bold text-text-primary">API Tokens</h1>
+            <h1 className="text-3xl font-bold text-fg-primary">API Tokens</h1>
           </div>
-          <p className="text-text-secondary">Manage your API tokens for programmatic access</p>
+          <p className="text-fg-secondary">Manage your API tokens for programmatic access</p>
         </div>
       </div>
 
@@ -185,8 +185,8 @@ export const TokenManagement = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
-            <div className="text-text-secondary text-sm font-medium">Total Tokens</div>
-            <div className="text-2xl font-bold text-text-primary mt-1">{tokens.length}</div>
+            <div className="text-fg-secondary text-sm font-medium">Total Tokens</div>
+            <div className="text-2xl font-bold text-fg-primary mt-1">{tokens.length}</div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -194,7 +194,7 @@ export const TokenManagement = () => {
             transition={{ delay: 0.1 }}
             className="bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
-            <div className="text-text-secondary text-sm font-medium">Active</div>
+            <div className="text-fg-secondary text-sm font-medium">Active</div>
             <div className="text-2xl font-bold text-success-text mt-1">{activeTokens}</div>
           </motion.div>
           <motion.div
@@ -203,7 +203,7 @@ export const TokenManagement = () => {
             transition={{ delay: 0.2 }}
             className="bg-surface-1 border border-border-subtle rounded-lg p-4"
           >
-            <div className="text-text-secondary text-sm font-medium">Revoked</div>
+            <div className="text-fg-secondary text-sm font-medium">Revoked</div>
             <div className="text-2xl font-bold text-danger-text mt-1">
               {tokens.filter(t => t.status === 'revoked').length}
             </div>
@@ -220,9 +220,9 @@ export const TokenManagement = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="font-semibold text-success-text mb-2">New Token Created</h3>
-                <p className="text-sm text-text-secondary mb-3">Save this token now. You won't be able to see it again!</p>
+                <p className="text-sm text-fg-secondary mb-3">Save this token now. You won't be able to see it again!</p>
                 <div className="bg-surface-1 rounded px-3 py-2 flex items-center justify-between">
-                  <code className="text-sm text-text-primary break-all">{newTokenValue}</code>
+                  <code className="text-sm text-fg-primary break-all">{newTokenValue}</code>
                   <button
                     onClick={() => copyToClipboard(newTokenValue)}
                     className="ml-3 p-1 hover:bg-surface-2 rounded"
@@ -233,7 +233,7 @@ export const TokenManagement = () => {
               </div>
               <button
                 onClick={() => setNewTokenValue('')}
-                className="text-text-secondary hover:text-text-primary ml-4"
+                className="text-fg-secondary hover:text-fg-primary ml-4"
               >
                 ✕
               </button>
@@ -261,7 +261,7 @@ export const TokenManagement = () => {
           >
             <form onSubmit={handleCreateToken} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">
+                <label className="block text-sm font-medium text-fg-secondary mb-1">
                   Token Name *
                 </label>
                 <input
@@ -269,18 +269,18 @@ export const TokenManagement = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., CI/CD Pipeline, DataSync"
-                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent"
+                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-fg-primary text-sm focus:outline-none focus:border-accent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">
+                <label className="block text-sm font-medium text-fg-secondary mb-1">
                   Description
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="What is this token for?"
-                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
+                  className="w-full bg-surface-2 border border-border-default rounded px-3 py-2 text-fg-primary text-sm focus:outline-none focus:border-accent resize-none"
                   rows={3}
                 />
               </div>
@@ -302,25 +302,25 @@ export const TokenManagement = () => {
 
         {/* Search */}
         <div className="mb-6 flex items-center gap-2">
-          <Search className="w-4 h-4 text-text-secondary" />
+          <Search className="w-4 h-4 text-fg-secondary" />
           <input
             type="text"
             placeholder="Search tokens..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-surface-1 border border-border-subtle rounded px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent"
+            className="flex-1 bg-surface-1 border border-border-subtle rounded px-3 py-2 text-fg-primary text-sm focus:outline-none focus:border-accent"
           />
         </div>
 
         {/* Tokens List */}
         {isLoading ? (
           <div className="text-center py-12">
-            <p className="text-text-secondary">Loading tokens...</p>
+            <p className="text-fg-secondary">Loading tokens...</p>
           </div>
         ) : filteredTokens.length === 0 ? (
           <div className="text-center py-12">
-            <Key className="w-12 h-12 text-text-primary mx-auto mb-4" />
-            <p className="text-text-secondary">No tokens found</p>
+            <Key className="w-12 h-12 text-fg-primary mx-auto mb-4" />
+            <p className="text-fg-secondary">No tokens found</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -335,7 +335,7 @@ export const TokenManagement = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-semibold text-text-primary">{token.name}</h3>
+                      <h3 className="font-semibold text-fg-primary">{token.name}</h3>
                       <span className={`text-xs px-2 py-1 rounded font-medium ${
                         token.status === 'active'
                           ? 'bg-success/10 text-success-text border border-success/20'
@@ -344,13 +344,13 @@ export const TokenManagement = () => {
                         {token.status.charAt(0).toUpperCase() + token.status.slice(1)}
                       </span>
                       {token.token_prefix && (
-                        <span className="text-xs text-text-muted font-mono">{token.token_prefix}...</span>
+                        <span className="text-xs text-fg-muted font-mono">{token.token_prefix}...</span>
                       )}
                     </div>
                     {token.description && (
-                      <p className="text-sm text-text-secondary mb-3">{token.description}</p>
+                      <p className="text-sm text-fg-secondary mb-3">{token.description}</p>
                     )}
-                    <div className="flex gap-4 text-xs text-text-muted">
+                    <div className="flex gap-4 text-xs text-fg-muted">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         Created: {formatDate(token.created_at)}
@@ -375,7 +375,7 @@ export const TokenManagement = () => {
                     </div>
                     {(token.permissions && token.permissions.length > 0) && (
                       <div className="mt-3">
-                        <p className="text-xs text-text-secondary mb-1">Permissions:</p>
+                        <p className="text-xs text-fg-secondary mb-1">Permissions:</p>
                         <div className="flex flex-wrap gap-1">
                           {token.permissions.map((perm) => (
                             <span

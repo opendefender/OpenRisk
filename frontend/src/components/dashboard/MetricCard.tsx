@@ -45,7 +45,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
   const getTrendColor = () => {
     if (trend === 'up') return isPositive ? 'text-success-text' : 'text-danger-text';
     if (trend === 'down') return isPositive ? 'text-danger-text' : 'text-success-text';
-    return 'text-text-muted';
+    return 'text-fg-muted';
   };
 
   return (
@@ -58,16 +58,16 @@ const MetricCard: React.FC<MetricCardProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <p className="text-sm font-medium text-text-muted">{title}</p>
-          {description && <p className="text-xs text-text-muted mt-1">{description}</p>}
+          <p className="text-sm font-medium text-fg-muted">{title}</p>
+          {description && <p className="text-xs text-fg-muted mt-1">{description}</p>}
         </div>
         {status === 'critical' && <AlertCircle size={16} className="text-danger-text shrink-0" />}
       </div>
 
       {/* Value */}
       <div className="flex items-baseline gap-2 mb-2">
-        <span className="text-3xl font-bold text-text-primary">{value}</span>
-        {unit && <span className="text-sm text-text-muted">{unit}</span>}
+        <span className="text-3xl font-bold text-fg-primary">{value}</span>
+        {unit && <span className="text-sm text-fg-muted">{unit}</span>}
       </div>
 
       {/* Change */}

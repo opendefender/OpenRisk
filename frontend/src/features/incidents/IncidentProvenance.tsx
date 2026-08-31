@@ -42,7 +42,7 @@ export function IncidentProvenance({ incident }: { incident: Incident }) {
     >
       <Bot size={16} style={{ color: 'var(--accent-500)' }} className="shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p className="text-[12.5px]" style={{ color: 'var(--text-primary)' }}>
+        <p className="text-[12.5px]" style={{ color: 'var(--fg-primary)' }}>
           {incident.origin_rule_name ? (
             <>
               {tr('Créé automatiquement par la règle ', 'Created automatically by the rule ')}
@@ -60,7 +60,7 @@ export function IncidentProvenance({ incident }: { incident: Incident }) {
           )}
         </p>
         {incident.origin_detail && (
-          <p className="text-[12px] mt-0.5 mono" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[12px] mt-0.5 mono" style={{ color: 'var(--fg-secondary)' }}>
             {incident.origin_detail}
           </p>
         )}
@@ -77,7 +77,7 @@ export function IncidentProvenance({ incident }: { incident: Incident }) {
           <Link
             to="/incidents/sources"
             className="text-[12px] inline-flex items-center gap-1"
-            style={{ color: 'var(--text-secondary)' }}
+            style={{ color: 'var(--fg-secondary)' }}
           >
             <HelpCircle size={12} /> {tr('D’où viennent les incidents ?', 'Where do incidents come from?')}
           </Link>

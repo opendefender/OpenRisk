@@ -61,7 +61,7 @@ const HEALTH_META: Record<RuleHealth, { color: string; fr: string; en: string }>
   ok: { color: 'var(--low)', fr: 'OK', en: 'OK' },
   degraded: { color: 'var(--medium)', fr: 'Dégradée', en: 'Degraded' },
   failing: { color: 'var(--critical)', fr: 'En échec', en: 'Failing' },
-  suspended: { color: 'var(--text-secondary)', fr: 'Suspendue', en: 'Suspended' },
+  suspended: { color: 'var(--fg-secondary)', fr: 'Suspendue', en: 'Suspended' },
   idle: { color: 'var(--accent-500)', fr: 'En attente', en: 'Waiting' },
 };
 
@@ -86,7 +86,7 @@ export function AutomationPage() {
 
   const TabBtn = ({ id, label, count }: { id: Tab; label: string; count?: number }) => (
     <button onClick={() => setTab(id)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-      style={{ background: tab === id ? 'var(--accent)' : 'transparent', color: tab === id ? '#fff' : 'var(--text-secondary)', border: tab === id ? 'none' : '1px solid var(--border-strong)' }}>
+      style={{ background: tab === id ? 'var(--accent)' : 'transparent', color: tab === id ? '#fff' : 'var(--fg-secondary)', border: tab === id ? 'none' : '1px solid var(--border-strong)' }}>
       {label}{typeof count === 'number' && <span className="mono opacity-80">{count}</span>}
     </button>
   );
@@ -106,7 +106,7 @@ export function AutomationPage() {
         <TabBtn id="channels" label={tr('Canaux', 'Channels')} />
       </div>
 
-      <p className="text-[12.5px] mb-3" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-[12.5px] mb-3" style={{ color: 'var(--fg-secondary)' }}>
         {tr(TAB_PURPOSE[tab].fr, TAB_PURPOSE[tab].en)}
       </p>
 
@@ -186,7 +186,7 @@ function RulesView({
       {/* Live state strip — the "indicateur d'état temps réel". */}
       {state && (
         <div className="flex items-center gap-2 flex-wrap text-[12px]">
-          <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+          <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--fg-secondary)' }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--low)' }} />
             {tr('État en direct', 'Live state')}
           </span>
@@ -194,7 +194,7 @@ function RulesView({
             ['active', state.active, 'var(--low)', tr('actives', 'active')],
             ['failing', state.failing, 'var(--critical)', tr('en échec', 'failing')],
             ['degraded', state.degraded, 'var(--medium)', tr('dégradées', 'degraded')],
-            ['suspended', state.suspended, 'var(--text-secondary)', tr('suspendues', 'suspended')],
+            ['suspended', state.suspended, 'var(--fg-secondary)', tr('suspendues', 'suspended')],
             ['idle', state.idle, 'var(--accent)', tr('en attente', 'waiting')],
           ] as const).filter(([, n]) => n > 0).map(([k, n, color, label]) => (
             <span key={k} className="px-2 py-0.5 rounded-[7px] font-semibold"
@@ -238,7 +238,7 @@ function RulesView({
                 {/* The rule as a sentence — what the near-natural-language
                     builder produced, read back. */}
                 {live?.sentence && (
-                  <div className="text-[12.5px] mt-1" style={{ color: 'var(--text-primary)' }}>{live.sentence}</div>
+                  <div className="text-[12.5px] mt-1" style={{ color: 'var(--fg-primary)' }}>{live.sentence}</div>
                 )}
                 {live?.health_detail && live.health !== 'ok' && (
                   <div className="text-[11.5px] mt-0.5" style={{ color: health?.color }}>{live.health_detail}</div>
@@ -246,7 +246,7 @@ function RulesView({
 
                 {/* Workflow chain: trigger → actions */}
                 <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-                  <span className="h-7 px-2.5 rounded-[8px] text-[11.5px] font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                  <span className="h-7 px-2.5 rounded-[8px] text-[11.5px] font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                     <TIcon size={12} /> {pick(t.label, lang)}
                   </span>
                   {r.actions.map((a, i) => {
@@ -288,7 +288,7 @@ function RulesView({
 
             {!r.enabled && r.suspended_reason && (
               <div className="mt-2.5 text-[12px] rounded-[8px] px-2.5 py-1.5"
-                style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                 {tr('Suspendue : ', 'Suspended: ')}{r.suspended_reason}
               </div>
             )}
@@ -333,7 +333,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
               <Sparkles size={16} style={{ color: 'var(--accent-500)' }} />
               {tr('Modèles prêts à l’emploi', 'Ready-made templates')}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
               {tr('Ajoutées suspendues : testez-les sur vos données avant qu’elles ne se déclenchent.',
                   'Added suspended: test them against your data before they ever fire.')}
             </p>
@@ -349,10 +349,10 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                   <div className="text-[13.5px] font-bold text-ink">
                     {lang === 'fr' ? template.name : template.name_en}
                   </div>
-                  <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
                     {lang === 'fr' ? template.use_case : template.use_case_en}
                   </p>
-                  <p className="text-[12.5px] mt-1.5" style={{ color: 'var(--text-primary)' }}>{sentence}</p>
+                  <p className="text-[12.5px] mt-1.5" style={{ color: 'var(--fg-primary)' }}>{sentence}</p>
                   {(template.requires_channels || template.requires_ticketing) && (
                     <p className="text-[11.5px] mt-1.5 inline-flex items-center gap-1.5" style={{ color: 'var(--medium)' }}>
                       <AlertTriangle size={12} />
@@ -434,7 +434,7 @@ function SLAView() {
                         <div className="text-[11px] text-ink-muted">{t.subject_type}{t.escalation_level > 0 && ` · ${tr('escalade', 'escalation')} L${t.escalation_level}`}</div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="h-5 px-2 rounded-full text-[10.5px] font-semibold uppercase" style={{ background: 'var(--bg-hover)', color: SEVERITY_COLOR[t.severity] ?? 'var(--text-secondary)' }}>{t.severity}</span>
+                        <span className="h-5 px-2 rounded-full text-[10.5px] font-semibold uppercase" style={{ background: 'var(--bg-hover)', color: SEVERITY_COLOR[t.severity] ?? 'var(--fg-secondary)' }}>{t.severity}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="h-5 px-2 rounded-full text-[10.5px] font-semibold inline-flex items-center" style={{ background: 'var(--bg-hover)', color: sm.color }}>{pick(sm.label, lang)}</span>
@@ -444,7 +444,7 @@ function SLAView() {
                           <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
                             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
                           </div>
-                          <span className="mono text-[11.5px] shrink-0" style={{ color: overdue ? 'var(--critical)' : 'var(--text-secondary)' }}>{fmtMinutes(t.remaining_minutes, lang)}</span>
+                          <span className="mono text-[11.5px] shrink-0" style={{ color: overdue ? 'var(--critical)' : 'var(--fg-secondary)' }}>{fmtMinutes(t.remaining_minutes, lang)}</span>
                         </div>
                       </td>
                     </tr>
@@ -482,7 +482,7 @@ function HistoryView() {
         )} />
     );
 
-  const stepColor = (st: string) => (st === 'success' ? 'var(--low)' : st === 'failed' ? 'var(--critical)' : 'var(--text-secondary)');
+  const stepColor = (st: string) => (st === 'success' ? 'var(--low)' : st === 'failed' ? 'var(--critical)' : 'var(--fg-secondary)');
   const modeLabel = (m: string) =>
     m === 'replay' ? tr('rejeu', 'replay') : m === 'manual' ? tr('manuel', 'manual') : tr('événement', 'live');
 
@@ -506,7 +506,7 @@ function HistoryView() {
                 <span className="h-5 px-2 rounded-full text-[10.5px] font-semibold" style={{ background: 'var(--bg-hover)', color: sm.color }}>{pick(sm.label, lang)}</span>
                 <span className="text-[13px] font-semibold text-ink truncate">{e.rule_name}</span>
                 {e.step_summary && <span className="text-[11px] text-ink-muted shrink-0">{e.step_summary}</span>}
-                <span className="text-[10.5px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{modeLabel(e.mode)}</span>
+                <span className="text-[10.5px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>{modeLabel(e.mode)}</span>
                 <span className="mono text-[11px] text-ink-muted shrink-0">{e.duration_ms} ms</span>
                 <span className="text-[11px] text-ink-muted truncate hidden md:inline">{e.actor_email || e.trigger_ref}</span>
                 <span className="text-[11px] text-ink-muted shrink-0 ml-auto">{new Date(e.started_at).toLocaleString()}</span>
@@ -530,18 +530,18 @@ function HistoryView() {
                 )}
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
                       {tr('Entrée', 'Input')}
                     </p>
-                    <pre className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
+                    <pre className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]" style={{ background: 'var(--bg)', color: 'var(--fg-primary)' }}>
                       {JSON.stringify(e.input ?? {}, null, 2)}
                     </pre>
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
                       {tr('Sortie', 'Output')}
                     </p>
-                    <pre className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
+                    <pre className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]" style={{ background: 'var(--bg)', color: 'var(--fg-primary)' }}>
                       {JSON.stringify(e.output ?? {}, null, 2)}
                     </pre>
                   </div>
@@ -558,7 +558,7 @@ function HistoryView() {
                   {(e.steps ?? []).length === 0 && <div className="text-[12px] text-ink-muted">{tr('Aucune étape', 'No steps')}</div>}
                 </div>
                 {e.replayed_from && (
-                  <p className="text-[11.5px]" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-[11.5px]" style={{ color: 'var(--fg-secondary)' }}>
                     {tr('Rejeu d’une exécution antérieure.', 'Replay of an earlier run.')}
                   </p>
                 )}
@@ -718,7 +718,7 @@ function ChannelsView({ canWrite }: { canWrite: boolean }) {
               <span className="h-5 px-2 rounded-full text-[10.5px] font-semibold"
                 style={{
                   background: configured(key) ? 'color-mix(in srgb, var(--low) 14%, transparent)' : 'var(--bg-hover)',
-                  color: configured(key) ? 'var(--low)' : 'var(--text-secondary)',
+                  color: configured(key) ? 'var(--low)' : 'var(--fg-secondary)',
                 }}>
                 {configured(key) ? tr('configuré', 'configured') : tr('non configuré', 'not configured')}
               </span>
@@ -729,7 +729,7 @@ function ChannelsView({ canWrite }: { canWrite: boolean }) {
                 {tr('Tester', 'Test')}
               </button>
             </div>
-            <p className="text-[11.5px] mt-1 ml-[27px]" style={{ color: 'var(--text-secondary)' }}>{pick(hint, lang)}</p>
+            <p className="text-[11.5px] mt-1 ml-[27px]" style={{ color: 'var(--fg-secondary)' }}>{pick(hint, lang)}</p>
             {fields(key) && <div className="mt-2.5 ml-[27px]">{fields(key)}</div>}
             {res && (
               <div className="mt-2.5 ml-[27px] text-[12px] flex items-start gap-1.5"

@@ -89,8 +89,8 @@ export function EmergingRisksPage() {
           <button
             onClick={analyze}
             disabled={detect.isPending || !text.trim()}
-            className="h-10 px-5 rounded-[11px] flex items-center gap-2 text-text-primary text-[13px] font-semibold disabled:opacity-60"
-            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            className="h-10 px-5 rounded-[11px] flex items-center gap-2 text-fg-primary text-[13px] font-semibold disabled:opacity-60"
+            style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             {detect.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {detect.isPending ? tr('Analyse…', 'Analysing…') : tr('Analyser avec l’IA', 'Analyse with AI')}

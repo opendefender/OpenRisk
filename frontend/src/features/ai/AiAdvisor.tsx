@@ -195,8 +195,8 @@ export function AiAdvisor() {
             <button
               onClick={() => send()}
               disabled={ask.isPending}
-              className="w-12 h-12 rounded-[14px] flex items-center justify-center text-text-primary shrink-0 disabled:opacity-60"
-              style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+              className="w-12 h-12 rounded-[14px] flex items-center justify-center text-fg-primary shrink-0 disabled:opacity-60"
+              style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
             >
               {ask.isPending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
             </button>

@@ -28,7 +28,7 @@ const STATUS_META: Record<string, { color: string; fr: string; en: string }> = {
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
   partially_implemented: { color: 'var(--medium)', fr: 'Partiel', en: 'Partial' },
   not_implemented: { color: 'var(--critical)', fr: 'Non implémenté', en: 'Not implemented' },
-  not_applicable: { color: 'var(--text-muted)', fr: 'Non applicable', en: 'Not applicable' },
+  not_applicable: { color: 'var(--fg-muted)', fr: 'Non applicable', en: 'Not applicable' },
 };
 
 export function FrameworkDetail() {
@@ -203,7 +203,7 @@ export function FrameworkDetail() {
                           style={{ color: meta(c.status).color, background: `color-mix(in srgb,${meta(c.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${meta(c.status).color} 30%,transparent)`, cursor: canUpdate ? 'pointer' : 'not-allowed' }}
                         >
                           {CONTROL_STATUSES.map((s) => (
-                            <option key={s} value={s} style={{ color: 'var(--text-primary)', background: 'var(--bg-elevated)' }}>{tr(meta(s).fr, meta(s).en)}</option>
+                            <option key={s} value={s} style={{ color: 'var(--fg-primary)', background: 'var(--bg-elevated)' }}>{tr(meta(s).fr, meta(s).en)}</option>
                           ))}
                         </select>
                       </div>
@@ -260,7 +260,7 @@ function EvidenceButton({ count, onClick }: { count: number; onClick: () => void
       style={
         has
           ? { border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'var(--accent-soft)', color: 'var(--accent-500)' }
-          : { border: '1px dashed var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }
+          : { border: '1px dashed var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-secondary)' }
       }
       title={tr('Gérer les preuves', 'Manage evidence')}
     >

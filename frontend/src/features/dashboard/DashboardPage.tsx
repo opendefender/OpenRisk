@@ -664,7 +664,7 @@ function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
             {r.fw !== '—' && (
               <span
                 className="text-[11px] font-semibold px-2 py-[3px] rounded-md shrink-0"
-                style={{ color: frameworkColor[r.fw] ?? 'var(--text-secondary)', background: softFill(frameworkColor[r.fw] ?? 'var(--text-secondary)', 14) }}
+                style={{ color: frameworkColor[r.fw] ?? 'var(--fg-secondary)', background: softFill(frameworkColor[r.fw] ?? 'var(--fg-secondary)', 14) }}
               >
                 {r.fw}
               </span>
@@ -736,7 +736,7 @@ function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
           <div className="text-[11px] text-ink-muted">{tr('Durée', 'Duration')}</div>
         </div>
       </div>
-      <button onClick={() => onJoin(inc.id)} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary" style={{ background: sevColor }}>
+      <button onClick={() => onJoin(inc.id)} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary" style={{ background: sevColor }}>
         <Zap size={16} /> {L.warJoin}
       </button>
     </div>

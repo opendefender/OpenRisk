@@ -101,7 +101,7 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
         style={{
           border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
           background: active ? 'var(--accent-soft)' : 'var(--bg-elevated)',
-          color: active ? 'var(--accent)' : 'var(--text-primary)',
+          color: active ? 'var(--accent)' : 'var(--fg-primary)',
         }}
       >
         <Filter size={16} strokeWidth={1.8} />
@@ -110,7 +110,7 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
           <span
             data-testid="filters-active-count"
             className="mono text-[11px] font-bold px-1.5 rounded-full"
-            style={{ background: 'var(--accent)', color: 'var(--text-inverse)' }}
+            style={{ background: 'var(--accent)', color: 'var(--fg-inverse)' }}
           >
             {active}
           </span>
@@ -172,7 +172,7 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
                                 background: on
                                   ? `color-mix(in srgb, ${opt.color ?? 'var(--accent)'} 16%, transparent)`
                                   : 'transparent',
-                                color: on ? (opt.color ?? 'var(--accent)') : 'var(--text-secondary)',
+                                color: on ? (opt.color ?? 'var(--accent)') : 'var(--fg-secondary)',
                               }}
                             >
                               {on && <Check size={12} />}
@@ -262,7 +262,7 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
                   disabled={!canSaveView}
                   data-testid="filters-reset"
                   className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-40 hover:bg-hover"
-                  style={{ color: 'var(--text-secondary)' }}
+                  style={{ color: 'var(--fg-secondary)' }}
                 >
                   <RotateCcw size={13} /> {labels.reset}
                 </button>

@@ -143,7 +143,7 @@ export function OnboardingChecklist() {
         type="button"
         onClick={() => window.dispatchEvent(new CustomEvent('openrisk:tour'))}
         className="mt-3 inline-flex items-center gap-1.5 text-[12px] self-start"
-        style={{ color: 'var(--text-muted)' }}
+        style={{ color: 'var(--fg-muted)' }}
       >
         <LifeBuoy size={13} />
         {tr('Revoir la visite guidée', 'Replay the product tour')}
@@ -187,7 +187,7 @@ function StepRow({
           background: step.completed
             ? 'color-mix(in srgb,var(--low) 18%,transparent)'
             : 'var(--bg-hover)',
-          color: step.completed ? 'var(--low)' : isCurrent ? 'var(--accent)' : 'var(--text-muted)',
+          color: step.completed ? 'var(--low)' : isCurrent ? 'var(--accent)' : 'var(--fg-muted)',
         }}
         aria-hidden="true"
       >
@@ -228,11 +228,11 @@ function StepRow({
             isCurrent
               ? {
                   background: 'var(--accent-solid)',
-                  color: 'var(--text-on-solid)',
+                  color: 'var(--fg-on-solid)',
                 }
               : {
                   background: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
+                  color: 'var(--fg-primary)',
                   border: '1px solid var(--border-strong)',
                 }
           }

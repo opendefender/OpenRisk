@@ -75,7 +75,7 @@ export function IngestModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
             <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">{tr('Source', 'Source')}</div>
             <div className="flex flex-wrap gap-2">
               {SOURCES.map((s) => (
-                <button key={s} onClick={() => setSource(s)} className="h-8 px-3 rounded-[8px] text-[12.5px] font-semibold" style={{ border: `1px solid ${source === s ? 'var(--accent)' : 'var(--border-strong)'}`, color: source === s ? 'var(--accent)' : 'var(--text-secondary)', background: source === s ? 'var(--accent-soft)' : 'transparent' }}>
+                <button key={s} onClick={() => setSource(s)} className="h-8 px-3 rounded-[8px] text-[12.5px] font-semibold" style={{ border: `1px solid ${source === s ? 'var(--accent)' : 'var(--border-strong)'}`, color: source === s ? 'var(--accent)' : 'var(--fg-secondary)', background: source === s ? 'var(--accent-soft)' : 'transparent' }}>
                   {SOURCE_LABEL[s]}
                 </button>
               ))}
@@ -95,8 +95,8 @@ export function IngestModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
         </div>
 
         <div className="px-5 py-4 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
-          <button onClick={onClose} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>{tr('Annuler', 'Cancel')}</button>
-          <button onClick={submit} disabled={ingest.isPending || !raw.trim()} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)' }}>
+          <button onClick={onClose} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold" style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}>{tr('Annuler', 'Cancel')}</button>
+          <button onClick={submit} disabled={ingest.isPending || !raw.trim()} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-fg-on-solid disabled:opacity-60" style={{ background: 'var(--accent-solid)' }}>
             {ingest.isPending ? tr('Import…', 'Importing…') : tr('Importer', 'Import')}
           </button>
         </div>

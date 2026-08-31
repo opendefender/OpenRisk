@@ -51,13 +51,13 @@ export function ActionCenterPanel({ limit = PANEL_LIMIT }: { limit?: number }) {
     >
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <div>
-          <h2 id="action-center-title" className="text-md font-semibold text-text-primary">
+          <h2 id="action-center-title" className="text-md font-semibold text-fg-primary">
             {t('actionCenter.title')}
           </h2>
-          <p className="mt-0.5 text-xs text-text-muted">{t('actionCenter.subtitle')}</p>
+          <p className="mt-0.5 text-xs text-fg-muted">{t('actionCenter.subtitle')}</p>
         </div>
         {!isLoading && !isError && total > 0 && (
-          <span className="shrink-0 text-xs text-text-muted" data-testid="action-center-count">
+          <span className="shrink-0 text-xs text-fg-muted" data-testid="action-center-count">
             {interpolate(t('actionCenter.showing'), { shown: rows.length, total })}
           </span>
         )}

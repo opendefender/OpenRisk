@@ -10,8 +10,8 @@ export const Recommendations = () => {
     <div className="p-8 h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
-            <h1 className="text-3xl font-bold text-text-primary mb-2">Intelligence & Recommendations</h1>
-            <p className="text-text-secondary">
+            <h1 className="text-3xl font-bold text-fg-primary mb-2">Intelligence & Recommendations</h1>
+            <p className="text-fg-secondary">
                 Optimisez vos efforts de sécurité en traitant d'abord ce qui compte vraiment.
             </p>
         </div>
