@@ -5,7 +5,56 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-_Nothing open. Last cleared 2026-08-31._
+### D-014 — Relicense `design-system/` to Apache-2.0?
+**Context** — `frontend/src/features/ai/` and
+`frontend/src/features/reports/BoardReportPage.tsx` are
+`LicenseRef-OpenRisk-Commercial` and import the AGPL design system. This is
+resolvable today by copyright ownership — OpenDefender holds the copyright in
+both, so it may combine them — but a third-party auditor doing a procurement
+review sees commercial code importing AGPL code and has to be talked out of the
+obvious reading. Relicensing `design-system/` to Apache-2.0 removes the argument
+instead of answering it.
+**Options** — **A** relicense `design-system/` to `Apache-2.0` and add
+`design-system/NOTICE` · **B** leave it AGPL and document the ownership argument
+in `LICENSING.md` · **C** leave it AGPL and move the two EE consumers off the
+design system.
+**Recommendation** — **A**. The design system is the artifact you *want* copied
+and extended; its value is protected by trademark, not by copyleft. Copyleft on
+it buys nothing and costs an audit conversation on every enterprise deal. C is
+the worst option: it forces the EE surfaces to reinvent primitives, which is the
+exact fragmentation issue #439 exists to end.
+**Cost of delay** — Low but non-zero, and it grows. Every new file added under
+`design-system/` is one more header to change later, and #443/#444 are about to
+add a lot of them. Doing it before the primitive layer lands is materially
+cheaper than after.
+**Reversible?** — **No, not practically.** Apache-2.0 is irrevocable for anything
+already published; the project can relicense future versions but cannot claw back
+what shipped. This is why it is your call and not the agent's.
+**Status** — OPEN
+
+### D-015 — How is CLA acceptance enforced: `cla-assistant` or DCO?
+**Context** — `CLA.md` now exists (this branch) and acceptance is recorded by a
+`Signed-off-by` trailer. Nothing enforces it: there is no CLA check, no DCO
+check, and no PR template in `.github/`. A CLA nobody verifies protects the
+dual-licensing right about as well as no CLA, which is what makes the Enterprise
+Edition defensible.
+**Options** — **A** DCO check — a GitHub Action asserting the `Signed-off-by`
+trailer on every commit; no third party, no data leaves GitHub, no account to
+administer · **B** `cla-assistant` — a hosted bot storing signatures against
+GitHub identities; a real audit trail, but a third-party service holding
+contributor identity data · **C** `cla-assistant` self-hosted — the audit trail
+without the third party, at the cost of running it.
+**Recommendation** — **A now, revisit at the first corporate contribution.** The
+trailer is a real, timestamped, per-commit record in git history and costs one
+workflow file. B is the stronger artifact but is a **new external service** and
+touches contributor personal data, which is exactly the kind of call the
+constitution routes to you rather than to an agent.
+**Cost of delay** — Accrues per merged PR. Every external contribution merged
+without a recorded acceptance is one more contribution whose dual-licensing
+status rests on the CONTRIBUTING.md text alone.
+**Reversible?** — Yes. Switching enforcement later is a workflow change; already
+merged commits keep whatever record they have.
+**Status** — OPEN
 
 ## Resolved
 

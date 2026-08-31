@@ -428,18 +428,25 @@ Contributors are recognized in:
 
 ## Contributor License Agreement (CLA)
 
-By contributing to OpenRisk, you agree that your contributions will be licensed under the project's [Business Source License 1.1 (BUSL-1.1)](LICENSE). 
+By contributing to OpenRisk, you agree that your contributions will be licensed under the project's
+[GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`), the license of the Community
+Edition. OpenRisk is **open-core**: a small set of Enterprise Edition paths carries
+`LicenseRef-OpenRisk-Commercial` instead. [`LICENSING.md`](LICENSING.md) is the authoritative
+boundary between the two — read it before contributing to a file whose SPDX header is not
+`AGPL-3.0-only`.
 
 To ensure the OpenDefender project has the legal rights to distribute and potentially re-license the collective work in the future, we require all contributors to sign a Contributor License Agreement (CLA).
 
-When you submit your first Pull Request, you will be prompted to sign the CLA digitally. By signing, you confirm that:
+The agreement is [`CLA.md`](CLA.md). By agreeing to it, you confirm that:
 1. You grant the OpenDefender project a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute your contributions.
 2. You are legally entitled to grant the above license.
 3. This is a license agreement only; you retain ownership of your original contributions.
 
 ## License
 
-By contributing to OpenRisk, you agree to the terms of the CLA and acknowledge the Business Source License 1.1 of the project.
+By contributing to OpenRisk, you agree to the terms of the [CLA](CLA.md) and acknowledge the
+GNU Affero General Public License v3.0 of the project core, together with the CE/EE boundary
+defined in [`LICENSING.md`](LICENSING.md).
 
 ## Additional Notes
 
