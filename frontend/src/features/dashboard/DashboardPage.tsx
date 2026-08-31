@@ -41,6 +41,7 @@ import { useIncidents } from '../incidents/useIncidents';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist';
 import { MFAEnrollmentBanner } from '../auth/MFAEnrollmentBanner';
 import { MFAPostAhaPrompt } from '../auth/MFAPostAhaPrompt';
+import { ActionCenterPanel } from '../action-center/ActionCenterPanel';
 import { personaFor } from './dashboardPersona';
 import { AnalystDashboard } from './AnalystDashboard';
 import { ExecDashboard } from './ExecDashboard';
@@ -214,6 +215,12 @@ function PostureDashboard() {
             The trigger is activation.aha_reached_at, recorded server-side from
             the user's own data — never a flag this component sets. */}
         <MFAPostAhaPrompt />
+
+        {/* #430 — the Action Center, above the score and the KPIs on purpose:
+            "what should I do next" outranks "how are we doing" on the screen a
+            user lands on. DashboardShell mounts the same panel for the other
+            personas; this dashboard does not use that shell. */}
+        <ActionCenterPanel />
 
         {/* row 1 — score hero + kpis */}
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
