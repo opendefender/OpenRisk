@@ -133,7 +133,7 @@ it is reviewed as a pricing change, with the stale
 **Unblocked** — `feat/w1-02-universal-entity-drawer` stops carrying a red test
 unrelated to its own scope.
 
-### D-007 — One Time to First Value number: 8 minutes · 2026-08-31
+### D-008 — One Time to First Value number: 8 minutes · 2026-08-31
 **Recommendation (po)** — Commit publicly to **8 minutes** from signup to the
 Aha moment, and stop using 5 and 12 as if they meant the same thing.
 **Context** — The tree currently promises three numbers.

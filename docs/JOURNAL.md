@@ -176,7 +176,7 @@ score utilisant le vert de **remplissage** de la bande basse comme texte 12px
 **Time to First Value — un seul chiffre : 8 minutes.** L'arbre en promettait trois
 (E2E 8 min · alerte `SlowTimeToAha` P50 > 12 min · `ROADMAP.md` 17.6 « < 5 min »).
 8 est le seul qu'un test assert, donc le seul défendable sous la RÈGLE #12
-(`docs/DECISIONS.md` D-007, arbitrage propriétaire encore ouvert entre 5 et 8).
+(`docs/DECISIONS.md` D-008, arbitrage propriétaire encore ouvert entre 5 et 8).
 `docs/MARKETING_CLAIM_MATRIX.md` gagne les lignes C-002/C-003 et une section
 expliquant que **12 minutes est un seuil d'exploitation, pas la promesse**.
 `ROADMAP.md` 17.6 ne prétend plus « Aucun package onboarding » ; 17.5 reflète le

@@ -31,4 +31,4 @@ promise:
 
 Changing the promise means changing `AHA_BUDGET_MS` in
 `tests/e2e/activation.spec.ts`, this row, and the alert's `description` in the
-same commit. See `docs/DECISIONS.md` D-007.
+same commit. See `docs/DECISIONS.md` D-008.
