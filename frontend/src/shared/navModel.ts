@@ -15,7 +15,7 @@ import {
   FolderCheck,
   LayoutDashboard, TrendingUp, ShieldAlert, ShieldCheck, Siren, Server,
   ClipboardCheck, Globe, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
-  Workflow, Scale, Users, History,
+  Workflow, Scale, Users, History, ListChecks,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -100,6 +100,10 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_monitor',
     items: [
       { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/', pinned: true },
+      // No `perm`: the endpoint scopes itself to what the caller's business role
+      // can act on, so an empty list is the honest answer for a role with nothing
+      // outstanding — not a reason to hide the entry.
+      { key: 'action-center', labelKey: 'n_actionCenter', icon: ListChecks, path: '/action-center' },
       { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/', href: '/?view=executive', view: 'executive', perm: 'risks:read' },
       { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial', perm: 'risks:read' },
       { key: 'activity', labelKey: 'n_activity', icon: History, path: '/activity' },

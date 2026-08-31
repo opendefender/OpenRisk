@@ -17,8 +17,15 @@ export const ACTION_CENTER_ROOT = 'action-center' as const;
  * a reload. That assumption is true today and is exactly the kind of thing that
  * stops being true quietly.
  */
-export function actionCenterKey(tenant: string, limit: number) {
-  return [ACTION_CENTER_ROOT, tenant, limit] as const;
+export function actionCenterKey(tenant: string, limit: number, offset: number) {
+  return [ACTION_CENTER_ROOT, tenant, limit, offset] as const;
+}
+
+export interface UseActionItemsOptions {
+  /** Page size. The server defaults to 20 and clamps to 100. */
+  limit?: number;
+  /** Rows to skip. Negative values are rejected server-side with 400. */
+  offset?: number;
 }
 
 export interface UseActionItemsResult {
@@ -34,6 +41,12 @@ export interface UseActionItemsResult {
   refetch: () => void;
 }
 
+/** Page size used by the dashboard panel — a preview, not the whole queue. */
+export const PANEL_LIMIT = 8;
+
+/** Page size used by the full page at /action-center. */
+export const PAGE_LIMIT = 20;
+
 /**
  * The caller's prioritised outstanding work.
  *
@@ -48,11 +61,11 @@ export interface UseActionItemsResult {
  *     secondary key, then by id; re-sorting here would silently disagree with
  *     the server as soon as there is a second page.
  */
-export function useActionItems(limit = 20): UseActionItemsResult {
+export function useActionItems({ limit = PAGE_LIMIT, offset = 0 }: UseActionItemsOptions = {}): UseActionItemsResult {
   const tenant = useAuthStore((s) => s.user?.tenant_id) ?? 'anonymous';
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: actionCenterKey(tenant, limit),
-    queryFn: () => actionCenterService.list({ limit }),
+    queryKey: actionCenterKey(tenant, limit, offset),
+    queryFn: () => actionCenterService.list({ limit, offset }),
     // The underlying records change as work gets done elsewhere in the app, and
     // an item vanishes the moment its work is finished — there is no dismiss.
     refetchInterval: 60_000,
