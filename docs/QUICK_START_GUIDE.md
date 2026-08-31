@@ -141,7 +141,7 @@ Four specialized widgets:
 
 ### Colors
 
-Edit `frontend/tailwind.config.js` to customize:
+Edit `frontend/src/styles/theme.css` (the Tailwind v4 `@theme` block) to customize:
 
 ```javascript
 colors: {
@@ -159,7 +159,7 @@ colors: {
 
 ### Animations
 
-Modify animation speeds in `tailwind.config.js`:
+Modify animation speeds in `frontend/src/styles/theme.css`:
 
 ```javascript
 animation: {
@@ -239,7 +239,7 @@ To use demo data for testing:
 ### Styling Issues
 1. Run `npm run build` to rebuild Tailwind CSS
 2. Clear browser cache (Ctrl+Shift+Delete)
-3. Check that `tailwind.config.js` is loaded
+3. Check that `src/styles/theme.css` is imported by `src/index.css`
 4. Verify `index.css` includes `@tailwind` directives
 
 ### Performance Issues
@@ -274,7 +274,7 @@ frontend/src/types/
 └── react-grid-layout.d.ts         ← TypeScript defs (NEW)
 
 frontend/
-├── tailwind.config.js             ← Config (ENHANCED)
+├── src/styles/theme.css           ← Tailwind v4 @theme layer
 ├── src/
 │   ├── App.css                    ← Styles (ENHANCED)
 │   └── index.css                  ← Globals (ENHANCED)
@@ -374,7 +374,7 @@ Plus this file:
 
 ### Key Files to Review
 - `frontend/src/features/dashboard/components/DashboardGrid.tsx` - Main component
-- `tailwind.config.js` - Color and animation configuration
+- `src/styles/theme.css` - Color and animation configuration
 - `frontend/src/App.css` - Glassmorphism and glow effects
 
 ### Component Documentation
@@ -397,7 +397,7 @@ Each component has JSDoc comments and clear structure:
 
 1. **Test the Dashboard**: Start the dev server and explore
 2. **Configure API Endpoints**: Update backend URLs if needed
-3. **Customize Colors**: Adjust theme in `tailwind.config.js`
+3. **Customize Colors**: Adjust theme in `src/styles/theme.css`
 4. **Deploy**: Follow deployment steps above
 5. **Monitor**: Check performance metrics in production
 
