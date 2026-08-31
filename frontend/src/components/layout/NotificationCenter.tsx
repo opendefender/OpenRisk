@@ -32,11 +32,11 @@ export const NotificationCenter = () => {
       {/* Notification Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative text-text-secondary hover:text-text-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full"
+        className="relative text-fg-secondary hover:text-fg-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full animate-pulse border border-background text-text-primary text-xs flex items-center justify-center font-bold">
+          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full animate-pulse border border-background text-fg-primary text-xs flex items-center justify-center font-bold">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -62,9 +62,9 @@ export const NotificationCenter = () => {
               {/* Header */}
               <div className="border-b border-border-strong/5 p-4 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-text-primary">Notifications</h3>
+                  <h3 className="font-bold text-fg-primary">Notifications</h3>
                   {unreadCount > 0 && (
-                    <p className="text-xs text-text-secondary">{unreadCount} unread</p>
+                    <p className="text-xs text-fg-secondary">{unreadCount} unread</p>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -72,13 +72,13 @@ export const NotificationCenter = () => {
                     <>
                       <button
                         onClick={markAllAsRead}
-                        className="text-xs px-2 py-1 text-text-secondary hover:text-text-primary transition-colors"
+                        className="text-xs px-2 py-1 text-fg-secondary hover:text-fg-primary transition-colors"
                       >
                         Mark all read
                       </button>
                       <button
                         onClick={clearAll}
-                        className="text-xs px-2 py-1 text-text-secondary hover:text-danger-text transition-colors"
+                        className="text-xs px-2 py-1 text-fg-secondary hover:text-danger-text transition-colors"
                       >
                         Clear all
                       </button>
@@ -90,7 +90,7 @@ export const NotificationCenter = () => {
               {/* Notifications List */}
               <div className="overflow-y-auto flex-1">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-text-muted">
+                  <div className="p-8 text-center text-fg-muted">
                     <Bell size={32} className="mx-auto mb-2 opacity-50" />
                     <p>No notifications</p>
                   </div>
@@ -113,13 +113,13 @@ export const NotificationCenter = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
-                                  <p className="font-semibold text-text-primary text-sm">
+                                  <p className="font-semibold text-fg-primary text-sm">
                                     {notification.title}
                                   </p>
-                                  <p className="text-xs text-text-secondary mt-1">
+                                  <p className="text-xs text-fg-secondary mt-1">
                                     {notification.message}
                                   </p>
-                                  <p className="text-xs text-text-muted mt-2">
+                                  <p className="text-xs text-fg-muted mt-2">
                                     {new Date(notification.timestamp).toLocaleString()}
                                   </p>
                                 </div>
@@ -143,13 +143,13 @@ export const NotificationCenter = () => {
                                   onClick={() => {
                                     markAsRead(notification.id);
                                   }}
-                                  className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                                  className="text-xs text-fg-muted hover:text-fg-secondary transition-colors"
                                 >
                                   {notification.read ? 'Mark unread' : 'Mark read'}
                                 </button>
                                 <button
                                   onClick={() => removeNotification(notification.id)}
-                                  className="text-xs text-text-muted hover:text-danger-text transition-colors ml-auto"
+                                  className="text-xs text-fg-muted hover:text-danger-text transition-colors ml-auto"
                                 >
                                   <X size={14} />
                                 </button>

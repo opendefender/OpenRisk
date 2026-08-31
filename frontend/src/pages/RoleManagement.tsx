@@ -34,7 +34,7 @@ interface RoleWithPermissions extends Role {
 }
 
 const levelLabels: Record<number, { name: string; color: string; badge: string }> = {
-  0: { name: 'Viewer', color: 'bg-surface-3', badge: 'text-text-secondary' },
+  0: { name: 'Viewer', color: 'bg-surface-3', badge: 'text-fg-secondary' },
   3: { name: 'Analyst', color: 'bg-accent', badge: 'text-info-text' },
   6: { name: 'Manager', color: 'bg-purple-500', badge: 'text-purple-300' },
   9: { name: 'Admin', color: 'bg-danger', badge: 'text-danger-text' },
@@ -166,7 +166,7 @@ export const RoleManagement = () => {
       user: 'bg-success/10 text-success-text border-success/20',
       role: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
     };
-    return colors[resource] || 'bg-surface-3/10 text-text-secondary border-border-strong/20';
+    return colors[resource] || 'bg-surface-3/10 text-fg-secondary border-border-strong/20';
   };
 
   if (!isAdmin) {
@@ -174,8 +174,8 @@ export const RoleManagement = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Lock className="w-16 h-16 text-danger-text mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-text-primary mb-2">Access Denied</h1>
-          <p className="text-text-secondary">You need administrator privileges to access role management.</p>
+          <h1 className="text-2xl font-bold text-fg-primary mb-2">Access Denied</h1>
+          <p className="text-fg-secondary">You need administrator privileges to access role management.</p>
         </div>
       </div>
     );
@@ -198,8 +198,8 @@ export const RoleManagement = () => {
             <div className="flex items-center gap-3">
               <Shield className="w-8 h-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold text-text-primary">Role Management</h1>
-                <p className="text-sm text-text-secondary">Manage roles and permissions</p>
+                <h1 className="text-2xl font-bold text-fg-primary">Role Management</h1>
+                <p className="text-sm text-fg-secondary">Manage roles and permissions</p>
               </div>
             </div>
             <Button variant="primary"
@@ -218,24 +218,24 @@ export const RoleManagement = () => {
           {/* Roles List */}
           <div className="lg:col-span-1">
             <div className="bg-surface border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-text-primary mb-4">Roles</h2>
+              <h2 className="text-lg font-semibold text-fg-primary mb-4">Roles</h2>
 
               {/* Search */}
               <div className="relative mb-6">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-secondary" />
                 <input
                   type="text"
                   placeholder="Search roles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full pl-10 pr-4 py-2 bg-surface-1 border border-border rounded-lg text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
                 />
               </div>
 
               {/* Roles List */}
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {filteredRoles.length === 0 ? (
-                  <p className="text-center text-text-muted py-8">No roles found</p>
+                  <p className="text-center text-fg-muted py-8">No roles found</p>
                 ) : (
                   filteredRoles.map((role) => (
                     <motion.button
@@ -245,17 +245,17 @@ export const RoleManagement = () => {
                       className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
                         selectedRole?.id === role.id
                           ? 'bg-primary/10 border border-primary text-primary'
-                          : 'bg-surface-1/50 hover:bg-surface-2 text-text-primary'
+                          : 'bg-surface-1/50 hover:bg-surface-2 text-fg-primary'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="font-medium">{role.name}</div>
-                          <div className="text-xs text-text-secondary">
+                          <div className="text-xs text-fg-secondary">
                             Level: {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Custom'}
                           </div>
                         </div>
-                        <ChevronRight size={16} className="text-text-secondary" />
+                        <ChevronRight size={16} className="text-fg-secondary" />
                       </div>
                     </motion.button>
                   ))
@@ -276,8 +276,8 @@ export const RoleManagement = () => {
                 <div className="bg-surface border border-border rounded-lg p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-text-primary mb-2">{selectedRole.name}</h2>
-                      <p className="text-text-secondary">{selectedRole.description}</p>
+                      <h2 className="text-2xl font-bold text-fg-primary mb-2">{selectedRole.name}</h2>
+                      <p className="text-fg-secondary">{selectedRole.description}</p>
                     </div>
                     {!selectedRole.is_predefined && (
                       <button
@@ -291,7 +291,7 @@ export const RoleManagement = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm text-text-secondary mb-1">Level</div>
+                      <div className="text-sm text-fg-secondary mb-1">Level</div>
                       <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                         levelLabels[selectedRole.level as keyof typeof levelLabels]?.color || 'bg-surface-3'
                       }`}>
@@ -299,7 +299,7 @@ export const RoleManagement = () => {
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-text-secondary mb-1">Status</div>
+                      <div className="text-sm text-fg-secondary mb-1">Status</div>
                       <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                         selectedRole.is_predefined
                           ? 'bg-purple-500/10 text-purple-400'
@@ -314,7 +314,7 @@ export const RoleManagement = () => {
                 {/* Permissions Matrix */}
                 <div className="bg-surface border border-border rounded-lg p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-semibold text-text-primary">Permissions ({selectedRole.permissions.length})</h3>
+                    <h3 className="text-lg font-semibold text-fg-primary">Permissions ({selectedRole.permissions.length})</h3>
                     <button
                       onClick={() => setShowPermissionMatrix(!showPermissionMatrix)}
                       className="text-sm text-primary hover:text-primary/80 font-medium"
@@ -347,10 +347,10 @@ export const RoleManagement = () => {
                                     className="flex items-center justify-between p-3 rounded-lg bg-surface-1/50 hover:bg-surface-2 transition-colors"
                                   >
                                     <div className="flex-1">
-                                      <div className="text-sm font-medium text-text-primary">
+                                      <div className="text-sm font-medium text-fg-primary">
                                         {resource}:{permission.action}
                                       </div>
-                                      <div className="text-xs text-text-secondary">{permission.description}</div>
+                                      <div className="text-xs text-fg-secondary">{permission.description}</div>
                                     </div>
                                     <button
                                       onClick={() =>
@@ -361,7 +361,7 @@ export const RoleManagement = () => {
                                       className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                                         isAssigned
                                           ? 'bg-success/10 text-success-text hover:bg-success/20'
-                                          : 'bg-surface-3 text-text-secondary hover:bg-surface-3'
+                                          : 'bg-surface-3 text-fg-secondary hover:bg-surface-3'
                                       }`}
                                     >
                                       {isAssigned ? 'Assigned' : 'Assign'}
@@ -377,7 +377,7 @@ export const RoleManagement = () => {
                     // Compact Permission List
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {selectedRole.permissions.length === 0 ? (
-                        <p className="text-center text-text-muted py-8">No permissions assigned</p>
+                        <p className="text-center text-fg-muted py-8">No permissions assigned</p>
                       ) : (
                         selectedRole.permissions.map((permission) => (
                           <div
@@ -385,14 +385,14 @@ export const RoleManagement = () => {
                             className="flex items-center justify-between p-3 rounded-lg bg-surface-1/50"
                           >
                             <div>
-                              <div className="text-sm font-medium text-text-primary">
+                              <div className="text-sm font-medium text-fg-primary">
                                 {permission.resource}:{permission.action}
                               </div>
-                              <div className="text-xs text-text-secondary">{permission.description}</div>
+                              <div className="text-xs text-fg-secondary">{permission.description}</div>
                             </div>
                             <button
                               onClick={() => handleRemovePermission(selectedRole.id, permission.id)}
-                              className="p-1 rounded-lg text-text-secondary hover:text-danger-text hover:bg-danger/10 transition-colors"
+                              className="p-1 rounded-lg text-fg-secondary hover:text-danger-text hover:bg-danger/10 transition-colors"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -406,8 +406,8 @@ export const RoleManagement = () => {
             ) : (
               <div className="flex items-center justify-center h-96 bg-surface border border-dashed border-border rounded-lg">
                 <div className="text-center">
-                  <Shield className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                  <p className="text-text-secondary">Select a role to view and manage permissions</p>
+                  <Shield className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+                  <p className="text-fg-secondary">Select a role to view and manage permissions</p>
                 </div>
               </div>
             )}
@@ -423,37 +423,37 @@ export const RoleManagement = () => {
             animate={{ scale: 1, opacity: 1 }}
             className="bg-surface border border-border rounded-lg p-6 max-w-md w-full mx-4"
           >
-            <h2 className="text-xl font-bold text-text-primary mb-6">Create New Role</h2>
+            <h2 className="text-xl font-bold text-fg-primary mb-6">Create New Role</h2>
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">Role Name</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">Role Name</label>
                 <input
                   type="text"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
                   placeholder="e.g., Security Officer"
-                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">Description</label>
                 <input
                   type="text"
                   value={newRoleDescription}
                   onChange={(e) => setNewRoleDescription(e.target.value)}
                   placeholder="Brief description of this role"
-                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">Level</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">Level</label>
                 <select
                   value={newRoleLevel}
                   onChange={(e) => setNewRoleLevel(Number(e.target.value))}
-                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-2 bg-surface-1 border border-border rounded-lg text-fg-primary focus:outline-none focus:border-primary"
                 >
                   <option value={0}>Viewer (Level 0)</option>
                   <option value={3}>Analyst (Level 3)</option>

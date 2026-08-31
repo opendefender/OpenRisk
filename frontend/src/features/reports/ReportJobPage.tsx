@@ -71,7 +71,7 @@ export function ReportJobPage() {
                     : done
                       ? 'color-mix(in srgb, var(--low) 12%, transparent)'
                       : 'var(--bg-hover)',
-                  color: failed ? 'var(--critical)' : done ? 'var(--low)' : 'var(--text-muted)',
+                  color: failed ? 'var(--critical)' : done ? 'var(--low)' : 'var(--fg-muted)',
                 }}
               >
                 {failed ? <AlertTriangle size={22} /> : done ? <CheckCircle2 size={22} /> : <RefreshCw size={22} className="animate-spin" />}

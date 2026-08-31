@@ -137,7 +137,7 @@ export function AuditDetailPage() {
                       onClick={() => !active && setStatus(s)}
                       className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold transition-colors"
                       style={{
-                        color: active ? 'var(--text-on-solid)' : m.color,
+                        color: active ? 'var(--fg-on-solid)' : m.color,
                         background: active ? m.color : `color-mix(in srgb, ${m.color} 12%, transparent)`,
                       }}
                     >

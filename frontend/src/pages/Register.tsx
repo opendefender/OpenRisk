@@ -102,12 +102,12 @@ export const Register = () => {
       >
         <div className="flex justify-center mb-8">
           <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
-            <Zap className="text-text-primary" fill="currentColor" />
+            <Zap className="text-fg-primary" fill="currentColor" />
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center text-text-primary mb-2">Create Account</h1>
-        <p className="text-text-secondary text-center mb-8 text-sm">Join OpenRisk to manage risks and mitigations</p>
+        <h1 className="text-2xl font-bold text-center text-fg-primary mb-2">Create Account</h1>
+        <p className="text-fg-secondary text-center mb-8 text-sm">Join OpenRisk to manage risks and mitigations</p>
 
         {errors.form && (
           <div className="mb-6 p-3 bg-danger/10 border border-danger/20 rounded-lg flex items-start gap-3">
@@ -171,7 +171,7 @@ export const Register = () => {
                 }}
               />
             </Field>
-            <p className="text-xs text-text-muted mt-1">Minimum 8 characters</p>
+            <p className="text-xs text-fg-muted mt-1">Minimum 8 characters</p>
           </div>
 
           <div>
@@ -194,13 +194,13 @@ export const Register = () => {
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-text-secondary">Already have an account? </span>
+          <span className="text-fg-secondary">Already have an account? </span>
           <Link to="/login" className="text-primary hover:text-info-text font-medium transition-colors">
             Sign In
           </Link>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-text-muted">
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-fg-muted">
           <Lock size={12} />
           <span>End-to-end encrypted connection</span>
         </div>

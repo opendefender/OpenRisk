@@ -109,7 +109,7 @@ export default function Analytics() {
           <div className="inline-block animate-spin">
             <div className="h-8 w-8 border-4 border-accent border-t-blue-600 rounded-full"></div>
           </div>
-          <p className="mt-4 text-text-secondary">Loading analytics...</p>
+          <p className="mt-4 text-fg-secondary">Loading analytics...</p>
         </div>
       </div>
     );
@@ -128,7 +128,7 @@ export default function Analytics() {
   if (!dashboard) {
     return (
       <div className="p-6">
-        <div className="text-text-secondary">No data available</div>
+        <div className="text-fg-secondary">No data available</div>
       </div>
     );
   }
@@ -158,8 +158,8 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Analytics Dashboard</h1>
-          <p className="text-text-secondary mt-2">
+          <h1 className="text-3xl font-bold text-fg-primary">Analytics Dashboard</h1>
+          <p className="text-fg-secondary mt-2">
             Last updated: {new Date(dashboard.timestamp).toLocaleString()}
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function Analytics() {
           <button
             onClick={fetchDashboard}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-solid hover:brightness-110 text-text-on-solid rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-solid hover:brightness-110 text-fg-on-solid rounded-lg transition disabled:opacity-50"
           >
             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
             Refresh
@@ -175,14 +175,14 @@ export default function Analytics() {
           <div className="flex gap-2">
             <button
               onClick={() => handleExport('json')}
-              className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success text-text-primary rounded-lg transition"
+              className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success text-fg-primary rounded-lg transition"
             >
               <Download size={18} />
               JSON
             </button>
             <button
               onClick={() => handleExport('csv')}
-              className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success text-text-primary rounded-lg transition"
+              className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success text-fg-primary rounded-lg transition"
             >
               <Download size={18} />
               CSV
@@ -228,7 +228,7 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Risk Levels Pie Chart */}
         <div className="bg-surface-1 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-text-primary mb-4">Risk Distribution by Level</h2>
+          <h2 className="text-xl font-bold text-fg-primary mb-4">Risk Distribution by Level</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -252,7 +252,7 @@ export default function Analytics() {
 
         {/* Risk Status Distribution */}
         <div className="bg-surface-1 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-text-primary mb-4">Risk Status Distribution</h2>
+          <h2 className="text-xl font-bold text-fg-primary mb-4">Risk Status Distribution</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={statusData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -267,7 +267,7 @@ export default function Analytics() {
 
       {/* Trends */}
       <div className="bg-surface-1 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-text-primary mb-4">Risk Trends (30 days)</h2>
+        <h2 className="text-xl font-bold text-fg-primary mb-4">Risk Trends (30 days)</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={dashboard.trends}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -291,7 +291,7 @@ export default function Analytics() {
 
       {/* Framework Analysis */}
       <div className="bg-surface-1 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-text-primary mb-4">Risks by Framework</h2>
+        <h2 className="text-xl font-bold text-fg-primary mb-4">Risks by Framework</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={frameworkData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -358,10 +358,10 @@ function MetricCard({
     <div className={`bg-surface-1 rounded-lg p-6 border ${alert ? 'border-danger' : 'border-border-default'}`}>
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-text-secondary text-sm font-medium">{title}</p>
-          <p className={`text-3xl font-bold mt-2 ${alert ? 'text-danger-text' : 'text-text-primary'}`}>
+          <p className="text-fg-secondary text-sm font-medium">{title}</p>
+          <p className={`text-3xl font-bold mt-2 ${alert ? 'text-danger-text' : 'text-fg-primary'}`}>
             {value}{suffix}
-            {maxValue && <span className="text-sm text-text-secondary">/{maxValue}</span>}
+            {maxValue && <span className="text-sm text-fg-secondary">/{maxValue}</span>}
           </p>
           {change !== undefined && (
             <p className="text-sm text-success-text mt-2">
@@ -374,7 +374,7 @@ function MetricCard({
             </p>
           )}
         </div>
-        {Icon && <div className="text-text-muted"><Icon size={24} /></div>}
+        {Icon && <div className="text-fg-muted"><Icon size={24} /></div>}
       </div>
     </div>
   );

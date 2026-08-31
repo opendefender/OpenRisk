@@ -72,7 +72,7 @@ export function DangerConfirm({
       }
     >
       <div className="space-y-3">
-        {intro && <p className="text-sm leading-relaxed text-text-secondary">{intro}</p>}
+        {intro && <p className="text-sm leading-relaxed text-fg-secondary">{intro}</p>}
 
         {impact && impact.length > 0 && (
           /* The radiography. A definition list rather than divs: the pairs are
@@ -81,8 +81,8 @@ export function DangerConfirm({
           <dl className="space-y-1.5 rounded-md bg-surface-3 p-3">
             {impact.map((r, i) => (
               <div key={i} className="flex items-center justify-between gap-3 text-xs">
-                <dt className="text-text-muted">{r.label}</dt>
-                <dd className="truncate text-right font-medium text-text-primary">{r.value}</dd>
+                <dt className="text-fg-muted">{r.label}</dt>
+                <dd className="truncate text-right font-medium text-fg-primary">{r.value}</dd>
               </div>
             ))}
           </dl>
@@ -90,7 +90,7 @@ export function DangerConfirm({
 
         {alternatives && alternatives.length > 0 && (
           <div className="space-y-2">
-            <p className="text-2xs font-semibold uppercase tracking-caps text-text-muted">
+            <p className="text-2xs font-semibold uppercase tracking-caps text-fg-muted">
               {tr('Alternatives', 'Alternatives')}
             </p>
             {alternatives.map((a, i) => {
@@ -109,9 +109,9 @@ export function DangerConfirm({
                     </span>
                   )}
                   <div className="min-w-0">
-                    <span className="block text-sm font-semibold text-text-primary">{a.label}</span>
+                    <span className="block text-sm font-semibold text-fg-primary">{a.label}</span>
                     {a.description && (
-                      <span className="block text-2xs text-text-muted">{a.description}</span>
+                      <span className="block text-2xs text-fg-muted">{a.description}</span>
                     )}
                   </div>
                 </button>

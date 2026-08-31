@@ -85,7 +85,7 @@ export const BoardReportPage = () => {
             <Sparkles size={22} className="text-primary" />
             Rapport du conseil
           </h2>
-          <p className="text-text-secondary text-sm max-w-2xl">
+          <p className="text-fg-secondary text-sm max-w-2xl">
             Une synthèse mensuelle, non technique, pour le conseil d'administration : posture de
             risque, conformité réglementaire et exposition financière estimée en FCFA. Généré en
             brouillon, relu, puis approuvé avant diffusion.
@@ -160,7 +160,7 @@ export const BoardReportPage = () => {
           ) : (
             !isLoading &&
             reports.length > 0 && (
-              <div className="text-text-muted text-sm p-8 text-center">
+              <div className="text-fg-muted text-sm p-8 text-center">
                 Sélectionnez un rapport pour le consulter.
               </div>
             )
@@ -193,21 +193,21 @@ function ReportCard({
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="font-semibold text-sm text-text-primary truncate">{report.period_label}</span>
+        <span className="font-semibold text-sm text-fg-primary truncate">{report.period_label}</span>
         <StatusBadge status={report.status} />
       </div>
-      <div className="flex items-center gap-4 text-xs text-text-secondary">
+      <div className="flex items-center gap-4 text-xs text-fg-secondary">
         <span>
-          Conformité <span className="text-text-primary font-medium">{Math.round(report.overall_compliance_percent)}%</span>
+          Conformité <span className="text-fg-primary font-medium">{Math.round(report.overall_compliance_percent)}%</span>
         </span>
         <span>
-          Risques <span className="text-text-primary font-medium">{report.risks_total}</span>
+          Risques <span className="text-fg-primary font-medium">{report.risks_total}</span>
           {report.risks_critical > 0 && (
             <span className="text-danger-text"> ({report.risks_critical} crit.)</span>
           )}
         </span>
       </div>
-      <div className="mt-1 text-xs text-text-muted">{formatFCFA(report.financial_exposure_fcfa)}</div>
+      <div className="mt-1 text-xs text-fg-muted">{formatFCFA(report.financial_exposure_fcfa)}</div>
     </button>
   );
 }
@@ -245,8 +245,8 @@ function EmptyList({ generating, onGenerate }: { generating: boolean; onGenerate
   }
   return (
     <div className="bg-surface border border-dashed border-border rounded-xl p-8 text-center">
-      <FileText size={40} className="mx-auto mb-3 text-text-muted" />
-      <p className="text-sm text-text-secondary mb-4">
+      <FileText size={40} className="mx-auto mb-3 text-fg-muted" />
+      <p className="text-sm text-fg-secondary mb-4">
         Aucun rapport pour l'instant. Générez le premier rapport du conseil en un clic.
       </p>
       <Button variant="primary" onClick={onGenerate} loading={generating}>
@@ -340,8 +340,8 @@ function ReportDetail({
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-1">
           <div>
-            <h3 className="text-lg font-bold text-text-primary">{report.title}</h3>
-            <p className="text-xs text-text-muted mt-0.5">{provenanceLabel(report.generated_by_model)}</p>
+            <h3 className="text-lg font-bold text-fg-primary">{report.title}</h3>
+            <p className="text-xs text-fg-muted mt-0.5">{provenanceLabel(report.generated_by_model)}</p>
           </div>
           <StatusBadge status={report.status} />
         </div>
@@ -397,11 +397,11 @@ function ReportDetail({
 
           {report.frameworks_snapshot && report.frameworks_snapshot.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-text-secondary mb-2">Conformité par référentiel</h4>
+              <h4 className="text-sm font-semibold text-fg-secondary mb-2">Conformité par référentiel</h4>
               <div className="space-y-2">
                 {report.frameworks_snapshot.map((f) => (
                   <div key={f.name + f.version} className="flex items-center gap-3">
-                    <span className="text-xs text-text-secondary w-40 truncate">
+                    <span className="text-xs text-fg-secondary w-40 truncate">
                       {f.name}
                       {f.version ? ` (${f.version})` : ''}
                     </span>
@@ -411,7 +411,7 @@ function ReportDetail({
                         style={{ width: `${Math.min(100, Math.max(0, f.percent_complete))}%` }}
                       />
                     </div>
-                    <span className="text-xs text-text-secondary w-24 text-right">
+                    <span className="text-xs text-fg-secondary w-24 text-right">
                       {Math.round(f.percent_complete)}% ({f.implemented}/{f.applicable})
                     </span>
                   </div>
@@ -447,7 +447,7 @@ function ReportDetail({
         </div>
 
         {readOnly && (
-          <p className="text-xs text-text-muted mt-3">
+          <p className="text-xs text-fg-muted mt-3">
             Ce rapport est approuvé et ne peut plus être modifié.
             {report.approved_at && ` Approuvé le ${new Date(report.approved_at).toLocaleString()}.`}
           </p>
@@ -472,11 +472,11 @@ function KpiTile({
 }) {
   return (
     <div className="bg-surface-1/5 border border-border rounded-lg p-3">
-      <div className="text-[11px] uppercase tracking-wide text-text-muted mb-1">{label}</div>
+      <div className="text-[11px] uppercase tracking-wide text-fg-muted mb-1">{label}</div>
       <div className={cn('font-bold', small ? 'text-base' : 'text-2xl', danger && 'text-danger-text')}>
         {value}
       </div>
-      {sub && <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>}
+      {sub && <div className="text-[11px] text-fg-muted mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -491,7 +491,7 @@ function RiskChips({ report }: { report: BoardReport }) {
   return (
     <div className="flex flex-wrap gap-3">
       {chips.map((c) => (
-        <span key={c.label} className="inline-flex items-center gap-1.5 text-xs text-text-secondary">
+        <span key={c.label} className="inline-flex items-center gap-1.5 text-xs text-fg-secondary">
           <span className={cn('w-2.5 h-2.5 rounded-sm', c.color)} />
           {c.label}: <span className="font-semibold">{c.count}</span>
         </span>
@@ -517,20 +517,20 @@ function Section({
     <div>
       <div className="flex items-center gap-2 mb-1.5">
         {title === 'Posture de risque' ? (
-          <ShieldAlert size={14} className="text-text-muted" />
+          <ShieldAlert size={14} className="text-fg-muted" />
         ) : (
-          <FileText size={14} className="text-text-muted" />
+          <FileText size={14} className="text-fg-muted" />
         )}
-        <h4 className="text-sm font-semibold text-text-secondary">{title}</h4>
+        <h4 className="text-sm font-semibold text-fg-secondary">{title}</h4>
       </div>
       {readOnly ? (
-        <p className="text-sm text-text-secondary whitespace-pre-wrap leading-relaxed">{value || '—'}</p>
+        <p className="text-sm text-fg-secondary whitespace-pre-wrap leading-relaxed">{value || '—'}</p>
       ) : (
         <textarea
           value={value}
           onChange={onChange}
           rows={rows}
-          className="w-full bg-surface-1/5 border border-border rounded-lg p-3 text-sm text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="w-full bg-surface-1/5 border border-border rounded-lg p-3 text-sm text-fg-primary leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
       )}
     </div>

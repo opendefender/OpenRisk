@@ -225,7 +225,7 @@ export function ProductTour() {
               className="h-8 px-3 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5"
               style={{
                 background: 'var(--accent-solid)',
-                color: 'var(--text-on-solid)',
+                color: 'var(--fg-on-solid)',
               }}
             >
               {isLast ? tr('Terminer', 'Done') : tr('Suivant', 'Next')}

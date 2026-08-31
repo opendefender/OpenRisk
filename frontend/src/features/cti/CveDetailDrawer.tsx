@@ -144,7 +144,7 @@ export function CveDetailDrawer({
                       <span
                         key={t}
                         className="mono text-[11px] font-semibold px-2 py-0.5 rounded"
-                        style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
+                        style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
                       >
                         {t}
                       </span>

@@ -55,7 +55,7 @@ export function AttributeForm({ defs, values, onChange, disabled, errors }: Attr
 
   if (defs.length === 0) {
     return (
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-sm" style={{ color: 'var(--fg-muted)' }}>
         Cette catégorie ne déclare aucun attribut.
       </p>
     );
@@ -67,7 +67,7 @@ export function AttributeForm({ defs, values, onChange, disabled, errors }: Attr
         <fieldset key={group.name} className="space-y-3">
           <legend
             className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: 'var(--text-muted)' }}
+            style={{ color: 'var(--fg-muted)' }}
           >
             {group.name}
           </legend>
@@ -102,7 +102,7 @@ const inputClass =
 const inputStyle = {
   background: 'var(--surface-2)',
   borderColor: 'var(--border)',
-  color: 'var(--text-primary)',
+  color: 'var(--fg-primary)',
 } as const;
 
 function AttributeField({ def, value, onChange, disabled, error }: FieldProps) {
@@ -114,7 +114,7 @@ function AttributeField({ def, value, onChange, disabled, error }: FieldProps) {
       <label
         htmlFor={id}
         className="mb-1 flex items-center gap-1.5 text-xs font-medium"
-        style={{ color: 'var(--text-secondary)' }}
+        style={{ color: 'var(--fg-secondary)' }}
       >
         {def.label}
         {def.required ? <span style={{ color: 'var(--critical)' }}>*</span> : null}
@@ -132,7 +132,7 @@ function AttributeField({ def, value, onChange, disabled, error }: FieldProps) {
       <FieldWidget id={id} def={def} value={value} onChange={onChange} disabled={disabled} />
 
       {def.help ? (
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 text-[11px]" style={{ color: 'var(--fg-muted)' }}>
           {def.help}
         </p>
       ) : null}
@@ -155,7 +155,7 @@ function FieldWidget({
   switch (def.type) {
     case 'boolean':
       return (
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--fg-primary)' }}>
           <input
             id={id}
             type="checkbox"
@@ -163,7 +163,7 @@ function FieldWidget({
             disabled={disabled}
             onChange={(e) => onChange(e.target.checked ? true : undefined)}
           />
-          <span style={{ color: 'var(--text-muted)' }}>{value === true ? 'Oui' : 'Non'}</span>
+          <span style={{ color: 'var(--fg-muted)' }}>{value === true ? 'Oui' : 'Non'}</span>
         </label>
       );
 
@@ -204,7 +204,7 @@ function FieldWidget({
                 style={{
                   borderColor: on ? 'var(--accent)' : 'var(--border)',
                   background: on ? 'var(--accent-soft)' : 'var(--surface-2)',
-                  color: on ? 'var(--accent)' : 'var(--text-secondary)',
+                  color: on ? 'var(--accent)' : 'var(--fg-secondary)',
                 }}
               >
                 {opt}

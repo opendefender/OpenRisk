@@ -51,7 +51,7 @@ export const Risks = () => {
         <div className="flex items-center gap-4">
           <ViewToggle view={view} onViewChange={setView} />
           <div className="flex items-center gap-3">
-            <label className="text-sm text-text-secondary">Per page</label>
+            <label className="text-sm text-fg-secondary">Per page</label>
             <select value={localPageSize} onChange={(e) => { setLocalPageSize(Number(e.target.value)); setLocalPage(1); }} className="bg-surface p-2 rounded text-sm">
               <option value={5}>5</option>
               <option value={10}>10</option>
@@ -63,7 +63,7 @@ export const Risks = () => {
 
       {view === 'table' && (
         <div className="bg-surface border border-border rounded-md overflow-hidden">
-          <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-text-secondary border-b border-border">
+          <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-fg-secondary border-b border-border">
             <div className="col-span-4">
               <button
                 type="button"
@@ -157,7 +157,7 @@ export const Risks = () => {
                 <div className="inline-block animate-spin mb-4">
                   <div className="h-8 w-8 border-4 border-primary border-t-primary/40 rounded-full"></div>
                 </div>
-                <p className="text-text-secondary">Loading risks...</p>
+                <p className="text-fg-secondary">Loading risks...</p>
               </div>
             </div>
           ) : risks.length === 0 ? (
@@ -167,7 +167,7 @@ export const Risks = () => {
               <div key={r.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-1/2">
                 <div className="col-span-6">
                   <div className="font-medium text-sm">{r.title}</div>
-                  <div className="text-xs text-text-muted">{r.description?.slice(0, 120)}</div>
+                  <div className="text-xs text-fg-muted">{r.description?.slice(0, 120)}</div>
                 </div>
                 <div className="col-span-1 font-mono font-bold">{r.score}</div>
                 <div className="col-span-2 text-sm">{r.status}</div>
@@ -192,7 +192,7 @@ export const Risks = () => {
                 <div className="inline-block animate-spin mb-4">
                   <div className="h-8 w-8 border-4 border-primary border-t-primary/40 rounded-full"></div>
                 </div>
-                <p className="text-text-secondary">Loading risks...</p>
+                <p className="text-fg-secondary">Loading risks...</p>
               </div>
             </div>
           ) : risks.length === 0 ? (
@@ -209,30 +209,30 @@ export const Risks = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-text-primary group-hover:text-primary transition-colors">{r.title}</h3>
-                    <p className="text-xs text-text-muted mt-1">{r.description?.slice(0, 100)}</p>
+                    <h3 className="font-semibold text-fg-primary group-hover:text-primary transition-colors">{r.title}</h3>
+                    <p className="text-xs text-fg-muted mt-1">{r.description?.slice(0, 100)}</p>
                   </div>
                   <div className="ml-4 text-right">
                     <div className="text-2xl font-bold text-primary">{r.score}</div>
-                    <div className="text-xs text-text-secondary">Score</div>
+                    <div className="text-xs text-fg-secondary">Score</div>
                   </div>
                 </div>
 
                 <div className="space-y-3 mb-4 border-t border-border pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <AlertCircle size={14} /> Impact
                     </span>
                     <span className="text-sm font-medium">{r.impact}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <TrendingUp size={14} /> Probability
                     </span>
                     <span className="text-sm font-medium">{r.probability}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-secondary flex items-center gap-1">
+                    <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <Shield size={14} /> Status
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -268,7 +268,7 @@ export const Risks = () => {
       <EditRiskModal isOpen={!!editRisk} onClose={() => setEditRisk(null)} risk={editRisk} />
 
       <div className="mt-4 flex items-center justify-between">
-        <div className="text-sm text-text-secondary">Total: {total}</div>
+        <div className="text-sm text-fg-secondary">Total: {total}</div>
         <div className="flex items-center gap-2">
           <Button variant="primary" onClick={() => setLocalPage((p) => Math.max(1, p - 1))} className="p-2"><ChevronLeft /></Button>
           <div className="px-3">{localPage} / {totalPages}</div>

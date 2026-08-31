@@ -203,13 +203,13 @@ export default function CustomFields() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-0 text-text-primary p-6">
+    <div className="min-h-screen bg-surface-0 text-fg-primary p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Custom Fields</h1>
-            <p className="text-text-secondary mt-2">Manage custom field definitions and templates</p>
+            <p className="text-fg-secondary mt-2">Manage custom field definitions and templates</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -227,7 +227,7 @@ export default function CustomFields() {
               });
               setShowCreateModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-solid text-text-on-solid hover:brightness-110 rounded-lg transition"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-solid text-fg-on-solid hover:brightness-110 rounded-lg transition"
           >
             <Plus className="w-5 h-5" />
             New Field
@@ -241,7 +241,7 @@ export default function CustomFields() {
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'fields'
                 ? 'border-b-2 border-accent text-info-text'
-                : 'text-text-secondary hover:text-text-primary'
+                : 'text-fg-secondary hover:text-fg-primary'
             }`}
           >
             Custom Fields ({fields.length})
@@ -251,7 +251,7 @@ export default function CustomFields() {
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'templates'
                 ? 'border-b-2 border-accent text-info-text'
-                : 'text-text-secondary hover:text-text-primary'
+                : 'text-fg-secondary hover:text-fg-primary'
             }`}
           >
             Templates ({templates.length})
@@ -268,8 +268,8 @@ export default function CustomFields() {
                   animate={{ opacity: 1 }}
                   className="text-center py-12 bg-surface-1 rounded-lg border border-border-subtle"
                 >
-                  <AlertCircle className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                  <p className="text-text-secondary">No custom fields yet</p>
+                  <AlertCircle className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+                  <p className="text-fg-secondary">No custom fields yet</p>
                 </motion.div>
               ) : (
                 fields.map((field) => (
@@ -288,15 +288,15 @@ export default function CustomFields() {
                             {fieldTypes.find((ft) => ft.value === field.type)?.icon}
                           </span>
                           <h3 className="text-lg font-semibold">{field.name}</h3>
-                          <span className="px-2 py-1 bg-surface-2 text-xs rounded text-text-secondary">
+                          <span className="px-2 py-1 bg-surface-2 text-xs rounded text-fg-secondary">
                             {field.type}
                           </span>
-                          <span className="px-2 py-1 bg-surface-2 text-xs rounded text-text-secondary">
+                          <span className="px-2 py-1 bg-surface-2 text-xs rounded text-fg-secondary">
                             {field.scope}
                           </span>
                         </div>
-                        <p className="text-sm text-text-secondary mb-2">{field.description}</p>
-                        <div className="flex gap-4 text-xs text-text-muted">
+                        <p className="text-sm text-fg-secondary mb-2">{field.description}</p>
+                        <div className="flex gap-4 text-xs text-fg-muted">
                           {field.is_required && (
                             <div className="flex items-center gap-1">
                               <CheckCircle className="w-4 h-4" />
@@ -353,8 +353,8 @@ export default function CustomFields() {
           <div className="grid gap-4">
             {templates.length === 0 ? (
               <div className="text-center py-12 bg-surface-1 rounded-lg border border-border-subtle">
-                <AlertCircle className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                <p className="text-text-secondary">No templates available</p>
+                <AlertCircle className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+                <p className="text-fg-secondary">No templates available</p>
               </div>
             ) : (
               templates.map((template) => (
@@ -369,8 +369,8 @@ export default function CustomFields() {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="text-lg font-semibold">{template.name}</h3>
-                      <p className="text-sm text-text-secondary">{template.description}</p>
-                      <span className="inline-block mt-2 px-2 py-1 bg-surface-2 text-xs rounded text-text-secondary">
+                      <p className="text-sm text-fg-secondary">{template.description}</p>
+                      <span className="inline-block mt-2 px-2 py-1 bg-surface-2 text-xs rounded text-fg-secondary">
                         {template.framework}
                       </span>
                     </div>
@@ -418,7 +418,7 @@ export default function CustomFields() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                  <label className="block text-sm font-medium text-fg-secondary mb-1">
                     Field Name *
                   </label>
                   <input
@@ -427,13 +427,13 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
                     placeholder="e.g., Department, Cost Center"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                  <label className="block text-sm font-medium text-fg-secondary mb-2">
                     Field Type *
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -457,7 +457,7 @@ export default function CustomFields() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                  <label className="block text-sm font-medium text-fg-secondary mb-1">
                     Description
                   </label>
                   <textarea
@@ -465,14 +465,14 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent resize-none"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-accent resize-none"
                     rows={3}
                     placeholder="Field description"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                  <label className="block text-sm font-medium text-fg-secondary mb-1">
                     Scope
                   </label>
                   <select
@@ -480,7 +480,7 @@ export default function CustomFields() {
                     onChange={(e) =>
                       setFormData({ ...formData, scope: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent"
+                    className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary focus:outline-none focus:border-accent"
                   >
                     {scopes.map((scope) => (
                       <option key={scope} value={scope}>
@@ -500,7 +500,7 @@ export default function CustomFields() {
                     }
                     className="w-4 h-4 rounded"
                   />
-                  <label htmlFor="required" className="text-sm text-text-secondary">
+                  <label htmlFor="required" className="text-sm text-fg-secondary">
                     Required
                   </label>
                 </div>
@@ -515,14 +515,14 @@ export default function CustomFields() {
                     }
                     className="w-4 h-4 rounded"
                   />
-                  <label htmlFor="searchable" className="text-sm text-text-secondary">
+                  <label htmlFor="searchable" className="text-sm text-fg-secondary">
                     Searchable
                   </label>
                 </div>
 
                 {formData.type === 'TEXT' && (
                   <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">
+                    <label className="block text-sm font-medium text-fg-secondary mb-1">
                       Default Value
                     </label>
                     <input
@@ -531,7 +531,7 @@ export default function CustomFields() {
                       onChange={(e) =>
                         setFormData({ ...formData, default_value: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
+                      className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
                       placeholder="Optional default value"
                     />
                   </div>
@@ -552,7 +552,7 @@ export default function CustomFields() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleCreateField}
-                  className="flex-1 px-4 py-2 bg-accent-solid text-text-on-solid hover:brightness-110 rounded transition font-medium"
+                  className="flex-1 px-4 py-2 bg-accent-solid text-fg-on-solid hover:brightness-110 rounded transition font-medium"
                 >
                   {editingField ? 'Update' : 'Create'}
                 </motion.button>

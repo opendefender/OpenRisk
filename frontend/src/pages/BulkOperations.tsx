@@ -48,7 +48,7 @@ const statusColors: Record<string, string> = {
   in_progress: 'bg-blue-900 text-blue-200',
   completed: 'bg-green-900 text-green-200',
   failed: 'bg-red-900 text-red-200',
-  cancelled: 'bg-surface-3 text-text-primary',
+  cancelled: 'bg-surface-3 text-fg-primary',
 };
 
 const statusIcons: Record<string, any> = {
@@ -182,18 +182,18 @@ export default function BulkOperations() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-0 text-text-primary p-6">
+    <div className="min-h-screen bg-surface-0 text-fg-primary p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Bulk Operations</h1>
-          <p className="text-text-secondary mt-2">Monitor and manage bulk processing jobs</p>
+          <p className="text-fg-secondary mt-2">Monitor and manage bulk processing jobs</p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Total Jobs', value: stats.total, color: 'text-text-secondary' },
+            { label: 'Total Jobs', value: stats.total, color: 'text-fg-secondary' },
             { label: 'In Progress', value: stats.inProgress, color: 'text-info-text' },
             { label: 'Completed', value: stats.completed, color: 'text-success-text' },
             { label: 'Failed', value: stats.failed, color: 'text-danger-text' },
@@ -205,7 +205,7 @@ export default function BulkOperations() {
               transition={{ delay: idx * 0.1 }}
               className="bg-surface-1 border border-border-subtle rounded-lg p-4"
             >
-              <div className="text-sm text-text-secondary mb-1">{stat.label}</div>
+              <div className="text-sm text-fg-secondary mb-1">{stat.label}</div>
               <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
             </motion.div>
           ))}
@@ -227,7 +227,7 @@ export default function BulkOperations() {
                 className={`px-4 py-2 rounded transition ${
                   filter === f.value
                     ? 'bg-accent-soft text-accent-strong'
-                    : 'bg-surface-2 text-text-secondary hover:bg-surface-3'
+                    : 'bg-surface-2 text-fg-secondary hover:bg-surface-3'
                 }`}
               >
                 {f.label}
@@ -237,7 +237,7 @@ export default function BulkOperations() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="ml-auto px-3 py-2 bg-surface-2 border border-border-default rounded text-text-primary focus:outline-none focus:border-accent"
+            className="ml-auto px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary focus:outline-none focus:border-accent"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -255,8 +255,8 @@ export default function BulkOperations() {
                     animate={{ opacity: 1 }}
                     className="text-center py-12 bg-surface-1 rounded-lg border border-border-subtle"
                   >
-                    <AlertCircle className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                    <p className="text-text-secondary">No operations found</p>
+                    <AlertCircle className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+                    <p className="text-fg-secondary">No operations found</p>
                   </motion.div>
                 ) : (
                   sortedOperations.map((operation) => {
@@ -288,7 +288,7 @@ export default function BulkOperations() {
                               <h3 className="font-semibold">
                                 {operationTypeLabels[operation.operation_type]}
                               </h3>
-                              <p className="text-sm text-text-secondary">
+                              <p className="text-sm text-fg-secondary">
                                 {operation.created_at
                                   ? new Date(operation.created_at).toLocaleString()
                                   : 'N/A'}
@@ -306,7 +306,7 @@ export default function BulkOperations() {
 
                         {/* Progress Bar */}
                         <div className="mb-3">
-                          <div className="flex justify-between text-xs text-text-secondary mb-1">
+                          <div className="flex justify-between text-xs text-fg-secondary mb-1">
                             <span>Progress</span>
                             <span>
                               {operation.completed_items}/{operation.total_items}
@@ -360,7 +360,7 @@ export default function BulkOperations() {
                 <h2 className="text-lg font-bold">Details</h2>
                 <button
                   onClick={() => setSelectedOperation(null)}
-                  className="text-text-secondary hover:text-text-primary"
+                  className="text-fg-secondary hover:text-fg-primary"
                 >
                   ✕
                 </button>
@@ -368,21 +368,21 @@ export default function BulkOperations() {
 
               <div className="space-y-4 text-sm">
                 <div>
-                  <label className="text-text-secondary">Operation Type</label>
+                  <label className="text-fg-secondary">Operation Type</label>
                   <p className="font-medium">
                     {operationTypeLabels[selectedOperation.operation_type]}
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-text-secondary">Status</label>
+                  <label className="text-fg-secondary">Status</label>
                   <p className="font-medium capitalize">
                     {selectedOperation.status.replace('_', ' ')}
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-text-secondary">Progress</label>
+                  <label className="text-fg-secondary">Progress</label>
                   <p className="font-medium">
                     {selectedOperation.completed_items}/{selectedOperation.total_items}{' '}
                     items
@@ -396,7 +396,7 @@ export default function BulkOperations() {
                 </div>
 
                 <div>
-                  <label className="text-text-secondary">Success Rate</label>
+                  <label className="text-fg-secondary">Success Rate</label>
                   <p className="font-medium">
                     {selectedOperation.total_items > 0
                       ? (
@@ -411,7 +411,7 @@ export default function BulkOperations() {
 
                 {selectedOperation.error_message && (
                   <div>
-                    <label className="text-text-secondary">Error</label>
+                    <label className="text-fg-secondary">Error</label>
                     <p className="font-medium text-danger-text text-xs wrap-break-word">
                       {selectedOperation.error_message}
                     </p>
@@ -419,7 +419,7 @@ export default function BulkOperations() {
                 )}
 
                 <div>
-                  <label className="text-text-secondary">Created</label>
+                  <label className="text-fg-secondary">Created</label>
                   <p className="font-medium text-xs">
                     {new Date(selectedOperation.created_at).toLocaleString()}
                   </p>
@@ -427,7 +427,7 @@ export default function BulkOperations() {
 
                 {selectedOperation.completed_at && (
                   <div>
-                    <label className="text-text-secondary">Completed</label>
+                    <label className="text-fg-secondary">Completed</label>
                     <p className="font-medium text-xs">
                       {new Date(selectedOperation.completed_at).toLocaleString()}
                     </p>

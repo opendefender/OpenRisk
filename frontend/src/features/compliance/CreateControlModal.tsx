@@ -88,7 +88,7 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="rounded-full p-2 text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
+                  className="rounded-full p-2 text-fg-secondary hover:bg-surface-1/10 hover:text-fg-primary transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -110,14 +110,14 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
                   />
                 </Field>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                  <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
                     {t('compliance.form.description')}
                   </label>
                   <textarea
                     {...register('description')}
                     rows={3}
                     disabled={isSubmitting}
-                    className="w-full rounded-lg border border-border-subtle bg-surface-1/50 px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                    className="w-full rounded-lg border border-border-subtle bg-surface-1/50 px-3 py-2 text-sm text-fg-primary outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                   />
                 </div>
 

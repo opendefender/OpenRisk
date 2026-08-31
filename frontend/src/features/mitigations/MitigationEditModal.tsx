@@ -153,7 +153,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-surface-overlay z-40" />
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="fixed inset-0 m-auto w-full max-w-md h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-50 overflow-auto">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Modifier la mitigation</h3>
+            <h3 className="text-lg font-semibold text-fg-primary mb-4">Modifier la mitigation</h3>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <Field label="Titre">
                 <Input  {...register('title')}
@@ -161,7 +161,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
               </Field>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
                   Responsabilités
                 </label>
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -184,12 +184,12 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
                     it. It used to be an editable input, which is a control that
                     cannot do what it appears to do — shown read-only instead. */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                  <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
                     Avancement
                   </label>
-                  <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-surface-1 text-sm text-text-secondary">
+                  <div className="h-10 flex items-center px-3 rounded-lg border border-border bg-surface-1 text-sm text-fg-secondary">
                     {mitigation?.progress ?? 0}%
-                    <span className="ml-2 text-xs text-text-muted">(calculé)</span>
+                    <span className="ml-2 text-xs text-fg-muted">(calculé)</span>
                   </div>
                 </div>
                 <Field label="Temps (jours)">
@@ -209,7 +209,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
               </div>
               {/* Sub-actions checklist */}
               <div className="mt-3">
-                <h4 className="text-sm font-medium text-text-primary mb-2">Checklist</h4>
+                <h4 className="text-sm font-medium text-fg-primary mb-2">Checklist</h4>
                 <div className="space-y-2">
                   {mitigation?.sub_actions?.length ? mitigation.sub_actions.map((s: any) => (
                     <div key={s.id} className="flex items-center justify-between bg-muted p-2 rounded">

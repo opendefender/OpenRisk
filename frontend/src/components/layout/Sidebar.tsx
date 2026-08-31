@@ -144,7 +144,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       >
         <span
           className="flex shrink-0"
-          style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }}
+          style={{ color: active ? 'var(--accent)' : 'var(--fg-secondary)' }}
         >
           <Icon size={19} strokeWidth={1.75} />
         </span>
@@ -153,7 +153,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             className="text-[13px] whitespace-nowrap flex-1 text-left"
             style={{
               fontWeight: active ? 600 : 500,
-              color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+              color: active ? 'var(--fg-primary)' : 'var(--fg-secondary)',
             }}
           >
             {L[item.labelKey]}
@@ -174,7 +174,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             />
           ) : (
             <span
-              className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-text-primary"
+              className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-fg-primary"
               style={{ background: item.badge.color ?? 'var(--critical)' }}
             >
               {navCounts[item.badge.count]}
@@ -210,7 +210,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="px-[14px] pt-4 pb-2.5">
             <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
               <div
-                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-text-on-solid"
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-fg-on-solid"
                 style={{
                   background: 'var(--accent-solid)',
                 }}
@@ -252,9 +252,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
                 onMobileClose?.();
               }}
-              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-[filter] hover:brightness-110"
+              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
               style={{
-                background: 'var(--accent-solid)', color: 'var(--text-on-solid)',
+                background: 'var(--accent-solid)', color: 'var(--fg-on-solid)',
               }}
               title={L.newRisk}
             >

@@ -40,13 +40,13 @@ const ACTION_COLOR: Record<AuditAction, string> = {
   create: 'var(--good, #16a34a)', update: 'var(--accent)', delete: 'var(--crit, #dc2626)',
   submit: 'var(--accent)', approve: 'var(--good, #16a34a)', reject: 'var(--crit, #dc2626)',
   delegate: 'var(--med, #d97706)', revoke: 'var(--crit, #dc2626)',
-  login: 'var(--text-secondary)', export: 'var(--text-secondary)',
+  login: 'var(--fg-secondary)', export: 'var(--fg-secondary)',
 };
 
 const STATUS_COLOR: Record<string, string> = {
   pending: 'var(--med, #d97706)', approved: 'var(--good, #16a34a)',
-  rejected: 'var(--crit, #dc2626)', cancelled: 'var(--text-secondary)',
-  active: 'var(--good, #16a34a)', revoked: 'var(--crit, #dc2626)', expired: 'var(--text-secondary)',
+  rejected: 'var(--crit, #dc2626)', cancelled: 'var(--fg-secondary)',
+  active: 'var(--good, #16a34a)', revoked: 'var(--crit, #dc2626)', expired: 'var(--fg-secondary)',
 };
 
 function fmt(ts?: string | null): string {
@@ -95,7 +95,7 @@ export function GovernancePage() {
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
         background: tab === id ? 'var(--accent)' : 'transparent',
-        color: tab === id ? '#fff' : 'var(--text-secondary)',
+        color: tab === id ? '#fff' : 'var(--fg-secondary)',
         border: tab === id ? 'none' : '1px solid var(--border-strong)',
       }}
     >
@@ -205,7 +205,7 @@ function AuditView({ isAdmin }: { isAdmin: boolean }) {
       hideable: false,
       exportValue: (e) => e.action,
       render: (e) => (
-        <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: 'var(--text-inverse)', background: ACTION_COLOR[e.action] }}>{e.action}</span>
+        <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: 'var(--fg-inverse)', background: ACTION_COLOR[e.action] }}>{e.action}</span>
       ),
     },
     {
@@ -215,14 +215,14 @@ function AuditView({ isAdmin }: { isAdmin: boolean }) {
       exportValue: (e) => e.summary || `${e.action} ${e.entity_type}`,
       render: (e) => <span className="text-[13px] block max-w-[420px] truncate">{e.summary || `${e.action} ${e.entity_type}`}</span>,
     },
-    { key: 'entity', header: tr('Entité', 'Entity'), exportValue: (e) => e.entity_type, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.entity_type}</span> },
+    { key: 'entity', header: tr('Entité', 'Entity'), exportValue: (e) => e.entity_type, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--fg-secondary)' }}>{e.entity_type}</span> },
     {
       key: 'actor',
       header: tr('Acteur', 'Actor'),
       exportValue: (e) => e.actor_email || e.actor_id || 'system',
-      render: (e) => <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>{e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))}</span>,
+      render: (e) => <span className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>{e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))}</span>,
     },
-    { key: 'ip', header: 'IP', defaultHidden: true, exportValue: (e) => e.ip_address ?? '', render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.ip_address ?? '—'}</span> },
+    { key: 'ip', header: 'IP', defaultHidden: true, exportValue: (e) => e.ip_address ?? '', render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--fg-secondary)' }}>{e.ip_address ?? '—'}</span> },
     {
       key: 'seq',
       header: '#',
@@ -230,16 +230,16 @@ function AuditView({ isAdmin }: { isAdmin: boolean }) {
       exportValue: (e) => String(e.sequence),
       // The position in the chain. Hidden by default — it matters when you are
       // reconciling an export, not when you are reading the day's activity.
-      render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.sequence}</span>,
+      render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--fg-secondary)' }}>{e.sequence}</span>,
     },
     {
       key: 'source',
       header: tr('Origine', 'Source'),
       defaultHidden: true,
       exportValue: (e) => e.source ?? '',
-      render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{e.source ?? '—'}</span>,
+      render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--fg-secondary)' }}>{e.source ?? '—'}</span>,
     },
-    { key: 'when', header: tr('Quand', 'When'), exportValue: (e) => e.created_at, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{fmt(e.created_at)}</span> },
+    { key: 'when', header: tr('Quand', 'When'), exportValue: (e) => e.created_at, render: (e) => <span className="text-[12px] mono" style={{ color: 'var(--fg-secondary)' }}>{fmt(e.created_at)}</span> },
   ], [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rowActions: RowAction<AuditEvent>[] = useMemo(() => [
@@ -299,12 +299,12 @@ function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void 
       >
         <div className="px-[22px] pt-5 pb-3.5 flex items-start gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex-1">
-            <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: 'var(--text-inverse)', background: ACTION_COLOR[e.action] }}>{e.action}</span>
+            <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md" style={{ color: 'var(--fg-inverse)', background: ACTION_COLOR[e.action] }}>{e.action}</span>
             <div className="disp text-[16px] font-bold text-ink leading-snug mt-2">{e.summary || `${e.action} ${e.entity_type}`}</div>
-            <div className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-[12px] mt-1" style={{ color: 'var(--fg-secondary)' }}>
               {e.entity_type} · {e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))} · {fmt(e.created_at)}
             </div>
-            {e.ip_address && <div className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>IP {e.ip_address}{e.user_agent ? ` · ${e.user_agent}` : ''}</div>}
+            {e.ip_address && <div className="text-[12px] mt-1" style={{ color: 'var(--fg-secondary)' }}>IP {e.ip_address}{e.user_agent ? ` · ${e.user_agent}` : ''}</div>}
           </div>
           <button onClick={onClose} aria-label={tr('Fermer', 'Close')} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}>
             <X size={18} />
@@ -318,7 +318,7 @@ function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void 
                 <div key={f} className="flex items-start gap-2 flex-wrap">
                   <span className="mono font-semibold" style={{ minWidth: 140 }}>{f}</span>
                   <span className="mono px-1.5 rounded" style={{ background: 'color-mix(in srgb, var(--critical) 12%, transparent)', textDecoration: 'line-through', opacity: 0.8 }}>{renderVal(e.before?.[f])}</span>
-                  <ArrowRight size={12} style={{ marginTop: 3, color: 'var(--text-secondary)' }} />
+                  <ArrowRight size={12} style={{ marginTop: 3, color: 'var(--fg-secondary)' }} />
                   <span className="mono px-1.5 rounded" style={{ background: 'color-mix(in srgb, var(--low) 14%, transparent)' }}>{renderVal(e.after?.[f])}</span>
                 </div>
               ))}
@@ -448,7 +448,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
             <span className="text-[14px] font-semibold">{req.title}</span>
             {parallel && (
               <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                 {tr('parallèle', 'parallel')}
               </span>
             )}
@@ -464,7 +464,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
               </span>
             )}
           </div>
-          <div className="text-[12px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <div className="text-[12px] mt-1" style={{ color: 'var(--fg-secondary)' }}>
             {req.workflow_name} · {detail?.request_type_info
               ? (lang === 'fr' ? detail.request_type_info.label : detail.request_type_info.label_en)
               : `${req.entity_type}${req.action ? `/${req.action}` : ''}`}
@@ -492,7 +492,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
                   {p.name}{p.approver_role ? ` · ${p.approver_role}` : ''}
                   {p.required_approvals > 1 ? ` ${p.approvals}/${p.required_approvals}` : ''}
                 </span>
-                {!parallel && i < arr.length - 1 && <ChevronRight size={12} style={{ color: 'var(--text-secondary)' }} />}
+                {!parallel && i < arr.length - 1 && <ChevronRight size={12} style={{ color: 'var(--fg-secondary)' }} />}
               </span>
             ))}
           </div>
@@ -503,7 +503,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
         <div className="mt-3">
           {/* Why the buttons are (or are not) available — stated, not implied. */}
           {detail && (
-            <p className="text-[12px] mb-2" style={{ color: canDecide ? 'var(--text-secondary)' : 'var(--medium)' }}>
+            <p className="text-[12px] mb-2" style={{ color: canDecide ? 'var(--fg-secondary)' : 'var(--medium)' }}>
               {detail.verdict.reason}
               {detail.verdict.via_delegation && ` (${tr('par délégation', 'by delegation')})`}
             </p>
@@ -513,7 +513,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
               <select value={stepOrder ?? openSteps[0]?.order ?? 0}
                 onChange={(e) => setStepOrder(Number(e.target.value))}
                 className="h-9 px-2 rounded-[9px] text-[13px]"
-                style={{ border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--text-primary)' }}>
+                style={{ border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--fg-primary)' }}>
                 {openSteps.map((p) => <option key={p.order} value={p.order}>{p.name}</option>)}
               </select>
             )}
@@ -529,14 +529,14 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
       )}
 
       {(req.decisions?.length ?? 0) > 0 && (
-        <button className="text-[12px] mt-2 inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }} onClick={() => setExpanded((x) => !x)}>
+        <button className="text-[12px] mt-2 inline-flex items-center gap-1" style={{ color: 'var(--fg-secondary)' }} onClick={() => setExpanded((x) => !x)}>
           <Clock size={12} /> {req.decisions.length} {tr('décision(s)', 'decision(s)')} {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
       )}
       {expanded && (
         <div className="mt-2 space-y-1 pl-5">
           {req.decisions.map((d, i) => (
-            <div key={i} className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+            <div key={i} className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
               <span style={{ color: d.decision === 'approve' ? 'var(--good, #16a34a)' : 'var(--crit, #dc2626)', fontWeight: 700 }}>{d.decision}</span>
               {' '}· {tr('étape', 'step')} {d.step_order + 1} · {d.approver_email || d.approver_id.slice(0, 8)} · {fmt(d.decided_at)}{d.comment ? ` — “${d.comment}”` : ''}
             </div>
@@ -612,7 +612,7 @@ function DelegationsView() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>
           {tr('Confiez temporairement vos droits à un collègue (absence, congés).', 'Temporarily hand your rights to a colleague (leave, absence).')}
         </div>
         <Btn label={tr('Nouvelle délégation', 'New delegation')} icon={UserPlus} primary onClick={() => setShowCreate(true)} />
@@ -635,10 +635,10 @@ function DelegationsView() {
               <div className="flex-1 min-w-[200px]">
                 <div className="text-[13px]">
                   <span className="font-semibold">{d.delegator_email || d.delegator_id.slice(0, 8)}</span>
-                  <ArrowRight size={12} className="inline mx-1.5" style={{ color: 'var(--text-secondary)' }} />
+                  <ArrowRight size={12} className="inline mx-1.5" style={{ color: 'var(--fg-secondary)' }} />
                   <span className="font-semibold">{d.delegate_email || d.delegate_id.slice(0, 8)}</span>
                 </div>
-                <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
                   {d.permissions.join(', ')} · {fmt(d.starts_at)} → {fmt(d.ends_at)}{d.reason ? ` · ${d.reason}` : ''}
                 </div>
               </div>
@@ -707,7 +707,7 @@ function WorkflowsView() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>
           {tr('Définissez des chaînes d’approbation (ex : accepter un risque = propriétaire + CISO).', 'Define approval chains (e.g. accept a risk = owner + CISO).')}
         </div>
         <Btn label={tr('Nouveau workflow', 'New workflow')} icon={Plus} primary onClick={() => setShowCreate(true)} />
@@ -730,15 +730,15 @@ function WorkflowsView() {
                 <div className="flex-1 min-w-[240px]">
                   <div className="flex items-center gap-2">
                     <span className="text-[14px] font-semibold">{w.name}</span>
-                    {!w.enabled && <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>{tr('désactivé', 'disabled')}</span>}
+                    {!w.enabled && <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}>{tr('désactivé', 'disabled')}</span>}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[12px] mono" style={{ color: 'var(--text-secondary)' }}>{w.entity_type}{w.action ? `/${w.action}` : ''}</span>
-                    <span className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                    <span className="text-[12px] mono" style={{ color: 'var(--fg-secondary)' }}>{w.entity_type}{w.action ? `/${w.action}` : ''}</span>
+                    <span className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                       {w.mode === 'parallel' ? tr('parallèle', 'parallel') : tr('séquentiel', 'sequential')}
                     </span>
                     {w.expires_in_hours > 0 && (
-                      <span className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                      <span className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                         {tr(`expire après ${w.expires_in_hours} h`, `expires after ${w.expires_in_hours}h`)}
                       </span>
                     )}
@@ -749,7 +749,7 @@ function WorkflowsView() {
                         <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ border: '1px solid var(--border-strong)' }}>
                           {s.name}{s.approver_role ? ` · ${s.approver_role}` : ''}{s.min_approvals > 1 ? ` ×${s.min_approvals}` : ''}
                         </span>
-                        {i < w.steps.length - 1 && <ChevronRight size={12} style={{ color: 'var(--text-secondary)' }} />}
+                        {i < w.steps.length - 1 && <ChevronRight size={12} style={{ color: 'var(--fg-secondary)' }} />}
                       </span>
                     ))}
                   </div>
@@ -822,7 +822,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
           ))}
         </select>
         {selectedType && (
-          <p className="text-[11.5px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[11.5px] mt-1" style={{ color: 'var(--fg-secondary)' }}>
             {selectedType.description}
             {selectedType.linked_to_lifecycle && (
               <>
@@ -850,7 +850,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
             className="w-full mt-1 h-9 px-2.5 rounded-[9px] bg-transparent text-[13px] mono" style={{ border: '1px solid var(--border-strong)' }} />
         </div>
       </div>
-      <p className="text-[11.5px] -mt-2" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-[11.5px] -mt-2" style={{ color: 'var(--fg-secondary)' }}>
         {tr('0 = n’expire jamais. Sinon, une demande non décidée dans le délai se clôt comme « expirée » — ce qui n’est pas un refus.',
             '0 = never expires. Otherwise a request nobody decides in time closes as "expired" — which is not a refusal.')}
       </p>
@@ -862,7 +862,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
         <div className="space-y-2 mt-1">
           {steps.map((s, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <span className="mono text-[12px]" style={{ color: 'var(--text-secondary)', width: 18 }}>{i + 1}</span>
+              <span className="mono text-[12px]" style={{ color: 'var(--fg-secondary)', width: 18 }}>{i + 1}</span>
               <input value={s.name} onChange={(e) => setStep(i, { name: e.target.value })} placeholder={tr('Nom de l’étape', 'Step name')} className="flex-1 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]" style={{ border: '1px solid var(--border-strong)' }} />
               <input value={s.approver_role} onChange={(e) => setStep(i, { approver_role: e.target.value })} placeholder={tr('rôle', 'role')} className="w-24 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]" style={{ border: '1px solid var(--border-strong)' }} />
               <input type="number" min={1} value={s.min_approvals}

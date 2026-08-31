@@ -23,7 +23,7 @@ import { WidgetState } from './WidgetState';
 import { DashboardShell, PersonaHeader, ScoreHero, StatCard, Card } from './shared';
 
 const KRI_COL: Record<string, string> = {
-  critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)', info: 'var(--text-muted)',
+  critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)', info: 'var(--fg-muted)',
 };
 
 export function ExecDashboard() {
@@ -95,7 +95,7 @@ export function ExecDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {kris.map((k) => (
               <div key={k.key} className="rounded-xl p-3.5" style={{ background: 'var(--bg-hover)' }}>
-                <div className="mono text-[22px] font-bold leading-none" style={{ color: KRI_COL[k.severity] ?? 'var(--text-primary)' }}>
+                <div className="mono text-[22px] font-bold leading-none" style={{ color: KRI_COL[k.severity] ?? 'var(--fg-primary)' }}>
                   {new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 1 }).format(k.value)}
                   {kriUnit(k.unit)}
                 </div>

@@ -50,15 +50,15 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
     <div className="bg-surface-1 rounded-lg shadow-sm border border-border-subtle overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border-subtle">
-        <h3 className="text-lg font-semibold text-text-primary">
+        <h3 className="text-lg font-semibold text-fg-primary">
           {title}
           {rowCount !== undefined && (
-            <span className="ml-2 text-sm font-normal text-text-secondary">({rowCount})</span>
+            <span className="ml-2 text-sm font-normal text-fg-secondary">({rowCount})</span>
           )}
         </h3>
         <button
           onClick={onViewMore}
-          className="p-2 text-text-secondary hover:text-text-muted rounded-lg hover:bg-surface-sunken transition"
+          className="p-2 text-fg-secondary hover:text-fg-muted rounded-lg hover:bg-surface-sunken transition"
         >
           <MoreVertical size={18} />
         </button>
@@ -76,7 +76,7 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
                   {(columns ?? []).map((col) => (
                     <th
                       key={col}
-                      className="px-4 py-3 text-left text-xs font-semibold text-text-primary uppercase tracking-wide"
+                      className="px-4 py-3 text-left text-xs font-semibold text-fg-primary uppercase tracking-wide"
                     >
                       {col}
                     </th>
@@ -93,11 +93,11 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(item.status)}
-                        <span className="text-sm font-medium text-text-primary">{item.name}</span>
+                        <span className="text-sm font-medium text-fg-primary">{item.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-text-primary">{item.value}</span>
+                      <span className="text-sm text-fg-primary">{item.value}</span>
                     </td>
                     {item.trend !== undefined && (
                       <td className="px-4 py-3">
@@ -123,7 +123,7 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
           {/* Empty state */}
           {(data ?? []).length === 0 && (
             <div className="p-8 text-center">
-              <p className="text-text-muted">No data available</p>
+              <p className="text-fg-muted">No data available</p>
             </div>
           )}
         </>

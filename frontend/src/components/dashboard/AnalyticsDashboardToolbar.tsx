@@ -25,8 +25,8 @@ const AnalyticsDashboardToolbar: React.FC<AnalyticsDashboardToolbarProps> = ({
     <div className="flex items-center justify-between gap-4 p-4 bg-surface-1 border-b border-border-subtle rounded-t-lg">
       {/* Left side - Title and description */}
       <div className="flex-1">
-        <h2 className="text-xl font-bold text-text-primary">Analytics Dashboard</h2>
-        <p className="text-sm text-text-muted">Real-time metrics and insights</p>
+        <h2 className="text-xl font-bold text-fg-primary">Analytics Dashboard</h2>
+        <p className="text-sm text-fg-muted">Real-time metrics and insights</p>
       </div>
 
       {/* Right side - Action buttons */}
@@ -35,7 +35,7 @@ const AnalyticsDashboardToolbar: React.FC<AnalyticsDashboardToolbarProps> = ({
         <button
           onClick={onRefreshClick}
           disabled={isLoading}
-          className="p-2 text-text-muted hover:bg-surface-sunken rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-fg-muted hover:bg-surface-sunken rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           title="Refresh data"
         >
           <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
@@ -44,7 +44,7 @@ const AnalyticsDashboardToolbar: React.FC<AnalyticsDashboardToolbarProps> = ({
         {/* Settings button */}
         <button
           onClick={onSettingsClick}
-          className="p-2 text-text-muted hover:bg-surface-sunken rounded-lg transition"
+          className="p-2 text-fg-muted hover:bg-surface-sunken rounded-lg transition"
           title="Dashboard settings"
         >
           <Settings size={18} />
@@ -53,7 +53,7 @@ const AnalyticsDashboardToolbar: React.FC<AnalyticsDashboardToolbarProps> = ({
         {/* Filter button */}
         <button
           onClick={onFilterClick}
-          className="px-4 py-2 text-sm font-medium text-text-primary bg-surface-sunken hover:bg-surface-sunken rounded-lg transition flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-fg-primary bg-surface-sunken hover:bg-surface-sunken rounded-lg transition flex items-center gap-2"
           title="Filter data"
         >
           <Filter size={16} />
@@ -63,7 +63,7 @@ const AnalyticsDashboardToolbar: React.FC<AnalyticsDashboardToolbarProps> = ({
         {/* Export button */}
         <button
           onClick={onExportClick}
-          className="px-4 py-2 text-sm font-medium text-text-on-solid bg-accent-solid hover:brightness-110 rounded-lg transition flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-fg-on-solid bg-accent-solid hover:brightness-110 rounded-lg transition flex items-center gap-2"
           title="Export dashboard"
         >
           <Download size={16} />

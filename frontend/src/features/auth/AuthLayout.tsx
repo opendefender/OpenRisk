@@ -102,7 +102,7 @@ function RiskOrbit({ reduced }: { reduced: boolean }) {
 
 // The narrative panel is a fixed dark brand surface in BOTH themes (see the
 // wrapper in AuthLayout). Anything drawn on it must therefore be a FIXED light
-// colour: a theme-following token such as --text-primary flips to near-black in
+// colour: a theme-following token such as --fg-primary flips to near-black in
 // light mode and the text disappears into the panel. That is exactly what
 // happened to the wordmark and the quote — legible in dark, invisible in light.
 // eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see above

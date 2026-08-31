@@ -100,8 +100,8 @@ export function OnboardingWizard() {
                     color: active
                       ? 'var(--accent)'
                       : done
-                        ? 'var(--text-secondary)'
-                        : 'var(--text-muted)',
+                        ? 'var(--fg-secondary)'
+                        : 'var(--fg-muted)',
                   }}
                 >
                   <span
@@ -112,7 +112,7 @@ export function OnboardingWizard() {
                         : active
                           ? 'var(--accent)'
                           : 'var(--bg-hover)',
-                      color: done ? 'var(--low)' : active ? '#fff' : 'var(--text-muted)',
+                      color: done ? 'var(--low)' : active ? '#fff' : 'var(--fg-muted)',
                     }}
                   >
                     {done ? <Check size={11} strokeWidth={3} /> : i + 1}

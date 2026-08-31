@@ -121,7 +121,7 @@ export function bandColor(band: ScoreBand | undefined): string {
     case 'low':
       return 'var(--low)';
     default:
-      return 'var(--text-muted)';
+      return 'var(--fg-muted)';
   }
 }
 

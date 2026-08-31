@@ -107,9 +107,9 @@ export const EnhancedNotificationCenter = () => {
       },
       default: {
         icon: Info,
-        color: 'text-text-secondary',
+        color: 'text-fg-secondary',
         bg: 'bg-surface-3/10',
-        textColor: 'text-text-secondary',
+        textColor: 'text-fg-secondary',
         gradient: 'from-gray-600 to-gray-700',
       },
     };
@@ -182,14 +182,14 @@ export const EnhancedNotificationCenter = () => {
           setIsOpen(!isOpen);
           setShowSettings(false);
         }}
-        className="relative text-text-secondary hover:text-text-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full group"
+        className="relative text-fg-secondary hover:text-fg-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full group"
       >
         <Bell size={20} />
 
         {/* Pulsing indicator for unread */}
         {unreadCount > 0 && (
           <>
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full border border-background text-text-primary text-xs flex items-center justify-center font-bold">
+            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full border border-background text-fg-primary text-xs flex items-center justify-center font-bold">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
             <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-danger rounded-full animate-pulse" />
@@ -197,7 +197,7 @@ export const EnhancedNotificationCenter = () => {
         )}
 
         {/* Hover tooltip */}
-        <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-surface-1 text-text-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+        <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-surface-1 text-fg-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
           {unreadCount} unread
         </div>
       </motion.button>
@@ -227,7 +227,7 @@ export const EnhancedNotificationCenter = () => {
               <div className="bg-linear-to-r from-zinc-800 to-zinc-900 border-b border-border-default p-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <Bell size={18} className="text-info-text" />
-                  <h3 className="font-semibold text-text-primary text-lg">Notifications</h3>
+                  <h3 className="font-semibold text-fg-primary text-lg">Notifications</h3>
                 </div>
                 <div className="flex items-center gap-2">
                   {notifications.length > 0 && (
@@ -243,7 +243,7 @@ export const EnhancedNotificationCenter = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         onClick={() => setShowSettings(!showSettings)}
-                        className="text-xs px-2 py-1 text-text-secondary hover:text-text-primary transition-colors"
+                        className="text-xs px-2 py-1 text-fg-secondary hover:text-fg-primary transition-colors"
                         title="Settings"
                       >
                         ⚙️
@@ -262,7 +262,7 @@ export const EnhancedNotificationCenter = () => {
                     exit={{ opacity: 0, height: 0 }}
                     className="border-b border-border-default bg-surface-2/50 p-4 space-y-3"
                   >
-                    <h4 className="text-sm font-semibold text-text-primary mb-3">Notification Preferences</h4>
+                    <h4 className="text-sm font-semibold text-fg-primary mb-3">Notification Preferences</h4>
 
                     {Object.entries(preferences).map(([key, value]) => (
                       <label
@@ -280,14 +280,14 @@ export const EnhancedNotificationCenter = () => {
                           }
                           className="w-4 h-4 rounded border-border-default cursor-pointer"
                         />
-                        <span className="text-sm text-text-secondary capitalize">{key} notifications</span>
+                        <span className="text-sm text-fg-secondary capitalize">{key} notifications</span>
                       </label>
                     ))}
 
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       onClick={requestNotificationPermission}
-                      className="w-full mt-4 px-3 py-2 bg-accent-solid hover:brightness-110 text-text-on-solid text-sm rounded-lg transition-colors"
+                      className="w-full mt-4 px-3 py-2 bg-accent-solid hover:brightness-110 text-fg-on-solid text-sm rounded-lg transition-colors"
                     >
                       Enable Desktop Notifications
                     </motion.button>
@@ -301,7 +301,7 @@ export const EnhancedNotificationCenter = () => {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="p-8 text-center text-text-muted"
+                    className="p-8 text-center text-fg-muted"
                   >
                     <Bell size={32} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm">No notifications yet</p>
@@ -335,13 +335,13 @@ export const EnhancedNotificationCenter = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
-                                  <p className="font-semibold text-text-primary text-sm group-hover:text-info-text transition-colors">
+                                  <p className="font-semibold text-fg-primary text-sm group-hover:text-info-text transition-colors">
                                     {notification.title}
                                   </p>
-                                  <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                                  <p className="text-xs text-fg-secondary mt-1 line-clamp-2">
                                     {notification.message}
                                   </p>
-                                  <p className="text-xs text-text-muted mt-2">
+                                  <p className="text-xs text-fg-muted mt-2">
                                     {new Date(notification.timestamp).toLocaleTimeString()}
                                   </p>
                                 </div>
@@ -365,7 +365,7 @@ export const EnhancedNotificationCenter = () => {
                                       notification.action?.onClick();
                                       markAsRead(notification.id);
                                     }}
-                                    className="text-xs px-3 py-1 bg-accent-solid hover:brightness-110 text-text-on-solid rounded transition-colors"
+                                    className="text-xs px-3 py-1 bg-accent-solid hover:brightness-110 text-fg-on-solid rounded transition-colors"
                                   >
                                     {notification.action.label}
                                   </motion.button>
@@ -376,7 +376,7 @@ export const EnhancedNotificationCenter = () => {
                                     e.stopPropagation();
                                     removeNotification(notification.id);
                                   }}
-                                  className="text-xs px-2 py-1 text-text-muted hover:text-danger-text transition-colors ml-auto"
+                                  className="text-xs px-2 py-1 text-fg-muted hover:text-danger-text transition-colors ml-auto"
                                 >
                                   <X size={14} />
                                 </motion.button>

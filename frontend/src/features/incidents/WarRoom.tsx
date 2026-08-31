@@ -161,7 +161,7 @@ export function WarRoom() {
         </div>
         <div className="flex gap-2.5">
           {!closed && (
-            <button onClick={() => setConfirmClose(true)} className="h-9 px-[15px] rounded-[10px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5 transition-all hover:brightness-110" style={{ background: 'var(--danger-solid)' }}><Check size={16} /> {tr('Clore l’incident', 'Close incident')}</button>
+            <button onClick={() => setConfirmClose(true)} className="h-9 px-[15px] rounded-[10px] text-[13px] font-semibold text-fg-on-solid inline-flex items-center gap-1.5 transition-all hover:brightness-110" style={{ background: 'var(--danger-solid)' }}><Check size={16} /> {tr('Clore l’incident', 'Close incident')}</button>
           )}
         </div>
       </div>
@@ -180,7 +180,7 @@ export function WarRoom() {
               <Avatar initials={pp.init} size={34} />
               <div className="flex-1 min-w-0">
                 <div className="text-[13px] font-semibold text-ink truncate">{pp.name}</div>
-                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{pp.role}</div>
+                <div className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>{pp.role}</div>
               </div>
             </div>
           ))}
@@ -246,7 +246,7 @@ export function WarRoom() {
               <button
                 onClick={() => void addAction()}
                 disabled={!newAction.trim() || create.isPending}
-                className="h-9 rounded-[10px] text-[12.5px] font-semibold text-text-on-solid inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="h-9 rounded-[10px] text-[12.5px] font-semibold text-fg-on-solid inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
                 style={{ background: 'var(--accent)' }}
                 data-testid="warroom-action-add"
               >
@@ -290,7 +290,7 @@ export function WarRoom() {
                         }}
                         data-testid={`warroom-action-toggle-${a.id}`}
                       >
-                        {done && <Check size={11} className="text-text-on-solid" />}
+                        {done && <Check size={11} className="text-fg-on-solid" />}
                       </button>
                       <div className="flex-1 min-w-0">
                         <div
@@ -322,7 +322,7 @@ export function WarRoom() {
             <div className="text-[13.5px] text-ink-soft leading-relaxed mb-[22px]">{tr('Le statut passera à « Clos » et l’incident sortira des incidents actifs.', 'The status will be set to "Closed" and it will leave the active incidents.')}</div>
             <div className="flex gap-2.5">
               <button onClick={() => setConfirmClose(false)} className="flex-1 h-[42px] rounded-[11px] text-[13.5px] font-semibold text-ink" style={{ border: '1px solid var(--border-strong)' }}>{tr('Annuler', 'Cancel')}</button>
-              <button onClick={closeIncident} disabled={updateIncident.isPending} className="flex-1 h-[42px] rounded-[11px] text-[13.5px] font-semibold text-text-on-solid disabled:opacity-60" style={{ background: 'var(--danger-solid)' }}>{tr('Clore', 'Close')}</button>
+              <button onClick={closeIncident} disabled={updateIncident.isPending} className="flex-1 h-[42px] rounded-[11px] text-[13.5px] font-semibold text-fg-on-solid disabled:opacity-60" style={{ background: 'var(--danger-solid)' }}>{tr('Clore', 'Close')}</button>
             </div>
           </div>
         </div>

@@ -44,7 +44,7 @@ const KIND_META: Record<string, { color: string; Icon: typeof Plus }> = {
   delete: { color: 'var(--critical)', Icon: Trash2 },
 };
 function metaFor(kind?: string) {
-  return (kind && KIND_META[kind]) || { color: 'var(--text-muted)', Icon: Dot };
+  return (kind && KIND_META[kind]) || { color: 'var(--fg-muted)', Icon: Dot };
 }
 
 export function HistoryTimeline({ entries, isLoading, error, emptyLabel, errorLabel, formatDate }: HistoryTimelineProps): ReactNode {
@@ -63,7 +63,7 @@ export function HistoryTimeline({ entries, isLoading, error, emptyLabel, errorLa
   if (!entries.length) {
     return (
       <div className="flex flex-col items-center justify-center text-center py-10 gap-2">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}><Clock size={20} /></div>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}><Clock size={20} /></div>
         <div className="text-[13px] text-ink-soft">{emptyLabel ?? 'No changes recorded yet.'}</div>
       </div>
     );

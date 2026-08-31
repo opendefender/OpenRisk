@@ -19,8 +19,8 @@ export const STATUS_META: Record<VulnStatus, { label: [string, string]; color: s
   triaged: { label: ['Triée', 'Triaged'], color: 'var(--high)' },
   in_remediation: { label: ['En correction', 'In remediation'], color: 'var(--info)' },
   remediated: { label: ['Corrigée', 'Remediated'], color: 'var(--low)' },
-  accepted: { label: ['Acceptée', 'Accepted'], color: 'var(--text-secondary)' },
-  false_positive: { label: ['Faux positif', 'False positive'], color: 'var(--text-muted)' },
+  accepted: { label: ['Acceptée', 'Accepted'], color: 'var(--fg-secondary)' },
+  false_positive: { label: ['Faux positif', 'False positive'], color: 'var(--fg-muted)' },
 };
 
 export const STATUS_ORDER: VulnStatus[] = [

@@ -91,8 +91,8 @@ export const RBACTab = () => {
       <div className="flex items-center gap-3 mb-6">
         <Shield className="w-6 h-6 text-primary" />
         <div>
-          <h2 className="text-2xl font-bold text-text-primary">Access Control</h2>
-          <p className="text-sm text-text-secondary">View your roles and permissions</p>
+          <h2 className="text-2xl font-bold text-fg-primary">Access Control</h2>
+          <p className="text-sm text-fg-secondary">View your roles and permissions</p>
         </div>
       </div>
 
@@ -103,7 +103,7 @@ export const RBACTab = () => {
           className={`px-4 py-2 font-medium transition-colors border-b-2 ${
             activeTab === 'roles'
               ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
+              : 'border-transparent text-fg-secondary hover:text-fg-primary'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -116,7 +116,7 @@ export const RBACTab = () => {
           className={`px-4 py-2 font-medium transition-colors border-b-2 ${
             activeTab === 'permissions'
               ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
+              : 'border-transparent text-fg-secondary hover:text-fg-primary'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -149,8 +149,8 @@ export const RBACTab = () => {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-text-primary">{role.name}</h3>
-                      <p className="text-sm text-text-secondary">{role.description}</p>
+                      <h3 className="text-lg font-semibold text-fg-primary">{role.name}</h3>
+                      <p className="text-sm text-fg-secondary">{role.description}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {role.is_predefined ? (
@@ -171,7 +171,7 @@ export const RBACTab = () => {
                         style={{ width: `${(role.level / 9) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-text-secondary">
+                    <span className="text-xs font-medium text-fg-secondary">
                       Level {role.level}: {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Unknown'}
                     </span>
                   </div>
@@ -186,8 +186,8 @@ export const RBACTab = () => {
               <div className="space-y-2">
                 {allRoles.map((role) => (
                   <div key={role.id} className="flex items-center justify-between p-3 rounded bg-surface-1/50">
-                    <span className="text-sm text-text-secondary">{role.name}</span>
-                    <span className="text-xs text-text-muted">Level {role.level}</span>
+                    <span className="text-sm text-fg-secondary">{role.name}</span>
+                    <span className="text-xs text-fg-muted">Level {role.level}</span>
                   </div>
                 ))}
               </div>
@@ -212,7 +212,7 @@ export const RBACTab = () => {
             <div className="space-y-6">
               {Object.entries(permissionsByResource).map(([resource, actions]) => (
                 <div key={resource} className="border border-border rounded-lg p-6 bg-surface/50">
-                  <h3 className="text-lg font-semibold text-text-primary mb-4 capitalize">{resource}</h3>
+                  <h3 className="text-lg font-semibold text-fg-primary mb-4 capitalize">{resource}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {actions.map((action) => (
                       <div
@@ -220,7 +220,7 @@ export const RBACTab = () => {
                         className="flex items-center gap-2 p-3 rounded-lg bg-surface-1/50 border border-border"
                       >
                         <Check size={16} className="text-success-text" />
-                        <span className="text-sm font-medium text-text-secondary">
+                        <span className="text-sm font-medium text-fg-secondary">
                           {resource}:{action}
                         </span>
                       </div>
@@ -233,11 +233,11 @@ export const RBACTab = () => {
 
           {/* Permission Legend */}
           <div className="mt-8 p-4 rounded-lg bg-surface-1 border border-border-subtle">
-            <h4 className="text-sm font-semibold text-text-primary mb-3">Permission Format</h4>
-            <p className="text-xs text-text-secondary">
+            <h4 className="text-sm font-semibold text-fg-primary mb-3">Permission Format</h4>
+            <p className="text-xs text-fg-secondary">
               Permissions are formatted as <code className="text-primary">resource:action</code>. For example:
             </p>
-            <ul className="text-xs text-text-secondary mt-2 space-y-1 ml-4 list-disc">
+            <ul className="text-xs text-fg-secondary mt-2 space-y-1 ml-4 list-disc">
               <li><code className="text-primary">reports:read</code> - Ability to view reports</li>
               <li><code className="text-primary">audit:manage</code> - Ability to manage audit logs</li>
               <li><code className="text-primary">user:create</code> - Ability to create users</li>

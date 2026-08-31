@@ -241,7 +241,7 @@ function TransitionRow({
           className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed"
           style={{
             background: opt.allowed ? 'var(--accent)' : 'transparent',
-            color: opt.allowed ? 'var(--on-accent, var(--text-primary))' : 'var(--ink-muted)',
+            color: opt.allowed ? 'var(--on-accent, var(--fg-primary))' : 'var(--ink-muted)',
             border: opt.allowed ? 'none' : '1px solid var(--border)',
           }}
         >

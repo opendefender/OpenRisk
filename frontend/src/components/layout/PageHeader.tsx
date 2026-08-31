@@ -93,7 +93,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
       
       {/* Search Bar (Linear style) */}
       <div className="relative">
-        <div ref={containerRef} className="flex items-center gap-2 text-text-muted bg-surface border border-border-strong/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-text-primary transition-colors group">
+        <div ref={containerRef} className="flex items-center gap-2 text-fg-muted bg-surface border border-border-strong/5 px-3 py-1.5 rounded-md w-64 focus-within:border-primary/50 focus-within:text-fg-primary transition-colors group">
           <Search size={14} className="group-focus-within:text-primary transition-colors" />
           <input 
               type="text" 
@@ -124,12 +124,12 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
                 }
               }}
               placeholder="Search risks, assets..." 
-              className="bg-transparent border-none outline-none text-sm w-56 placeholder:text-text-muted"
+              className="bg-transparent border-none outline-none text-sm w-56 placeholder:text-fg-muted"
           />
           <button onClick={() => setShowFilters((s) => !s)} className="p-1 rounded hover:bg-surface-1/5">
             <Filter size={16} />
           </button>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-text-muted bg-surface-2 rounded border border-border-default">⌘K</kbd>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-fg-muted bg-surface-2 rounded border border-border-default">⌘K</kbd>
         </div>
 
         {/* Suggestions / Typeahead Panel */}
@@ -151,7 +151,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
                 className={`px-3 py-2 cursor-pointer ${highlighted === idx ? 'bg-primary/10' : 'hover:bg-surface-1/5'}`}
               >
                 <div className="text-sm font-medium">{r.title}</div>
-                <div className="text-xs text-text-secondary">Score: {r.score} · {r.tags?.slice(0,2).join(', ')}</div>
+                <div className="text-xs text-fg-secondary">Score: {r.score} · {r.tags?.slice(0,2).join(', ')}</div>
               </div>
             ))}
           </div>
@@ -161,7 +161,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
         {showFilters && (
           <div className="absolute left-0 mt-14 w-80 bg-surface border border-border-strong/5 rounded-md shadow-lg p-4 z-20">
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-text-secondary">Status</label>
+              <label className="text-xs text-fg-secondary">Status</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background/50 p-2 rounded">
                 <option value="">Any</option>
                 <option value="DRAFT">DRAFT</option>
@@ -170,23 +170,23 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
                 <option value="DONE">DONE</option>
               </select>
 
-              <label className="text-xs text-text-secondary">Tag</label>
+              <label className="text-xs text-fg-secondary">Tag</label>
               <input value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} placeholder="e.g. database" className="bg-background/50 p-2 rounded" />
 
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-text-secondary">Min Score</label>
+                  <label className="text-xs text-fg-secondary">Min Score</label>
                   <input type="number" value={minScore as any} onChange={(e) => setMinScore(e.target.value === '' ? '' : Number(e.target.value))} className="bg-background/50 p-2 rounded w-full" />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-text-secondary">Max Score</label>
+                  <label className="text-xs text-fg-secondary">Max Score</label>
                   <input type="number" value={maxScore as any} onChange={(e) => setMaxScore(e.target.value === '' ? '' : Number(e.target.value))} className="bg-background/50 p-2 rounded w-full" />
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button onClick={clearFilters} className="text-sm text-text-secondary">Clear</button>
-                <button onClick={applyFilters} className="text-sm bg-primary px-3 py-1 rounded text-text-primary">Apply</button>
+                <button onClick={clearFilters} className="text-sm text-fg-secondary">Clear</button>
+                <button onClick={applyFilters} className="text-sm bg-primary px-3 py-1 rounded text-fg-primary">Apply</button>
               </div>
             </div>
           </div>
@@ -196,7 +196,7 @@ export const PageHeader = ({ onNewRisk }: PageHeaderProps) => {
       {/* Actions Droite */}
       <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <button className="relative text-text-secondary hover:text-text-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full">
+            <button className="relative text-fg-secondary hover:text-fg-primary transition-colors p-2 hover:bg-surface-1/5 rounded-full">
               <Bell size={20} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full animate-pulse border border-background"></span>
             </button>

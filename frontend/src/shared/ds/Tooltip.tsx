@@ -123,7 +123,7 @@ export function Tooltip({
             {...interactions.getFloatingProps()}
             className={cn(
               'z-tooltip max-w-[260px] rounded-sm border border-default bg-surface-2 px-2 py-1',
-              'text-2xs leading-snug text-text-primary shadow-elev-2',
+              'text-2xs leading-snug text-fg-primary shadow-elev-2',
               'motion-safe:animate-or-fadein',
               className,
             )}

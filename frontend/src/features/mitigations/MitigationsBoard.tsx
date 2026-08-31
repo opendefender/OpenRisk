@@ -38,13 +38,13 @@ export function MitigationsBoard() {
   useMitigationEvents();
 
   const cols: [Column, string, string][] = [
-    ['todo', L.col_todo, 'var(--text-muted)'],
+    ['todo', L.col_todo, 'var(--fg-muted)'],
     ['progress', L.col_doing, 'var(--high)'],
     ['review', L.col_review, 'var(--info)'],
     ['done', L.col_done, 'var(--low)'],
   ];
   const statusLabel: Record<Column, string> = { todo: L.col_todo, progress: L.col_doing, review: L.col_review, done: L.col_done };
-  const statusColor: Record<Column, string> = { todo: 'var(--text-muted)', progress: 'var(--high)', review: 'var(--info)', done: 'var(--low)' };
+  const statusColor: Record<Column, string> = { todo: 'var(--fg-muted)', progress: 'var(--high)', review: 'var(--info)', done: 'var(--low)' };
 
   const viewBtns: [View, typeof KanbanSquare, string][] = [
     ['kanban', KanbanSquare, tr('Kanban', 'Kanban')],
@@ -60,7 +60,7 @@ export function MitigationsBoard() {
           <>
             <div className="inline-flex rounded-[10px] p-0.5" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>
               {viewBtns.map(([v, Icon, lbl]) => (
-                <button key={v} onClick={() => setView(v)} title={lbl} className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors" style={{ background: view === v ? 'var(--accent-soft)' : 'transparent', color: view === v ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                <button key={v} onClick={() => setView(v)} title={lbl} className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors" style={{ background: view === v ? 'var(--accent-soft)' : 'transparent', color: view === v ? 'var(--accent)' : 'var(--fg-secondary)' }}>
                   <Icon size={15} /> <span className="hidden sm:inline">{lbl}</span>
                 </button>
               ))}
@@ -134,7 +134,7 @@ function KanbanCard({ c, onOpen }: { c: UiMiti; onOpen: () => void }) {
       </div>
       <div className="flex items-center justify-between">
         <Avatar initials={c.owner} size={24} />
-        <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: c.overdue ? 'var(--critical)' : 'var(--text-muted)' }}>
+        <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: c.overdue ? 'var(--critical)' : 'var(--fg-muted)' }}>
           {c.overdue && <Clock size={12} />}{c.deadline}
         </span>
       </div>
@@ -285,7 +285,7 @@ function TableView({
       header: lang === 'fr' ? 'Échéance' : 'Due',
       sortValue: (m) => (m.dueISO ? new Date(m.dueISO).getTime() : Number.MAX_SAFE_INTEGER),
       exportValue: (m) => m.dueISO ?? '',
-      render: (m) => <span className="text-[12.5px] whitespace-nowrap" style={{ color: m.overdue ? 'var(--critical)' : 'var(--text-secondary)' }}>{m.deadline}</span>,
+      render: (m) => <span className="text-[12.5px] whitespace-nowrap" style={{ color: m.overdue ? 'var(--critical)' : 'var(--fg-secondary)' }}>{m.deadline}</span>,
     },
     { key: 'owner', header: lang === 'fr' ? 'Resp.' : 'Owner', exportValue: (m) => m.owner, render: (m) => <Avatar initials={m.owner} size={24} /> },
   ], [lang, statusLabel, statusColor]);

@@ -94,7 +94,7 @@ export const ACTION_TYPE_PRESENTATION: Record<ActionItemType, ActionTypePresenta
 const UNKNOWN_PRESENTATION: ActionTypePresentation = {
   icon: ListChecks,
   labelKey: 'unknown',
-  tone: 'text-text-muted',
+  tone: 'text-fg-muted',
 };
 
 /**

@@ -30,8 +30,8 @@ export function NotFound() {
           </button>
           <button
             onClick={() => navigate('/')}
-            className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-text-primary"
-            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-fg-primary"
+            style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             <Home size={16} /> {tr('Tableau de bord', 'Dashboard')}
           </button>

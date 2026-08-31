@@ -499,7 +499,7 @@ export function DataTable<T>({
           disabled={exporting}
           data-testid="table-export"
           className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-[7px] transition-all hover:bg-hover disabled:opacity-60 shrink-0"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
         >
           {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} strokeWidth={1.8} />}
           {selectedIds.size > 0 ? L.exportSelection : L.exportView}
@@ -577,7 +577,7 @@ export function DataTable<T>({
               onClick={onRetry}
               data-testid="table-retry"
               className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
-              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
             >
               {L.retry}
             </button>
@@ -603,7 +603,7 @@ export function DataTable<T>({
             onClick={() => api.clearFilters()}
             data-testid="table-clear-filters"
             className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
-            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
           >
             {L.clearFilters}
           </button>
@@ -665,7 +665,7 @@ export function DataTable<T>({
                         aria-label={name}
                         className="inline-flex items-center gap-1 font-semibold uppercase tracking-[.05em]"
                         style={{
-                          color: active ? 'var(--text-primary)' : 'inherit',
+                          color: active ? 'var(--fg-primary)' : 'inherit',
                           fontSize: 'inherit',
                           letterSpacing: 'inherit',
                         }}

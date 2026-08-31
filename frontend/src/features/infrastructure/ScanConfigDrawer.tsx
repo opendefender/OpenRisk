@@ -21,7 +21,7 @@ const inputStyle: React.CSSProperties = {
   minHeight: 38,
   padding: '9px 12px',
   fontSize: 13,
-  color: 'var(--text-primary)',
+  color: 'var(--fg-primary)',
   outline: 'none',
   width: '100%',
 };

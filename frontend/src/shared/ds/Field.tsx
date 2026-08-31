@@ -102,7 +102,7 @@ export function Field({
         ? 'text-warning-text'
         : status === 'success'
           ? 'text-success-text'
-          : 'text-text-muted';
+          : 'text-fg-muted';
 
   return (
     <FieldContext.Provider value={{ id, descriptionId, messageId, status, required, disabled }}>
@@ -111,7 +111,7 @@ export function Field({
           <label
             htmlFor={id}
             className={cn(
-              'text-xs font-medium text-text-secondary',
+              'text-xs font-medium text-fg-secondary',
               disabled && 'opacity-55',
             )}
           >
@@ -131,7 +131,7 @@ export function Field({
         )}
 
         {description && (
-          <p id={descriptionId} className="text-2xs leading-snug text-text-muted">
+          <p id={descriptionId} className="text-2xs leading-snug text-fg-muted">
             {description}
           </p>
         )}
@@ -166,13 +166,13 @@ const STATUS_BORDER: Record<FieldStatus, string> = {
 
 function controlClasses(status: FieldStatus, extra?: string): string {
   return cn(
-    'w-full bg-surface-1 text-text-primary placeholder:text-text-muted',
+    'w-full bg-surface-1 text-fg-primary placeholder:text-fg-muted',
     'border rounded-md px-(--control-px-md)',
     'transition-[border-color,background-color] duration-fast ease-out',
     'hover:border-strong',
     'focus:border-accent',
     'disabled:opacity-55 disabled:pointer-events-none',
-    'read-only:bg-surface-sunken read-only:text-text-secondary',
+    'read-only:bg-surface-sunken read-only:text-fg-secondary',
     STATUS_BORDER[status],
     extra,
   );
@@ -234,14 +234,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {hasLead && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"
         >
           {leadingIcon}
         </span>
       )}
       {control}
       {hasTrail && (
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted">
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted">
           {loading ? (
             <Loader2 size={14} className="motion-safe:animate-spin" aria-hidden="true" />
           ) : (

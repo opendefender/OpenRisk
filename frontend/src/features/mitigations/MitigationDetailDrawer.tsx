@@ -110,12 +110,12 @@ export const MitigationDetailDrawer = ({
           className="ml-auto w-full max-w-[620px] h-full bg-surface-1 border-l border-border-default flex flex-col pointer-events-auto overflow-hidden"
         >
           <div className="shrink-0 border-b border-border-default px-6 py-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-text-primary">Détails du plan</h2>
+            <h2 className="text-lg font-bold text-fg-primary">Détails du plan</h2>
             <button
               onClick={onClose}
               className="p-1 hover:bg-surface-3 rounded transition-colors"
             >
-              <X size={20} className="text-text-secondary" />
+              <X size={20} className="text-fg-secondary" />
             </button>
           </div>
 
@@ -127,8 +127,8 @@ export const MitigationDetailDrawer = ({
                 className={cn(
                   'px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
                   activeTab === tab
-                    ? 'border-accent text-text-primary'
-                    : 'border-transparent text-text-secondary hover:text-text-secondary'
+                    ? 'border-accent text-fg-primary'
+                    : 'border-transparent text-fg-secondary hover:text-fg-secondary'
                 )}
               >
                 {tab === 'overview' && 'Aperçu'}
@@ -145,30 +145,30 @@ export const MitigationDetailDrawer = ({
               {activeTab === 'overview' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-text-primary">{mitigation.title}</h3>
+                    <h3 className="text-xl font-bold text-fg-primary">{mitigation.title}</h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-xs text-text-muted mb-1">Statut</p>
+                      <p className="text-xs text-fg-muted mb-1">Statut</p>
                       <div className="flex items-center gap-2">
                         <div className={cn('w-2 h-2 rounded-full', getStatusColor(mitigation.status))} />
-                        <span className="text-sm text-text-primary capitalize">
+                        <span className="text-sm text-fg-primary capitalize">
                           {t(`mitigations.status.${mitigation.status.toLowerCase()}`)}
                         </span>
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-text-muted mb-1">Priorité</p>
-                      <span className="text-sm text-text-primary capitalize">
+                      <p className="text-xs text-fg-muted mb-1">Priorité</p>
+                      <span className="text-sm text-fg-primary capitalize">
                         {t(`mitigations.priority.${mitigation.priority.toLowerCase()}`)}
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-xs text-text-muted mb-1">Échéance</p>
-                    <p className="text-sm text-text-primary">
+                    <p className="text-xs text-fg-muted mb-1">Échéance</p>
+                    <p className="text-sm text-fg-primary">
                       {new Date(mitigation.due_date).toLocaleDateString('fr-FR', {
                         year: 'numeric',
                         month: 'long',
@@ -178,14 +178,14 @@ export const MitigationDetailDrawer = ({
                   </div>
 
                   <div>
-                    <p className="text-xs text-text-muted mb-2">Progression</p>
+                    <p className="text-xs text-fg-muted mb-2">Progression</p>
                     <ProgressBar
                       value={progress}
                       max={100}
                       showPercentage
                       animated
                     />
-                    <p className="text-xs text-text-secondary mt-2">
+                    <p className="text-xs text-fg-secondary mt-2">
                       {completedCount}/{subActions.length} actions
                       {autoDetectedCount > 0 && ` (${autoDetectedCount} auto-détectées)`}
                     </p>
@@ -193,7 +193,7 @@ export const MitigationDetailDrawer = ({
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-text-muted">Description</p>
+                      <p className="text-xs text-fg-muted">Description</p>
                       {!isEditingDescription && (
                         <button
                           onClick={() => setIsEditingDescription(true)}
@@ -210,7 +210,7 @@ export const MitigationDetailDrawer = ({
                           value={descriptionValue}
                           onChange={(e) => setDescriptionValue(e.currentTarget.value)}
                           placeholder="Description..."
-                          className="w-full min-h-[100px] px-3 py-2 bg-surface-2 border border-border-default rounded text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+                          className="w-full min-h-[100px] px-3 py-2 bg-surface-2 border border-border-default rounded text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent"
                         />
                         <div className="flex gap-2">
                           <Button variant="primary"
@@ -231,14 +231,14 @@ export const MitigationDetailDrawer = ({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-text-secondary">
+                      <p className="text-sm text-fg-secondary">
                         {mitigation.description || 'Aucune description'}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs text-text-muted mb-2">Assignés</p>
+                    <p className="text-xs text-fg-muted mb-2">Assignés</p>
                     <div className="flex gap-2">
                       {mitigation.assigned_to_user ? (
                         <div
@@ -248,7 +248,7 @@ export const MitigationDetailDrawer = ({
                           {mitigation.assigned_to_user.name.slice(0, 1).toUpperCase()}
                         </div>
                       ) : (
-                        <p className="text-sm text-text-muted">Aucun assigné</p>
+                        <p className="text-sm text-fg-muted">Aucun assigné</p>
                       )}
                     </div>
                   </div>
@@ -265,7 +265,7 @@ export const MitigationDetailDrawer = ({
 
               {activeTab === 'evidence' && (
                 <div className="space-y-3">
-                  <p className="text-sm text-text-muted text-center py-8">
+                  <p className="text-sm text-fg-muted text-center py-8">
                     Aucune preuve ajoutée
                   </p>
                 </div>
@@ -273,7 +273,7 @@ export const MitigationDetailDrawer = ({
 
               {activeTab === 'timeline' && (
                 <div className="space-y-3">
-                  <p className="text-sm text-text-muted text-center py-8">
+                  <p className="text-sm text-fg-muted text-center py-8">
                     Aucun événement
                   </p>
                 </div>
@@ -285,10 +285,10 @@ export const MitigationDetailDrawer = ({
                     <div className="flex items-start gap-3">
                       <MessageCircle size={16} className="text-info-text shrink-0 mt-1" />
                       <div>
-                        <p className="text-sm font-medium text-text-primary mb-2">
+                        <p className="text-sm font-medium text-fg-primary mb-2">
                           Suggestions de l'IA
                         </p>
-                        <p className="text-xs text-text-secondary">
+                        <p className="text-xs text-fg-secondary">
                           L'assistant IA peut vous proposer des actions pour optimiser ce plan d'atténuation.
                         </p>
                       </div>

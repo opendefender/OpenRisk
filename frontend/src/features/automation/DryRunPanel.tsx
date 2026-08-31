@@ -28,16 +28,16 @@ const VERDICT: Record<
   { icon: typeof CheckCircle2; color: string; fr: string; en: string }
 > = {
   would_run: { icon: CheckCircle2, color: 'var(--low)', fr: 'S’exécuterait', en: 'Would run' },
-  would_skip: { icon: MinusCircle, color: 'var(--text-secondary)', fr: 'Serait ignorée', en: 'Would skip' },
+  would_skip: { icon: MinusCircle, color: 'var(--fg-secondary)', fr: 'Serait ignorée', en: 'Would skip' },
   would_fail: { icon: XCircle, color: 'var(--critical)', fr: 'Échouerait', en: 'Would fail' },
-  not_reached: { icon: CircleSlash, color: 'var(--text-secondary)', fr: 'Jamais atteinte', en: 'Never reached' },
+  not_reached: { icon: CircleSlash, color: 'var(--fg-secondary)', fr: 'Jamais atteinte', en: 'Never reached' },
   not_matched: { icon: Ban, color: 'var(--medium)', fr: 'Conditions non remplies', en: 'Conditions not met' },
 };
 
 function PayloadTable({ payload }: { payload: Record<string, unknown> }) {
   const entries = Object.entries(payload ?? {});
   if (entries.length === 0) {
-    return <p className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>—</p>;
+    return <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>—</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -45,10 +45,10 @@ function PayloadTable({ payload }: { payload: Record<string, unknown> }) {
         <tbody>
           {entries.map(([k, v]) => (
             <tr key={k}>
-              <td className="pr-3 py-0.5 align-top mono whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+              <td className="pr-3 py-0.5 align-top mono whitespace-nowrap" style={{ color: 'var(--fg-secondary)' }}>
                 {k}
               </td>
-              <td className="py-0.5 mono break-all" style={{ color: 'var(--text-primary)' }}>
+              <td className="py-0.5 mono break-all" style={{ color: 'var(--fg-primary)' }}>
                 {typeof v === 'object' ? JSON.stringify(v) : String(v)}
               </td>
             </tr>
@@ -78,13 +78,13 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-start gap-2.5 p-3 text-left"
       >
-        <span className="mono text-[11px] pt-0.5 w-5 shrink-0" style={{ color: 'var(--text-secondary)' }}>
+        <span className="mono text-[11px] pt-0.5 w-5 shrink-0" style={{ color: 'var(--fg-secondary)' }}>
           {step.index + 1}
         </span>
         <Icon size={16} style={{ color: meta.color }} className="shrink-0 mt-0.5" />
         <span className="flex-1 min-w-0">
           <span className="flex items-center gap-2 flex-wrap">
-            <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-[13px] font-semibold" style={{ color: 'var(--fg-primary)' }}>
               {action ? pick(action.label, lang) : step.action}
             </span>
             <span
@@ -94,12 +94,12 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
               {pick({ fr: meta.fr, en: meta.en }, lang)}
             </span>
             {step.capability && !step.wired && (
-              <span className="text-[10.5px]" style={{ color: 'var(--text-secondary)' }}>
+              <span className="text-[10.5px]" style={{ color: 'var(--fg-secondary)' }}>
                 · {step.capability} {lang === 'fr' ? 'non configuré' : 'not configured'}
               </span>
             )}
           </span>
-          <span className="block text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+          <span className="block text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
             {step.detail}
           </span>
         </span>
@@ -109,7 +109,7 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
       {open && (
         <div className="px-3 pb-3 pl-10 grid gap-3 md:grid-cols-2">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
               {lang === 'fr' ? 'Données à cet instant' : 'Payload at this point'}
             </p>
             <PayloadTable payload={step.payload} />
@@ -117,7 +117,7 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
           <div>
             {step.params && Object.keys(step.params).length > 0 && (
               <>
-                <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
                   {lang === 'fr' ? 'Paramètres de l’action' : 'Action parameters'}
                 </p>
                 <PayloadTable payload={step.params} />
@@ -125,7 +125,7 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
             )}
             {step.produces && Object.keys(step.produces).length > 0 && (
               <>
-                <p className="text-[11px] font-bold uppercase tracking-wide mb-1 mt-2" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-[11px] font-bold uppercase tracking-wide mb-1 mt-2" style={{ color: 'var(--fg-secondary)' }}>
                   {lang === 'fr' ? 'Ajouterait au contexte' : 'Would add to the context'}
                 </p>
                 <PayloadTable payload={step.produces} />
@@ -186,11 +186,11 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <FlaskConical size={16} style={{ color: 'var(--accent-500)' }} />
-              <h2 className="text-[15px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+              <h2 className="text-[15px] font-bold truncate" style={{ color: 'var(--fg-primary)' }}>
                 {tr('Tester', 'Test')} — {rule.name}
               </h2>
             </div>
-            <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
               {tr(
                 'Simulation sur vos données réelles. Aucune action n’est exécutée.',
                 'Simulated against your real data. No action is executed.',
@@ -209,7 +209,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
             style={{ background: 'color-mix(in srgb, var(--low) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--low) 30%, transparent)' }}
           >
             <ShieldCheck size={16} style={{ color: 'var(--low)' }} className="shrink-0 mt-0.5" />
-            <p className="text-[12.5px]" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-[12.5px]" style={{ color: 'var(--fg-primary)' }}>
               {tr(
                 'Ce test ne crée aucun risque, n’ouvre aucun ticket et n’envoie aucune alerte. Il montre ce qui se passerait.',
                 'This test creates no risk, opens no ticket and sends no alert. It shows what would happen.',
@@ -220,14 +220,14 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
           <Card>
             <div className="p-4 flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-[11.5px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-[11.5px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
                   {tr('Et si la criticité était…', 'What if the severity were…')}
                 </span>
                 <select
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value)}
                   className="h-9 px-2 rounded-[9px] text-[13px]"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--fg-primary)' }}
                 >
                   <option value="">{tr('(garder la valeur réelle)', '(keep the real value)')}</option>
                   <option value="critical">critical</option>
@@ -251,7 +251,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
             <>
               {/* Where the trace's subject came from — a green run on invented
                   data must never read as a green run on the tenant's data. */}
-              <div className="flex items-start gap-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+              <div className="flex items-start gap-2 text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
                 <Database size={14} className="shrink-0 mt-0.5" />
                 <span>
                   {report.real_subject
@@ -264,7 +264,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
               <div className="flex flex-wrap gap-2">
                 {[
                   { n: report.would_run, label: tr('s’exécuteraient', 'would run'), color: 'var(--low)' },
-                  { n: report.would_skip, label: tr('ignorées', 'skipped'), color: 'var(--text-secondary)' },
+                  { n: report.would_skip, label: tr('ignorées', 'skipped'), color: 'var(--fg-secondary)' },
                   { n: report.would_fail, label: tr('échoueraient', 'would fail'), color: 'var(--critical)' },
                 ].map((s) => (
                   <span
@@ -275,7 +275,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
                     {s.n} {s.label}
                   </span>
                 ))}
-                <span className="text-[12px] px-2.5 py-1 rounded-[8px] mono" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-[12px] px-2.5 py-1 rounded-[8px] mono" style={{ color: 'var(--fg-secondary)' }}>
                   {report.duration_ms} ms
                 </span>
               </div>
@@ -284,7 +284,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
                   "it does nothing" report, and no step explains it. */}
               <Card>
                 <div className="p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
                     {tr('Conditions', 'Conditions')}
                   </p>
                   <p
@@ -312,12 +312,12 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
                         {(report.failed_at_index ?? 0) + 1}
                         {report.failed_action ? ` — ${report.failed_action}` : ''}
                       </p>
-                      <p className="text-[12.5px] mt-1" style={{ color: 'var(--text-primary)' }}>
+                      <p className="text-[12.5px] mt-1" style={{ color: 'var(--fg-primary)' }}>
                         {report.failure_reason}
                       </p>
                       {report.payload_at_failure && (
                         <div className="mt-2">
-                          <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                          <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
                             {tr('Données à cet instant', 'Payload at that moment')}
                           </p>
                           <PayloadTable payload={report.payload_at_failure} />
@@ -337,7 +337,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
           )}
 
           {!report && !running && (
-            <p className="text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>
               {tr(
                 'Lancez le test pour voir, étape par étape, ce que cette règle ferait de votre dernière vulnérabilité réelle.',
                 'Run the test to see, step by step, what this rule would do with your latest real vulnerability.',

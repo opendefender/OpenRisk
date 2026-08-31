@@ -22,7 +22,7 @@ const STATUS_META: Record<RemediationStatus, { color: string; fr: string; en: st
   open: { color: 'var(--critical)', fr: 'Ouvert', en: 'Open' },
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
   completed: { color: 'var(--low)', fr: 'Terminé', en: 'Completed' },
-  cancelled: { color: 'var(--text-muted)', fr: 'Annulé', en: 'Cancelled' },
+  cancelled: { color: 'var(--fg-muted)', fr: 'Annulé', en: 'Cancelled' },
 };
 const PRIORITY_META: Record<RemediationPriority, { color: string; fr: string; en: string }> = {
   low: { color: 'var(--low)', fr: 'Basse', en: 'Low' },

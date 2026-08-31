@@ -77,7 +77,7 @@ export function ActionCenterPage() {
         count={!isLoading && !isError && total > 0 ? String(total) : null}
       />
 
-      <p className="mb-4 text-xs text-text-muted">{t('actionCenter.subtitle')}</p>
+      <p className="mb-4 text-xs text-fg-muted">{t('actionCenter.subtitle')}</p>
 
       <div className="or-card p-4" data-testid="action-center-page">
         {isLoading && (
@@ -129,7 +129,7 @@ export function ActionCenterPage() {
 
       {showPager && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="text-xs text-text-muted" data-testid="action-center-range" aria-live="polite">
+          <span className="text-xs text-fg-muted" data-testid="action-center-range" aria-live="polite">
             {countKnown ? interpolate(t('actionCenter.range'), { from: firstOnPage, to: lastOnPage, total }) : ''}
           </span>
           <div className="flex-1" />
@@ -140,11 +140,11 @@ export function ActionCenterPage() {
               disabled={!countKnown || page <= 1}
               aria-label={t('actionCenter.previousPage')}
               data-testid="action-center-prev"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-text-secondary hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-fg-secondary hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronLeft size={15} aria-hidden="true" />
             </button>
-            <span className="px-1.5 text-xs text-text-primary" data-testid="action-center-page-indicator">
+            <span className="px-1.5 text-xs text-fg-primary" data-testid="action-center-page-indicator">
               {interpolate(t('actionCenter.pageOf'), { page, pageCount: countKnown ? pageCount : '—' })}
             </span>
             <button
@@ -153,7 +153,7 @@ export function ActionCenterPage() {
               disabled={!countKnown || page >= pageCount}
               aria-label={t('actionCenter.nextPage')}
               data-testid="action-center-next"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-text-secondary hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-fg-secondary hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronRight size={15} aria-hidden="true" />
             </button>

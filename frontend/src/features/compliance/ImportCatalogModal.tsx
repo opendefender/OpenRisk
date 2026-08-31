@@ -85,12 +85,12 @@ export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalo
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-full p-2 text-text-secondary hover:bg-surface-1/10 hover:text-text-primary transition-colors"
+                  className="rounded-full p-2 text-fg-secondary hover:bg-surface-1/10 hover:text-fg-primary transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-sm text-text-muted mb-6">{t('compliance.catalog.description')}</p>
+              <p className="text-sm text-fg-muted mb-6">{t('compliance.catalog.description')}</p>
 
               {isLoading ? (
                 <div className="space-y-2">
@@ -101,7 +101,7 @@ export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalo
               ) : error ? (
                 <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
               ) : !catalogs || catalogs.length === 0 ? (
-                <p className="text-sm text-text-muted">{t('compliance.catalog.empty')}</p>
+                <p className="text-sm text-fg-muted">{t('compliance.catalog.empty')}</p>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {catalogs.map((catalog) => (
@@ -115,18 +115,18 @@ export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalo
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-text-primary">
+                          <span className="font-medium text-fg-primary">
                             {catalog.name}
                             {catalog.version ? ` ${catalog.version}` : ''}
                           </span>
                           {!catalog.available && (
-                            <span className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+                            <span className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-fg-secondary">
                               <Clock size={10} />
                               {t('compliance.catalog.comingSoon')}
                             </span>
                           )}
                         </div>
-                        <p className="mt-0.5 truncate text-xs text-text-muted">
+                        <p className="mt-0.5 truncate text-xs text-fg-muted">
                           {catalog.available
                             ? t('compliance.catalog.controlCount').replace('{count}', String(catalog.control_count))
                             : t('compliance.catalog.comingSoonDescription')}

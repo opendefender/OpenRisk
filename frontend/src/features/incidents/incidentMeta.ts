@@ -17,7 +17,7 @@ export const STATUS: Record<IncidentStatus, { color: string; fr: string; en: str
   open: { color: 'var(--critical)', fr: 'Ouvert', en: 'Open' },
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
   resolved: { color: 'var(--low)', fr: 'Résolu', en: 'Resolved' },
-  closed: { color: 'var(--text-muted)', fr: 'Clos', en: 'Closed' },
+  closed: { color: 'var(--fg-muted)', fr: 'Clos', en: 'Closed' },
 };
 
 export const STATUSES: IncidentStatus[] = ['open', 'in_progress', 'resolved', 'closed'];

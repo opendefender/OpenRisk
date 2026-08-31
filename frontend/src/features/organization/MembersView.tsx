@@ -50,7 +50,7 @@ const STATUS_STYLE: Record<MembershipStatus, { color: string; fr: string; en: st
 const INVITE_STATUS_STYLE: Record<string, { color: string; fr: string; en: string }> = {
   pending: { color: 'var(--info)', fr: 'En attente', en: 'Pending' },
   accepted: { color: 'var(--low)', fr: 'Acceptée', en: 'Accepted' },
-  expired: { color: 'var(--text-muted)', fr: 'Expirée', en: 'Expired' },
+  expired: { color: 'var(--fg-muted)', fr: 'Expirée', en: 'Expired' },
   revoked: { color: 'var(--critical)', fr: 'Révoquée', en: 'Revoked' },
 };
 
@@ -77,7 +77,7 @@ function TabBtn({ id, label, icon: Icon, tab, count, onSelect }: {
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
         background: active ? 'var(--accent)' : 'transparent',
-        color: active ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+        color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
         border: active ? 'none' : '1px solid var(--border-strong)',
       }}
     >
@@ -86,8 +86,8 @@ function TabBtn({ id, label, icon: Icon, tab, count, onSelect }: {
         <span
           className="ml-0.5 px-1.5 rounded-full text-[10.5px] font-bold"
           style={{
-            background: active ? 'color-mix(in srgb, var(--text-on-solid) 22%, transparent)' : 'var(--bg-hover)',
-            color: active ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+            background: active ? 'color-mix(in srgb, var(--fg-on-solid) 22%, transparent)' : 'var(--bg-hover)',
+            color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
           }}
         >
           {count}
@@ -162,7 +162,7 @@ export function MembersView() {
             onClick={() => setManualInvite(true)}
             data-testid="invite-member"
             className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             <UserPlus size={15} /> {tr('Inviter un membre', 'Invite a member')}
           </button>
@@ -336,7 +336,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                             onChange={(e) => changeRole(m, e.target.value)}
                             aria-label={tr(`Rôle de ${m.email}`, `Role for ${m.email}`)}
                             className="h-8 px-2 rounded-[8px] text-[12.5px] bg-transparent"
-                            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', opacity: busy ? 0.6 : 1 }}
+                            style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-primary)', opacity: busy ? 0.6 : 1 }}
                           >
                             <option value={ADMIN_OPTION}>{tr('Administrateur (accès complet)', 'Administrator (full access)')}</option>
                             <option value="">{tr('— Aucun rôle métier —', '— No business role —')}</option>
@@ -354,7 +354,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                               onClick={() => setConfirm({ member: m, next: 'deactivated' })}
                               disabled={busy}
                               className="h-8 px-2.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5"
-                              style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+                              style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
                             >
                               <Ban size={13} /> {tr('Désactiver', 'Deactivate')}
                             </button>
@@ -544,7 +544,7 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                               ? tr("Renvoyer l'invitation", 'Re-send the invitation')
                               : tr('Renvoi trop fréquent — patientez un instant', 'Re-sending too often — wait a moment')}
                             className="h-8 px-2.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-45"
-                            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}
+                            style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
                           >
                             <RefreshCw size={13} className={busy ? 'animate-spin' : ''} />
                             {busy ? tr('Envoi…', 'Sending…') : tr('Renvoyer', 'Re-send')}
@@ -641,7 +641,7 @@ function AccessHistory({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
               className="w-7 h-7 rounded-[9px] shrink-0 flex items-center justify-center mt-0.5"
               style={{
                 background: e.action === 'revoke' ? 'color-mix(in srgb, var(--critical) 14%, transparent)' : 'var(--bg-hover)',
-                color: e.action === 'revoke' ? 'var(--critical)' : 'var(--text-secondary)',
+                color: e.action === 'revoke' ? 'var(--critical)' : 'var(--fg-secondary)',
               }}
             >
               {e.entity_type === 'invitation' ? <Mail size={14} /> : <Users size={14} />}
@@ -754,7 +754,7 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
         <button
           type="submit" disabled={invite.isPending || !email}
           className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold disabled:opacity-60"
-          style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+          style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
         >
           {invite.isPending ? tr('Envoi…', 'Sending…') : tr("Envoyer l'invitation", 'Send invitation')}
         </button>
@@ -833,7 +833,7 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
       )}
 
       <button onClick={onClose} className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold"
-        style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+        style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
         {tr('Terminé', 'Done')}
       </button>
     </Overlay>

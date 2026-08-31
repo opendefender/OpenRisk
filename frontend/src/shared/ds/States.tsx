@@ -44,7 +44,7 @@ function StateShell({
       ? 'bg-danger-surface text-danger-text'
       : tone === 'accent'
         ? 'bg-accent-soft text-accent'
-        : 'bg-surface-3 text-text-muted';
+        : 'bg-surface-3 text-fg-muted';
 
   return (
     <div
@@ -55,9 +55,9 @@ function StateShell({
       <div className={cn('mb-4 flex h-12 w-12 items-center justify-center rounded-lg', toneClass)}>
         <Icon size={22} strokeWidth={1.7} aria-hidden="true" />
       </div>
-      <p className="text-md font-semibold text-text-primary">{title}</p>
+      <p className="text-md font-semibold text-fg-primary">{title}</p>
       {description && (
-        <p className="mt-1.5 max-w-[46ch] text-sm text-text-secondary">{description}</p>
+        <p className="mt-1.5 max-w-[46ch] text-sm text-fg-secondary">{description}</p>
       )}
       {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
     </div>
@@ -102,10 +102,10 @@ export function ErrorState({
                makes the failure unreportable; leading with it makes the screen
                unreadable. */
             <details className="mt-3 text-left">
-              <summary className="cursor-pointer text-2xs text-text-muted hover:text-text-secondary">
+              <summary className="cursor-pointer text-2xs text-fg-muted hover:text-fg-secondary">
                 Technical detail
               </summary>
-              <pre className="mt-1.5 max-h-32 overflow-auto rounded-sm bg-surface-sunken p-2 text-left text-2xs text-text-muted">
+              <pre className="mt-1.5 max-h-32 overflow-auto rounded-sm bg-surface-sunken p-2 text-left text-2xs text-fg-muted">
                 {detail}
               </pre>
             </details>
@@ -163,7 +163,7 @@ export function PermissionDenied({
               <>
                 {' '}
                 Ask an administrator for{' '}
-                <code className="rounded-xs bg-surface-3 px-1 py-0.5 font-mono text-2xs text-text-primary">
+                <code className="rounded-xs bg-surface-3 px-1 py-0.5 font-mono text-2xs text-fg-primary">
                   {requiredPermission}
                 </code>
                 .
@@ -197,8 +197,8 @@ export function LoadingState({ label = 'Loading', className }: LoadingStateProps
       aria-live="polite"
       className={cn('flex items-center justify-center gap-2 px-6 py-14', className)}
     >
-      <Loader2 size={18} className="text-text-muted motion-safe:animate-spin" aria-hidden="true" />
-      <span className="text-sm text-text-secondary">{label}</span>
+      <Loader2 size={18} className="text-fg-muted motion-safe:animate-spin" aria-hidden="true" />
+      <span className="text-sm text-fg-secondary">{label}</span>
     </div>
   );
 }
@@ -280,16 +280,16 @@ export function AuditEntry({
     <div className={cn('flex gap-3 border-b border-subtle py-2.5 last:border-b-0', className)}>
       <time
         dateTime={isoTimestamp}
-        className="shrink-0 pt-px font-mono text-2xs tabular-nums text-text-muted"
+        className="shrink-0 pt-px font-mono text-2xs tabular-nums text-fg-muted"
       >
         {timestamp}
       </time>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-text-secondary">
-          <span className="font-semibold text-text-primary">{actor}</span> {action}
-          {target && <span className="font-medium text-text-primary"> {target}</span>}
+        <p className="text-sm text-fg-secondary">
+          <span className="font-semibold text-fg-primary">{actor}</span> {action}
+          {target && <span className="font-medium text-fg-primary"> {target}</span>}
         </p>
-        {detail && <div className="mt-1 text-2xs text-text-muted">{detail}</div>}
+        {detail && <div className="mt-1 text-2xs text-fg-muted">{detail}</div>}
       </div>
     </div>
   );

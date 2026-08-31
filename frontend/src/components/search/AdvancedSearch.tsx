@@ -65,7 +65,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         {/* Search Input */}
         <div className="relative flex items-center bg-surface-1 border border-border-default rounded-lg focus-within:border-accent focus-within:ring-1 focus-within:ring-focus transition-all">
           <Search
-            className="absolute left-3 text-text-secondary pointer-events-none"
+            className="absolute left-3 text-fg-secondary pointer-events-none"
             size={18}
           />
           <input
@@ -81,7 +81,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               }
             }}
             onKeyDown={handleKeyDown}
-            className="w-full bg-transparent pl-10 pr-10 py-2.5 text-text-primary placeholder-zinc-400 outline-none"
+            className="w-full bg-transparent pl-10 pr-10 py-2.5 text-fg-primary placeholder-zinc-400 outline-none"
             autoComplete="off"
           />
 
@@ -91,7 +91,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               <Loader className="animate-spin text-info-text" size={16} />
             )}
             {showShortcutHint && !state.query && (
-              <kbd className="hidden md:flex items-center gap-1 px-2 py-1 bg-surface-2 rounded text-xs text-text-secondary border border-border-default">
+              <kbd className="hidden md:flex items-center gap-1 px-2 py-1 bg-surface-2 rounded text-xs text-fg-secondary border border-border-default">
                 <span>⌘</span>
                 <span>K</span>
               </kbd>
@@ -106,7 +106,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             {displayResults.length > 0 ? (
               <div className="max-h-96 overflow-y-auto">
                 {state.query.length >= 2 && state.results.length > 0 && (
-                  <div className="px-3 py-2 text-xs text-text-secondary border-b border-border-subtle flex items-center gap-2">
+                  <div className="px-3 py-2 text-xs text-fg-secondary border-b border-border-subtle flex items-center gap-2">
                     <Zap size={14} />
                     <span>Search Results ({state.results.length})</span>
                   </div>
@@ -125,11 +125,11 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-text-primary font-medium truncate">
+                        <h3 className="text-fg-primary font-medium truncate">
                           {result.title}
                         </h3>
                         {result.description && (
-                          <p className="text-xs text-text-secondary truncate mt-1">
+                          <p className="text-xs text-fg-secondary truncate mt-1">
                             {result.description}
                           </p>
                         )}
@@ -157,7 +157,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
                     {/* Metadata Row */}
                     {result.probability !== undefined && result.impact !== undefined && (
-                      <div className="flex items-center gap-4 mt-2 text-xs text-text-secondary">
+                      <div className="flex items-center gap-4 mt-2 text-xs text-fg-secondary">
                         <span>📊 P:{result.probability} I:{result.impact}</span>
                         {result.matchScore !== undefined && (
                           <span className="text-info-text">
@@ -171,14 +171,14 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
                 {/* Recent Searches Header */}
                 {state.query.length < 2 && state.recentSearches.length > 0 && (
-                  <div className="px-3 py-2 text-xs text-text-secondary border-b border-border-subtle flex items-center justify-between">
+                  <div className="px-3 py-2 text-xs text-fg-secondary border-b border-border-subtle flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Clock size={14} />
                       <span>Recent Searches</span>
                     </div>
                     <button
                       onClick={clearRecentSearches}
-                      className="text-text-muted hover:text-danger-text text-xs"
+                      className="text-fg-muted hover:text-danger-text text-xs"
                     >
                       Clear
                     </button>
@@ -198,10 +198,10 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-text-muted" />
-                        <span className="text-text-primary truncate">{result.title}</span>
+                        <Clock size={14} className="text-fg-muted" />
+                        <span className="text-fg-primary truncate">{result.title}</span>
                         {result.score !== undefined && (
-                          <span className="ml-auto text-xs text-text-secondary">
+                          <span className="ml-auto text-xs text-fg-secondary">
                             {result.score.toFixed(1)}
                           </span>
                         )}
@@ -212,28 +212,28 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             ) : state.isLoading ? (
               <div className="px-4 py-8 text-center">
                 <Loader className="animate-spin mx-auto text-info-text mb-2" />
-                <p className="text-sm text-text-secondary">Searching...</p>
+                <p className="text-sm text-fg-secondary">Searching...</p>
               </div>
             ) : state.error ? (
               <div className="px-4 py-4 flex items-start gap-3">
                 <AlertCircle className="text-danger-text shrink-0 mt-0.5" size={16} />
                 <div>
                   <p className="text-sm text-danger-text">Search Error</p>
-                  <p className="text-xs text-text-secondary mt-1">{state.error}</p>
+                  <p className="text-xs text-fg-secondary mt-1">{state.error}</p>
                 </div>
               </div>
             ) : state.query.length >= 2 ? (
               <div className="px-4 py-8 text-center">
-                <AlertCircle className="mx-auto text-text-muted mb-2" size={20} />
-                <p className="text-sm text-text-secondary">No risks found</p>
+                <AlertCircle className="mx-auto text-fg-muted mb-2" size={20} />
+                <p className="text-sm text-fg-secondary">No risks found</p>
               </div>
             ) : (
               <div className="px-4 py-6">
-                <p className="text-sm text-text-secondary mb-4">
+                <p className="text-sm text-fg-secondary mb-4">
                   Start typing to search risks or view recent searches
                 </p>
                 <div className="space-y-2">
-                  <div className="text-xs text-text-muted">
+                  <div className="text-xs text-fg-muted">
                     <div className="font-semibold mb-2">Keyboard Shortcuts:</div>
                     <ul className="space-y-1">
                       <li>
@@ -309,7 +309,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-surface-2 hover:bg-surface-3 rounded-lg text-sm text-text-secondary transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-surface-2 hover:bg-surface-3 rounded-lg text-sm text-fg-secondary transition-colors"
       >
         <Zap size={16} />
         Commands
@@ -344,7 +344,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                     setIsOpen(false);
                   }
                 }}
-                className="w-full bg-transparent text-text-primary outline-none text-sm"
+                className="w-full bg-transparent text-fg-primary outline-none text-sm"
               />
             </div>
 
@@ -363,15 +363,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-text-primary font-medium">{cmd.label}</p>
+                        <p className="text-fg-primary font-medium">{cmd.label}</p>
                         {cmd.description && (
-                          <p className="text-xs text-text-secondary mt-1">
+                          <p className="text-xs text-fg-secondary mt-1">
                             {cmd.description}
                           </p>
                         )}
                       </div>
                       {cmd.shortcut && (
-                        <kbd className="text-xs bg-surface-2 px-2 py-1 rounded text-text-secondary">
+                        <kbd className="text-xs bg-surface-2 px-2 py-1 rounded text-fg-secondary">
                           {cmd.shortcut}
                         </kbd>
                       )}
@@ -379,7 +379,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                   </button>
                 ))
               ) : (
-                <div className="px-4 py-8 text-center text-text-secondary text-sm">
+                <div className="px-4 py-8 text-center text-fg-secondary text-sm">
                   No commands found
                 </div>
               )}

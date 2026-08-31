@@ -73,7 +73,7 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
                       <div className="text-[12px] text-ink-muted flex items-center gap-1.5 mt-0.5">
                         {cfg ? (
                           <>
-                            <span style={{ color: cfg.enabled ? 'var(--low)' : 'var(--text-muted)' }}>{cfg.enabled ? tr('Actif', 'Enabled') : tr('Désactivé', 'Disabled')}</span>
+                            <span style={{ color: cfg.enabled ? 'var(--low)' : 'var(--fg-muted)' }}>{cfg.enabled ? tr('Actif', 'Enabled') : tr('Désactivé', 'Disabled')}</span>
                             {cfg.webhook_enabled && <span className="inline-flex items-center gap-1"><Webhook size={11} /> webhook</span>}
                             {cfg.live_pull_enabled && <span className="inline-flex items-center gap-1"><Radio size={11} /> live</span>}
                           </>
@@ -92,10 +92,10 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
               })}
             </div>
             <div className="px-5 py-4 flex items-center gap-2" style={{ borderTop: '1px solid var(--border)' }}>
-              <button onClick={() => setView('ticketing')} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold inline-flex items-center gap-1.5" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
+              <button onClick={() => setView('ticketing')} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold inline-flex items-center gap-1.5" style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}>
                 <Ticket size={15} /> {tr('Ticketing', 'Ticketing')}
               </button>
-              <button onClick={onImport} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5" style={{ background: 'var(--accent-solid)' }}>
+              <button onClick={onImport} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-fg-on-solid inline-flex items-center gap-1.5" style={{ background: 'var(--accent-solid)' }}>
                 <Upload size={15} /> {tr('Import manuel', 'Manual import')}
               </button>
             </div>
@@ -203,7 +203,7 @@ function IntegrationForm({ source, meta, existing, canWrite, onDone }: {
     <>
       <div className="flex-1 overflow-y-auto px-5 py-4">
         {!meta.livePull && (
-          <div className="flex items-start gap-2 rounded-[10px] p-3 mb-4 text-[12px]" style={{ background: 'color-mix(in srgb,var(--medium) 10%,transparent)', color: 'var(--text-secondary)' }}>
+          <div className="flex items-start gap-2 rounded-[10px] p-3 mb-4 text-[12px]" style={{ background: 'color-mix(in srgb,var(--medium) 10%,transparent)', color: 'var(--fg-secondary)' }}>
             <AlertTriangle size={15} style={{ color: 'var(--medium)' }} className="mt-0.5 shrink-0" />
             <span>{tr('Ce connecteur ne fait pas de live-pull REST (protocole non-REST ou SDK). Utilisez le webhook ou l’import.', 'This connector has no REST live-pull (non-REST protocol or SDK). Use the webhook or import.')}</span>
           </div>
@@ -286,7 +286,7 @@ function IntegrationForm({ source, meta, existing, canWrite, onDone }: {
               <PlayCircle size={14} /> {tr('Pull maintenant', 'Pull now')}
             </button>
           )}
-          <button onClick={() => submit(false)} disabled={save.isPending} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+          <button onClick={() => submit(false)} disabled={save.isPending} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-fg-on-solid inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
             <Save size={15} /> {tr('Enregistrer', 'Save')}
           </button>
         </div>
@@ -332,7 +332,7 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
         <label className="block text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">{tr('Fournisseur', 'Provider')}</label>
         <div className="flex gap-2 mb-4">
           {(['', 'jira', 'servicenow'] as VulnTicketProvider[]).map((p) => (
-            <button key={p || 'none'} onClick={() => canWrite && setProvider(p)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold" style={{ border: `1px solid ${provider === p ? 'var(--accent)' : 'var(--border-strong)'}`, color: provider === p ? 'var(--accent)' : 'var(--text-secondary)', background: provider === p ? 'var(--accent-soft)' : 'transparent' }}>
+            <button key={p || 'none'} onClick={() => canWrite && setProvider(p)} className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold" style={{ border: `1px solid ${provider === p ? 'var(--accent)' : 'var(--border-strong)'}`, color: provider === p ? 'var(--accent)' : 'var(--fg-secondary)', background: provider === p ? 'var(--accent-soft)' : 'transparent' }}>
               {p === '' ? tr('Aucun', 'None') : p === 'jira' ? 'Jira' : 'ServiceNow'}
             </button>
           ))}
@@ -369,7 +369,7 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
       </div>
       {canWrite && (
         <div className="px-5 py-3.5 flex justify-end" style={{ borderTop: '1px solid var(--border)' }}>
-          <button onClick={submit} disabled={save.isPending} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+          <button onClick={submit} disabled={save.isPending} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-fg-on-solid inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
             <Save size={15} /> {tr('Enregistrer', 'Save')}
           </button>
         </div>

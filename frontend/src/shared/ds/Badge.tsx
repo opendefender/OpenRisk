@@ -51,7 +51,7 @@ export type BadgeSize = 'sm' | 'md';
    in CI. Deliberately not filled: a page of filled badges is a page of alarms,
    and the risk register routinely shows twenty at once. */
 const INTENT: Record<BadgeIntent, string> = {
-  neutral: 'bg-surface-3 text-text-secondary border-transparent',
+  neutral: 'bg-surface-3 text-fg-secondary border-transparent',
   accent: 'bg-accent-soft text-accent border-transparent',
   success: 'bg-success-surface text-success-text border-transparent',
   warning: 'bg-warning-surface text-warning-text border-transparent',
@@ -63,18 +63,18 @@ const INTENT: Record<BadgeIntent, string> = {
   experimental: 'bg-transparent text-accent border-accent-line',
   /* Muted and struck-through-adjacent: the one badge that says "no data here",
      which must never be mistaken for a healthy zero. */
-  unavailable: 'bg-transparent text-text-muted border-subtle',
+  unavailable: 'bg-transparent text-fg-muted border-subtle',
 };
 
 const DOT: Record<BadgeIntent, string> = {
-  neutral: 'bg-text-muted',
+  neutral: 'bg-fg-muted',
   accent: 'bg-accent',
   success: 'bg-success',
   warning: 'bg-warning',
   danger: 'bg-danger',
   info: 'bg-info',
   experimental: 'bg-accent',
-  unavailable: 'bg-text-muted',
+  unavailable: 'bg-fg-muted',
 };
 
 const SIZE: Record<BadgeSize, string> = {

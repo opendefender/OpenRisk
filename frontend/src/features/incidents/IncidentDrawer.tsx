@@ -139,7 +139,7 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
                 className="shrink-0 mt-0.5"
                 style={{ color: pmView.post_mortem.status === 'published' ? 'var(--low)' : 'var(--critical)' }}
               />
-              <span className="text-[12.5px]" style={{ color: 'var(--text-primary)' }}>
+              <span className="text-[12.5px]" style={{ color: 'var(--fg-primary)' }}>
                 {pmView.post_mortem.status === 'published'
                   ? tr('Post-mortem publié — ouvrir le compte rendu.', 'Post-mortem published — open the record.')
                   : (pmView.blocks_closure ?? tr('Post-mortem requis.', 'Post-mortem required.'))}
@@ -235,8 +235,8 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
             <button
               onClick={save}
               disabled={!dirty || updateIncident.isPending}
-              className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
-              style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+              className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
+              style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
             >
               {updateIncident.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               {tr('Enregistrer', 'Save')}

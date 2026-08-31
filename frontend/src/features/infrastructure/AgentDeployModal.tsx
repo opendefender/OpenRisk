@@ -92,7 +92,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
                   opacity: data ? 1 : 0.6,
                 }}
               >
-                <o.icon size={18} strokeWidth={1.7} style={{ color: o.key === os ? 'var(--accent)' : 'var(--text-secondary)' }} />
+                <o.icon size={18} strokeWidth={1.7} style={{ color: o.key === os ? 'var(--accent)' : 'var(--fg-secondary)' }} />
                 <span className="text-[12.5px] font-semibold text-ink">{o.label}</span>
                 {o.key === os && <span className="ml-auto text-[10px] font-bold uppercase" style={{ color: 'var(--accent-500)' }}>{tr('détecté', 'detected')}</span>}
               </a>
@@ -110,7 +110,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
                     {copied === 'token' ? <Check size={13} /> : <Copy size={13} />}{tr('Copier', 'Copy')}
                   </button>
                 </div>
-                <div className="font-mono text-[11px] rounded-lg px-3 py-2.5 break-all" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                <div className="font-mono text-[11px] rounded-lg px-3 py-2.5 break-all" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                   {data.registration_token.slice(0, 44)}…
                 </div>
               </div>
@@ -118,7 +118,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
               <div className="flex flex-col gap-1.5">
                 <span className="text-[12px] font-semibold text-ink-soft">{tr('Lancer via Docker', 'Run with Docker')}</span>
                 <div className="relative">
-                  <pre className="font-mono text-[11px] rounded-lg px-3 py-2.5 overflow-x-auto" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{dockerCmd}</pre>
+                  <pre className="font-mono text-[11px] rounded-lg px-3 py-2.5 overflow-x-auto" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>{dockerCmd}</pre>
                   <button onClick={() => copy('docker', dockerCmd)} className="absolute top-2 right-2 text-ink-soft hover:text-ink" aria-label="Copy">
                     {copied === 'docker' ? <Check size={14} /> : <Copy size={14} />}
                   </button>

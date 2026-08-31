@@ -37,7 +37,7 @@ const CRIT: Record<string, string> = {
 const SEV_COLOR: Record<string, string> = {
   critical: 'var(--critical)', warn: 'var(--high)', ok: 'var(--low)',
 };
-const TOOLTIP_STYLE = { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, color: 'var(--text-primary)' } as const;
+const TOOLTIP_STYLE = { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, color: 'var(--fg-primary)' } as const;
 
 function fmtInt(n: number, lang: string): string {
   return Math.round(n).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US');
@@ -265,8 +265,8 @@ function RiskTrendCard({ points, tr }: { points: MonthlyRiskPoint[]; tr: (f: str
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={rows} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="m" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 'auto']} />
+            <XAxis dataKey="m" tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+            <YAxis tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 'auto']} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, tr('Score moyen', 'Avg score')]} />
             <Line type="monotone" dataKey="avg_score" name={tr('Score moyen', 'Avg score')} stroke="var(--accent)" strokeWidth={2.5}
               dot={{ r: 3, fill: 'var(--accent)' }} activeDot={{ r: 5 }} />
@@ -336,7 +336,7 @@ function TopRisksCard({ risks, lang, tr }: { risks: ExecRisk[]; lang: string; tr
             </thead>
             <tbody>
               {risks.map((r) => {
-                const col = CRIT[r.criticality] ?? 'var(--text-muted)';
+                const col = CRIT[r.criticality] ?? 'var(--fg-muted)';
                 return (
                   <tr key={r.id} className="hover:bg-hover transition-colors">
                     <td className="px-3 py-[9px]">
@@ -376,7 +376,7 @@ function ControlCoverageRadar({ frameworks, tr }: { frameworks: ComplianceCovera
         <ResponsiveContainer width="100%" height={230}>
           <RadarChart data={data} outerRadius="72%">
             <PolarGrid stroke="var(--border)" />
-            <PolarAngleAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
+            <PolarAngleAxis dataKey="name" tick={{ fill: 'var(--fg-muted)', fontSize: 10 }} />
             <Radar name={tr('Couverture', 'Coverage')} dataKey="percent" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.35} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v} %`, tr('Couverture', 'Coverage')]} />
           </RadarChart>
@@ -439,10 +439,10 @@ function IncidentTrendCard({ points, tr }: { points: IncidentTrendPoint[]; tr: (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={rows} margin={{ top: 6, right: 10, left: -22, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="m" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <XAxis dataKey="m" tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+            <YAxis tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'var(--bg-hover)' }} />
-            <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-secondary)' }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: 'var(--fg-secondary)' }} />
             <Bar dataKey="critical" stackId="i" name={tr('Critique', 'Critical')} fill="var(--critical)" radius={[0, 0, 0, 0]} />
             <Bar dataKey="high" stackId="i" name={tr('Élevé', 'High')} fill="var(--high)" />
             <Bar dataKey="other" stackId="i" name={tr('Autre', 'Other')} fill="var(--medium)" radius={[4, 4, 0, 0]} />

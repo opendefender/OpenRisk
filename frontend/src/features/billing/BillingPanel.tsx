@@ -212,7 +212,7 @@ export function BillingPanel() {
                 style={
                   isCurrent
                     ? { border: '1px solid var(--border)', color: 'var(--ink-soft)' }
-                    : { background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }
+                    : { background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }
                 }
               >
                 {isCurrent
@@ -278,7 +278,7 @@ function TelemetryCard() {
           className="h-9 px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:pointer-events-none"
           style={
             data.enabled
-              ? { background: 'var(--accent)', color: 'var(--text-primary)' }
+              ? { background: 'var(--accent)', color: 'var(--fg-primary)' }
               : { border: '1px solid var(--border)', color: 'var(--ink-soft)' }
           }
         >

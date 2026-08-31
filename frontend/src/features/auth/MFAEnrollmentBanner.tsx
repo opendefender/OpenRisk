@@ -211,8 +211,8 @@ export function MFAEnrollmentBanner() {
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
-            className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-text-primary transition-all"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-fg-primary transition-all"
+            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             {copy.cta}
           </button>

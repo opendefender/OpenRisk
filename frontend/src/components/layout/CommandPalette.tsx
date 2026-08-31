@@ -43,7 +43,7 @@ const TONE: Record<string, string> = {
   high: 'var(--high)',
   medium: 'var(--medium)',
   low: 'var(--low)',
-  info: 'var(--text-muted)',
+  info: 'var(--fg-muted)',
 };
 
 export const CommandPalette = () => {
@@ -142,7 +142,7 @@ export const CommandPalette = () => {
       label: r.title,
       icon: TYPE_ICON[r.type] ?? Search,
       subtitle: r.subtitle,
-      badge: r.badge ? { text: r.badge, tone: TONE[r.badge] ?? 'var(--text-muted)' } : undefined,
+      badge: r.badge ? { text: r.badge, tone: TONE[r.badge] ?? 'var(--fg-muted)' } : undefined,
       run: () => {
         navigate(r.url);
         close();

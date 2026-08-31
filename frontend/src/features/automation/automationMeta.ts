@@ -68,8 +68,8 @@ export const EXEC_STATUS_META: Record<ExecutionStatus, { label: { fr: string; en
   partial: { label: { fr: 'Partiel', en: 'Partial' }, color: 'var(--medium)' },
   failed: { label: { fr: 'Échec', en: 'Failed' }, color: 'var(--critical)' },
   running: { label: { fr: 'En cours', en: 'Running' }, color: 'var(--accent-500)' },
-  pending: { label: { fr: 'En attente', en: 'Pending' }, color: 'var(--text-secondary)' },
-  skipped: { label: { fr: 'Ignoré', en: 'Skipped' }, color: 'var(--text-secondary)' },
+  pending: { label: { fr: 'En attente', en: 'Pending' }, color: 'var(--fg-secondary)' },
+  skipped: { label: { fr: 'Ignoré', en: 'Skipped' }, color: 'var(--fg-secondary)' },
 };
 
 export const SLA_STATUS_META: Record<SLAStatus, { label: { fr: string; en: string }; color: string }> = {
@@ -77,7 +77,7 @@ export const SLA_STATUS_META: Record<SLAStatus, { label: { fr: string; en: strin
   breached: { label: { fr: 'Dépassé', en: 'Breached' }, color: 'var(--high)' },
   escalated: { label: { fr: 'Escaladé', en: 'Escalated' }, color: 'var(--critical)' },
   met: { label: { fr: 'Respecté', en: 'Met' }, color: 'var(--low)' },
-  closed: { label: { fr: 'Clôturé', en: 'Closed' }, color: 'var(--text-secondary)' },
+  closed: { label: { fr: 'Clôturé', en: 'Closed' }, color: 'var(--fg-secondary)' },
 };
 
 export const SEVERITY_COLOR: Record<string, string> = {

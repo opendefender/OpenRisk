@@ -81,7 +81,7 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
         aria-label={labels.columns}
         title={labels.columns}
         className="h-9 w-9 rounded-[10px] inline-flex items-center justify-center transition-colors hover:bg-hover shrink-0"
-        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-secondary)' }}
       >
         <Columns3 size={16} strokeWidth={1.8} />
       </button>
@@ -123,7 +123,7 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
                       aria-label={`${isHidden ? labels.show : labels.hide} — ${name}`}
                       data-testid={`column-toggle-${col.key}`}
                       className="flex-1 flex items-center gap-2 h-8 px-2 rounded-[8px] text-[12.5px] font-medium text-left hover:bg-hover disabled:opacity-45 disabled:pointer-events-none"
-                      style={{ color: isHidden ? 'var(--text-muted)' : 'var(--text-primary)' }}
+                      style={{ color: isHidden ? 'var(--fg-muted)' : 'var(--fg-primary)' }}
                     >
                       {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
                       <span className="truncate">{name}</span>
@@ -153,7 +153,7 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
                 type="button"
                 onClick={onReset}
                 className="mt-1 w-full h-8 rounded-[8px] text-[12px] font-semibold inline-flex items-center justify-center gap-1.5 hover:bg-hover"
-                style={{ color: 'var(--text-secondary)' }}
+                style={{ color: 'var(--fg-secondary)' }}
               >
                 <RotateCcw size={13} /> {labels.reset}
               </button>

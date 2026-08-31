@@ -96,15 +96,15 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
   const fieldStyle = {
     border: '1px solid var(--border-strong)',
     background: 'var(--bg)',
-    color: 'var(--text-primary)',
+    color: 'var(--fg-primary)',
   } as const;
 
   const Text = ({
     k, label, hint, rows = 3,
   }: { k: keyof PostMortemInput; label: string; hint: string; rows?: number }) => (
     <label className="block">
-      <span className="text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span className="block text-[11.5px] mb-1" style={{ color: 'var(--text-secondary)' }}>{hint}</span>
+      <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>{label}</span>
+      <span className="block text-[11.5px] mb-1" style={{ color: 'var(--fg-secondary)' }}>{hint}</span>
       <textarea rows={rows} className={field} style={fieldStyle} disabled={published}
         value={(form?.[k] as string) ?? ''} onChange={(e) => set(k, e.target.value as never)} />
     </label>
@@ -129,11 +129,11 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"
           style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
           <div>
-            <h2 className="text-[15px] font-bold inline-flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-[15px] font-bold inline-flex items-center gap-2" style={{ color: 'var(--fg-primary)' }}>
               <ClipboardList size={16} style={{ color: 'var(--accent-500)' }} />
               {tr('Post-mortem', 'Post-mortem')} — INC-{incidentId}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
               {published
                 ? tr('Publié — le compte rendu est figé.', 'Published — the record is frozen.')
                 : tr('Brouillon. Publier fige le compte rendu et crée les plans de mitigation.',
@@ -144,11 +144,11 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
         </div>
 
         <div className="p-5 space-y-4">
-          {isLoading && <p className="text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>{tr('Chargement…', 'Loading…')}</p>}
+          {isLoading && <p className="text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>{tr('Chargement…', 'Loading…')}</p>}
 
           {view?.blocks_closure && (
             <div className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
-              style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)', color: 'var(--text-primary)' }}>
+              style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)', color: 'var(--fg-primary)' }}>
               <AlertTriangle size={15} style={{ color: 'var(--critical)' }} className="shrink-0 mt-0.5" />
               <span>{view.blocks_closure}</span>
             </div>
@@ -156,7 +156,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
 
           {published && (
             <div className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
-              style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+              style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
               <Lock size={15} className="shrink-0 mt-0.5" />
               <span>
                 {tr(
@@ -190,7 +190,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
               {/* Timeline */}
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
                     {tr('Chronologie', 'Timeline')}
                   </span>
                   {!published && (
@@ -216,7 +216,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
                     </div>
                   ))}
                   {(form.timeline ?? []).length === 0 && (
-                    <p className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
                       {tr('Reconstituez la séquence : détection, escalade, atténuation, résolution.',
                           'Reconstruct the sequence: detection, escalation, mitigation, resolution.')}
                     </p>
@@ -227,7 +227,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
               {/* Corrective actions — the part that leaves the document. */}
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
                     {tr('Actions correctives', 'Corrective actions')}
                   </span>
                   {!published && (
@@ -236,7 +236,7 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
                     </button>
                   )}
                 </div>
-                <p className="text-[11.5px] mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-[11.5px] mb-1.5" style={{ color: 'var(--fg-secondary)' }}>
                   {tr('À la publication, chacune devient un plan de mitigation réel, suivi dans le module Mitigations.',
                       'On publication, each becomes a real mitigation plan, tracked in the Mitigations module.')}
                 </p>
@@ -290,9 +290,9 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
               {/* The checklist — a reviewer sees the remaining fields, not a wall. */}
               {!published && missing.length > 0 && (
                 <div className="rounded-[10px] p-3 text-[12.5px]"
-                  style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                  style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
                   {tr('Reste à remplir avant publication : ', 'Still to fill in before publishing: ')}
-                  <strong style={{ color: 'var(--text-primary)' }}>
+                  <strong style={{ color: 'var(--fg-primary)' }}>
                     {missing.map((m) => (lang === 'fr' ? FIELD_LABEL[m]?.fr : FIELD_LABEL[m]?.en) ?? m).join(' · ')}
                   </strong>
                 </div>

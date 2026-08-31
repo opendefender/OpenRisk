@@ -132,7 +132,7 @@ export function ScorePage() {
               className="mt-5 h-10 px-4 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2"
               style={{
                 background: 'var(--accent-solid)',
-                color: 'var(--text-on-solid)',
+                color: 'var(--fg-on-solid)',
               }}
             >
               {tr('Ouvrir le registre des risques', 'Open the risk register')}

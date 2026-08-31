@@ -52,7 +52,7 @@ const noop = () => {};
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2 border-b border-subtle py-4 last:border-b-0">
-      <span className="text-2xs font-semibold uppercase tracking-caps text-text-muted">{label}</span>
+      <span className="text-2xs font-semibold uppercase tracking-caps text-fg-muted">{label}</span>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </div>
   );
@@ -248,7 +248,7 @@ function Charts() {
   return (
     <div className="grid gap-6">
       <div>
-        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-text-muted">
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
           Categorical series
         </p>
         <svg width="100%" height="120" role="img" aria-label="The eight categorical series colours">
@@ -265,12 +265,12 @@ function Charts() {
       </div>
 
       <div>
-        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-text-muted">
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
           Severity encodings (the risk scale, not the categorical ramp)
         </p>
         <div className="flex flex-wrap gap-3">
           {Object.entries(severity).map(([name, colour]) => (
-            <span key={name} className="inline-flex items-center gap-2 text-xs text-text-secondary">
+            <span key={name} className="inline-flex items-center gap-2 text-xs text-fg-secondary">
               <span className="h-3 w-8 rounded-xs" style={{ background: colour }} />
               {name}
             </span>
@@ -279,7 +279,7 @@ function Charts() {
       </div>
 
       <div>
-        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-text-muted">
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
           Topology graph
         </p>
         <svg width="100%" height="140" role="img" aria-label="Graph node and edge colours">
@@ -316,7 +316,7 @@ function Feedback() {
         {['surface-0', 'surface-1', 'surface-2', 'surface-3'].map((surface) => (
           <div
             key={surface}
-            className="rounded-md border border-subtle p-3 text-2xs text-text-secondary"
+            className="rounded-md border border-subtle p-3 text-2xs text-fg-secondary"
             style={{ background: `var(--${surface})` }}
           >
             {surface}
@@ -340,15 +340,15 @@ function Gallery() {
   const Render = GALLERIES[id];
 
   return (
-    <main className="min-h-screen bg-surface-0 p-8 text-text-primary">
+    <main className="min-h-screen bg-surface-0 p-8 text-fg-primary">
       <h1 className="mb-1 text-xl font-semibold tracking-display">{id || 'Design system'}</h1>
-      <p className="mb-6 text-sm text-text-secondary">
+      <p className="mb-6 text-sm text-fg-secondary">
         Every variant and state, rendered against the real stylesheet.
       </p>
       {Render ? (
         <Render />
       ) : (
-        <ul className="text-sm text-text-secondary">
+        <ul className="text-sm text-fg-secondary">
           {Object.keys(GALLERIES).map((key) => (
             <li key={key}>{key}</li>
           ))}

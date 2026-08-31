@@ -66,7 +66,7 @@ export function StatusPage() {
   const OverallIcon = overall.icon;
 
   return (
-    <div className="min-h-screen w-full flex items-start justify-center p-6" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+    <div className="min-h-screen w-full flex items-start justify-center p-6" style={{ background: 'var(--bg-primary)', color: 'var(--fg-primary)' }}>
       <div className="max-w-lg w-full mt-16">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2.5">

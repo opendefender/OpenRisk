@@ -30,7 +30,7 @@ export function PersonalizeCard({ compact }: { compact?: boolean }) {
         className="flex-1 flex items-center justify-center gap-2 h-9 rounded-[10px] text-[12.5px] font-semibold transition-colors"
         style={{
           background: active ? 'var(--accent-soft)' : 'var(--bg-hover)',
-          color: active ? 'var(--accent)' : 'var(--text-secondary)',
+          color: active ? 'var(--accent)' : 'var(--fg-secondary)',
           border: `1px solid ${active ? 'var(--accent)' : 'transparent'}`,
         }}
       >
@@ -58,7 +58,7 @@ export function PersonalizeCard({ compact }: { compact?: boolean }) {
                 key={a.key}
                 onClick={() => setVariant(a.key)}
                 className="flex items-center gap-2 h-9 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors"
-                style={{ background: 'var(--bg-hover)', border: `1px solid ${active ? a.color : 'transparent'}`, color: active ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                style={{ background: 'var(--bg-hover)', border: `1px solid ${active ? a.color : 'transparent'}`, color: active ? 'var(--fg-primary)' : 'var(--fg-secondary)' }}
               >
                 <span className="w-4 h-4 rounded-full" style={{ background: a.color, boxShadow: active ? `0 0 0 2px var(--bg-hover), 0 0 0 3px ${a.color}` : 'none' }} />
                 {a.label}

@@ -231,9 +231,9 @@ export function SettingsScreen() {
               data-testid={`settings-tab-${k}`}
               onClick={() => selectTab(k)}
               className="w-full flex items-center gap-2.5 px-3 py-[9px] rounded-[9px] mb-0.5 text-[13px] text-left whitespace-nowrap transition-colors"
-              style={{ background: tab === k ? 'var(--accent-soft)' : 'transparent', color: tab === k ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: tab === k ? 600 : 500 }}
+              style={{ background: tab === k ? 'var(--accent-soft)' : 'transparent', color: tab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)', fontWeight: tab === k ? 600 : 500 }}
             >
-              <span style={{ color: tab === k ? 'var(--accent)' : 'var(--text-muted)' }} className="flex"><Icon size={17} /></span>
+              <span style={{ color: tab === k ? 'var(--accent)' : 'var(--fg-muted)' }} className="flex"><Icon size={17} /></span>
               {lbl}
             </button>
           ))}
@@ -589,7 +589,7 @@ function ReadOnly({ label, value, muted }: { label: string; value: string; muted
 function CountTile({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
     <div className="px-3.5 py-3 rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
-      <div className="text-[22px] font-bold leading-none" style={{ color: color ?? 'var(--text-primary)' }}>{value}</div>
+      <div className="text-[22px] font-bold leading-none" style={{ color: color ?? 'var(--fg-primary)' }}>{value}</div>
       <div className="text-[11.5px] text-ink-muted mt-1.5">{label}</div>
     </div>
   );
@@ -699,7 +699,7 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
                   className="w-10 h-10 rounded-[11px] flex items-center justify-center"
                   style={{
                     background: r.configured ? 'color-mix(in srgb,var(--low) 16%,transparent)' : 'var(--bg-hover)',
-                    color: r.configured ? 'var(--low)' : 'var(--text-muted)',
+                    color: r.configured ? 'var(--low)' : 'var(--fg-muted)',
                   }}
                 >
                   <Plug size={20} />
@@ -728,7 +728,7 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
                 className="w-10 h-10 rounded-[11px] flex items-center justify-center"
                 style={{
                   background: scannersConfigured > 0 ? 'color-mix(in srgb,var(--low) 16%,transparent)' : 'var(--bg-hover)',
-                  color: scannersConfigured > 0 ? 'var(--low)' : 'var(--text-muted)',
+                  color: scannersConfigured > 0 ? 'var(--low)' : 'var(--fg-muted)',
                 }}
               >
                 <Plug size={20} />
@@ -782,7 +782,7 @@ function IntegrationState({ row, tr }: { row: { configured: boolean; enabled: bo
   }
   if (!row.configured) {
     return (
-      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}>
+      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--fg-muted)', background: 'var(--bg-hover)' }}>
         {tr('Non connecté', 'Not connected')}
       </span>
     );

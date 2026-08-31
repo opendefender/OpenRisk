@@ -157,7 +157,7 @@ export function PasswordStrength({ password, email, name, onVerdict, override }:
       </div>
 
       <div className="flex items-center justify-between mt-1.5 text-[11.5px]">
-        <span style={{ color: acceptable ? 'var(--low)' : 'var(--text-muted)' }}>
+        <span style={{ color: acceptable ? 'var(--low)' : 'var(--fg-muted)' }}>
           {copy.strengthLabel} : {strengthLabel(copy, score)}
         </span>
         {checking && <span className="text-ink-muted">{copy.strengthChecking}</span>}

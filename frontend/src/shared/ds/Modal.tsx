@@ -120,11 +120,11 @@ export function Modal({
         <header className="flex items-start gap-3 border-b border-subtle px-(--modal-padding) py-4">
           {leading}
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="truncate text-md font-semibold text-text-primary">
+            <h2 id={titleId} className="truncate text-md font-semibold text-fg-primary">
               {title}
             </h2>
             {subtitle && (
-              <p id={subtitleId} className="mt-0.5 text-sm text-text-secondary">
+              <p id={subtitleId} className="mt-0.5 text-sm text-fg-secondary">
                 {subtitle}
               </p>
             )}

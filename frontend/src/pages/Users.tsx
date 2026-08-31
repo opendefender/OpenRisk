@@ -103,9 +103,9 @@ export const Users = () => {
       case 'analyst':
         return 'bg-accent-soft text-info-text border-accent-line';
       case 'viewer':
-        return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
+        return 'bg-surface-3/10 text-fg-secondary border-border-strong/20';
       default:
-        return 'bg-surface-3/10 text-text-secondary border-border-strong/20';
+        return 'bg-surface-3/10 text-fg-secondary border-border-strong/20';
     }
   };
 
@@ -125,11 +125,11 @@ export const Users = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <UsersIcon className="text-text-primary" size={24} />
+                <UsersIcon className="text-fg-primary" size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-text-primary">User Management</h1>
-                <p className="text-sm text-text-secondary">Manage users and permissions</p>
+                <h1 className="text-2xl font-bold text-fg-primary">User Management</h1>
+                <p className="text-sm text-fg-secondary">Manage users and permissions</p>
               </div>
             </div>
             <Button variant="primary" onClick={() => setShowCreateModal(true)}>
@@ -140,19 +140,19 @@ export const Users = () => {
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted" />
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fg-muted" />
               <input
                 type="text"
                 placeholder="Search by name, email, or username..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-surface-1/50 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full bg-surface-1/50 border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="bg-surface-1/50 border border-border rounded-lg px-4 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="bg-surface-1/50 border border-border rounded-lg px-4 py-2 text-sm text-fg-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
@@ -171,8 +171,8 @@ export const Users = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-12"
           >
-            <UsersIcon size={48} className="mx-auto text-text-muted mb-4" />
-            <p className="text-text-secondary">No users found</p>
+            <UsersIcon size={48} className="mx-auto text-fg-muted mb-4" />
+            <p className="text-fg-secondary">No users found</p>
           </motion.div>
         ) : (
           <motion.div
@@ -190,13 +190,13 @@ export const Users = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
-                      <span className="text-text-primary font-bold text-sm">
+                      <span className="text-fg-primary font-bold text-sm">
                         {user.full_name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-medium text-text-primary truncate">{user.full_name}</h3>
-                      <div className="flex items-center gap-2 text-xs text-text-muted">
+                      <h3 className="font-medium text-fg-primary truncate">{user.full_name}</h3>
+                      <div className="flex items-center gap-2 text-xs text-fg-muted">
                         <span className="truncate">{user.email}</span>
                         <span>•</span>
                         <span className="shrink-0">@{user.username}</span>
@@ -210,7 +210,7 @@ export const Users = () => {
                         <Shield size={12} className="inline-block mr-1" />
                         {user.role}
                       </span>
-                      <p className="text-xs text-text-muted mt-1">
+                      <p className="text-xs text-fg-muted mt-1">
                         {user.last_login ? `Last: ${new Date(user.last_login).toLocaleDateString()}` : 'Never logged in'}
                       </p>
                     </div>
@@ -220,7 +220,7 @@ export const Users = () => {
                         value={user.role}
                         onChange={(e) => updateUserRole(user.id, e.target.value)}
                         disabled={user.id === currentUser?.id}
-                        className="bg-surface-1/50 border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                        className="bg-surface-1/50 border border-border rounded px-2 py-1 text-xs text-fg-primary focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                       >
                         <option value="viewer">Viewer</option>
                         <option value="analyst">Analyst</option>

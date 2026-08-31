@@ -219,15 +219,19 @@
   --color-glass-border: var(--glass-border);
 
   /* -------------------------------------------------------------------- text */
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-muted: var(--text-muted);
-  --color-text-inverse: var(--text-inverse);
-  --color-text-on-solid: var(--text-on-solid);
+  /* --color-fg-*, from --fg-* in tokens.css. The colour roles deliberately do
+     NOT live in the --text-* namespace: that namespace is font-size in v4 (see
+     the --text-* scale above), so `--text-primary: #f6f4ef` would emit
+     `text-primary { font-size: #f6f4ef }`. #442. */
+  --color-fg-primary: var(--fg-primary);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-inverse: var(--fg-inverse);
+  --color-fg-on-solid: var(--fg-on-solid);
   /* Shorthand set, by far the most used in the product. */
-  --color-ink: var(--text-primary);
-  --color-ink-soft: var(--text-secondary);
-  --color-ink-muted: var(--text-muted);
+  --color-ink: var(--fg-primary);
+  --color-ink-soft: var(--fg-secondary);
+  --color-ink-muted: var(--fg-muted);
 
   /* ----------------------------------------------------------------- borders */
   --color-border: var(--border);

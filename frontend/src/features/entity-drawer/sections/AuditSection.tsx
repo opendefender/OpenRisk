@@ -56,7 +56,7 @@ export function AuditSection({ records, total, isLoading, error, onRetry }: Prop
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-2xs text-text-muted">
+      <p className="text-2xs text-fg-muted">
         {total} record{total === 1 ? '' : 's'}
         {records.length < total ? ` · showing the most recent ${records.length}` : ''}
       </p>
@@ -98,15 +98,15 @@ function AuditDetail({ record }: { record: AuditRecord }) {
         <div className="flex flex-col gap-0.5">
           {changed.map((field) => (
             <div key={field} className="flex flex-wrap items-baseline gap-1.5 font-mono text-2xs">
-              <span className="text-text-secondary">{field}</span>
+              <span className="text-fg-secondary">{field}</span>
               <span style={{ color: 'var(--critical)' }}>{render(record.before?.[field])}</span>
-              <span aria-hidden className="text-text-muted">→</span>
+              <span aria-hidden className="text-fg-muted">→</span>
               <span style={{ color: 'var(--low)' }}>{render(record.after?.[field])}</span>
             </div>
           ))}
         </div>
       )}
-      <div className="font-mono text-2xs text-text-muted">{meta.join(' · ')}</div>
+      <div className="font-mono text-2xs text-fg-muted">{meta.join(' · ')}</div>
     </div>
   );
 }

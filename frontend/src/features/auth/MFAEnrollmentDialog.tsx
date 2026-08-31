@@ -242,8 +242,8 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
           <button
             type="submit"
             disabled={busy || phase !== 'scan' || code.trim().length < 6}
-            className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-60"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
+            className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-60"
+            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
             {busy && <Loader2 size={15} className="animate-spin" />}
             {tr('Activer', 'Enable')}

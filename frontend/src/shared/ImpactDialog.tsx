@@ -78,20 +78,20 @@ export function ImpactDialog({
         </>
       }
     >
-      <p className="mb-2 text-sm font-semibold text-text-primary">{subject}</p>
+      <p className="mb-2 text-sm font-semibold text-fg-primary">{subject}</p>
 
       {impacts.length > 0 ? (
         <>
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-text-muted">
+          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
             Conséquences
           </p>
           <ul className="mb-4 flex flex-col gap-1.5">
             {impacts.map((it, i) => (
               <li key={i} className="flex items-center gap-2.5 rounded-md bg-surface-3 px-3 py-2">
-                {it.icon && <span className="shrink-0 text-text-muted">{it.icon}</span>}
-                <span className="flex-1 text-sm text-text-primary">{it.label}</span>
+                {it.icon && <span className="shrink-0 text-fg-muted">{it.icon}</span>}
+                <span className="flex-1 text-sm text-fg-primary">{it.label}</span>
                 {it.detail && (
-                  <span className="mono text-xs tabular-nums text-text-secondary">{it.detail}</span>
+                  <span className="mono text-xs tabular-nums text-fg-secondary">{it.detail}</span>
                 )}
               </li>
             ))}
@@ -100,14 +100,14 @@ export function ImpactDialog({
       ) : (
         /* An explicit "nothing else is affected" rather than an empty region:
            the absence of consequences is itself the answer the user came for. */
-        <p className="mb-4 text-sm text-text-secondary">
+        <p className="mb-4 text-sm text-fg-secondary">
           Aucun objet lié — cette action est sans effet de bord.
         </p>
       )}
 
       {alternatives.length > 0 && (
         <div>
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-text-muted">
+          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
             Alternatives
           </p>
           <div className="flex flex-col gap-2">
@@ -119,9 +119,9 @@ export function ImpactDialog({
                 disabled={loading}
                 className="rounded-md border border-control bg-surface-1 px-3 py-2.5 text-left transition-colors duration-fast ease-out hover:bg-surface-3 disabled:opacity-60"
               >
-                <span className="block text-sm font-semibold text-text-primary">{alt.label}</span>
+                <span className="block text-sm font-semibold text-fg-primary">{alt.label}</span>
                 {alt.description && (
-                  <span className="mt-0.5 block text-xs text-text-secondary">{alt.description}</span>
+                  <span className="mt-0.5 block text-xs text-fg-secondary">{alt.description}</span>
                 )}
               </button>
             ))}

@@ -63,15 +63,15 @@ export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps
               className="rounded-xl border border-border-subtle bg-surface-0/40 p-4"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                <span className="flex items-center gap-1.5 text-xs text-fg-muted">
                   <Clock size={12} />
                   {snapshot.created_at ? new Date(snapshot.created_at).toLocaleString() : '—'}
                 </span>
-                <span className="rounded-full bg-surface-1/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+                <span className="rounded-full bg-surface-1/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-fg-secondary">
                   {t(`assets.historyReason.${snapshot.reason ?? 'update'}`)}
                 </span>
               </div>
-              <div className="mb-2 flex items-center gap-1.5 text-xs text-text-muted">
+              <div className="mb-2 flex items-center gap-1.5 text-xs text-fg-muted">
                 <User size={12} />
                 {t('assets.changedBy').replace(
                   '{who}',
@@ -80,8 +80,8 @@ export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-text-primary">{snapshot.name}</p>
-                  <p className="text-xs text-text-muted">{snapshot.type}</p>
+                  <p className="text-sm font-medium text-fg-primary">{snapshot.name}</p>
+                  <p className="text-xs text-fg-muted">{snapshot.type}</p>
                 </div>
                 {snapshot.criticality && <CriticalityBadge level={snapshot.criticality} />}
               </div>

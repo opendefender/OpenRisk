@@ -178,7 +178,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
             className={cn('space-y-2', snapshot.isDraggingOver && 'bg-accent-soft rounded-lg p-2')}
           >
             {displaySubActions.length === 0 ? (
-              <div className="text-center py-8 text-text-muted text-sm">
+              <div className="text-center py-8 text-fg-muted text-sm">
                 Aucune sous-action
               </div>
             ) : (
@@ -219,7 +219,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
 
                         {/* Title & Dependencies */}
                         <div className="flex-1 min-w-0">
-                          <p className={cn('text-sm font-medium truncate', isCompleted && 'line-through text-text-muted')}>
+                          <p className={cn('text-sm font-medium truncate', isCompleted && 'line-through text-fg-muted')}>
                             {subAction.title}
                           </p>
                           {(subAction.depends_on?.length || 0) > 0 && (

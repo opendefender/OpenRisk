@@ -112,7 +112,7 @@ function StepShell({
           className="h-11 px-5 rounded-[10px] text-[13.5px] font-semibold inline-flex items-center gap-2 disabled:opacity-50"
           style={{
             background: 'var(--accent-solid)',
-            color: 'var(--text-on-solid)',
+            color: 'var(--fg-on-solid)',
           }}
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : null}
@@ -631,7 +631,7 @@ export function FrameworkStep() {
                       }
                     : {
                         background: 'var(--accent-solid)',
-                        color: 'var(--text-on-solid)',
+                        color: 'var(--fg-on-solid)',
                       }
                 }
               >

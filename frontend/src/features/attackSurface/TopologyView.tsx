@@ -61,12 +61,12 @@ const INTERNAL_COLOR = 'var(--low)';
 function resolveColor(cssVar: string, root: HTMLElement): string {
   const name = cssVar.match(/var\((--[^)]+)\)/)?.[1];
   if (!name) return cssVar;
-  // Falling back to --text-muted rather than a literal grey: an unresolvable
+  // Falling back to --fg-muted rather than a literal grey: an unresolvable
   // token should still land on something that follows the theme.
   const resolved = getComputedStyle(root).getPropertyValue(name).trim();
   // An unresolvable token falls back to another TOKEN, never a literal: the
   // fallback has to follow the theme too.
-  return resolved || getComputedStyle(root).getPropertyValue('--text-muted').trim();
+  return resolved || getComputedStyle(root).getPropertyValue('--fg-muted').trim();
 }
 
 export default function TopologyView() {
@@ -213,7 +213,7 @@ export default function TopologyView() {
     h: number
   ) => {
     const root = document.documentElement;
-    const ink = resolveColor('var(--text-primary)', root);
+    const ink = resolveColor('var(--fg-primary)', root);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
@@ -361,11 +361,11 @@ export default function TopologyView() {
       // literal here — `var(--x)` means nothing in a downloaded file. They are
       // resolved FROM tokens, which is what makes the export follow whichever
       // theme it was taken in.
-      colorOf: (id: string) => colors.get(id) ?? resolveColor('var(--text-muted)', root),
+      colorOf: (id: string) => colors.get(id) ?? resolveColor('var(--fg-muted)', root),
       highlighted: highlighted ?? undefined,
       highlightedEdges: highlightedEdges ?? undefined,
       background: resolveColor('var(--surface-1)', root),
-      ink: resolveColor('var(--text-primary)', root),
+      ink: resolveColor('var(--fg-primary)', root),
       title: `Topologie — ${st?.nodes.length ?? 0} actifs`,
     };
   };
@@ -419,7 +419,7 @@ export default function TopologyView() {
       {data?.truncated ? (
         <div
           className="mb-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-[13px]"
-          style={{ borderColor: 'var(--high)', background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+          style={{ borderColor: 'var(--high)', background: 'var(--surface-2)', color: 'var(--fg-secondary)' }}
         >
           <AlertTriangle size={16} style={{ color: 'var(--high)' }} className="mt-0.5 shrink-0" />
           <span>
@@ -431,7 +431,7 @@ export default function TopologyView() {
 
       {/* Controls */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
           Vue
         </span>
         <Chip
@@ -445,7 +445,7 @@ export default function TopologyView() {
           onClick={() => setLayoutMode('universe')}
         />
 
-        <span className="ml-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="ml-3 text-[12px]" style={{ color: 'var(--fg-muted)' }}>
           Couleur
         </span>
         <Chip
@@ -459,7 +459,7 @@ export default function TopologyView() {
           onClick={() => setColorMode('exposure')}
         />
 
-        <span className="ml-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="ml-3 text-[12px]" style={{ color: 'var(--fg-muted)' }}>
           Zone
         </span>
         <Chip label="Toutes" active={!zoneFilter} onClick={() => setZoneFilter('')} />
@@ -472,7 +472,7 @@ export default function TopologyView() {
           />
         ))}
 
-        <span className="ml-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="ml-3 text-[12px]" style={{ color: 'var(--fg-muted)' }}>
           Criticité
         </span>
         {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((c) => (
@@ -505,18 +505,18 @@ export default function TopologyView() {
             </div>
           ) : isError ? (
             <div className="flex h-full flex-col items-center justify-center gap-3">
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-sm" style={{ color: 'var(--fg-secondary)' }}>
                 La topologie n'a pas pu être chargée.
               </p>
               <Btn label="Réessayer" onClick={() => void refetch()} />
             </div>
           ) : nodes.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2">
-              <Network size={32} style={{ color: 'var(--text-muted)' }} />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <Network size={32} style={{ color: 'var(--fg-muted)' }} />
+              <p className="text-sm" style={{ color: 'var(--fg-secondary)' }}>
                 Aucun actif à cartographier.
               </p>
-              <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
                 Ajoutez des actifs et des dépendances pour voir la topologie.
               </p>
             </div>
@@ -556,10 +556,10 @@ export default function TopologyView() {
             style={{
               borderColor: 'var(--border)',
               background: 'var(--surface-2)',
-              color: 'var(--text-muted)',
+              color: 'var(--fg-muted)',
             }}
           >
-            <div className="mb-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <div className="mb-1.5 font-medium" style={{ color: 'var(--fg-secondary)' }}>
               Relations
             </div>
             {TOPOLOGY_EDGE_TYPES.map((t) => (
@@ -589,21 +589,21 @@ export default function TopologyView() {
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <h3 className="text-[15px] font-semibold" style={{ color: 'var(--fg-primary)' }}>
                   {selected.node.name}
                 </h3>
-                <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
                   {selected.node.category
                     ? CATEGORY_LABELS[selected.node.category as AssetCategory]
                     : (selected.node.type ?? 'Non typé')}
                 </p>
               </div>
               <button onClick={() => setSelected(null)} aria-label="Fermer">
-                <X size={16} style={{ color: 'var(--text-muted)' }} />
+                <X size={16} style={{ color: 'var(--fg-muted)' }} />
               </button>
             </div>
 
-            <div className="mt-3 space-y-2 text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>
+            <div className="mt-3 space-y-2 text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>
               <Row label="Criticité">
                 <CritBadge
                   crit={((selected.node.criticality ?? 'LOW') as string).toLowerCase() as Criticality}
@@ -625,7 +625,7 @@ export default function TopologyView() {
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium"
               style={{
                 background: chainOrigin === selected.id ? 'var(--surface-1)' : 'var(--accent-soft)',
-                color: chainOrigin === selected.id ? 'var(--text-secondary)' : 'var(--accent)',
+                color: chainOrigin === selected.id ? 'var(--fg-secondary)' : 'var(--accent)',
                 border: '1px solid var(--border)',
               }}
             >
@@ -636,7 +636,7 @@ export default function TopologyView() {
             </button>
 
             {chainOrigin === selected.id && chainCounts ? (
-              <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              <p className="mt-2 text-[12px]" style={{ color: 'var(--fg-muted)' }}>
                 <strong style={{ color: 'var(--critical)' }}>{chainCounts.impacted}</strong> actif
                 {chainCounts.impacted > 1 ? 's' : ''} impacté
                 {chainCounts.impacted > 1 ? 's' : ''} ·{' '}
@@ -678,7 +678,7 @@ export default function TopologyView() {
             <a
               href={`/assets?focus=${selected.id}`}
               className="mt-2 block text-center text-[12px] underline"
-              style={{ color: 'var(--text-muted)' }}
+              style={{ color: 'var(--fg-muted)' }}
             >
               Ouvrir la fiche de l'actif
             </a>
@@ -724,12 +724,12 @@ function DependencyEditor({
   const selSty = {
     background: 'var(--surface-1)',
     borderColor: 'var(--border)',
-    color: 'var(--text-primary)',
+    color: 'var(--fg-primary)',
   } as const;
 
   return (
     <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-      <div className="mb-1.5 text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
+      <div className="mb-1.5 text-[11px] font-semibold uppercase" style={{ color: 'var(--fg-muted)' }}>
         Dépendances
       </div>
 
@@ -753,7 +753,7 @@ function DependencyEditor({
           />
         ))}
         {outgoing.length === 0 && incoming.length === 0 ? (
-          <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
             Aucune dépendance enregistrée.
           </p>
         ) : null}
@@ -819,11 +819,11 @@ function DepRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 text-[12px]">
-      <span style={{ color: 'var(--text-secondary)' }}>
-        {text} <span style={{ color: 'var(--text-muted)' }}>({sub})</span>
+      <span style={{ color: 'var(--fg-secondary)' }}>
+        {text} <span style={{ color: 'var(--fg-muted)' }}>({sub})</span>
       </span>
       {canEdit ? (
-        <button onClick={onDelete} aria-label="Retirer" style={{ color: 'var(--text-muted)' }}>
+        <button onClick={onDelete} aria-label="Retirer" style={{ color: 'var(--fg-muted)' }}>
           <X size={12} />
         </button>
       ) : null}
@@ -834,7 +834,7 @@ function DepRow({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--fg-muted)' }}>{label}</span>
       <span className="font-medium">{children}</span>
     </div>
   );
@@ -858,7 +858,7 @@ function MapBtn({
       style={{
         borderColor: 'var(--border)',
         background: 'var(--surface-2)',
-        color: 'var(--text-secondary)',
+        color: 'var(--fg-secondary)',
       }}
     >
       {children}

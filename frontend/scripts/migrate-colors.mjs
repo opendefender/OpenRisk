@@ -40,11 +40,11 @@ const RULES = [
   [/\bbg-white\b/g, 'bg-surface-1'],
 
   // ---- text ---------------------------------------------------------------
-  [/\btext-white\b/g, 'text-text-primary'],
-  [new RegExp(`\\btext-${NEUTRALS}-(?:50|100|200)\\b`, 'g'), 'text-text-primary'],
-  [new RegExp(`\\btext-${NEUTRALS}-(?:300|400)\\b`, 'g'), 'text-text-secondary'],
-  [new RegExp(`\\btext-${NEUTRALS}-(?:500|600)\\b`, 'g'), 'text-text-muted'],
-  [new RegExp(`\\btext-${NEUTRALS}-(?:700|800|900)\\b`, 'g'), 'text-text-primary'],
+  [/\btext-white\b/g, 'text-fg-primary'],
+  [new RegExp(`\\btext-${NEUTRALS}-(?:50|100|200)\\b`, 'g'), 'text-fg-primary'],
+  [new RegExp(`\\btext-${NEUTRALS}-(?:300|400)\\b`, 'g'), 'text-fg-secondary'],
+  [new RegExp(`\\btext-${NEUTRALS}-(?:500|600)\\b`, 'g'), 'text-fg-muted'],
+  [new RegExp(`\\btext-${NEUTRALS}-(?:700|800|900)\\b`, 'g'), 'text-fg-primary'],
 
   // ---- borders / rings ----------------------------------------------------
   [new RegExp(`\\bborder-${NEUTRALS}-(?:600|700)\\b`, 'g'), 'border-border-default'],

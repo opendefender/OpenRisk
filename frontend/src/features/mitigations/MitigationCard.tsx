@@ -101,14 +101,14 @@ export const MitigationCard = ({
       {/* Header: Title + Risk Badge */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-text-primary text-sm truncate">{mitigation.title}</h3>
+          <h3 className="font-semibold text-fg-primary text-sm truncate">{mitigation.title}</h3>
         </div>
         <RiskBadge level={riskLevel} size="sm" />
       </div>
 
       {/* Risk context (optional) */}
       {mitigation.risk_title && (
-        <p className="text-xs text-text-secondary mb-2 truncate">
+        <p className="text-xs text-fg-secondary mb-2 truncate">
           Risque: {mitigation.risk_title}
         </p>
       )}
@@ -161,7 +161,7 @@ export const MitigationCard = ({
             />
           ) : (
             <div className="w-6 h-6 rounded-full border border-border-default bg-surface-2/50 flex items-center justify-center">
-              <span className="text-xs text-text-muted">−</span>
+              <span className="text-xs text-fg-muted">−</span>
             </div>
           )}
         </div>

@@ -70,7 +70,7 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
                 ? { background: 'color-mix(in srgb,var(--critical) 18%,transparent)', color: 'var(--critical)' }
                 : action.danger
                   ? { background: 'color-mix(in srgb,var(--critical) 14%,transparent)', color: 'var(--critical)' }
-                  : { background: 'var(--bg-hover)', color: 'var(--text-primary)' }
+                  : { background: 'var(--bg-hover)', color: 'var(--fg-primary)' }
             }
           >
             {running ? <Loader2 size={14} className="animate-spin" /> : done ? <Check size={14} /> : failed ? <TriangleAlert size={14} /> : Icon ? <Icon size={14} /> : null}

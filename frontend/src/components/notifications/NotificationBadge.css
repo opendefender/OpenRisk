@@ -13,7 +13,7 @@ import './NotificationBadge.css';
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  color: var(--color-text-secondary, #666);
+  color: var(--fg-secondary, #666);
   transition: all 0.2s ease;
 
   &:hover {

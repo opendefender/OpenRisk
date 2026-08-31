@@ -102,7 +102,7 @@ function Harness() {
 
   if (!render) {
     return (
-      <div style={{ padding: 24, color: 'var(--text-primary)', background: 'var(--surface-0)' }}>
+      <div style={{ padding: 24, color: 'var(--fg-primary)', background: 'var(--surface-0)' }}>
         <p>Unknown overlay: {id || '(none given)'}</p>
         <ul>
           {Object.keys(OVERLAYS).map((key) => (
@@ -121,12 +121,12 @@ function Harness() {
       style={{
         minHeight: '100vh',
         background: 'var(--surface-0)',
-        color: 'var(--text-primary)',
+        color: 'var(--fg-primary)',
         padding: 32,
       }}
     >
       <h1 style={{ fontSize: 24, fontWeight: 600 }}>Page behind the overlay</h1>
-      <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>
+      <p style={{ color: 'var(--fg-secondary)', marginTop: 8 }}>
         Body copy at secondary weight, to show the scrim over real content.
       </p>
       {render()}

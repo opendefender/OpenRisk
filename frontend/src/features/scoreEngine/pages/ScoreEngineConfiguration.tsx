@@ -156,7 +156,7 @@ export const ScoreEngineConfiguration = () => {
                 whileHover={{ scale: 1.02 }}
               >
                 <p className="font-medium">{configs.default.name}</p>
-                <p className="text-xs text-text-secondary mt-1">
+                <p className="text-xs text-fg-secondary mt-1">
                   {configs.default.description || 'Configuration par défaut'}
                 </p>
                 {configs.default.is_default && (
@@ -207,7 +207,7 @@ export const ScoreEngineConfiguration = () => {
                   <textarea
                     value={formData.description || ''}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-surface-2 border border-border-default rounded-lg p-3 text-text-primary text-sm"
+                    className="w-full bg-surface-2 border border-border-default rounded-lg p-3 text-fg-primary text-sm"
                     rows={3}
                     disabled={isLoading}
                   />
@@ -318,7 +318,7 @@ export const ScoreEngineConfiguration = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-bold">{selectedConfig.name}</h2>
-                  <p className="text-text-secondary mt-1">{selectedConfig.description}</p>
+                  <p className="text-fg-secondary mt-1">{selectedConfig.description}</p>
                   {selectedConfig.is_default && (
                     <span className="inline-block text-xs bg-success/20 text-success-text px-3 py-1 rounded-full mt-2">
                       Configuration par défaut
@@ -342,16 +342,16 @@ export const ScoreEngineConfiguration = () => {
               {/* Configuration Details */}
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-text-secondary mb-3">Formule</h3>
-                  <p className="font-mono text-text-primary">{selectedConfig.base_formula}</p>
+                  <h3 className="text-sm font-semibold text-fg-secondary mb-3">Formule</h3>
+                  <p className="font-mono text-fg-primary">{selectedConfig.base_formula}</p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-text-secondary mb-3">Pondérations</h3>
+                  <h3 className="text-sm font-semibold text-fg-secondary mb-3">Pondérations</h3>
                   <div className="space-y-1">
                     {Object.entries(selectedConfig.weighting_factors).map(([key, value]) => (
                       <div key={key} className="flex justify-between text-sm">
-                        <span className="text-text-secondary">{key}:</span>
+                        <span className="text-fg-secondary">{key}:</span>
                         <span className="font-medium">{value}</span>
                       </div>
                     ))}
@@ -359,11 +359,11 @@ export const ScoreEngineConfiguration = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-text-secondary mb-3">Matrice de Risque</h3>
+                  <h3 className="text-sm font-semibold text-fg-secondary mb-3">Matrice de Risque</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(selectedConfig.risk_matrix_thresholds).map(([key, value]) => (
                       <div key={key} className="bg-surface-2 rounded p-2 text-sm">
-                        <p className="text-text-secondary text-xs">{key}</p>
+                        <p className="text-fg-secondary text-xs">{key}</p>
                         <p className="text-lg font-bold">{value}</p>
                       </div>
                     ))}
@@ -371,11 +371,11 @@ export const ScoreEngineConfiguration = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-text-secondary mb-3">Criticités</h3>
+                  <h3 className="text-sm font-semibold text-fg-secondary mb-3">Criticités</h3>
                   <div className="space-y-1">
                     {Object.entries(selectedConfig.asset_criticality_mult).map(([key, value]) => (
                       <div key={key} className="flex justify-between text-sm">
-                        <span className="text-text-secondary">{key}:</span>
+                        <span className="text-fg-secondary">{key}:</span>
                         <span className="font-medium">{value}x</span>
                       </div>
                     ))}
@@ -385,7 +385,7 @@ export const ScoreEngineConfiguration = () => {
             </div>
           ) : (
             <div className="bg-surface-1 border border-border-subtle rounded-lg p-8 text-center">
-              <p className="text-text-secondary">Sélectionnez une configuration pour voir les détails</p>
+              <p className="text-fg-secondary">Sélectionnez une configuration pour voir les détails</p>
             </div>
           )}
         </motion.div>

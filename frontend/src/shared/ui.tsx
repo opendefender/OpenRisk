@@ -132,7 +132,7 @@ export function Chip({ label, active, onClick, color }: { label: string; active?
       style={{
         border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
         background: active ? (color ? softFill(color, 16) : 'var(--accent-soft)') : 'transparent',
-        color: active ? color ?? 'var(--accent)' : 'var(--text-secondary)',
+        color: active ? color ?? 'var(--accent)' : 'var(--fg-secondary)',
       }}
     >
       {label}
@@ -176,7 +176,7 @@ export function StatusPill({ status }: { status: RiskStatus }) {
     open: [L.st_open, 'var(--info)'],
     progress: [L.st_progress, 'var(--high)'],
     mitigated: [L.st_mitigated, 'var(--low)'],
-    accepted: [L.st_accepted, 'var(--text-muted)'],
+    accepted: [L.st_accepted, 'var(--fg-muted)'],
   };
   const [lbl, col] = map[status] ?? map.open;
   return (
@@ -197,7 +197,7 @@ export function Avatar({ initials, size = 26, title }: { initials: string; size?
         // A flat accent fill. The 135deg gradient this replaces put a piece of
         // brand decoration on every row of every table that shows an owner.
         background: 'var(--accent-solid)',
-        color: 'var(--text-on-solid)',
+        color: 'var(--fg-on-solid)',
       }}
     >
       {initials}
@@ -206,7 +206,7 @@ export function Avatar({ initials, size = 26, title }: { initials: string; size?
 }
 
 export function FwBadge({ fw }: { fw: string }) {
-  const col = { ISO27001: '#7c6cff', COBAC: '#30d158', BCEAO: '#ff9f0a', NIST: '#0a84ff', DORA: '#ff2d92', SOC2: '#64d2ff', ANSSI: '#ff453a' }[fw] ?? 'var(--text-secondary)';
+  const col = { ISO27001: '#7c6cff', COBAC: '#30d158', BCEAO: '#ff9f0a', NIST: '#0a84ff', DORA: '#ff2d92', SOC2: '#64d2ff', ANSSI: '#ff453a' }[fw] ?? 'var(--fg-secondary)';
   return (
     <span className="text-2xs font-semibold px-2 py-0.5 rounded-sm" style={{ color: col, background: softFill(col, 14) }}>
       {fw}

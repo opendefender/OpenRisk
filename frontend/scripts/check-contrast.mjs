@@ -97,7 +97,7 @@ function contrast(fg, bg) {
 const SURFACES = ['--surface-0', '--surface-1', '--surface-2', '--surface-3', '--surface-sunken'];
 
 const PAIRS = [
-  ...['--text-primary', '--text-secondary', '--text-muted'].flatMap((text) =>
+  ...['--fg-primary', '--fg-secondary', '--fg-muted'].flatMap((text) =>
     SURFACES.map((surface) => ({ text, surface, min: AA_NORMAL })),
   ),
   // Semantic text on its own tinted surface.
@@ -112,7 +112,7 @@ const PAIRS = [
   { text: '--danger-text', surface: '--surface-2', min: AA_NORMAL },
   { text: '--info-text', surface: '--surface-2', min: AA_NORMAL },
   // Inverse text sits on the accent fill of a primary button.
-  { text: '--text-inverse', surface: '--accent-500', min: AA_NORMAL },
+  { text: '--fg-inverse', surface: '--accent-500', min: AA_NORMAL },
   // The accent has two steps and they are held to DIFFERENT bars, because they
   // do different jobs. --accent is the MARK: a keyline, an active border, a
   // focus ring, a fill — non-text, so 3:1 (WCAG 1.4.11). --accent-500 is the
@@ -124,11 +124,11 @@ const PAIRS = [
   // Text on a solid semantic fill (destructive button, status badge). axe
   // caught this pair missing: the button used --danger as a fill with the
   // ordinary text token on top, which measured 3.1:1.
-  { text: '--text-on-solid', surface: '--danger-solid', min: AA_NORMAL },
-  { text: '--text-on-solid', surface: '--success-solid', min: AA_NORMAL },
-  { text: '--text-on-solid', surface: '--warning-solid', min: AA_NORMAL },
-  { text: '--text-on-solid', surface: '--info-solid', min: AA_NORMAL },
-  { text: '--text-on-solid', surface: '--accent-solid', min: AA_NORMAL },
+  { text: '--fg-on-solid', surface: '--danger-solid', min: AA_NORMAL },
+  { text: '--fg-on-solid', surface: '--success-solid', min: AA_NORMAL },
+  { text: '--fg-on-solid', surface: '--warning-solid', min: AA_NORMAL },
+  { text: '--fg-on-solid', surface: '--info-solid', min: AA_NORMAL },
+  { text: '--fg-on-solid', surface: '--accent-solid', min: AA_NORMAL },
   // Risk colours are used as SMALL text inside a tinted chip, not just as a
   // fill, so they are held to the normal AA bar on the raised surface. The
   // large-text bar was too lenient and let --risk-moderate ship at 3.62:1

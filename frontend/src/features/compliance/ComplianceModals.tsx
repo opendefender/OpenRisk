@@ -157,7 +157,7 @@ export function FooterButtons({ onCancel, submitLabel, pending }: { onCancel: ()
       <button type="button" onClick={onCancel} className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold text-ink-soft hover:text-ink transition-colors" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}>
         {tr('Annuler', 'Cancel')}
       </button>
-      <button type="submit" disabled={pending} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5 transition-all disabled:opacity-60" style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
+      <button type="submit" disabled={pending} className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-fg-on-solid inline-flex items-center gap-1.5 transition-all disabled:opacity-60" style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
         {pending && <Loader2 size={15} className="animate-spin" />}
         {submitLabel}
       </button>
@@ -290,7 +290,7 @@ export function ImportFrameworkDialog({ onClose, onImported }: { onClose: () => 
                   disabled={!catalog.available || importCatalog.isPending}
                   onClick={() => handleImport(catalog)}
                   className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold shrink-0 inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
-                  style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+                  style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
                 >
                   {pending ? <Loader2 size={14} className="animate-spin" /> : tr('Importer', 'Import')}
                 </button>

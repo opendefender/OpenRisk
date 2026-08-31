@@ -93,8 +93,8 @@ export const CompliancePage = () => {
       <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{t('compliance.title')}</h1>
-          <p className="text-sm text-text-muted">{t('compliance.description')}</p>
+          <h1 className="text-2xl font-semibold text-fg-primary">{t('compliance.title')}</h1>
+          <p className="text-sm text-fg-muted">{t('compliance.description')}</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
@@ -145,11 +145,11 @@ export const CompliancePage = () => {
                   type="button"
                   onClick={() => framework.id && selectFramework(framework.id)}
                   className={`w-full rounded-xl px-4 py-2.5 pr-10 text-left text-sm transition-colors ${
-                    selectedFrameworkId === framework.id ? 'text-text-primary' : 'text-text-secondary group-hover:text-text-primary'
+                    selectedFrameworkId === framework.id ? 'text-fg-primary' : 'text-fg-secondary group-hover:text-fg-primary'
                   }`}
                 >
                   <div className="font-medium">{framework.name}</div>
-                  {framework.version && <div className="text-xs text-text-muted">{framework.version}</div>}
+                  {framework.version && <div className="text-xs text-fg-muted">{framework.version}</div>}
                 </button>
                 {isAdmin && framework.id && (
                   <button
@@ -157,7 +157,7 @@ export const CompliancePage = () => {
                     aria-label={t('compliance.deleteFramework')}
                     title={t('compliance.deleteFramework')}
                     onClick={() => handleDeleteFramework(framework.id as string, framework.name)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-text-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger-text focus:opacity-100 group-hover:opacity-100"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-fg-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger-text focus:opacity-100 group-hover:opacity-100"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -176,7 +176,7 @@ export const CompliancePage = () => {
               <ComplianceGauge progress={computeComplianceProgress(selectedFrameworkId, controls)} />
 
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-fg-muted">
                   {t('compliance.controls')}
                 </h2>
                 <div className="flex items-center gap-2">

@@ -28,7 +28,7 @@ interface StatusDotProps {
 
 const STATUS_CONFIG: Record<string, { bg: string; label: string; textColor: string }> = {
   open: { bg: 'bg-danger', label: 'Ouvert', textColor: 'text-danger-text' },
-  draft: { bg: 'bg-surface-3', label: 'Brouillon', textColor: 'text-text-secondary' },
+  draft: { bg: 'bg-surface-3', label: 'Brouillon', textColor: 'text-fg-secondary' },
   active: { bg: 'bg-danger', label: 'Actif', textColor: 'text-danger-text' },
   in_progress: { bg: 'bg-accent', label: 'En cours', textColor: 'text-info-text' },
   planned: { bg: 'bg-blue-400', label: 'Planifié', textColor: 'text-info-text' },
@@ -37,10 +37,10 @@ const STATUS_CONFIG: Record<string, { bg: string; label: string; textColor: stri
   accepted: { bg: 'bg-purple-500', label: 'Accepté', textColor: 'text-purple-400' },
   closed: { bg: 'bg-success', label: 'Fermé', textColor: 'text-success-text' },
   done: { bg: 'bg-success', label: 'Terminé', textColor: 'text-success-text' },
-  cancelled: { bg: 'bg-surface-3', label: 'Annulé', textColor: 'text-text-secondary' },
+  cancelled: { bg: 'bg-surface-3', label: 'Annulé', textColor: 'text-fg-secondary' },
 };
 
-const DEFAULT_STATUS_CONFIG = { bg: 'bg-surface-3', label: 'Inconnu', textColor: 'text-text-secondary' };
+const DEFAULT_STATUS_CONFIG = { bg: 'bg-surface-3', label: 'Inconnu', textColor: 'text-fg-secondary' };
 
 const getStatusConfig = (status: Status) => STATUS_CONFIG[status?.toLowerCase()] ?? DEFAULT_STATUS_CONFIG;
 

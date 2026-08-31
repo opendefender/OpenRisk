@@ -164,7 +164,7 @@ export function IncidentsScreen() {
             style={{ color: statusMeta(inc.status).color, background: `color-mix(in srgb,${statusMeta(inc.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${statusMeta(inc.status).color} 30%,transparent)`, cursor: canWrite ? 'pointer' : 'not-allowed' }}
           >
             {STATUSES.map((st) => (
-              <option key={st} value={st} style={{ color: 'var(--text-primary)', background: 'var(--bg-elevated)' }}>{tr(STATUS[st].fr, STATUS[st].en)}</option>
+              <option key={st} value={st} style={{ color: 'var(--fg-primary)', background: 'var(--bg-elevated)' }}>{tr(STATUS[st].fr, STATUS[st].en)}</option>
             ))}
           </select>
         </div>
