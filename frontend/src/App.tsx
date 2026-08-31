@@ -51,6 +51,7 @@ const ResetPasswordScreen = lazy(() => import('./features/auth/ResetPasswordScre
 //     cut the single ~1.5 MB bundle into per-route chunks. ---
 const SettingsScreen = lazy(() => import('./features/settings/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
 const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const ActionCenterPage = lazy(() => import('./features/action-center/ActionCenterPage').then(m => ({ default: m.ActionCenterPage })));
 const ImportRisksPage = lazy(() => import('./features/risks/ImportRisksPage').then(m => ({ default: m.ImportRisksPage })));
 const RiskRegisterPage = lazy(() => import('./features/risks/RiskRegisterPage').then(m => ({ default: m.RiskRegisterPage })));
 const UnmappedRisksPage = lazy(() => import('./features/risks/UnmappedRisksPage').then(m => ({ default: m.UnmappedRisksPage })));
@@ -370,6 +371,9 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
+          {/* #433 — the whole queue. The dashboard panel is a preview of the
+              top of this list; ?page= makes each page a shareable address. */}
+          <Route path="action-center" element={<ActionCenterPage />} />
 
           {/* ---------------- Risks ---------------- */}
           <Route path="risks" element={<RiskRegisterPage />} />

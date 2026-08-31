@@ -52,6 +52,11 @@ export interface RouteNode {
 export const ROUTES: RouteNode[] = [
   /* ---------------- Dashboard ---------------- */
   { path: '/', labelKey: 'n_dashboard' },
+  // Depth 1, so the parent is not required by the tree invariant — it is
+  // declared anyway because it is TRUE: the Action Center is a drill-down from
+  // the dashboard panel, and saying so gives the page a breadcrumb and a "back"
+  // target for the case that matters, a deep link opened in a fresh tab.
+  { path: '/action-center', labelKey: 'n_actionCenter', parent: '/' },
 
   /* ---------------- Risks ---------------- */
   { path: '/risks', labelKey: 'n_risks', perm: 'risks:read' },
