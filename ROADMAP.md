@@ -420,7 +420,7 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   mergés — l'endpoint n'existe pas sur `master`. La capacité ne sera déclarée livrée, et n'entrera dans la
   matrice de claims, qu'au merge des **deux**. Règle 12.
   **Reste à faire** : route dédiée `/action-center` (page pleine, pagination au-delà des 8 premières
-  lignes) — fast-follow explicitement autorisé par #430.
+  lignes) — fast-follow explicitement autorisé par #430, suivi dans **#433**.
 
 **Bloc E — Wave 2/3 (gamechangers restants)**
 12. Digital Twin (14.13), War Room (14.14), Attack Path (14.15), Access Review (14.10), Offline (14.17),
