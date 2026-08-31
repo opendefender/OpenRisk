@@ -5,60 +5,134 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-014 — Relicense `design-system/` to Apache-2.0?
-**Context** — `frontend/src/features/ai/` and
-`frontend/src/features/reports/BoardReportPage.tsx` are
-`LicenseRef-OpenRisk-Commercial` and import the AGPL design system. This is
-resolvable today by copyright ownership — OpenDefender holds the copyright in
-both, so it may combine them — but a third-party auditor doing a procurement
-review sees commercial code importing AGPL code and has to be talked out of the
-obvious reading. Relicensing `design-system/` to Apache-2.0 removes the argument
-instead of answering it.
-**Options** — **A** relicense `design-system/` to `Apache-2.0` and add
-`design-system/NOTICE` · **B** leave it AGPL and document the ownership argument
-in `LICENSING.md` · **C** leave it AGPL and move the two EE consumers off the
-design system.
-**Recommendation** — **A**. The design system is the artifact you *want* copied
-and extended; its value is protected by trademark, not by copyleft. Copyleft on
-it buys nothing and costs an audit conversation on every enterprise deal. C is
-the worst option: it forces the EE surfaces to reinvent primitives, which is the
-exact fragmentation issue #439 exists to end.
-**Cost of delay** — Low but non-zero, and it grows. Every new file added under
-`design-system/` is one more header to change later, and #443/#444 are about to
-add a lot of them. Doing it before the primitive layer lands is materially
-cheaper than after.
-**Reversible?** — **No, not practically.** Apache-2.0 is irrevocable for anything
-already published; the project can relicense future versions but cannot claw back
-what shipped. This is why it is your call and not the agent's.
-**Status** — OPEN
-
-### D-015 — How is CLA acceptance enforced: `cla-assistant` or DCO?
-**Context** — `CLA.md` now exists (this branch) and acceptance is recorded by a
-`Signed-off-by` trailer. Nothing enforces it: there is no CLA check, no DCO
-check, and no PR template in `.github/`. A CLA nobody verifies protects the
-dual-licensing right about as well as no CLA, which is what makes the Enterprise
-Edition defensible.
-**Options** — **A** DCO check — a GitHub Action asserting the `Signed-off-by`
-trailer on every commit; no third party, no data leaves GitHub, no account to
-administer · **B** `cla-assistant` — a hosted bot storing signatures against
-GitHub identities; a real audit trail, but a third-party service holding
-contributor identity data · **C** `cla-assistant` self-hosted — the audit trail
-without the third party, at the cost of running it.
-**Recommendation** — **A now, revisit at the first corporate contribution.** The
-trailer is a real, timestamped, per-commit record in git history and costs one
-workflow file. B is the stronger artifact but is a **new external service** and
-touches contributor personal data, which is exactly the kind of call the
-constitution routes to you rather than to an agent.
-**Cost of delay** — Accrues per merged PR. Every external contribution merged
-without a recorded acceptance is one more contribution whose dual-licensing
-status rests on the CONTRIBUTING.md text alone.
-**Reversible?** — Yes. Switching enforcement later is a workflow change; already
-merged commits keep whatever record they have.
-**Status** — OPEN
+None. Every entry in this register is resolved as of 2026-08-31.
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-015 — CLA acceptance is enforced by a DCO check · 2026-08-31
+**Decided** — Option A. A GitHub Action asserts the `Signed-off-by` trailer on
+every commit. No third-party service, revisit at the first corporate contribution.
+**Rationale (owner)** — Matches the recommendation. The trailer is already a real,
+timestamped, per-commit record in git history, so the gap was enforcement rather
+than evidence, and enforcement costs one workflow file. `cla-assistant` is a new
+external service holding contributor personal data — the stronger artifact, but
+not worth the data-processing question before a single corporate contribution has
+arrived.
+**Consequence** — A DCO workflow is added under `.github/workflows/` and made a
+required check. `CONTRIBUTING.md` must state that `git commit -s` is mandatory.
+Switching to `cla-assistant` later is a workflow change; commits merged under DCO
+keep their trailer as their record, so nothing has to be re-signed.
+**Unblocked** — #453 opened to execute it (`status:ready`). Enforcement is not live until
+the owner flips the required-check setting by hand; #453 says so in its DoD.
+
+### D-014 — `design-system/` is relicensed to Apache-2.0 · 2026-08-31
+**Decided** — Option A. `design-system/` becomes `Apache-2.0` and gains a
+`design-system/NOTICE`. The AGPL-3.0-only core and the
+`LicenseRef-OpenRisk-Commercial` EE boundary are unchanged; only the design
+system moves.
+**Rationale (owner)** — Matches the recommendation. The design system is the
+artifact the project *wants* copied and extended, and its value is protected by
+trademark rather than by copyleft, so copyleft on it bought nothing and cost an
+audit conversation on every enterprise deal. Option C — moving the two EE
+consumers off the design system — was the worst available, because it forces the
+EE surfaces to reinvent primitives, which is the exact fragmentation epic #439
+exists to end.
+**Consequence** — Irrevocable for anything published under it; future versions
+can be relicensed but what ships cannot be clawed back. `LICENSING.md` gains a
+`design-system/` row, every file under it takes an `Apache-2.0` SPDX header, and
+`design-system/NOTICE` is created and thereafter records each vendored
+third-party component with its upstream commit. `frontend/src/features/ai/` and
+`frontend/src/features/reports/BoardReportPage.tsx` may import it with no
+ownership argument required. Note the register's own path ambiguity: the vendored
+design system lives at `frontend/design-system/` and no top-level
+`design-system/` exists — the relicensing applies to the directory that exists.
+**Unblocked** — #452 opened to execute the relicensing (`status:ready`, milestone `ds-v1`),
+and it gates #443 and #444. Both of those remain `status:blocked` — D-014 was one of four
+blockers on #443, not the only one; #446 must still land first, two dependencies are still
+undeclared, and two spec gaps are still open. See the readiness report on #443.
+
+### D-013 — Residual score is additive, in the SmartScore mould · 2026-08-31
+**Decided** — Option A. A new `pkg/scoring` function computes residual from
+`risk_control_mappings`. `Risk.Score` is untouched and stays frozen. One ADR is
+written before PR 2 of #438 opens.
+**Rationale (owner)** — Matches the recommendation. Option B answers a different
+question — portfolio money, not this risk's posture — and putting a CFO figure
+into a first-run teaching step is the wrong number in the wrong place. Option C
+removes the one moment in the funnel where the product demonstrates something a
+spreadsheet cannot, which is the reason step A5 exists.
+**Consequence** — The ADR is the long pole, not the code, and it must land before
+PR 2 opens. Reversible only while nothing persists to `Risk.ResidualRisk`; once
+tenant rows carry computed residuals, changing the formula silently restates
+their history, so the ADR fixes the formula before the first write.
+**Unblocked** — #438, step A5 of PR 2.
+
+### D-012 — `origin: "starter"` is a new `RiskSource` enum value · 2026-08-31
+**Decided** — Option A. `SourceStarter RiskSource = "starter"` is added to the
+enum and to `ParseRiskSource`.
+**Rationale (owner)** — Matches the recommendation. `Risk.Source` is already the
+field that answers "where did this risk come from", the column is `varchar(20)`
+so no migration is needed, and the value inherits the existing validation. B adds
+a second column answering the same question; C hides provenance in a
+`CustomFields` blob that nothing indexes or validates, which PR 4 would then have
+to grep to prove the starter rows are real.
+**Consequence** — Reversible: an unused enum value is inert. PR 4 proves the
+starter rows by querying `source = 'starter'`.
+**Unblocked** — #438, PR 2.
+
+### D-011 — `posture.revealed` is a non-catalogue key with its own assertion · 2026-08-31
+**Decided** — Option A. `EventKeyPostureRevealed` is added,
+`ValidateActivationSteps()` is left untouched, and a sibling
+`ValidateNonChecklistEventKeys()` asserts that `posture.revealed` and
+`aha.reached` are absent from `activationSteps`.
+**Rationale (owner)** — Matches the recommendation. The mechanism the W1-05 brief
+asked for already exists — `ActivationAhaReached` is a non-catalogue key today
+and the validator iterates `activationSteps` only, so no amendment was ever
+needed. What was missing is the assertion that a non-catalogue key never leaks
+into the catalogue, which is exactly where a future edit would break it. Option C
+would put a server-recorded outcome into a list of user chores and is refused by
+the brief's own invariant 2.
+**Consequence** — Reversible; an unused event key costs nothing to drop before
+any row is written.
+**Unblocked** — #438, PR 1.
+
+### D-010 — Aha switches definition; `time_to_aha_seconds` gains an `aha_definition` label · 2026-08-31
+**Decided** — Option A. `monitoring.TimeToAha` becomes a
+`HistogramVec{aha_definition}`: v1 freezes, v2 starts empty, and
+`SlowTimeToAha` in `deployment/monitoring/alerts.yml` selects
+`aha_definition="v2"`.
+**Rationale (owner)** — Matches the recommendation. Option B splices two
+incomparable definitions into one P50 and makes the alert lie the moment the
+switch lands; option C leaves the Posture Reveal decorative, which is the thing
+the brief exists to fix. The label is what makes a wrong definition survivable.
+**Consequence** — **Irreversible once v2 observations are written**: the v1
+series cannot be reconstructed from them. Record for whoever implements this: the
+real switch is executive-dashboard score computation → posture-summary
+computation. The W1-05 brief's framing of it as "`first_risk` → `posture.revealed`"
+is **wrong** and must not be copied forward — `aha.go:44` tests
+`ScoreComputed && OwnDataPoints > 0 && ComplianceGaps > 0`, and `first_risk` is a
+checklist step that has never defined the Aha. Carry forward one existing defect
+that A must not inherit: `AhaReachedTotal.Inc()` sits *inside*
+`ObserveTimeToAha` (`pkg/monitoring/activation.go:81`), so a tenant with no
+signup anchor reaches Aha without being counted — `openrisk_reveal_reached_rate`
+must not be derived from that counter.
+**Unblocked** — #438, PR 1.
+
+### D-009 — W1-05 base branch: resolved by events, #234 is merged · 2026-08-31
+**Decided** — Option A, and it has already happened without the owner having to
+act. The question was whether to merge #234 before cutting the W1-05 branches;
+#234 merged as PR #437 on 2026-08-31 at 10:35Z.
+**Rationale (owner)** — Not a judgement call any more. Verified rather than
+assumed: `origin/234-w1-04-…` is **0 ahead of `master`** and 9 behind, and every
+artefact the entry named is on `master` —
+`backend/internal/infrastructure/repository/gorm_activation_repository.go`,
+`tests/e2e/activation.spec.ts`, and `BackfillExistingMembers` in
+`gorm_activation_backfill.go`, `membership/service.go` and `cmd/server/main.go`.
+**Consequence** — All four W1-05 PRs are cut from `master`, not stacked. The
+drift the entry warned about did not accumulate. Nothing to stack, nothing to
+rebase.
+**Unblocked** — #438, all four PRs.
 
 ### D-008 — One Time to First Value number: 8 minutes · 2026-08-31
 **Decided** — Option A. The committed public promise is **8 minutes** from
