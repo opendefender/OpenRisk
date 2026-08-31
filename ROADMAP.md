@@ -393,7 +393,7 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
 11. **Billing & Plans (17.2)** + conversion (Partie C) + **Onboarding (17.6)** + **Super Admin (17.4)**.
 
 **Bloc W1 — Wave 1, fondations produit**
-- [~] **W1-03 — Action Center contextuel** (épique #201, scindée en #429 backend / #430 frontend).
+- [x] **W1-03 — Action Center contextuel** (épique #201, scindée en #429 backend / #430 frontend).
   **Backend livré** (#429, branche `429-feat-build-the-action-center-aggregation-api-backend`) :
   `GET /api/v1/action-center` — agrégation **en lecture seule** de six sources existantes (mitigation en
   retard · risque critique sans mitigation active · approbation dont l'appelant est l'approbateur de
@@ -404,8 +404,7 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   `internal/infrastructure/repository/actioncenter_repository.go`,
   `internal/handler/action_center_handler.go`. Contrat publié dans `docs/openapi.yaml` +
   `frontend/src/types/openapi.generated.ts`.
-  **Frontend livré** (#430, branche `430-feat-build-the-action-center-ui-with-role-aware-priority-and-deep-links-frontend`,
-  empilée sur celle de #429 car le contrat n'existe que là) : panneau « Centre d'actions » monté sur le
+  **Frontend livré** (#430, PR #432 puis **PR #434**) : panneau « Centre d'actions » monté sur le
   tableau de bord (`/`) pour **toutes** les personas — `DashboardShell` pour les cinq personas dédiées,
   `PostureDashboard` qui n'utilise pas ce shell le monte lui-même. `frontend/src/features/action-center/`
   (`actionCenterService.ts`, `useActionItems.ts`, `actionLinks.ts`, `ActionCenterPanel.tsx`). Types importés
@@ -416,11 +415,19 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   (`https://`, `//host`, `javascript:`) — fait **supprimer** l'élément avec un warning, jamais afficher une
   ligne morte. FR/EN dans `src/locales`. 14 tests (`__tests__/actionCenter.test.tsx`), dont axe-core sur le
   panneau rempli et vide.
-  **⚠️ Aucun utilisateur ne peut encore l'atteindre** : #429 (PR #431) et #430 sont tous deux ouverts, non
-  mergés — l'endpoint n'existe pas sur `master`. La capacité ne sera déclarée livrée, et n'entrera dans la
-  matrice de claims, qu'au merge des **deux**. Règle 12.
-  **Reste à faire** : route dédiée `/action-center` (page pleine, pagination au-delà des 8 premières
-  lignes) — fast-follow explicitement autorisé par #430, suivi dans **#433**.
+  **Atteignable sur `master` depuis le 2026-08-31** : backend mergé par PR #431 (07:54Z), frontend par
+  **PR #434** (08:15Z). PR #432 avait été mergée dans la branche `429-*` — déjà absorbée par `master` — et
+  laissait donc l'UI sur une branche morte ; #434 est la reprise, re-vérifiée contre le `master` courant
+  (`tsc` propre, eslint propre, 367/367, build OK, budget 245,7/250 Ko, `check:tokens` 164 paires 0 échec).
+  **Reste à faire**
+  - Ligne W1-03 dans `docs/MARKETING_CLAIM_MATRIX.md` : **non ajoutée**. Le fichier réserve explicitement
+    le statut `VERIFIED` à l'agent `product-verifier` ; la ligne doit venir de `/verify-claims`, pas d'une
+    saisie manuelle. C'est le dernier élément de la DoD de #201.
+  - Route dédiée `/action-center` (page pleine, pagination au-delà des 8 premières lignes) — fast-follow
+    explicitement autorisé par #430, suivi dans **#433**.
+  - Jamais exercé contre un backend vivant : tous les tests bouchonnent à la frontière du service. Le
+    panneau n'a pas été rendu contre un `GET /api/v1/action-center` en fonctionnement, et la passe axe
+    Playwright sur `/` avec des éléments présents n'a pas été faite.
 
 **Bloc E — Wave 2/3 (gamechangers restants)**
 12. Digital Twin (14.13), War Room (14.14), Attack Path (14.15), Access Review (14.10), Offline (14.17),
