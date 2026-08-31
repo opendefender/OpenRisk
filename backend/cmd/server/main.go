@@ -794,6 +794,13 @@ func main() {
 	if err := activationRepo.BackfillExistingMembers(context.Background()); err != nil {
 		log.Printf("Warning: activation backfill failed (existing users may see the onboarding wizard): %v", err)
 	}
+	// The event log is forward-only, so a tenant configured before activation
+	// shipped has no events at all and is told to create the first risk it
+	// created months ago. Seed the checklist from the records the tenant already
+	// holds, dated from those records. Idempotent; safe on every boot.
+	if err := activationRepo.BackfillDerivedEvents(context.Background()); err != nil {
+		log.Printf("Warning: activation derived backfill failed (configured tenants may see completed steps as incomplete): %v", err)
+	}
 	activationRecorder := appactivation.NewRecorder(activationRepo)
 	ahaRecorder := appactivation.NewAhaRecorder(activationRepo)
 	// Legacy handlers that build their own use cases inline (mitigation) read the
