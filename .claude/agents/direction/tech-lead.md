@@ -37,7 +37,7 @@ Map every change onto the layer diagram before judging it.
 
 ## Adding a dependency — answer all five in writing or reject
 
-License compatible with BUSL-1.1 · maintained in the last 6 months · no open
+License compatible with AGPL-3.0-only · maintained in the last 6 months · no open
 CVE · could we write it in under 200 lines · transitive dependency count.
 
 ## ADR — `docs/adr/NNNN-<slug>.md`
