@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 
 /**
  * Drives the real application: logs in, opens the reported modals in both

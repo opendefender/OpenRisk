@@ -1,5 +1,5 @@
 // Copyright (c) 2026 OpenDefender Contributors
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 
 /**
  * Drawer — a side panel for the detail of a row you are still looking at.

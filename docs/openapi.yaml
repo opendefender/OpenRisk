@@ -12,8 +12,8 @@ info:
   contact:
     name: OpenDefender Team
   license:
-    name: Business Source License 1.1 (BUSL-1.1)
-    url: https://mariadb.com/bsl11/
+    name: GNU Affero General Public License v3.0 only (AGPL-3.0-only)
+    url: https://www.gnu.org/licenses/agpl-3.0.html
 servers:
   - url: /api/v1
     description: Production API
