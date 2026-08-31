@@ -107,7 +107,7 @@ export default function Analytics() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block animate-spin">
-            <div className="h-8 w-8 border-4 border-accent-400 border-t-blue-600 rounded-full"></div>
+            <div className="h-8 w-8 border-4 border-accent border-t-blue-600 rounded-full"></div>
           </div>
           <p className="mt-4 text-text-secondary">Loading analytics...</p>
         </div>
@@ -167,7 +167,7 @@ export default function Analytics() {
           <button
             onClick={fetchDashboard}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-500 text-text-primary rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-solid hover:brightness-110 text-text-on-solid rounded-lg transition disabled:opacity-50"
           >
             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
             Refresh

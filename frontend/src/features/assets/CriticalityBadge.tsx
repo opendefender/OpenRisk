@@ -7,7 +7,7 @@ const COLORS: Record<string, string> = {
   CRITICAL: 'bg-danger/10 text-danger-text border-danger/20',
   HIGH: 'bg-warning/10 text-warning-text border-warning/20',
   MEDIUM: 'bg-warning/10 text-warning-text border-warning/20',
-  LOW: 'bg-accent-500/10 text-info-text border-accent-400/20',
+  LOW: 'bg-accent-soft text-info-text border-accent-line',
 };
 
 export const CriticalityBadge = ({ level }: { level: string }) => (

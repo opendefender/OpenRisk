@@ -116,7 +116,7 @@ export default function AuditLogs() {
           <h1 className="text-3xl font-bold text-text-primary">Audit Logs</h1>
         </div>
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-400"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
         </div>
       </div>
     );
@@ -171,7 +171,7 @@ export default function AuditLogs() {
                 setActionFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-4 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-accent-400 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-focus focus:border-transparent"
             >
               <option value="">All Actions</option>
               <option value="login">Login</option>
@@ -196,7 +196,7 @@ export default function AuditLogs() {
                 setResultFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-4 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-accent-400 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-focus focus:border-transparent"
             >
               <option value="">All Results</option>
               <option value="success">Success</option>
@@ -292,7 +292,7 @@ export default function AuditLogs() {
                 setLimit(Number(e.target.value));
                 setPage(1);
               }}
-              className="px-3 py-1 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-accent-400 focus:border-transparent"
+              className="px-3 py-1 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-focus focus:border-transparent"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>

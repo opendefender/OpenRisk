@@ -72,7 +72,7 @@ export function DangerZonePanel() {
           onClick={cancel}
           disabled={cancelDeletion.isPending}
           className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold text-text-primary disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
+          style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
         >
           Annuler la suppression
         </button>

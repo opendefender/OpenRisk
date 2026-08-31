@@ -77,7 +77,7 @@ export const PrioritizedMitigationsList = () => {
         return (
           <div 
             key={m.id} 
-            className={`p-4 border border-border-default rounded-lg shadow-xl transition-all duration-200 hover:border-accent-400 ${priorityColor}`}
+            className={`p-4 border border-border-default rounded-lg shadow-xl transition-all duration-200 hover:border-accent ${priorityColor}`}
           >
             <div className="flex justify-between items-start">
               <h3 className="text-lg font-semibold text-text-primary">{m.title}</h3>

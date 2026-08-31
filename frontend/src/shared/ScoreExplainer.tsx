@@ -331,7 +331,7 @@ function FactorBar({
           className="h-full rounded-full"
           style={{
             width: `${width}%`,
-            background: 'linear-gradient(90deg,var(--accent),var(--accent-2))',
+            background: 'var(--accent)',
           }}
         />
       </div>

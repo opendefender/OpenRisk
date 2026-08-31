@@ -95,7 +95,7 @@ export function IntegrationsPanel({ isOpen, onClose, onImport }: { isOpen: boole
               <button onClick={() => setView('ticketing')} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold inline-flex items-center gap-1.5" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
                 <Ticket size={15} /> {tr('Ticketing', 'Ticketing')}
               </button>
-              <button onClick={onImport} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+              <button onClick={onImport} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5" style={{ background: 'var(--accent-solid)' }}>
                 <Upload size={15} /> {tr('Import manuel', 'Manual import')}
               </button>
             </div>
@@ -286,7 +286,7 @@ function IntegrationForm({ source, meta, existing, canWrite, onDone }: {
               <PlayCircle size={14} /> {tr('Pull maintenant', 'Pull now')}
             </button>
           )}
-          <button onClick={() => submit(false)} disabled={save.isPending} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button onClick={() => submit(false)} disabled={save.isPending} className="ml-auto h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
             <Save size={15} /> {tr('Enregistrer', 'Save')}
           </button>
         </div>
@@ -369,7 +369,7 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
       </div>
       {canWrite && (
         <div className="px-5 py-3.5 flex justify-end" style={{ borderTop: '1px solid var(--border)' }}>
-          <button onClick={submit} disabled={save.isPending} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-primary inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}>
+          <button onClick={submit} disabled={save.isPending} className="h-9 px-4 rounded-[9px] text-[13px] font-semibold text-text-on-solid inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
             <Save size={15} /> {tr('Enregistrer', 'Save')}
           </button>
         </div>

@@ -239,9 +239,8 @@
   border-radius: 10px;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--text-primary);
-  background: var(--accent);
-  box-shadow: 0 4px 16px var(--accent-glow);
+  color: var(--text-on-solid);
+  background: var(--accent-solid);
 }
 .skip-link:focus {
   transform: translateY(0);

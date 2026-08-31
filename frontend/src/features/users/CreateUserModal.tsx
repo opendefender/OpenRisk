@@ -198,7 +198,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                   </div>
                 </div>
 
-                <div className="bg-accent-500/10 border border-accent-400/20 rounded-lg p-3">
+                <div className="bg-accent-soft border border-accent-line rounded-lg p-3">
                   <p className="text-xs text-info-text">
                     💡 The user will be sent an email to verify their account and set a custom password.
                   </p>

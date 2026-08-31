@@ -162,7 +162,7 @@ export function MembersView() {
             onClick={() => setManualInvite(true)}
             data-testid="invite-member"
             className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-            style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', color: 'var(--text-on-solid)', boxShadow: '0 3px 12px var(--accent-glow)' }}
+            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             <UserPlus size={15} /> {tr('Inviter un membre', 'Invite a member')}
           </button>
@@ -754,7 +754,7 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
         <button
           type="submit" disabled={invite.isPending || !email}
           className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold disabled:opacity-60"
-          style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', color: 'var(--text-on-solid)' }}
+          style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
         >
           {invite.isPending ? tr('Envoi…', 'Sending…') : tr("Envoyer l'invitation", 'Send invitation')}
         </button>
@@ -833,7 +833,7 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
       )}
 
       <button onClick={onClose} className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold"
-        style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))', color: 'var(--text-on-solid)' }}>
+        style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}>
         {tr('Terminé', 'Done')}
       </button>
     </Overlay>

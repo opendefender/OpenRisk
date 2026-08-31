@@ -131,8 +131,8 @@ export function ScorePage() {
               onClick={() => navigate('/risks')}
               className="mt-5 h-10 px-4 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2"
               style={{
-                background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-                color: '#fff',
+                background: 'var(--accent-solid)',
+                color: 'var(--text-on-solid)',
               }}
             >
               {tr('Ouvrir le registre des risques', 'Open the risk register')}

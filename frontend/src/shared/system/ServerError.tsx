@@ -30,7 +30,7 @@ export function ServerError({ errorId, onRetry }: ServerErrorProps) {
           <button
             onClick={() => (onRetry ? onRetry() : window.location.reload())}
             className="h-10 px-5 rounded-[11px] inline-flex items-center gap-2 text-[13.5px] font-semibold text-text-primary"
-            style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))' }}
+            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-solid)' }}
           >
             <RefreshCw size={16} /> {tr('Réessayer', 'Try again')}
           </button>

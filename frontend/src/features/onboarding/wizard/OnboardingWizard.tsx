@@ -77,7 +77,7 @@ export function OnboardingWizard() {
             className="h-full rounded-full"
             style={{
               width: `${percent}%`,
-              background: 'linear-gradient(90deg,var(--accent),var(--accent-2))',
+              background: 'var(--accent)',
               transition: 'width .45s var(--ease-out, ease)',
             }}
           />

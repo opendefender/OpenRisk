@@ -94,7 +94,7 @@ export const MitigationCard = ({
       className={cn(
         'p-4 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing',
         isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100',
-        isSelected ? 'border-accent-400 bg-accent-500/5' : 'border-border-default bg-surface-1/40 hover:border-border-default',
+        isSelected ? 'border-accent bg-accent-soft' : 'border-border-default bg-surface-1/40 hover:border-border-default',
       )}
       onClick={onClick}
     >

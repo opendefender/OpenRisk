@@ -212,7 +212,7 @@ export const TeamTab = () => {
                                 <tr key={member.id} className="hover:bg-surface-1/5 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-accent-500 flex items-center justify-center font-bold text-text-primary text-sm">
+                                            <div className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center font-bold text-accent-strong text-sm">
                                                 {member.avatar}
                                             </div>
                                             <div>

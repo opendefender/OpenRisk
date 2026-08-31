@@ -207,10 +207,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="px-[14px] pt-4 pb-2.5">
             <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
               <div
-                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-text-primary"
+                className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-text-on-solid"
                 style={{
-                  background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
-                  boxShadow: '0 2px 10px var(--accent-glow)',
+                  background: 'var(--accent-solid)',
                 }}
               >
                 <OpenRiskLogo size={18} />
@@ -226,8 +225,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
               >
                 <div
-                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-text-primary"
-                  style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
+                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-accent-strong"
+                  style={{ background: 'var(--accent-soft)' }}
                 >
                   {orgInitials}
                 </div>
@@ -252,8 +251,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               }}
               className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-text-primary transition-[filter] hover:brightness-110"
               style={{
-                background: 'linear-gradient(135deg,var(--accent),var(--accent-hover))',
-                boxShadow: '0 3px 12px var(--accent-glow)',
+                background: 'var(--accent-solid)', color: 'var(--text-on-solid)',
               }}
               title={L.newRisk}
             >
@@ -311,7 +309,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   className="h-full rounded-[5px]"
                   style={{
                     width: `${score}%`,
-                    background: `linear-gradient(90deg,var(--accent),${scoreColor})`,
+                    background: scoreColor,
                     transition: 'width .8s cubic-bezier(.2,.8,.2,1)',
                   }}
                 />
@@ -357,8 +355,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 className={cn('flex items-center gap-2.5 min-w-0 rounded-[9px] py-1 pr-1.5 hover:bg-hover transition-colors', collapsed ? 'px-1' : 'flex-1 pl-1')}
               >
                 <div
-                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-text-primary shrink-0"
-                  style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' }}
+                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-accent-strong shrink-0"
+                  style={{ background: 'var(--accent-soft)' }}
                 >
                   {initials(user?.full_name)}
                 </div>

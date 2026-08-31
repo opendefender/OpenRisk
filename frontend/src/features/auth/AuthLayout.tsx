@@ -246,34 +246,14 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         // white type on it depends on. Everything layered on top is exempted for
         // the same reason.
         // eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see above
-        style={{ flex: '0 0 45%', background: 'linear-gradient(150deg,#0a0b12,#111225)' }}
+        style={{ flex: '0 0 45%', background: 'linear-gradient(150deg,#0f0f0f,#1c1c1b)' }}
       >
-        <div
-          className="absolute rounded-full"
-          style={{
-            top: '-15%', right: '-10%', width: 420, height: 420,
-            background: 'radial-gradient(circle,var(--accent-glow),transparent 70%)',
-            filter: 'blur(30px)', opacity: 0.5,
-          }}
-        />
-        <div
-          className="absolute rounded-full"
-          style={{
-            bottom: '0%', left: '-15%', width: 380, height: 380,
-            // Iris glow on the fixed dark brand panel; see the wrapper above.
-            // eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see above
-            background: 'radial-gradient(circle,rgba(124,108,255,.4),transparent 70%)',
-            filter: 'blur(30px)', opacity: 0.5,
-          }}
-        />
-
         <div className="flex items-center gap-2.5 relative" style={cascade(0, reduced)}>
           <div
             className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center"
             style={{
               color: ON_BRAND_PANEL,
-              background: 'linear-gradient(135deg,var(--accent),var(--accent-2))',
-              boxShadow: '0 3px 14px var(--accent-glow)',
+              background: 'var(--accent-solid)',
             }}
           >
             <OpenRiskLogo size={20} />

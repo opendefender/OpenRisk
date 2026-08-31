@@ -151,7 +151,7 @@ export const GamificationDashboard = ({
             onClick={() => setActiveTab(tab)}
             className={`px-6 py-3 font-medium text-sm transition-all border-b-2 ${
               activeTab === tab
-                ? 'text-info-text border-accent-400'
+                ? 'text-info-text border-accent'
                 : 'text-text-secondary border-transparent hover:text-text-secondary'
             }`}
           >
@@ -173,7 +173,7 @@ export const GamificationDashboard = ({
         >
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-surface-1/50 border-border-subtle hover:border-accent-400/50 transition-colors">
+            <Card className="bg-surface-1/50 border-border-subtle hover:border-accent-line transition-colors">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-text-secondary text-sm">Your Rank</p>
@@ -289,7 +289,7 @@ export const GamificationDashboard = ({
                         transition={{ delay: index * 0.05 }}
                         className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
                           isCurrent
-                            ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-accent-400/50'
+                            ? 'bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-accent-line'
                             : 'bg-surface-2/30 hover:bg-surface-2/50'
                         }`}
                       >

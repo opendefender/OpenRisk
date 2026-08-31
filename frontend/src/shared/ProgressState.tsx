@@ -32,7 +32,7 @@ export function ProgressState({ title, steps = [], activeStep = 0, stat, percent
           ) : (
             <div
               className="h-full rounded-full"
-              style={{ width: `${Math.min(100, Math.max(0, percent))}%`, background: 'linear-gradient(90deg,var(--accent),var(--accent-2))', transition: 'width .4s var(--ease-out, ease)' }}
+              style={{ width: `${Math.min(100, Math.max(0, percent))}%`, background: 'var(--accent)', transition: 'width .4s var(--ease-out, ease)' }}
             />
           )}
         </div>
