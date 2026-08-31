@@ -128,6 +128,70 @@ Système de **rôles métiers** par-dessus le RBAC runtime existant. **Additionn
 - **Audit des boutons morts** : `docs/ui/dead-controls.md` recense **13 contrôles morts en production** (traités) + 4 dans du code inatteignable (fichiers supprimés) + 5 laissés avec leur raison. Notamment : point vert « Realtime » → **vrai indicateur de connexion** (`lib/connection.ts`, alimenté par les événements online/offline **et** l'issue de chaque appel axios ; un 4xx n'est pas une panne) · **micro supprimé** · « Voir toutes les notifications » **supprimé** (il ne faisait que fermer le panneau) · **« Supprimer l'organisation » implémenté** (c'était un `<button>` sans `onClick` — `DELETE /rbac/tenants/:id` + radiographie d'impact + logout) · Actualiser / Synchroniser / Matcher → états en vol visibles · funnel de l'Asset Universe → **vrai filtre par criticité** (masque aussi les arêtes pendantes).
 - **Tests** : `frontend/src/shared/datatable/__tests__/DataTable.test.tsx` (**25 tests, verts**) pour toute la logique pure ; `tests/e2e/datatable.spec.ts` + `tests/e2e/dead-controls.spec.ts` (**68 cas** listés par Playwright) pour les effets observables, dont l'obligatoire *« menu de la dernière ligne d'une table de 200 items entièrement visible »*. **Restes honnêtes** : les E2E n'ont pas été **exécutés** dans cette session (ils exigent backend + frontend démarrés) et **la chaîne Go n'est pas installée sur cette machine** → les 4 fichiers backend touchés sont relus mais **non compilés** ; `go build ./... && go vet ./...` reste à passer avant merge.
 
+## Onboarding W1-04 (#234) — la checklist dit enfin la vérité aux tenants déjà configurés
+
+**Problème** — le journal d'événements d'activation est **en avant seulement** : une
+banque inscrite au trimestre précédent, avec 200 risques, un référentiel ISO 27001
+importé et un parc d'actifs cartographié, n'a **aucun** événement et se voit
+demander « créez votre premier risque ». Le seul panneau dont le métier est de dire
+où l'on en est disait quelque chose de visiblement faux, et **aucune action
+utilisateur ne pouvait le corriger** (aucun endpoint ne permet au client de cocher
+une étape). `BackfillExistingMembers` n'amorçait que l'ancre `signup`.
+
+- **Amorçage dérivé** (`internal/infrastructure/repository/gorm_activation_backfill.go`,
+  appelé au boot dans `cmd/server/main.go`) : pour chacune des 6 étapes dérivables,
+  si le tenant **détient** l'enregistrement qui la prouve, on ancre un événement
+  **daté de cet enregistrement** (jamais `now()` — dater du déploiement empoisonnerait
+  `openrisk_time_to_aha_seconds` pour tout l'historique). Sources : `risks`,
+  `compliance_frameworks`, `assets`, `mitigations`, `reports` (**`run_state =
+  'succeeded'` uniquement**), `organization_members` (sous-requête corrélée excluant
+  le membre fondateur : « inviter un coéquipier » = un second membre). Le `Model()`
+  GORM applique le **soft-delete** — un risque supprimé ne prouve rien.
+  **`profile` reste non dérivable** : aucun enregistrement ne la prouve, et cocher
+  une étape que personne n'a faite est exactement le défaut qu'on corrige.
+- **Tenancy (RÈGLE #2)** — chaque dérivation groupe sur la colonne tenant de la table
+  source et **réécrit cette même valeur** ; il n'existe aucune jointure entre une
+  ligne source et un tenant qui ne lui appartient pas, donc aucune disposition des
+  données ne peut faire cocher la checklist de A par les enregistrements de B.
+- **Idempotence** — un tenant qui possède déjà un événement pour une clé est ignoré :
+  les redémarrages ne dupliquent pas de lignes et ne déplacent pas de `completed_at`.
+- **Preuves** — 7 tests sqlite verts (`-run BackfillDerived`) **et vérification sur
+  PostgreSQL réel** : deux tenants amorcés, le « busy » obtient ses 6 étapes datées
+  de ses propres enregistrements, le « quiet » **uniquement** `asset.connected` (son
+  rapport en échec et son fondateur solitaire correctement ignorés) ; après un second
+  boot, 8 événements pour 8 paires (tenant, clé) distinctes.
+
+**Accessibilité** — les 5 routes du wizard et la checklist étaient **absentes** de
+`tests/e2e/a11y.spec.ts` : les premiers écrans qu'un nouveau client voit étaient les
+seuls jamais vérifiés. Elles ne pouvaient pas rejoindre `SCREENS` (ce bloc tourne en
+admin déjà onboardé, et `OnboardingCompletedRedirect` aurait renvoyé chaque
+navigation vers le dashboard — balayage vert sur le mauvais écran). Le nouveau bloc
+**crée son propre tenant** et **assert qu'il est bien sur l'étape demandée** avant de
+scanner. Trois violations réelles trouvées et corrigées : barre de progression sans
+nom accessible ; badges org/compte de la sidebar (`--accent-500` sur le tint
+`--accent-soft` de la variante azure, 4,42:1 → assombri de 2 %, 4,56:1) ; nombre du
+score utilisant le vert de **remplissage** de la bande basse comme texte 12px
+(4,29:1 → `bandTextColor` renvoie `--success-text`, 5,83:1). **6/6 verts.**
+
+**Time to First Value — un seul chiffre : 8 minutes.** L'arbre en promettait trois
+(E2E 8 min · alerte `SlowTimeToAha` P50 > 12 min · `ROADMAP.md` 17.6 « < 5 min »).
+8 est le seul qu'un test assert, donc le seul défendable sous la RÈGLE #12
+(`docs/DECISIONS.md` D-007, arbitrage propriétaire encore ouvert entre 5 et 8).
+`docs/MARKETING_CLAIM_MATRIX.md` gagne les lignes C-002/C-003 et une section
+expliquant que **12 minutes est un seuil d'exploitation, pas la promesse**.
+`ROADMAP.md` 17.6 ne prétend plus « Aucun package onboarding » ; 17.5 reflète le
+balayage réel.
+
+**Restes honnêtes** — pas de revue `devsecops` sur le chemin d'amorçage (recommandée
+avant merge : il écrit dans un journal append-only que tous les tenants lisent) ·
+4 écrans **préexistants** échouent au balayage a11y sur `master` (`/risks`,
+`/vulnerabilities`, `/assets`, `/incidents` — contrastes `--risk-low`/`--risk-high`
+sur chips teintés + un `select` sans nom), **prouvé indépendant de ce travail** en
+rejouant les 4 avec les modifications frontend remisées · `TestBusinessRoles
+ReferenceOnlyCatalogPermissions` échoue sur `master` (`events:read` hors catalogue),
+sans rapport · étapes « intégrations », « première évaluation » et « guidage selon le
+rôle » explicitement hors périmètre (#234 commentaire de découpage).
+
 ## Activation & Onboarding — le parcours « inconnu → Aha en < 8 min »
 **Cause racine corrigée** : l'état d'activation vivait **côté client** (localStorage + comptes dérivés dans le composant checklist). D'où toute la famille de bugs : checklist qui ne se coche pas (drapeau écrit sur un appareil, lu sur un autre), confettis aléatoires (l'heuristique « c'est fait ? » rejouée à chaque render), **deux items barrés après un seul import** (deux étapes client dérivées du même compteur). L'état est désormais **dérivé d'événements serveur**. Branche `feature/activation-onboarding-aha`.
 - **Modèle** (`internal/domain/activation.go`, migration `0043` + AutoMigrate) : `ActivationEvent` (journal **append-only** : tenant, user, `event_key`, `occurred_at`, `payload` jsonb — la lecture ne prend QUE la **première occurrence par clé**, donc une étape terminée ne se dé-coche jamais et son `completed_at` ne bouge plus) ; `ActivationCelebration` (registre par utilisateur, unique `(user_id, step_key)` — c'est *ça* qui rend la célébration idempotente entre reloads et appareils) ; `OnboardingProgress` (état du wizard, **par utilisateur**, reprenable). **Catalogue d'étapes en code** (`activationSteps`) avec l'invariant clé : **1 étape ↔ 1 `event_key`**, imposé par `ValidateActivationSteps()` + test — un import ne peut donc plus cocher deux lignes.
