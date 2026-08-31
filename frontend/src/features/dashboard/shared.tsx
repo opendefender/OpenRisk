@@ -11,6 +11,7 @@ import { FileText, type LucideIcon } from 'lucide-react';
 import { InfoHint } from '../../shared/InfoHint';
 import { MFAEnrollmentBanner } from '../auth/MFAEnrollmentBanner';
 import { MFAPostAhaPrompt } from '../auth/MFAPostAhaPrompt';
+import { ActionCenterPanel } from '../action-center/ActionCenterPanel';
 
 /** Numeric count-up over ~1.1s, ease-out cubic. Re-runs when target changes. */
 export function useCountUp(target: number, duration = 1100): number {
@@ -216,6 +217,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             happen to land on. Both render nothing when MFA is configured. */}
         <MFAEnrollmentBanner />
         <MFAPostAhaPrompt />
+        {/* #430 — the Action Center. Mounted in the shell for the same reason the
+            MFA pair is: the question it answers ("what is mine to act on now")
+            belongs to the account, not to the persona layout it happens to land
+            on. The posture dashboard mounts it itself, as it does not use this
+            shell. The server decides which categories a role can see, so this
+            renders the caller's own queue on every persona. */}
+        <ActionCenterPanel />
         {children}
       </div>
     </div>
