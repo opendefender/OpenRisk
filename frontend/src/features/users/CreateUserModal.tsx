@@ -106,7 +106,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
           >
             <div className="bg-surface border border-border rounded-xl shadow-xl overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-primary/20 to-primary/10 border-b border-border px-6 py-4 flex items-center justify-between">
+              <div className="bg-linear-to-r from-primary/20 to-primary/10 border-b border-border px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-text-primary">Create New User</h2>
                 <button
                   onClick={onClose}

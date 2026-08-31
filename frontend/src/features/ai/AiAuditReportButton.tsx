@@ -56,7 +56,7 @@ export function AiAuditReportButton({ auditId, title }: { auditId: string; title
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(3px)' }} onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-80 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(3px)' }} onClick={() => setOpen(false)}>
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[640px] max-h-[88vh] flex flex-col rounded-[16px]"

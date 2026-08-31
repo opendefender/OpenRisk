@@ -196,7 +196,7 @@ export function MFAEnrollmentBanner() {
         className="flex items-start gap-3 px-4 py-3.5 rounded-[13px] mb-4"
         style={{ background: tone.bg, border: `1px solid ${tone.border}` }}
       >
-        <span className="mt-[1px] shrink-0" style={{ color: tone.accent }} aria-hidden="true">
+        <span className="mt-px shrink-0" style={{ color: tone.accent }} aria-hidden="true">
           <Icon size={18} />
         </span>
 

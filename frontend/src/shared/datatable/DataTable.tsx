@@ -453,7 +453,7 @@ export function DataTable<T>({
           aria-label={L.searchAria}
           data-testid="table-search"
           type="search"
-          className="w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+          className="w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-(--accent)/40"
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
         />
         {searchDraft && (

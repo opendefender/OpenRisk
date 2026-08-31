@@ -128,7 +128,7 @@ export function Chip({ label, active, onClick, color }: { label: string; active?
   return (
     <button
       onClick={onClick}
-      className="h-[var(--control-h-sm)] px-3 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-colors duration-fast ease-out"
+      className="h-(--control-h-sm) px-3 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-colors duration-fast ease-out"
       style={{
         border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
         background: active ? (color ? softFill(color, 16) : 'var(--accent-soft)') : 'transparent',

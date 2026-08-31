@@ -53,7 +53,7 @@ export function ShortcutsOverlay({ open, onClose, lang }: { open: boolean; onClo
   const fr = lang === 'fr';
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4" style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-85 flex items-center justify-center p-4" style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
       <div
         className="w-full max-w-[460px] rounded-[16px] overflow-hidden"
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-overlay)', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}

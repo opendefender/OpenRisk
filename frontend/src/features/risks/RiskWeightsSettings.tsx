@@ -191,7 +191,7 @@ export function RiskWeightsSettings() {
                     value={w[k] || 0}
                     disabled={!isAdmin}
                     onChange={(e) => setFactor(k, Number(e.target.value))}
-                    className="flex-1 accent-[var(--accent)] disabled:opacity-60"
+                    className="flex-1 accent-(--accent) disabled:opacity-60"
                     style={{ accentColor: 'var(--accent)' }}
                   />
                   {/* Effective-share bar */}

@@ -139,7 +139,7 @@ export function RuleEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-80 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[640px] rounded-[16px] flex flex-col or-scalein" style={{ maxHeight: '92vh', background: 'var(--bg-secondary)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2 text-[15px] font-bold text-ink">

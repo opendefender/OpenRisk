@@ -250,7 +250,7 @@ export const RBACTab = () => {
       {/* Info Box */}
       <div className="mt-8 p-4 rounded-lg bg-accent-soft border border-accent-line">
         <div className="flex gap-3">
-          <Shield className="w-5 h-5 text-info-text flex-shrink-0 mt-0.5" />
+          <Shield className="w-5 h-5 text-info-text shrink-0 mt-0.5" />
           <div className="text-sm text-info-text">
             <p className="font-medium mb-1">About Your Access</p>
             <p>Your roles and permissions determine what actions you can perform in OpenRisk. If you need additional access, contact your administrator.</p>

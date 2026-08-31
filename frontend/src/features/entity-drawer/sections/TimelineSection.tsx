@@ -103,7 +103,7 @@ export function TimelineSection({
               )}
               <span
                 aria-hidden
-                className="relative z-[1] mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-subtle bg-surface-2"
+                className="relative z-1 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-subtle bg-surface-2"
                 style={{ color: tone }}
               >
                 <Icon size={12} />

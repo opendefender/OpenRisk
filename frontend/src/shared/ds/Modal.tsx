@@ -40,10 +40,10 @@ import { Button } from './Button';
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const SIZE: Record<ModalSize, string> = {
-  sm: 'max-w-[var(--modal-w-sm)]',
-  md: 'max-w-[var(--modal-w-md)]',
-  lg: 'max-w-[var(--modal-w-lg)]',
-  xl: 'max-w-[var(--modal-w-xl)]',
+  sm: 'max-w-(--modal-w-sm)',
+  md: 'max-w-(--modal-w-md)',
+  lg: 'max-w-(--modal-w-lg)',
+  xl: 'max-w-(--modal-w-xl)',
 };
 
 export interface ModalProps {
@@ -110,14 +110,14 @@ export function Modal({
         tabIndex={-1}
         className={cn(
           'flex w-full flex-col overflow-hidden bg-surface-2 shadow-overlay outline-none',
-          'rounded-[var(--modal-radius)] border border-default',
+          'rounded-(--modal-radius) border border-default',
           'motion-safe:animate-or-rise',
-          'max-h-[var(--modal-max-h)]',
+          'max-h-(--modal-max-h)',
           SIZE[size],
           className,
         )}
       >
-        <header className="flex items-start gap-3 border-b border-subtle px-[var(--modal-padding)] py-4">
+        <header className="flex items-start gap-3 border-b border-subtle px-(--modal-padding) py-4">
           {leading}
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="truncate text-md font-semibold text-text-primary">
@@ -135,12 +135,12 @@ export function Modal({
         </header>
 
         {/* The only scrolling region. */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-[var(--modal-padding)] py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-(--modal-padding) py-4">
           {children}
         </div>
 
         {footer && (
-          <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-subtle bg-surface-1 px-[var(--modal-padding)] py-3">
+          <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-subtle bg-surface-1 px-(--modal-padding) py-3">
             {footer}
           </footer>
         )}

@@ -174,7 +174,7 @@ export function AiAdvisor() {
                 <button
                   key={sq}
                   onClick={() => send(sq)}
-                  className="text-[12.5px] font-medium px-3.5 py-2 rounded-full text-ink-soft hover:text-accent transition-colors"
+                  className="text-[12.5px] font-medium px-3.5 py-2 rounded-full text-ink-soft hover:text-accent-strong transition-colors"
                   style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
                 >
                   {sq}

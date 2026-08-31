@@ -46,7 +46,7 @@ export const FloatingBulkBar = ({
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           className={cn(
             'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40',
-            'bg-gradient-to-r from-zinc-900 to-zinc-800 border border-primary/50',
+            'bg-linear-to-r from-zinc-900 to-zinc-800 border border-primary/50',
             'rounded-lg shadow-2xl px-6 py-4 backdrop-blur-xl',
             className
           )}

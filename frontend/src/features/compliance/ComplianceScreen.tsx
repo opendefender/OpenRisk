@@ -142,10 +142,10 @@ export function ComplianceScreen() {
                       <span className="mono text-[13px] font-bold text-ink">{f.pct}</span>
                     </RingGauge>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-semibold text-ink truncate group-hover:text-accent transition-colors" title={f.name}>{f.name}</div>
+                      <div className="text-[14px] font-semibold text-ink truncate group-hover:text-accent-strong-strong transition-colors" title={f.name}>{f.name}</div>
                       <div className="text-[12px] text-ink-soft mt-0.5">{f.passed} / {f.total} {tr('contrôles', 'controls')}</div>
                     </div>
-                    <ChevronRight size={16} className="text-ink-muted shrink-0 group-hover:text-accent transition-colors" />
+                    <ChevronRight size={16} className="text-ink-muted shrink-0 group-hover:text-accent-strong-strong transition-colors" />
                   </button>
                   <div className="flex gap-2">
                     <button

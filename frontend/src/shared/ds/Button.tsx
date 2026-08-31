@@ -88,20 +88,20 @@ const VARIANT: Record<ButtonVariant, string> = {
     'bg-danger-solid text-text-on-solid border border-transparent hover:brightness-110 active:brightness-95',
   /* Inline, in prose. Underlined always — colour alone is not an affordance
      (WCAG 1.4.1). */
-  link: 'bg-transparent text-accent border-none underline underline-offset-2 hover:text-accent-hover px-0 h-auto gap-[var(--control-gap)] text-sm',
+  link: 'bg-transparent text-accent border-none underline underline-offset-2 hover:text-accent-strong-hover px-0 h-auto gap-(--control-gap) text-sm',
 };
 
 const SIZE: Record<ButtonSize, string> = {
-  sm: 'h-[var(--control-h-sm)] px-[var(--control-px-sm)] text-xs rounded-sm gap-[var(--control-gap)]',
-  md: 'h-[var(--control-h-md)] px-[var(--control-px-md)] text-sm rounded-md gap-[var(--control-gap)]',
-  lg: 'h-[var(--control-h-lg)] px-[var(--control-px-lg)] text-base rounded-md gap-[var(--control-gap)]',
+  sm: 'h-(--control-h-sm) px-(--control-px-sm) text-xs rounded-sm gap-(--control-gap)',
+  md: 'h-(--control-h-md) px-(--control-px-md) text-sm rounded-md gap-(--control-gap)',
+  lg: 'h-(--control-h-lg) px-(--control-px-lg) text-base rounded-md gap-(--control-gap)',
 };
 
 /** Square when there is no label, so an icon button is not a wide pill. */
 const ICON_ONLY_SIZE: Record<ButtonSize, string> = {
-  sm: 'w-[var(--control-h-sm)] px-0',
-  md: 'w-[var(--control-h-md)] px-0',
-  lg: 'w-[var(--control-h-lg)] px-0',
+  sm: 'w-(--control-h-sm) px-0',
+  md: 'w-(--control-h-md) px-0',
+  lg: 'w-(--control-h-lg) px-0',
 };
 
 const ICON_PX: Record<ButtonSize, number> = { sm: 14, md: 16, lg: 18 };

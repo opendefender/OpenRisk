@@ -224,7 +224,7 @@ export const Incidents = () => {
                     </h3>
                     <p className="text-xs text-text-muted">{incident.description?.slice(0, 100)}</p>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded ml-2 flex-shrink-0 ${getSeverityColor(incident.severity)}`}>
+                  <span className={`text-xs font-bold px-2 py-1 rounded ml-2 shrink-0 ${getSeverityColor(incident.severity)}`}>
                     {incident.severity.charAt(0).toUpperCase()}
                   </span>
                 </div>

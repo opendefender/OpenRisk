@@ -412,7 +412,7 @@ export default function BulkOperations() {
                 {selectedOperation.error_message && (
                   <div>
                     <label className="text-text-secondary">Error</label>
-                    <p className="font-medium text-danger-text text-xs break-words">
+                    <p className="font-medium text-danger-text text-xs wrap-break-word">
                       {selectedOperation.error_message}
                     </p>
                   </div>

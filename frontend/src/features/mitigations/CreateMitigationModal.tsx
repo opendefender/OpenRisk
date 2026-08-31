@@ -110,7 +110,7 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-[80] bg-surface-overlay backdrop-blur-sm"
+            className="fixed inset-0 z-80 bg-surface-overlay backdrop-blur-sm"
           />
 
           <motion.div
@@ -118,7 +118,7 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 40 }}
             transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
-            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            className="fixed inset-0 z-90 flex items-center justify-center p-4"
           >
             <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
               <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">

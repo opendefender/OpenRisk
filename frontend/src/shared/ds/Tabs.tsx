@@ -159,7 +159,7 @@ export function Tabs<T extends string = string>({
             <span
               aria-hidden="true"
               className={cn(
-                'absolute inset-x-2 bottom-0 h-[var(--keyline-w)] rounded-full transition-opacity duration-fast ease-out',
+                'absolute inset-x-2 bottom-0 h-(--keyline-w) rounded-full transition-opacity duration-fast ease-out',
                 active ? 'bg-accent opacity-100' : 'opacity-0',
               )}
             />

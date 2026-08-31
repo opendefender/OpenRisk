@@ -135,7 +135,7 @@ export function AuditsPage() {
                       <td className="px-4 py-3">
                         {/* A link, not a row click: the detail is a route, so it
                             must be openable in a new tab and shareable. */}
-                        <Link to={`/compliance/audits/${a.id}`} className="font-semibold text-ink hover:text-accent transition-colors">
+                        <Link to={`/compliance/audits/${a.id}`} className="font-semibold text-ink hover:text-accent-strong transition-colors">
                           {a.title}
                         </Link>
                         {a.scope && <div className="text-[11.5px] text-ink-muted truncate max-w-[280px]" title={a.scope}>{a.scope}</div>}

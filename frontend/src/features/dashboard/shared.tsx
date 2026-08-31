@@ -133,7 +133,7 @@ export function StatCard({ label, value, col, icon: Icon, onClick }: { label: st
           <Icon size={18} strokeWidth={1.75} />
         </div>
       )}
-      <div className="disp mono text-[24px] font-bold text-ink leading-tight break-words">{value}</div>
+      <div className="disp mono text-[24px] font-bold text-ink leading-tight wrap-break-word">{value}</div>
       <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>
     </>
   );

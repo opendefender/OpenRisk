@@ -111,7 +111,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center p-4"
+      className="fixed inset-0 z-95 flex items-center justify-center p-4"
       style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
       onClick={onClose}
     >

@@ -208,7 +208,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         {/* Checkbox */}
                         <button
                           onClick={() => handleToggleCompleted(subAction)}
-                          className="flex-shrink-0 p-1 hover:bg-surface-3 rounded transition-colors"
+                          className="shrink-0 p-1 hover:bg-surface-3 rounded transition-colors"
                         >
                           {isCompleted ? (
                             <CheckCircle2 size={20} className="text-success-text" />
@@ -230,7 +230,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         </div>
 
                         {/* Source Badge */}
-                        <div className="flex-shrink-0">
+                        <div className="shrink-0">
                           {isAutoDetected ? (
                             <AutoDetectedBadge
                               detectedAt={subAction.completed_at || new Date().toISOString()}

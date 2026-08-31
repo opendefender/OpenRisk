@@ -400,7 +400,7 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
   );
 
   return (
-    <div className="fixed inset-0 z-[70] flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-70 flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="h-full flex flex-col" style={{ width: 'min(94vw,560px)', background: 'var(--bg-secondary)', borderLeft: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)' }}>
         <div className="px-[22px] pt-5 pb-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-start gap-3 mb-3">

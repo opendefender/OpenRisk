@@ -84,7 +84,7 @@ export function IncidentDrawer({ incident, canWrite, onClose }: { incident: Inci
       <PostMortemPanel incidentId={incident.id} onClose={() => setShowPostMortem(false)} />
     )}
     <div
-      className="fixed inset-0 z-[70] flex justify-end"
+      className="fixed inset-0 z-70 flex justify-end"
       style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }}
       onClick={onClose}
     >

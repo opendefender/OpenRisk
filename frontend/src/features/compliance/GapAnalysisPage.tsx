@@ -128,12 +128,12 @@ export function GapAnalysisPage() {
                   style={{ borderBottom: '1px solid var(--border)' }}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-[14px] font-semibold text-ink group-hover:text-accent transition-colors">{group.name}</span>
+                    <span className="text-[14px] font-semibold text-ink group-hover:text-accent-strong-strong transition-colors">{group.name}</span>
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb,var(--critical) 12%,transparent)', color: 'var(--critical)' }}>
                       {group.items.length} {tr('écart', 'gap')}{group.items.length > 1 ? 's' : ''}
                     </span>
                   </div>
-                  <ChevronRight size={16} className="text-ink-muted group-hover:text-accent transition-colors" />
+                  <ChevronRight size={16} className="text-ink-muted group-hover:text-accent-strong-strong transition-colors" />
                 </button>
                 <div>
                   {group.items.map((g) => {

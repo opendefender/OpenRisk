@@ -78,7 +78,7 @@ const DOT: Record<BadgeIntent, string> = {
 };
 
 const SIZE: Record<BadgeSize, string> = {
-  sm: 'h-[var(--badge-h)] px-[var(--badge-px)] text-2xs gap-1',
+  sm: 'h-(--badge-h) px-(--badge-px) text-2xs gap-1',
   md: 'h-6 px-2.5 text-xs gap-1.5',
 };
 

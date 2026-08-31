@@ -324,9 +324,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="relative px-[14px] py-3 border-t border-border">
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-[59]" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+                <div className="fixed inset-0 z-59" onClick={() => setMenuOpen(false)} aria-hidden="true" />
                 <div
-                  className="absolute left-[14px] right-[14px] z-[60] rounded-[12px] overflow-hidden shadow-card-lg"
+                  className="absolute left-[14px] right-[14px] z-60 rounded-[12px] overflow-hidden shadow-card-lg"
                   style={{ bottom: 'calc(100% - 6px)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}
                 >
                   <div className="px-3 py-2.5 border-b border-border">

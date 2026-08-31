@@ -92,7 +92,7 @@ export function UnmappedRisksPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/risks?focus=${r.id}`)}
-                    className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold text-ink hover:text-accent"
+                    className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold text-ink hover:text-accent-strong"
                   >
                     {r.title}
                   </button>
@@ -110,7 +110,7 @@ export function UnmappedRisksPage() {
                     type="button"
                     onClick={() => navigate(`/risks?focus=${r.id}`)}
                     aria-label={tr('Ouvrir le risque', 'Open the risk')}
-                    className="shrink-0 text-ink-muted hover:text-accent"
+                    className="shrink-0 text-ink-muted hover:text-accent-strong"
                   >
                     <ArrowRight size={15} />
                   </button>

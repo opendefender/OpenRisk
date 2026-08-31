@@ -34,8 +34,9 @@ The canonical file is upstream. To take a change:
 Never edit this copy to make the check pass. That inverts the direction of the
 contract and the next person to sync from upstream will silently revert you.
 
-The canonical Tailwind preset (`design-system/tailwind.preset.js` upstream) is
-deliberately **not** vendored: the product's `tailwind.config.js` has to carry
+The canonical Tailwind theme is deliberately **not** vendored here: since the
+Tailwind v4 migration (#441) the product's `frontend/src/styles/theme.css` — a
+`@theme` / `@theme inline` pair, no `tailwind.config.js` — has to carry
 the legacy aliases and the accent property-fork, so it cannot be a thin consumer
 of the preset. It implements the same names; the token values are what this
 check guards.

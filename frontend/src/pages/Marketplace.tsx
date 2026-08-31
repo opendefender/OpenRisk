@@ -222,7 +222,7 @@ export default function Marketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-8">
+    <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -323,7 +323,7 @@ export default function Marketplace() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -4 }}
-                      className="group bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-xl border border-border-default hover:border-border-default p-6 transition-all"
+                      className="group bg-linear-to-b from-zinc-800 to-zinc-900 rounded-xl border border-border-default hover:border-border-default p-6 transition-all"
                     >
                       {/* Header */}
                       <div className="flex items-start justify-between mb-4">
@@ -437,7 +437,7 @@ export default function Marketplace() {
                       key={app.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-gradient-to-r from-zinc-800 to-zinc-900 rounded-xl border border-border-default p-6"
+                      className="bg-linear-to-r from-zinc-800 to-zinc-900 rounded-xl border border-border-default p-6"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">

@@ -131,7 +131,7 @@ export function ThreatIntel() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={tr('Rechercher CVE / description…', 'Search CVE / description…')}
-            className="w-full h-9 pl-9 pr-3 rounded-[10px] text-[13px] bg-surface border border-[var(--border)] text-ink focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+            className="w-full h-9 pl-9 pr-3 rounded-[10px] text-[13px] bg-surface border border-(--border) text-ink focus:outline-none focus:ring-2 focus:ring-(--accent)/40"
           />
         </div>
         {['', 'CRITICAL', 'HIGH', 'MEDIUM'].map((s) => (

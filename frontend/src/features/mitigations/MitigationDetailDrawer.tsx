@@ -283,7 +283,7 @@ export const MitigationDetailDrawer = ({
                 <div className="space-y-4">
                   <div className="p-4 rounded-lg bg-accent-soft border border-accent-line">
                     <div className="flex items-start gap-3">
-                      <MessageCircle size={16} className="text-info-text flex-shrink-0 mt-1" />
+                      <MessageCircle size={16} className="text-info-text shrink-0 mt-1" />
                       <div>
                         <p className="text-sm font-medium text-text-primary mb-2">
                           Suggestions de l'IA

@@ -75,7 +75,7 @@ export const UserAvatar = ({
       whileTap={onClick ? { scale: 0.95 } : undefined}
       className={cn(
         'rounded-full flex items-center justify-center font-medium text-text-primary',
-        'bg-gradient-to-br border border-border-strong/20',
+        'bg-linear-to-br border border-border-strong/20',
         bgColor,
         sizeClasses.container,
         onClick && 'cursor-pointer',

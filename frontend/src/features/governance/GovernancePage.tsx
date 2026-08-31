@@ -291,7 +291,7 @@ function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void 
   const changed = e.changed_fields ?? [];
 
   return (
-    <div className="fixed inset-0 z-[70] flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-70 flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
       <div
         onClick={(ev) => ev.stopPropagation()}
         className="h-full flex flex-col"
