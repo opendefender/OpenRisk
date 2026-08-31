@@ -404,8 +404,23 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   `internal/infrastructure/repository/actioncenter_repository.go`,
   `internal/handler/action_center_handler.go`. Contrat publié dans `docs/openapi.yaml` +
   `frontend/src/types/openapi.generated.ts`.
-  **⚠️ Aucun utilisateur ne peut encore l'atteindre** : il n'existe pas d'écran. La capacité ne sera
-  déclarée livrée, et n'entrera dans la matrice de claims, qu'au merge de **#430** (UI). Règle 12.
+  **Frontend livré** (#430, branche `430-feat-build-the-action-center-ui-with-role-aware-priority-and-deep-links-frontend`,
+  empilée sur celle de #429 car le contrat n'existe que là) : panneau « Centre d'actions » monté sur le
+  tableau de bord (`/`) pour **toutes** les personas — `DashboardShell` pour les cinq personas dédiées,
+  `PostureDashboard` qui n'utilise pas ce shell le monte lui-même. `frontend/src/features/action-center/`
+  (`actionCenterService.ts`, `useActionItems.ts`, `actionLinks.ts`, `ActionCenterPanel.tsx`). Types importés
+  de `openapi.generated.ts`, **jamais** saisis à la main ; zéro `any`. Ordre serveur rendu tel quel (aucun
+  tri client). Trois états explicites (skeleton / erreur / vide, le vide se lisant comme un « tout est à
+  jour » et non comme un échec). Chaque ligne est une vraie ancre : `deep_link` est validé contre
+  `shared/routeModel.ts` avant d'être rendu, et un lien qui ne résout pas — ou qui quitte l'origine
+  (`https://`, `//host`, `javascript:`) — fait **supprimer** l'élément avec un warning, jamais afficher une
+  ligne morte. FR/EN dans `src/locales`. 14 tests (`__tests__/actionCenter.test.tsx`), dont axe-core sur le
+  panneau rempli et vide.
+  **⚠️ Aucun utilisateur ne peut encore l'atteindre** : #429 (PR #431) et #430 sont tous deux ouverts, non
+  mergés — l'endpoint n'existe pas sur `master`. La capacité ne sera déclarée livrée, et n'entrera dans la
+  matrice de claims, qu'au merge des **deux**. Règle 12.
+  **Reste à faire** : route dédiée `/action-center` (page pleine, pagination au-delà des 8 premières
+  lignes) — fast-follow explicitement autorisé par #430.
 
 **Bloc E — Wave 2/3 (gamechangers restants)**
 12. Digital Twin (14.13), War Room (14.14), Attack Path (14.15), Access Review (14.10), Offline (14.17),
