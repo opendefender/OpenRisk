@@ -32,6 +32,21 @@ const THEMES = ['light', 'dark'] as const;
 /** Gallery pages. Keep in sync with GALLERIES in gallery.tsx. */
 const GALLERIES = ['controls', 'forms', 'form-controls', 'states', 'charts', 'feedback'] as const;
 
+/**
+ * The language axis. #463.
+ *
+ * Applied to the `i18n` gallery only, and that is a deliberate limit rather than
+ * laziness. The other galleries render hard-coded English labels — they are
+ * fixtures for shape, not for copy — so an FR snapshot of them would be
+ * byte-identical to the EN one. Two identical snapshots that both pass is worse
+ * than no coverage: it reads as a language axis while testing one language twice.
+ *
+ * The `i18n` gallery instead renders real product strings BY KEY, chosen for how
+ * far French runs past English (`Save` -> `Enregistrer`, x2.75). That is where a
+ * layout actually breaks, and where a second snapshot earns its place.
+ */
+const LANGS = ['en', 'fr'] as const;
+
 
 /**
  * Web fonts are fetched at runtime (Inter / DM Sans / JetBrains Mono). A
@@ -44,8 +59,8 @@ async function waitForFonts(page: import('@playwright/test').Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-function galleryURL(gallery: string, theme: string) {
-  return `/e2e/visual/gallery.html?gallery=${gallery}&theme=${theme}`;
+function galleryURL(gallery: string, theme: string, lang: string = 'en') {
+  return `/e2e/visual/gallery.html?gallery=${gallery}&theme=${theme}&lang=${lang}`;
 }
 
 for (const gallery of GALLERIES) {
@@ -215,4 +230,84 @@ test('flipping the theme attribute retints the page, both directions', async ({ 
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
   expect(await surfaceOf()).toBe(light);
+});
+
+/* ------------------------------------------------------------------- i18n -- */
+
+/**
+ * Two themes x two languages, on the strings that actually stress a layout.
+ *
+ * The guide's rule is "both themes and both languages, or it does not merge".
+ * Themes were covered; language was not, because no harness ever mounted the
+ * locale. One does now — e2e/visual/harnessEnv.ts pushes `?lang` through the UI
+ * store, which is also what stamps <html lang>.
+ */
+for (const lang of LANGS) {
+  for (const theme of THEMES) {
+    test(`i18n — ${lang} — ${theme}`, async ({ page }) => {
+      await page.goto(galleryURL('i18n', theme, lang));
+      await page.waitForSelector('main');
+      await waitForFonts(page);
+
+      // Both axes confirmed on the element that carries them. Without this, a
+      // harness that ignored a parameter would render one language twice and
+      // pass — the same trap the theme assertion above exists to close.
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.locator('html')).toHaveAttribute('lang', lang);
+
+      await expect(page).toHaveScreenshot(`ds-i18n-${lang}-${theme}.png`, { fullPage: true });
+    });
+  }
+}
+
+/**
+ * The two languages must actually differ, and no key may leak through.
+ *
+ * A snapshot pair proves nothing on its own: if the locale failed to load,
+ * useI18n returns the KEY on every miss, both pages would read "common.save",
+ * and both snapshots would be stable and wrong.
+ */
+test('the language parameter changes the copy, and no key leaks through', async ({ page }) => {
+  const read = async (lang: string) => {
+    await page.goto(galleryURL('i18n', 'dark', lang));
+    await page.waitForSelector('main');
+    return (await page.locator('main').innerText()).trim();
+  };
+
+  const en = await read('en');
+  const fr = await read('fr');
+
+  expect(en).toContain('Save');
+  expect(fr).toContain('Enregistrer');
+  expect(fr).not.toBe(en);
+
+  for (const text of [en, fr]) {
+    expect(text).not.toMatch(
+      /\b(common|risks|filters|compliance|statuses|errors|mitigations|actionCenter)\.[a-zA-Z.]+/,
+    );
+  }
+});
+
+/**
+ * French is the longer language, and a control that fits in English can stop
+ * fitting in French. This is what the guide's rule is really about: nothing is
+ * clipped by its own row.
+ */
+test('no control is clipped by its row in French', async ({ page }) => {
+  await page.goto(galleryURL('i18n', 'light', 'fr'));
+  await page.waitForSelector('main');
+  await waitForFonts(page);
+
+  const clipped = await page.evaluate(() => {
+    const bad: string[] = [];
+    for (const el of document.querySelectorAll('main button, main label')) {
+      // scrollWidth past clientWidth means the text is cut off, not wrapped.
+      if (el.scrollWidth > el.clientWidth + 1) {
+        bad.push(`${el.tagName.toLowerCase()} "${el.textContent?.trim()}" ${el.scrollWidth}>${el.clientWidth}`);
+      }
+    }
+    return bad;
+  });
+
+  expect(clipped, `clipped in French:\n  ${clipped.join('\n  ')}`).toEqual([]);
 });
