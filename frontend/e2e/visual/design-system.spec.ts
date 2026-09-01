@@ -30,7 +30,7 @@ import AxeBuilder from '@axe-core/playwright';
 const THEMES = ['light', 'dark'] as const;
 
 /** Gallery pages. Keep in sync with GALLERIES in gallery.tsx. */
-const GALLERIES = ['controls', 'forms', 'form-controls', 'states', 'charts', 'feedback', 'feedback2'] as const;
+const GALLERIES = ['controls', 'forms', 'form-controls', 'states', 'charts', 'feedback', 'feedback2', 'floating'] as const;
 
 /**
  * The language axis. #463.
