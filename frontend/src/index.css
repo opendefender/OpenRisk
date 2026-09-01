@@ -115,6 +115,22 @@ layer(base);
       transform: scale(1.35);
     }
   }
+  /* The route transition. 6px rather than or-fadeup's 14px: this moves the
+     WHOLE page, and a large travel on a full-viewport element reads as the
+     layout settling rather than as content arriving. Matches, exactly, the
+     framer-motion transition it replaces — opacity 0->1, y 6->0, --dur-base
+     (180ms), --ease-out. See #462. */
+  @keyframes or-route {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   @keyframes or-fadeup {
     from {
       opacity: 0;
