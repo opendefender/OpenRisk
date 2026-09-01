@@ -36,7 +36,7 @@ export const Settings = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.id 
-                  ? 'bg-primary/10 text-primary' 
+                  ? 'bg-primary/10 text-accent-strong' 
                   : 'text-fg-secondary hover:text-fg-primary hover:bg-surface-1/5'
               }`}
             >

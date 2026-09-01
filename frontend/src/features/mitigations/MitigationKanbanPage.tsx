@@ -265,7 +265,7 @@ export const MitigationKanbanPage = () => {
                             <motion.span
                               animate={{ scale: [1, 1.1, 1] }}
                               transition={{ duration: 1.5, repeat: Infinity }}
-                              className="text-xs font-bold px-2 py-1 rounded-full bg-danger/30 text-danger-text"
+                              className="text-xs font-bold px-2 py-1 rounded-full bg-danger/20 text-danger-text"
                             >
                               {reviewPendingCount} en retard
                             </motion.span>

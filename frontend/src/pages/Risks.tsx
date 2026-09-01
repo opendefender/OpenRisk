@@ -248,7 +248,7 @@ export const Risks = () => {
                 {r.tags && r.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {r.tags.slice(0, 3).map((tag, i) => (
-                      <span key={i} className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                      <span key={i} className="text-xs bg-primary/10 text-accent-strong px-2 py-1 rounded">
                         {tag}
                       </span>
                     ))}
