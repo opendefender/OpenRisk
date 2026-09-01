@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Copy, Check, Download, Apple, Container, Terminal, Monitor } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { scannerService, type ScanConfig, type RegistrationTokenResponse } from './scannerService';

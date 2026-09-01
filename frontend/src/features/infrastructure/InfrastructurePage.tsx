@@ -12,7 +12,7 @@ import {
   Plus, Play, Trash2, Radar, ChevronRight, Server, DownloadCloud,
   ShieldOff, Boxes, Bug, Loader2, Clock,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, Skeleton, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
