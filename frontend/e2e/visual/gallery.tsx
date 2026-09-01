@@ -28,6 +28,12 @@ import '../../src/index.css';
 import { Badge } from '../../src/shared/ds/Badge';
 import { Button, type ButtonVariant } from '../../src/shared/ds/Button';
 import { Field, Input, Select, Textarea } from '../../src/shared/ds/Field';
+import { Checkbox, CheckboxGroup } from '../../src/shared/ds/Checkbox';
+import { Fieldset } from '../../src/shared/ds/Fieldset';
+import { InputGroup } from '../../src/shared/ds/InputGroup';
+import { Label } from '../../src/shared/ds/Label';
+import { RadioGroup } from '../../src/shared/ds/RadioGroup';
+import { Switch } from '../../src/shared/ds/Switch';
 import { Tabs, TabPanel } from '../../src/shared/ds/Tabs';
 import {
   AuditEntry,
@@ -158,6 +164,114 @@ function Forms() {
       <Field label="Notes">
         <Textarea placeholder="Anything the next responder should know" />
       </Field>
+    </div>
+  );
+}
+
+function FormControls() {
+  const [scopes, setScopes] = useState<string[]>(['assets']);
+  const [cadence, setCadence] = useState<string | null>('daily');
+
+  return (
+    <div className="grid max-w-2xl gap-6">
+      <Fieldset legend="Labels" description="Standalone label, required marker and disabled tone">
+        {/* Each label is attached to a real control, which is the only way it is
+            ever used — and the disabled one to a genuinely disabled control, so
+            the greyed pair is the exempt case WCAG 1.4.3 describes rather than
+            low-contrast text floating on its own. */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fc-plain">Plain label</Label>
+            <Input id="fc-plain" defaultValue="Acme" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fc-required" required>
+              Required label
+            </Label>
+            <Input id="fc-required" defaultValue="Owner" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fc-disabled" disabled>
+              Disabled label
+            </Label>
+            <Input id="fc-disabled" defaultValue="Locked" disabled />
+          </div>
+        </div>
+      </Fieldset>
+
+      <Fieldset legend="Input group" description="Prefix and suffix affixes at each control height">
+        <div className="grid gap-3">
+          <InputGroup size="sm" prefix="https://">
+            <Input aria-label="Tenant domain" defaultValue="openrisk.io" />
+          </InputGroup>
+          <InputGroup size="md" prefix={<Search size={14} />} suffix="risks">
+            <Input aria-label="Search risks" placeholder="Search" />
+          </InputGroup>
+          <InputGroup size="lg" suffix="days">
+            <Input aria-label="Retention window" defaultValue="90" />
+          </InputGroup>
+          <InputGroup invalid suffix="%">
+            <Input aria-label="Coverage target" defaultValue="140" />
+          </InputGroup>
+          <InputGroup disabled prefix="ID">
+            <Input aria-label="Instance id" defaultValue="i-0a1b2c3d" disabled />
+          </InputGroup>
+        </div>
+      </Fieldset>
+
+      <Fieldset legend="Checkbox" description="Every state a checkbox can reach">
+        <div className="grid gap-3">
+          <Checkbox label="Unchecked" />
+          <Checkbox label="Checked" defaultChecked />
+          <Checkbox label="Indeterminate" indeterminate />
+          <Checkbox label="With description" description="Explains the consequence of ticking it" defaultChecked />
+          <Checkbox label="Disabled" disabled />
+          <Checkbox label="Disabled checked" defaultChecked disabled />
+        </div>
+      </Fieldset>
+
+      <CheckboxGroup
+        legend="Scopes"
+        description="What this API token may read"
+        options={[
+          { value: 'assets', label: 'Assets' },
+          { value: 'risks', label: 'Risks', description: 'Includes the computed score' },
+          { value: 'audit', label: 'Audit log', disabled: true },
+        ]}
+        value={scopes}
+        onValueChange={setScopes}
+      />
+
+      <RadioGroup
+        legend="Scan cadence"
+        description="How often the connector re-inventories"
+        options={[
+          { value: 'daily', label: 'Daily', description: 'Highest freshness, highest quota use' },
+          { value: 'weekly', label: 'Weekly' },
+          { value: 'manual', label: 'Manual only', disabled: true },
+        ]}
+        value={cadence}
+        onValueChange={setCadence}
+      />
+
+      <Fieldset legend="Switch" description="Both sizes, both orders, every state">
+        <div className="grid gap-3">
+          <Switch label="Off" />
+          <Switch label="On" defaultChecked />
+          <Switch size="sm" label="Small, on" defaultChecked />
+          <Switch label="Control first" controlFirst defaultChecked />
+          <Switch label="With description" description="Sends a digest every Monday at 08:00" defaultChecked />
+          <Switch label="Disabled" disabled />
+          <Switch label="Disabled on" defaultChecked disabled />
+        </div>
+      </Fieldset>
+
+      <Fieldset legend="Disabled fieldset" description="Disables every control it contains" disabled>
+        <div className="grid gap-3">
+          <Checkbox label="Unreachable checkbox" defaultChecked />
+          <Switch label="Unreachable switch" />
+        </div>
+      </Fieldset>
     </div>
   );
 }
@@ -330,6 +444,7 @@ function Feedback() {
 export const GALLERIES: Record<string, () => JSX.Element> = {
   controls: Controls,
   forms: Forms,
+  'form-controls': FormControls,
   states: States,
   charts: Charts,
   feedback: Feedback,
