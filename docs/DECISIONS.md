@@ -5,7 +5,51 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-None. Every entry in this register is resolved as of 2026-09-01.
+### D-018 — the guide's 180 KB initial-bundle target is 66 KB below reality · 2026-09-01
+**Raised by** — #446, while making the design guide executable.
+**The fact, measured 2026-09-01** — the console's initial (preloaded, gzipped) JS
+is **245.8 KB**, against a guide target of **180 KB**:
+
+```
+  79.8 KB  vendor      59.1 KB  react       38.8 KB  index
+  24.6 KB  motion      17.5 KB  query       13.1 KB  icons     12.8 KB  router
+ 245.8 KB  TOTAL
+```
+
+**Why this is not an agent's call** — closing a 66 KB gap is not a lint rule. It
+means splitting or dropping runtime dependencies: `motion` (framer-motion) at
+24.6 KB is the obvious candidate and is used by real product animation, and
+`vendor` at 79.8 KB needs auditing package by package. That is a performance
+project with visible product consequences, and #446 is a CI-doctrine issue.
+Setting the number to 180 without doing the work would turn the build red on
+every PR, which is how a budget gets deleted rather than met.
+
+**What #446 did instead** — ratcheted the existing gate from 250 KB to **248 KB**,
+locking in today's measurement with ~2 KB for chunk-hash noise so the console
+cannot silently drift up to 249.9. The gate is `frontend/scripts/check-bundle-budget.mjs`,
+already blocking in CI. The budget may only ever be lowered.
+
+**Options**
+- **A** — Accept 248 KB as the standing budget; open a separate performance issue
+  to pursue 180 KB, scheduled on its own merits. *(Recommended.)* Keeps the gate
+  honest and green, and puts the 66 KB where the work actually is.
+- **B** — Keep 180 KB as the declared target and make the gate non-blocking until
+  it is met. Costs the gate: a warning nobody acts on is what #446 exists to end.
+- **C** — Do the splitting work inside #446. Mixes a doctrine change with a
+  performance refactor in one PR, and neither gets reviewed properly.
+
+**Cost of delay** — low, and bounded: the 248 KB ratchet holds the line either
+way. What is lost is only the 66 KB, and only for as long as nobody schedules it.
+
+**Reversible?** — Yes. The budget is one constant.
+
+**Also unresolved in the same issue, and cheaper** — #446's last task asks for
+Playwright snapshots across **two themes × two languages**. The visual suite
+(`frontend/e2e/visual/`) does themes today but has no language axis: the harness
+never mounts i18n, so adding FR/EN is new harness work rather than a parameter.
+It is not blocked on a decision, only on scope — recommend a separate issue,
+since French running ~20% longer than English is a real layout risk worth its own
+review rather than a footnote in a lint PR.
 
 ## Resolved
 
