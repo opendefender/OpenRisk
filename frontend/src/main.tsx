@@ -10,9 +10,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import 'leaflet/dist/leaflet.css';
 import './index.css'
-import { Toaster } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useUIStore } from './store/uiStore'
 import { ErrorBoundary } from './shared/system/ErrorBoundary'
 import { installGlobalErrorReporting } from './lib/observability'
 import { registerQueryClient } from './lib/sessionScope'
@@ -62,11 +60,13 @@ onMFARequired(() => {
 // Report uncaught errors and unhandled rejections (Sentry when present).
 installGlobalErrorReporting()
 
-/** Toasts follow the active theme (dc.html §8). */
-function ThemedToaster() {
-  const theme = useUIStore((s) => s.theme)
-  return <Toaster position="top-right" theme={theme} richColors closeButton />
-}
+/*
+ * Loaded after first paint. Nothing can be toasted until the user has acted, and
+ * the first thing a user does is never in the first frame — so sonner (64 KB of
+ * raw source) does not belong in the entry chunk. #443 PR 2 needed the room; the
+ * reason it is correct is older than that.
+ */
+const ThemedToaster = React.lazy(() => import('./shared/system/ThemedToaster'))
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -74,7 +74,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
-      <ThemedToaster />
+      <React.Suspense fallback={null}>
+        <ThemedToaster />
+      </React.Suspense>
     </QueryClientProvider>
   </React.StrictMode>,
 )

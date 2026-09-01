@@ -12,7 +12,6 @@
 
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 
 import {
   activationService,
@@ -83,8 +82,15 @@ export function useCelebrateActivation(state: ActivationState | undefined, lang:
       inFlight.current.add(step.key);
 
       if (reduced) {
-        toast.success(
-          `${lang === 'fr' ? 'Étape terminée' : 'Step complete'} — ${i18n(step.label_i18n, lang)}`,
+        /* Imported at call time, not at module scope. This hook is reachable
+           from main.tsx without a lazy boundary, so a static import put 64 KB of
+           raw sonner source in the ENTRY chunk to service a celebration that
+           fires only after a step completes. Fire-and-forget: the toast is
+           feedback, and nothing downstream waits on it. */
+        void import('sonner').then(({ toast }) =>
+          toast.success(
+            `${lang === 'fr' ? 'Étape terminée' : 'Step complete'} — ${i18n(step.label_i18n, lang)}`,
+          ),
         );
       } else {
         // A slightly bigger burst for the step that IS the product's promise.
