@@ -5,44 +5,57 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### O-001 — `react-leaflet` ships under Hippocratic-2.1, which is not OSI-approved · raised 2026-09-01
-**Found while** executing #452's task "check whether any repo-wide licence tooling
-asserts everything under `frontend/src/**` is AGPL". The answer is that no such
-tooling exists, and the job that looks like it does is not doing it.
-
-**The facts, verified —**
-- `frontend/package.json:43` depends on `react-leaflet ^5.0.0`.
-  `node -e "require('react-leaflet/package.json').license"` → `"Hippocratic-2.1"`.
-  (`leaflet` itself is `BSD-2-Clause` and is fine.)
-- Hippocratic-2.1 imposes ethical-use restrictions on the licensee. It is **not
-  OSI-approved and not a free-software licence**, so it is not compatible with
-  redistributing a combined work under `AGPL-3.0-only`, and it sits badly with an
-  EE build distributed under a commercial agreement.
-- `.github/workflows/security.yml` `license-check` writes `backend/modules.json`,
-  never reads it, and `echo`s `"✅ License check completed"`. It covers Go
-  modules only and asserts nothing. **The frontend dependency tree is ungated.**
-
-**Why it is the owner's call** — dropping or replacing a shipped map dependency,
-accepting the risk, or paying for an alternative are all owner decisions under
-CLAUDE.md's escalation triggers (dependencies, licensing, anything costing money).
-
-**Options** — (A) replace `react-leaflet` with a permissively-licensed map binding
-and add a real frontend licence gate; (B) keep it and record an accepted-risk
-entry with counsel's opinion; (C) keep it, gate the map behind EE only — which
-does not help, since EE is the harder case, not the easier one.
-
-**Recommendation** — A. The gate is the durable half: without it the next
-incompatible dependency arrives unannounced, exactly as this one did.
-
-**Cost of delay** — It is already published. Every release compounds it.
-
-**Not touched by #452.** That PR relicenses the design system and changes no
-dependency. This entry exists so the finding is not lost with the PR thread; it
-needs its own issue.
+None. Every entry in this register is resolved as of 2026-09-01.
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-017 — `react-leaflet` is removed and a real licence gate replaces the fake one · 2026-09-01
+**Decided** — Option A, both halves. `react-leaflet` is removed from
+`frontend/package.json`, along with `leaflet` and the orphan
+`import 'leaflet/dist/leaflet.css'` in `src/main.tsx`. Separately,
+`.github/workflows/security.yml`'s `license-check` job is replaced with a gate
+that actually fails the build on a non-allowlisted licence, in **both** the Go
+and npm trees.
+**Rationale (owner)** — Matches the recommendation. The removal turned out to be
+free, and the gate is the half with lasting value: this dependency entered
+unnoticed, and without a gate the next one will too.
+**How it was found** — While executing #452's task "check whether any repo-wide
+licence tooling asserts everything under `frontend/src/**` is AGPL". The answer
+was that no such tooling exists, and the job that looks like it does is not doing
+it.
+**The facts, verified 2026-09-01 —**
+- `frontend/package.json:43` declared `react-leaflet ^5.0.0`.
+  `require('react-leaflet/package.json').license` → `"Hippocratic-2.1"`, as does
+  its own `@react-leaflet/core`. Hippocratic-2.1 imposes ethical-use restrictions
+  on the licensee; it is **not OSI-approved and not a free-software licence**, so
+  it is not compatible with redistributing a combined work under `AGPL-3.0-only`,
+  and it sits worse with an EE build under a commercial agreement.
+- **Nothing imports it.** Zero hits for `react-leaflet`, `MapContainer`,
+  `TileLayer` or `useMap` in `frontend/src/`. The only leaflet trace is
+  `src/main.tsx:11`, a CSS import belonging to `leaflet` itself
+  (`BSD-2-Clause`, unproblematic but equally unused). No map feature appears in
+  `ROADMAP.md` or in any open issue. It is declared, not bundled — the exposure
+  is the dependency manifest and every SBOM built from it, not shipped code.
+  **This corrects the entry as first raised**, which framed the choice as
+  replacing a shipped map binding; there was nothing to replace.
+- Full frontend licence census, same date: 356 MIT · 27 ISC · 21 Apache-2.0 ·
+  9 BSD-2-Clause · 6 BSD-3-Clause · 4 MPL-2.0 · 4 Unlicense · 2 MIT-0 ·
+  2 Hippocratic-2.1 (both the react-leaflet family) · 1 Python-2.0 · 1 CC-BY-4.0.
+  The two packages reporting `UNKNOWN` (`fast-shallow-equal`,
+  `react-universal-interface`, both transitive via `react-use`) carry the
+  Unlicense public-domain text and are merely missing the SPDX field. **Nothing
+  else in the tree is non-permissive.**
+- `.github/workflows/security.yml` `license-check` writes `backend/modules.json`,
+  never reads it, and `echo`s `"✅ License check completed"`. It covers Go modules
+  only and asserts nothing; the frontend tree was never gated at all.
+**Consequence** — Reversible. Re-adding a map binding is trivial if a map feature
+ever lands, and an allowlist can be loosened. The gate must fail the build rather
+than warn, or it reproduces the defect it replaces.
+**Not touched by #452 / PR #456**, which relicenses the design system and changes
+no dependency.
+**Unblocked** — #457 opened to execute both halves.
 
 ### D-016 — the Apache-2.0 boundary is both design-system directories · 2026-08-31
 **Decided** — Option A. "The design system" in D-014 means **`frontend/design-system/`
@@ -75,7 +88,9 @@ its blocking table only.
 executing #452, from the issue body and `po-openrisk`'s timestamped comment of
 2026-08-31. The decision is the owner's and dates from 2026-08-31; only the
 register entry is late. `LICENSING.md` and `frontend/design-system/README.md`
-cite it. Owner to confirm the transcription is faithful.
+cite it. **Transcription confirmed faithful by the owner on 2026-09-01** — the
+entry is ratified, not assumed, and is not to be relitigated on the grounds that
+it was written down late.
 
 ### D-015 — CLA acceptance is enforced by a DCO check · 2026-08-31
 **Decided** — Option A. A GitHub Action asserts the `Signed-off-by` trailer on
