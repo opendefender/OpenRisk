@@ -207,6 +207,20 @@ jobs:
       - name: Visual suite — themes, languages, axe and the keyboard contract
         run: cd frontend && npx playwright test e2e/visual/ --project=chromium
 
+      # The bundle budget runs HERE as well as in build-frontend, and that is
+      # deliberate. build-frontend `needs: [frontend-lint, frontend-unit-tests]`,
+      # both currently red, so its budget step is skipped on every run and the
+      # gate is enforced by nobody.
+      #
+      # This step was added by #462 and then LOST: #468 branched before #462
+      # merged, rewrote this same job, and its version won the merge. Master then
+      # sat at 180.4 KB — over its own budget — with nothing to notice. Restored
+      # here, after the build the visual suite already needs.
+      #
+      # Remove it once the lint and unit-test jobs are green again.
+      - name: Bundle budget (< 180 KB gzip initial)
+        run: cd frontend && npm run build && npm run budget
+
       - name: Upload visual diffs
         if: failure()
         uses: actions/upload-artifact@v4

@@ -104,6 +104,13 @@ export default defineConfig({
           if (id.includes('node_modules/motion-dom') || id.includes('node_modules/motion-utils'))
             return 'motion'
 
+          /* The toast surface. Nothing can be toasted until the user has acted,
+             so it is never needed for first paint — but left to fall through to
+             `vendor` it was preloaded anyway, because vendor also holds axios and
+             zustand. Same trap as the engines above: no longer *imported*
+             eagerly, yet still glued to a preloaded chunk. */
+          if (id.includes('node_modules/sonner')) return 'toast'
+
           return 'vendor'
         },
       },

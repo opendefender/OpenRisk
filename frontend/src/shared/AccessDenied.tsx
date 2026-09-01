@@ -12,7 +12,6 @@
 
 import { Link, useNavigate } from 'react-router';
 import { Lock, ArrowLeft, Copy } from 'lucide-react';
-import { toast } from 'sonner';
 import { useUIStore } from '../store/uiStore';
 import { parentHref } from './routeModel';
 import { Btn } from './ui';
@@ -30,7 +29,17 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const back = parentHref(pathname) ?? '/';
 
+  /*
+   * `toast` is imported inside the handler, not at the top of the file.
+   *
+   * App.tsx imports AccessDenied eagerly, so a static `import { toast } from
+   * 'sonner'` here put 64 KB of raw sonner source into the ENTRY chunk — fetched
+   * before the sign-in screen could paint — to service a clipboard confirmation
+   * that only ever fires on a click. The dynamic import resolves at click time,
+   * by which point sonner is already loaded for any screen that toasts.
+   */
   const copy = async () => {
+    const { toast } = await import('sonner');
     try {
       await navigator.clipboard.writeText(permission);
       toast.success(tr('Permission copiée', 'Permission copied'));
