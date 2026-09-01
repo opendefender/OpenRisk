@@ -194,6 +194,17 @@ jobs:
       - name: Three-licence boundary is intact
         run: cd frontend && npm run check:license-boundary
 
+      # The bundle budget runs HERE as well as in build-frontend, and that is
+      # deliberate rather than duplication. build-frontend `needs:
+      # [frontend-lint, frontend-unit-tests]`, both of which are currently red,
+      # so the budget step has been SKIPPED on every run — the ratchets in #446
+      # (250 -> 248) and #462 (-> 180) were being enforced by nobody. A gate that
+      # does not run is the exact failure mode both issues exist to prevent.
+      # This job depends on nothing that is failing, so the budget is checked for
+      # real. Drop this step once the lint and unit-test jobs are green again.
+      - name: Bundle budget (< 180 KB gzip initial)
+        run: cd frontend && npm run build && npm run budget
+
   # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
   # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
   # dedicated gate. Uses the local binary since the frontend has no `type-check`
@@ -313,8 +324,9 @@ jobs:
           ls -lah dist/
 
       # Performance budget (task §2) — BLOCKING. Fails the build if the initial
-      # (preloaded) JS exceeds 248 KB gzipped. Route/on-demand chunks excluded.
-      - name: Enforce bundle-size budget (< 248 KB gzip initial)
+      # (preloaded) JS exceeds 180 KB gzipped — the design guide's target, met by
+      # #462. Route/on-demand chunks excluded.
+      - name: Enforce bundle-size budget (< 180 KB gzip initial)
         run: cd frontend && npm run budget
 
       - name: Upload artifact

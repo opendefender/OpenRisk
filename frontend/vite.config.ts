@@ -59,6 +59,51 @@ export default defineConfig({
           if (id.includes('lucide-react')) return 'icons'
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
             return 'react'
+
+          /*
+           * Transitive engines of the LAZY libraries above.
+           *
+           * `vendor` is preloaded, because it also holds axios, zustand and
+           * tailwind-merge, which the entry graph genuinely needs. Anything that
+           * falls through to it is therefore fetched before first paint — and
+           * these were falling through:
+           *
+           *   recharts v3          -> @reduxjs/toolkit, react-redux, redux,
+           *                           reselect, immer, decimal.js-light
+           *   @hello-pangea/dnd    -> react-redux, redux
+           *   framer-motion v11    -> motion-dom, motion-utils
+           *
+           * Rules above catch `recharts` and `@hello-pangea` by name, but a file
+           * inside `node_modules/react-redux` matches none of them, so the Redux
+           * engine of a chart library the first screen never renders was being
+           * downloaded on every cold load. ~240 KB of raw source.
+           *
+           * Verified before moving: NONE of these is imported by app code —
+           * `grep -rl "from '<pkg>'" src` returns nothing for every one, and the
+           * only zustand middleware in use is `zustand/middleware`, not the immer
+           * one. So this chunk is reachable only through a lazy route, which is
+           * what keeps it out of the preload.
+           */
+          if (
+            id.includes('node_modules/@reduxjs/toolkit') ||
+            id.includes('node_modules/react-redux') ||
+            id.includes('node_modules/redux/') ||
+            id.includes('node_modules/redux-thunk') ||
+            id.includes('node_modules/reselect') ||
+            id.includes('node_modules/immer') ||
+            id.includes('node_modules/decimal.js-light') ||
+            id.includes('node_modules/es-toolkit') ||
+            id.includes('node_modules/tabbable') ||
+            id.includes('node_modules/eventemitter3')
+          )
+            return 'lazy-engines'
+
+          /* framer-motion v11 moved its engine into these two packages; the rule
+             above matches the old names only, so they were landing in `vendor`
+             rather than beside the animation code that uses them. */
+          if (id.includes('node_modules/motion-dom') || id.includes('node_modules/motion-utils'))
+            return 'motion'
+
           return 'vendor'
         },
       },

@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, Trash2, Play, Pause, RefreshCw, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { getAccessToken } from '../lib/session';
 
 interface BulkOperation {

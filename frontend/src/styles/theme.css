@@ -178,6 +178,8 @@
 
   /* --------------------------------------------------------------- animation */
   /* The OpenRisk motion vocabulary. Keyframes live in index.css. */
+  /* Route transition — replaces framer-motion in App.tsx (#462). */
+  --animate-route: or-route var(--dur-base) var(--ease-out) both;
   --animate-fade-in: or-fadein var(--dur-slow) var(--ease-out) both;
   --animate-or-fadeup: or-fadeup var(--dur-slow) var(--ease-out) both;
   --animate-or-fadein: or-fadein var(--dur-base) var(--ease-out) both;

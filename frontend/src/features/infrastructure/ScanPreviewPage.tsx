@@ -12,7 +12,7 @@ import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, Boxes, Bug, Wrench, Check, Server, Cloud, Download, Trash2, ShieldCheck,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, Skeleton, EmptyState, ErrorState } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';

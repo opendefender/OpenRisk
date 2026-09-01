@@ -5,7 +5,6 @@
 
 import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
@@ -122,22 +121,30 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 /**
  * Fades/slides the route content on every navigation, keyed by pathname, so
  * switching pages never feels like an abrupt jump-cut.
+ *
+ * CSS rather than framer-motion, since #462. This was the ONLY framer-motion
+ * usage in the entry graph, and it alone kept the whole 37 KB motion chunk in
+ * the preload for every cold load — for a 180ms fade. The other 55 files that
+ * use framer-motion sit behind lazy routes and still get it, on demand.
+ *
+ * `key` on the element is what replays the animation: React remounts the
+ * subtree when the pathname changes, and `both` fill-mode holds the start frame
+ * until it does.
+ *
+ * WHAT IS LOST, deliberately: AnimatePresence's exit fade. CSS cannot animate an
+ * element that is being unmounted, so the outgoing page is removed at once
+ * instead of fading over 180ms. The entering animation is identical to what it
+ * replaces. See the note in #462 — this is the one visible change in that issue.
  */
 const AnimatedOutlet = () => {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18, ease: 'easeOut' }}
-        className="flex-1 flex flex-col min-h-0 h-full"
-      >
-        <Outlet />
-      </motion.div>
-    </AnimatePresence>
+    <div
+      key={location.pathname}
+      className="motion-safe:animate-route flex flex-1 flex-col min-h-0 h-full"
+    >
+      <Outlet />
+    </div>
   );
 };
 

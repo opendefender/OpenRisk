@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { X, ShieldCheck, Info } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { PROVIDERS, CLOUD_CRED_FIELDS, SCOPE_HINTS } from './scannerMeta';
