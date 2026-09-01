@@ -13,12 +13,20 @@ import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 
 const DIST = 'dist';
-// Ratcheted down from 250 by #446. Measured 245.8 KB on 2026-09-01, so 248 locks
-// in today's number with ~2 KB for chunk-hash noise and stops a silent drift up
-// to 249.9. It is NOT the guide's target: that is 180 KB, which is 66 KB below
-// where the console actually is and is a code-splitting project, not a lint
-// rule — escalated as D-018. This budget may only ever be lowered.
-const BUDGET_KB = Number(process.env.BUNDLE_BUDGET_KB ?? 248);
+// The design guide's target, met by #462: 250 -> 248 (#446) -> 180. Measured
+// 179.7 KB on 2026-09-01, so there is ~0.3 KB of headroom and the next
+// regression fails the build rather than eroding the number.
+//
+// It got here by moving what was never needed on first paint OUT of the preload
+// rather than by deleting features: recharts' and @hello-pangea/dnd's Redux
+// engines, framer-motion's engine, and a second toast library were all falling
+// through to the `vendor` chunk, which is preloaded because it also holds axios
+// and zustand. See #462 and D-018.
+//
+// THIS BUDGET MAY ONLY EVER BE LOWERED. Raising it to accommodate a new
+// dependency is the decision that makes it meaningless; the dependency goes in
+// a lazy chunk instead, or it does not go in.
+const BUDGET_KB = Number(process.env.BUNDLE_BUDGET_KB ?? 180);
 
 const indexHtml = join(DIST, 'index.html');
 if (!existsSync(indexHtml)) {
