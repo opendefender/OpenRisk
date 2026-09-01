@@ -26,6 +26,8 @@ import { AlertTriangle, Bug, Download, Plus, Search, Trash2 } from 'lucide-react
 import '../../src/index.css';
 import { applyHarnessEnv } from './harnessEnv';
 import { useI18n } from '../../src/hooks/useI18n';
+import { AlertDialog } from '../../src/shared/ds/AlertDialog';
+import { Spinner } from '../../src/shared/ds/Spinner';
 
 import { Badge } from '../../src/shared/ds/Badge';
 import { Button, type ButtonVariant } from '../../src/shared/ds/Button';
@@ -516,7 +518,92 @@ function I18nPressure() {
   );
 }
 
+
+/**
+ * Feedback primitives — #443 PR 2.
+ *
+ * AlertDialog is rendered inline rather than through its trigger: the gallery
+ * captures surfaces, and a dialog that has to be opened by a click is a dialog
+ * whose snapshot depends on a race. Its focus and keyboard contract is asserted
+ * in the unit tests, where it belongs.
+ */
+function Feedback2() {
+  const [open, setOpen] = useState<null | 'default' | 'destructive' | 'busy'>('destructive');
+
+  return (
+    <div className="grid max-w-2xl gap-6">
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Spinner — every size, and the labelled variant
+        </p>
+        <div className="flex items-center gap-6 text-fg-secondary">
+          <Spinner size="xs" />
+          <Spinner size="sm" />
+          <Spinner size="md" />
+          <Spinner size="lg" />
+          <Spinner size="md" label="Loading results" />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          LoadingState — the block that uses the atom
+        </p>
+        <div className="rounded-md border border-subtle">
+          <LoadingState />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          AlertDialog — open one at a time
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setOpen('default')}>
+            Default
+          </Button>
+          <Button variant="destructive" onClick={() => setOpen('destructive')}>
+            Destructive
+          </Button>
+          <Button variant="secondary" onClick={() => setOpen('busy')}>
+            In flight
+          </Button>
+        </div>
+      </div>
+
+      <AlertDialog
+        open={open === 'default'}
+        onCancel={() => setOpen(null)}
+        onConfirm={() => setOpen(null)}
+        title="Publish this framework?"
+        description="Every control becomes visible to the whole tenant."
+        confirmLabel="Publish"
+      />
+      <AlertDialog
+        open={open === 'destructive'}
+        onCancel={() => setOpen(null)}
+        onConfirm={() => setOpen(null)}
+        tone="destructive"
+        title="Delete ISO 27001:2022?"
+        description="This removes the framework and all 93 of its controls. It cannot be undone."
+        confirmLabel="Delete framework"
+      />
+      <AlertDialog
+        open={open === 'busy'}
+        onCancel={() => setOpen(null)}
+        onConfirm={() => setOpen(null)}
+        tone="destructive"
+        busy
+        title="Revoking the token…"
+        description="The dialog cannot be dismissed while the action is in flight."
+        confirmLabel="Revoke"
+      />
+    </div>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
+  feedback2: Feedback2,
   i18n: I18nPressure,
   controls: Controls,
   forms: Forms,
