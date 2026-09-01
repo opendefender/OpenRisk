@@ -8,16 +8,24 @@
 
 ## License
 
-OpenRisk is **open-core** and ships as two editions in one repository:
+OpenRisk is **open-core** and ships as two editions in one repository, plus one
+permissively-licensed layer that both editions share:
 
-| Edition | License | SPDX header |
+| Edition / layer | License | SPDX header |
 |---|---|---|
 | **Community Edition (CE)** — the core GRC platform | **GNU AGPL v3.0** ([`LICENSE`](./LICENSE)) | `AGPL-3.0-only` |
 | **Enterprise Edition (EE)** — commercial add-ons | **OpenRisk Commercial License** ([`LICENSE.commercial`](./LICENSE.commercial)) | `LicenseRef-OpenRisk-Commercial` |
+| **Design system** — `frontend/design-system/` and `frontend/src/shared/ds/` | **Apache License 2.0** ([`frontend/design-system/LICENSE`](./frontend/design-system/LICENSE)) | `Apache-2.0` |
 
-Every source file declares its edition in its `SPDX-License-Identifier` header.
-[`LICENSING.md`](./LICENSING.md) is the **authoritative boundary** between the two;
+Every source file declares its license in its `SPDX-License-Identifier` header.
+[`LICENSING.md`](./LICENSING.md) is the **authoritative boundary** between the three;
 where this file and `LICENSING.md` disagree, `LICENSING.md` wins.
+
+The design system is deliberately permissive — it is meant to be copied and
+extended, including by commercial code — and its attribution notice is
+[`frontend/design-system/NOTICE`](./frontend/design-system/NOTICE), which covers
+both directories. The "CANNOT relicense" and AGPL §13 points below apply to the
+Community Edition, **not** to those two directories.
 
 **Key points for the Community Edition (AGPLv3):**
 
@@ -40,7 +48,9 @@ copied or deployed under a Commercial Agreement — see `LICENSE.commercial`.
 Copyright is held collectively by the contributors who have submitted code to the
 repository. By contributing to OpenRisk, you agree that:
 
-1. Your contributions to the Community Edition are submitted under `AGPL-3.0-only`
+1. Your contributions are submitted under the license declared by the
+   `SPDX-License-Identifier` header of the file you edit — `AGPL-3.0-only` for the
+   Community Edition, `Apache-2.0` for the two design-system directories
 2. You have the right to submit the contribution
 3. Your contribution becomes part of the collective work
 4. You agree to the [Contributor License Agreement](./CLA.md)

@@ -479,10 +479,16 @@ OpenRisk is **open-core**:
 - **Enterprise Edition** (advanced SSO, AI copilot, premium connectors & SOAR,
   multi-organisation management) — **OpenRisk Commercial License**
   ([`LICENSE.commercial`](LICENSE.commercial)), used under a paid subscription.
+- **The design system** (`frontend/design-system/` and `frontend/src/shared/ds/`)
+  — **Apache License 2.0** ([`frontend/design-system/LICENSE`](frontend/design-system/LICENSE)).
+  Deliberately permissive: the tokens and primitives are meant to be copied and
+  extended, including by commercial code. Attribution lives in
+  [`NOTICE`](frontend/design-system/NOTICE). Apache-2.0 grants no trademark
+  rights — the OpenRisk and OpenDefender names and logos are not licensed by it.
 
 Every source file declares its edition via its `SPDX-License-Identifier` header
-(`AGPL-3.0-only` or `LicenseRef-OpenRisk-Commercial`). The authoritative boundary
-between the two is [`LICENSING.md`](LICENSING.md).
+(`AGPL-3.0-only`, `LicenseRef-OpenRisk-Commercial` or `Apache-2.0`). The
+authoritative boundary between the three is [`LICENSING.md`](LICENSING.md).
 
 For commercial licensing: **licensing@opendefender.io**
 

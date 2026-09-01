@@ -428,12 +428,18 @@ Contributors are recognized in:
 
 ## Contributor License Agreement (CLA)
 
-By contributing to OpenRisk, you agree that your contributions will be licensed under the project's
-[GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`), the license of the Community
-Edition. OpenRisk is **open-core**: a small set of Enterprise Edition paths carries
-`LicenseRef-OpenRisk-Commercial` instead. [`LICENSING.md`](LICENSING.md) is the authoritative
-boundary between the two — read it before contributing to a file whose SPDX header is not
-`AGPL-3.0-only`.
+By contributing to OpenRisk, you agree that your contributions will be licensed under the license
+declared by the `SPDX-License-Identifier` header of the file you are editing. For almost every file
+that is the project's [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`), the
+license of the Community Edition. Two exceptions:
+
+- a small set of Enterprise Edition paths carries `LicenseRef-OpenRisk-Commercial`;
+- the **design system** — `frontend/design-system/` and `frontend/src/shared/ds/` — carries
+  `Apache-2.0`, so that it can be copied and extended freely. Contributions to those two
+  directories are made under Apache-2.0.
+
+[`LICENSING.md`](LICENSING.md) is the authoritative boundary between the three — read it before
+contributing to a file whose SPDX header is not `AGPL-3.0-only`.
 
 To ensure the OpenDefender project has the legal rights to distribute and potentially re-license the collective work in the future, we require all contributors to sign a Contributor License Agreement (CLA).
 
