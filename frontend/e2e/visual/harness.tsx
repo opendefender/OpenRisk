@@ -24,6 +24,7 @@ import { createRoot } from 'react-dom/client';
 import { AlertTriangle, ShieldOff, Trash2 } from 'lucide-react';
 
 import '../../src/index.css';
+import { applyHarnessEnv } from './harnessEnv';
 
 import { DangerConfirm } from '../../src/shared/DangerConfirm';
 import { ImpactDialog } from '../../src/shared/ImpactDialog';
@@ -136,6 +137,10 @@ function Harness() {
 
 // Once more after mount: the store also applies the theme on rehydrate.
 queueMicrotask(applyRequestedTheme);
+
+/* Before render: the store owns theme AND language, so `setLang`'s applyDom
+   cannot overwrite the theme the HTML stamped. See harnessEnv.ts. */
+applyHarnessEnv();
 
 createRoot(document.getElementById('harness-root')!).render(
   <StrictMode>
