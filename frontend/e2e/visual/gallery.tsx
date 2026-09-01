@@ -24,6 +24,8 @@ import { createRoot } from 'react-dom/client';
 import { AlertTriangle, Bug, Download, Plus, Search, Trash2 } from 'lucide-react';
 
 import '../../src/index.css';
+import { applyHarnessEnv } from './harnessEnv';
+import { useI18n } from '../../src/hooks/useI18n';
 
 import { Badge } from '../../src/shared/ds/Badge';
 import { Button, type ButtonVariant } from '../../src/shared/ds/Button';
@@ -441,7 +443,81 @@ function Feedback() {
   );
 }
 
+
+/**
+ * The language axis. #463.
+ *
+ * Every label here is a REAL product string, pulled from src/locales by its key,
+ * and the keys are chosen for how far French runs past English rather than at
+ * random — the point is to break the layout if it is going to break:
+ *
+ *   common.save              "Save"       -> "Enregistrer"                 x2.75
+ *   risks.riskOwner          "Owner"      -> "Propriétaire"                x2.40
+ *   filters.tags             "Tags"       -> "Étiquettes"                  x2.50
+ *   compliance.adminOnly     "Admin only" -> "Réservé aux administrateurs" x2.70
+ *   compliance.catalog.import "Add"       -> "Ajouter"                     x2.33
+ *
+ * A four-character English word becoming eleven French characters is what turns
+ * a comfortable button row into a wrapped one, and it happens on `Save` — the
+ * most-used control in the product. Averaged strings would never show it.
+ *
+ * Rendering product strings rather than lorem also means this page fails when a
+ * translation is DELETED: useI18n returns the key itself on a miss, so
+ * "common.save" would appear on the button and the snapshot would move.
+ */
+function I18nPressure() {
+  const { t } = useI18n();
+
+  return (
+    <div className="grid max-w-2xl gap-6">
+      <div>
+          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Buttons at their longest — Same row, both languages</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="primary">{t('common.save')}</Button>
+          <Button variant="secondary">{t('common.cancel')}</Button>
+          <Button variant="secondary">{t('compliance.catalog.import')}</Button>
+          <Button variant="destructive">{t('common.delete')}</Button>
+          <Button variant="ghost">{t('common.filter')}</Button>
+        </div>
+      </div>
+
+      <div>
+          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Badges — A chip has no room to wrap</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge intent="neutral">{t('compliance.adminOnly')}</Badge>
+          <Badge intent="info">{t('filters.tags')}</Badge>
+          <Badge intent="success">{t('statuses.in_progress')}</Badge>
+          <Badge intent="warning">{t('mitigations.deadline.today')}</Badge>
+        </div>
+      </div>
+
+      <div>
+          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Field labels — Label, description and error, all translated</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t('risks.riskOwner')} description={t('risks.dragDropHint')} required>
+            <Input placeholder={t('common.search')} />
+          </Field>
+          <Field
+            label={t('risks.acceptanceReason')}
+            status="invalid"
+            message={t('errors.failedToUpdateRisk')}
+          >
+            <Input defaultValue="" />
+          </Field>
+        </div>
+      </div>
+
+      <div>
+          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Prose — The long strings, where wrapping is expected but overflow is not</p>
+        <p className="text-sm text-fg-secondary">{t('actionCenter.emptyDescription')}</p>
+        <p className="mt-2 text-sm text-fg-secondary">{t('compliance.noFrameworksDescription')}</p>
+      </div>
+    </div>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
+  i18n: I18nPressure,
   controls: Controls,
   forms: Forms,
   'form-controls': FormControls,
@@ -474,6 +550,10 @@ function Gallery() {
 }
 
 queueMicrotask(applyRequestedTheme);
+
+/* Before render: the store owns theme AND language, so `setLang`'s applyDom
+   cannot overwrite the theme the HTML stamped. See harnessEnv.ts. */
+applyHarnessEnv();
 
 createRoot(document.getElementById('gallery-root')!).render(
   <StrictMode>

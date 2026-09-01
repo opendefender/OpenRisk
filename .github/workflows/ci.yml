@@ -194,16 +194,26 @@ jobs:
       - name: Three-licence boundary is intact
         run: cd frontend && npm run check:license-boundary
 
-      # The bundle budget runs HERE as well as in build-frontend, and that is
-      # deliberate rather than duplication. build-frontend `needs:
-      # [frontend-lint, frontend-unit-tests]`, both of which are currently red,
-      # so the budget step has been SKIPPED on every run — the ratchets in #446
-      # (250 -> 248) and #462 (-> 180) were being enforced by nobody. A gate that
-      # does not run is the exact failure mode both issues exist to prevent.
-      # This job depends on nothing that is failing, so the budget is checked for
-      # real. Drop this step once the lint and unit-test jobs are green again.
-      - name: Bundle budget (< 180 KB gzip initial)
-        run: cd frontend && npm run build && npm run budget
+      # The visual suite, which until #463 ran in NO workflow at all. e2e.yml
+      # drives Playwright from the repo root against tests/e2e, so the
+      # design-system gallery, the overlay snapshots and the language axis were
+      # only ever executed on someone's laptop.
+      #
+      # It runs in THIS job rather than a new one because the browser is already
+      # installed above for the opacity-modifier check, and because this job
+      # depends on nothing that is currently failing — `build-frontend` needs
+      # frontend-lint and frontend-unit-tests, both red, so anything placed there
+      # is skipped and enforced by nobody.
+      - name: Visual suite — themes, languages, axe and the keyboard contract
+        run: cd frontend && npx playwright test e2e/visual/ --project=chromium
+
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: frontend/playwright-report/
+          retention-days: 7
 
   # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
   # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
