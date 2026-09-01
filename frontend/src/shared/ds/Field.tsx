@@ -32,9 +32,7 @@
  */
 
 import {
-  createContext,
   forwardRef,
-  useContext,
   useId,
   type InputHTMLAttributes,
   type ReactNode,
@@ -43,25 +41,12 @@ import {
 } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from './cn';
+import { FieldContext, useControlWiring, type FieldStatus } from './fieldContext';
 
-export type FieldStatus = 'default' | 'invalid' | 'warning' | 'success';
-
-interface FieldContextValue {
-  id: string;
-  descriptionId?: string;
-  messageId?: string;
-  status: FieldStatus;
-  required: boolean;
-  disabled: boolean;
-}
-
-const FieldContext = createContext<FieldContextValue | null>(null);
-
-/** Controls read their wiring from context; using one outside a Field is legal
- *  (a bare search box needs no label stack) and simply yields no ids. */
-function useFieldContext(): FieldContextValue | null {
-  return useContext(FieldContext);
-}
+/* Re-exported so `import { type FieldStatus } from './Field'` keeps working —
+   index.ts and 45 call sites already spell it that way, and Résolution 1 of
+   #443 freezes the public API of the eight existing primitives. */
+export type { FieldStatus };
 
 export interface FieldProps {
   label?: ReactNode;
@@ -178,23 +163,6 @@ function controlClasses(status: FieldStatus, extra?: string): string {
   );
 }
 
-/** Wires a control to its Field. Caller-supplied ids/aria always win. */
-function useControlWiring(explicitId?: string) {
-  const ctx = useFieldContext();
-  const fallbackId = useId();
-  if (!ctx) return { id: explicitId ?? fallbackId, status: 'default' as FieldStatus, aria: {} };
-  const describedBy = [ctx.descriptionId, ctx.messageId].filter(Boolean).join(' ') || undefined;
-  return {
-    id: explicitId ?? ctx.id,
-    status: ctx.status,
-    aria: {
-      'aria-describedby': describedBy,
-      'aria-invalid': ctx.status === 'invalid' || undefined,
-      'aria-required': ctx.required || undefined,
-      disabled: ctx.disabled || undefined,
-    },
-  };
-}
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Shows a spinner in the trailing slot (async validation, remote lookup). */
