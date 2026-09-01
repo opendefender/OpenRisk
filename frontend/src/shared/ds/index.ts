@@ -26,6 +26,12 @@ export {
   type TextareaProps,
   type SelectProps,
 } from './Field';
+export { Label, type LabelProps } from './Label';
+export { Fieldset, type FieldsetProps } from './Fieldset';
+export { InputGroup, type InputGroupProps, type InputGroupSize } from './InputGroup';
+export { Checkbox, CheckboxGroup, type CheckboxProps, type CheckboxGroupProps } from './Checkbox';
+export { RadioGroup, type RadioGroupProps, type RadioOption } from './RadioGroup';
+export { Switch, type SwitchProps, type SwitchSize } from './Switch';
 export { Badge, type BadgeIntent, type BadgeSize, type BadgeProps } from './Badge';
 export {
   riskStatusIntent,
