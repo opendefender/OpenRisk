@@ -59,6 +59,15 @@ export interface ModalProps {
   /** False while a submission is in flight: the user cannot dismiss a dialog
    *  whose action is already running and half-applied. */
   dismissable?: boolean;
+  /**
+   * `alertdialog` for a dialog that asks a question with exactly two answers.
+   * The role makes a screen reader announce the whole dialog on open rather than
+   * waiting to be explored, which is right for "this deletes 14 controls" and
+   * wrong for a form. Added for AlertDialog (#443 PR 2); OPTIONAL and defaulting
+   * to `dialog`, so every existing call site keeps its exact behaviour and
+   * Résolution 1's freeze on these APIs holds.
+   */
+  role?: 'dialog' | 'alertdialog';
   closeLabel?: string;
   className?: string;
   children: ReactNode;
@@ -73,6 +82,7 @@ export function Modal({
   footer,
   leading,
   dismissable = true,
+  role = 'dialog',
   closeLabel = 'Close',
   className,
   children,
@@ -103,7 +113,7 @@ export function Modal({
     >
       <div
         ref={panelRef}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={subtitleId}
