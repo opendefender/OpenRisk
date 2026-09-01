@@ -5,11 +5,77 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-None. Every entry in this register is resolved as of 2026-08-31.
+### O-001 — `react-leaflet` ships under Hippocratic-2.1, which is not OSI-approved · raised 2026-09-01
+**Found while** executing #452's task "check whether any repo-wide licence tooling
+asserts everything under `frontend/src/**` is AGPL". The answer is that no such
+tooling exists, and the job that looks like it does is not doing it.
+
+**The facts, verified —**
+- `frontend/package.json:43` depends on `react-leaflet ^5.0.0`.
+  `node -e "require('react-leaflet/package.json').license"` → `"Hippocratic-2.1"`.
+  (`leaflet` itself is `BSD-2-Clause` and is fine.)
+- Hippocratic-2.1 imposes ethical-use restrictions on the licensee. It is **not
+  OSI-approved and not a free-software licence**, so it is not compatible with
+  redistributing a combined work under `AGPL-3.0-only`, and it sits badly with an
+  EE build distributed under a commercial agreement.
+- `.github/workflows/security.yml` `license-check` writes `backend/modules.json`,
+  never reads it, and `echo`s `"✅ License check completed"`. It covers Go
+  modules only and asserts nothing. **The frontend dependency tree is ungated.**
+
+**Why it is the owner's call** — dropping or replacing a shipped map dependency,
+accepting the risk, or paying for an alternative are all owner decisions under
+CLAUDE.md's escalation triggers (dependencies, licensing, anything costing money).
+
+**Options** — (A) replace `react-leaflet` with a permissively-licensed map binding
+and add a real frontend licence gate; (B) keep it and record an accepted-risk
+entry with counsel's opinion; (C) keep it, gate the map behind EE only — which
+does not help, since EE is the harder case, not the easier one.
+
+**Recommendation** — A. The gate is the durable half: without it the next
+incompatible dependency arrives unannounced, exactly as this one did.
+
+**Cost of delay** — It is already published. Every release compounds it.
+
+**Not touched by #452.** That PR relicenses the design system and changes no
+dependency. This entry exists so the finding is not lost with the PR thread; it
+needs its own issue.
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-016 — the Apache-2.0 boundary is both design-system directories · 2026-08-31
+**Decided** — Option A. "The design system" in D-014 means **`frontend/design-system/`
+and `frontend/src/shared/ds/`**, both. Every file in both takes an `Apache-2.0`
+SPDX header. The AGPL-3.0-only core and the `LicenseRef-OpenRisk-Commercial` EE
+boundary are unchanged.
+**Rationale (owner)** — Same reason as D-014: **the artifact people copy is the
+components, not the token file.** Relicensing only `frontend/design-system/`
+would leave the exact auditor argument D-014 was resolved to remove sitting one
+directory over — `frontend/src/features/reports/BoardReportPage.tsx`
+(`LicenseRef-OpenRisk-Commercial`) imports `shared/ds`
+(`import { Button, cn } from '../../shared/ds'`), not the tokens. And #443 is
+about to add ~50 vendored components to `frontend/src/shared/ds/`: executed now
+they are born Apache-2.0; executed later that is ~50 fresh headers to rewrite
+plus the 14 existing ones.
+**Consequence** — Irrevocable for anything published, as D-014. Scope is 16 files
+across the two directories. `LICENSING.md` gains **one row per directory**, not
+one row. The boundary is precise and does not widen by adjacency:
+`frontend/src/shared/ui.tsx` (61 importers) and
+`frontend/src/shared/EmptyState.tsx` (22 importers) stay AGPL-3.0-only — they are
+product code that happens to live nearby. `frontend/src/shared/ds/` carries no
+`LICENSE`/`NOTICE` of its own; the ones in `frontend/design-system/` name it
+explicitly and cover it.
+**Unblocked** — #452 executes D-014 and D-016 together in one PR, before any
+vendoring. It gates #443 and #444. #443 stays `status:blocked` on its three
+remaining non-licensing blockers (#446, two undeclared dependencies, upstream MIT
+verification at the vendored commit) — this decision closes the licensing line of
+its blocking table only.
+**Record note** — This entry was transcribed into the register on 2026-09-01 while
+executing #452, from the issue body and `po-openrisk`'s timestamped comment of
+2026-08-31. The decision is the owner's and dates from 2026-08-31; only the
+register entry is late. `LICENSING.md` and `frontend/design-system/README.md`
+cite it. Owner to confirm the transcription is faithful.
 
 ### D-015 — CLA acceptance is enforced by a DCO check · 2026-08-31
 **Decided** — Option A. A GitHub Action asserts the `Signed-off-by` trailer on

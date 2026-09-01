@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2026 OpenDefender Contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # The canonical OpenRisk design system — vendored
 
 `openrisk.tokens.css` in this directory is a **verbatim copy** of the canonical
@@ -40,6 +43,22 @@ The canonical file is upstream. To take a change:
 
 Never edit this copy to make the check pass. That inverts the direction of the
 contract and the next person to sync from upstream will silently revert you.
+
+**One exception, and it is the header.** Since D-014/D-016 this copy is
+`Apache-2.0` (see `LICENSE` and `NOTICE` next to it), while the upstream file in
+`opendefender-website` still carries the AGPL header it was written with. A
+verbatim sync from upstream will therefore re-import the wrong
+`SPDX-License-Identifier` — **keep the `Apache-2.0` header when you copy**, and
+diff the body only. The proper fix is upstream: the same relicensing has to be
+applied to `opendefender-website/design-system/openrisk.tokens.css`, which is a
+separate repository and a separate issue owned by `website-dev`. Until that
+lands, one file exists under two licences and this paragraph is the reason.
+
+## Licence
+
+This directory and `frontend/src/shared/ds/` are **Apache-2.0** — the exception
+to the AGPL core. `LICENSE` and `NOTICE` here cover both directories;
+`shared/ds/` has none of its own. See `LICENSING.md` at the repository root.
 
 The canonical Tailwind theme is deliberately **not** vendored here: since the
 Tailwind v4 migration (#441) the product's `frontend/src/styles/theme.css` — a

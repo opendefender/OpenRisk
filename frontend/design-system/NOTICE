@@ -1,0 +1,70 @@
+OpenRisk Design System
+Copyright (c) 2026 OpenDefender Contributors
+
+This product includes software developed by OpenDefender Contributors
+(https://github.com/opendefender/OpenRisk).
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use these files except in compliance with the License. You may obtain a copy
+of the License in the LICENSE file next to this NOTICE, or at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+
+================================================================================
+SCOPE — what this NOTICE and the adjacent LICENSE cover
+================================================================================
+
+Apache-2.0 covers the OpenRisk design system, which is TWO directories:
+
+    frontend/design-system/       the canonical token contract
+    frontend/src/shared/ds/       the primitive component layer
+
+`frontend/src/shared/ds/` carries no LICENSE or NOTICE file of its own. It is
+covered by the LICENSE and the NOTICE in this directory, and every file in it
+declares `SPDX-License-Identifier: Apache-2.0` in its own header. If you copy
+either directory out of this repository, carry this NOTICE and the adjacent
+LICENSE with it.
+
+Everything else in the OpenRisk repository is licensed separately — the core
+under the GNU AGPL v3.0, the Enterprise Edition under the OpenRisk Commercial
+License. `LICENSING.md` at the repository root is the authoritative boundary. In
+particular `frontend/src/shared/ui.tsx` and `frontend/src/shared/EmptyState.tsx`
+live beside the design system but are NOT part of it and remain under the AGPL.
+
+The Apache-2.0 grant is a copyright and patent grant. It is not a trademark
+licence: "OpenRisk" and "OpenDefender", their logos and their product names
+remain the marks of OpenDefender and are not licensed by this file (Apache-2.0
+section 6).
+
+
+================================================================================
+PROVENANCE — origin of the files in this directory
+================================================================================
+
+`openrisk.tokens.css` is a verbatim copy of the canonical token file authored in
+the `opendefender-website` repository at `design-system/openrisk.tokens.css`.
+Both repositories are works of OpenDefender Contributors; the copy is not a
+third-party work.
+
+
+================================================================================
+THIRD-PARTY COMPONENTS
+================================================================================
+
+The primitive layer in `frontend/src/shared/ds/` is project-original work
+written in this repository. It depends on third-party libraries at build time
+(clsx, tailwind-merge, @floating-ui/react, lucide-react, react), but contains no
+copied third-party source.
+
+Components vendored from upstream projects are recorded in the table below, one
+row per component, with the exact upstream commit they were taken at. A vendored
+component is not "from project X at HEAD" — it is from one commit, and that
+commit is what the licence attaches to. No row may be added without one.
+
+Add a row when you vendor. Do not remove a row when you rewrite the component:
+the attribution obligation survives the modification.
+
+| Component (path under src/shared/ds/) | Upstream project | Upstream path | Upstream commit | Upstream licence | Date vendored |
+|---|---|---|---|---|---|
+| _(none yet — #443 and #444 append here)_ | | | | | |
