@@ -190,7 +190,75 @@ const MARK_PAIRS = SURFACES.map((surface) => ({
   min: AA_LARGE,
 }));
 
-const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS, ...MARK_PAIRS];
+/**
+ * Text sitting on a TINT — a token at partial opacity — rather than on a flat
+ * surface. #427.
+ *
+ * These pairs could not be checked before, because until #441 the classes that
+ * produce them (`bg-danger/10` and the rest) emitted no CSS at all: the tint
+ * was not on the page, the text was really sitting on the surface behind it,
+ * and measuring the tint would have been measuring something the user never
+ * saw. Now that they render, the composite is a real background with a real
+ * contrast obligation, and it is a background NOBODY chose deliberately — it is
+ * whatever 10% of a semantic colour happens to land on over a card.
+ *
+ * Every entry is an observed pairing: a `bg-<token>/<alpha>` and a text colour
+ * on the same element in src/. Nothing here is hypothetical, and nothing is
+ * added because it seemed likely.
+ *
+ * `over` is the surface the tint composites onto. A tinted chip renders inside a
+ * card, so --surface-1 is the honest backdrop; where the same tint is also used
+ * directly on the page, --surface-0 is checked too, because the composite — and
+ * therefore the contrast — is different on each.
+ */
+const TINT_BACKDROPS = ['--surface-0', '--surface-1'];
+
+const TINTS = [
+  { tint: '--danger', alpha: 10, text: ['--danger-text', '--fg-secondary', '--fg-muted'] },
+  { tint: '--danger', alpha: 20, text: ['--danger-text'] },
+  // The hover step of the dismiss button in the notification centre. It was
+  // /30, which measured 4.23:1 in light — the first thing these pairs caught.
+  { tint: '--danger', alpha: 25, text: ['--danger-text'] },
+  { tint: '--warning', alpha: 10, text: ['--warning-text'] },
+  { tint: '--success', alpha: 10, text: ['--success-text'] },
+  { tint: '--success', alpha: 20, text: ['--success-text'] },
+  // --accent-500, not --accent: the accent tint carries LABELS (an active tab,
+  // a selected role, a tag chip), and the text step is the one held to 4.5:1.
+  // These sites used `text-primary`, which emits var(--accent) and measured
+  // 3.82:1 on its own 20% tint; they now use `text-accent-strong`.
+  { tint: '--accent', alpha: 10, text: ['--accent-500'] },
+  { tint: '--accent', alpha: 20, text: ['--fg-primary'] },
+  { tint: '--surface-1', alpha: 5, text: ['--fg-primary', '--fg-secondary'] },
+  { tint: '--surface-1', alpha: 10, text: ['--fg-primary', '--fg-secondary'] },
+  { tint: '--surface-1', alpha: 50, text: ['--fg-primary', '--fg-muted'] },
+  { tint: '--surface-2', alpha: 50, text: ['--fg-secondary'] },
+  { tint: '--surface-3', alpha: 50, text: ['--fg-secondary'] },
+];
+
+/**
+ * Tints carrying a non-text mark rather than a label, so 3:1 (WCAG 1.4.11).
+ *
+ * The modal header icon wrappers — `bg-primary/10 p-2 text-primary` — hold an
+ * icon and nothing else. Holding them to 4.5:1 would be measuring the wrong
+ * obligation, and the honest way to say that is to check them at the bar that
+ * does apply rather than leave them out.
+ */
+const MARK_TINTS = [{ tint: '--accent', alpha: 10, text: ['--accent'] }];
+
+const TINT_PAIRS = [
+  ...TINTS.flatMap(({ tint, alpha, text }) =>
+    text.flatMap((t) =>
+      TINT_BACKDROPS.map((over) => ({ text: t, surface: tint, tint: alpha, over, min: AA_NORMAL })),
+    ),
+  ),
+  ...MARK_TINTS.flatMap(({ tint, alpha, text }) =>
+    text.flatMap((t) =>
+      TINT_BACKDROPS.map((over) => ({ text: t, surface: tint, tint: alpha, over, min: AA_LARGE })),
+    ),
+  ),
+];
+
+const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS, ...MARK_PAIRS, ...TINT_PAIRS];
 
 /**
  * The live accent, per theme AND per accent variant.
@@ -225,11 +293,12 @@ let checked = 0;
 for (const [themeName, scope] of Object.entries(themes)) {
   console.log(`\n${themeName.toUpperCase()}`);
 
-  for (const { text, surface, min } of ALL_PAIRS) {
+  for (const { text, surface, min, tint, over } of ALL_PAIRS) {
+    const label = tint ? `${surface}/${tint} over ${over}` : surface;
     const rawText = scope[text];
     const rawSurface = scope[surface];
     if (!rawText || !rawSurface) {
-      console.log(`  ?  ${text} on ${surface} — token missing in ${themeName}`);
+      console.log(`  ?  ${text} on ${label} — token missing in ${themeName}`);
       failures++;
       continue;
     }
@@ -237,14 +306,22 @@ for (const [themeName, scope] of Object.entries(themes)) {
     const fg = parseColor(resolveVar(rawText, scope));
     const bgRaw = parseColor(resolveVar(rawSurface, scope));
     if (!fg || !bgRaw) {
-      console.log(`  ?  ${text} on ${surface} — unparseable colour`);
+      console.log(`  ?  ${text} on ${label} — unparseable colour`);
       failures++;
       continue;
     }
 
-    // Translucent surfaces composite over the page background.
+    // Translucent surfaces composite over the page background. A TINT
+    // composites its token at the class's alpha over the surface it is drawn
+    // on, which is the colour the user actually reads the text against.
     const pageBg = parseColor(resolveVar(scope['--surface-0'], scope));
-    const bg = flatten(bgRaw, pageBg);
+    let bg;
+    if (tint) {
+      const backdrop = flatten(parseColor(resolveVar(scope[over], scope)), pageBg);
+      bg = flatten([...bgRaw.slice(0, 3), tint / 100], backdrop);
+    } else {
+      bg = flatten(bgRaw, pageBg);
+    }
     const ratio = contrast(flatten(fg, bg), bg);
     checked++;
 
@@ -252,7 +329,7 @@ for (const [themeName, scope] of Object.entries(themes)) {
     if (!ok) failures++;
     const mark = ok ? '.' : 'FAIL';
     if (!ok) {
-      console.log(`  ${mark} ${text} on ${surface}: ${ratio.toFixed(2)}:1 (needs ${min}:1)`);
+      console.log(`  ${mark} ${text} on ${label}: ${ratio.toFixed(2)}:1 (needs ${min}:1)`);
     }
   }
 }

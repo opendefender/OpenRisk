@@ -244,7 +244,7 @@ export const RoleManagement = () => {
                       whileHover={{ x: 4 }}
                       className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
                         selectedRole?.id === role.id
-                          ? 'bg-primary/10 border border-primary text-primary'
+                          ? 'bg-primary/10 border border-primary text-accent-strong'
                           : 'bg-surface-1/50 hover:bg-surface-2 text-fg-primary'
                       }`}
                     >

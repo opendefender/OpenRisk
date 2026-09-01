@@ -405,7 +405,7 @@ export const EnhancedNotificationCenter = () => {
                   </button>
                   <button
                     onClick={clearAll}
-                    className="flex-1 text-xs px-3 py-2 bg-danger/20 hover:bg-danger/30 text-danger-text rounded-lg transition-colors"
+                    className="flex-1 text-xs px-3 py-2 bg-danger/20 hover:bg-danger/25 text-danger-text rounded-lg transition-colors"
                   >
                     Clear All
                   </button>

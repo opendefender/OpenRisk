@@ -12,6 +12,7 @@
     "check:design-system": "node scripts/check-design-system.mjs",
     "check:tokens": "npm run check:design-system && npm run check:contrast",
     "audit:surfaces": "node scripts/audit-surfaces.mjs",
+    "generate:alpha-classes": "node scripts/alpha-modifier-sites.mjs --write",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:api-types": "openapi-typescript ../docs/openapi.yaml -o src/types/openapi.generated.ts"

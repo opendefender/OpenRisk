@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Opacity-modifier harness</title>
+    <script>
+      // Theme before first paint, for the same reason gallery.html does it: a
+      // token read after a theme swap is a race, and here the whole assertion
+      // is about the value a token resolves to.
+      (function () {
+        var q = new URLSearchParams(location.search);
+        document.documentElement.setAttribute('data-theme', q.get('theme') || 'dark');
+        document.documentElement.setAttribute('data-variant', q.get('variant') || 'azure');
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="alpha-root"></div>
+    <script type="module" src="./alpha.ts"></script>
+  </body>
+</html>

@@ -173,6 +173,18 @@ jobs:
       - name: WCAG contrast, both themes and both accent variants
         run: cd frontend && npm run check:contrast
 
+      # The two checks above read the token FILES. This one reads what the
+      # browser computed, and it is the only one of the three that could have
+      # caught #427: `bg-danger/10` emitted no CSS at all, so the tokens were in
+      # sync, their contrast arithmetic was correct, and the class still did
+      # nothing. Chromium only — the assertion is about which declarations exist,
+      # not about pixels, so a second engine would buy nothing here.
+      - name: Playwright browser
+        run: cd frontend && npx playwright install --with-deps chromium
+
+      - name: Opacity modifiers resolve to real colours in a browser
+        run: cd frontend && npx playwright test e2e/visual/alpha-modifiers.spec.ts --project=chromium
+
   # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
   # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
   # dedicated gate. Uses the local binary since the frontend has no `type-check`

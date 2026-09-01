@@ -19,7 +19,7 @@ export const ViewToggle = ({ view, onViewChange }: ViewToggleProps) => {
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
           view === 'table'
-            ? 'bg-primary/20 text-primary border border-primary/30'
+            ? 'bg-primary/10 text-accent-strong border border-primary/30'
             : 'text-fg-secondary hover:text-fg-primary'
         )}
       >
@@ -31,7 +31,7 @@ export const ViewToggle = ({ view, onViewChange }: ViewToggleProps) => {
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
           view === 'card'
-            ? 'bg-primary/20 text-primary border border-primary/30'
+            ? 'bg-primary/10 text-accent-strong border border-primary/30'
             : 'text-fg-secondary hover:text-fg-primary'
         )}
       >
