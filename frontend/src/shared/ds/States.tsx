@@ -16,8 +16,9 @@
  */
 
 import type { ReactNode } from 'react';
-import { AlertTriangle, Loader2, LockKeyhole, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, LockKeyhole, type LucideIcon } from 'lucide-react';
 import { cn } from './cn';
+import { Spinner } from './Spinner';
 import { Button } from './Button';
 
 /* ------------------------------------------------------------------ shell -- */
@@ -197,7 +198,9 @@ export function LoadingState({ label = 'Loading', className }: LoadingStateProps
       aria-live="polite"
       className={cn('flex items-center justify-center gap-2 px-6 py-14', className)}
     >
-      <Loader2 size={18} className="text-fg-muted motion-safe:animate-spin" aria-hidden="true" />
+      {/* The glyph comes from the Spinner atom; the label below is what a
+          screen reader reads, so the spinner itself stays aria-hidden. */}
+      <Spinner size="md" className="text-fg-muted" />
       <span className="text-sm text-fg-secondary">{label}</span>
     </div>
   );
