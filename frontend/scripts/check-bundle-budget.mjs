@@ -13,7 +13,12 @@ import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 
 const DIST = 'dist';
-const BUDGET_KB = Number(process.env.BUNDLE_BUDGET_KB ?? 250);
+// Ratcheted down from 250 by #446. Measured 245.8 KB on 2026-09-01, so 248 locks
+// in today's number with ~2 KB for chunk-hash noise and stops a silent drift up
+// to 249.9. It is NOT the guide's target: that is 180 KB, which is 66 KB below
+// where the console actually is and is a code-splitting project, not a lint
+// rule — escalated as D-018. This budget may only ever be lowered.
+const BUDGET_KB = Number(process.env.BUNDLE_BUDGET_KB ?? 248);
 
 const indexHtml = join(DIST, 'index.html');
 if (!existsSync(indexHtml)) {

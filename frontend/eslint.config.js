@@ -7,6 +7,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import noRawColors from './eslint-rules/no-raw-colors.js'
 import noMockData from './eslint-rules/no-mock-data.js'
 import noAdHocDesignValues from './eslint-rules/no-ad-hoc-design-values.js'
+import noDesignCliches from './eslint-rules/no-design-cliches.js'
 
 /**
  * Local plugin. Kept in-repo rather than published: the rule encodes this
@@ -17,6 +18,7 @@ const openrisk = {
     'no-raw-colors': noRawColors,
     'no-mock-data': noMockData,
     'no-ad-hoc-design-values': noAdHocDesignValues,
+    'no-design-cliches': noDesignCliches,
   },
 }
 
@@ -86,8 +88,6 @@ export default defineConfig([
       'src/features/compliance/RemediationPage.tsx',
       'src/features/cti/ThreatIntel.tsx',
       'src/features/dashboard/DashboardPage.tsx',
-      'src/features/dashboard/widgets/GlobalScore.tsx',
-      'src/features/dashboard/widgets/RiskHeatmap.tsx',
       'src/features/financial/FinancialDashboard.tsx',
       'src/features/gamification/LeaderboardPage.tsx',
       'src/features/gamification/UserLevelCard.tsx',
@@ -102,7 +102,6 @@ export default defineConfig([
       'src/features/notifications/NotificationCategoryPrefs.tsx',
       'src/features/onboarding/OnboardingChecklist.tsx',
       'src/features/onboarding/PersonalizeCard.tsx',
-      'src/features/risks/RiskDrawer.tsx',
       'src/features/risks/RiskRegisterPage.tsx',
       'src/features/risks/components/RiskCard.tsx',
       'src/features/settings/GeneralTab.tsx',
@@ -110,7 +109,6 @@ export default defineConfig([
       'src/features/settings/SettingsScreen.tsx',
       'src/features/settings/TeamTab.tsx',
       'src/features/simulations/SimulationsPage.tsx',
-      'src/features/universe/AssetUniverse.tsx',
       'src/features/vulnerabilities/IngestModal.tsx',
       'src/features/vulnerabilities/IntegrationsPanel.tsx',
       'src/features/vulnerabilities/VulnerabilitiesPage.tsx',
@@ -123,8 +121,6 @@ export default defineConfig([
       'src/components/shared/ScoreMeter.tsx',
       'src/components/shared/StatusDot.tsx',
       'src/components/shared/UserAvatar.tsx',
-      'src/components/ui/Input.tsx',
-      'src/pages/AIRiskInsights.tsx',
       'src/pages/Analytics.tsx',
       'src/pages/AnalyticsDashboard.tsx',
       'src/pages/AuditLogs.tsx',
@@ -134,12 +130,8 @@ export default defineConfig([
       'src/pages/ImportRisks.tsx',
       'src/pages/Login.tsx',
       'src/pages/Marketplace.tsx',
-      'src/pages/MonitoringDashboard.tsx',
-      'src/pages/PermissionAnalytics.tsx',
-      'src/pages/RealTimeAnalyticsDashboard.tsx',
       'src/pages/Register.tsx',
       'src/pages/Reports.tsx',
-      'src/pages/RiskTimeline.tsx',
       'src/pages/RoleManagement.tsx',
       'src/pages/ThreatMap.tsx',
       'src/pages/TokenManagement.tsx',
@@ -189,6 +181,100 @@ export default defineConfig([
     plugins: { openrisk },
     rules: {
       'openrisk/no-ad-hoc-design-values': 'error',
+    },
+  },
+  {
+    // The anti-cliché guard, at error level. The design guide's own
+    // contribution rule 1: "Lint rule, not a code review preference."
+    //
+    // Scoped to src/** and NOT to src/components/**: the primitive layer is
+    // src/shared/ds/ (src/components/ui/ was deleted on 2026-08-25 by 96a4a57
+    // and #443 is forbidden to recreate it), so a components-only glob would
+    // cover none of the ~50 components #443 vendors — the exact reason #443 is
+    // blocked behind this issue.
+    files: ['src/**/*.{ts,tsx}'],
+    // Screens carrying the cliché today. This list may ONLY shrink; a file
+    // leaves it by being fixed, never by being added.
+    //
+    // src/shared/ds/** is deliberately absent and must stay absent: it is
+    // clean today, and it is where the vendored primitives land. Acceptance
+    // criterion 1 of this issue is exactly that absence.
+    ignores: [
+      '**/__tests__/**',
+      '**/*.test.{ts,tsx}',
+      '**/*.spec.{ts,tsx}',
+      'src/components/gamification/AchievementTrackingUI.tsx',
+      'src/components/gamification/EnhancedNotificationCenter.tsx',
+      'src/components/gamification/GamificationDashboard.tsx',
+      'src/components/layout/NotificationCenter.tsx',
+      'src/components/layout/PageHeader.tsx',
+      'src/components/shared/FloatingBulkBar.tsx',
+      'src/components/shared/ScoreMeter.tsx',
+      'src/components/shared/UserAvatar.tsx',
+      'src/features/assets/AssetHistoryDrawer.tsx',
+      'src/features/assets/AssetsPage.tsx',
+      'src/features/attackSurface/AssetSchemaSettings.tsx',
+      'src/features/billing/BillingPanel.tsx',
+      'src/features/compliance/ComplianceModals.tsx',
+      'src/features/compliance/CompliancePage.tsx',
+      'src/features/compliance/ControlDrawer.tsx',
+      'src/features/compliance/ImportCatalogModal.tsx',
+      'src/features/gamification/UserLevelCard.tsx',
+      'src/features/mitigations/MitigationKanbanPage.tsx',
+      'src/features/reports/BoardReportPage.tsx',
+      'src/features/risks/ComplianceMappingField.tsx',
+      'src/features/risks/LifecycleStepper.tsx',
+      'src/features/settings/GeneralTab.tsx',
+      'src/features/users/CreateUserModal.tsx',
+      'src/pages/ComplianceReportDashboard.tsx',
+      'src/pages/Login.tsx',
+      'src/pages/Marketplace.tsx',
+      'src/pages/Register.tsx',
+      'src/pages/RoleManagement.tsx',
+      'src/pages/ThreatMap.tsx',
+      'src/pages/TokenManagement.tsx',
+      'src/pages/Users.tsx',
+    ],
+    plugins: { openrisk },
+    rules: {
+      'openrisk/no-design-cliches': 'error',
+    },
+  },
+  {
+    // Import deny-list from the design guide. Purely preventive: none of these
+    // is imported anywhere today, so the rule needs no exemption and starts
+    // life at error with a clean tree.
+    //
+    // The chart bans are about honesty rather than looks — a gauge, a ring and
+    // a sunburst all encode a magnitude as an angle, which people read far less
+    // accurately than a length. A GRC console reports numbers a regulator will
+    // ask about; it uses bars.
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@number-flow/react',
+              message:
+                'Animated number tickers make a figure unreadable while it settles. Render the value; if it must change visibly, change it once.',
+            },
+            {
+              name: 'motion',
+              message:
+                "Use 'framer-motion', already a dependency. Two animation runtimes in one bundle is the size budget spent twice.",
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/GaugeChart', '**/RingChart', '**/SunburstChart', '**/LiveLineChart'],
+              message:
+                'Angle-encoded and self-updating charts are banned by the design guide: they read a magnitude less accurately than a bar, and a live line implies data the console does not stream. Use the bar/area primitives in src/shared/ds.',
+            },
+          ],
+        },
+      ],
     },
   },
 ])

@@ -185,6 +185,15 @@ jobs:
       - name: Opacity modifiers resolve to real colours in a browser
         run: cd frontend && npx playwright test e2e/visual/alpha-modifiers.spec.ts --project=chromium
 
+      # The three-licence boundary (#446). D-014 and D-016 put
+      # frontend/design-system/ and frontend/src/shared/ds/ under Apache-2.0
+      # while the core stays AGPL-3.0-only and the EE is commercial. #443 is
+      # about to vendor ~50 third-party components into shared/ds, and
+      # Apache-2.0 is irreversible once published, so the guarantee worth
+      # automating is that a file cannot land there carrying the core's header.
+      - name: Three-licence boundary is intact
+        run: cd frontend && npm run check:license-boundary
+
   # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
   # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
   # dedicated gate. Uses the local binary since the frontend has no `type-check`
@@ -304,8 +313,8 @@ jobs:
           ls -lah dist/
 
       # Performance budget (task §2) — BLOCKING. Fails the build if the initial
-      # (preloaded) JS exceeds 250 KB gzipped. Route/on-demand chunks excluded.
-      - name: Enforce bundle-size budget (< 250 KB gzip initial)
+      # (preloaded) JS exceeds 248 KB gzipped. Route/on-demand chunks excluded.
+      - name: Enforce bundle-size budget (< 248 KB gzip initial)
         run: cd frontend && npm run budget
 
       - name: Upload artifact
