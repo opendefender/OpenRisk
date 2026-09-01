@@ -5,55 +5,93 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-018 — the guide's 180 KB initial-bundle target is 66 KB below reality · 2026-09-01
-**Raised by** — #446, while making the design guide executable.
-**The fact, measured 2026-09-01** — the console's initial (preloaded, gzipped) JS
-is **245.8 KB**, against a guide target of **180 KB**:
-
-```
-  79.8 KB  vendor      59.1 KB  react       38.8 KB  index
-  24.6 KB  motion      17.5 KB  query       13.1 KB  icons     12.8 KB  router
- 245.8 KB  TOTAL
-```
-
-**Why this is not an agent's call** — closing a 66 KB gap is not a lint rule. It
-means splitting or dropping runtime dependencies: `motion` (framer-motion) at
-24.6 KB is the obvious candidate and is used by real product animation, and
-`vendor` at 79.8 KB needs auditing package by package. That is a performance
-project with visible product consequences, and #446 is a CI-doctrine issue.
-Setting the number to 180 without doing the work would turn the build red on
-every PR, which is how a budget gets deleted rather than met.
-
-**What #446 did instead** — ratcheted the existing gate from 250 KB to **248 KB**,
-locking in today's measurement with ~2 KB for chunk-hash noise so the console
-cannot silently drift up to 249.9. The gate is `frontend/scripts/check-bundle-budget.mjs`,
-already blocking in CI. The budget may only ever be lowered.
-
-**Options**
-- **A** — Accept 248 KB as the standing budget; open a separate performance issue
-  to pursue 180 KB, scheduled on its own merits. *(Recommended.)* Keeps the gate
-  honest and green, and puts the 66 KB where the work actually is.
-- **B** — Keep 180 KB as the declared target and make the gate non-blocking until
-  it is met. Costs the gate: a warning nobody acts on is what #446 exists to end.
-- **C** — Do the splitting work inside #446. Mixes a doctrine change with a
-  performance refactor in one PR, and neither gets reviewed properly.
-
-**Cost of delay** — low, and bounded: the 248 KB ratchet holds the line either
-way. What is lost is only the 66 KB, and only for as long as nobody schedules it.
-
-**Reversible?** — Yes. The budget is one constant.
-
-**Also unresolved in the same issue, and cheaper** — #446's last task asks for
-Playwright snapshots across **two themes × two languages**. The visual suite
-(`frontend/e2e/visual/`) does themes today but has no language axis: the harness
-never mounts i18n, so adding FR/EN is new harness work rather than a parameter.
-It is not blocked on a decision, only on scope — recommend a separate issue,
-since French running ~20% longer than English is a real layout risk worth its own
-review rather than a footnote in a lint PR.
+None. Every entry in this register is resolved as of 2026-09-01.
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-019 — Base UI is declined; only `@tanstack/react-table` is approved · 2026-09-01
+**Decided** — Option B. `@tanstack/react-table@9.2.4` is approved as a pinned
+dependency. **`@base-ui-components/react` is declined.** The ~17 primitives
+`shared/ds/` still lacks are built in-house, against the WAI-ARIA authoring
+practices — not by copying coss ui source.
+**Rationale (owner)** — Matches the recommendation. `react-table` is headless,
+stable, MIT and 6.3 KB gzipped, and it solves sort/filter/group coordination that
+is expensive to build well. Base UI is roughly twenty times the weight for the
+families #443 lists, has never shipped a stable release, and would replace the
+internals of the eight primitives whose 34-test keyboard and focus contract is
+the most valuable thing in `shared/ds/`.
+**The facts this was decided on, measured 2026-09-01 from the published tarballs —**
+- `@tanstack/react-table` — `latest` = `9.2.4` (stable), MIT, **6.3 KB** ESM gzipped.
+- `@base-ui-components/react` — `latest` = **`1.0.0-rc.0`**, MIT. Version history
+  runs `1.0.0-beta.4 … beta.7 → 1.0.0-rc.0`: **there has never been a stable
+  release.** Per-component ESM gzip for exactly the families #443 names:
+  button 0.8 · input 0.7 · field 7.4 · fieldset 1.2 · select 17.5 · checkbox 4.2 ·
+  checkbox-group 2.5 · radio-group 2.3 · switch 2.9 · dialog 7.2 ·
+  alert-dialog 1.3 · menu 18.0 · popover 11.9 · tooltip 10.1 · toast 12.9
+  = **100.9 KB**, plus ~20.5 KB of shared internals.
+- The console's initial budget is **248 KB with 245.8 KB used — 2.2 KB of
+  headroom** (D-018), and it is already 66 KB above the guide's 180 KB target.
+**Consequence** — **#443 is superseded as written.** Its title, its build-order
+mapping and its ~50-component vendoring plan all assume Base UI, and none of that
+survives this decision. It is re-scoped to "extend `frontend/src/shared/ds/`
+in-house, and adopt `@tanstack/react-table` for the Table primitive", and moves to
+`status:needs-refinement` — not `status:ready`, because the tasks no longer match
+the decision. #439's DoD needs the same correction. #444 (bklit ui) is a sibling
+vendoring issue and is **not** decided here, but the same three tests apply to it:
+stability, weight against the budget, and what it would displace.
+`@tanstack/react-table` is **not** added to `package.json` by this decision — it is
+added, pinned, by the PR that first uses it, so no dependency lands without a consumer.
+**Unblocked** — #443 blocker 3 · #439's dependency question.
+
+### D-020 — a prose MIT grant is not enough to vendor; the notice must exist first · 2026-09-01
+**Decided** — Option A. No third-party file is vendored into
+`frontend/src/shared/ds/` until the MIT copyright line and permission notice are
+sourced and recorded, per component, in `frontend/design-system/NOTICE`.
+**Rationale (owner)** — Matches the recommendation. MIT requires the notice to be
+retained in redistributions; at the candidate SHA there is nothing to retain, and
+Apache-2.0 publication of a defective third-party notice in a public repository
+cannot be withdrawn.
+**The facts, verified 2026-09-01 at `cosscom/coss` SHA
+`758e6535ae0143dce8c85f12e33eebf60b6b2ecb` (default branch `main`, 2026-08-31) —**
+- Supporting the MIT claim: root `README.md` states *"**MIT**: The `apps/origin/`
+  and `apps/ui/` directories are licensed under their original MIT license"*;
+  `LICENSING.md` lists both directories under an `## MIT` heading;
+  `apps/ui/package.json` carries `"license": "MIT"`.
+- Against it: the repository root `LICENSE` is **AGPL-3.0** and GitHub reports the
+  repo as AGPL-3.0. **No MIT licence text exists anywhere at that SHA** —
+  `apps/ui/` contains no `LICENSE` file, and `LICENSING.md` asserts the grant
+  without reproducing the notice, its sentence breaking off at *"licensed under
+  their original"*. `apps/ui/package.json` is `"private": true`, so its `license`
+  field describes a package that is never published.
+**Consequence** — Standing policy, not a one-off: it binds #444 and any future
+vendoring, not just #443. Under D-019 = B nothing is vendored from coss ui today,
+so this is a constraint held in reserve rather than an active blocker. If vendoring
+is ever revisited, the notice most likely has to come from Origin UI upstream,
+which `apps/ui/` derives from.
+**Unblocked** — #443 blocker 4 (by removing the need for it).
+
+### D-018 — 248 KB is the standing bundle budget; 180 KB becomes its own issue · 2026-09-01
+**Decided** — Option A. The ratcheted **248 KB** gate is the standing budget and
+stays blocking. The guide's 180 KB target is pursued in a dedicated performance
+issue, scheduled on its own merits.
+**Rationale (owner)** — Matches the recommendation. Setting the gate to a number
+the console is 66 KB away from would redden every PR, which is how a budget gets
+deleted rather than met; putting the 66 KB where the work actually is keeps the
+gate honest and green.
+**The measurement, 2026-09-01** — initial (preloaded) JS, gzipped: vendor 79.8 ·
+react 59.1 · index 38.8 · motion 24.6 · query 17.5 · icons 13.1 · router 12.8 =
+**245.8 KB**.
+**Consequence** — `frontend/scripts/check-bundle-budget.mjs` keeps
+`BUNDLE_BUDGET_KB = 248`, blocking in CI, and the budget may only ever be lowered.
+D-019 = B materially helps here: declining Base UI keeps ~121 KB out of the tree,
+which is most of the 66 KB gap. The FR/EN Playwright snapshot work noted alongside
+this decision also becomes its own issue — the visual harness has no language axis
+today, and French running ~20% longer than English is a layout risk worth its own
+review.
+**Reversible** — Yes; the budget is one constant.
+**Unblocked** — #446 closed out with no open remainder.
 
 ### D-017 — `react-leaflet` is removed and a real licence gate replaces the fake one · 2026-09-01
 **Decided** — Option A, both halves. `react-leaflet` is removed from
