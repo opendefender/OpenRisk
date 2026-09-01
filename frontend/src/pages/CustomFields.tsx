@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit2, Copy, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { getAccessToken } from '../lib/session';
 
 interface CustomField {

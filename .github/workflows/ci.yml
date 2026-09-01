@@ -334,8 +334,9 @@ jobs:
           ls -lah dist/
 
       # Performance budget (task §2) — BLOCKING. Fails the build if the initial
-      # (preloaded) JS exceeds 248 KB gzipped. Route/on-demand chunks excluded.
-      - name: Enforce bundle-size budget (< 248 KB gzip initial)
+      # (preloaded) JS exceeds 180 KB gzipped — the design guide's target, met by
+      # #462. Route/on-demand chunks excluded.
+      - name: Enforce bundle-size budget (< 180 KB gzip initial)
         run: cd frontend && npm run budget
 
       - name: Upload artifact
