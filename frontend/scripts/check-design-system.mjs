@@ -34,7 +34,13 @@ import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CANONICAL = resolve(here, '../design-system/openrisk.tokens.css');
+// Order is cascade order, because scopesOf() merges with "later wins".
+// theme.css comes FIRST even though index.css imports it LAST: its @theme
+// blocks land in Tailwind's `@layer theme`, while the other three are imported
+// with `layer(base)`. Base outranks theme, so a token declared in both resolves
+// to the base value in the browser — and has to resolve to it here too.
 const PRODUCT = [
+  resolve(here, '../src/styles/theme.css'),
   resolve(here, '../src/styles/primitives.css'),
   resolve(here, '../src/styles/tokens.css'),
   resolve(here, '../src/styles/components.css'),
@@ -90,6 +96,23 @@ const RENAMED = {
   '--text-muted': { to: '--fg-muted', why: 'See --text-primary.' },
   '--text-inverse': { to: '--fg-inverse', why: 'See --text-primary.' },
   '--text-on-solid': { to: '--fg-on-solid', why: 'See --text-primary.' },
+
+  // The other half of the same v4 namespace rule, in the opposite direction.
+  // A font size only generates its utility if it IS called --text-*, so the
+  // canonical --display-1 has to be declared as --text-display-1 for
+  // `text-display-1` to exist. Values are compared unchanged.
+  '--display-1': {
+    to: '--text-display-1',
+    why:
+      'Tailwind v4 (#441) derives font-size utilities from the --text-* ' +
+      'namespace. Declared as --display-1 the token is inert: no ' +
+      '`text-display-1` class is generated and the marketing headline falls ' +
+      'back to the base size.',
+  },
+  '--display-2': { to: '--text-display-2', why: 'See --display-1.' },
+  '--display-3': { to: '--text-display-3', why: 'See --display-1.' },
+  '--display-4': { to: '--text-display-4', why: 'See --display-1.' },
+  '--lead': { to: '--text-lead', why: 'See --display-1.' },
 };
 
 /**
@@ -102,6 +125,35 @@ function normalise(value) {
   return value.replace(/\d+\.\d+/g, (n) => String(parseFloat(n)));
 }
 
+/** Pulls `--x: y;` declarations out of a rule body, ignoring nested blocks. */
+function declarationsIn(body) {
+  const vars = {};
+  let depth = 0;
+  for (const line of body.split('\n')) {
+    if (depth === 0) {
+      const m = line.match(/^\s*(--[\w-]+)\s*:\s*([^;]+);/);
+      if (m) vars[m[1]] = m[2].trim().replace(/\s+/g, ' ');
+    }
+    for (const ch of line) {
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+    }
+  }
+  return vars;
+}
+
+/** Index of the `}` closing the block opened at `open`. -1 if unbalanced. */
+function closingBrace(css, open) {
+  let depth = 1;
+  let j = open + 1;
+  while (j < css.length) {
+    if (css[j] === '{') depth++;
+    else if (css[j] === '}' && --depth === 0) return j;
+    j++;
+  }
+  return -1;
+}
+
 /** Strips comments, then walks top-level rules into [selector, declarations]. */
 function parseRules(css) {
   const clean = css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -110,29 +162,39 @@ function parseRules(css) {
   while (i < clean.length) {
     const open = clean.indexOf('{', i);
     if (open === -1) break;
-    const selector = clean.slice(i, open).trim().replace(/\s+/g, ' ');
+    // Everything after the last `;` is this block's own prelude. Without the
+    // split, a statement at-rule ahead of it (`@source ...;`,
+    // `@custom-variant ...;`) is swallowed into the selector and `@theme` is
+    // read as `@source` — which is how theme.css stayed unparsed.
+    const selector = clean
+      .slice(i, open)
+      .split(';')
+      .pop()
+      .trim()
+      .replace(/\s+/g, ' ');
 
-    // Skip at-rules (@media, @import) wholesale: they nest, and nothing in the
-    // token contract declares a value inside one that is not also declared out.
     if (selector.startsWith('@')) {
-      let depth = 1;
-      let j = open + 1;
-      while (j < clean.length && depth > 0) {
-        if (clean[j] === '{') depth++;
-        else if (clean[j] === '}') depth--;
-        j++;
+      const end = closingBrace(clean, open);
+      if (end === -1) break;
+
+      // `@theme` and `@theme inline` are read as `:root`, because that is what
+      // Tailwind v4 compiles them to. Since #441 they are the ONLY declaration
+      // site for 36 contract tokens — the type scale, radii, easings, leading,
+      // tracking and font families — so skipping them means shipping those 36
+      // unchecked. Every other at-rule (@media, @import, @source, @layer,
+      // @utility, @custom-variant) is still skipped: none of them declares a
+      // contract token that is not also declared at the top level.
+      if (/^@theme\b/.test(selector)) {
+        const vars = declarationsIn(clean.slice(open + 1, end));
+        if (Object.keys(vars).length) rules.push([':root', vars]);
       }
-      i = j;
+      i = end + 1;
       continue;
     }
 
     const close = clean.indexOf('}', open);
     if (close === -1) break;
-    const vars = {};
-    for (const line of clean.slice(open + 1, close).split('\n')) {
-      const m = line.match(/^\s*(--[\w-]+)\s*:\s*([^;]+);/);
-      if (m) vars[m[1]] = m[2].trim().replace(/\s+/g, ' ');
-    }
+    const vars = declarationsIn(clean.slice(open + 1, close));
     if (Object.keys(vars).length) rules.push([selector, vars]);
     i = close + 1;
   }
