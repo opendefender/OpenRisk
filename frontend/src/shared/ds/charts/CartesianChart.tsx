@@ -309,10 +309,23 @@ export function CartesianChart<Row extends object>(
     return <div className={cn('flex items-center justify-center', className)} style={{ height }}>{empty}</div>;
   }
 
+  /* The text alternative is wrapped in an sr-only DIV rather than carrying
+     sr-only itself.
+     `sr-only` hides by pinning the box to 1px and clipping it — and a <table>
+     does not shrink below its min-content width, so the class silently fails on
+     one: the table stayed ~450px, escaped its 317px parent, and scrolled the
+     PAGE sideways at 390px. A div shrinks as told and clips the table inside it.
+     `relative` keeps the absolutely-positioned box anchored here rather than to
+     the viewport, the same trap RiskMatrix hit. */
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn('relative w-full', className)}>
       <div style={{ height }}>
-        <ParentSize>
+        {/* debounceTime={0}: ParentSize defaults to a 300ms debounce before its FIRST
+            measurement, so the chart renders nothing at all for that third of a
+            second — a visible blank on every dashboard load, and a screenshot
+            race that made this gallery flaky in the visual suite. Debouncing is
+            worth having on resize, not on mount. */}
+        <ParentSize debounceTime={0}>
           {({ width }) =>
             width > 0 ? <Plot {...props} width={width} height={height} /> : null
           }
@@ -346,7 +359,8 @@ export function CartesianChart<Row extends object>(
       )}
       {/* The numbers, for anyone the SVG does not serve. A chart in this product
           usually sits beside its table; where it does not, this is the table. */}
-      <table className="sr-only">
+      <div className="sr-only">
+        <table>
         <caption>{props.ariaLabel}</caption>
         <thead>
           <tr>
@@ -369,6 +383,7 @@ export function CartesianChart<Row extends object>(
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -55,6 +55,7 @@ import {
 } from '../../src/shared/ds/States';
 import { EmptyState } from '../../src/shared/EmptyState';
 import { categorical, chartAxis, graph, severity } from '../../src/shared/ds/chart';
+import { CartesianChart, PieChart, RadarChart } from '../../src/shared/ds/charts';
 
 /** See harness.tsx — the UI store applies its own theme at module load. */
 function applyRequestedTheme() {
@@ -767,8 +768,125 @@ function TableDensity() {
   );
 }
 
+/**
+ * The visx chart layer that replaces Recharts. #444 / D-024 option A.
+ *
+ * Every family the six dashboards used, on one page: area, bar, line and a
+ * composed mix, a stacked bar, a three-slice pie and a radar. This is the only
+ * place the drawing code is exercised with real layout — jsdom gives every
+ * element a zero box, so the unit tests can assert the legend and the text
+ * alternative but never the geometry.
+ */
+const TREND = [
+  { month: 'Jan', opened: 12, closed: 4, score: 6.2 },
+  { month: 'Feb', opened: 8, closed: 9, score: 5.4 },
+  { month: 'Mar', opened: 15, closed: 11, score: 7.1 },
+  { month: 'Apr', opened: 9, closed: 13, score: 4.8 },
+  { month: 'May', opened: 6, closed: 7, score: 4.1 },
+];
+
+const INCIDENTS = [
+  { m: 'Jan', critical: 2, high: 5, other: 9 },
+  { m: 'Feb', critical: 1, high: 3, other: 12 },
+  { m: 'Mar', critical: 4, high: 6, other: 7 },
+  { m: 'Apr', critical: 0, high: 2, other: 11 },
+];
+
+function ChartsV2() {
+  return (
+    <div className="grid max-w-3xl gap-8">
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Composed — grouped bars plus a line
+        </p>
+        <CartesianChart
+          data={TREND}
+          x="month"
+          height={220}
+          series={[
+            { type: 'bar', key: 'opened', label: 'Opened' },
+            { type: 'bar', key: 'closed', label: 'Closed' },
+            { type: 'line', key: 'score', label: 'Avg score' },
+          ]}
+          ariaLabel="Risks opened and closed per month with the average score"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Area — two series, dash pattern as the second encoding
+        </p>
+        <CartesianChart
+          data={TREND}
+          x="month"
+          height={200}
+          series={[
+            { type: 'area', key: 'opened', label: 'Opened' },
+            { type: 'area', key: 'closed', label: 'Closed' },
+          ]}
+          ariaLabel="Risks opened and closed per month"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Stacked bars — severity bands, parts of one whole
+        </p>
+        <CartesianChart
+          data={INCIDENTS}
+          x="m"
+          height={200}
+          stacked
+          series={[
+            { type: 'bar', key: 'critical', label: 'Critical', band: 'critical' },
+            { type: 'bar', key: 'high', label: 'High', band: 'high' },
+            { type: 'bar', key: 'other', label: 'Other', band: 'medium' },
+          ]}
+          ariaLabel="Incidents per month by severity"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Pie — three slices, the maximum the type allows
+        </p>
+        <PieChart
+          height={200}
+          slices={[
+            { key: 'high', label: 'High', value: 8, band: 'high' },
+            { key: 'medium', label: 'Medium', value: 14, band: 'medium' },
+            { key: 'low', label: 'Low', value: 23, band: 'low' },
+          ]}
+          ariaLabel="Risk distribution by level"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Radar — one shared domain across every axis
+        </p>
+        <RadarChart
+          max={100}
+          size={300}
+          axes={[
+            { key: 'iso', label: 'ISO 27001' },
+            { key: 'nist', label: 'NIST' },
+            { key: 'dora', label: 'DORA' },
+            { key: 'soc2', label: 'SOC 2' },
+            { key: 'cobac', label: 'COBAC' },
+          ]}
+          series={[{ key: 'coverage', label: 'Coverage', values: [82, 64, 71, 45, 58] }]}
+          formatValue={(v) => `${v}%`}
+          ariaLabel="Control coverage per framework, as a percentage"
+        />
+      </div>
+    </div>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
   table: TableDensity,
+  'charts-v2': ChartsV2,
   'specialised-input': SpecialisedInput,
   floating: Floating,
   feedback2: Feedback2,

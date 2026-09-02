@@ -68,7 +68,12 @@ export function PieChart({
   return (
     <div className={cn('w-full', className)}>
       <div style={{ height }}>
-        <ParentSize>
+        {/* debounceTime={0}: ParentSize defaults to a 300ms debounce before its FIRST
+            measurement, so the chart renders nothing at all for that third of a
+            second — a visible blank on every dashboard load, and a screenshot
+            race that made this gallery flaky in the visual suite. Debouncing is
+            worth having on resize, not on mount. */}
+        <ParentSize debounceTime={0}>
           {({ width }) => {
             if (width <= 0) return null;
             const radius = Math.max(0, Math.min(width, height) / 2 - 8);

@@ -68,8 +68,13 @@ export function RadarChart({
 }: RadarChartProps) {
   const cx = size / 2;
   const cy = size / 2;
-  /* Room for the axis labels outside the outermost ring. */
-  const radius = size / 2 - 34;
+  /* Room for the axis labels outside the outermost ring.
+     An SVG clips at its viewport, so this padding is what stops a long label
+     like "ISO 27001" or "COBAC" being cut in half at the edge — 34px was not
+     enough for real framework names, which is exactly the set this chart is
+     for. Sized for roughly ten characters at the axis font size. */
+  const LABEL_PAD = 56;
+  const radius = Math.max(0, size / 2 - LABEL_PAD);
   const n = axes.length;
 
   /* Start at twelve o'clock and go clockwise, which is how people read a dial
@@ -84,8 +89,16 @@ export function RadarChart({
   const ringPoints = (r: number) =>
     axes.map((_, i) => pointAt(i, r).join(',')).join(' ');
 
+  /* The text alternative is wrapped in an sr-only DIV rather than carrying
+     sr-only itself.
+     `sr-only` hides by pinning the box to 1px and clipping it — and a <table>
+     does not shrink below its min-content width, so the class silently fails on
+     one: the table stayed ~450px, escaped its 317px parent, and scrolled the
+     PAGE sideways at 390px. A div shrinks as told and clips the table inside it.
+     `relative` keeps the absolutely-positioned box anchored here rather than to
+     the viewport, the same trap RiskMatrix hit. */
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn('relative w-full', className)}>
       <svg width={size} height={size} role="img" aria-label={ariaLabel} className="mx-auto block">
         {/* 1. Grid — rings and spokes, below everything. */}
         {RINGS.map((f) => (
@@ -103,7 +116,7 @@ export function RadarChart({
 
         {/* 2. Axis labels. */}
         {axes.map((a, i) => {
-          const [x, y] = pointAt(i, radius + 14);
+          const [x, y] = pointAt(i, radius + 16);
           const anchor = Math.abs(x - cx) < 1 ? 'middle' : x > cx ? 'start' : 'end';
           return (
             <text
@@ -154,7 +167,8 @@ export function RadarChart({
 
       {/* The numbers. A polygon is unreadable to assistive tech, and the shape
           is the whole point of this chart — so the values must exist as text. */}
-      <table className="sr-only">
+      <div className="sr-only">
+        <table>
         <caption>{ariaLabel}</caption>
         <thead>
           <tr>
@@ -177,6 +191,7 @@ export function RadarChart({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

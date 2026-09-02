@@ -41,6 +41,7 @@ const GALLERIES = [
   'floating',
   'table',
   'specialised-input',
+  'charts-v2',
 ] as const;
 
 /**
