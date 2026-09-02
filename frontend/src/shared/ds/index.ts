@@ -42,6 +42,7 @@ export {
 export { Modal, type ModalProps, type ModalSize } from './Modal';
 export { AlertDialog, type AlertDialogProps } from './AlertDialog';
 export { Spinner, type SpinnerProps, type SpinnerSize } from './Spinner';
+export { Empty, type EmptyProps, type EmptyVariant } from './Empty';
 export { Drawer, type DrawerProps, type DrawerSide, type DrawerSize } from './Drawer';
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs';
 export { Tooltip, type TooltipProps, type TooltipPlacement } from './Tooltip';

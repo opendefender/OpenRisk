@@ -25,6 +25,20 @@
  * the guarantee worth automating is that a file cannot land in that directory
  * carrying the core's AGPL header.
  *
+ * TWO RULES, NOT ONE. The header check above is necessary and not sufficient:
+ * it reads the SPDX line and nothing else, so an Apache-2.0 file that IMPORTS
+ * the AGPL core passes it silently. That is the violation that actually matters
+ * — copying a header is a typo, importing across the boundary is the thing the
+ * boundary exists to prevent — and D-021 hit it for real: `Empty` moved into
+ * `shared/ds/` still importing `softFill` from `shared/riskColors`, and this
+ * script said everything was fine. So the second rule below resolves every
+ * relative import out of an Apache directory and asserts it stays inside one.
+ *
+ * Bare specifiers (`react`, `lucide-react`) are deliberately NOT checked here:
+ * that is inbound third-party licensing, a different question with a different
+ * answer, and pretending to cover it would make this gate the kind of green
+ * badge that asserts nothing.
+ *
  * Usage: npm run check:license-boundary
  */
 
@@ -114,6 +128,68 @@ for (const file of files) {
   }
 }
 
+/* ---------------------------------------------------- import direction -- */
+
+/** Candidate on-disk paths for an extension-less relative import. */
+function candidates(base) {
+  const exts = ['.ts', '.tsx', '.js', '.jsx', '.css'];
+  return [
+    base,
+    ...exts.map((e) => base + e),
+    ...exts.map((e) => join(base, 'index' + e)),
+  ];
+}
+
+/** Resolves a relative specifier to a repo-relative path, or null if unresolved. */
+function resolveRelative(fromFile, spec) {
+  const base = resolve(dirname(fromFile), spec);
+  for (const candidate of candidates(base)) {
+    if (existsSync(candidate) && !readdirSyncIsDir(candidate)) {
+      return relative(REPO, candidate).split('\\').join('/');
+    }
+  }
+  return null;
+}
+
+function readdirSyncIsDir(p) {
+  try {
+    readdirSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* `from '...'` covers both `import ... from` and `export ... from`; the bare
+   side-effect form `import './x'` is matched separately. */
+const FROM = /\bfrom\s+['"]([^'"]+)['"]/g;
+const SIDE_EFFECT = /\bimport\s+['"]([^'"]+)['"]/g;
+
+let crossed = 0;
+
+for (const file of files) {
+  const rel = relative(REPO, file).split('\\').join('/');
+  if (!APACHE_DIRS.some((d) => rel.startsWith(`${d}/`))) continue;
+
+  const source = readFileSync(file, 'utf8');
+  const specs = [
+    ...[...source.matchAll(FROM)].map((m) => m[1]),
+    ...[...source.matchAll(SIDE_EFFECT)].map((m) => m[1]),
+  ];
+
+  for (const spec of specs) {
+    if (!spec.startsWith('.')) continue; // npm package — inbound licensing, not this gate
+    const target = resolveRelative(file, spec);
+    if (!target) continue; // type-only or generated path we cannot see; not a licence claim
+    if (APACHE_DIRS.some((d) => target.startsWith(`${d}/`))) continue;
+
+    console.log(`CROSSES  ${rel}`);
+    console.log(`  imports '${spec}' → ${target}`);
+    console.log('  Apache-2.0 may not depend on the AGPL core; the dependency runs one way\n');
+    crossed++;
+  }
+}
+
 console.log(
   `${checked} files checked — ` +
     Object.entries(counts)
@@ -122,9 +198,10 @@ console.log(
       .join(' · '),
 );
 
-if (missing || wrong) {
+if (missing || wrong || crossed) {
   console.error(
-    `\nLicence boundary FAILED: ${missing} missing header(s), ${wrong} on the wrong side.\n` +
+    `\nLicence boundary FAILED: ${missing} missing header(s), ${wrong} on the wrong side, ` +
+      `${crossed} import(s) crossing it.\n` +
       'frontend/design-system/ and frontend/src/shared/ds/ are Apache-2.0; the rest of\n' +
       'frontend/src/ is AGPL-3.0-only, except Enterprise files which declare\n' +
       'LicenseRef-OpenRisk-Commercial. Apache-2.0 is irreversible once published, so a\n' +
@@ -132,4 +209,7 @@ if (missing || wrong) {
   );
   process.exit(1);
 }
-console.log('Every file is on the correct side of the three-licence boundary.');
+console.log(
+  'Every file is on the correct side of the three-licence boundary, and no Apache-2.0\n' +
+    'file imports across it.',
+);
