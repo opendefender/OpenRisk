@@ -21,11 +21,13 @@
 
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertTriangle, Bug, Download, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Bug, Download, FileText, Plus, Search, Trash2 } from 'lucide-react';
 
 import '../../src/index.css';
 import { applyHarnessEnv } from './harnessEnv';
 import { useI18n } from '../../src/hooks/useI18n';
+import { Command } from '../../src/shared/ds/Command';
+import { OtpField } from '../../src/shared/ds/OtpField';
 import { AlertDialog } from '../../src/shared/ds/AlertDialog';
 import { Spinner } from '../../src/shared/ds/Spinner';
 import { Popover } from '../../src/shared/ds/Popover';
@@ -653,7 +655,49 @@ function Floating() {
   );
 }
 
+/**
+ * Specialised input — Command and OtpField. #443 PR 5.
+ *
+ * The OTP is rendered part-filled on purpose: an empty one shows only the
+ * segment outlines, and the thing worth seeing in a snapshot is the boundary
+ * between a filled segment, the active one and an empty one.
+ */
+function SpecialisedInput() {
+  const [code, setCode] = useState('14');
+
+  return (
+    <div className="grid max-w-2xl gap-6">
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Command — filter, grouped, one tab stop
+        </p>
+        <div className="rounded-md border border-default bg-surface-2 shadow-overlay">
+          <Command
+            label="Commands"
+            placeholder="Type a command or search…"
+            items={[
+              { id: 'new-risk', label: 'New risk', onSelect: () => {}, group: 'Actions', icon: Plus, shortcut: '⌘N' },
+              { id: 'export', label: 'Export register', onSelect: () => {}, group: 'Actions', icon: Download },
+              { id: 'delete', label: 'Archived tenant', onSelect: () => {}, group: 'Actions', disabled: true },
+              { id: 'reg', label: 'Règlement intérieur', onSelect: () => {}, group: 'Navigation', icon: FileText },
+              { id: 'ctl', label: 'Contrôles', onSelect: () => {}, group: 'Navigation', icon: Search },
+            ]}
+          />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          OtpField — one input, drawn as segments
+        </p>
+        <OtpField label="Verification code" value={code} onValueChange={setCode} />
+      </div>
+    </div>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
+  'specialised-input': SpecialisedInput,
   floating: Floating,
   feedback2: Feedback2,
   i18n: I18nPressure,

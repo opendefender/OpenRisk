@@ -30,7 +30,17 @@ import AxeBuilder from '@axe-core/playwright';
 const THEMES = ['light', 'dark'] as const;
 
 /** Gallery pages. Keep in sync with GALLERIES in gallery.tsx. */
-const GALLERIES = ['controls', 'forms', 'form-controls', 'states', 'charts', 'feedback', 'feedback2', 'floating'] as const;
+const GALLERIES = [
+  'controls',
+  'forms',
+  'form-controls',
+  'states',
+  'charts',
+  'feedback',
+  'feedback2',
+  'floating',
+  'specialised-input',
+] as const;
 
 /**
  * The language axis. #463.
@@ -170,6 +180,11 @@ const VIEWPORTS = [
 for (const viewport of VIEWPORTS) {
   for (const theme of THEMES) {
     test(`no horizontal overflow — ${viewport.name} — ${theme}`, async ({ page }) => {
+      /* One test walks EVERY gallery, so its cost grows with the list and the
+         fixed default budget silently becomes the binding constraint. Scale with
+         the list rather than pinning another number the next gallery invalidates.
+         (Same fix as the #443 PR 4 branch; identical text, so the two merge.) */
+      test.setTimeout(GALLERIES.length * 10_000);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
       for (const gallery of GALLERIES) {
