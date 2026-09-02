@@ -11,11 +11,9 @@
 // All figures come from GET /analytics/financial and POST /risks/:id/simulate.
 
 import { useMemo, useState } from 'react';
+import { CartesianChart } from '../../shared/ds/charts';
 import { FeatureGate } from '../../shared/FeatureGate';
 import { useFeature } from '../billing/useEntitlements';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 import {
   Coins, RefreshCw, TrendingDown, Wallet, ShieldCheck, Gauge, FlaskConical,
   Info, X, BookOpen,
@@ -399,38 +397,22 @@ function ProjectionCard({ data, lang, tr }: { data: FinancialSummary; lang: stri
     <Card className="or-fadeup" style={{ padding: '18px 20px', animationDelay: '80ms' }}>
       <div className="flex items-center justify-between mb-1">
         <div className="text-[14px] font-semibold text-ink">{tr('Projection des pertes cumulées (5 ans)', 'Cumulative loss projection (5 yrs)')}</div>
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="inline-flex items-center gap-1.5 text-ink-soft"><i className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: C_LOSS }} />{tr('Sans contrôle', 'Uncontrolled')}</span>
-          <span className="inline-flex items-center gap-1.5 text-ink-soft"><i className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: C_RESID }} />{tr('Avec contrôles', 'With controls')}</span>
-        </div>
       </div>
       <div className="text-[11.5px] text-ink-muted mb-3">{tr('L’écart entre les deux courbes est la valeur créée par le programme de sécurité.', 'The gap between the curves is the value created by the security program.')}</div>
-      <div style={{ width: '100%', height: 240 }}>
-        <ResponsiveContainer>
-          <AreaChart data={series} margin={{ top: 6, right: 8, left: 4, bottom: 0 }}>
-            <defs>
-              <linearGradient id="gLoss" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={C_LOSS} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={C_LOSS} stopOpacity={0.02} />
-              </linearGradient>
-              <linearGradient id="gResid" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={C_RESID} stopOpacity={0.32} />
-                <stop offset="100%" stopColor={C_RESID} stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: 'var(--ink-muted)' }} axisLine={false} tickLine={false} width={54} tickFormatter={(v: number) => compact(v, lang)} />
-            <Tooltip
-              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }}
-              labelStyle={{ color: 'var(--ink)' }}
-              formatter={(v: number, name: string) => [`${group(v)} ${code}`, name === 'sans' ? tr('Sans contrôle', 'Uncontrolled') : tr('Avec contrôles', 'With controls')]}
-            />
-            <Area type="monotone" dataKey="sans" stroke={C_LOSS} strokeWidth={2} fill="url(#gLoss)" />
-            <Area type="monotone" dataKey="avec" stroke={C_RESID} strokeWidth={2} fill="url(#gResid)" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+      <CartesianChart
+        data={series}
+        x="year"
+        height={240}
+        series={[
+          { type: 'area', key: 'sans', label: tr('Sans contrôle', 'Uncontrolled') },
+          { type: 'area', key: 'avec', label: tr('Avec contrôles', 'With controls') },
+        ]}
+        formatValue={(v) => `${compact(v, lang)} ${code}`}
+        ariaLabel={tr(
+          'Projection des pertes cumulées sur cinq ans, sans contrôle et avec contrôles',
+          'Cumulative five-year loss projection, uncontrolled and with controls',
+        )}
+      />
     </Card>
   );
 }

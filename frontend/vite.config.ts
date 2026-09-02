@@ -37,7 +37,25 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined
           // Heavy, rarely-on-first-paint libraries: their own chunks so they load
           // only with the routes that use them and never bloat the entry.
-          if (id.includes('recharts') || id.includes('d3-') || id.includes('victory') || id.includes('internmap'))
+          // @visx/* must be listed explicitly: it matches none of the other
+          // rules, so without this it falls through to `vendor`, which IS
+          // preloaded — the exact way a chart library stops being lazy and
+          // silently spends the initial-bundle budget (D-024).
+          if (
+            id.includes('@visx') ||
+            id.includes('recharts') ||
+            id.includes('d3-') ||
+            id.includes('victory') ||
+            id.includes('internmap') ||
+            // visx's own non-d3 runtime deps. None is imported anywhere in
+            // src/ — they arrive only through @visx/* — and none matches a rule
+            // above, so without naming them here they land in `vendor`, which
+            // IS preloaded. Measured: they cost 5.2 KB of the initial bundle.
+            id.includes('classnames') ||
+            id.includes('reduce-css-calc') ||
+            id.includes('postcss-value-parser') ||
+            id.includes('react-use-measure')
+          )
             return 'charts'
           if (id.includes('@zxcvbn-ts')) return 'zxcvbn' // password-strength dictionaries (huge)
           if (id.includes('leaflet')) return 'maps'
