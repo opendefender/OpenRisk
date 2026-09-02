@@ -40,6 +40,7 @@ import { useUIStore } from '../../store/uiStore';
 import { EmptyState } from '../EmptyState';
 import { SkeletonRows } from '../ui';
 import { BulkBar } from './BulkBar';
+import { useDensityRowHeight } from './useDensityRowHeight';
 import { ColumnsMenu } from './ColumnsMenu';
 import { ActiveFilterChips, FilterPanel } from './FilterPanel';
 import { RowMenu } from './RowMenu';
@@ -79,7 +80,12 @@ export interface DataTableProps<T> {
   /** Extra toolbar controls, rendered before the filter button. */
   toolbarExtra?: ReactNode;
   minWidth?: number;
-  /** Row height hint for the virtualiser. */
+  /**
+   * Row height for the virtualiser, in px. Omit to follow the density token
+   * (--den-row: 40 comfort / 32 compact / 48 spacious), which is what almost
+   * every table should do. Pass a number only for a table whose rows are not on
+   * the ramp — two-line cells, thumbnails.
+   */
   estimateRowHeight?: number;
   /** Height of the scrolling body. */
   maxBodyHeight?: number;
@@ -170,13 +176,17 @@ export function DataTable<T>({
   onExportAllMatching,
   toolbarExtra,
   minWidth = 820,
-  estimateRowHeight = 48,
+  estimateRowHeight,
   maxBodyHeight = 620,
   virtualThreshold = 30,
   ariaLabel,
   pageSizeOptions = [25, 50, 100],
 }: DataTableProps<T>) {
   const L = useLabels();
+  /* The density ramp, unless the caller opted out. See useDensityRowHeight:
+     the CSS has always said `height: var(--den-row)`, but the inline row
+     height below overrode it at every density. */
+  const rowHeight = useDensityRowHeight(estimateRowHeight);
   const { state } = api;
 
   /* ------------------------------------------------------ column preferences */
@@ -325,7 +335,7 @@ export function DataTable<T>({
   const virtualizer = useVirtualizer({
     count: pageRows.length,
     getScrollElement: () => bodyRef.current,
-    estimateSize: () => estimateRowHeight,
+    estimateSize: () => rowHeight,
     overscan: 12,
     enabled: virtualise,
   });
@@ -526,7 +536,7 @@ export function DataTable<T>({
         onFocus={() => setFocusIndex(index)}
         onClick={onRowClick ? () => onRowClick(row) : undefined}
         style={{
-          height: estimateRowHeight,
+          height: rowHeight,
           cursor: onRowClick ? 'pointer' : 'default',
           outlineOffset: -2,
         }}
