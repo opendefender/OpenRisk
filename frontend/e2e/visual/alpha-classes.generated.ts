@@ -80,6 +80,7 @@ export const ALPHA_CLASSES = [
   'border-warning/30',
   'divide-border-subtle/70',
   'from-primary/20',
+  'ring-accent/30',
   'shadow-primary/20',
   'text-fg-primary/30',
   'text-primary/80',

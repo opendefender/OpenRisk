@@ -47,6 +47,8 @@ export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs';
 export { Tooltip, type TooltipProps, type TooltipPlacement } from './Tooltip';
 export { Popover, type PopoverProps, type PopoverPlacement } from './Popover';
 export { Menu, type MenuProps, type MenuItem } from './Menu';
+export { Command, type CommandProps, type CommandItem } from './Command';
+export { OtpField, type OtpFieldProps, type OtpAlphabet } from './OtpField';
 export {
   ErrorState,
   PermissionDenied,
