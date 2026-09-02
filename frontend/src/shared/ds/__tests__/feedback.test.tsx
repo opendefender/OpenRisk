@@ -20,7 +20,6 @@ import { Spinner } from '../Spinner';
 import { AlertDialog } from '../AlertDialog';
 import { LoadingState } from '../States';
 import { Empty } from '../Empty';
-import { EmptyState } from '../../EmptyState';
 
 /* ----------------------------------------------------------------- Spinner -- */
 
@@ -197,9 +196,8 @@ describe('Empty', () => {
     expect(link).toHaveAttribute('rel', 'noreferrer');
   });
 
-  it('is still reachable under its old name and path (D-021 shim)', () => {
-    // The 24 existing importers were deliberately NOT rewritten — Résolution 1
-    // point 4. If this fails, the shim is gone and every one of them is broken.
-    expect(EmptyState).toBe(Empty);
-  });
+  // The D-021 shim assertion ("still reachable as shared/EmptyState") lives in
+  // src/shared/__tests__/emptyStateShim.test.tsx, NOT here. This directory is
+  // Apache-2.0 and the shim is AGPL: importing it from inside shared/ds/ pointed
+  // the dependency the forbidden way and failed the licence-boundary gate.
 });
