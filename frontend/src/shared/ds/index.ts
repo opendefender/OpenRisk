@@ -45,6 +45,8 @@ export { Spinner, type SpinnerProps, type SpinnerSize } from './Spinner';
 export { Drawer, type DrawerProps, type DrawerSide, type DrawerSize } from './Drawer';
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs';
 export { Tooltip, type TooltipProps, type TooltipPlacement } from './Tooltip';
+export { Popover, type PopoverProps, type PopoverPlacement } from './Popover';
+export { Menu, type MenuProps, type MenuItem } from './Menu';
 export {
   ErrorState,
   PermissionDenied,

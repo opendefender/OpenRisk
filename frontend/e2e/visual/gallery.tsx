@@ -28,6 +28,8 @@ import { applyHarnessEnv } from './harnessEnv';
 import { useI18n } from '../../src/hooks/useI18n';
 import { AlertDialog } from '../../src/shared/ds/AlertDialog';
 import { Spinner } from '../../src/shared/ds/Spinner';
+import { Popover } from '../../src/shared/ds/Popover';
+import { Menu } from '../../src/shared/ds/Menu';
 
 import { Badge } from '../../src/shared/ds/Badge';
 import { Button, type ButtonVariant } from '../../src/shared/ds/Button';
@@ -602,7 +604,57 @@ function Feedback2() {
   );
 }
 
+
+/**
+ * Floating layers — #443 PR 3.
+ *
+ * Both are rendered OPEN via controlled state so the snapshot captures the
+ * surface rather than a click race. Their keyboard contracts — roving tab stop,
+ * typeahead, focus return — are asserted in the unit tests, where behaviour
+ * belongs; what a picture can show is the panel, the separator and the
+ * destructive item's colour.
+ */
+function Floating() {
+  const [popoverOpen, setPopoverOpen] = useState(true);
+
+  return (
+    <div className="grid max-w-2xl gap-6 pb-72">
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Popover — content, not a description
+        </p>
+        <Popover
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
+          label="Filters"
+          trigger={<Button variant="secondary">Filters</Button>}
+        >
+          <Field label="Owner">
+            <Input placeholder="Anyone" />
+          </Field>
+        </Popover>
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Menu — actions, with destructive last behind a separator
+        </p>
+        <Menu
+          trigger={<Button variant="secondary">Row actions</Button>}
+          items={[
+            { label: 'Duplicate', onSelect: () => {}, icon: Plus },
+            { label: 'Export as CSV', onSelect: () => {}, icon: Download },
+            { label: 'Archive', onSelect: () => {}, disabled: true },
+            { label: 'Delete risk', onSelect: () => {}, icon: Trash2, destructive: true },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
+  floating: Floating,
   feedback2: Feedback2,
   i18n: I18nPressure,
   controls: Controls,
