@@ -11,6 +11,50 @@ None. Every entry in this register is resolved as of 2026-09-02.
 
 <!-- Append: date · decision · rationale · issues unblocked -->
 
+### D-025 — the ExecutiveDashboard doughnut is converted to bars plus a KPI figure · 2026-09-02
+**Decided** — Option A. `features/analytics/ExecutiveDashboard.tsx`'s risk-distribution doughnut
+becomes severity **bars**, with the total shown as a KPI figure rather than sitting inside a ring.
+The hand-rolled `Ring` component in the same file (per-framework compliance donuts) is converted
+with it, so the file is not left half-compliant.
+
+**Rationale (owner)** — Matches the recommendation. The chart is verbatim what #444's anti-cliché
+table bans `RingChart` for — *"never a doughnut with a number in the middle that a KPI tile would say
+better"* — and it carries up to **four** slices, past the three-slice pie limit as well. #444 exists
+in part to make that doctrine executable; shipping the new chart layer while leaving in place the one
+chart the doctrine names by description would make the rule decorative. #446 landed the deny-list at
+`error` on 2026-09-01 and is not reopened.
+
+**The facts —** the doughnut is `innerRadius={58} outerRadius={82}` with an absolutely-positioned
+centre showing `fmtInt(total)`; its slices are critical/high/medium/low. `Ring` is a separate
+hand-rolled SVG ring, not a Recharts component, so no charting migration would have touched it.
+
+**Consequence** — this is a **visible redesign of an executive-facing view**, deliberately. It also
+unblocks the last step of D-024 option A: with `ExecutiveDashboard` migrated, `recharts` can leave
+`package.json` and PR #498 can leave draft.
+
+**Reversible** — yes, cheaply. Presentation only; no data, schema, licence or dependency decision
+rides on it, and the previous chart is one revert away.
+
+**Unblocked** — #444, step 2 of the checkpoint on PR #498.
+
+---
+
+### D-026 — `ComplianceReportDashboard` is deleted; `AnalyticsDashboard` is kept · 2026-09-02
+**Decided** — Option C. `pages/ComplianceReportDashboard.tsx` is **deleted**.
+`pages/AnalyticsDashboard.tsx` is **kept**, already migrated off Recharts.
+
+**Rationale (owner)** — Matches the recommendation. Both files import Recharts, nothing imports
+either of them, and neither appears in the build output at all — they are dead code, and Recharts
+cannot be removed from `package.json` while their imports stand. `AnalyticsDashboard`'s migration was
+already done, so keeping it costs nothing further; migrating `ComplianceReportDashboard`'s thirteen
+Recharts symbols would be work on a file no user can reach.
+
+**Reversible** — yes. The deletion is in git history and restorable.
+
+**Unblocked** — #444, step 3 of the checkpoint on PR #498.
+
+---
+
 ### D-024 — bklit ui: a hard subset is vendored; the bundle gate is raised to pay for it · 2026-09-02
 **Decided** — Option B. A **hard subset** of `bklit/bklit-ui` charts is vendored at the
 pinned SHA `c57f66bfa7c3198edb677b567ce08cbf364ae159` (2026-07-28, tip of `main`).
