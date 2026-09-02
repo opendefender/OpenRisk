@@ -128,24 +128,43 @@ jobs:
     name: Frontend Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      # Node 20, not 18 (#341). Vite 7 and Vitest 4 both require >=20.19, so on
+      # 18 this job and frontend-unit-tests failed at `npm ci`/run time on every
+      # branch, for reasons that had nothing to do with the branch.
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Run ESLint
-        run: cd frontend && npm run lint
+      # The ESLint RATCHET, not a bare `eslint .` (#341, D-022).
+      #
+      # `npm run lint` reports 321 errors on a clean master. Running it as a
+      # blocking gate makes every frontend PR red for reasons it did not cause,
+      # which is how a red check stops meaning anything — #472 and #473 both
+      # showed failures they had not introduced. Dropping the rules to 'warn'
+      # was rejected instead: ABSOLUTE RULE 5 is "zero `any`".
+      #
+      # So the debt is frozen per-rule in frontend/.lint-ceiling.json and this
+      # step fails only when a rule gets WORSE. Every rule not already in debt
+      # is enforced at zero. See scripts/check-lint-ceiling.mjs.
+      - name: ESLint ratchet (no rule may regress)
+        run: cd frontend && npm run lint:ceiling
 
       - name: Check TypeScript
         run: cd frontend && npm run type-check
 
-      - name: Check code formatting (Prettier)
-        run: cd frontend && npm run format:check || npm run format
+      # The Prettier step that stood here was removed by #341. It ran
+      # `npm run format:check || npm run format` — the `||` meant it could not
+      # fail, so it gated nothing — and both scripts, plus Prettier itself, have
+      # never existed in this repo. Adding them means reformatting 492 of ~550
+      # frontend files, the same repo-wide mechanical diff D-022 declined for
+      # the `any` sweep and for the same reason: it would collide with every
+      # open ds-v1 PR. Recorded as D-026 for the owner to schedule.
 
   # The design tokens carry two claims that were, until now, only assertions in
   # a comment: that every text/surface pair meets its WCAG target in both
@@ -201,23 +220,27 @@ jobs:
       #
       # It runs in THIS job rather than a new one because the browser is already
       # installed above for the opacity-modifier check, and because this job
-      # depends on nothing that is currently failing — `build-frontend` needs
-      # frontend-lint and frontend-unit-tests, both red, so anything placed there
-      # is skipped and enforced by nobody.
+      # depends on nothing that was failing when it was written — at the time,
+      # `build-frontend` needed frontend-lint and frontend-unit-tests, both red,
+      # so anything placed there was skipped and enforced by nobody. #341 made
+      # those two jobs pass; this step stays here because it needs the browser
+      # this job already installs.
       - name: Visual suite — themes, languages, axe and the keyboard contract
         run: cd frontend && npx playwright test e2e/visual/ --project=chromium
 
-      # The bundle budget runs HERE as well as in build-frontend, and that is
-      # deliberate. build-frontend `needs: [frontend-lint, frontend-unit-tests]`,
-      # both currently red, so its budget step is skipped on every run and the
-      # gate is enforced by nobody.
+      # The bundle budget runs HERE as well as in build-frontend. It was
+      # duplicated because build-frontend `needs: [frontend-lint,
+      # frontend-unit-tests]`, both of which were red, so its budget step was
+      # skipped on every run and the gate was enforced by nobody.
       #
       # This step was added by #462 and then LOST: #468 branched before #462
       # merged, rewrote this same job, and its version won the merge. Master then
       # sat at 180.4 KB — over its own budget — with nothing to notice. Restored
       # here, after the build the visual suite already needs.
       #
-      # Remove it once the lint and unit-test jobs are green again.
+      # #341 unblocked both prerequisite jobs, so build-frontend now reaches its
+      # own budget step. The duplicate is kept for one milestone as belt and
+      # braces; drop it once CI has been observed green end to end.
       - name: Bundle budget (< 180 KB gzip initial)
         run: cd frontend && npm run build && npm run budget
 
@@ -231,8 +254,7 @@ jobs:
 
   # PROJECT_PLAN.md §3 requires a blocking `typecheck` gate. `npm run build`
   # already runs `tsc -b`, but we type-check on its own (no emit) as a fast,
-  # dedicated gate. Uses the local binary since the frontend has no `type-check`
-  # script.
+  # dedicated gate that does not wait on a bundle.
   frontend-typecheck:
     name: Frontend Typecheck
     runs-on: ubuntu-latest
@@ -247,35 +269,50 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Typecheck (tsc -b)
-        run: cd frontend && npx tsc -b
+      - name: Typecheck (tsc -b --noEmit)
+        run: cd frontend && npm run type-check
 
   frontend-unit-tests:
     name: Frontend Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      # Node 20 (#341) — see the note in frontend-lint.
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: cd frontend && npm ci
 
+      # `npm run test` alone is `vitest` in WATCH mode; the --run came from the
+      # command line, and the coverage flag needed @vitest/coverage-v8, which
+      # was not a dependency until #341. The job therefore died with
+      # `MISSING DEPENDENCY` on every branch and never reached the threshold
+      # step below. Both are fixed: the script is `vitest run --coverage`.
       - name: Run tests with coverage
-        run: cd frontend && npm run test -- --coverage --run --reporter=verbose
+        run: cd frontend && npm run test:coverage -- --reporter=verbose
 
-      - name: Check coverage threshold (70%)
+      # The thresholds themselves are enforced by Vitest (vitest.config.ts), so
+      # the step above already fails on a coverage regression. This step exists
+      # to PRINT the numbers, because the version it replaces asserted nothing:
+      # it echoed "Frontend test coverage checked" and exited 0 while claiming
+      # to be a 70% gate. The real figure is ~15%; see the ratchet note in
+      # vitest.config.ts.
+      - name: Report coverage
         run: |
           cd frontend
           if [ ! -f coverage/coverage-summary.json ]; then
-            echo "Coverage report not found"
+            echo "::error::Coverage summary not produced — the coverage run did not complete."
             exit 1
           fi
-          # Parse coverage from lcov report
-          echo "Frontend test coverage checked"
+          node -e "
+            const t = require('./coverage/coverage-summary.json').total;
+            for (const k of ['statements', 'branches', 'functions', 'lines'])
+              console.log(k.padEnd(11), t[k].pct + '%', '(' + t[k].covered + '/' + t[k].total + ')');
+          "
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -310,7 +347,8 @@ jobs:
           ./openrisk --version || echo "Binary built successfully"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        # v3 was retired by GitHub and now fails at runtime (#341).
+        uses: actions/upload-artifact@v4
         with:
           name: openrisk-backend-linux-amd64
           path: backend/openrisk
@@ -321,10 +359,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [frontend-lint, frontend-unit-tests]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      # Node 20 (#341) — see the note in frontend-lint. This job is the gate
+      # behind acceptance criterion 3 (`npm run build` succeeds), and on 18 it
+      # could not have run the build at all.
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
