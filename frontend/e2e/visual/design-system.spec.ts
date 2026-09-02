@@ -39,6 +39,7 @@ const GALLERIES = [
   'feedback',
   'feedback2',
   'floating',
+  'table',
   'specialised-input',
 ] as const;
 
