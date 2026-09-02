@@ -409,7 +409,10 @@ jobs:
         run: cd frontend && npm run budget
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        # v3 was retired by GitHub and now fails at runtime (#341) — it aborts
+        # the job at "Set up job", before the build ever starts, which is what
+        # kept this job red once it became reachable at all.
+        uses: actions/upload-artifact@v4
         with:
           name: openrisk-frontend-dist
           path: frontend/dist
