@@ -314,12 +314,26 @@ jobs:
               console.log(k.padEnd(11), t[k].pct + '%', '(' + t[k].covered + '/' + t[k].total + ')');
           "
 
+      # Best-effort, and NOT allowed to fail the job (#341).
+      #
+      # This repository has no CODECOV_TOKEN, so the upload is anonymous and
+      # Codecov rate-limits it: the first run of this PR died on
+      # `429 Rate limit reached ... Expected time to availability: 787s` with
+      # `fail_ci_if_error: true`, after the tests and the coverage gate had both
+      # passed. A third party's quota deciding whether our build is green is the
+      # same defect this issue exists to remove.
+      #
+      # The coverage GATE is enforced by Vitest inside the step above, on our own
+      # runner, so nothing is lost by making the upload advisory. Set a
+      # CODECOV_TOKEN secret and this can go back to blocking.
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
+        continue-on-error: true
         with:
           files: ./frontend/coverage/coverage-final.json
           flags: frontend
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # ==================== BUILD & DOCKER ====================
   build-backend:
