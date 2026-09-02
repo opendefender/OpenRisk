@@ -5,11 +5,86 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-None. Every entry in this register is resolved as of 2026-09-01.
+None. Every entry in this register is resolved as of 2026-09-02.
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-021 — `EmptyState.tsx` is relicensed to Apache-2.0 and moves into `shared/ds/` · 2026-09-02
+**Decided** — Option A. `src/shared/EmptyState.tsx` becomes `Apache-2.0` and moves
+into `frontend/src/shared/ds/`, exported from its `index.ts` as the design
+system's `Empty`. Its 22 importers keep working through the barrel; per
+Résolution 1 point 4 of #443 no call site is rewritten in that issue.
+
+**Rationale** — `shared/ds/` is Apache-2.0 (D-014, D-016) and may not depend on
+or re-export AGPL code; the dependency runs one way only, and `DangerConfirm`
+(AGPL) importing `Button`/`Modal` (Apache) is the correct direction. That left
+three options and only A leaves the product with **one** empty state AND a
+complete primitive layer. Option B was declined because a generic `Empty` beside
+`EmptyState` is a second empty state in practice, which #443 explicitly forbids
+and which the codebase has already had to consolidate away once. Option C was
+declined because an incomplete primitive layer is the thing #443 exists to fix.
+
+**Irreversible.** Apache-2.0 publication cannot be withdrawn, exactly as in D-014
+and D-016. This extends the boundary those two drew rather than opening a new
+question: the artefact people copy is the components.
+
+**Issues unblocked** — #443 (the `Empty` item of PR 2, carried unresolved through
+the PR 3, 4 and 5 checkpoints). #443 is the last open blocker inside ds-v1's
+primitive work.
+
+---
+
+### D-022 — the frontend lint gate is ratcheted at 321, not swept and not downgraded · 2026-09-02
+**Decided** — Option A. The `Frontend Lint & Format` job freezes the current count
+of **321 `@typescript-eslint/no-explicit-any` errors** as a ceiling and fails only
+on an increase; `@vitest/coverage-v8` is added as a devDependency; and the
+`type-check`, `format` and `format:check` scripts the CI job already invokes are
+added to `frontend/package.json`.
+
+**Rationale** — `master` CI has been red since at least `c1d0f8f`. `eslint .`
+reports 337 problems / 321 errors, `vitest --coverage` aborts with
+`MISSING DEPENDENCY Cannot find dependency '@vitest/coverage-v8'`, and CI calls
+three npm scripts that do not exist. The practical effect is that **no frontend
+PR is actually checked** — #472 and #473 both inherit a red gate they did not
+cause, and a genuine regression would be indistinguishable from the standing
+noise. Option B (sweep all 321 now) is the correct end state but is a repo-wide
+mechanical diff across `src/utils/` and `src/features/` that would collide with
+the open ds-v1 PRs. Option C (downgrade to `warning`) was declined: ABSOLUTE
+RULE 5 is "zero `any`", and a rule nothing enforces is not a rule.
+
+The ratchet is the compromise that restores a working gate this week while
+keeping Rule 5 enforceable — new code cannot add an `any`, and the 321 are paid
+down opportunistically under #341.
+
+**Reversible.** The ceiling is one number in a config; B remains available at any
+time and is the intended destination.
+
+**Issues unblocked** — #341 (`[OR-P0-07] … establish clean-tree frontend CI
+gates`), which now has a decided approach. Indirectly #472 and #473, whose red
+checks are inherited rather than caused.
+
+---
+
+### D-023 — `Command` and `OtpField` get consumer-migration issues; OTP lands in ds-v1 · 2026-09-02
+**Decided** — Option A. Two follow-up issues are opened. The **OTP call-site
+migration** (`AuthScreen` ×2, `MFAEnrollmentDialog`) goes into **ds-v1**; the
+**`CommandPalette` rewire** is opened and backlogged.
+
+**Rationale** — #443's Résolution 1 point 4 forbids rewriting call sites, so both
+primitives shipped ahead of their consumers. These are not equivalent: the three
+hand-rolled OTP inputs carry a live user-facing defect — a code pasted as
+"123 456" is rejected without reaching the server, and `MFAEnrollmentDialog`
+accepts `maxLength={8}` for a six-digit code — which is **fixed in the primitive
+but not yet for users**. That earns a milestone. `Command` having no call site is
+a tidiness problem, not a defect, and waits.
+
+**Reversible.** Both are ordinary scheduling calls.
+
+**Issues unblocked** — closes the "Next" items left by the #443 PR 5 checkpoint.
+
+---
 
 ### D-019 — Base UI is declined; only `@tanstack/react-table` is approved · 2026-09-01
 **Decided** — Option B. `@tanstack/react-table@9.2.4` is approved as a pinned
