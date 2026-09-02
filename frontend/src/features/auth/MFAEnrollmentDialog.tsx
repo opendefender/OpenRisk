@@ -10,6 +10,7 @@
 // from Settings → Security.
 
 import { useEffect, useRef, useState } from 'react';
+import { OtpField } from '../../shared/ds';
 import { createPortal } from 'react-dom';
 import { ShieldCheck, X, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -205,19 +206,15 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
                 <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
                   {tr('Code à 6 chiffres', '6-digit code')}
                 </span>
-                <input
+                <OtpField
                   value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value);
+                  onValueChange={(next) => {
+                    setCode(next);
                     setError('');
                   }}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={8}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? 'mfa-enrol-error' : undefined}
-                  className="w-full h-10 px-3 rounded-[10px] text-[15px] tracking-[.3em] text-ink outline-none focus:border-accent transition-colors"
-                  style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+                  length={6}
+                  invalid={!!error}
+                  describedBy={error ? 'mfa-enrol-error' : undefined}
                 />
               </label>
 

@@ -18,6 +18,7 @@ import { landingForBusinessRole } from '../../shared/navModel';
 import { useUIStore } from '../../store/uiStore';
 import { authCopy, providerLabel, type OAuthErrorCode } from './authStrings';
 import { challengeMFA, setupMFA, verifyMFA } from './authService';
+import { OtpField, sanitiseCode } from '../../shared/ds';
 import { AuthLayout } from './AuthLayout';
 import { cascade, usePrefersReducedMotion } from './motion';
 import { PasswordStrength } from './PasswordStrength';
@@ -310,14 +311,27 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
       <div className="mb-[18px]" style={cascade(1, reduced)}>
         <Label htmlFor="mfa-code">{copy.mfaCode}</Label>
         <Shake errorKey={nonce}>
+          {/* NOT an OtpField, deliberately. This field accepts a 6-digit TOTP
+              code OR a 12-character recovery code (backend:
+              `MFAVerifyInput.Code` — "TOTP code OR backup code", and
+              pkg/otp/totp.go mints 12-char base32 recovery codes). OtpField
+              draws a fixed number of segments, so using it here would cap entry
+              at six characters and lock out every user whose authenticator is
+              gone — which is the exact situation recovery codes exist for.
+              What it DOES take from the primitive is the sanitising: a code
+              pasted with spaces, or with the words around it, used to be
+              rejected while the user could plainly read the digits. */}
           <input
             id="mfa-code"
             data-testid="mfa-code"
             inputMode="numeric"
             autoComplete="one-time-code"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
             autoFocus
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => setCode(sanitiseCode(e.target.value, 'alphanumeric'))}
             className={`${inputCls} mono tracking-[0.3em] text-center`}
             style={inputStyle(Boolean(error))}
           />
@@ -465,15 +479,13 @@ function MFAEnrollment({ token }: { token: string }) {
       <div className="mb-[18px]" style={cascade(2, reduced)}>
         <Label htmlFor="enrol-code">{copy.mfaCode}</Label>
         <Shake errorKey={nonce}>
-          <input
+          <OtpField
             id="enrol-code"
-            data-testid="mfa-enrol-code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
+            testId="mfa-enrol-code"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className={`${inputCls} mono tracking-[0.3em] text-center`}
-            style={inputStyle(Boolean(error))}
+            onValueChange={setCode}
+            length={6}
+            invalid={Boolean(error)}
           />
         </Shake>
       </div>

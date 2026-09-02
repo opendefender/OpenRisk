@@ -37,8 +37,10 @@ import {
 } from "react";
 import { cn } from "./cn";
 import { useControlWiring } from "./fieldContext";
+import { sanitiseCode as sanitise } from "./otpCode";
 
-export type OtpAlphabet = "numeric" | "alphanumeric";
+export type { OtpAlphabet } from "./otpCode";
+import type { OtpAlphabet } from "./otpCode";
 
 export interface OtpFieldProps {
   /** How many characters the code has. Drawn as this many segments. */
@@ -66,26 +68,18 @@ export interface OtpFieldProps {
   id?: string;
   className?: string;
   autoFocus?: boolean;
+  /**
+   * Error state for a control used OUTSIDE a `Field`. Inside one the status is
+   * inherited and this is unnecessary; the MFA dialogs label the code
+   * themselves and carry their own error line, so they need to say it here.
+   */
+  invalid?: boolean;
+  /** Id of an external error/description element to associate. */
+  describedBy?: string;
+  /** Placed on the real input, for existing E2E hooks. */
+  testId?: string;
 }
 
-const PATTERN: Record<OtpAlphabet, RegExp> = {
-  numeric: /[^0-9]/g,
-  alphanumeric: /[^a-zA-Z0-9]/g,
-};
-
-/**
- * Keeps only the characters the alphabet allows and truncates to length.
- *
- * Deliberately tolerant of what a real paste contains: spaces and hyphens from
- * a formatted code, and the surrounding words when someone selects a whole line
- * out of an email. Anything that is not a code character is simply not a code
- * character.
- */
-function sanitise(raw: string, alphabet: OtpAlphabet, length: number): string {
-  const cleaned = raw.replace(PATTERN[alphabet], "");
-  const cased = alphabet === "alphanumeric" ? cleaned.toUpperCase() : cleaned;
-  return cased.slice(0, length);
-}
 
 export const OtpField = forwardRef<HTMLInputElement, OtpFieldProps>(
   function OtpField(
@@ -100,10 +94,18 @@ export const OtpField = forwardRef<HTMLInputElement, OtpFieldProps>(
       id,
       className,
       autoFocus,
+      invalid = false,
+      describedBy,
+      testId,
     },
     ref,
   ) {
-    const { id: wiredId, status, aria } = useControlWiring(id);
+    const { id: wiredId, status: fieldStatus, aria } = useControlWiring(id);
+    /* A Field, when there is one, is the authority — it already knows whether
+       the group is invalid. `invalid` only speaks for a control standing on its
+       own, which is how both MFA dialogs use it. */
+    const status =
+      fieldStatus !== "default" ? fieldStatus : invalid ? "invalid" : "default";
     const describedById = useId();
     const segments = useMemo(
       () => Array.from({ length }, (_, i) => i),
@@ -179,8 +181,10 @@ export const OtpField = forwardRef<HTMLInputElement, OtpFieldProps>(
             maxLength={length}
             aria-label={label}
             aria-describedby={
-              cn(aria["aria-describedby"], describedById) || undefined
+              cn(aria["aria-describedby"], describedBy, describedById) || undefined
             }
+            aria-invalid={status === "invalid" || undefined}
+            data-testid={testId}
             className="absolute inset-0 z-10 h-full w-full cursor-text bg-transparent text-transparent caret-transparent outline-none disabled:cursor-not-allowed"
             {...aria}
           />
