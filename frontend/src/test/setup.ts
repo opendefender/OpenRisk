@@ -59,6 +59,14 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+// jsdom implements no layout, so Element.prototype.scrollIntoView does not
+// exist — any component that keeps an active row in view (Command, and the
+// virtualised table) would throw on mount rather than fail an assertion.
+// Stubbed rather than guarded in the components: the API is universal in every
+// real browser, and a `typeof` check there would be jsdom leaking into product
+// code.
+Element.prototype.scrollIntoView = vi.fn();
+
 // Suppress console errors during tests
 const originalError = console.error;
 beforeAll(() => {

@@ -39,7 +39,7 @@ const GALLERIES = [
   'feedback',
   'feedback2',
   'floating',
-  'table',
+  'specialised-input',
 ] as const;
 
 /**
@@ -181,10 +181,9 @@ for (const viewport of VIEWPORTS) {
   for (const theme of THEMES) {
     test(`no horizontal overflow — ${viewport.name} — ${theme}`, async ({ page }) => {
       /* One test walks EVERY gallery, so its cost grows with the list and the
-         fixed default budget silently becomes the binding constraint — the
-         table gallery, which pulls DataTable and the virtualiser, is what first
-         pushed a cold dev server past 30s. Scale with the list rather than
-         pinning another number that the next gallery invalidates. */
+         fixed default budget silently becomes the binding constraint. Scale with
+         the list rather than pinning another number the next gallery invalidates.
+         (Same fix as the #443 PR 4 branch; identical text, so the two merge.) */
       test.setTimeout(GALLERIES.length * 10_000);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
 

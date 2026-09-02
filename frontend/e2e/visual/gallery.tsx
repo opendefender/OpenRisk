@@ -21,14 +21,13 @@
 
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertTriangle, Bug, Download, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Bug, Download, FileText, Plus, Search, Trash2 } from 'lucide-react';
 
 import '../../src/index.css';
 import { applyHarnessEnv } from './harnessEnv';
 import { useI18n } from '../../src/hooks/useI18n';
-import { MemoryRouter } from 'react-router';
-import { DataTable } from '../../src/shared/datatable';
-import { useTableState } from '../../src/shared/datatable/useTableState';
+import { Command } from '../../src/shared/ds/Command';
+import { OtpField } from '../../src/shared/ds/OtpField';
 import { AlertDialog } from '../../src/shared/ds/AlertDialog';
 import { Spinner } from '../../src/shared/ds/Spinner';
 import { Popover } from '../../src/shared/ds/Popover';
@@ -657,75 +656,48 @@ function Floating() {
 }
 
 /**
- * The table, at whatever density `?density=` asked for. #443 PR 4.
+ * Specialised input — Command and OtpField. #443 PR 5.
  *
- * Small on purpose: eight rows is enough to measure a row height and see the
- * header, and a virtualised body of ten thousand would make the snapshot about
- * the virtualiser rather than about density.
+ * The OTP is rendered part-filled on purpose: an empty one shows only the
+ * segment outlines, and the thing worth seeing in a snapshot is the boundary
+ * between a filled segment, the active one and an empty one.
  */
-interface DemoRow {
-  id: string;
-  title: string;
-  owner: string;
-  score: number;
-}
+function SpecialisedInput() {
+  const [code, setCode] = useState('14');
 
-const DEMO_ROWS: DemoRow[] = [
-  { id: 'R-001', title: 'Unpatched TLS on the edge gateway', owner: 'A. Diallo', score: 8.4 },
-  { id: 'R-002', title: 'Shared admin credentials in CI', owner: 'M. Nkemi', score: 7.1 },
-  { id: 'R-003', title: 'No offsite backup for the audit trail', owner: 'S. Traoré', score: 6.8 },
-  { id: 'R-004', title: 'Vendor access without an NDA', owner: 'A. Diallo', score: 5.2 },
-  { id: 'R-005', title: 'Laptop disk encryption not enforced', owner: 'K. Mbala', score: 4.9 },
-  { id: 'R-006', title: 'Log retention below the 12-month floor', owner: 'S. Traoré', score: 3.6 },
-  { id: 'R-007', title: 'Stale IAM roles after offboarding', owner: 'M. Nkemi', score: 3.1 },
-  { id: 'R-008', title: 'No documented restore drill', owner: 'K. Mbala', score: 2.4 },
-];
-
-function TableDensityInner() {
-  const api = useTableState();
   return (
-    <div className="max-w-3xl">
-      <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
-        DataTable — row height follows --den-row
-      </p>
-      <DataTable<DemoRow>
-        id="gallery-density"
-        rows={DEMO_ROWS}
-        rowKey={(r) => r.id}
-        api={api}
-        mode="client"
-        ariaLabel="Risk register"
-        exportFilename=""
-        columns={[
-          { key: 'id', header: 'ID', width: 90, render: (r) => r.id },
-          { key: 'title', header: 'Risk', render: (r) => r.title },
-          { key: 'owner', header: 'Owner', width: 140, render: (r) => r.owner },
-          {
-            key: 'score',
-            header: 'Score',
-            width: 90,
-            align: 'right',
-            render: (r) => r.score.toFixed(1),
-          },
-        ]}
-      />
+    <div className="grid max-w-2xl gap-6">
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Command — filter, grouped, one tab stop
+        </p>
+        <div className="rounded-md border border-default bg-surface-2 shadow-overlay">
+          <Command
+            label="Commands"
+            placeholder="Type a command or search…"
+            items={[
+              { id: 'new-risk', label: 'New risk', onSelect: () => {}, group: 'Actions', icon: Plus, shortcut: '⌘N' },
+              { id: 'export', label: 'Export register', onSelect: () => {}, group: 'Actions', icon: Download },
+              { id: 'delete', label: 'Archived tenant', onSelect: () => {}, group: 'Actions', disabled: true },
+              { id: 'reg', label: 'Règlement intérieur', onSelect: () => {}, group: 'Navigation', icon: FileText },
+              { id: 'ctl', label: 'Contrôles', onSelect: () => {}, group: 'Navigation', icon: Search },
+            ]}
+          />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          OtpField — one input, drawn as segments
+        </p>
+        <OtpField label="Verification code" value={code} onValueChange={setCode} />
+      </div>
     </div>
   );
 }
 
-/* useTableState reads the table's sort/page/filters from the URL, so it needs a
-   router. MemoryRouter rather than the app's: the gallery has no routes, and a
-   real one would make the snapshot depend on the address bar. */
-function TableDensity() {
-  return (
-    <MemoryRouter>
-      <TableDensityInner />
-    </MemoryRouter>
-  );
-}
-
 export const GALLERIES: Record<string, () => JSX.Element> = {
-  table: TableDensity,
+  'specialised-input': SpecialisedInput,
   floating: Floating,
   feedback2: Feedback2,
   i18n: I18nPressure,
