@@ -11,16 +11,78 @@ None. Every entry in this register is resolved as of 2026-09-02.
 
 <!-- Append: date · decision · rationale · issues unblocked -->
 
-### D-024 — bklit ui: a hard subset is vendored; the bundle gate is raised to pay for it · 2026-09-02
+### D-025 — the ExecutiveDashboard doughnut is converted to bars plus a KPI figure · 2026-09-02
+**Decided** — Option A. `features/analytics/ExecutiveDashboard.tsx`'s risk-distribution doughnut
+becomes severity **bars**, with the total shown as a KPI figure rather than sitting inside a ring.
+The hand-rolled `Ring` component in the same file (per-framework compliance donuts) is converted
+with it, so the file is not left half-compliant.
+
+**Rationale (owner)** — Matches the recommendation. The chart is verbatim what #444's anti-cliché
+table bans `RingChart` for — *"never a doughnut with a number in the middle that a KPI tile would say
+better"* — and it carries up to **four** slices, past the three-slice pie limit as well. #444 exists
+in part to make that doctrine executable; shipping the new chart layer while leaving in place the one
+chart the doctrine names by description would make the rule decorative. #446 landed the deny-list at
+`error` on 2026-09-01 and is not reopened.
+
+**The facts —** the doughnut is `innerRadius={58} outerRadius={82}` with an absolutely-positioned
+centre showing `fmtInt(total)`; its slices are critical/high/medium/low. `Ring` is a separate
+hand-rolled SVG ring, not a Recharts component, so no charting migration would have touched it.
+
+**Consequence** — this is a **visible redesign of an executive-facing view**, deliberately. It also
+unblocks the last step of D-024 option A: with `ExecutiveDashboard` migrated, `recharts` can leave
+`package.json` and PR #498 can leave draft.
+
+**Reversible** — yes, cheaply. Presentation only; no data, schema, licence or dependency decision
+rides on it, and the previous chart is one revert away.
+
+**Unblocked** — #444, step 2 of the checkpoint on PR #498.
+
+---
+
+### D-026 — `ComplianceReportDashboard` is deleted; `AnalyticsDashboard` is kept · 2026-09-02
+**Decided** — Option C. `pages/ComplianceReportDashboard.tsx` is **deleted**.
+`pages/AnalyticsDashboard.tsx` is **kept**, already migrated off Recharts.
+
+**Rationale (owner)** — Matches the recommendation. Both files import Recharts, nothing imports
+either of them, and neither appears in the build output at all — they are dead code, and Recharts
+cannot be removed from `package.json` while their imports stand. `AnalyticsDashboard`'s migration was
+already done, so keeping it costs nothing further; migrating `ComplianceReportDashboard`'s thirteen
+Recharts symbols would be work on a file no user can reach.
+
+**Reversible** — yes. The deletion is in git history and restorable.
+
+**Unblocked** — #444, step 3 of the checkpoint on PR #498.
+
+---
+
+### D-024 — bklit ui: a hard subset is vendored, into the lazy charts chunk · 2026-09-02
 **Decided** — Option B. A **hard subset** of `bklit/bklit-ui` charts is vendored at the
 pinned SHA `c57f66bfa7c3198edb677b567ce08cbf364ae159` (2026-07-28, tip of `main`).
-The D-018 248 KB gate is raised to pay for it. `@visx/*` is accepted as a real
-dependency set.
+`@visx/*` is accepted as a real dependency set, in the **lazy** `charts` chunk.
+**The bundle gate is NOT raised** — see the correction below.
 
 **Rationale (owner)** — Chosen over the recommendation, which was A (decline and
-build in-house). The owner accepts the bundle cost and the pre-1.0 upstream in
-exchange for a chart layer that exists now rather than one built primitive by
-primitive.
+build in-house). The owner accepts the pre-1.0 upstream in exchange for a chart
+layer that exists now rather than one built primitive by primitive.
+
+**Correction, 2026-09-02, after the decision was taken —** the weight argument put
+to the owner was **wrong**, and it was the main cost cited against Option B. Two
+errors, both measured and corrected here:
+1. **The budget is 180 KB, not 248 KB.** #462 closed and superseded D-018's 248 KB.
+2. **Charts are not counted by the gate at all.** `frontend/scripts/check-bundle-budget.mjs`
+   sums only the JS the entry HTML *preloads*, and its header says so explicitly:
+   "Route-split chunks and on-demand chunks (**charts**, zxcvbn dictionaries, the
+   command palette, forms…) are NOT counted." Recharts already lives in a lazy
+   `charts` chunk (87.0 KB gzipped) that the budget ignores.
+
+Measured on `master` at `f310440` after `vite build`:
+```
+172.1 KB  TOTAL (preloaded)      Budget: 180 KB      ✓ 7.9 KB of headroom
+ 87.0 KB  assets/charts-*.js     ← lazy, NOT counted
+```
+So the ~8.1 KB of `@visx` lands in a chunk the gate does not measure, and costs
+**nothing** against the 180 KB ceiling. The decision stands and is cheaper than it
+was presented; the obligation to raise the gate is withdrawn, not deferred.
 
 **The facts this was decided on, measured 2026-09-02 —**
 - **Licence: clean.** A real MIT licence *text* with a copyright line exists at the
@@ -42,13 +104,27 @@ primitive.
   `motion ^12.27.0`, `@number-flow/react ^0.5.4` and **`@base-ui/react ^1.0.0-alpha.8`**.
   Gzipped ESM for the cheapest item on the adopt list, the Heatmap:
   `@visx/heatmap` 0.9 KB · `@visx/responsive` 3.0 KB · `@visx/scale` 4.2 KB =
-  **~8.1 KB**, before any `d3-*`, before `motion`, before the vendored source. The
-  console had **2.2 KB of headroom** (248 KB gate, 245.8 KB used — D-018).
+  **~8.1 KB**, before any `d3-*`, before `motion`, before the vendored source. Per
+  the correction above this lands in the **lazy** `charts` chunk, which the budget
+  gate does not count, so it is a download cost on the routes that show a chart and
+  **not** a charge against the 180 KB initial-bundle ceiling.
+- **What it displaces: Recharts `^3.5.0`.** This is the D-019 test-3 question that was
+  recorded as unanswered when the decision was put. Recharts is already a dependency,
+  imported by six files — `features/financial/FinancialDashboard.tsx`,
+  `features/risks/components/SmartRiskRadar.tsx`, `features/analytics/ExecutiveDashboard.tsx`,
+  `pages/ComplianceReportDashboard.tsx`, `pages/Analytics.tsx`, `pages/AnalyticsDashboard.tsx` —
+  and `frontend/src/shared/ds/chart.ts` is written as a token contract to be spread
+  onto Recharts primitives. A vendored visx layer either replaces Recharts across
+  those six files or ships **beside** it, and shipping both is the outcome to avoid.
 
 **Consequence — what Option B obliges, none of it optional —**
-1. **D-018's 248 KB gate must be raised by an explicit number in the PR that first
-   lands a chart**, not silently exceeded. The gate is `frontend/scripts/check-bundle-budget.mjs`.
-   The new ceiling is a measured figure, and #462's 180 KB target moves further away.
+1. **The bundle gate is NOT raised, and the charts stay lazy.** Superseded by the
+   correction above. `check-bundle-budget.mjs` states "THIS BUDGET MAY ONLY EVER BE
+   LOWERED. Raising it to accommodate a new dependency is the decision that makes it
+   meaningless; the dependency goes in a lazy chunk instead, or it does not go in."
+   The obligation is therefore the opposite of what was first written: keep every
+   vendored chart out of the preloaded graph, and confirm with
+   `node scripts/check-bundle-budget.mjs` that the preloaded total has not moved.
 2. **`motion` and `@number-flow/react` stay banned.** They are `no-restricted-imports`
    at `error` (`frontend/eslint.config.js`) and D-024 does not lift that. Vendored
    source that imports `motion/react` — `heatmap-chart.tsx` does — must be rewritten
