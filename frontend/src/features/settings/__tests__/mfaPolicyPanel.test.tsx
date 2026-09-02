@@ -65,7 +65,10 @@ describe('MFAPolicyPanel', () => {
   it('shows the shipped default and says nobody chose it', async () => {
     renderPanel();
     const input = (await screen.findByRole('spinbutton')) as HTMLInputElement;
-    expect(input.value).toBe('7');
+    // The panel seeds this field from the server in an effect, not at render, so
+    // there is exactly one frame where the spinbutton exists holding ''.
+    // findByRole resolves on that frame — wait for the VALUE, not the element.
+    await waitFor(() => expect(input.value).toBe('7'));
     expect(document.body.textContent).toMatch(/default value|valeur par défaut/i);
   });
 
