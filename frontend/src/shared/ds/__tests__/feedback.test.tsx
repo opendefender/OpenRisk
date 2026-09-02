@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Feedback primitives: Spinner and AlertDialog. #443 PR 2.
+ * Feedback primitives: Spinner, AlertDialog and Empty. #443 PR 2 (Empty landed
+ * later, once D-021 unblocked the licence question that kept it out).
  *
  * Same doctrine as the other two suites — behaviour and accessibility, never
  * class names. For AlertDialog the behaviour under test is almost entirely about
@@ -18,6 +19,8 @@ import userEvent from '@testing-library/user-event';
 import { Spinner } from '../Spinner';
 import { AlertDialog } from '../AlertDialog';
 import { LoadingState } from '../States';
+import { Empty } from '../Empty';
+import { EmptyState } from '../../EmptyState';
 
 /* ----------------------------------------------------------------- Spinner -- */
 
@@ -150,4 +153,53 @@ describe('accessibility (axe-core)', () => {
     );
     expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   }, 20_000);
+});
+
+/* ------------------------------------------------------------------- Empty -- */
+
+describe('Empty', () => {
+  it('announces itself, because it replaces content the user was expecting', () => {
+    render(<Empty title="No risks yet" />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText('No risks yet')).toBeInTheDocument();
+  });
+
+  it('exposes the variant, which is what the E2E fresh-tenant sweep asserts on', () => {
+    const { rerender } = render(<Empty title="Nothing" />);
+    // first-use is the default on purpose: a fresh tenant has not failed at
+    // anything, and "no data" is the wrong thing to say to it.
+    expect(screen.getByTestId('empty-state')).toHaveAttribute('data-variant', 'first-use');
+
+    rerender(<Empty title="Nothing" variant="no-results" />);
+    expect(screen.getByTestId('empty-state')).toHaveAttribute('data-variant', 'no-results');
+  });
+
+  it('renders both actions when given them, and neither slot when not', () => {
+    const { rerender } = render(<Empty title="Nothing" />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+
+    rerender(
+      <Empty
+        title="Nothing"
+        primaryAction={<button type="button">Create</button>}
+        secondaryAction={<button type="button">Import</button>}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument();
+  });
+
+  it('opens the learn-more link safely in a new tab', () => {
+    render(<Empty title="Nothing" learnMoreHref="https://docs.example/risks" />);
+    const link = screen.getByRole('link');
+    expect(link).toHaveAttribute('target', '_blank');
+    // rel=noreferrer, or the new tab can reach back through window.opener.
+    expect(link).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  it('is still reachable under its old name and path (D-021 shim)', () => {
+    // The 24 existing importers were deliberately NOT rewritten — Résolution 1
+    // point 4. If this fails, the shim is gone and every one of them is broken.
+    expect(EmptyState).toBe(Empty);
+  });
 });
