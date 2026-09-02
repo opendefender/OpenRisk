@@ -7,9 +7,7 @@
 // a radar chart of the eight factor risk-contributions plus a ranked breakdown
 // bar list. Pure presentation; the caller supplies the computed SmartRiskScore.
 
-import {
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
-} from 'recharts';
+import { RadarChart } from '../../../shared/ds/charts';
 import type { FactorKey, SmartRiskScore } from '../smartScoreService';
 import { critColor } from '../../../shared/riskColors';
 
@@ -75,25 +73,27 @@ export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr
       </div>
 
       {/* Radar */}
-      <div style={{ width: '100%', height: 240 }}>
-        <ResponsiveContainer>
-          <RadarChart data={radarData} outerRadius="72%">
-            <PolarGrid stroke="var(--border)" />
-            <PolarAngleAxis
-              dataKey="factor"
-              tick={{ fill: 'var(--fg-secondary)', fontSize: 10 }}
-            />
-            <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-            <Radar
-              dataKey="value"
-              stroke={accent}
-              fill={accent}
-              fillOpacity={0.28}
-              isAnimationActive
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
+      <RadarChart
+        axes={radarData.map((r) => ({ key: r.factor, label: r.factor }))}
+        series={[
+          {
+            key: 'contribution',
+            label: tr('Contribution au risque', 'Risk contribution'),
+            values: radarData.map((r) => r.value),
+            /* The band the smart model itself returned — see smartColor above.
+               Passing the band rather than a colour keeps the one threshold
+               table on the server, which is the whole point of that note. */
+            band: data.criticality,
+          },
+        ]}
+        max={100}
+        size={240}
+        formatValue={(v) => `${v}%`}
+        ariaLabel={tr(
+          'Contribution de chaque facteur au score de risque intelligent, en pourcentage',
+          'Each factor\u2019s contribution to the smart risk score, as a percentage',
+        )}
+      />
 
       {/* Ranked factor breakdown */}
       <div className="mt-4 space-y-2.5">

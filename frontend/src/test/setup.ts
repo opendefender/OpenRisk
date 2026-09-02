@@ -44,6 +44,21 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
+// ResizeObserver — jsdom has none, and @visx/responsive's ParentSize constructs
+// one on mount, so every chart test would die in the constructor. The stub
+// reports nothing, which is correct for jsdom: elements there have a zero
+// bounding box anyway, so a chart's SVG does not render and the assertions that
+// matter are on its text alternative and legend. Real geometry is covered by
+// the Playwright visual suite, in a real browser.
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+if (!('ResizeObserver' in globalThis)) {
+  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+}
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

@@ -4,20 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import React, { useState, useEffect } from 'react';
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ComposedChart,
-} from 'recharts';
+import { CartesianChart } from '../shared/ds/charts';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
 interface TimeSeriesData {
@@ -232,22 +219,12 @@ const AnalyticsDashboard: React.FC = () => {
           <div className="bg-surface-1 rounded-lg shadow p-6">
             <h2 className="text-xl font-bold text-fg-primary mb-4">Time Series Data</h2>
             {timeSeriesData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={timeSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="timestamp" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#3b82f6"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <CartesianChart
+                data={timeSeriesData}
+                x="timestamp"
+                series={[{ type: 'line', key: 'value', label: 'Value' }]}
+                ariaLabel="Time series of the recorded value"
+              />
             ) : (
               <p className="text-fg-muted text-center py-8">No data available</p>
             )}
@@ -257,22 +234,12 @@ const AnalyticsDashboard: React.FC = () => {
           <div className="bg-surface-1 rounded-lg shadow p-6">
             <h2 className="text-xl font-bold text-fg-primary mb-4">Aggregated Data</h2>
             {aggregatedData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={aggregatedData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="timestamp" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="average"
-                    fill="#93c5fd"
-                    stroke="#3b82f6"
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <CartesianChart
+                data={aggregatedData}
+                x="timestamp"
+                series={[{ type: 'area', key: 'average', label: 'Average' }]}
+                ariaLabel="Average of the aggregated value over time"
+              />
             ) : (
               <p className="text-fg-muted text-center py-8">No data available</p>
             )}
@@ -283,18 +250,16 @@ const AnalyticsDashboard: React.FC = () => {
         {aggregatedData.length > 0 && (
           <div className="bg-surface-1 rounded-lg shadow p-6">
             <h2 className="text-xl font-bold text-fg-primary mb-4">Min/Max Distribution</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={aggregatedData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="timestamp" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="min" fill="#ef4444" opacity={0.7} />
-                <Bar dataKey="max" fill="#10b981" opacity={0.7} />
-                <Line type="monotone" dataKey="average" stroke="#f59e0b" />
-              </ComposedChart>
-            </ResponsiveContainer>
+            <CartesianChart
+              data={aggregatedData}
+              x="timestamp"
+              series={[
+                { type: 'bar', key: 'min', label: 'Minimum' },
+                { type: 'bar', key: 'max', label: 'Maximum' },
+                { type: 'line', key: 'average', label: 'Average' },
+              ]}
+              ariaLabel="Minimum, maximum and average of the aggregated value over time"
+            />
           </div>
         )}
       </div>

@@ -55,8 +55,7 @@ import {
 } from '../../src/shared/ds/States';
 import { EmptyState } from '../../src/shared/EmptyState';
 import { categorical, chartAxis, graph, severity } from '../../src/shared/ds/chart';
-import { RiskMatrix, type MatrixBucket } from '../../src/shared/ds/RiskMatrix';
-import type { SeverityKey } from '../../src/shared/ds/chart';
+import { CartesianChart, PieChart, RadarChart } from '../../src/shared/ds/charts';
 
 /** See harness.tsx — the UI store applies its own theme at module load. */
 function applyRequestedTheme() {
@@ -770,54 +769,124 @@ function TableDensity() {
 }
 
 /**
- * The 5×5 risk matrix. #444.
+ * The visx chart layer that replaces Recharts. #444 / D-024 option A.
  *
- * Eight risks across four cells: enough to show an occupied cell, an overflow
- * count, and the empty cells whose band is carried as text rather than fill.
- * The ramp is passed in, because the component holds no thresholds.
+ * Every family the six dashboards used, on one page: area, bar, line and a
+ * composed mix, a stacked bar, a three-slice pie and a radar. This is the only
+ * place the drawing code is exercised with real layout — jsdom gives every
+ * element a zero box, so the unit tests can assert the legend and the text
+ * alternative but never the geometry.
  */
-const MATRIX_BAND = (p: MatrixBucket, i: MatrixBucket): SeverityKey => {
-  const v = p * i;
-  return v >= 15 ? 'critical' : v >= 8 ? 'high' : v >= 4 ? 'medium' : 'low';
-};
+const TREND = [
+  { month: 'Jan', opened: 12, closed: 4, score: 6.2 },
+  { month: 'Feb', opened: 8, closed: 9, score: 5.4 },
+  { month: 'Mar', opened: 15, closed: 11, score: 7.1 },
+  { month: 'Apr', opened: 9, closed: 13, score: 4.8 },
+  { month: 'May', opened: 6, closed: 7, score: 4.1 },
+];
 
-const MATRIX_ITEMS = [
-  { id: 'R-001', label: 'Unpatched TLS on the edge gateway', probability: 5, impact: 5, band: 'critical', marker: '8' },
-  { id: 'R-002', label: 'Shared admin credentials in CI', probability: 5, impact: 4, band: 'critical', marker: '7' },
-  { id: 'R-003', label: 'No offsite backup for the audit trail', probability: 3, impact: 4, band: 'high', marker: '7' },
-  { id: 'R-004', label: 'Vendor access without an NDA', probability: 3, impact: 4, band: 'high', marker: '5' },
-  { id: 'R-005', label: 'Laptop disk encryption not enforced', probability: 3, impact: 4, band: 'medium', marker: '5' },
-  { id: 'R-006', label: 'Log retention below the 12-month floor', probability: 3, impact: 4, band: 'medium', marker: '4' },
-  { id: 'R-007', label: 'Stale IAM roles after offboarding', probability: 3, impact: 4, band: 'medium', marker: '3' },
-  { id: 'R-008', label: 'No documented restore drill', probability: 1, impact: 2, band: 'low', marker: '2' },
-] as const;
+const INCIDENTS = [
+  { m: 'Jan', critical: 2, high: 5, other: 9 },
+  { m: 'Feb', critical: 1, high: 3, other: 12 },
+  { m: 'Mar', critical: 4, high: 6, other: 7 },
+  { m: 'Apr', critical: 0, high: 2, other: 11 },
+];
 
-function RiskMatrixGallery() {
+function ChartsV2() {
   return (
-    <div className="max-w-3xl">
-      <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
-        RiskMatrix — probability x impact, bands from the caller
-      </p>
-      <RiskMatrix
-        items={MATRIX_ITEMS.map((r) => ({ ...r }))}
-        cellBand={MATRIX_BAND}
-        onSelect={() => {}}
-        labels={{
-          caption: 'Risk matrix, probability by impact',
-          probability: 'Probability',
-          impact: 'Impact',
-          band: (b) =>
-            ({ critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', extreme: 'Extreme' })[b],
-          more: (n) => `+${n}`,
-        }}
-      />
+    <div className="grid max-w-3xl gap-8">
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Composed — grouped bars plus a line
+        </p>
+        <CartesianChart
+          data={TREND}
+          x="month"
+          height={220}
+          series={[
+            { type: 'bar', key: 'opened', label: 'Opened' },
+            { type: 'bar', key: 'closed', label: 'Closed' },
+            { type: 'line', key: 'score', label: 'Avg score' },
+          ]}
+          ariaLabel="Risks opened and closed per month with the average score"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Area — two series, dash pattern as the second encoding
+        </p>
+        <CartesianChart
+          data={TREND}
+          x="month"
+          height={200}
+          series={[
+            { type: 'area', key: 'opened', label: 'Opened' },
+            { type: 'area', key: 'closed', label: 'Closed' },
+          ]}
+          ariaLabel="Risks opened and closed per month"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Stacked bars — severity bands, parts of one whole
+        </p>
+        <CartesianChart
+          data={INCIDENTS}
+          x="m"
+          height={200}
+          stacked
+          series={[
+            { type: 'bar', key: 'critical', label: 'Critical', band: 'critical' },
+            { type: 'bar', key: 'high', label: 'High', band: 'high' },
+            { type: 'bar', key: 'other', label: 'Other', band: 'medium' },
+          ]}
+          ariaLabel="Incidents per month by severity"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Pie — three slices, the maximum the type allows
+        </p>
+        <PieChart
+          height={200}
+          slices={[
+            { key: 'high', label: 'High', value: 8, band: 'high' },
+            { key: 'medium', label: 'Medium', value: 14, band: 'medium' },
+            { key: 'low', label: 'Low', value: 23, band: 'low' },
+          ]}
+          ariaLabel="Risk distribution by level"
+        />
+      </div>
+
+      <div>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Radar — one shared domain across every axis
+        </p>
+        <RadarChart
+          max={100}
+          size={300}
+          axes={[
+            { key: 'iso', label: 'ISO 27001' },
+            { key: 'nist', label: 'NIST' },
+            { key: 'dora', label: 'DORA' },
+            { key: 'soc2', label: 'SOC 2' },
+            { key: 'cobac', label: 'COBAC' },
+          ]}
+          series={[{ key: 'coverage', label: 'Coverage', values: [82, 64, 71, 45, 58] }]}
+          formatValue={(v) => `${v}%`}
+          ariaLabel="Control coverage per framework, as a percentage"
+        />
+      </div>
     </div>
   );
 }
 
 export const GALLERIES: Record<string, () => JSX.Element> = {
   table: TableDensity,
-  'risk-matrix': RiskMatrixGallery,
+  'charts-v2': ChartsV2,
   'specialised-input': SpecialisedInput,
   floating: Floating,
   feedback2: Feedback2,
