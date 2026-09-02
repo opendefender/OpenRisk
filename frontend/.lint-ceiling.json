@@ -1,0 +1,21 @@
+{
+  "total": 321,
+  "rules": {
+    "@typescript-eslint/no-unused-vars": 102,
+    "@typescript-eslint/no-explicit-any": 83,
+    "openrisk/no-raw-colors": 54,
+    "react-hooks/set-state-in-effect": 22,
+    "react-hooks/static-components": 19,
+    "react-refresh/only-export-components": 14,
+    "react-hooks/preserve-manual-memoization": 13,
+    "react-hooks/purity": 3,
+    "@typescript-eslint/ban-ts-comment": 2,
+    "prefer-const": 2,
+    "react-hooks/immutability": 2,
+    "@typescript-eslint/no-unused-expressions": 1,
+    "no-empty": 1,
+    "no-irregular-whitespace": 1,
+    "react-hooks/refs": 1,
+    "react-hooks/rules-of-hooks": 1
+  }
+}
