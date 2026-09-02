@@ -1,9 +1,6 @@
 /* Copyright (c) 2026 OpenDefender Contributors
    SPDX-License-Identifier: AGPL-3.0-only */
 
-import React from 'react';
-import './NotificationBadge.css';
-
 .notification-badge {
   position: relative;
   display: inline-flex;
@@ -59,7 +56,8 @@ import './NotificationBadge.css';
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {
