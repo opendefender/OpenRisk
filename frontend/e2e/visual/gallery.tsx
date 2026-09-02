@@ -25,6 +25,9 @@ import { AlertTriangle, Bug, Download, FileText, Plus, Search, Trash2 } from 'lu
 
 import '../../src/index.css';
 import { applyHarnessEnv } from './harnessEnv';
+import { MemoryRouter } from 'react-router';
+import { DataTable } from '../../src/shared/datatable';
+import { useTableState } from '../../src/shared/datatable/useTableState';
 import { useI18n } from '../../src/hooks/useI18n';
 import { Command } from '../../src/shared/ds/Command';
 import { OtpField } from '../../src/shared/ds/OtpField';
@@ -696,7 +699,76 @@ function SpecialisedInput() {
   );
 }
 
+/**
+ * The table, at whatever density `?density=` asked for. #443 PR 4.
+ *
+ * Small on purpose: eight rows is enough to measure a row height and see the
+ * header, and a virtualised body of ten thousand would make the snapshot about
+ * the virtualiser rather than about density.
+ */
+interface DemoRow {
+  id: string;
+  title: string;
+  owner: string;
+  score: number;
+}
+
+const DEMO_ROWS: DemoRow[] = [
+  { id: 'R-001', title: 'Unpatched TLS on the edge gateway', owner: 'A. Diallo', score: 8.4 },
+  { id: 'R-002', title: 'Shared admin credentials in CI', owner: 'M. Nkemi', score: 7.1 },
+  { id: 'R-003', title: 'No offsite backup for the audit trail', owner: 'S. Traoré', score: 6.8 },
+  { id: 'R-004', title: 'Vendor access without an NDA', owner: 'A. Diallo', score: 5.2 },
+  { id: 'R-005', title: 'Laptop disk encryption not enforced', owner: 'K. Mbala', score: 4.9 },
+  { id: 'R-006', title: 'Log retention below the 12-month floor', owner: 'S. Traoré', score: 3.6 },
+  { id: 'R-007', title: 'Stale IAM roles after offboarding', owner: 'M. Nkemi', score: 3.1 },
+  { id: 'R-008', title: 'No documented restore drill', owner: 'K. Mbala', score: 2.4 },
+];
+
+function TableDensityInner() {
+  const api = useTableState();
+  return (
+    <div className="max-w-3xl">
+      <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+        DataTable — row height follows --den-row
+      </p>
+      <DataTable<DemoRow>
+        id="gallery-density"
+        rows={DEMO_ROWS}
+        rowKey={(r) => r.id}
+        api={api}
+        mode="client"
+        ariaLabel="Risk register"
+        exportFilename=""
+        columns={[
+          { key: 'id', header: 'ID', width: 90, render: (r) => r.id },
+          { key: 'title', header: 'Risk', render: (r) => r.title },
+          { key: 'owner', header: 'Owner', width: 140, render: (r) => r.owner },
+          {
+            key: 'score',
+            header: 'Score',
+            width: 90,
+            align: 'right',
+            render: (r) => r.score.toFixed(1),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* useTableState reads the table's sort/page/filters from the URL, so it needs a
+   router. MemoryRouter rather than the app's: the gallery has no routes, and a
+   real one would make the snapshot depend on the address bar. */
+function TableDensity() {
+  return (
+    <MemoryRouter>
+      <TableDensityInner />
+    </MemoryRouter>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
+  table: TableDensity,
   'specialised-input': SpecialisedInput,
   floating: Floating,
   feedback2: Feedback2,
