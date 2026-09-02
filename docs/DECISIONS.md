@@ -5,7 +5,7 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-026 — Prettier: adopt it and take the 492-file sweep, or drop the format gate for good? · 2026-09-02
+### D-027 — Prettier: adopt it and take the 492-file sweep, or drop the format gate for good? · 2026-09-02
 **Context** — #341 (D-022, item 3) asked for the `type-check`, `format` and
 `format:check` scripts that `.github/workflows/ci.yml` already invoked. Two of
 the three are done. `format`/`format:check` are not, and the reason is worth a

@@ -164,7 +164,7 @@ jobs:
       # never existed in this repo. Adding them means reformatting 492 of ~550
       # frontend files, the same repo-wide mechanical diff D-022 declined for
       # the `any` sweep and for the same reason: it would collide with every
-      # open ds-v1 PR. Recorded as D-026 for the owner to schedule.
+      # open ds-v1 PR. Recorded as D-027 for the owner to schedule.
 
   # The design tokens carry two claims that were, until now, only assertions in
   # a comment: that every text/surface pair meets its WCAG target in both
