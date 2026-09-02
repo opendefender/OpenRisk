@@ -23,14 +23,15 @@
  * produce two identical snapshots and pass while testing one language twice.
  */
 
-import { useUIStore, type Lang, type Theme } from '../../src/store/uiStore';
+import { useUIStore, type Density, type Lang, type Theme } from '../../src/store/uiStore';
 
 export interface HarnessEnv {
   theme: Theme;
   lang: Lang;
+  density: Density;
 }
 
-/** Reads `?theme` / `?lang`, defaulting to the values the HTML stamps. */
+/** Reads `?theme` / `?lang` / `?density`, defaulting to the product's defaults. */
 export function applyHarnessEnv(): HarnessEnv {
   const q = new URLSearchParams(location.search);
 
@@ -39,10 +40,16 @@ export function applyHarnessEnv(): HarnessEnv {
      name for every string on the page. */
   const theme: Theme = q.get('theme') === 'light' ? 'light' : 'dark';
   const lang: Lang = q.get('lang') === 'fr' ? 'fr' : 'en';
+  /* Comfort is the ratified default; anything unrecognised lands there rather
+     than on `undefined` and a table with no row height. */
+  const densityParam = q.get('density');
+  const density: Density =
+    densityParam === 'compact' ? 'compact' : densityParam === 'spacious' ? 'spacious' : 'comfort';
 
   const store = useUIStore.getState();
   store.setTheme(theme);
   store.setLang(lang);
+  store.setDensity(density);
 
-  return { theme, lang };
+  return { theme, lang, density };
 }
