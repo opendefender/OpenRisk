@@ -41,6 +41,7 @@ const GALLERIES = [
   'floating',
   'table',
   'specialised-input',
+  'risk-matrix',
 ] as const;
 
 /**
