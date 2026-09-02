@@ -11,6 +11,80 @@ None. Every entry in this register is resolved as of 2026-09-02.
 
 <!-- Append: date · decision · rationale · issues unblocked -->
 
+### D-024 — bklit ui: a hard subset is vendored; the bundle gate is raised to pay for it · 2026-09-02
+**Decided** — Option B. A **hard subset** of `bklit/bklit-ui` charts is vendored at the
+pinned SHA `c57f66bfa7c3198edb677b567ce08cbf364ae159` (2026-07-28, tip of `main`).
+The D-018 248 KB gate is raised to pay for it. `@visx/*` is accepted as a real
+dependency set.
+
+**Rationale (owner)** — Chosen over the recommendation, which was A (decline and
+build in-house). The owner accepts the bundle cost and the pre-1.0 upstream in
+exchange for a chart layer that exists now rather than one built primitive by
+primitive.
+
+**The facts this was decided on, measured 2026-09-02 —**
+- **Licence: clean.** A real MIT licence *text* with a copyright line exists at the
+  repository root `LICENSE` ("MIT License / Copyright (c) 2026 uixmat"), so unlike
+  the coss ui case of D-020 there is something to retain and a `NOTICE` entry can be
+  written honestly. Two caveats: `packages/ui/package.json` is `"private": true`
+  carrying a `"license": "MIT"` field — the exact coss smell, here backed by real
+  root text — and the MIT grant is **not repo-wide**. `LICENSE-STUDIO.md` places
+  `packages/studio` under a proprietary all-rights-reserved licence, and
+  `packages/studio/src/components/charts/heatmap-studio-preview.tsx` is **not MIT**.
+  **Vendoring is pinned to `packages/ui` only.**
+- **Upstream: no release.** `@bklitui/ui` is `version: 0.0.0`, `"private": true`. It
+  has never been published. There is no version to pin, no changelog and no upgrade
+  path — only a SHA and a manual re-diff.
+- **Weight.** #444's body describes bklit ui as "a bespoke renderer over `d3-scale` /
+  `d3-shape` / `d3-geo`. That is wrong: `packages/ui` depends on **14 `@visx/*`
+  packages** (most pinned at `4.0.1-alpha.0`), plus `d3-array`, `d3-geo`, `d3-scale`,
+  `d3-shape`, `topojson-client`, `react-use-measure`, `tailwind-merge`,
+  `motion ^12.27.0`, `@number-flow/react ^0.5.4` and **`@base-ui/react ^1.0.0-alpha.8`**.
+  Gzipped ESM for the cheapest item on the adopt list, the Heatmap:
+  `@visx/heatmap` 0.9 KB · `@visx/responsive` 3.0 KB · `@visx/scale` 4.2 KB =
+  **~8.1 KB**, before any `d3-*`, before `motion`, before the vendored source. The
+  console had **2.2 KB of headroom** (248 KB gate, 245.8 KB used — D-018).
+
+**Consequence — what Option B obliges, none of it optional —**
+1. **D-018's 248 KB gate must be raised by an explicit number in the PR that first
+   lands a chart**, not silently exceeded. The gate is `frontend/scripts/check-bundle-budget.mjs`.
+   The new ceiling is a measured figure, and #462's 180 KB target moves further away.
+2. **`motion` and `@number-flow/react` stay banned.** They are `no-restricted-imports`
+   at `error` (`frontend/eslint.config.js`) and D-024 does not lift that. Vendored
+   source that imports `motion/react` — `heatmap-chart.tsx` does — must be rewritten
+   onto `framer-motion`, already a dependency. Vendor the source; do not install
+   these two packages.
+3. **`@base-ui/react` arrives transitively at `1.0.0-alpha.8`** — the package D-019
+   declined on its own merits. Either it is stripped from the vendored subset or
+   D-019 is explicitly amended. It may not enter by omission.
+4. **`GaugeChart` is still banned.** It sits in #444's "adopt" table *and* in the
+   `no-restricted-imports` deny-list at `frontend/eslint.config.js:271` that #446
+   landed. B does not resolve this contradiction: either `GaugeChart` is dropped from
+   the subset, or the deny-list entry is removed by a decision that overrides the
+   design guide's angle-encoding rule. Until then it is out.
+5. **The destination path in #444 is outside the licence boundary.** #444 says vendor
+   into `frontend/src/components/ui/charts/`. `frontend/design-system/NOTICE` scopes
+   Apache-2.0 to exactly `frontend/design-system/` and `frontend/src/shared/ds/` and
+   states everything else is AGPL. Per D-020 the destination must be one of those two,
+   so charts land in **`frontend/src/shared/ds/`**, with each vendored component
+   recorded in `frontend/design-system/NOTICE` with its upstream SHA.
+6. **The Heatmap does not do what #444 wants.** It is asked for as a "5×5 risk matrix,
+   inherent vs residual" — a categorical grid. Upstream's `heatmap-chart.tsx` imports
+   `scaleTime` and the directory carries `heatmap-week-start`, `heatmap-week-range`
+   and `generate-heatmap-skeleton-data`: it is a calendar/contributions heatmap. The
+   risk matrix is built, not vendored.
+
+**Reversible** — yes, up to first publication. Nothing is relicensed by this decision;
+the vendored files are MIT-in-Apache-2.0 recorded in `NOTICE`, and the subset can be
+dropped later. The raised bundle ceiling is the part that is hard to walk back.
+
+**Unblocked** — #444 moves off `status:blocked`. It goes to `status:needs-refinement`,
+not `status:ready`: consequences 1, 3, 4 and 5 above each contradict a task currently
+written in its body, so its acceptance criteria must be corrected before it is
+workable. #439's charts line follows #444.
+
+---
+
 ### D-021 — `EmptyState.tsx` is relicensed to Apache-2.0 and moves into `shared/ds/` · 2026-09-02
 **Decided** — Option A. `src/shared/EmptyState.tsx` becomes `Apache-2.0` and moves
 into `frontend/src/shared/ds/`, exported from its `index.ts` as the design
