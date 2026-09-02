@@ -41,9 +41,10 @@ export default defineConfig({
           // rules, so without this it falls through to `vendor`, which IS
           // preloaded — the exact way a chart library stops being lazy and
           // silently spends the initial-bundle budget (D-024).
+          // `recharts` was removed from this list with the dependency itself,
+          // once D-024 option A replaced it with the visx layer in shared/ds/charts.
           if (
             id.includes('@visx') ||
-            id.includes('recharts') ||
             id.includes('d3-') ||
             id.includes('victory') ||
             id.includes('internmap') ||

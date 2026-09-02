@@ -12,10 +12,7 @@
 
 import { useMemo } from 'react';
 import { toast } from 'sonner';
-import {
-  LineChart, Line, BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
-  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
+import { CartesianChart, RadarChart } from '../../shared/ds/charts';
 import {
   ShieldCheck, RefreshCw, Coins, AlertTriangle, Bug, Activity, TrendingUp,
   type LucideIcon,
@@ -37,7 +34,6 @@ const CRIT: Record<string, string> = {
 const SEV_COLOR: Record<string, string> = {
   critical: 'var(--critical)', warn: 'var(--high)', ok: 'var(--low)',
 };
-const TOOLTIP_STYLE = { background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, color: 'var(--fg-primary)' } as const;
 
 function fmtInt(n: number, lang: string): string {
   return Math.round(n).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US');
@@ -262,16 +258,16 @@ function RiskTrendCard({ points, tr }: { points: MonthlyRiskPoint[]; tr: (f: str
       {rows.length === 0 ? (
         <ChartEmpty label={tr('Pas encore d\'historique', 'No history yet')} />
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={rows} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="m" tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 'auto']} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, tr('Score moyen', 'Avg score')]} />
-            <Line type="monotone" dataKey="avg_score" name={tr('Score moyen', 'Avg score')} stroke="var(--accent)" strokeWidth={2.5}
-              dot={{ r: 3, fill: 'var(--accent)' }} activeDot={{ r: 5 }} />
-          </LineChart>
-        </ResponsiveContainer>
+        <CartesianChart
+          data={rows}
+          x="m"
+          height={220}
+          series={[{ type: 'line', key: 'avg_score', label: tr('Score moyen', 'Avg score') }]}
+          ariaLabel={tr(
+            'Score de risque moyen du registre, par mois',
+            'Register average risk score, per month',
+          )}
+        />
       )}
     </Card>
   );
@@ -289,19 +285,25 @@ function RiskDistributionCard({ slices, lang, tr }: { slices: DistributionSlice[
       {total === 0 ? (
         <ChartEmpty label={tr('Aucun risque', 'No risks')} />
       ) : (
-        <div className="relative">
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={data} dataKey="count" nameKey="criticality" cx="50%" cy="50%" innerRadius={58} outerRadius={82} paddingAngle={2} stroke="var(--bg-secondary)" strokeWidth={2}>
-                {data.map((s) => <Cell key={s.criticality} fill={CRIT[s.criticality] ?? 'var(--accent)'} />)}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [v, label(n)]} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <div className="disp mono text-[28px] font-bold text-ink leading-none">{fmtInt(total, lang)}</div>
-            <div className="text-[11px] text-ink-muted">{tr('risques', 'risks')}</div>
+        <div>
+          {/* D-025: this was a doughnut with the total in the middle, across four
+              slices. That is the pattern #444's anti-cliché table bans RingChart
+              for — "a number in the middle that a KPI tile would say better" —
+              and four slices is past the three-slice pie limit. The total is now
+              the KPI figure it always was, and the split is bars, which people
+              compare by length instead of by angle. */}
+          <div className="mb-2 flex items-baseline gap-1.5">
+            <span className="disp mono text-[28px] font-bold text-ink leading-none">{fmtInt(total, lang)}</span>
+            <span className="text-[11px] text-ink-muted">{tr('risques', 'risks')}</span>
           </div>
+          <CartesianChart
+            data={data}
+            x="criticality"
+            height={180}
+            series={[{ type: 'bar', key: 'count', label: tr('Risques', 'Risks') }]}
+            formatCategory={label}
+            ariaLabel={tr('Nombre de risques par criticité', 'Risk count by criticality')}
+          />
         </div>
       )}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 justify-center">
@@ -373,38 +375,35 @@ function ControlCoverageRadar({ frameworks, tr }: { frameworks: ComplianceCovera
       {data.length === 0 ? (
         <ChartEmpty label={tr('Aucun référentiel', 'No frameworks')} />
       ) : (
-        <ResponsiveContainer width="100%" height={230}>
-          <RadarChart data={data} outerRadius="72%">
-            <PolarGrid stroke="var(--border)" />
-            <PolarAngleAxis dataKey="name" tick={{ fill: 'var(--fg-muted)', fontSize: 10 }} />
-            <Radar name={tr('Couverture', 'Coverage')} dataKey="percent" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.35} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v} %`, tr('Couverture', 'Coverage')]} />
-          </RadarChart>
-        </ResponsiveContainer>
+        <RadarChart
+          axes={data.map((d) => ({ key: d.name, label: d.name }))}
+          series={[
+            {
+              key: 'coverage',
+              label: tr('Couverture', 'Coverage'),
+              values: data.map((d) => d.percent),
+            },
+          ]}
+          max={100}
+          size={230}
+          formatValue={(v) => `${v} %`}
+          ariaLabel={tr(
+            'Pourcentage de contrôles implémentés par référentiel',
+            'Percentage of controls implemented per framework',
+          )}
+        />
       )}
     </Card>
   );
 }
 
 /* ---------------- Compliance donuts per framework ---------------- */
-function Ring({ pct, label }: { pct: number; label: string }) {
-  const r = 26, c = 2 * Math.PI * r;
-  const off = c * (1 - Math.min(100, Math.max(0, pct)) / 100);
-  const col = pct >= 80 ? 'var(--low)' : pct >= 50 ? 'var(--medium)' : 'var(--critical)';
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative">
-        <svg width="72" height="72" viewBox="0 0 72 72">
-          <circle cx="36" cy="36" r={r} fill="none" stroke="var(--bg-hover)" strokeWidth={7} />
-          <circle cx="36" cy="36" r={r} fill="none" stroke={col} strokeWidth={7} strokeLinecap="round"
-            strokeDasharray={c} strokeDashoffset={off} transform="rotate(-90 36 36)" />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center mono text-[13px] font-bold text-ink">{Math.round(pct)}%</div>
-      </div>
-      <span className="text-[11px] text-ink-soft text-center truncate max-w-[84px]">{label}</span>
-    </div>
-  );
-}
+/* `Ring` — a 72px progress ring with the percentage in the middle, eight of them
+   in a grid — was deleted under D-025. It is the same banned pattern as the
+   distribution doughnut ("a number in the middle that a KPI tile would say
+   better"), and eight of them side by side asked the reader to compare eight
+   arc lengths. The comparison across frameworks IS the reading, so it is now
+   one bar chart: same data, one axis, ranked by eye in a glance. */
 function ComplianceCard({ frameworks, tr }: { frameworks: ComplianceCoverage[]; tr: (f: string, e: string) => string }) {
   return (
     <Card style={{ padding: '18px 20px' }}>
@@ -412,9 +411,17 @@ function ComplianceCard({ frameworks, tr }: { frameworks: ComplianceCoverage[]; 
       {frameworks.length === 0 ? (
         <ChartEmpty label={tr('Aucun référentiel', 'No frameworks')} />
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-          {frameworks.slice(0, 8).map((f) => <Ring key={f.framework_id} pct={f.percent} label={f.name} />)}
-        </div>
+        <CartesianChart
+          data={frameworks.slice(0, 8)}
+          x="name"
+          height={200}
+          series={[{ type: 'bar', key: 'percent', label: tr('Couverture', 'Coverage') }]}
+          formatValue={(v) => `${Math.round(v)}%`}
+          ariaLabel={tr(
+            'Pourcentage de conformité par référentiel',
+            'Compliance percentage per framework',
+          )}
+        />
       )}
     </Card>
   );
@@ -436,18 +443,21 @@ function IncidentTrendCard({ points, tr }: { points: IncidentTrendPoint[]; tr: (
       {!hasData ? (
         <ChartEmpty label={tr('Aucun incident', 'No incidents')} />
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={rows} margin={{ top: 6, right: 10, left: -22, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="m" tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--fg-muted)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'var(--bg-hover)' }} />
-            <Legend wrapperStyle={{ fontSize: 11, color: 'var(--fg-secondary)' }} />
-            <Bar dataKey="critical" stackId="i" name={tr('Critique', 'Critical')} fill="var(--critical)" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="high" stackId="i" name={tr('Élevé', 'High')} fill="var(--high)" />
-            <Bar dataKey="other" stackId="i" name={tr('Autre', 'Other')} fill="var(--medium)" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <CartesianChart
+          data={rows}
+          x="m"
+          height={220}
+          stacked
+          series={[
+            { type: 'bar', key: 'critical', label: tr('Critique', 'Critical'), band: 'critical' },
+            { type: 'bar', key: 'high', label: tr('Élevé', 'High'), band: 'high' },
+            { type: 'bar', key: 'other', label: tr('Autre', 'Other'), band: 'medium' },
+          ]}
+          ariaLabel={tr(
+            'Volume mensuel d’incidents par sévérité',
+            'Monthly incident volume by severity',
+          )}
+        />
       )}
     </Card>
   );
