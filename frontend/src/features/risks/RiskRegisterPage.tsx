@@ -22,6 +22,7 @@ import {
   SkeletonRows, EmptyState, ErrorState, softFill, type RiskStatus,
 } from '../../shared/ui';
 import { DataTable, useTableState, type BulkAction, type Column, type Facet, type RowAction } from '../../shared/datatable';
+import { RiskMatrix, type MatrixBucket } from '../../shared/ds';
 import { critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
@@ -639,57 +640,44 @@ function InlineStatus({ risk }: { risk: UiRisk }) {
   );
 }
 
+/* The grid itself is <RiskMatrix> in shared/ds. This wrapper keeps what is
+   product knowledge and cannot live in an Apache-2.0 primitive: the axis
+   bucketing (probability is 0..1, impact 0..10) and cellCrit, the matrix's own
+   coordinate-to-band ramp, which the primitive deliberately refuses to own. */
+const toBucket = (v: number, max: number): MatrixBucket =>
+  Math.min(5, Math.max(1, Math.ceil((v / max) * 5) || 1)) as MatrixBucket;
+
 function RiskMatrixView({ risks, onOpen }: { risks: UiRisk[]; onOpen: (id: string) => void }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const bucket = (v: number, max: number) => Math.min(5, Math.max(1, Math.ceil((v / max) * 5) || 1));
-  // grid[prob 1..5][impact 1..5] → risks
-  const grid: Record<number, Record<number, UiRisk[]>> = {};
-  for (let p = 1; p <= 5; p++) { grid[p] = {}; for (let i = 1; i <= 5; i++) grid[p][i] = []; }
-  for (const r of risks) grid[bucket(r.prob, 1)][bucket(r.impact, 10)].push(r);
+  const critLabel: Record<Criticality, string> = {
+    critical: tr('Critique', 'Critical'),
+    high: tr('Élevé', 'High'),
+    medium: tr('Moyen', 'Medium'),
+    low: tr('Faible', 'Low'),
+  };
 
   return (
-    <div className="p-4 overflow-x-auto">
-      <div className="flex gap-2" style={{ minWidth: 640 }}>
-        {/* y-axis label */}
-        <div className="flex items-center">
-          <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{tr('Probabilité', 'Probability')}</span>
-        </div>
-        <div className="flex-1">
-          <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(5,1fr)' }}>
-            {[5, 4, 3, 2, 1].map((p) =>
-              [1, 2, 3, 4, 5].map((i) => {
-                const cell = grid[p][i];
-                const crit = cellCrit(p, i);
-                const col = critColor[crit];
-                return (
-                  <div key={`${p}-${i}`} className="rounded-[10px] p-1.5 min-h-[84px] flex flex-col gap-1" style={{ background: softFill(col, 10), border: `1px solid ${softFill(col, 22)}` }}>
-                    <div className="flex flex-wrap gap-1 content-start">
-                      {cell.slice(0, 6).map((r) => (
-                        <button
-                          key={r.id}
-                          onClick={() => onOpen(r.id)}
-                          title={`${r.name} · ${r.score.toFixed(1)}`}
-                          className="w-5 h-5 rounded-full text-[9px] font-bold text-fg-primary flex items-center justify-center transition-transform hover:scale-110"
-                          style={{ background: col }}
-                        >
-                          {r.score.toFixed(0)}
-                        </button>
-                      ))}
-                      {cell.length > 6 && <span className="text-[10px] font-semibold self-center" style={{ color: col }}>+{cell.length - 6}</span>}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          {/* x-axis ticks */}
-          <div className="grid gap-1.5 mt-1.5" style={{ gridTemplateColumns: 'repeat(5,1fr)' }}>
-            {[1, 2, 3, 4, 5].map((i) => <div key={i} className="text-center text-[10.5px] text-ink-muted">{i}</div>)}
-          </div>
-          <div className="text-center text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mt-1">{tr('Impact', 'Impact')}</div>
-        </div>
-      </div>
+    <div className="p-4">
+      <RiskMatrix
+        items={risks.map((r) => ({
+          id: r.id,
+          label: `${r.name} · ${r.score.toFixed(1)}`,
+          probability: toBucket(r.prob, 1),
+          impact: toBucket(r.impact, 10),
+          band: r.crit,
+          marker: r.score.toFixed(0),
+        }))}
+        cellBand={cellCrit}
+        onSelect={onOpen}
+        labels={{
+          caption: tr('Matrice des risques — probabilité par impact', 'Risk matrix — probability by impact'),
+          probability: tr('Probabilité', 'Probability'),
+          impact: tr('Impact', 'Impact'),
+          band: (b) => critLabel[b as Criticality] ?? b,
+          more: (n) => `+${n}`,
+        }}
+      />
     </div>
   );
 }

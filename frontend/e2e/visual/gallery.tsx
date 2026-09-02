@@ -55,6 +55,8 @@ import {
 } from '../../src/shared/ds/States';
 import { EmptyState } from '../../src/shared/EmptyState';
 import { categorical, chartAxis, graph, severity } from '../../src/shared/ds/chart';
+import { RiskMatrix, type MatrixBucket } from '../../src/shared/ds/RiskMatrix';
+import type { SeverityKey } from '../../src/shared/ds/chart';
 
 /** See harness.tsx — the UI store applies its own theme at module load. */
 function applyRequestedTheme() {
@@ -767,8 +769,55 @@ function TableDensity() {
   );
 }
 
+/**
+ * The 5×5 risk matrix. #444.
+ *
+ * Eight risks across four cells: enough to show an occupied cell, an overflow
+ * count, and the empty cells whose band is carried as text rather than fill.
+ * The ramp is passed in, because the component holds no thresholds.
+ */
+const MATRIX_BAND = (p: MatrixBucket, i: MatrixBucket): SeverityKey => {
+  const v = p * i;
+  return v >= 15 ? 'critical' : v >= 8 ? 'high' : v >= 4 ? 'medium' : 'low';
+};
+
+const MATRIX_ITEMS = [
+  { id: 'R-001', label: 'Unpatched TLS on the edge gateway', probability: 5, impact: 5, band: 'critical', marker: '8' },
+  { id: 'R-002', label: 'Shared admin credentials in CI', probability: 5, impact: 4, band: 'critical', marker: '7' },
+  { id: 'R-003', label: 'No offsite backup for the audit trail', probability: 3, impact: 4, band: 'high', marker: '7' },
+  { id: 'R-004', label: 'Vendor access without an NDA', probability: 3, impact: 4, band: 'high', marker: '5' },
+  { id: 'R-005', label: 'Laptop disk encryption not enforced', probability: 3, impact: 4, band: 'medium', marker: '5' },
+  { id: 'R-006', label: 'Log retention below the 12-month floor', probability: 3, impact: 4, band: 'medium', marker: '4' },
+  { id: 'R-007', label: 'Stale IAM roles after offboarding', probability: 3, impact: 4, band: 'medium', marker: '3' },
+  { id: 'R-008', label: 'No documented restore drill', probability: 1, impact: 2, band: 'low', marker: '2' },
+] as const;
+
+function RiskMatrixGallery() {
+  return (
+    <div className="max-w-3xl">
+      <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+        RiskMatrix — probability x impact, bands from the caller
+      </p>
+      <RiskMatrix
+        items={MATRIX_ITEMS.map((r) => ({ ...r }))}
+        cellBand={MATRIX_BAND}
+        onSelect={() => {}}
+        labels={{
+          caption: 'Risk matrix, probability by impact',
+          probability: 'Probability',
+          impact: 'Impact',
+          band: (b) =>
+            ({ critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', extreme: 'Extreme' })[b],
+          more: (n) => `+${n}`,
+        }}
+      />
+    </div>
+  );
+}
+
 export const GALLERIES: Record<string, () => JSX.Element> = {
   table: TableDensity,
+  'risk-matrix': RiskMatrixGallery,
   'specialised-input': SpecialisedInput,
   floating: Floating,
   feedback2: Feedback2,

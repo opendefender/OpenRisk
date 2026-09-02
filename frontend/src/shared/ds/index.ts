@@ -63,6 +63,13 @@ export {
   type LoadingStateProps,
   type AuditEntryProps,
 } from './States';
+export {
+  RiskMatrix,
+  type RiskMatrixProps,
+  type RiskMatrixItem,
+  type RiskMatrixLabels,
+  type MatrixBucket,
+} from './RiskMatrix';
 export { useDismissableLayer } from './useDismissableLayer';
 
 /** Visualisation contract — palette, axes, tooltip, graph. */
