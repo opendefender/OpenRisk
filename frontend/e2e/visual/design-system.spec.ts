@@ -326,3 +326,57 @@ test('no control is clipped by its row in French', async ({ page }) => {
 
   expect(clipped, `clipped in French:\n  ${clipped.join('\n  ')}`).toEqual([]);
 });
+
+/* ------------------------------------------------------------------ table -- */
+
+/**
+ * Row height follows the density token. #443 PR 4.
+ *
+ * `.or-table tbody td` has always said `height: var(--den-row)`, but DataTable
+ * also set an inline `height: 48` on every `<tr>`, and a table row box is the MAX
+ * of the row's height and its cells' — so 48 won at every density. The density
+ * control changed the padding and the font and left the row height alone, which
+ * is the one dimension "compact" is about.
+ *
+ * Measured rather than asserted against a class: the failure was a cascade
+ * outcome, and only a real layout can say which rule won.
+ */
+const DENSITIES = [
+  { name: 'compact', row: 32 },
+  { name: 'comfort', row: 40 },
+  { name: 'spacious', row: 48 },
+] as const;
+
+for (const { name, row } of DENSITIES) {
+  test(`table rows follow --den-row at ${name} density`, async ({ page }) => {
+    await page.goto(`/e2e/visual/gallery.html?gallery=table&theme=dark&density=${name}`);
+    await page.waitForSelector('[data-testid="table-row"]');
+    await waitForFonts(page);
+
+    const measured = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll<HTMLElement>('[data-testid="table-row"]')];
+      return {
+        token: getComputedStyle(document.documentElement).getPropertyValue('--den-row').trim(),
+        applied: rows[0].style.height,
+        rendered: [...new Set(rows.map((el) => Math.round(el.getBoundingClientRect().height)))],
+        count: rows.length,
+      };
+    });
+
+    // The token resolved, so anything below is the table and not the CSS layer.
+    expect(measured.token).toBe(`${row}px`);
+
+    // THE REGRESSION GUARD. This is the value DataTable puts on every row and
+    // hands the virtualiser; it was hardcoded to 48 and ignored density entirely.
+    expect(measured.applied).toBe(`${row}px`);
+
+    // Rendered height is 1-2px more than the token, and that is correct rather
+    // than a rounding fudge: `height` on a table cell is a MINIMUM, and the
+    // collapsed 1px bottom border sits on top of it. What matters is that every
+    // row agrees and that the box tracks the token.
+    expect(measured.count).toBeGreaterThan(3);
+    expect(measured.rendered).toHaveLength(1);
+    expect(measured.rendered[0]).toBeGreaterThanOrEqual(row);
+    expect(measured.rendered[0]).toBeLessThanOrEqual(row + 4);
+  });
+}
