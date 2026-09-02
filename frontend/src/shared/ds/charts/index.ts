@@ -19,3 +19,11 @@ export {
   type ChartSeries,
   type SeriesType,
 } from './CartesianChart';
+
+export { PieChart, type PieChartProps, type PieSlice, type PieSlices } from './PieChart';
+export {
+  RadarChart,
+  type RadarChartProps,
+  type RadarAxis,
+  type RadarSeries,
+} from './RadarChart';

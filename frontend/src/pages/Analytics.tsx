@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CartesianChart, PieChart } from '../shared/ds/charts';
 import { Download, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RiskMetrics {
@@ -137,11 +137,14 @@ export default function Analytics() {
   const mitMetrics = dashboard.mitigation_metrics;
 
   // Prepare chart data
+  /* These are SEVERITIES, not categories, so they carry a band and take the
+     risk scale — `chart.ts`'s second rule. The hex literals they used to carry
+     were a third copy of that scale, free to drift from the badges beside them. */
   const riskLevelData = [
-    { name: 'High', value: riskMetrics.high_risks, color: '#ef4444' },
-    { name: 'Medium', value: riskMetrics.medium_risks, color: '#f97316' },
-    { name: 'Low', value: riskMetrics.low_risks, color: '#eab308' },
-  ];
+    { key: 'high', label: 'High', value: riskMetrics.high_risks, band: 'high' },
+    { key: 'medium', label: 'Medium', value: riskMetrics.medium_risks, band: 'medium' },
+    { key: 'low', label: 'Low', value: riskMetrics.low_risks, band: 'low' },
+  ] as const;
 
   const statusData = Object.entries(riskMetrics.risks_by_status).map(([status, count]) => ({
     name: status.charAt(0).toUpperCase() + status.slice(1),
@@ -229,78 +232,48 @@ export default function Analytics() {
         {/* Risk Levels Pie Chart */}
         <div className="bg-surface-1 rounded-lg p-6">
           <h2 className="text-xl font-bold text-fg-primary mb-4">Risk Distribution by Level</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={riskLevelData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {riskLevelData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <PieChart slices={riskLevelData} ariaLabel="Risk distribution by level" />
         </div>
 
         {/* Risk Status Distribution */}
         <div className="bg-surface-1 rounded-lg p-6">
           <h2 className="text-xl font-bold text-fg-primary mb-4">Risk Status Distribution</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={statusData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="name" stroke="#999" />
-              <YAxis stroke="#999" />
-              <Tooltip contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #444' }} />
-              <Bar dataKey="value" fill="#3b82f6" />
-            </BarChart>
-          </ResponsiveContainer>
+          <CartesianChart
+            data={statusData}
+            x="name"
+            series={[{ type: 'bar', key: 'value', label: 'Risks' }]}
+            ariaLabel="Risk count by status"
+          />
         </div>
       </div>
 
       {/* Trends */}
       <div className="bg-surface-1 rounded-lg p-6">
         <h2 className="text-xl font-bold text-fg-primary mb-4">Risk Trends (30 days)</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={dashboard.trends}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-            <XAxis
-              dataKey="date"
-              stroke="#999"
-              tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            />
-            <YAxis stroke="#999" />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #444' }}
-              labelFormatter={(date) => new Date(date).toLocaleDateString()}
-            />
-            <Legend />
-            <Line type="monotone" dataKey="count" stroke="#3b82f6" name="Total Risks" />
-            <Line type="monotone" dataKey="avg_score" stroke="#f97316" name="Avg Score" />
-            <Line type="monotone" dataKey="new_risks" stroke="#10b981" name="New Risks" />
-          </LineChart>
-        </ResponsiveContainer>
+        <CartesianChart
+          data={dashboard.trends}
+          x="date"
+          series={[
+            { type: 'line', key: 'count', label: 'Total Risks' },
+            { type: 'line', key: 'avg_score', label: 'Avg Score' },
+            { type: 'line', key: 'new_risks', label: 'New Risks' },
+          ]}
+          formatCategory={(d) =>
+            new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          }
+          ariaLabel="Total risks, average score and new risks over the last 30 days"
+        />
       </div>
 
       {/* Framework Analysis */}
       <div className="bg-surface-1 rounded-lg p-6">
         <h2 className="text-xl font-bold text-fg-primary mb-4">Risks by Framework</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={frameworkData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-            <XAxis dataKey="name" stroke="#999" />
-            <YAxis stroke="#999" />
-            <Tooltip contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #444' }} />
-            <Bar dataKey="risks" fill="#8b5cf6" />
-          </BarChart>
-        </ResponsiveContainer>
+        <CartesianChart
+          data={frameworkData}
+          x="name"
+          series={[{ type: 'bar', key: 'risks', label: 'Risks' }]}
+          ariaLabel="Risk count by compliance framework"
+        />
       </div>
 
       {/* Mitigation Metrics */}

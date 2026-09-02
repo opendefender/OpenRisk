@@ -75,6 +75,16 @@ export interface CartesianChartProps<Row> {
   /** Field on the row holding the category shown on the x axis. */
   x: keyof Row & string;
   series: ChartSeries<Row>[];
+  /**
+   * Stack the bar series instead of grouping them side by side.
+   *
+   * Only legitimate when the bars are PARTS OF ONE WHOLE — incidents per month
+   * split by severity, where the stack total is itself a number someone reads.
+   * Stacking unrelated series makes every segment but the bottom one start at an
+   * arbitrary offset, and only the bottom one can then be compared across
+   * columns.
+   */
+  stacked?: boolean;
   height?: number;
   /** Formats a y value for the axis and the tooltip. */
   formatValue?: (v: number) => string;
@@ -113,6 +123,7 @@ function Plot<Row extends object>({
   height,
   formatValue = (v) => String(v),
   formatCategory = (v) => v,
+  stacked = false,
   ariaLabel,
 }: PlotProps<Row>) {
   const [hover, setHover] = useState<number | null>(null);
@@ -130,16 +141,24 @@ function Plot<Row extends object>({
   /* Zero baseline, always. The domain grows to the data but never lifts off 0,
      so bar length stays proportional to value — see the header. */
   const yScale = useMemo(() => {
+    const barKeys = series.filter((s) => s.type === 'bar');
     let max = 0;
     for (const row of data) {
+      /* A stack is as tall as its total, so the domain has to clear the sum —
+         taking the per-series max would clip every column. */
+      if (stacked && barKeys.length > 0) {
+        let sum = 0;
+        for (const s of barKeys) sum += toNumber(row[s.key]);
+        max = Math.max(max, sum);
+      }
       for (const s of series) max = Math.max(max, toNumber(row[s.key]));
     }
     return scaleLinear<number>({ domain: [0, max === 0 ? 1 : max], range: [innerH, 0], nice: true });
-  }, [data, series, innerH]);
+  }, [data, series, innerH, stacked]);
 
   const bars = series.filter((s) => s.type === 'bar');
   const bandW = xScale.bandwidth();
-  const barW = bars.length > 0 ? bandW / bars.length : bandW;
+  const barW = stacked ? bandW : bars.length > 0 ? bandW / bars.length : bandW;
 
   return (
     <svg width={width} height={height} role="img" aria-label={ariaLabel}>
@@ -197,15 +216,20 @@ function Plot<Row extends object>({
               <Group key={s.key}>
                 {data.map((row, ri) => {
                   const v = toNumber(row[s.key]);
-                  const left = (xScale(categories[ri]) ?? 0) + slot * barW;
-                  const top = yScale(v);
+                  const left = (xScale(categories[ri]) ?? 0) + (stacked ? 0 : slot * barW);
+                  /* Stacked: sit on top of the series already drawn below. */
+                  const below = stacked
+                    ? bars.slice(0, slot).reduce((sum, b) => sum + toNumber(row[b.key]), 0)
+                    : 0;
+                  const top = yScale(below + v);
+                  const bottom = yScale(below);
                   return (
                     <Bar
                       key={`${s.key}-${ri}`}
                       x={left}
                       y={top}
                       width={Math.max(0, barW - 1)}
-                      height={Math.max(0, innerH - top)}
+                      height={Math.max(0, bottom - top)}
                       fill={colour}
                       opacity={hover === null || hover === ri ? 1 : 0.45}
                       rx={2}
