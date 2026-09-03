@@ -28,3 +28,7 @@ dist-ssr
 /playwright-report/
 /blob-report/
 /scripts/.verify-out/
+
+# Vitest coverage output (#341). The gate reads coverage/coverage-summary.json
+# in CI; the report itself is a build artifact and is never committed.
+/coverage/

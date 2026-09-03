@@ -5,7 +5,48 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-None. Every entry in this register is resolved as of 2026-09-02.
+### D-027 — Prettier: adopt it and take the 492-file sweep, or drop the format gate for good? · 2026-09-02
+**Context** — #341 (D-022, item 3) asked for the `type-check`, `format` and
+`format:check` scripts that `.github/workflows/ci.yml` already invoked. Two of
+the three are done. `format`/`format:check` are not, and the reason is worth a
+decision rather than an agent's judgement.
+
+Prettier has never existed in this repository: no dependency, no config, no
+script. The CI step that called it read
+
+```yaml
+run: cd frontend && npm run format:check || npm run format
+```
+
+— the `||` meant the step could not fail even once the scripts existed, so it
+gated nothing. Measured on 2026-09-02: `npx prettier --check` rewrites **492 of
+~550** frontend source files.
+
+**Options**
+- **A — adopt Prettier, sweep now.** One mechanical commit reformatting 492
+  files, then `format:check` becomes a real blocking gate.
+  *Cost:* it conflicts with essentially every open ds-v1 PR, which is the exact
+  objection D-022 raised when it declined the `any` sweep, at roughly four times
+  the file count.
+- **B — adopt Prettier, sweep at the ds-v1 boundary.** Same end state, scheduled
+  for the moment the ds-v1 PRs are merged and the tree is quiet.
+- **C — no Prettier.** ESLint already enforces the rules that change behaviour;
+  formatting stays a review-time preference and the CI step stays deleted.
+
+**Recommendation — B.** The end state in A is right and C gives up a real
+consistency win, but a 492-file diff landed mid-milestone would be resolved by
+whoever rebases, not by whoever reviews it. The gate is worth having; it is not
+worth having this week.
+
+**Interim state (shipped in #341)** — the fake Prettier step is **removed** from
+`frontend-lint`. Nothing regressed by removing it: it could never fail. The lint
+job now runs the ESLint ratchet and `npm run type-check`, both blocking.
+
+**Cost of delay** — low and non-compounding. Formatting drift is mechanical and
+a later sweep fixes it wholesale, unlike the `any` debt in D-022, which grows
+with every merge.
+
+**Blocked** — nothing. #341 ships without it.
 
 ## Resolved
 

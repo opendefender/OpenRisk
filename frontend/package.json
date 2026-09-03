@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-bundle-budget.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
@@ -15,6 +16,8 @@
     "generate:alpha-classes": "node scripts/alpha-modifier-sites.mjs --write",
     "check:license-boundary": "node scripts/check-license-boundary.mjs",
     "lint": "eslint .",
+    "lint:ceiling": "node scripts/check-lint-ceiling.mjs",
+    "type-check": "tsc -b --noEmit",
     "preview": "vite preview",
     "generate:api-types": "openapi-typescript ../docs/openapi.yaml -o src/types/openapi.generated.ts"
   },
@@ -68,6 +71,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "axe-core": "^4.12.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
