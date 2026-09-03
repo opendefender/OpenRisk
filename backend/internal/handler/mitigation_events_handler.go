@@ -81,6 +81,15 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 					return
 				}
 			case <-keepalive.C:
+				// Re-authorize on the tick: the token was validated once, when
+				// the stream opened, and this connection can outlive its
+				// revocation by hours otherwise (#345). h.blacklist is the same
+				// predicate ValidateAccessToken used above.
+				if sseRevokedWith(h.blacklist, claims.JTI) {
+					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
+					_ = w.Flush()
+					return
+				}
 				fmt.Fprint(w, ": keepalive\n\n")
 				if err := w.Flush(); err != nil {
 					return

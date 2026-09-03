@@ -353,6 +353,8 @@ func (h *ReportHandler) Progress(c *fiber.Ctx) error {
 		"step": rep.Step, "run_state": rep.RunState,
 	})
 	terminal := rep.RunState.Terminal()
+	// Read off the request before the writer starts; it runs after this returns.
+	jti := streamJTI(c)
 
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -410,6 +412,13 @@ func (h *ReportHandler) Progress(c *fiber.Ctx) error {
 					return
 				}
 			case <-keepalive.C:
+				// Re-authorize on the tick, bounding revocation to one interval
+				// rather than the render's whole lifetime (#345).
+				if sseSessionRevoked(jti) {
+					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
+					_ = w.Flush()
+					return
+				}
 				fmt.Fprint(w, ": keepalive\n\n")
 				if err := w.Flush(); err != nil {
 					return
