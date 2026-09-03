@@ -11,6 +11,65 @@ None. Every entry in this register is resolved as of 2026-09-02.
 
 <!-- Append: date · decision · rationale · issues unblocked -->
 
+### D-028 — anime.js is admitted as a second animation runtime, for SVG entry draw only · 2026-09-03
+**Decided** — Adopt anime.js as #445 specifies. It enters as a real dependency
+(`animejs@^4.5.0`), confined to one hook — `frontend/src/shared/ds/useAnimeScope.ts` —
+and used for one job: drawing chart geometry once on first view.
+
+**Rationale (owner)** — Chosen **over the recommendation**, which was to decline it and
+use `framer-motion`, already a dependency in 57 files, whose SVG `pathLength` animation
+covers the same case. The standing argument against a second runtime is the repository's
+own lint rule on the banned `motion` package — *"Two animation runtimes in one bundle is
+the size budget spent twice."* The owner accepts that cost for anime.js's SVG and scope
+primitives. Recorded plainly because the reasoning cuts the other way and a future reader
+should not have to reconstruct that it was considered.
+
+**What it costs, measured 2026-09-03 on this branch —**
+```
+dist/assets/anime-*.js    37.31 KB raw    14.95 KB gzip   ← its own lazy chunk
+preloaded initial bundle  170.6 KB ≤ 180 KB               ← unchanged by this work
+```
+anime.js gets its **own** `manualChunks` entry rather than riding in `charts`. That is
+what makes the ceiling assertable at all: mixed in with visx there would be no number to
+measure. `check-bundle-budget.mjs` counts only preloaded JS and therefore cannot see it,
+so `scripts/check-anime-budget.mjs` is a **new, separate gate**.
+
+**Three corrections to #445, all measured —**
+1. **The topology use case does not exist.** #445 justifies anime.js partly by *"topology
+   graph edge sequencing"* and scopes itself *"SVG uniquement"*.
+   `features/attackSurface/TopologyView.tsx` draws its edges with the **Canvas 2D** API
+   (`ctx.beginPath/moveTo/lineTo/stroke`, 13 canvas references); its one `<svg>` is a 26×6
+   legend swatch. anime.js cannot animate a canvas. **Struck** — one use case, not two.
+2. **The 12 KB ceiling is not reachable as specified.** #445 budgets
+   "Timer 5.60 + Animation 5.20 + SVG 0.35 + Stagger 0.48 = 11.63 KB" but omits the
+   **Scope** module, which its own first task mandates (`createScope` + `scope.revert()`,
+   without which StrictMode's double mount leaks). Scope is ~3 KB. The measured floor for
+   the module set the issue REQUIRES is **14.95 KB**, so the gate is set at **15.5 KB**.
+   This is a new gate at its measured floor, not the relaxation of an existing one, and
+   like every budget here it may only ever be lowered.
+3. **`createDrawable` is deliberately unused.** It draws a path by driving
+   `stroke-dasharray`/`stroke-dashoffset`, and the chart layer already spends
+   `strokeDasharray` on the per-series DASHES pattern that satisfies *"colour is never the
+   only encoding"*. Using it would animate that encoding away and land every line solid.
+   Entry draw is done by clipping instead, which leaves the dash pattern intact.
+
+**What binds —**
+- **`useAnimeScope` is the only entry point.** Named imports only; no namespace import.
+- **The `Scroll` module stays banned** (#445, 4.30 KB): *"the console never animates on
+  scroll."* First-view detection uses a plain `IntersectionObserver`.
+- **Never re-exported from `shared/ds/index.ts`.** That barrel is on the preloaded path;
+  a re-export is exactly how anime.js would stop being lazy. `check-anime-budget.mjs`
+  fails the build if it reaches the preloaded graph.
+- **Reduced motion short-circuits the hook entirely** — the scope is never created — and
+  callers must render their FINAL state when `willAnimate` is false. *"Reduced motion is
+  not 'less motion'"*: a draw that never plays must not leave an empty frame.
+
+**Reversible** — yes, and cheaply. One hook, one chunk, one dependency; the chart falls
+back to its finished state by construction, so removing anime.js means deleting the hook
+and the clip animation, not redesigning anything.
+
+**Unblocked** — #445. #444's unticked "entry draw" task, which closed unbuilt, lands here.
+
 ### D-027 — Prettier is adopted and the tree is swept now, not at a later boundary · 2026-09-02
 **Decided** — Option A. Prettier is adopted, the sweep is taken immediately in its
 own PR (#505), and `format:check` becomes a blocking CI gate with no `||` fallback.
