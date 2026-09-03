@@ -896,7 +896,13 @@ func main() {
 		logoutUseCase,
 		passwordHasher,
 		authAudit,
-	).WithNewDeviceNotifier(newDeviceNotifier).WithUserLookup(userRepo).WithMFAStatus(mfaStatusResolver)
+	).WithNewDeviceNotifier(newDeviceNotifier).
+		WithUserLookup(userRepo).
+		WithMFAStatus(mfaStatusResolver).
+		// The same repository resolveSessionForOrg reads at token mint time, so
+		// /auth/me's business role and the token's permissions come from one
+		// membership row and cannot disagree (#338).
+		WithMemberLookup(userRepo)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused
