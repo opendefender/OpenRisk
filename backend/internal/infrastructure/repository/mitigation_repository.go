@@ -18,6 +18,16 @@ import (
 type MitigationRepository interface {
 	// CRUD operations
 	Create(ctx string, mitigation *domain.Mitigation) error
+
+	// CreateWithSubActions inserts a plan and its whole checklist in ONE
+	// transaction: either every row lands or none does. The plan insert and the
+	// sub-action inserts are a multi-table write, so splitting them across two
+	// repository calls leaves a committed plan with a truncated checklist when
+	// the second insert fails (see #335).
+	//
+	// The transaction lives here, in the repository, because the application
+	// layer may not import GORM and so cannot hold a transaction handle.
+	CreateWithSubActions(ctx string, mitigation *domain.Mitigation, subActions []*domain.MitigationSubAction) error
 	GetByID(ctx string, id uuid.UUID) (*domain.Mitigation, error)
 	GetByIDWithSubActions(ctx string, id uuid.UUID) (*domain.Mitigation, error)
 	List(ctx string, filters map[string]interface{}) ([]domain.Mitigation, error)
@@ -85,6 +95,8 @@ func (r *GormMitigationRepository) GetByIDWithSubActions(tenantID string, id uui
 	}
 
 	result := r.db.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, id).
+		// mitigation_subactions has no tenant_id column; it is gated through its
+		// parent, which the Where above has already filtered to this tenant.
 		Preload("SubActions", func(db *gorm.DB) *gorm.DB {
 			return db.Where("deleted_at IS NULL").Order("\"order\", created_at")
 		}).
