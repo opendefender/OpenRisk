@@ -30,7 +30,7 @@
  * rather than by z-index, so data is never obscured by its own furniture.
  */
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useState, type ReactNode } from 'react';
 import { ParentSize } from '@visx/responsive';
 import { scaleBand, scaleLinear } from '@visx/scale';
 import { AreaClosed, Bar, LinePath } from '@visx/shape';
@@ -38,7 +38,10 @@ import { GridRows } from '@visx/grid';
 import { Group } from '@visx/group';
 import { curveMonotoneX } from '@visx/curve';
 
+import { animate, stagger } from 'animejs';
+
 import { cn } from '../cn';
+import { useAnimeScope } from '../useAnimeScope';
 import { chartAxis, chartGrid, seriesColor, severity, type SeverityKey } from '../chart';
 
 export type SeriesType = 'area' | 'bar' | 'line';
@@ -160,8 +163,69 @@ function Plot<Row extends object>({
   const bandW = xScale.bandwidth();
   const barW = stacked ? bandW : bars.length > 0 ? bandW / bars.length : bandW;
 
+  /*
+   * ENTRY DRAW (#445, D-028) — once, on first view.
+   *
+   * Each series is clipped by its own rect, and the RECT is what animates: bar
+   * series are revealed bottom-up from the zero baseline, line and area series
+   * left-to-right. Nothing about the marks themselves changes.
+   *
+   * That indirection is deliberate. anime.js's `createDrawable` draws a path by
+   * driving `stroke-dasharray`/`stroke-dashoffset`, and this layer already spends
+   * `strokeDasharray` on DASHES — the per-series pattern that satisfies the design
+   * guide's "colour is never the only encoding". Using createDrawable here would
+   * animate the encoding away and land every line solid. Clipping leaves the dash
+   * pattern untouched and reveals bars and lines with one mechanism.
+   *
+   * `useId()` yields ":r0:", which is not a valid CSS selector or url(#...)
+   * fragment, so the colons are stripped.
+   */
+  const uid = `cc${useId().replace(/:/g, '')}`;
+
+  const runEntryDraw = useCallback(() => {
+    /* Duration is --dur-slow (260ms); "outCubic" is anime's nearest named easing
+       to --ease-out, cubic-bezier(0.2, 0.8, 0.2, 1). Stagger is the guide's 40ms
+       ceiling, per SERIES — not per bar, which at 12 categories would run past a
+       second. */
+    animate(`[data-draw-chart="${uid}"][data-draw="grow"]`, {
+      y: 0,
+      height: innerH,
+      duration: 260,
+      ease: 'outCubic',
+      delay: stagger(40),
+    });
+    animate(`[data-draw-chart="${uid}"][data-draw="wipe"]`, {
+      width: innerW,
+      duration: 260,
+      ease: 'outCubic',
+      delay: stagger(40),
+    });
+  }, [uid, innerW, innerH]);
+
+  const { ref, willAnimate } = useAnimeScope<SVGSVGElement>(runEntryDraw);
+
   return (
-    <svg width={width} height={height} role="img" aria-label={ariaLabel}>
+    <svg ref={ref} width={width} height={height} role="img" aria-label={ariaLabel}>
+      {/* One clip per series. When the animation will NOT run, these render at
+          full size, so the chart paints its finished state rather than an empty
+          frame — "reduced motion is not 'less motion'". */}
+      <defs>
+        {series.map((s, si) => {
+          const grow = s.type === 'bar';
+          return (
+            <clipPath key={s.key} id={`${uid}-${si}`}>
+              <rect
+                data-draw-chart={uid}
+                data-draw={grow ? 'grow' : 'wipe'}
+                x={0}
+                y={willAnimate && grow ? innerH : 0}
+                width={willAnimate && !grow ? 0 : innerW}
+                height={willAnimate && grow ? 0 : innerH}
+              />
+            </clipPath>
+          );
+        })}
+      </defs>
       <Group left={MARGIN.left} top={MARGIN.top}>
         {/* 1. Grid — below everything. Horizontal only, per the chart contract. */}
         <GridRows
@@ -213,7 +277,7 @@ function Plot<Row extends object>({
           if (s.type === 'bar') {
             const slot = bars.indexOf(s);
             return (
-              <Group key={s.key}>
+              <Group key={s.key} clipPath={`url(#${uid}-${si})`}>
                 {data.map((row, ri) => {
                   const v = toNumber(row[s.key]);
                   const left = (xScale(categories[ri]) ?? 0) + (stacked ? 0 : slot * barW);
@@ -244,7 +308,7 @@ function Plot<Row extends object>({
           const value = (row: Row) => yScale(toNumber(row[s.key]));
           if (s.type === 'area') {
             return (
-              <Group key={s.key}>
+              <Group key={s.key} clipPath={`url(#${uid}-${si})`}>
                 <AreaClosed
                   data={data}
                   x={centre}
@@ -268,8 +332,8 @@ function Plot<Row extends object>({
             );
           }
           return (
+            <Group key={s.key} clipPath={`url(#${uid}-${si})`}>
             <LinePath
-              key={s.key}
               data={data}
               x={centre}
               y={value}
@@ -278,6 +342,7 @@ function Plot<Row extends object>({
               strokeWidth={2}
               strokeDasharray={DASHES[si % DASHES.length]}
             />
+            </Group>
           );
         })}
 
