@@ -95,9 +95,9 @@ func (r *GormMitigationRepository) GetByIDWithSubActions(tenantID string, id uui
 	}
 
 	result := r.db.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, id).
-		// mitigation_subactions has no tenant_id column; it is gated through its
-		// parent, which the Where above has already filtered to this tenant.
 		Preload("SubActions", func(db *gorm.DB) *gorm.DB {
+			// mitigation_subactions has no tenant_id column: it is gated through
+			// its parent, which the Where above already pinned to this tenant.
 			return db.Where("deleted_at IS NULL").Order("\"order\", created_at")
 		}).
 		Preload("Risk").
@@ -126,17 +126,21 @@ func (r *GormMitigationRepository) List(tenantID string, filters map[string]inte
 
 	// Apply filters
 	if status, ok := filters["status"]; ok {
+		// Chained onto query, which filters by tenant_id above.
 		query = query.Where("status = ?", status)
 	}
 	if priority, ok := filters["priority"]; ok {
+		// Chained onto query, which filters by tenant_id above.
 		query = query.Where("priority = ?", priority)
 	}
 	if riskID, ok := filters["risk_id"]; ok {
+		// Chained onto query, which filters by tenant_id above.
 		query = query.Where("risk_id = ?", riskID)
 	}
 	// "Mes mitigations": any of the three accountability slots. The legacy jsonb
 	// array is OR'd in so rows assigned before migration 0044 still answer.
 	if user, ok := filters["involved_user"]; ok {
+		// Chained onto query, which filters by tenant_id above.
 		query = query.Where(
 			"(owner_id = ? OR assignee_id = ? OR reviewer_id = ? OR assigned_to @> ?)",
 			user, user, user, fmt.Sprintf(`["%v"]`, user),
