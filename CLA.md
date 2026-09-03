@@ -124,11 +124,14 @@ Agreement and that Your Contribution is submitted under it.
 Corporate contributors whose employer requires a countersigned agreement should contact
 **licensing@opendefender.io** before submitting.
 
-> **Status of automated enforcement.** Acceptance is currently recorded by the
-> `Signed-off-by` trailer in the git history. An automated check that blocks unsigned
-> pull requests is **not yet wired** into the PR workflow — see the escalation in
-> [`docs/DECISIONS.md`](docs/DECISIONS.md). Until it lands, maintainers verify the
-> trailer during review.
+> **Status of automated enforcement.** Acceptance is recorded by the `Signed-off-by`
+> trailer in the git history, and that record is now **checked automatically**: the
+> `DCO` workflow, [`.github/workflows/dco.yml`](.github/workflows/dco.yml), runs on every
+> pull request and fails it when any non-merge commit lacks a well-formed trailer. The
+> mechanism was chosen in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D-015). Whether the
+> check also *blocks* the merge button depends on the repository's branch-protection
+> settings, which are the maintainers' to configure; until it is marked required there,
+> maintainers still confirm the check went green during review.
 
 ---
 
