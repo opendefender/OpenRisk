@@ -186,23 +186,39 @@ export const organizationService = {
     return data;
   },
 
-  async setStatus(memberId: string, status: MembershipStatus, reason?: string): Promise<MemberView> {
-    const { data } = await api.put<MemberView>(`/organization/members/${memberId}/status`, { status, reason });
+  async setStatus(
+    memberId: string,
+    status: MembershipStatus,
+    reason?: string,
+  ): Promise<MemberView> {
+    const { data } = await api.put<MemberView>(`/organization/members/${memberId}/status`, {
+      status,
+      reason,
+    });
     return data;
   },
 
   async listInvitations(status?: InvitationStatus): Promise<Page<InvitationView>> {
-    const { data } = await api.get<Page<InvitationView>>(`/organization/invitations${params({ status })}`);
+    const { data } = await api.get<Page<InvitationView>>(
+      `/organization/invitations${params({ status })}`,
+    );
     return data;
   },
 
-  async invite(input: { email: string; role: MemberRole; business_role?: string; locale?: string }): Promise<InviteResult> {
+  async invite(input: {
+    email: string;
+    role: MemberRole;
+    business_role?: string;
+    locale?: string;
+  }): Promise<InviteResult> {
     const { data } = await api.post<InviteResult>('/organization/invitations', input);
     return data;
   },
 
   async resendInvitation(id: string, locale?: string): Promise<InviteResult> {
-    const { data } = await api.post<InviteResult>(`/organization/invitations/${id}/resend`, { locale });
+    const { data } = await api.post<InviteResult>(`/organization/invitations/${id}/resend`, {
+      locale,
+    });
     return data;
   },
 
@@ -211,8 +227,12 @@ export const organizationService = {
     return data;
   },
 
-  async membershipAudit(q: { entity_type?: string; limit?: number; offset?: number } = {}): Promise<Page<AuditEntryView>> {
-    const { data } = await api.get<Page<AuditEntryView>>(`/organization/members/audit${params({ ...q })}`);
+  async membershipAudit(
+    q: { entity_type?: string; limit?: number; offset?: number } = {},
+  ): Promise<Page<AuditEntryView>> {
+    const { data } = await api.get<Page<AuditEntryView>>(
+      `/organization/members/audit${params({ ...q })}`,
+    );
     return data;
   },
 
@@ -223,7 +243,11 @@ export const organizationService = {
     return data;
   },
 
-  async acceptInvitation(input: { token: string; full_name?: string; password?: string }): Promise<AcceptResult> {
+  async acceptInvitation(input: {
+    token: string;
+    full_name?: string;
+    password?: string;
+  }): Promise<AcceptResult> {
     const { data } = await api.post<AcceptResult>('/invitations/accept', input);
     return data;
   },

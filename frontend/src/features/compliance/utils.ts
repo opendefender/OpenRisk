@@ -12,7 +12,10 @@ import type { ComplianceControl, ComplianceProgress, ControlStatus } from '../..
 // already loaded on the page that needs this, and computing it locally
 // keeps the gauge in sync with in-flight optimistic status updates
 // without a redundant round-trip.
-export function computeComplianceProgress(frameworkId: string, controls: ComplianceControl[]): ComplianceProgress {
+export function computeComplianceProgress(
+  frameworkId: string,
+  controls: ComplianceControl[],
+): ComplianceProgress {
   const byStatus: Record<string, number> = {};
   for (const control of controls) {
     const status = control.status ?? 'not_implemented';

@@ -43,7 +43,8 @@ export const useGamificationStore = create<GamificationStore>((set) => ({
       const response = await api.get('/gamification/me');
       set({ stats: response.data, loading: false });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch gamification stats';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to fetch gamification stats';
       set({ error: errorMessage, loading: false });
       console.error('Failed to fetch gamification stats:', err);
     }

@@ -9,11 +9,7 @@
 import { api } from '../../lib/api';
 
 export type AutomationTrigger =
-  | 'vulnerability_detected'
-  | 'risk_created'
-  | 'risk_score_updated'
-  | 'incident_created'
-  | 'manual';
+  'vulnerability_detected' | 'risk_created' | 'risk_score_updated' | 'incident_created' | 'manual';
 
 export type AutomationActionType =
   | 'scan_asset'
@@ -131,11 +127,7 @@ export interface AutomationExecution {
 // ---------------------------------------------------------------------------
 
 export type DryRunVerdict =
-  | 'would_run'
-  | 'would_skip'
-  | 'would_fail'
-  | 'not_reached'
-  | 'not_matched';
+  'would_run' | 'would_skip' | 'would_fail' | 'not_reached' | 'not_matched';
 
 export interface DryRunStep {
   index: number;

@@ -269,7 +269,7 @@ const fr: AuthCopy = {
   signInLink: 'Se connecter',
   registerNameRequired: 'Indiquez votre nom.',
   registerEmailExists: 'Un compte existe déjà avec cet e-mail. Connectez-vous.',
-  registerFailed: "La création du compte a échoué. Réessayez dans un instant.",
+  registerFailed: 'La création du compte a échoué. Réessayez dans un instant.',
 
   forgotTitle: 'Mot de passe oublié',
   forgotSubtitle: 'Indiquez votre e-mail : nous vous enverrons un lien pour en choisir un nouveau.',
@@ -312,7 +312,8 @@ const fr: AuthCopy = {
   mfaInvalid: 'Code incorrect. Vérifiez votre application et réessayez.',
   // Distinct from registerFailed on purpose: at this point the account EXISTS.
   // Telling the user their sign-up failed sends them back to create it again.
-  mfaSetupFailed: "Impossible de préparer la double authentification. Votre compte est créé — rechargez la page pour réessayer.",
+  mfaSetupFailed:
+    'Impossible de préparer la double authentification. Votre compte est créé — rechargez la page pour réessayer.',
   mfaEnrolTitle: 'Activez la double authentification',
   mfaEnrolSubtitle:
     'Votre rôle donne accès aux données de toute l’organisation : un second facteur est obligatoire.',
@@ -327,8 +328,9 @@ const fr: AuthCopy = {
   oauth: {
     access_denied: 'Connexion annulée. Vous pouvez réessayer ou utiliser votre mot de passe.',
     consent_required:
-      "Votre organisation doit autoriser OpenRisk auprès de ce fournisseur. Contactez votre administrateur.",
-    provider_error: 'Le fournisseur a refusé la connexion. Réessayez ou utilisez votre mot de passe.',
+      'Votre organisation doit autoriser OpenRisk auprès de ce fournisseur. Contactez votre administrateur.',
+    provider_error:
+      'Le fournisseur a refusé la connexion. Réessayez ou utilisez votre mot de passe.',
     state_missing: 'Connexion interrompue. Relancez-la depuis cette page.',
     state_invalid:
       'La connexion a expiré ou a été ouverte dans un autre onglet. Relancez-la depuis cette page.',
@@ -419,7 +421,8 @@ const en: AuthCopy = {
   mfaSubmit: 'Verify',
   mfaUseBackup: 'Use a recovery code',
   mfaInvalid: 'Incorrect code. Check your app and try again.',
-  mfaSetupFailed: 'Could not set up two-factor authentication. Your account exists — reload the page to try again.',
+  mfaSetupFailed:
+    'Could not set up two-factor authentication. Your account exists — reload the page to try again.',
   mfaEnrolTitle: 'Turn on two-factor authentication',
   mfaEnrolSubtitle:
     'Your role can reach data across the whole organisation, so a second factor is required.',
@@ -437,7 +440,8 @@ const en: AuthCopy = {
       'Your organisation needs to approve OpenRisk with this provider. Contact your administrator.',
     provider_error: 'The provider refused the sign-in. Try again or use your password.',
     state_missing: 'Sign-in was interrupted. Start it again from this page.',
-    state_invalid: 'That sign-in expired or was opened in another tab. Start it again from this page.',
+    state_invalid:
+      'That sign-in expired or was opened in another tab. Start it again from this page.',
     code_missing: 'The provider’s response was incomplete. Please try again.',
     exchange_failed: 'We couldn’t complete the exchange with the provider. Please try again.',
     userinfo_failed: 'We couldn’t read your profile from the provider. Please try again.',

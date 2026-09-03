@@ -26,10 +26,9 @@ import { bandColor, bandLabel, type Score } from '../../../services/scoreService
 
 const getScore = vi.fn();
 vi.mock('../../../services/scoreService', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../../services/scoreService')>(
-      '../../../services/scoreService',
-    );
+  const actual = await vi.importActual<typeof import('../../../services/scoreService')>(
+    '../../../services/scoreService',
+  );
   return {
     ...actual,
     scoreService: {
@@ -168,7 +167,9 @@ describe('one score, everywhere', () => {
 
     // Both read the same object; there is no path by which one could update.
     rerender(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <MemoryRouter>
           <DashboardHero />
           <SidebarFooter />
@@ -231,7 +232,7 @@ describe('ScoreExplainer — the law of zero lies', () => {
     // Every available factor is shown with its arithmetic.
     const exposure = within(panel).getByTestId('score-factor-risk_exposure');
     expect(exposure).toHaveTextContent('50%'); // weight
-    expect(exposure).toHaveTextContent('80');  // raw
+    expect(exposure).toHaveTextContent('80'); // raw
     expect(exposure).toHaveTextContent('40.0'); // contribution = weight × raw
 
     // And the contributions reconcile with the total the panel prints.

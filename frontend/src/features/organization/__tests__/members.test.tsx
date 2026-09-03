@@ -21,18 +21,40 @@ import type { MemberView, InvitationView, InviteResult, Page } from '../organiza
 /* ------------------------------------------------------------------ fixtures */
 
 const OWNER: MemberView = {
-  member_id: 'm-owner', user_id: 'u-owner', email: 'owner@acme.io', full_name: 'Olive Owner',
-  org_role: 'root', business_role: '', status: 'active', is_active: true,
-  joined_at: '2026-01-05T10:00:00Z', permissions: ['*'], is_owner: true,
+  member_id: 'm-owner',
+  user_id: 'u-owner',
+  email: 'owner@acme.io',
+  full_name: 'Olive Owner',
+  org_role: 'root',
+  business_role: '',
+  status: 'active',
+  is_active: true,
+  joined_at: '2026-01-05T10:00:00Z',
+  permissions: ['*'],
+  is_owner: true,
 };
 const PLAIN: MemberView = {
-  member_id: 'm-plain', user_id: 'u-plain', email: 'pat@acme.io', full_name: 'Pat Plain',
-  org_role: 'user', business_role: 'auditor', status: 'active', is_active: true,
-  joined_at: '2026-03-11T10:00:00Z', permissions: ['risks:read'], is_owner: false,
+  member_id: 'm-plain',
+  user_id: 'u-plain',
+  email: 'pat@acme.io',
+  full_name: 'Pat Plain',
+  org_role: 'user',
+  business_role: 'auditor',
+  status: 'active',
+  is_active: true,
+  joined_at: '2026-03-11T10:00:00Z',
+  permissions: ['risks:read'],
+  is_owner: false,
 };
 const SUSPENDED: MemberView = {
-  ...PLAIN, member_id: 'm-susp', user_id: 'u-susp', email: 'sam@acme.io', full_name: 'Sam Suspended',
-  status: 'deactivated', is_active: false, deactivated_at: '2026-06-01T10:00:00Z',
+  ...PLAIN,
+  member_id: 'm-susp',
+  user_id: 'u-susp',
+  email: 'sam@acme.io',
+  full_name: 'Sam Suspended',
+  status: 'deactivated',
+  is_active: false,
+  deactivated_at: '2026-06-01T10:00:00Z',
 };
 
 function page<T>(items: T[]): Page<T> {
@@ -40,9 +62,16 @@ function page<T>(items: T[]): Page<T> {
 }
 
 const PENDING_INVITE: InvitationView = {
-  id: 'i-1', email: 'newcomer@acme.io', role: 'user', status: 'pending',
-  expires_at: '2026-12-31T10:00:00Z', invited_by_id: 'u-owner', invited_by_email: 'owner@acme.io',
-  last_sent_at: '2026-08-20T10:00:00Z', send_count: 1, created_at: '2026-08-20T10:00:00Z',
+  id: 'i-1',
+  email: 'newcomer@acme.io',
+  role: 'user',
+  status: 'pending',
+  expires_at: '2026-12-31T10:00:00Z',
+  invited_by_id: 'u-owner',
+  invited_by_email: 'owner@acme.io',
+  last_sent_at: '2026-08-20T10:00:00Z',
+  send_count: 1,
+  created_at: '2026-08-20T10:00:00Z',
   can_resend: true,
 };
 
@@ -64,7 +93,15 @@ vi.mock('../../rbac/useRbac', () => ({
     data: {
       permissions: [],
       business_roles: [
-        { key: 'auditor', label_fr: 'Auditeur', label_en: 'Auditor', description_fr: '', description_en: '', permissions: [], default_landing: '/' },
+        {
+          key: 'auditor',
+          label_fr: 'Auditeur',
+          label_en: 'Auditor',
+          description_fr: '',
+          description_en: '',
+          permissions: [],
+          default_landing: '/',
+        },
       ],
     },
   }),
@@ -72,9 +109,15 @@ vi.mock('../../rbac/useRbac', () => ({
 const toastCalls: string[] = [];
 vi.mock('sonner', () => ({
   toast: {
-    success: (m: string) => { toastCalls.push(`success:${m}`); },
-    error: (m: string) => { toastCalls.push(`error:${m}`); },
-    info: (m: string) => { toastCalls.push(`info:${m}`); },
+    success: (m: string) => {
+      toastCalls.push(`success:${m}`);
+    },
+    error: (m: string) => {
+      toastCalls.push(`error:${m}`);
+    },
+    info: (m: string) => {
+      toastCalls.push(`info:${m}`);
+    },
   },
 }));
 
@@ -163,7 +206,8 @@ describe('members — roster', () => {
   });
 
   it('lets an administrator change a member role and reports the outcome', async () => {
-    const setRole = vi.spyOn(organizationService, 'setRole')
+    const setRole = vi
+      .spyOn(organizationService, 'setRole')
       .mockResolvedValue({ ...PLAIN, org_role: 'admin', business_role: '' });
     renderMembers();
     const rows = await screen.findAllByTestId('member-row');
@@ -176,7 +220,10 @@ describe('members — roster', () => {
 
   it('surfaces the server’s reason when a role change is refused', async () => {
     vi.spyOn(organizationService, 'setRole').mockRejectedValue({
-      response: { status: 400, data: { error: 'this is the last active administrator — promote another member first' } },
+      response: {
+        status: 400,
+        data: { error: 'this is the last active administrator — promote another member first' },
+      },
     });
     renderMembers();
     const rows = await screen.findAllByTestId('member-row');
@@ -185,7 +232,8 @@ describe('members — roster', () => {
     // The server names the invariant that was broken; a generic "update failed"
     // would erase the one piece of information the admin can act on.
     await waitFor(() =>
-      expect(toastCalls).toContainEqual(expect.stringContaining('last active administrator')));
+      expect(toastCalls).toContainEqual(expect.stringContaining('last active administrator')),
+    );
   });
 
   it('requires a confirmation before withdrawing access, and offers the reversible alternative', async () => {
@@ -193,19 +241,27 @@ describe('members — roster', () => {
     renderMembers();
     const rows = await screen.findAllByTestId('member-row');
     const patRow = rows.find((r) => r.textContent?.includes('pat@acme.io'))!;
-    fireEvent.click(patRow.querySelector('button[aria-label*="évoquer"], button[aria-label*="evoke"]')!);
+    fireEvent.click(
+      patRow.querySelector('button[aria-label*="évoquer"], button[aria-label*="evoke"]')!,
+    );
 
     // Nothing has been sent yet — the click opens a confirmation, it does not act.
     expect(setStatus).not.toHaveBeenCalled();
     // The words appear twice on purpose (dialog title and confirm button).
     expect(await screen.findAllByText(/révoquer l'accès|revoke access/i)).not.toHaveLength(0);
     // The impact radiography states the consequence in the user's terms.
-    expect(screen.getByText(/la révocation est définitive|revocation is final/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/la révocation est définitive|revocation is final/i),
+    ).toBeInTheDocument();
     // Revocation is final, so the reversible option is offered as a real button.
-    expect(screen.getByText(/désactiver — réversible|deactivate — reversible/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/désactiver — réversible|deactivate — reversible/i),
+    ).toBeInTheDocument();
 
     // Confirming is what finally calls the API.
-    fireEvent.click(screen.getAllByRole('button', { name: /révoquer l'accès|revoke access/i }).at(-1)!);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /révoquer l'accès|revoke access/i }).at(-1)!,
+    );
     await waitFor(() => expect(setStatus).toHaveBeenCalledWith('m-plain', 'revoked', undefined));
   });
 });
@@ -227,20 +283,26 @@ describe('members — invitations', () => {
   });
 
   it('disables re-send for the server’s reason rather than our guess', async () => {
-    vi.spyOn(organizationService, 'listInvitations')
-      .mockResolvedValue(page([{ ...PENDING_INVITE, can_resend: false }]));
+    vi.spyOn(organizationService, 'listInvitations').mockResolvedValue(
+      page([{ ...PENDING_INVITE, can_resend: false }]),
+    );
     const rows = await openInvitations();
     const resend = rows[0].querySelector('button')!;
     expect(resend).toBeDisabled();
   });
 
   it('confirms before revoking an invitation', async () => {
-    const revoke = vi.spyOn(organizationService, 'revokeInvitation')
+    const revoke = vi
+      .spyOn(organizationService, 'revokeInvitation')
       .mockResolvedValue({ ...PENDING_INVITE, status: 'revoked' });
     const rows = await openInvitations();
-    fireEvent.click(rows[0].querySelector('button[aria-label*="évoquer"], button[aria-label*="evoke"]')!);
+    fireEvent.click(
+      rows[0].querySelector('button[aria-label*="évoquer"], button[aria-label*="evoke"]')!,
+    );
     expect(revoke).not.toHaveBeenCalled();
-    expect(await screen.findByText(/révoquer l'invitation|revoke the invitation/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/révoquer l'invitation|revoke the invitation/i),
+    ).toBeInTheDocument();
   });
 });
 
@@ -269,28 +331,39 @@ describe('members — the product never claims a delivery it did not make', () =
     await invite({
       invitation: PENDING_INVITE,
       delivery: 'unavailable',
-      delivery_detail: 'No email transport is configured on this deployment — share the link below yourself.',
+      delivery_detail:
+        'No email transport is configured on this deployment — share the link below yourself.',
       accept_url: 'https://openrisk.test/invitations/accept?token=abc',
     });
-    expect(await screen.findByText(/à transmettre vous-même|deliver it yourself/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/à transmettre vous-même|deliver it yourself/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/No email transport is configured/)).toBeInTheDocument();
-    expect(screen.getByText('https://openrisk.test/invitations/accept?token=abc')).toBeInTheDocument();
+    expect(
+      screen.getByText('https://openrisk.test/invitations/accept?token=abc'),
+    ).toBeInTheDocument();
   });
 
   it('reports a failed send as failed, not as success', async () => {
     await invite({
       invitation: PENDING_INVITE,
       delivery: 'failed',
-      delivery_detail: 'The invitation was created but the email could not be sent — share the link below yourself.',
+      delivery_detail:
+        'The invitation was created but the email could not be sent — share the link below yourself.',
       accept_url: 'https://openrisk.test/invitations/accept?token=xyz',
     });
-    expect(await screen.findByText(/à transmettre vous-même|deliver it yourself/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/à transmettre vous-même|deliver it yourself/i),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/invitation envoyée|invitation sent/i)).not.toBeInTheDocument();
   });
 
   it('shows the server’s message when the invitation is refused', async () => {
     vi.spyOn(organizationService, 'invite').mockRejectedValue({
-      response: { status: 409, data: { error: 'this person is already a member of this organization' } },
+      response: {
+        status: 409,
+        data: { error: 'this person is already a member of this organization' },
+      },
     });
     renderMembers();
     fireEvent.click(await screen.findByTestId('invite-member'));

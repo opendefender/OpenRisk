@@ -60,7 +60,9 @@ function StateShell({
       {description && (
         <p className="mt-1.5 max-w-[46ch] text-sm text-fg-secondary">{description}</p>
       )}
-      {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }
@@ -207,14 +209,14 @@ export function LoadingState({ label = 'Loading', className }: LoadingStateProps
 }
 
 /** Shimmer block. Sized by the caller so it matches what will replace it. */
-export function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cn('or-skeleton', className)}
-      style={style}
-    />
-  );
+export function Skeleton({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return <div aria-hidden="true" className={cn('or-skeleton', className)} style={style} />;
 }
 
 /**

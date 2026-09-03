@@ -41,31 +41,55 @@ const COPY: Record<HelpField, FieldHelpCopy> = {
   probability: {
     titleFr: 'Probabilité',
     titleEn: 'Probability',
-    defFr:
-      "La chance que ce risque se réalise au moins une fois dans les douze prochains mois.",
+    defFr: 'La chance que ce risque se réalise au moins une fois dans les douze prochains mois.',
     defEn: 'The chance this risk materialises at least once in the next twelve months.',
     scale: [
-      { level: 1, fr: 'Très improbable — jamais vu dans le secteur', en: 'Very unlikely — never seen in the sector', value: '0.1' },
-      { level: 2, fr: 'Improbable — arrivé ailleurs, jamais chez vous', en: 'Unlikely — happened elsewhere, never here', value: '0.3' },
-      { level: 3, fr: 'Possible — une fois tous les deux ou trois ans', en: 'Possible — once every two or three years', value: '0.5' },
-      { level: 4, fr: 'Probable — au moins une fois par an', en: 'Likely — at least once a year', value: '0.7' },
-      { level: 5, fr: 'Quasi certain — plusieurs fois par an', en: 'Almost certain — several times a year', value: '0.9' },
+      {
+        level: 1,
+        fr: 'Très improbable — jamais vu dans le secteur',
+        en: 'Very unlikely — never seen in the sector',
+        value: '0.1',
+      },
+      {
+        level: 2,
+        fr: 'Improbable — arrivé ailleurs, jamais chez vous',
+        en: 'Unlikely — happened elsewhere, never here',
+        value: '0.3',
+      },
+      {
+        level: 3,
+        fr: 'Possible — une fois tous les deux ou trois ans',
+        en: 'Possible — once every two or three years',
+        value: '0.5',
+      },
+      {
+        level: 4,
+        fr: 'Probable — au moins une fois par an',
+        en: 'Likely — at least once a year',
+        value: '0.7',
+      },
+      {
+        level: 5,
+        fr: 'Quasi certain — plusieurs fois par an',
+        en: 'Almost certain — several times a year',
+        value: '0.9',
+      },
     ],
     examples: {
       '': {
-        fr: "Hameçonnage réussi sur un poste : la plupart des organisations en constatent au moins un par an → 4 (0,7).",
+        fr: 'Hameçonnage réussi sur un poste : la plupart des organisations en constatent au moins un par an → 4 (0,7).',
         en: 'A successful phishing click: most organisations see at least one a year → 4 (0.7).',
       },
       banking: {
-        fr: "Tentative de fraude au virement : constatée plusieurs fois par an dans la plupart des banques → 5 (0,9).",
+        fr: 'Tentative de fraude au virement : constatée plusieurs fois par an dans la plupart des banques → 5 (0,9).',
         en: 'Attempted payment fraud: seen several times a year in most banks → 5 (0.9).',
       },
       health: {
-        fr: "Rançongiciel bloquant les soins : rare mais documenté chaque année dans le secteur → 3 (0,5).",
+        fr: 'Rançongiciel bloquant les soins : rare mais documenté chaque année dans le secteur → 3 (0,5).',
         en: 'Ransomware halting care: rare but documented yearly in the sector → 3 (0.5).',
       },
       tech: {
-        fr: "Dépendance logicielle compromise : plusieurs incidents publics par an → 4 (0,7).",
+        fr: 'Dépendance logicielle compromise : plusieurs incidents publics par an → 4 (0,7).',
         en: 'A compromised software dependency: several public incidents a year → 4 (0.7).',
       },
     },
@@ -76,23 +100,48 @@ const COPY: Record<HelpField, FieldHelpCopy> = {
     titleFr: 'Impact',
     titleEn: 'Impact',
     defFr:
-      "La gravité des conséquences si le risque se réalise : perte financière, interruption, sanction, réputation.",
+      'La gravité des conséquences si le risque se réalise : perte financière, interruption, sanction, réputation.',
     defEn:
       'How severe the consequences are if it happens: financial loss, outage, penalty, reputation.',
     scale: [
-      { level: 1, fr: 'Négligeable — géré dans la journée, sans coût notable', en: 'Negligible — handled same day, no notable cost', value: '2' },
-      { level: 2, fr: 'Mineur — gêne interne, quelques heures perdues', en: 'Minor — internal disruption, a few hours lost', value: '4' },
-      { level: 3, fr: 'Modéré — clients affectés, coût mesurable', en: 'Moderate — customers affected, measurable cost', value: '6' },
-      { level: 4, fr: 'Majeur — service interrompu, régulateur à informer', en: 'Major — service down, regulator to notify', value: '8' },
-      { level: 5, fr: 'Critique — survie de l’activité, sanction lourde', en: 'Critical — business survival, heavy sanction', value: '10' },
+      {
+        level: 1,
+        fr: 'Négligeable — géré dans la journée, sans coût notable',
+        en: 'Negligible — handled same day, no notable cost',
+        value: '2',
+      },
+      {
+        level: 2,
+        fr: 'Mineur — gêne interne, quelques heures perdues',
+        en: 'Minor — internal disruption, a few hours lost',
+        value: '4',
+      },
+      {
+        level: 3,
+        fr: 'Modéré — clients affectés, coût mesurable',
+        en: 'Moderate — customers affected, measurable cost',
+        value: '6',
+      },
+      {
+        level: 4,
+        fr: 'Majeur — service interrompu, régulateur à informer',
+        en: 'Major — service down, regulator to notify',
+        value: '8',
+      },
+      {
+        level: 5,
+        fr: 'Critique — survie de l’activité, sanction lourde',
+        en: 'Critical — business survival, heavy sanction',
+        value: '10',
+      },
     ],
     examples: {
       '': {
-        fr: "Fuite de données clients : notification obligatoire, sanction possible, confiance entamée → 5 (10).",
+        fr: 'Fuite de données clients : notification obligatoire, sanction possible, confiance entamée → 5 (10).',
         en: 'A customer data leak: mandatory notification, possible fine, damaged trust → 5 (10).',
       },
       banking: {
-        fr: "Core banking indisponible une journée : opérations bloquées et déclaration au superviseur → 5 (10).",
+        fr: 'Core banking indisponible une journée : opérations bloquées et déclaration au superviseur → 5 (10).',
         en: 'Core banking down for a day: operations blocked, supervisor notified → 5 (10).',
       },
       retail: {
@@ -100,7 +149,7 @@ const COPY: Record<HelpField, FieldHelpCopy> = {
         en: 'Checkout down two hours on a Saturday: revenue lost, no sanction → 3 (6).',
       },
       industry: {
-        fr: "Ligne de production arrêtée une équipe : retard de livraison et pénalités clients → 4 (8).",
+        fr: 'Ligne de production arrêtée une équipe : retard de livraison et pénalités clients → 4 (8).',
         en: 'One shift of production stopped: delivery delays and customer penalties → 4 (8).',
       },
     },
@@ -115,11 +164,36 @@ const COPY: Record<HelpField, FieldHelpCopy> = {
     defEn:
       'How important the affected asset is to the business. It multiplies the score: the same incident on a test server and on production is not the same risk.',
     scale: [
-      { level: 1, fr: 'Faible — bac à sable, aucune donnée réelle', en: 'Low — sandbox, no real data', value: '0.5' },
-      { level: 2, fr: 'Moyenne — outil interne, contournable', en: 'Medium — internal tool, workaround exists', value: '1.0' },
-      { level: 3, fr: 'Élevée — utilisé quotidiennement par une équipe', en: 'High — used daily by a team', value: '1.5' },
-      { level: 4, fr: 'Très élevée — expose des données clients', en: 'Very high — exposes customer data', value: '2.0' },
-      { level: 5, fr: 'Critique — l’activité s’arrête sans lui', en: 'Critical — the business stops without it', value: '3.0' },
+      {
+        level: 1,
+        fr: 'Faible — bac à sable, aucune donnée réelle',
+        en: 'Low — sandbox, no real data',
+        value: '0.5',
+      },
+      {
+        level: 2,
+        fr: 'Moyenne — outil interne, contournable',
+        en: 'Medium — internal tool, workaround exists',
+        value: '1.0',
+      },
+      {
+        level: 3,
+        fr: 'Élevée — utilisé quotidiennement par une équipe',
+        en: 'High — used daily by a team',
+        value: '1.5',
+      },
+      {
+        level: 4,
+        fr: 'Très élevée — expose des données clients',
+        en: 'Very high — exposes customer data',
+        value: '2.0',
+      },
+      {
+        level: 5,
+        fr: 'Critique — l’activité s’arrête sans lui',
+        en: 'Critical — the business stops without it',
+        value: '3.0',
+      },
     ],
     examples: {
       '': {
@@ -127,11 +201,11 @@ const COPY: Record<HelpField, FieldHelpCopy> = {
         en: 'The authentication server: everything else depends on it → 5 (3.0).',
       },
       banking: {
-        fr: "Système de compensation : indisponible, plus aucune transaction ne passe → 5 (3,0).",
+        fr: 'Système de compensation : indisponible, plus aucune transaction ne passe → 5 (3,0).',
         en: 'The clearing system: if it is down, no transaction settles → 5 (3.0).',
       },
       health: {
-        fr: "Dossier patient informatisé : indispensable à la prise en charge → 5 (3,0).",
+        fr: 'Dossier patient informatisé : indispensable à la prise en charge → 5 (3,0).',
         en: 'The electronic patient record: indispensable to care → 5 (3.0).',
       },
       public: {

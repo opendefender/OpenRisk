@@ -25,7 +25,12 @@ interface IncidentStore {
   pageSize: number;
   isLoading: boolean;
   error: string | null;
-  fetchIncidents: (params?: { page?: number; limit?: number; severity?: string; status?: string }) => Promise<void>;
+  fetchIncidents: (params?: {
+    page?: number;
+    limit?: number;
+    severity?: string;
+    status?: string;
+  }) => Promise<void>;
   getIncident: (id: string) => Promise<Incident | null>;
 }
 
@@ -46,7 +51,7 @@ export const useIncidentStore = create<IncidentStore>((set) => {
         const token = useAuthStore.getState().token;
         const page = params.page ?? 1;
         const limit = params.limit ?? 10;
-        
+
         let url = `${apiBaseUrl}/incidents?page=${page}&limit=${limit}`;
         if (params.severity) url += `&severity=${params.severity}`;
         if (params.status) url += `&status=${params.status}`;

@@ -12,13 +12,31 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
-  Bug, X, Upload, Plug, Flame, ShieldAlert, Zap, Trash2, ChevronRight,
-  ChevronDown, Check, Loader2, Ticket, ExternalLink, Unlink, GitBranch,
+  Bug,
+  X,
+  Upload,
+  Plug,
+  Flame,
+  ShieldAlert,
+  Zap,
+  Trash2,
+  ChevronRight,
+  ChevronDown,
+  Check,
+  Loader2,
+  Ticket,
+  ExternalLink,
+  Unlink,
+  GitBranch,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, EmptyState } from '../../shared/ui';
 import {
-  DataTable, useTableState,
-  type BulkAction, type Column, type Facet, type RowAction,
+  DataTable,
+  useTableState,
+  type BulkAction,
+  type Column,
+  type Facet,
+  type RowAction,
 } from '../../shared/datatable';
 import { Term } from '../../shared/Term';
 import { useUIStore } from '../../store/uiStore';
@@ -27,7 +45,14 @@ import { useFocusParam } from '../../shared/useFocusParam';
 import { useSoftDelete } from '../../shared/useSoftDelete';
 import { useVulnerabilities, useVulnStats, useVulnMutations } from './useVulnerabilities';
 import type { Vulnerability, VulnStatus, VulnQueryParams } from './vulnerabilityService';
-import { SEVERITY_META, STATUS_META, STATUS_ORDER, TIER_META, SOURCE_LABEL, pick } from './vulnMeta';
+import {
+  SEVERITY_META,
+  STATUS_META,
+  STATUS_ORDER,
+  TIER_META,
+  SOURCE_LABEL,
+  pick,
+} from './vulnMeta';
 import { IngestModal } from './IngestModal';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { safeExternalUrl } from '../../shared/safeUrl';
@@ -52,7 +77,10 @@ export function VulnerabilitiesPage() {
   const [connectorsOpen, setConnectorsOpen] = useState(false);
 
   // URL-backed table state; the API does the sorting, filtering and paging.
-  const table = useTableState({ defaultSort: { key: 'priority_score', dir: 'desc' }, defaultPageSize: 50 });
+  const table = useTableState({
+    defaultSort: { key: 'priority_score', dir: 'desc' },
+    defaultPageSize: 50,
+  });
   const { state } = table;
 
   const params: VulnQueryParams = useMemo(() => {
@@ -80,145 +108,246 @@ export function VulnerabilitiesPage() {
   // Soft delete: hide the row immediately + Undo toast; the API delete defers.
   const { pending, remove: softDeleteVuln } = useSoftDelete<Vulnerability>({
     onCommit: (id) => remove.mutateAsync(id),
-    message: (v, l) => (l === 'fr' ? `Vulnérabilité « ${v.title} » supprimée` : `Vulnerability "${v.title}" deleted`),
+    message: (v, l) =>
+      l === 'fr' ? `Vulnérabilité « ${v.title} » supprimée` : `Vulnerability "${v.title}" deleted`,
   });
-  const items = useMemo(() => (data?.items ?? []).filter((v) => !pending.has(v.id)), [data, pending]);
+  const items = useMemo(
+    () => (data?.items ?? []).filter((v) => !pending.has(v.id)),
+    [data, pending],
+  );
 
   // Deep-link from universal search (/vulnerabilities?focus=<id>): the drawer is
   // *derived* from the URL rather than copied into state by an effect, so the
   // link resolves as soon as the row lands in the list — no render cascade.
   const { focusId, clearFocus } = useFocusParam();
   const activeId = drawerId ?? focusId;
-  const drawer = activeId ? items.find((v) => v.id === activeId) ?? null : null;
-  const closeDrawer = () => { setDrawerId(null); clearFocus(); };
+  const drawer = activeId ? (items.find((v) => v.id === activeId) ?? null) : null;
+  const closeDrawer = () => {
+    setDrawerId(null);
+    clearFocus();
+  };
 
   /* --------------------------------------------------------------- facets */
   // The backend takes one value per facet, so these are single-choice — the
   // panel renders them as such rather than letting the user tick two values
   // and silently applying one.
-  const facets: Facet<Vulnerability>[] = useMemo(() => [
-    {
-      key: 'tier',
-      label: t(lang, 'Priorité', 'Priority'),
-      single: true,
-      options: (['P1', 'P2', 'P3', 'P4'] as const).map((t) => ({ value: t, label: t, color: TIER_META[t].color })),
-    },
-    {
-      key: 'severity',
-      label: t(lang, 'Sévérité', 'Severity'),
-      single: true,
-      options: (['critical', 'high', 'medium', 'low'] as const).map((sev) => ({
-        value: sev,
-        label: pick(SEVERITY_META[sev].label, lang),
-        color: SEVERITY_META[sev].color,
-      })),
-    },
-    {
-      key: 'status',
-      label: t(lang, 'Statut', 'Status'),
-      single: true,
-      options: STATUS_ORDER.map((st) => ({ value: st, label: pick(STATUS_META[st].label, lang), color: STATUS_META[st].color })),
-    },
-    {
-      key: 'kev',
-      label: t(lang, 'Exploitation connue', 'Known exploitation'),
-      single: true,
-      options: [{ value: 'true', label: 'CISA-KEV', color: 'var(--critical)' }],
-    },
-  ], [lang]);
+  const facets: Facet<Vulnerability>[] = useMemo(
+    () => [
+      {
+        key: 'tier',
+        label: t(lang, 'Priorité', 'Priority'),
+        single: true,
+        options: (['P1', 'P2', 'P3', 'P4'] as const).map((t) => ({
+          value: t,
+          label: t,
+          color: TIER_META[t].color,
+        })),
+      },
+      {
+        key: 'severity',
+        label: t(lang, 'Sévérité', 'Severity'),
+        single: true,
+        options: (['critical', 'high', 'medium', 'low'] as const).map((sev) => ({
+          value: sev,
+          label: pick(SEVERITY_META[sev].label, lang),
+          color: SEVERITY_META[sev].color,
+        })),
+      },
+      {
+        key: 'status',
+        label: t(lang, 'Statut', 'Status'),
+        single: true,
+        options: STATUS_ORDER.map((st) => ({
+          value: st,
+          label: pick(STATUS_META[st].label, lang),
+          color: STATUS_META[st].color,
+        })),
+      },
+      {
+        key: 'kev',
+        label: t(lang, 'Exploitation connue', 'Known exploitation'),
+        single: true,
+        options: [{ value: 'true', label: 'CISA-KEV', color: 'var(--critical)' }],
+      },
+    ],
+    [lang],
+  );
 
   /* -------------------------------------------------------------- columns */
-  const columns: Column<Vulnerability>[] = useMemo(() => [
-    {
-      key: 'priority',
-      header: t(lang, 'Priorité', 'Priority'),
-      frozen: true,
-      hideable: false,
-      sortKey: 'priority_score',
-      exportValue: (v) => `${v.priority_tier} (${v.priority_score.toFixed(0)})`,
-      render: (v) => (
-        <div className="inline-flex items-center gap-2">
-          <span className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color ?? 'var(--low)', color: 'var(--fg-inverse)' }}>{v.priority_tier}</span>
-          <span className="mono text-[13px] font-bold text-ink">{v.priority_score.toFixed(0)}</span>
-          {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
-        </div>
-      ),
-    },
-    { key: 'cve', header: 'CVE', sortKey: 'cve_id', exportValue: (v) => v.cve_id || '', render: (v) => <span className="mono text-[12.5px] text-ink">{v.cve_id || '—'}</span> },
-    { key: 'title', header: t(lang, 'Titre', 'Title'), exportValue: (v) => v.title, render: (v) => <div className="text-[13px] text-ink max-w-[280px] truncate">{v.title}</div> },
-    { key: 'severity', header: t(lang, 'Sévérité', 'Severity'), sortKey: 'severity', exportValue: (v) => v.severity, render: (v) => <SevBadge sev={v.severity} lang={lang} /> },
-    { key: 'cvss', header: 'CVSS', align: 'right', sortKey: 'cvss_score', exportValue: (v) => (v.cvss_score ? v.cvss_score.toFixed(1) : ''), render: (v) => <span className="mono text-[13px] font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}</span> },
-    { key: 'asset', header: t(lang, 'Actif', 'Asset'), exportValue: (v) => v.asset_name || '', render: (v) => <span className="text-[12.5px] text-ink-soft">{v.asset_name || '—'}</span> },
-    { key: 'source', header: t(lang, 'Source', 'Source'), exportValue: (v) => v.source, render: (v) => <span className="text-[12px] text-ink-muted">{SOURCE_LABEL[v.source] ?? v.source}</span> },
-    {
-      key: 'status',
-      header: t(lang, 'Statut', 'Status'),
-      exportValue: (v) => v.status,
-      render: (v) => (canWrite ? <InlineVulnStatus v={v} /> : <StatusChip status={v.status} lang={lang} />),
-    },
-  ], [lang, canWrite]);
+  const columns: Column<Vulnerability>[] = useMemo(
+    () => [
+      {
+        key: 'priority',
+        header: t(lang, 'Priorité', 'Priority'),
+        frozen: true,
+        hideable: false,
+        sortKey: 'priority_score',
+        exportValue: (v) => `${v.priority_tier} (${v.priority_score.toFixed(0)})`,
+        render: (v) => (
+          <div className="inline-flex items-center gap-2">
+            <span
+              className="inline-flex items-center justify-center h-[22px] px-2 rounded-[6px] text-[11.5px] font-bold"
+              style={{
+                background: TIER_META[v.priority_tier]?.color ?? 'var(--low)',
+                color: 'var(--fg-inverse)',
+              }}
+            >
+              {v.priority_tier}
+            </span>
+            <span className="mono text-[13px] font-bold text-ink">
+              {v.priority_score.toFixed(0)}
+            </span>
+            {v.kev && <Flame size={13} style={{ color: 'var(--critical)' }} />}
+          </div>
+        ),
+      },
+      {
+        key: 'cve',
+        header: 'CVE',
+        sortKey: 'cve_id',
+        exportValue: (v) => v.cve_id || '',
+        render: (v) => <span className="mono text-[12.5px] text-ink">{v.cve_id || '—'}</span>,
+      },
+      {
+        key: 'title',
+        header: t(lang, 'Titre', 'Title'),
+        exportValue: (v) => v.title,
+        render: (v) => <div className="text-[13px] text-ink max-w-[280px] truncate">{v.title}</div>,
+      },
+      {
+        key: 'severity',
+        header: t(lang, 'Sévérité', 'Severity'),
+        sortKey: 'severity',
+        exportValue: (v) => v.severity,
+        render: (v) => <SevBadge sev={v.severity} lang={lang} />,
+      },
+      {
+        key: 'cvss',
+        header: 'CVSS',
+        align: 'right',
+        sortKey: 'cvss_score',
+        exportValue: (v) => (v.cvss_score ? v.cvss_score.toFixed(1) : ''),
+        render: (v) => (
+          <span
+            className="mono text-[13px] font-semibold"
+            style={{ color: cvssColor(v.cvss_score) }}
+          >
+            {v.cvss_score ? v.cvss_score.toFixed(1) : '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'asset',
+        header: t(lang, 'Actif', 'Asset'),
+        exportValue: (v) => v.asset_name || '',
+        render: (v) => <span className="text-[12.5px] text-ink-soft">{v.asset_name || '—'}</span>,
+      },
+      {
+        key: 'source',
+        header: t(lang, 'Source', 'Source'),
+        exportValue: (v) => v.source,
+        render: (v) => (
+          <span className="text-[12px] text-ink-muted">{SOURCE_LABEL[v.source] ?? v.source}</span>
+        ),
+      },
+      {
+        key: 'status',
+        header: t(lang, 'Statut', 'Status'),
+        exportValue: (v) => v.status,
+        render: (v) =>
+          canWrite ? <InlineVulnStatus v={v} /> : <StatusChip status={v.status} lang={lang} />,
+      },
+    ],
+    [lang, canWrite],
+  );
 
   /* ---------------------------------------------------------- row actions */
-  const rowActions: RowAction<Vulnerability>[] = useMemo(() => [
-    { key: 'view', label: t(lang, 'Voir le détail', 'View details'), icon: ChevronRight, onSelect: (v) => setDrawerId(v.id) },
-    {
-      key: 'triage',
-      label: t(lang, 'Marquer « en remédiation »', 'Mark "in remediation"'),
-      icon: Zap,
-      hidden: () => !canWrite,
-      disabled: (v) => v.status === 'in_remediation',
-      onSelect: async (v) => {
-        try {
-          await updateStatus.mutateAsync({ id: v.id, status: 'in_remediation' });
-          toast.success(t(lang, 'Statut mis à jour', 'Status updated'));
-        } catch {
-          toast.error(t(lang, 'Échec', 'Failed'));
-        }
+  const rowActions: RowAction<Vulnerability>[] = useMemo(
+    () => [
+      {
+        key: 'view',
+        label: t(lang, 'Voir le détail', 'View details'),
+        icon: ChevronRight,
+        onSelect: (v) => setDrawerId(v.id),
       },
-    },
-    {
-      key: 'delete',
-      label: t(lang, 'Supprimer', 'Delete'),
-      icon: Trash2,
-      danger: true,
-      separatorBefore: true,
-      hidden: () => !canDelete,
-      onSelect: (v) => softDeleteVuln(v),
-    },
-  ], [canWrite, canDelete, softDeleteVuln, updateStatus, lang]);
+      {
+        key: 'triage',
+        label: t(lang, 'Marquer « en remédiation »', 'Mark "in remediation"'),
+        icon: Zap,
+        hidden: () => !canWrite,
+        disabled: (v) => v.status === 'in_remediation',
+        onSelect: async (v) => {
+          try {
+            await updateStatus.mutateAsync({ id: v.id, status: 'in_remediation' });
+            toast.success(t(lang, 'Statut mis à jour', 'Status updated'));
+          } catch {
+            toast.error(t(lang, 'Échec', 'Failed'));
+          }
+        },
+      },
+      {
+        key: 'delete',
+        label: t(lang, 'Supprimer', 'Delete'),
+        icon: Trash2,
+        danger: true,
+        separatorBefore: true,
+        hidden: () => !canDelete,
+        onSelect: (v) => softDeleteVuln(v),
+      },
+    ],
+    [canWrite, canDelete, softDeleteVuln, updateStatus, lang],
+  );
 
   /* --------------------------------------------------------- bulk actions */
-  const bulkActions: BulkAction<Vulnerability>[] = useMemo(() => [
-    {
-      key: 'remediating',
-      label: t(lang, 'Marquer « en remédiation »', 'Mark "in remediation"'),
-      icon: Zap,
-      hidden: !canWrite,
-      selectionOnly: true,
-      run: async ({ ids }) => {
-        await Promise.all(ids.map((id) => updateStatus.mutateAsync({ id, status: 'in_remediation' })));
-        toast.success(t(lang, `${ids.length} vulnérabilité(s) mise(s) à jour`, `${ids.length} vulnerability(ies) updated`));
+  const bulkActions: BulkAction<Vulnerability>[] = useMemo(
+    () => [
+      {
+        key: 'remediating',
+        label: t(lang, 'Marquer « en remédiation »', 'Mark "in remediation"'),
+        icon: Zap,
+        hidden: !canWrite,
+        selectionOnly: true,
+        run: async ({ ids }) => {
+          await Promise.all(
+            ids.map((id) => updateStatus.mutateAsync({ id, status: 'in_remediation' })),
+          );
+          toast.success(
+            t(
+              lang,
+              `${ids.length} vulnérabilité(s) mise(s) à jour`,
+              `${ids.length} vulnerability(ies) updated`,
+            ),
+          );
+        },
       },
-    },
-    {
-      key: 'delete',
-      label: t(lang, 'Supprimer', 'Delete'),
-      icon: Trash2,
-      danger: true,
-      hidden: !canDelete,
-      selectionOnly: true,
-      run: async ({ rows }) => {
-        rows.forEach((v) => softDeleteVuln(v));
+      {
+        key: 'delete',
+        label: t(lang, 'Supprimer', 'Delete'),
+        icon: Trash2,
+        danger: true,
+        hidden: !canDelete,
+        selectionOnly: true,
+        run: async ({ rows }) => {
+          rows.forEach((v) => softDeleteVuln(v));
+        },
       },
-    },
-  ], [canWrite, canDelete, softDeleteVuln, updateStatus, lang]);
+    ],
+    [canWrite, canDelete, softDeleteVuln, updateStatus, lang],
+  );
 
-  const kpi = (label: React.ReactNode, value: number | string, color: string, Icon: typeof Flame) => (
+  const kpi = (
+    label: React.ReactNode,
+    value: number | string,
+    color: string,
+    Icon: typeof Flame,
+  ) => (
     <Card style={{ padding: '14px 16px', flex: 1, minWidth: 130 }}>
       <div className="flex items-center gap-2 text-ink-muted text-[11px] font-semibold uppercase tracking-[.04em]">
         <Icon size={13} style={{ color }} /> {label}
       </div>
-      <div className="mono text-[24px] font-bold text-ink mt-1" style={{ color }}>{value}</div>
+      <div className="mono text-[24px] font-bold text-ink mt-1" style={{ color }}>
+        {value}
+      </div>
     </Card>
   );
 
@@ -239,8 +368,17 @@ export function VulnerabilitiesPage() {
               icon={GitBranch}
               onClick={() => navigate('/vulnerabilities/risk-rule')}
             />
-            <Btn label={tr('Intégrations', 'Integrations')} icon={Plug} onClick={() => setConnectorsOpen(true)} />
-            <Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />
+            <Btn
+              label={tr('Intégrations', 'Integrations')}
+              icon={Plug}
+              onClick={() => setConnectorsOpen(true)}
+            />
+            <Btn
+              label={tr('Importer', 'Import')}
+              icon={Upload}
+              primary
+              onClick={() => setIngestOpen(true)}
+            />
           </>
         }
       />
@@ -278,15 +416,42 @@ export function VulnerabilitiesPage() {
           <EmptyState
             icon={Bug}
             title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
-            description={tr('Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…', 'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…')}
-            primaryAction={<Btn label={tr('Importer', 'Import')} icon={Upload} primary onClick={() => setIngestOpen(true)} />}
+            description={tr(
+              'Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…',
+              'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…',
+            )}
+            primaryAction={
+              <Btn
+                label={tr('Importer', 'Import')}
+                icon={Upload}
+                primary
+                onClick={() => setIngestOpen(true)}
+              />
+            }
           />
         }
       />
 
-      {drawer && <VulnDrawer v={drawer} onClose={closeDrawer} onDelete={() => { const d = drawer; closeDrawer(); softDeleteVuln(d); }} />}
+      {drawer && (
+        <VulnDrawer
+          v={drawer}
+          onClose={closeDrawer}
+          onDelete={() => {
+            const d = drawer;
+            closeDrawer();
+            softDeleteVuln(d);
+          }}
+        />
+      )}
       <IngestModal isOpen={ingestOpen} onClose={() => setIngestOpen(false)} />
-      <IntegrationsPanel isOpen={connectorsOpen} onClose={() => setConnectorsOpen(false)} onImport={() => { setConnectorsOpen(false); setIngestOpen(true); }} />
+      <IntegrationsPanel
+        isOpen={connectorsOpen}
+        onClose={() => setConnectorsOpen(false)}
+        onImport={() => {
+          setConnectorsOpen(false);
+          setIngestOpen(true);
+        }}
+      />
     </PageFrame>
   );
 }
@@ -294,7 +459,10 @@ export function VulnerabilitiesPage() {
 function SevBadge({ sev, lang }: { sev: Vulnerability['severity']; lang: 'fr' | 'en' }) {
   const m = SEVERITY_META[sev] ?? SEVERITY_META.info;
   return (
-    <span className="inline-flex items-center h-[20px] px-2 rounded-full text-[11px] font-semibold" style={{ color: m.color, background: `color-mix(in srgb, ${m.color} 14%, transparent)` }}>
+    <span
+      className="inline-flex items-center h-[20px] px-2 rounded-full text-[11px] font-semibold"
+      style={{ color: m.color, background: `color-mix(in srgb, ${m.color} 14%, transparent)` }}
+    >
       {pick(m.label, lang)}
     </span>
   );
@@ -329,14 +497,25 @@ function InlineVulnStatus({ v }: { v: Vulnerability }) {
         className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 -mx-1 hover:bg-hover transition-colors"
       >
         <StatusChip status={v.status} lang={lang} />
-        {saving ? <Loader2 size={12} className="animate-spin text-ink-muted" /> : <ChevronDown size={12} className="text-ink-muted" />}
+        {saving ? (
+          <Loader2 size={12} className="animate-spin text-ink-muted" />
+        ) : (
+          <ChevronDown size={12} className="text-ink-muted" />
+        )}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div className="absolute left-0 top-full mt-1 z-50 min-w-[170px] rounded-[10px] p-1 shadow-card-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+          <div
+            className="absolute left-0 top-full mt-1 z-50 min-w-[170px] rounded-[10px] p-1 shadow-card-lg"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+          >
             {STATUS_ORDER.map((s) => (
-              <button key={s} onClick={() => change(s)} className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-[7px] hover:bg-hover transition-colors text-left">
+              <button
+                key={s}
+                onClick={() => change(s)}
+                className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-[7px] hover:bg-hover transition-colors text-left"
+              >
                 <StatusChip status={s} lang={lang} />
                 {s === v.status && <Check size={13} className="text-accent" />}
               </button>
@@ -351,14 +530,26 @@ function InlineVulnStatus({ v }: { v: Vulnerability }) {
 function StatusChip({ status, lang }: { status: VulnStatus; lang: 'fr' | 'en' }) {
   const m = STATUS_META[status];
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium" style={{ color: m.color }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} /> {pick(m.label, lang)}
+    <span
+      className="inline-flex items-center gap-1.5 text-[12px] font-medium"
+      style={{ color: m.color }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} />{' '}
+      {pick(m.label, lang)}
     </span>
   );
 }
 
 /* ---------------- drawer ---------------- */
-function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () => void; onDelete: () => void }) {
+function VulnDrawer({
+  v,
+  onClose,
+  onDelete,
+}: {
+  v: Vulnerability;
+  onClose: () => void;
+  onDelete: () => void;
+}) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const canWrite = useAuthStore((s) => s.hasPermission('vulnerabilities:update'));
@@ -370,7 +561,10 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
       await createTicket.mutateAsync(v.id);
       toast.success(tr('Ticket ouvert', 'Ticket opened'));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : tr('Échec — ITSM configuré ?', 'Failed — is ITSM configured?');
+      const msg =
+        e instanceof Error
+          ? e.message
+          : tr('Échec — ITSM configuré ?', 'Failed — is ITSM configured?');
       toast.error(msg);
     }
   };
@@ -389,29 +583,64 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
 
   const field = (lbl: React.ReactNode, val: React.ReactNode) => (
     <div className="mb-3.5">
-      <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">{lbl}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">
+        {lbl}
+      </div>
       <div className="text-[13.5px] text-ink">{val}</div>
     </div>
   );
   const signal = (on: boolean, label: string) => (
-    <span className="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full text-[12px] font-semibold" style={{ color: on ? 'var(--critical)' : 'var(--fg-muted)', background: on ? 'color-mix(in srgb,var(--critical) 12%,transparent)' : 'var(--bg-hover)' }}>
+    <span
+      className="inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full text-[12px] font-semibold"
+      style={{
+        color: on ? 'var(--critical)' : 'var(--fg-muted)',
+        background: on ? 'color-mix(in srgb,var(--critical) 12%,transparent)' : 'var(--bg-hover)',
+      }}
+    >
       {label}
     </span>
   );
 
   return (
-    <div className="fixed inset-0 z-70 flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="h-full flex flex-col" style={{ width: 'min(94vw,560px)', background: 'var(--bg-secondary)', borderLeft: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)' }}>
+    <div
+      className="fixed inset-0 z-70 flex justify-end"
+      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="h-full flex flex-col"
+        style={{
+          width: 'min(94vw,560px)',
+          background: 'var(--bg-secondary)',
+          borderLeft: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+          animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)',
+        }}
+      >
         <div className="px-[22px] pt-5 pb-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-1">
-              <div className="mono text-[12px] text-ink-muted mb-1">{v.cve_id || v.external_id || '—'}</div>
+              <div className="mono text-[12px] text-ink-muted mb-1">
+                {v.cve_id || v.external_id || '—'}
+              </div>
               <div className="disp text-[17px] font-bold text-ink leading-snug">{v.title}</div>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}><X size={18} /></button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft"
+              style={{ background: 'var(--bg-hover)' }}
+            >
+              <X size={18} />
+            </button>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold" style={{ background: TIER_META[v.priority_tier]?.color, color: '#12151c' }}>{v.priority_tier} · {v.priority_score.toFixed(0)}</span>
+            <span
+              className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold"
+              style={{ background: TIER_META[v.priority_tier]?.color, color: '#12151c' }}
+            >
+              {v.priority_tier} · {v.priority_score.toFixed(0)}
+            </span>
             <SevBadge sev={v.severity} lang={lang} />
             <StatusChip status={v.status} lang={lang} />
           </div>
@@ -419,18 +648,46 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
 
         <div className="flex-1 overflow-y-auto px-[22px] py-5">
           {/* Prioritisation breakdown */}
-          <div className="rounded-[12px] p-4 mb-4" style={{ border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'color-mix(in srgb,var(--accent) 6%,transparent)' }}>
-            <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">{tr('Priorisation (risk-based)', 'Prioritisation (risk-based)')}</div>
-            <div className="text-[13.5px] text-ink">{v.priority_explanation || tr('Score dérivé du CVSS, de l’exploitabilité, de la criticité métier et des actifs concernés.', 'Score from CVSS, exploitability, business criticality and affected assets.')}</div>
+          <div
+            className="rounded-[12px] p-4 mb-4"
+            style={{
+              border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)',
+              background: 'color-mix(in srgb,var(--accent) 6%,transparent)',
+            }}
+          >
+            <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1.5">
+              {tr('Priorisation (risk-based)', 'Prioritisation (risk-based)')}
+            </div>
+            <div className="text-[13.5px] text-ink">
+              {v.priority_explanation ||
+                tr(
+                  'Score dérivé du CVSS, de l’exploitabilité, de la criticité métier et des actifs concernés.',
+                  'Score from CVSS, exploitability, business criticality and affected assets.',
+                )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-x-5">
-            {field(<Term term="CVSS">CVSS</Term>, <span className="mono font-semibold" style={{ color: cvssColor(v.cvss_score) }}>{v.cvss_score ? v.cvss_score.toFixed(1) : '—'}{v.cvss_vector ? ` · ${v.cvss_vector}` : ''}</span>)}
+            {field(
+              <Term term="CVSS">CVSS</Term>,
+              <span className="mono font-semibold" style={{ color: cvssColor(v.cvss_score) }}>
+                {v.cvss_score ? v.cvss_score.toFixed(1) : '—'}
+                {v.cvss_vector ? ` · ${v.cvss_vector}` : ''}
+              </span>,
+            )}
             {field(<Term term="EPSS">EPSS</Term>, v.epss ? `${(v.epss * 100).toFixed(1)}%` : '—')}
-            {field(tr('Actif concerné', 'Affected asset'), v.asset_name ? `${v.asset_name}${v.asset_criticality ? ` · ${v.asset_criticality}` : ''}` : '—')}
+            {field(
+              tr('Actif concerné', 'Affected asset'),
+              v.asset_name
+                ? `${v.asset_name}${v.asset_criticality ? ` · ${v.asset_criticality}` : ''}`
+                : '—',
+            )}
             {field(tr('Actifs concernés', 'Affected assets'), String(v.affected_assets_count))}
             {field(tr('Source', 'Source'), SOURCE_LABEL[v.source] ?? v.source)}
-            {field(tr('Vu pour la dernière fois', 'Last seen'), v.last_seen ? new Date(v.last_seen).toLocaleDateString() : '—')}
+            {field(
+              tr('Vu pour la dernière fois', 'Last seen'),
+              v.last_seen ? new Date(v.last_seen).toLocaleDateString() : '—',
+            )}
           </div>
 
           <div className="flex gap-2 flex-wrap mb-4">
@@ -439,30 +696,55 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
             {v.exploit_maturity ? signal(true, `Maturité: ${v.exploit_maturity}`) : null}
           </div>
 
-          {v.description ? field('Description', <span className="text-ink-soft">{v.description}</span>) : null}
-          {v.remediation_hint ? field(tr('Remédiation', 'Remediation'), <span className="text-ink-soft">{v.remediation_hint}</span>) : null}
+          {v.description
+            ? field('Description', <span className="text-ink-soft">{v.description}</span>)
+            : null}
+          {v.remediation_hint
+            ? field(
+                tr('Remédiation', 'Remediation'),
+                <span className="text-ink-soft">{v.remediation_hint}</span>,
+              )
+            : null}
 
           {/* Cross-module linkage: ITSM ticket + auto-created risk */}
           <div className="rounded-[12px] p-3.5 mb-4" style={{ border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-2">
               <Ticket size={14} className="text-ink-muted" />
-              <span className="text-[12.5px] font-semibold text-ink">{tr('Ticket ITSM', 'ITSM ticket')}</span>
+              <span className="text-[12.5px] font-semibold text-ink">
+                {tr('Ticket ITSM', 'ITSM ticket')}
+              </span>
             </div>
             {v.ticket_key ? (
               // The ITSM base URL comes from tenant-configured integration data,
               // so the href is allowlisted to http(s) rather than trusted.
-              <a href={safeExternalUrl(v.ticket_url) ?? '#'} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--accent-500)' }}>
+              <a
+                href={safeExternalUrl(v.ticket_url) ?? '#'}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold"
+                style={{ color: 'var(--accent-500)' }}
+              >
                 {v.ticket_key} <ExternalLink size={13} />
               </a>
             ) : canWrite ? (
-              <button onClick={openTicket} disabled={createTicket.isPending} className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: 'var(--accent-500)' }}>
+              <button
+                onClick={openTicket}
+                disabled={createTicket.isPending}
+                className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60"
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--accent-500)' }}
+              >
                 <Ticket size={13} /> {tr('Ouvrir un ticket', 'Open a ticket')}
               </button>
             ) : (
-              <span className="text-[12.5px] text-ink-muted">{tr('Aucun ticket', 'No ticket')}</span>
+              <span className="text-[12.5px] text-ink-muted">
+                {tr('Aucun ticket', 'No ticket')}
+              </span>
             )}
             {v.risk_id && (
-              <div className="mt-2.5 pt-2.5 flex items-center gap-1.5 text-[12px] text-ink-soft" style={{ borderTop: '1px solid var(--border)' }}>
+              <div
+                className="mt-2.5 pt-2.5 flex items-center gap-1.5 text-[12px] text-ink-soft"
+                style={{ borderTop: '1px solid var(--border)' }}
+              >
                 <ShieldAlert size={13} style={{ color: 'var(--high)' }} />
                 {tr('Risque auto-créé lié', 'Linked auto-created risk')}
               </div>
@@ -472,10 +754,21 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
           {/* Status lifecycle */}
           {canWrite && (
             <div className="mt-2">
-              <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2">{tr('Changer le statut', 'Change status')}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2">
+                {tr('Changer le statut', 'Change status')}
+              </div>
               <div className="flex flex-wrap gap-2">
                 {STATUS_ORDER.filter((s) => s !== v.status).map((s) => (
-                  <button key={s} disabled={updateStatus.isPending} onClick={() => setStatus(s)} className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60" style={{ border: '1px solid var(--border-strong)', color: STATUS_META[s].color }}>
+                  <button
+                    key={s}
+                    disabled={updateStatus.isPending}
+                    onClick={() => setStatus(s)}
+                    className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60"
+                    style={{
+                      border: '1px solid var(--border-strong)',
+                      color: STATUS_META[s].color,
+                    }}
+                  >
                     <ChevronRight size={13} /> {pick(STATUS_META[s].label, lang)}
                   </button>
                 ))}
@@ -486,7 +779,14 @@ function VulnDrawer({ v, onClose, onDelete }: { v: Vulnerability; onClose: () =>
 
         {canDelete && (
           <div className="px-[22px] py-3.5" style={{ borderTop: '1px solid var(--border)' }}>
-            <button onClick={del} className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--critical)', background: 'color-mix(in srgb,var(--critical) 12%,transparent)' }}>
+            <button
+              onClick={del}
+              className="h-9 px-3 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
+              style={{
+                color: 'var(--critical)',
+                background: 'color-mix(in srgb,var(--critical) 12%,transparent)',
+              }}
+            >
               <Trash2 size={14} /> {tr('Supprimer', 'Delete')}
             </button>
           </div>

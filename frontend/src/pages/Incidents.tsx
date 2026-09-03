@@ -31,7 +31,7 @@ export const Incidents = () => {
   }, [page, pageSize, filterSeverity, filterStatus, fetchIncidents]);
 
   const filteredIncidents = incidents.filter((incident) =>
-    incident.title.toLowerCase().includes(searchTerm.toLowerCase())
+    incident.title.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getSeverityColor = (severity: string) => {
@@ -68,7 +68,9 @@ export const Incidents = () => {
       <div className="mb-6 flex justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold mb-2">Incidents</h2>
-          <p className="text-fg-secondary">Track and manage security incidents across your infrastructure</p>
+          <p className="text-fg-secondary">
+            Track and manage security incidents across your infrastructure
+          </p>
         </div>
         <ViewToggle view={view} onViewChange={setView} />
       </div>
@@ -81,15 +83,21 @@ export const Incidents = () => {
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-fg-secondary text-sm mb-2">Critical</div>
-          <div className="text-3xl font-bold text-danger-text">{incidents.filter((i) => i.severity === 'critical').length}</div>
+          <div className="text-3xl font-bold text-danger-text">
+            {incidents.filter((i) => i.severity === 'critical').length}
+          </div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-fg-secondary text-sm mb-2">Open</div>
-          <div className="text-3xl font-bold text-warning-text">{incidents.filter((i) => i.status === 'open').length}</div>
+          <div className="text-3xl font-bold text-warning-text">
+            {incidents.filter((i) => i.status === 'open').length}
+          </div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-fg-secondary text-sm mb-2">Resolved</div>
-          <div className="text-3xl font-bold text-success-text">{incidents.filter((i) => i.status === 'resolved').length}</div>
+          <div className="text-3xl font-bold text-success-text">
+            {incidents.filter((i) => i.status === 'resolved').length}
+          </div>
         </div>
       </div>
 
@@ -164,10 +172,14 @@ export const Incidents = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-fg-primary">{incident.title}</h3>
-                      <span className={`text-xs font-bold px-2 py-1 rounded border ${getSeverityColor(incident.severity)}`}>
+                      <span
+                        className={`text-xs font-bold px-2 py-1 rounded border ${getSeverityColor(incident.severity)}`}
+                      >
                         {incident.severity.toUpperCase()}
                       </span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${getStatusColor(incident.status)}`}>
+                      <span
+                        className={`text-xs font-bold px-2 py-1 rounded ${getStatusColor(incident.status)}`}
+                      >
                         {incident.status.toUpperCase()}
                       </span>
                     </div>
@@ -183,7 +195,9 @@ export const Incidents = () => {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" className="ml-4">View Details</Button>
+                  <Button variant="ghost" className="ml-4">
+                    View Details
+                  </Button>
                 </div>
               </motion.div>
             ))
@@ -224,7 +238,9 @@ export const Incidents = () => {
                     </h3>
                     <p className="text-xs text-fg-muted">{incident.description?.slice(0, 100)}</p>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded ml-2 shrink-0 ${getSeverityColor(incident.severity)}`}>
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded ml-2 shrink-0 ${getSeverityColor(incident.severity)}`}
+                  >
                     {incident.severity.charAt(0).toUpperCase()}
                   </span>
                 </div>
@@ -240,7 +256,9 @@ export const Incidents = () => {
                     <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <Users size={14} /> Status
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(incident.status)}`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(incident.status)}`}
+                    >
                       {incident.status.toUpperCase()}
                     </span>
                   </div>
@@ -258,7 +276,9 @@ export const Incidents = () => {
                   </div>
                 </div>
 
-                <Button className="w-full mt-4" variant="ghost">View Details</Button>
+                <Button className="w-full mt-4" variant="ghost">
+                  View Details
+                </Button>
               </motion.div>
             ))
           )}

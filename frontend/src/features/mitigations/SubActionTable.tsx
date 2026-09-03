@@ -4,12 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useState, useCallback, useMemo } from 'react';
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  type DropResult,
-} from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { motion } from 'framer-motion';
 import { AlertCircle, RotateCcw, Zap, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,56 +33,67 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
   }, [subActions, optimisticUpdates]);
 
   // Check dependency violations when reordering
-  const canReorderTo = useCallback((action: SubAction, newIndex: number): boolean => {
-    if (!action.depends_on?.length) return true;
+  const canReorderTo = useCallback(
+    (action: SubAction, newIndex: number): boolean => {
+      if (!action.depends_on?.length) return true;
 
-    // Find the new position in the reordered list
-    const beforeReorder = displaySubActions.slice(0, newIndex);
-    const dependencyIds = action.depends_on;
+      // Find the new position in the reordered list
+      const beforeReorder = displaySubActions.slice(0, newIndex);
+      const dependencyIds = action.depends_on;
 
-    // Check if all dependencies are before this action
-    for (const depId of dependencyIds) {
-      const depIndex = beforeReorder.findIndex((sa) => sa.id === depId);
-      if (depIndex === -1) return false;
-    }
+      // Check if all dependencies are before this action
+      for (const depId of dependencyIds) {
+        const depIndex = beforeReorder.findIndex((sa) => sa.id === depId);
+        if (depIndex === -1) return false;
+      }
 
-    return true;
-  }, [displaySubActions]);
+      return true;
+    },
+    [displaySubActions],
+  );
 
   // Handle drag end (reordering)
-  const onDragEnd = useCallback(async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+  const onDragEnd = useCallback(
+    async (result: DropResult) => {
+      const { source, destination, draggableId } = result;
 
-    if (!destination) return;
-    if (source.index === destination.index) return;
+      if (!destination) return;
+      if (source.index === destination.index) return;
 
-    const subAction = displaySubActions[source.index];
-    if (!subAction) return;
+      const subAction = displaySubActions[source.index];
+      if (!subAction) return;
 
-    // Validate dependencies
-    if (!canReorderTo(subAction, destination.index)) {
-      toast.error('❌ Violation de dépendance détectée. Cette sous-action dépend d\'autres qui seraient après elle.');
-      return;
-    }
+      // Validate dependencies
+      if (!canReorderTo(subAction, destination.index)) {
+        toast.error(
+          "❌ Violation de dépendance détectée. Cette sous-action dépend d'autres qui seraient après elle.",
+        );
+        return;
+      }
 
-    // Reorder in local state
-    const reordered = Array.from(displaySubActions);
-    reordered.splice(source.index, 1);
-    reordered.splice(destination.index, 0, subAction);
+      // Reorder in local state
+      const reordered = Array.from(displaySubActions);
+      reordered.splice(source.index, 1);
+      reordered.splice(destination.index, 0, subAction);
 
-    // Apply optimistic update
-    onUpdate(reordered);
+      // Apply optimistic update
+      onUpdate(reordered);
 
-    try {
-      // Call API to update order
-      await mitigationService.reorderSubActions(mitigationId, reordered.map((sa) => sa.id));
-      toast.success('Sous-actions réorganisées');
-    } catch (err) {
-      // Rollback
-      onUpdate(subActions);
-      toast.error('Erreur lors de la réorganisation');
-    }
-  }, [mitigationId, displaySubActions, subActions, canReorderTo, onUpdate]);
+      try {
+        // Call API to update order
+        await mitigationService.reorderSubActions(
+          mitigationId,
+          reordered.map((sa) => sa.id),
+        );
+        toast.success('Sous-actions réorganisées');
+      } catch (err) {
+        // Rollback
+        onUpdate(subActions);
+        toast.error('Erreur lors de la réorganisation');
+      }
+    },
+    [mitigationId, displaySubActions, subActions, canReorderTo, onUpdate],
+  );
 
   // Handle toggle completed
   const handleToggleCompleted = useCallback(
@@ -108,7 +114,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
 
         // Update parent
         const updated = displaySubActions.map((sa) =>
-          sa.id === subAction.id ? { ...sa, status: newStatus } : sa
+          sa.id === subAction.id ? { ...sa, status: newStatus } : sa,
         );
         onUpdate(updated);
 
@@ -122,7 +128,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
         toast.success(
           newStatus === 'DONE'
             ? 'Sous-action marquée comme complétée'
-            : 'Sous-action marquée comme en attente'
+            : 'Sous-action marquée comme en attente',
         );
       } catch (err) {
         // Rollback
@@ -134,7 +140,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
         toast.error('Erreur lors de la mise à jour');
       }
     },
-    [mitigationId, displaySubActions, onUpdate]
+    [mitigationId, displaySubActions, onUpdate],
   );
 
   // Handle revert (auto-detected only)
@@ -156,7 +162,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
 
         toast.success('Auto-détection annulée');
       } catch (err) {
-        toast.error('Erreur lors de l\'annulation');
+        toast.error("Erreur lors de l'annulation");
       } finally {
         setRevertingIds((prev) => {
           const next = new Set(prev);
@@ -165,7 +171,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
         });
       }
     },
-    [mitigationId, displaySubActions, onUpdate]
+    [mitigationId, displaySubActions, onUpdate],
   );
 
   return (
@@ -178,9 +184,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
             className={cn('space-y-2', snapshot.isDraggingOver && 'bg-accent-soft rounded-lg p-2')}
           >
             {displaySubActions.length === 0 ? (
-              <div className="text-center py-8 text-fg-muted text-sm">
-                Aucune sous-action
-              </div>
+              <div className="text-center py-8 text-fg-muted text-sm">Aucune sous-action</div>
             ) : (
               displaySubActions.map((subAction, index) => {
                 const isCompleted = subAction.status === 'DONE';
@@ -188,11 +192,7 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                 const isReverting = revertingIds.has(subAction.id);
 
                 return (
-                  <Draggable
-                    key={subAction.id}
-                    draggableId={subAction.id}
-                    index={index}
-                  >
+                  <Draggable key={subAction.id} draggableId={subAction.id} index={index}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
@@ -201,8 +201,9 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         className={cn(
                           'flex items-center gap-3 p-3 rounded-lg border border-border-default bg-surface-2/40 transition-all',
                           snapshot.isDragging && 'bg-accent-soft shadow-lg',
-                          (subAction.depends_on?.length || 0) > 0 && 'border-l-2 border-l-yellow-500',
-                          isReverting && 'opacity-50'
+                          (subAction.depends_on?.length || 0) > 0 &&
+                            'border-l-2 border-l-yellow-500',
+                          isReverting && 'opacity-50',
                         )}
                       >
                         {/* Checkbox */}
@@ -219,7 +220,12 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
 
                         {/* Title & Dependencies */}
                         <div className="flex-1 min-w-0">
-                          <p className={cn('text-sm font-medium truncate', isCompleted && 'line-through text-fg-muted')}>
+                          <p
+                            className={cn(
+                              'text-sm font-medium truncate',
+                              isCompleted && 'line-through text-fg-muted',
+                            )}
+                          >
                             {subAction.title}
                           </p>
                           {(subAction.depends_on?.length || 0) > 0 && (
@@ -246,7 +252,6 @@ export const SubActionTable = ({ mitigationId, subActions, onUpdate }: SubAction
                         {/* Revert Button (auto-detected only) */}
                         {isAutoDetected && (
                           <Button
-                            
                             variant="ghost"
                             onClick={() => handleRevert(subAction)}
                             disabled={isReverting}

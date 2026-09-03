@@ -10,7 +10,7 @@ import '@testing-library/jest-dom';
 
 /**
  * End-to-End Test Scenarios for RBAC Implementation
- * 
+ *
  * These tests verify complete workflows across the entire RBAC system,
  * including user interactions, permission checks, and state management.
  */
@@ -20,7 +20,7 @@ describe('E2E: RBAC Workflows', () => {
     it('should create a new user and assign a role', async () => {
       /**
        * Scenario: Admin creates a new user and assigns them to a role
-       * 
+       *
        * Steps:
        * 1. Admin navigates to user management
        * 2. Clicks "Create User" button
@@ -55,7 +55,7 @@ describe('E2E: RBAC Workflows', () => {
     it('should prevent users from assigning higher roles than their own', async () => {
       /**
        * Scenario: User with limited permissions tries to assign admin role
-       * 
+       *
        * Expected: Request is denied with 403 Forbidden
        */
 
@@ -74,7 +74,7 @@ describe('E2E: RBAC Workflows', () => {
     it('should verify user permissions before displaying sensitive features', async () => {
       /**
        * Scenario: System verifies permissions before showing delete button
-       * 
+       *
        * Steps:
        * 1. Component checks if user has delete permission
        * 2. If yes, show delete button
@@ -217,9 +217,9 @@ describe('E2E: RBAC Workflows', () => {
        */
 
       const roles = {
-        'admin': { level: 9, permissions: [] },
-        'manager': { level: 5, permissions: [] },
-        'viewer': { level: 1, permissions: [] },
+        admin: { level: 9, permissions: [] },
+        manager: { level: 5, permissions: [] },
+        viewer: { level: 1, permissions: [] },
       };
 
       const currentUserRole = 'manager'; // level 5
@@ -237,8 +237,8 @@ describe('E2E: RBAC Workflows', () => {
        */
 
       const roles = {
-        'admin': { level: 9, permissions: [] },
-        'manager': { level: 5, permissions: [] },
+        admin: { level: 9, permissions: [] },
+        manager: { level: 5, permissions: [] },
       };
 
       const currentUserRole = 'admin';
@@ -309,9 +309,9 @@ describe('E2E: RBAC Workflows', () => {
        */
 
       const features = {
-        'advancedReporting': ['admin', 'manager'],
-        'bulkOperations': ['admin'],
-        'dataExport': ['admin', 'manager', 'analyst'],
+        advancedReporting: ['admin', 'manager'],
+        bulkOperations: ['admin'],
+        dataExport: ['admin', 'manager', 'analyst'],
       };
 
       const userRole = 'manager';

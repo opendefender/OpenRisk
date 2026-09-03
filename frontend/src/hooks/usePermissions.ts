@@ -55,8 +55,7 @@ export const usePermissions = () => {
       /**
        * Check if a feature is enabled
        */
-      isFeatureEnabled: (feature: string) =>
-        isFeatureEnabled(userPermissions, feature),
+      isFeatureEnabled: (feature: string) => isFeatureEnabled(userPermissions, feature),
 
       /**
        * Get user's role level info
@@ -73,7 +72,7 @@ export const usePermissions = () => {
        */
       isAdmin: () => hasPermission(userPermissions, '*'),
     }),
-    [userPermissions]
+    [userPermissions],
   );
 };
 

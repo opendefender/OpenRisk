@@ -113,23 +113,26 @@ export function UserPicker({
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setLoading(true);
-      setError(false);
-      try {
-        const res = await ownershipService.listAssignable(
-          { q: query || undefined, permission, only_capable: onlyCapable || undefined },
-          controller.signal,
-        );
-        setUsers(res.users ?? []);
-        setGroups(res.groups ?? []);
-        setActiveIndex(0);
-      } catch {
-        if (!controller.signal.aborted) setError(true);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }, query ? 180 : 0);
+    const timer = window.setTimeout(
+      async () => {
+        setLoading(true);
+        setError(false);
+        try {
+          const res = await ownershipService.listAssignable(
+            { q: query || undefined, permission, only_capable: onlyCapable || undefined },
+            controller.signal,
+          );
+          setUsers(res.users ?? []);
+          setGroups(res.groups ?? []);
+          setActiveIndex(0);
+        } catch {
+          if (!controller.signal.aborted) setError(true);
+        } finally {
+          if (!controller.signal.aborted) setLoading(false);
+        }
+      },
+      query ? 180 : 0,
+    );
     return () => {
       controller.abort();
       window.clearTimeout(timer);
@@ -146,7 +149,8 @@ export function UserPicker({
     const width = Math.max(r.width, 288);
     const spaceBelow = window.innerHeight - r.bottom;
     const panelHeight = 340;
-    const top = spaceBelow < panelHeight && r.top > panelHeight ? r.top - panelHeight - 6 : r.bottom + 6;
+    const top =
+      spaceBelow < panelHeight && r.top > panelHeight ? r.top - panelHeight - 6 : r.bottom + 6;
     const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
     setAnchor({ top, left, width });
   }, []);
@@ -224,7 +228,9 @@ export function UserPicker({
           </span>
         )}
         <span className={`truncate ${value ? '' : 'text-ink-muted'}`}>
-          {triggerLabel || placeholder || tr(`Choisir un ${roleLabel.fr.toLowerCase()}`, `Pick ${roleLabel.en.toLowerCase()}`)}
+          {triggerLabel ||
+            placeholder ||
+            tr(`Choisir un ${roleLabel.fr.toLowerCase()}`, `Pick ${roleLabel.en.toLowerCase()}`)}
         </span>
       </button>
 
@@ -306,7 +312,9 @@ export function UserPicker({
                     >
                       <AvatarDot id={u.user_id} initials={u.initials} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] text-ink">{u.full_name || u.email}</span>
+                        <span className="block truncate text-[13px] text-ink">
+                          {u.full_name || u.email}
+                        </span>
                         <span className="block truncate text-[11px] text-ink-muted">
                           {u.business_role_label ? `${u.business_role_label} · ` : ''}
                           {u.email}
@@ -318,7 +326,10 @@ export function UserPicker({
                       {permission && !u.can_act ? (
                         <span
                           className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                          style={{ background: 'color-mix(in srgb, var(--medium) 16%, transparent)', color: 'var(--medium)' }}
+                          style={{
+                            background: 'color-mix(in srgb, var(--medium) 16%, transparent)',
+                            color: 'var(--medium)',
+                          }}
                           title={tr(
                             `Ce membre n'a pas la permission ${permission}.`,
                             `This member lacks the ${permission} permission.`,
@@ -327,7 +338,9 @@ export function UserPicker({
                           {tr('sans droit', 'no access')}
                         </span>
                       ) : null}
-                      {isSelected ? <Check size={14} style={{ color: 'var(--accent-500)' }} /> : null}
+                      {isSelected ? (
+                        <Check size={14} style={{ color: 'var(--accent-500)' }} />
+                      ) : null}
                     </button>
                   );
                 })}
@@ -374,8 +387,14 @@ export function OwnershipFields({
   permission,
   disabled,
 }: {
-  value: { owner_id?: string | null; assignee_id?: string | null; reviewer_id?: string | null;
-    owner_email?: string; assignee_email?: string; reviewer_email?: string };
+  value: {
+    owner_id?: string | null;
+    assignee_id?: string | null;
+    reviewer_id?: string | null;
+    owner_email?: string;
+    assignee_email?: string;
+    reviewer_email?: string;
+  };
   onChange: (role: OwnershipRole, userId: string | null) => void;
   permission?: string;
   disabled?: boolean;
@@ -411,7 +430,9 @@ export function OwnershipFields({
               disabled={disabled}
               size="sm"
             />
-            <p className="text-[11px] text-ink-muted">{lang === 'fr' ? meta.hint_fr : meta.hint_en}</p>
+            <p className="text-[11px] text-ink-muted">
+              {lang === 'fr' ? meta.hint_fr : meta.hint_en}
+            </p>
           </div>
         );
       })}

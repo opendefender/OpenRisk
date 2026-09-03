@@ -72,7 +72,7 @@ export function useSoftDelete<T>(opts: SoftDeleteOptions<T>) {
         },
       });
     },
-    [idOf, onCommit, message, delayMs, lang, unhide]
+    [idOf, onCommit, message, delayMs, lang, unhide],
   );
 
   // On unmount, fire any still-pending deletes so nothing is silently dropped.

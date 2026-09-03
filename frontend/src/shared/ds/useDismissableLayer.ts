@@ -75,7 +75,13 @@ export interface DismissableLayerOptions {
 
 export function useDismissableLayer<T extends HTMLElement>(
   panelRef: RefObject<T | null>,
-  { open, onClose, closeOnEscape = true, lockScroll: shouldLock = true, initialFocusRef }: DismissableLayerOptions,
+  {
+    open,
+    onClose,
+    closeOnEscape = true,
+    lockScroll: shouldLock = true,
+    initialFocusRef,
+  }: DismissableLayerOptions,
 ) {
   // Kept in a ref so changing the handler between renders does not tear down
   // and rebuild the listeners (which would drop the layer out of the stack).

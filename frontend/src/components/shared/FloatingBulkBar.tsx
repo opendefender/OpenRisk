@@ -19,7 +19,12 @@ interface FloatingBulkBarProps {
   onCancel: () => void;
   onConfirm: () => void;
   onAction?: (action: string) => void;
-  actions?: Array<{ id: string; label: string; icon: React.ReactNode; variant?: 'default' | 'danger' }>;
+  actions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    variant?: 'default' | 'danger';
+  }>;
   isLoading?: boolean;
   className?: string;
 }
@@ -48,7 +53,7 @@ export const FloatingBulkBar = ({
             'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40',
             'bg-linear-to-r from-zinc-900 to-zinc-800 border border-primary/50',
             'rounded-lg shadow-2xl px-6 py-4 backdrop-blur-xl',
-            className
+            className,
           )}
         >
           <div className="flex items-center justify-between gap-6 max-w-2xl">
@@ -62,7 +67,8 @@ export const FloatingBulkBar = ({
                 {selectedCount}
               </motion.div>
               <span className="text-sm text-fg-secondary">
-                {selectedCount} {selectedCount === 1 ? 'risque sélectionné' : 'risques sélectionnés'}
+                {selectedCount}{' '}
+                {selectedCount === 1 ? 'risque sélectionné' : 'risques sélectionnés'}
               </span>
             </div>
 
@@ -79,7 +85,7 @@ export const FloatingBulkBar = ({
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                     action.variant === 'danger'
                       ? 'hover:bg-danger/20 text-danger-text'
-                      : 'hover:bg-surface-3 text-fg-secondary'
+                      : 'hover:bg-surface-3 text-fg-secondary',
                   )}
                   title={action.label}
                 >

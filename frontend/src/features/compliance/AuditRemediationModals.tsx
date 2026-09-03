@@ -26,7 +26,13 @@ function errMsg(err: unknown, fallback: string): string {
 /* Schedule an audit                                                   */
 /* ------------------------------------------------------------------ */
 
-export function CreateAuditDialog({ onClose, onCreated }: { onClose: () => void; onCreated?: (id: string) => void }) {
+export function CreateAuditDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated?: (id: string) => void;
+}) {
   const tr = useTr();
   const { createAudit } = useAudits();
   const { frameworks } = useFrameworks();
@@ -45,11 +51,22 @@ export function CreateAuditDialog({ onClose, onCreated }: { onClose: () => void;
     { value: 'certification', label: tr('Certification', 'Certification') },
     { value: 'surveillance', label: tr('Surveillance', 'Surveillance') },
   ];
-  const fwOptions = [{ value: '', label: tr('Programme entier', 'Whole program') }, ...frameworks.map((f) => ({ value: f.id, label: `${f.name}${f.version ? ` ${f.version}` : ''}` }))];
+  const fwOptions = [
+    { value: '', label: tr('Programme entier', 'Whole program') },
+    ...frameworks.map((f) => ({
+      value: f.id,
+      label: `${f.name}${f.version ? ` ${f.version}` : ''}`,
+    })),
+  ];
 
   const submit = () => {
     if (title.trim().length < 2) {
-      setError(tr('Le titre doit comporter au moins 2 caractères.', 'Title must be at least 2 characters.'));
+      setError(
+        tr(
+          'Le titre doit comporter au moins 2 caractères.',
+          'Title must be at least 2 characters.',
+        ),
+      );
       return;
     }
     createAudit.mutate(
@@ -69,25 +86,76 @@ export function CreateAuditDialog({ onClose, onCreated }: { onClose: () => void;
           onClose();
         },
         onError: (err) => toast.error(errMsg(err, tr('Création échouée', 'Creation failed'))),
-      }
+      },
     );
   };
 
   return (
-    <ModalShell title={tr('Planifier un audit', 'Schedule an audit')} icon={<CalendarClock size={18} />} onClose={onClose} onSubmit={submit}
-      footer={<FooterButtons onCancel={onClose} submitLabel={tr('Planifier', 'Schedule')} pending={createAudit.isPending} />}>
-      <Field label={tr('Titre', 'Title')} value={title} onChange={(v) => { setTitle(v); setError(''); }} required autoFocus
-        placeholder={tr('ex. Audit interne ISO 27001 Q3', 'e.g. ISO 27001 internal audit Q3')} error={error} />
+    <ModalShell
+      title={tr('Planifier un audit', 'Schedule an audit')}
+      icon={<CalendarClock size={18} />}
+      onClose={onClose}
+      onSubmit={submit}
+      footer={
+        <FooterButtons
+          onCancel={onClose}
+          submitLabel={tr('Planifier', 'Schedule')}
+          pending={createAudit.isPending}
+        />
+      }
+    >
+      <Field
+        label={tr('Titre', 'Title')}
+        value={title}
+        onChange={(v) => {
+          setTitle(v);
+          setError('');
+        }}
+        required
+        autoFocus
+        placeholder={tr('ex. Audit interne ISO 27001 Q3', 'e.g. ISO 27001 internal audit Q3')}
+        error={error}
+      />
       <div className="grid grid-cols-2 gap-3">
-        <SelectField label={tr('Type', 'Type')} value={type} onChange={(v) => setType(v as AuditType)} options={typeOptions} />
-        <SelectField label={tr('Référentiel', 'Framework')} value={frameworkId} onChange={setFrameworkId} options={fwOptions} />
+        <SelectField
+          label={tr('Type', 'Type')}
+          value={type}
+          onChange={(v) => setType(v as AuditType)}
+          options={typeOptions}
+        />
+        <SelectField
+          label={tr('Référentiel', 'Framework')}
+          value={frameworkId}
+          onChange={setFrameworkId}
+          options={fwOptions}
+        />
       </div>
-      <Field label={tr('Auditeur', 'Auditor')} value={auditor} onChange={setAuditor} placeholder={tr('Nom ou cabinet', 'Name or firm')} />
+      <Field
+        label={tr('Auditeur', 'Auditor')}
+        value={auditor}
+        onChange={setAuditor}
+        placeholder={tr('Nom ou cabinet', 'Name or firm')}
+      />
       <div className="grid grid-cols-2 gap-3">
-        <Field label={tr('Début prévu', 'Scheduled start')} value={start} onChange={setStart} type="date" />
-        <Field label={tr('Fin prévue', 'Scheduled end')} value={end} onChange={setEnd} type="date" />
+        <Field
+          label={tr('Début prévu', 'Scheduled start')}
+          value={start}
+          onChange={setStart}
+          type="date"
+        />
+        <Field
+          label={tr('Fin prévue', 'Scheduled end')}
+          value={end}
+          onChange={setEnd}
+          type="date"
+        />
       </div>
-      <TextArea label={tr('Périmètre', 'Scope')} value={scope} onChange={setScope} placeholder={tr('Ce que couvre l’audit…', 'What the audit covers…')} />
+      <TextArea
+        label={tr('Périmètre', 'Scope')}
+        value={scope}
+        onChange={setScope}
+        placeholder={tr('Ce que couvre l’audit…', 'What the audit covers…')}
+      />
     </ModalShell>
   );
 }
@@ -97,17 +165,23 @@ export function CreateAuditDialog({ onClose, onCreated }: { onClose: () => void;
 /* ------------------------------------------------------------------ */
 
 export function CreateRemediationDialog({
-  onClose, onCreated, controlId, controlLabel, auditId,
+  onClose,
+  onCreated,
+  controlId,
+  controlLabel,
+  auditId,
 }: {
   onClose: () => void;
   onCreated?: (id: string) => void;
-  controlId?: string;   // pre-linked gap
+  controlId?: string; // pre-linked gap
   controlLabel?: string; // human label of the linked control
   auditId?: string;
 }) {
   const tr = useTr();
   const { createRemediation } = useRemediations();
-  const [title, setTitle] = useState(controlLabel ? tr('Remédier : ', 'Remediate: ') + controlLabel : '');
+  const [title, setTitle] = useState(
+    controlLabel ? tr('Remédier : ', 'Remediate: ') + controlLabel : '',
+  );
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<RemediationPriority>('medium');
   const [due, setDue] = useState('');
@@ -122,7 +196,12 @@ export function CreateRemediationDialog({
 
   const submit = () => {
     if (title.trim().length < 2) {
-      setError(tr('Le titre doit comporter au moins 2 caractères.', 'Title must be at least 2 characters.'));
+      setError(
+        tr(
+          'Le titre doit comporter au moins 2 caractères.',
+          'Title must be at least 2 characters.',
+        ),
+      );
       return;
     }
     createRemediation.mutate(
@@ -141,26 +220,63 @@ export function CreateRemediationDialog({
           onClose();
         },
         onError: (err) => toast.error(errMsg(err, tr('Création échouée', 'Creation failed'))),
-      }
+      },
     );
   };
 
   return (
-    <ModalShell title={tr('Plan de remédiation', 'Remediation plan')} icon={<Wrench size={18} />} onClose={onClose} onSubmit={submit}
-      footer={<FooterButtons onCancel={onClose} submitLabel={tr('Créer', 'Create')} pending={createRemediation.isPending} />}>
+    <ModalShell
+      title={tr('Plan de remédiation', 'Remediation plan')}
+      icon={<Wrench size={18} />}
+      onClose={onClose}
+      onSubmit={submit}
+      footer={
+        <FooterButtons
+          onCancel={onClose}
+          submitLabel={tr('Créer', 'Create')}
+          pending={createRemediation.isPending}
+        />
+      }
+    >
       {controlLabel && (
-        <div className="text-[12px] text-ink-soft px-3 py-2 rounded-[9px]" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>
-          {tr('Lié au contrôle', 'Linked to control')} : <span className="font-semibold text-ink">{controlLabel}</span>
+        <div
+          className="text-[12px] text-ink-soft px-3 py-2 rounded-[9px]"
+          style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+        >
+          {tr('Lié au contrôle', 'Linked to control')} :{' '}
+          <span className="font-semibold text-ink">{controlLabel}</span>
         </div>
       )}
-      <Field label={tr('Titre', 'Title')} value={title} onChange={(v) => { setTitle(v); setError(''); }} required autoFocus
-        placeholder={tr('ex. Déployer le MFA sur tous les accès admin', 'e.g. Roll out MFA on all admin access')} error={error} />
+      <Field
+        label={tr('Titre', 'Title')}
+        value={title}
+        onChange={(v) => {
+          setTitle(v);
+          setError('');
+        }}
+        required
+        autoFocus
+        placeholder={tr(
+          'ex. Déployer le MFA sur tous les accès admin',
+          'e.g. Roll out MFA on all admin access',
+        )}
+        error={error}
+      />
       <div className="grid grid-cols-2 gap-3">
-        <SelectField label={tr('Priorité', 'Priority')} value={priority} onChange={(v) => setPriority(v as RemediationPriority)} options={priorityOptions} />
+        <SelectField
+          label={tr('Priorité', 'Priority')}
+          value={priority}
+          onChange={(v) => setPriority(v as RemediationPriority)}
+          options={priorityOptions}
+        />
         <Field label={tr('Échéance', 'Due date')} value={due} onChange={setDue} type="date" />
       </div>
-      <TextArea label={tr('Description', 'Description')} value={description} onChange={setDescription}
-        placeholder={tr('Actions à mener pour corriger l’écart…', 'Actions to close the gap…')} />
+      <TextArea
+        label={tr('Description', 'Description')}
+        value={description}
+        onChange={setDescription}
+        placeholder={tr('Actions à mener pour corriger l’écart…', 'Actions to close the gap…')}
+      />
     </ModalShell>
   );
 }

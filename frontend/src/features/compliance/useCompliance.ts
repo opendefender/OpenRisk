@@ -30,9 +30,19 @@ const CATALOGS_QUERY_KEY = ['compliance', 'catalogs'];
 // frameworks+progress query that feeds the Compliance grid and the framework
 // detail header. Kept here so mutations can invalidate it in one place.
 export const OVERVIEW_QUERY_KEY = ['compliance', 'overview'];
-const controlsQueryKey = (frameworkId: string) => ['compliance', 'frameworks', frameworkId, 'controls'];
+const controlsQueryKey = (frameworkId: string) => [
+  'compliance',
+  'frameworks',
+  frameworkId,
+  'controls',
+];
 const evidencesQueryKey = (controlId: string) => ['compliance', 'controls', controlId, 'evidences'];
-const progressQueryKey = (frameworkId: string) => ['compliance', 'frameworks', frameworkId, 'progress'];
+const progressQueryKey = (frameworkId: string) => [
+  'compliance',
+  'frameworks',
+  frameworkId,
+  'progress',
+];
 
 export function useCatalogs() {
   return useQuery({
@@ -75,7 +85,7 @@ export function useFrameworks() {
       createFramework,
       deleteFramework,
     }),
-    [query, createFramework, deleteFramework]
+    [query, createFramework, deleteFramework],
   );
 }
 
@@ -105,7 +115,7 @@ export function useImportCatalogAsFramework() {
         (await complianceService.listFrameworks());
       const version = catalog.version ?? '';
       let framework = frameworks.find(
-        (f) => f.name === catalog.name && (f.version ?? '') === version
+        (f) => f.name === catalog.name && (f.version ?? '') === version,
       );
       if (!framework) {
         framework = await complianceService.createFramework({
@@ -147,7 +157,10 @@ const AUDITS_QUERY_KEY = ['compliance', 'audits'];
 
 export function useAudits() {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: AUDITS_QUERY_KEY, queryFn: () => complianceService.listAudits() });
+  const query = useQuery({
+    queryKey: AUDITS_QUERY_KEY,
+    queryFn: () => complianceService.listAudits(),
+  });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: AUDITS_QUERY_KEY });
 
   const createAudit = useMutation({
@@ -155,7 +168,8 @@ export function useAudits() {
     onSettled: invalidate,
   });
   const updateAudit = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateAuditInput }) => complianceService.updateAudit(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateAuditInput }) =>
+      complianceService.updateAudit(id, payload),
     onSettled: invalidate,
   });
   const deleteAudit = useMutation({
@@ -169,26 +183,44 @@ export function useAudits() {
   });
 
   return useMemo(
-    () => ({ audits: query.data ?? [], isLoading: query.isLoading, error: query.error, refetch: query.refetch, createAudit, updateAudit, deleteAudit, generateRemediations }),
-    [query, createAudit, updateAudit, deleteAudit, generateRemediations]
+    () => ({
+      audits: query.data ?? [],
+      isLoading: query.isLoading,
+      error: query.error,
+      refetch: query.refetch,
+      createAudit,
+      updateAudit,
+      deleteAudit,
+      generateRemediations,
+    }),
+    [query, createAudit, updateAudit, deleteAudit, generateRemediations],
   );
 }
 
 // --- Remediation plans -------------------------------------------------------
-const remediationsQueryKey = (filter?: RemediationFilter) => ['compliance', 'remediations', filter ?? {}];
+const remediationsQueryKey = (filter?: RemediationFilter) => [
+  'compliance',
+  'remediations',
+  filter ?? {},
+];
 
 export function useRemediations(filter?: RemediationFilter) {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: remediationsQueryKey(filter), queryFn: () => complianceService.listRemediations(filter) });
+  const query = useQuery({
+    queryKey: remediationsQueryKey(filter),
+    queryFn: () => complianceService.listRemediations(filter),
+  });
   // Invalidate every remediation list (any filter) after a mutation.
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['compliance', 'remediations'] });
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ['compliance', 'remediations'] });
 
   const createRemediation = useMutation({
     mutationFn: (payload: CreateRemediationInput) => complianceService.createRemediation(payload),
     onSettled: invalidate,
   });
   const updateRemediation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateRemediationInput }) => complianceService.updateRemediation(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateRemediationInput }) =>
+      complianceService.updateRemediation(id, payload),
     onSettled: invalidate,
   });
   const deleteRemediation = useMutation({
@@ -197,8 +229,16 @@ export function useRemediations(filter?: RemediationFilter) {
   });
 
   return useMemo(
-    () => ({ remediations: query.data ?? [], isLoading: query.isLoading, error: query.error, refetch: query.refetch, createRemediation, updateRemediation, deleteRemediation }),
-    [query, createRemediation, updateRemediation, deleteRemediation]
+    () => ({
+      remediations: query.data ?? [],
+      isLoading: query.isLoading,
+      error: query.error,
+      refetch: query.refetch,
+      createRemediation,
+      updateRemediation,
+      deleteRemediation,
+    }),
+    [query, createRemediation, updateRemediation, deleteRemediation],
   );
 }
 
@@ -212,7 +252,9 @@ export function useComplianceProgress(frameworkId: string | undefined) {
 
 export function useControls(frameworkId: string | undefined) {
   const queryClient = useQueryClient();
-  const queryKey = frameworkId ? controlsQueryKey(frameworkId) : ['compliance', 'controls', 'disabled'];
+  const queryKey = frameworkId
+    ? controlsQueryKey(frameworkId)
+    : ['compliance', 'controls', 'disabled'];
 
   const query = useQuery({
     queryKey,
@@ -231,12 +273,14 @@ export function useControls(frameworkId: string | undefined) {
   };
 
   const createControl = useMutation({
-    mutationFn: (payload: CreateControlInput) => complianceService.createControl(frameworkId as string, payload),
+    mutationFn: (payload: CreateControlInput) =>
+      complianceService.createControl(frameworkId as string, payload),
     onSettled: invalidate,
   });
 
   const importCatalog = useMutation({
-    mutationFn: (payload: ImportCatalogInput) => complianceService.importCatalog(frameworkId as string, payload),
+    mutationFn: (payload: ImportCatalogInput) =>
+      complianceService.importCatalog(frameworkId as string, payload),
     onSettled: invalidate,
   });
 
@@ -249,7 +293,7 @@ export function useControls(frameworkId: string | undefined) {
       if (previous) {
         queryClient.setQueryData(
           queryKey,
-          previous.map((c) => (c.id === id ? { ...c, ...payload } : c))
+          previous.map((c) => (c.id === id ? { ...c, ...payload } : c)),
         );
       }
       return { previous };
@@ -268,7 +312,7 @@ export function useControls(frameworkId: string | undefined) {
       if (previous) {
         queryClient.setQueryData(
           queryKey,
-          previous.filter((c) => c.id !== id)
+          previous.filter((c) => c.id !== id),
         );
       }
       return { previous };
@@ -290,13 +334,15 @@ export function useControls(frameworkId: string | undefined) {
       deleteControl,
       importCatalog,
     }),
-    [query, createControl, updateControl, deleteControl, importCatalog]
+    [query, createControl, updateControl, deleteControl, importCatalog],
   );
 }
 
 export function useEvidences(controlId: string | undefined) {
   const queryClient = useQueryClient();
-  const queryKey = controlId ? evidencesQueryKey(controlId) : ['compliance', 'evidences', 'disabled'];
+  const queryKey = controlId
+    ? evidencesQueryKey(controlId)
+    : ['compliance', 'evidences', 'disabled'];
 
   const query = useQuery({
     queryKey,
@@ -328,7 +374,7 @@ export function useEvidences(controlId: string | undefined) {
       if (previous) {
         queryClient.setQueryData(
           queryKey,
-          previous.filter((e) => e.id !== id)
+          previous.filter((e) => e.id !== id),
         );
       }
       return { previous };
@@ -353,7 +399,7 @@ export function useEvidences(controlId: string | undefined) {
       deleteEvidence,
       downloadEvidence,
     }),
-    [query, createEvidence, deleteEvidence, downloadEvidence]
+    [query, createEvidence, deleteEvidence, downloadEvidence],
   );
 }
 
@@ -366,10 +412,12 @@ export function useControlMappings(controlId: string | undefined) {
     queryFn: () => complianceService.listControlMappings(controlId),
     enabled: !!controlId,
   });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['compliance', 'control-mappings'] });
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ['compliance', 'control-mappings'] });
 
   const create = useMutation({
-    mutationFn: (payload: CreateControlMappingInput) => complianceService.createControlMapping(payload),
+    mutationFn: (payload: CreateControlMappingInput) =>
+      complianceService.createControlMapping(payload),
     onSettled: invalidate,
   });
   const remove = useMutation({
@@ -378,7 +426,13 @@ export function useControlMappings(controlId: string | undefined) {
   });
 
   return useMemo(
-    () => ({ mappings: query.data ?? [], isLoading: query.isLoading, error: query.error, create, remove }),
-    [query, create, remove]
+    () => ({
+      mappings: query.data ?? [],
+      isLoading: query.isLoading,
+      error: query.error,
+      create,
+      remove,
+    }),
+    [query, create, remove],
   );
 }

@@ -92,161 +92,161 @@ export function ScoreExplainer({
   const treated = score.inherent - score.residual;
 
   const body = (
-      <div
-        role={inline ? undefined : 'dialog'}
-        aria-label={tr('Explication du score', 'Score explanation')}
-        data-testid="score-explainer"
-        className={
-          inline
-            ? 'w-full p-5'
-            : 'relative w-full max-w-[520px] max-h-[85vh] overflow-y-auto rounded-[16px] p-5'
-        }
-        style={
-          inline
-            ? undefined
-            : {
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                boxShadow: '0 20px 50px rgba(0,0,0,.3)',
-                animation: 'or-scalein .18s ease',
-              }
-        }
-      >
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="text-[15.5px] font-bold text-ink">
-              {tr('Comment ce score est calculé', 'How this score is computed')}
-            </div>
-            <div className="text-[12.5px] text-ink-soft mt-0.5">
-              {tr(
-                'Chaque contribution ci-dessous s’additionne pour donner le score.',
-                'Each contribution below adds up to the score.',
-              )}
-            </div>
+    <div
+      role={inline ? undefined : 'dialog'}
+      aria-label={tr('Explication du score', 'Score explanation')}
+      data-testid="score-explainer"
+      className={
+        inline
+          ? 'w-full p-5'
+          : 'relative w-full max-w-[520px] max-h-[85vh] overflow-y-auto rounded-[16px] p-5'
+      }
+      style={
+        inline
+          ? undefined
+          : {
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-strong)',
+              boxShadow: '0 20px 50px rgba(0,0,0,.3)',
+              animation: 'or-scalein .18s ease',
+            }
+      }
+    >
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="text-[15.5px] font-bold text-ink">
+            {tr('Comment ce score est calculé', 'How this score is computed')}
           </div>
-          {!inline && onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-ink-muted hover:text-ink transition-colors shrink-0"
-              aria-label={tr('Fermer', 'Close')}
-            >
-              <X size={17} />
-            </button>
-          )}
+          <div className="text-[12.5px] text-ink-soft mt-0.5">
+            {tr(
+              'Chaque contribution ci-dessous s’additionne pour donner le score.',
+              'Each contribution below adds up to the score.',
+            )}
+          </div>
         </div>
-
-        {/* Inherent vs residual — the pair an auditor asks for. */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <ScoreCard
-            label={tr('Risque inhérent', 'Inherent risk')}
-            hint={tr('Avant traitement', 'Before treatment')}
-            value={score.inherent}
-            band={score.inherent_band}
-            lang={lang}
-          />
-          <ScoreCard
-            label={tr('Risque résiduel', 'Residual risk')}
-            hint={tr('Après mitigations appliquées', 'After applied mitigations')}
-            value={score.residual}
-            band={score.residual_band}
-            lang={lang}
-            emphasis
-          />
-        </div>
-
-        {treated > 0.05 && (
-          <div
-            className="rounded-[10px] p-2.5 mb-4 text-[12.5px] text-ink-soft"
-            style={{ background: 'var(--bg-hover)' }}
+        {!inline && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-ink-muted hover:text-ink transition-colors shrink-0"
+            aria-label={tr('Fermer', 'Close')}
           >
-            {tr('Les mitigations appliquées retirent ', 'Applied mitigations remove ')}
-            <span className="mono font-semibold text-ink">{treated.toFixed(1)}</span>
-            {tr(' points, soit ', ' points, i.e. ')}
-            <span className="mono font-semibold text-ink">
-              {Math.round(score.mitigation_effectiveness * 100)}%
-            </span>
-            {tr(" de l'exposition.", ' of the exposure.')}
-          </div>
+            <X size={17} />
+          </button>
         )}
+      </div>
 
-        {/* Contributions */}
-        <div className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-2">
-          {tr('Contribution de chaque facteur', 'Contribution of each factor')}
-        </div>
-        <ul className="list-none p-0 m-0 flex flex-col gap-2.5 mb-4">
-          {available.map((f) => (
-            <FactorBar key={f.factor} factor={f} max={maxContribution} lang={lang} />
-          ))}
-        </ul>
+      {/* Inherent vs residual — the pair an auditor asks for. */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <ScoreCard
+          label={tr('Risque inhérent', 'Inherent risk')}
+          hint={tr('Avant traitement', 'Before treatment')}
+          value={score.inherent}
+          band={score.inherent_band}
+          lang={lang}
+        />
+        <ScoreCard
+          label={tr('Risque résiduel', 'Residual risk')}
+          hint={tr('Après mitigations appliquées', 'After applied mitigations')}
+          value={score.residual}
+          band={score.residual_band}
+          lang={lang}
+          emphasis
+        />
+      </div>
 
-        {/* The sum, stated. If it did not reconcile, this is where you would see it. */}
+      {treated > 0.05 && (
         <div
-          className="flex items-center justify-between rounded-[10px] px-3 py-2 mb-4 text-[13px]"
+          className="rounded-[10px] p-2.5 mb-4 text-[12.5px] text-ink-soft"
           style={{ background: 'var(--bg-hover)' }}
         >
-          <span className="font-semibold text-ink">
-            {tr('Total (risque inhérent)', 'Total (inherent risk)')}
+          {tr('Les mitigations appliquées retirent ', 'Applied mitigations remove ')}
+          <span className="mono font-semibold text-ink">{treated.toFixed(1)}</span>
+          {tr(' points, soit ', ' points, i.e. ')}
+          <span className="mono font-semibold text-ink">
+            {Math.round(score.mitigation_effectiveness * 100)}%
           </span>
-          <span className="mono font-bold text-ink">{score.inherent.toFixed(1)} / 100</span>
+          {tr(" de l'exposition.", ' of the exposure.')}
         </div>
+      )}
 
-        {missing.length > 0 && (
-          <div className="mb-4">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-1.5">
-              {tr('Non mesuré', 'Not measured')}
-            </div>
-            <ul className="list-none p-0 m-0 flex flex-col gap-1">
-              {missing.map((f) => (
-                <li
-                  key={f.factor}
-                  className="flex items-center gap-2 text-[12.5px] text-ink-muted"
-                  data-testid={`score-factor-missing-${f.factor}`}
-                >
-                  <MinusCircle size={13} />
-                  {factorLabel(f.factor, lang)}
-                </li>
-              ))}
-            </ul>
-            <div className="text-[11.5px] text-ink-muted mt-1.5 leading-snug">
-              {tr(
-                'Ces facteurs sont exclus du calcul et leur poids redistribué — une donnée absente n’est jamais comptée comme un bon résultat.',
-                'These factors are excluded and their weight redistributed — a missing signal is never counted as a good one.',
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Assumptions */}
-        {Object.keys(score.inputs ?? {}).length > 0 && (
-          <details className="mb-3">
-            <summary className="text-[12.5px] font-semibold text-ink cursor-pointer">
-              {tr('Hypothèses utilisées', 'Assumptions used')}
-            </summary>
-            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
-              {Object.entries(score.inputs).map(([key, value]) => (
-                <div key={key} className="contents">
-                  <dt className="text-ink-muted truncate">{key}</dt>
-                  <dd className="mono text-ink text-right m-0">{formatInput(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </details>
-        )}
-
-        {/* Provenance */}
-        <div className="text-[11.5px] text-ink-muted flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span>
-            {tr('Calculé le ', 'Computed ')}
-            <span className="mono">{formatDate(score.computed_at, lang)}</span>
-          </span>
-          <span>
-            {tr('Formule ', 'Formula ')}
-            <span className="mono">v{score.formula_version}</span>
-          </span>
-          <span className="mono">{score.scope}</span>
-        </div>
+      {/* Contributions */}
+      <div className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-2">
+        {tr('Contribution de chaque facteur', 'Contribution of each factor')}
       </div>
+      <ul className="list-none p-0 m-0 flex flex-col gap-2.5 mb-4">
+        {available.map((f) => (
+          <FactorBar key={f.factor} factor={f} max={maxContribution} lang={lang} />
+        ))}
+      </ul>
+
+      {/* The sum, stated. If it did not reconcile, this is where you would see it. */}
+      <div
+        className="flex items-center justify-between rounded-[10px] px-3 py-2 mb-4 text-[13px]"
+        style={{ background: 'var(--bg-hover)' }}
+      >
+        <span className="font-semibold text-ink">
+          {tr('Total (risque inhérent)', 'Total (inherent risk)')}
+        </span>
+        <span className="mono font-bold text-ink">{score.inherent.toFixed(1)} / 100</span>
+      </div>
+
+      {missing.length > 0 && (
+        <div className="mb-4">
+          <div className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-1.5">
+            {tr('Non mesuré', 'Not measured')}
+          </div>
+          <ul className="list-none p-0 m-0 flex flex-col gap-1">
+            {missing.map((f) => (
+              <li
+                key={f.factor}
+                className="flex items-center gap-2 text-[12.5px] text-ink-muted"
+                data-testid={`score-factor-missing-${f.factor}`}
+              >
+                <MinusCircle size={13} />
+                {factorLabel(f.factor, lang)}
+              </li>
+            ))}
+          </ul>
+          <div className="text-[11.5px] text-ink-muted mt-1.5 leading-snug">
+            {tr(
+              'Ces facteurs sont exclus du calcul et leur poids redistribué — une donnée absente n’est jamais comptée comme un bon résultat.',
+              'These factors are excluded and their weight redistributed — a missing signal is never counted as a good one.',
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Assumptions */}
+      {Object.keys(score.inputs ?? {}).length > 0 && (
+        <details className="mb-3">
+          <summary className="text-[12.5px] font-semibold text-ink cursor-pointer">
+            {tr('Hypothèses utilisées', 'Assumptions used')}
+          </summary>
+          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
+            {Object.entries(score.inputs).map(([key, value]) => (
+              <div key={key} className="contents">
+                <dt className="text-ink-muted truncate">{key}</dt>
+                <dd className="mono text-ink text-right m-0">{formatInput(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
+
+      {/* Provenance */}
+      <div className="text-[11.5px] text-ink-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span>
+          {tr('Calculé le ', 'Computed ')}
+          <span className="mono">{formatDate(score.computed_at, lang)}</span>
+        </span>
+        <span>
+          {tr('Formule ', 'Formula ')}
+          <span className="mono">v{score.formula_version}</span>
+        </span>
+        <span className="mono">{score.scope}</span>
+      </div>
+    </div>
   );
 
   if (inline) return body;
@@ -303,15 +303,7 @@ function ScoreCard({
   );
 }
 
-function FactorBar({
-  factor,
-  max,
-  lang,
-}: {
-  factor: ScoreFactor;
-  max: number;
-  lang: 'fr' | 'en';
-}) {
+function FactorBar({ factor, max, lang }: { factor: ScoreFactor; max: number; lang: 'fr' | 'en' }) {
   const width = Math.max(2, (factor.contribution / max) * 100);
   return (
     <li data-testid={`score-factor-${factor.factor}`}>

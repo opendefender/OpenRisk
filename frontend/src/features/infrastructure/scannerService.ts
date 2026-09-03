@@ -8,9 +8,19 @@
 import { api } from '../../lib/api';
 
 export type ScannerProvider =
-  | 'aws' | 'azure' | 'gcp' | 'nmap' | 'agent'
+  | 'aws'
+  | 'azure'
+  | 'gcp'
+  | 'nmap'
+  | 'agent'
   // Auto-discovery API providers (spec "6. Découverte automatique des actifs").
-  | 'kubernetes' | 'docker' | 'vmware' | 'active_directory' | 'm365' | 'github' | 'gitlab';
+  | 'kubernetes'
+  | 'docker'
+  | 'vmware'
+  | 'active_directory'
+  | 'm365'
+  | 'github'
+  | 'gitlab';
 export type AgentStatus = 'online' | 'offline' | 'scanning' | 'error' | 'revoked';
 export type ScanJobStatus = 'queued' | 'claimed' | 'running' | 'completed' | 'failed' | 'timeout';
 
@@ -152,7 +162,8 @@ export interface ImportSelection {
 }
 
 export const scannerService = {
-  listConfigs: async (): Promise<ScanConfig[]> => (await api.get<ScanConfig[]>('/scanner/configs')).data ?? [],
+  listConfigs: async (): Promise<ScanConfig[]> =>
+    (await api.get<ScanConfig[]>('/scanner/configs')).data ?? [],
 
   createConfig: async (input: CreateScanConfigInput): Promise<ScanConfig> =>
     (await api.post<ScanConfig>('/scanner/configs', input)).data,
@@ -167,7 +178,8 @@ export const scannerService = {
   registrationToken: async (id: string): Promise<RegistrationTokenResponse> =>
     (await api.post<RegistrationTokenResponse>(`/scanner/configs/${id}/registration-token`)).data,
 
-  listAgents: async (): Promise<ScannerAgent[]> => (await api.get<ScannerAgent[]>('/scanner/agents')).data ?? [],
+  listAgents: async (): Promise<ScannerAgent[]> =>
+    (await api.get<ScannerAgent[]>('/scanner/agents')).data ?? [],
 
   revokeAgent: async (id: string): Promise<void> => {
     await api.delete(`/scanner/agents/${id}`);
@@ -178,8 +190,12 @@ export const scannerService = {
   getPreview: async (jobId: string): Promise<ScanPreview> =>
     (await api.get<ScanPreview>(`/scanner/jobs/${jobId}/preview`)).data,
 
-  importPreview: async (jobId: string, selections: ImportSelection[]): Promise<{ assets_imported: number }> =>
-    (await api.post<{ assets_imported: number }>(`/scanner/jobs/${jobId}/import`, { selections })).data,
+  importPreview: async (
+    jobId: string,
+    selections: ImportSelection[],
+  ): Promise<{ assets_imported: number }> =>
+    (await api.post<{ assets_imported: number }>(`/scanner/jobs/${jobId}/import`, { selections }))
+      .data,
 
   ignorePreview: async (jobId: string): Promise<void> => {
     await api.post(`/scanner/jobs/${jobId}/ignore`);

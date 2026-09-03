@@ -73,7 +73,10 @@ export interface ScoreModel {
   min_value: number;
   max_value: number;
   bands: ScoreBandRange[];
-  scopes: { scope: ScoreScope; factors: { factor: string; weight: number; label_i18n_key: string }[] }[];
+  scopes: {
+    scope: ScoreScope;
+    factors: { factor: string; weight: number; label_i18n_key: string }[];
+  }[];
   input_bounds: Record<string, number[]>;
 }
 
@@ -93,7 +96,11 @@ export const scoreService = {
   },
 
   async preview(input: ScorePreviewInput, signal?: AbortSignal): Promise<Score> {
-    const { data } = await api.post<Score>('/score/preview', { scope: 'risk', ...input }, { signal });
+    const { data } = await api.post<Score>(
+      '/score/preview',
+      { scope: 'risk', ...input },
+      { signal },
+    );
     return data;
   },
 

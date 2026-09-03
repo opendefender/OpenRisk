@@ -71,8 +71,9 @@ export function useUpdateEvidence() {
 }
 
 export function useLinkEvidence() {
-  return useEvidenceMutation(({ id, controlIds, note }: { id: string; controlIds: string[]; note?: string }) =>
-    evidenceService.link(id, controlIds, note),
+  return useEvidenceMutation(
+    ({ id, controlIds, note }: { id: string; controlIds: string[]; note?: string }) =>
+      evidenceService.link(id, controlIds, note),
   );
 }
 
@@ -84,8 +85,15 @@ export function useUnlinkEvidence() {
 
 export function useReviewEvidence() {
   return useEvidenceMutation(
-    ({ id, review, note }: { id: string; review: 'accepted' | 'rejected' | 'pending'; note?: string }) =>
-      evidenceService.review(id, review, note),
+    ({
+      id,
+      review,
+      note,
+    }: {
+      id: string;
+      review: 'accepted' | 'rejected' | 'pending';
+      note?: string;
+    }) => evidenceService.review(id, review, note),
   );
 }
 

@@ -107,7 +107,9 @@ describe('MFAEnrollmentBanner — renders the server state, decides nothing', ()
   });
 
   it('escalates to an assertive alert once enrolment is mandatory', async () => {
-    fetchMFAStatus.mockResolvedValue(status({ state: 'required', required: true, privileged: true }));
+    fetchMFAStatus.mockResolvedValue(
+      status({ state: 'required', required: true, privileged: true }),
+    );
     renderBanner();
 
     const banner = await screen.findByTestId('mfa-enrollment-banner');
@@ -144,9 +146,12 @@ describe('MFAEnrollmentBanner — renders the server state, decides nothing', ()
 
     // Generous timeout: the hook retries once on purpose, so a transient
     // failure does not paint an error banner over an account that is fine.
-    await waitFor(() => expect(screen.getByRole('button', { name: /retry|réessayer/i })).toBeInTheDocument(), {
-      timeout: 5000,
-    });
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /retry|réessayer/i })).toBeInTheDocument(),
+      {
+        timeout: 5000,
+      },
+    );
     expect(screen.queryByTestId('mfa-enrollment-banner')).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/protected|protégé/i);
   });
@@ -157,7 +162,9 @@ describe('MFAEnrollmentBanner — renders the server state, decides nothing', ()
     fetchMFAStatus.mockResolvedValue(null);
     renderBanner();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /retry|réessayer/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /retry|réessayer/i })).toBeInTheDocument(),
+    );
   });
 });
 

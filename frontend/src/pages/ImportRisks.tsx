@@ -65,49 +65,55 @@ export const ImportRisksPage = () => {
   };
 
   // Parse file and show preview
-  const handleFileSelect = useCallback(async (file: File) => {
-    const format = file.name.split('.').pop()?.toLowerCase() as FileFormat | undefined;
+  const handleFileSelect = useCallback(
+    async (file: File) => {
+      const format = file.name.split('.').pop()?.toLowerCase() as FileFormat | undefined;
 
-    if (!['csv', 'json', 'xlsx'].includes(format || '')) {
-      error(t('errors.invalidFile'));
-      return;
-    }
-
-    setSelectedFile(file);
-    setDragState('processing');
-
-    try {
-      let data: any[] = [];
-
-      if (format === 'json') {
-        const text = await file.text();
-        data = JSON.parse(text);
-      } else if (format === 'csv') {
-        // Simple CSV parser (production would use a library)
-        const text = await file.text();
-        const lines = text.split('\n');
-        const headers = lines[0].split(',').map((h) => h.trim());
-        data = lines.slice(1).map((line) => {
-          const values = line.split(',');
-          return headers.reduce((acc, header, i) => {
-            acc[header] = values[i]?.trim() || '';
-            return acc;
-          }, {} as Record<string, string>);
-        });
-      } else if (format === 'xlsx') {
-        error(t('common.loading')); // Placeholder - need excelize library
+      if (!['csv', 'json', 'xlsx'].includes(format || '')) {
+        error(t('errors.invalidFile'));
         return;
       }
 
-      // Show first 10 rows as preview
-      setPreview(data.slice(0, 10));
-      setDragState('idle');
-      success(t('messages.importStarted'));
-    } catch (err) {
-      error(interpolate(t('errors.failedToImportRisks'), {}));
-      setDragState('idle');
-    }
-  }, [t, error, success]);
+      setSelectedFile(file);
+      setDragState('processing');
+
+      try {
+        let data: any[] = [];
+
+        if (format === 'json') {
+          const text = await file.text();
+          data = JSON.parse(text);
+        } else if (format === 'csv') {
+          // Simple CSV parser (production would use a library)
+          const text = await file.text();
+          const lines = text.split('\n');
+          const headers = lines[0].split(',').map((h) => h.trim());
+          data = lines.slice(1).map((line) => {
+            const values = line.split(',');
+            return headers.reduce(
+              (acc, header, i) => {
+                acc[header] = values[i]?.trim() || '';
+                return acc;
+              },
+              {} as Record<string, string>,
+            );
+          });
+        } else if (format === 'xlsx') {
+          error(t('common.loading')); // Placeholder - need excelize library
+          return;
+        }
+
+        // Show first 10 rows as preview
+        setPreview(data.slice(0, 10));
+        setDragState('idle');
+        success(t('messages.importStarted'));
+      } catch (err) {
+        error(interpolate(t('errors.failedToImportRisks'), {}));
+        setDragState('idle');
+      }
+    },
+    [t, error, success],
+  );
 
   // Handle drag and drop
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -187,7 +193,10 @@ export const ImportRisksPage = () => {
     <div className="max-w-5xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <Link to="/risks" className="inline-flex items-center gap-1.5 text-sm font-medium text-fg-secondary hover:text-fg-primary transition-colors mb-3">
+        <Link
+          to="/risks"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-fg-secondary hover:text-fg-primary transition-colors mb-3"
+        >
           <ArrowLeft size={15} /> {t('risks.title')}
         </Link>
         <h1 className="text-3xl font-bold text-fg-primary mb-2">{t('risks.import')}</h1>
@@ -211,7 +220,7 @@ export const ImportRisksPage = () => {
             className={cn(
               'relative border-2 border-dashed rounded-xl p-12 text-center',
               'transition-all duration-300 cursor-pointer',
-              dragState === 'dragging' && 'bg-accent-soft border-accent-line'
+              dragState === 'dragging' && 'bg-accent-soft border-accent-line',
             )}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -229,7 +238,9 @@ export const ImportRisksPage = () => {
                   <FileText className="text-warning-text" size={32} />
                   <FileSpreadsheet className="text-success-text" size={32} />
                 </div>
-                <h3 className="text-lg font-semibold text-fg-primary mb-2">{t('risks.dragDropHint')}</h3>
+                <h3 className="text-lg font-semibold text-fg-primary mb-2">
+                  {t('risks.dragDropHint')}
+                </h3>
                 <p className="text-sm text-fg-secondary">CSV, JSON, XLSX</p>
               </>
             )}
@@ -245,11 +256,7 @@ export const ImportRisksPage = () => {
 
           {/* Template Download */}
           <div className="flex justify-center">
-            <Button
-              onClick={handleDownloadTemplate}
-              variant="ghost"
-              className="gap-2"
-            >
+            <Button onClick={handleDownloadTemplate} variant="ghost" className="gap-2">
               <Download size={16} />
               {t('risks.templateDownload')}
             </Button>
@@ -263,7 +270,9 @@ export const ImportRisksPage = () => {
               className="space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-fg-primary">{t('risks.importPreview')}</h3>
+                <h3 className="text-lg font-semibold text-fg-primary">
+                  {t('risks.importPreview')}
+                </h3>
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -326,11 +335,7 @@ export const ImportRisksPage = () => {
         </div>
       ) : (
         /* Results */
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-6"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           {importResult.success > 0 && (
             <div className="flex items-center gap-4 p-4 rounded-lg bg-success/10 border border-success/50">
               <CheckCircle2 size={24} className="text-success-text shrink-0" />

@@ -36,18 +36,10 @@
  * rewriting call sites.
  */
 
-import type { ReactNode } from "react";
-import {
-  Inbox,
-  SearchX,
-  AlertTriangle,
-  Lock,
-  ExternalLink,
-  type LucideIcon,
-} from "lucide-react";
+import type { ReactNode } from 'react';
+import { Inbox, SearchX, AlertTriangle, Lock, ExternalLink, type LucideIcon } from 'lucide-react';
 
-export type EmptyVariant =
-  "first-use" | "no-results" | "error" | "no-permission";
+export type EmptyVariant = 'first-use' | 'no-results' | 'error' | 'no-permission';
 
 /**
  * A translucent wash of `color` over whatever is behind it.
@@ -72,10 +64,10 @@ interface VariantStyle {
 }
 
 const VARIANTS: Record<EmptyVariant, VariantStyle> = {
-  "first-use": { icon: Inbox, tone: "var(--accent)", tinted: true },
-  "no-results": { icon: SearchX, tone: "var(--fg-muted)", tinted: false },
-  error: { icon: AlertTriangle, tone: "var(--critical)", tinted: true },
-  "no-permission": { icon: Lock, tone: "var(--fg-muted)", tinted: false },
+  'first-use': { icon: Inbox, tone: 'var(--accent)', tinted: true },
+  'no-results': { icon: SearchX, tone: 'var(--fg-muted)', tinted: false },
+  error: { icon: AlertTriangle, tone: 'var(--critical)', tinted: true },
+  'no-permission': { icon: Lock, tone: 'var(--fg-muted)', tinted: false },
 };
 
 export interface EmptyProps {
@@ -96,7 +88,7 @@ export interface EmptyProps {
 }
 
 export function Empty({
-  variant = "first-use",
+  variant = 'first-use',
   icon,
   title,
   description,
@@ -104,7 +96,7 @@ export function Empty({
   secondaryAction,
   learnMoreHref,
   learnMoreLabel,
-  className = "",
+  className = '',
 }: EmptyProps) {
   const v = VARIANTS[variant];
   const Icon = icon ?? v.icon;
@@ -118,12 +110,12 @@ export function Empty({
       data-variant={variant}
       role="status"
       className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className}`}
-      style={{ animation: "or-fadein .3s ease" }}
+      style={{ animation: 'or-fadein .3s ease' }}
     >
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
         style={{
-          background: v.tinted ? tint(v.tone, 12) : "var(--bg-hover)",
+          background: v.tinted ? tint(v.tone, 12) : 'var(--bg-hover)',
           color: v.tone,
         }}
       >
@@ -133,9 +125,7 @@ export function Empty({
       <div className="text-md font-semibold text-ink mb-1.5">{title}</div>
 
       {description && (
-        <div className="text-sm text-ink-soft max-w-sm leading-relaxed">
-          {description}
-        </div>
+        <div className="text-sm text-ink-soft max-w-sm leading-relaxed">{description}</div>
       )}
 
       {hasActions && (
@@ -152,7 +142,7 @@ export function Empty({
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors mt-4"
         >
-          {learnMoreLabel ?? "En savoir plus"}
+          {learnMoreLabel ?? 'En savoir plus'}
           <ExternalLink size={13} strokeWidth={1.8} />
         </a>
       )}

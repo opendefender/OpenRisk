@@ -20,7 +20,11 @@ describe('useCountUp', () => {
   it('shows the target immediately under prefers-reduced-motion (no animation from 0)', () => {
     vi.stubGlobal(
       'matchMedia',
-      vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
     );
     const { result } = renderHook(() => useCountUp(12));
     expect(result.current).toBe(12);
@@ -29,7 +33,11 @@ describe('useCountUp', () => {
   it('settles on the target when requestAnimationFrame never advances', () => {
     vi.stubGlobal(
       'matchMedia',
-      vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
     );
     // rAF that never invokes its callback (models a non-composited / background
     // page). The displayed value must still be the real number, not a frozen 0.

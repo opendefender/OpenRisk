@@ -94,7 +94,7 @@ export function WidgetState({
           title={tr('Indicateur non accessible', 'Metric not available to you')}
           description={tr(
             "Votre rôle ne donne pas accès à ces données. Un administrateur de l'organisation peut vous les ouvrir.",
-            'Your role does not grant access to this data. An organisation administrator can grant it.'
+            'Your role does not grant access to this data. An organisation administrator can grant it.',
           )}
           className="py-8"
         />
@@ -107,7 +107,7 @@ export function WidgetState({
         title={tr('Données indisponibles', 'Data unavailable')}
         description={tr(
           "Impossible de lire cet indicateur. Aucune valeur n'est affichée tant qu'elle n'a pas été lue — réessayez, ou contactez un administrateur si cela persiste.",
-          'This metric could not be read. Nothing is shown until it has been — retry, or contact an administrator if it persists.'
+          'This metric could not be read. Nothing is shown until it has been — retry, or contact an administrator if it persists.',
         )}
         primaryAction={retry ? <Btn label={tr('Réessayer', 'Retry')} onClick={retry} /> : undefined}
         className="py-8"
@@ -123,7 +123,7 @@ export function WidgetState({
         title={tr('Rien sur cette période', 'Nothing in this period')}
         description={tr(
           'Il existe des données en dehors de la fenêtre sélectionnée. Élargissez la période pour les voir.',
-          'There is data outside the selected window. Widen the period to see it.'
+          'There is data outside the selected window. Widen the period to see it.',
         )}
         primaryAction={
           onWidenPeriod ? (

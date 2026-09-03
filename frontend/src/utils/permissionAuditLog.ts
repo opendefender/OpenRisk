@@ -73,7 +73,7 @@ class PermissionAuditLogger {
     userId: string,
     permission: string,
     allowed: boolean,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): void {
     const [resource, action] = permission.split(':');
     this.log({
@@ -90,12 +90,7 @@ class PermissionAuditLogger {
   /**
    * Log a permission grant
    */
-  logGrant(
-    userId: string,
-    targetUserId: string,
-    permission: string,
-    reason?: string
-  ): void {
+  logGrant(userId: string, targetUserId: string, permission: string, reason?: string): void {
     const [resource, action] = permission.split(':');
     this.log({
       userId,
@@ -112,12 +107,7 @@ class PermissionAuditLogger {
   /**
    * Log a permission revoke
    */
-  logRevoke(
-    userId: string,
-    targetUserId: string,
-    permission: string,
-    reason?: string
-  ): void {
+  logRevoke(userId: string, targetUserId: string, permission: string, reason?: string): void {
     const [resource, action] = permission.split(':');
     this.log({
       userId,
@@ -134,12 +124,7 @@ class PermissionAuditLogger {
   /**
    * Log a failed permission grant attempt
    */
-  logGrantFailed(
-    userId: string,
-    targetUserId: string,
-    permission: string,
-    reason: string
-  ): void {
+  logGrantFailed(userId: string, targetUserId: string, permission: string, reason: string): void {
     const [resource, action] = permission.split(':');
     this.log({
       userId,
@@ -173,13 +158,10 @@ class PermissionAuditLogger {
   }): PermissionAuditEvent[] {
     return this.logs.filter((event) => {
       if (criteria.userId && event.userId !== criteria.userId) return false;
-      if (criteria.permission && event.permission !== criteria.permission)
-        return false;
+      if (criteria.permission && event.permission !== criteria.permission) return false;
       if (criteria.action && event.action !== criteria.action) return false;
-      if (criteria.allowed !== undefined && event.allowed !== criteria.allowed)
-        return false;
-      if (criteria.startTime && event.timestamp < criteria.startTime)
-        return false;
+      if (criteria.allowed !== undefined && event.allowed !== criteria.allowed) return false;
+      if (criteria.startTime && event.timestamp < criteria.startTime) return false;
       if (criteria.endTime && event.timestamp > criteria.endTime) return false;
       return true;
     });
@@ -226,7 +208,7 @@ class PermissionAuditLogger {
         stats: this.getStats(),
       },
       null,
-      2
+      2,
     );
   }
 

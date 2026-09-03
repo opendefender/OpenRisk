@@ -16,7 +16,7 @@ export const topologyService = {
 
   compromiseChain: async (assetId: string): Promise<CompromiseChain> => {
     const { data } = await api.get<CompromiseChain>(
-      `/attack-surface/topology/${assetId}/compromise-chain`
+      `/attack-surface/topology/${assetId}/compromise-chain`,
     );
     return data;
   },

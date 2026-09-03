@@ -209,9 +209,7 @@ export function OrganizationStep() {
     setSize(str(stored, 'size'));
     setCountry(str(stored, 'country'));
     setCurrency(str(stored, 'currency'));
-    setTimezone(
-      str(stored, 'timezone', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
-    );
+    setTimezone(str(stored, 'timezone', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'));
   }, [stored, orgName]);
 
   const answers = { name, industry, size, country, currency, timezone };
@@ -454,7 +452,12 @@ export function ProfileStep() {
             set: setNotifyInApp,
             label: tr('Dans l’application', 'In-app'),
           },
-          { id: 'n-mail', checked: notifyEmail, set: setNotifyEmail, label: tr('Par e-mail', 'By email') },
+          {
+            id: 'n-mail',
+            checked: notifyEmail,
+            set: setNotifyEmail,
+            label: tr('Par e-mail', 'By email'),
+          },
         ].map((row) => (
           <label
             key={row.id}

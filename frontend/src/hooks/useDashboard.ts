@@ -31,10 +31,7 @@ interface UseDataState<T> {
 /**
  * Generic hook for fetching data from API endpoints
  */
-function useApiData<T>(
-  url: string,
-  options?: RequestInit
-): UseDataState<T> {
+function useApiData<T>(url: string, options?: RequestInit): UseDataState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +83,7 @@ export function useDashboardMetrics(): UseDataState<DashboardMetrics> {
  */
 export function useRiskTrends(): UseDataState<RiskTrendDataPoint[]> {
   const result = useApiData<{ trends: RiskTrendDataPoint[] }>(
-    `${API_BASE_URL}/dashboard/risk-trends`
+    `${API_BASE_URL}/dashboard/risk-trends`,
   );
 
   return {
@@ -101,18 +98,14 @@ export function useRiskTrends(): UseDataState<RiskTrendDataPoint[]> {
  * Hook for fetching risk severity distribution
  */
 export function useSeverityDistribution(): UseDataState<RiskSeverityDistribution> {
-  return useApiData<RiskSeverityDistribution>(
-    `${API_BASE_URL}/dashboard/severity-distribution`
-  );
+  return useApiData<RiskSeverityDistribution>(`${API_BASE_URL}/dashboard/severity-distribution`);
 }
 
 /**
  * Hook for fetching mitigation status summary
  */
 export function useMitigationStatus(): UseDataState<MitigationStatus> {
-  return useApiData<MitigationStatus>(
-    `${API_BASE_URL}/dashboard/mitigation-status`
-  );
+  return useApiData<MitigationStatus>(`${API_BASE_URL}/dashboard/mitigation-status`);
 }
 
 /**
@@ -121,7 +114,7 @@ export function useMitigationStatus(): UseDataState<MitigationStatus> {
  */
 export function useTopRisks(limit: number = 5): UseDataState<TopRisk[]> {
   const result = useApiData<{ top_risks: TopRisk[]; count: number }>(
-    `${API_BASE_URL}/dashboard/top-risks?limit=${Math.min(limit, 50)}`
+    `${API_BASE_URL}/dashboard/top-risks?limit=${Math.min(limit, 50)}`,
   );
 
   return {
@@ -138,7 +131,7 @@ export function useTopRisks(limit: number = 5): UseDataState<TopRisk[]> {
  */
 export function useMitigationProgress(limit: number = 10): UseDataState<MitigationProgress[]> {
   const result = useApiData<{ mitigations: MitigationProgress[]; count: number }>(
-    `${API_BASE_URL}/dashboard/mitigation-progress?limit=${Math.min(limit, 100)}`
+    `${API_BASE_URL}/dashboard/mitigation-progress?limit=${Math.min(limit, 100)}`,
   );
 
   return {
@@ -154,9 +147,7 @@ export function useMitigationProgress(limit: number = 10): UseDataState<Mitigati
  * More efficient for initial page load
  */
 export function useCompleteDashboard(): UseDataState<CompleteDashboardAnalytics> {
-  return useApiData<CompleteDashboardAnalytics>(
-    `${API_BASE_URL}/dashboard/complete`
-  );
+  return useApiData<CompleteDashboardAnalytics>(`${API_BASE_URL}/dashboard/complete`);
 }
 
 /**
@@ -164,7 +155,7 @@ export function useCompleteDashboard(): UseDataState<CompleteDashboardAnalytics>
  * Useful for keeping dashboard fresh without WebSocket
  */
 export function useDashboardPoller(
-  interval: number = 30000 // Default: 30 seconds
+  interval: number = 30000, // Default: 30 seconds
 ): UseDataState<CompleteDashboardAnalytics> {
   const state = useCompleteDashboard();
 

@@ -108,7 +108,8 @@ export const RoleManagement = () => {
       await fetchRolesAndPermissions();
     } catch (err: any) {
       toast.error(
-        err.response?.data?.message || "We couldn't create the role. Please check your input and try again."
+        err.response?.data?.message ||
+          "We couldn't create the role. Please check your input and try again.",
       );
     } finally {
       setIsCreating(false);
@@ -116,7 +117,11 @@ export const RoleManagement = () => {
   };
 
   const handleDeleteRole = async (roleId: string, roleName: string) => {
-    if (!confirm(`Are you sure you want to delete the "${roleName}" role? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete the "${roleName}" role? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
@@ -127,7 +132,8 @@ export const RoleManagement = () => {
       await fetchRolesAndPermissions();
     } catch (err: any) {
       toast.error(
-        err.response?.data?.message || "We couldn't delete this role. Please try again or contact support."
+        err.response?.data?.message ||
+          "We couldn't delete this role. Please try again or contact support.",
       );
     }
   };
@@ -155,7 +161,7 @@ export const RoleManagement = () => {
   };
 
   const filteredRoles = roles.filter((role) =>
-    role.name.toLowerCase().includes(searchTerm.toLowerCase())
+    role.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getResourceColor = (resource: string) => {
@@ -175,7 +181,9 @@ export const RoleManagement = () => {
         <div className="text-center">
           <Lock className="w-16 h-16 text-danger-text mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-fg-primary mb-2">Access Denied</h1>
-          <p className="text-fg-secondary">You need administrator privileges to access role management.</p>
+          <p className="text-fg-secondary">
+            You need administrator privileges to access role management.
+          </p>
         </div>
       </div>
     );
@@ -202,7 +210,8 @@ export const RoleManagement = () => {
                 <p className="text-sm text-fg-secondary">Manage roles and permissions</p>
               </div>
             </div>
-            <Button variant="primary"
+            <Button
+              variant="primary"
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90"
             >
@@ -222,7 +231,10 @@ export const RoleManagement = () => {
 
               {/* Search */}
               <div className="relative mb-6">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-secondary" />
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-secondary"
+                />
                 <input
                   type="text"
                   placeholder="Search roles..."
@@ -252,7 +264,8 @@ export const RoleManagement = () => {
                         <div className="flex-1">
                           <div className="font-medium">{role.name}</div>
                           <div className="text-xs text-fg-secondary">
-                            Level: {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Custom'}
+                            Level:{' '}
+                            {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Custom'}
                           </div>
                         </div>
                         <ChevronRight size={16} className="text-fg-secondary" />
@@ -276,7 +289,9 @@ export const RoleManagement = () => {
                 <div className="bg-surface border border-border rounded-lg p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-fg-primary mb-2">{selectedRole.name}</h2>
+                      <h2 className="text-2xl font-bold text-fg-primary mb-2">
+                        {selectedRole.name}
+                      </h2>
                       <p className="text-fg-secondary">{selectedRole.description}</p>
                     </div>
                     {!selectedRole.is_predefined && (
@@ -292,19 +307,25 @@ export const RoleManagement = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm text-fg-secondary mb-1">Level</div>
-                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                        levelLabels[selectedRole.level as keyof typeof levelLabels]?.color || 'bg-surface-3'
-                      }`}>
-                        {levelLabels[selectedRole.level as keyof typeof levelLabels]?.name || 'Custom'}
+                      <div
+                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                          levelLabels[selectedRole.level as keyof typeof levelLabels]?.color ||
+                          'bg-surface-3'
+                        }`}
+                      >
+                        {levelLabels[selectedRole.level as keyof typeof levelLabels]?.name ||
+                          'Custom'}
                       </div>
                     </div>
                     <div>
                       <div className="text-sm text-fg-secondary mb-1">Status</div>
-                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                        selectedRole.is_predefined
-                          ? 'bg-purple-500/10 text-purple-400'
-                          : 'bg-success/10 text-success-text'
-                      }`}>
+                      <div
+                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                          selectedRole.is_predefined
+                            ? 'bg-purple-500/10 text-purple-400'
+                            : 'bg-success/10 text-success-text'
+                        }`}
+                      >
                         {selectedRole.is_predefined ? 'System Role' : 'Custom Role'}
                       </div>
                     </div>
@@ -314,7 +335,9 @@ export const RoleManagement = () => {
                 {/* Permissions Matrix */}
                 <div className="bg-surface border border-border rounded-lg p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-semibold text-fg-primary">Permissions ({selectedRole.permissions.length})</h3>
+                    <h3 className="text-lg font-semibold text-fg-primary">
+                      Permissions ({selectedRole.permissions.length})
+                    </h3>
                     <button
                       onClick={() => setShowPermissionMatrix(!showPermissionMatrix)}
                       className="text-sm text-primary hover:text-primary/80 font-medium"
@@ -329,9 +352,11 @@ export const RoleManagement = () => {
                       {/* Group by resource */}
                       {Array.from(new Set(permissions.map((p) => p.resource))).map((resource) => (
                         <div key={resource} className="border border-border rounded-lg p-4">
-                          <h4 className={`text-sm font-semibold mb-3 px-3 py-1 rounded-full inline-block ${getResourceColor(
-                            resource
-                          )}`}>
+                          <h4
+                            className={`text-sm font-semibold mb-3 px-3 py-1 rounded-full inline-block ${getResourceColor(
+                              resource,
+                            )}`}
+                          >
                             {resource.charAt(0).toUpperCase() + resource.slice(1)}
                           </h4>
                           <div className="space-y-2">
@@ -339,7 +364,7 @@ export const RoleManagement = () => {
                               .filter((p) => p.resource === resource)
                               .map((permission) => {
                                 const isAssigned = selectedRole.permissions.some(
-                                  (p) => p.id === permission.id
+                                  (p) => p.id === permission.id,
                                 );
                                 return (
                                   <div
@@ -350,7 +375,9 @@ export const RoleManagement = () => {
                                       <div className="text-sm font-medium text-fg-primary">
                                         {resource}:{permission.action}
                                       </div>
-                                      <div className="text-xs text-fg-secondary">{permission.description}</div>
+                                      <div className="text-xs text-fg-secondary">
+                                        {permission.description}
+                                      </div>
                                     </div>
                                     <button
                                       onClick={() =>
@@ -388,7 +415,9 @@ export const RoleManagement = () => {
                               <div className="text-sm font-medium text-fg-primary">
                                 {permission.resource}:{permission.action}
                               </div>
-                              <div className="text-xs text-fg-secondary">{permission.description}</div>
+                              <div className="text-xs text-fg-secondary">
+                                {permission.description}
+                              </div>
                             </div>
                             <button
                               onClick={() => handleRemovePermission(selectedRole.id, permission.id)}
@@ -427,7 +456,9 @@ export const RoleManagement = () => {
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-fg-secondary mb-2">Role Name</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">
+                  Role Name
+                </label>
                 <input
                   type="text"
                   value={newRoleName}
@@ -438,7 +469,9 @@ export const RoleManagement = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-fg-secondary mb-2">Description</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">
+                  Description
+                </label>
                 <input
                   type="text"
                   value={newRoleDescription}
@@ -464,14 +497,11 @@ export const RoleManagement = () => {
             </div>
 
             <div className="flex gap-3">
-              <Button
-                onClick={() => setShowCreateModal(false)}
-                variant="ghost"
-                className="flex-1"
-              >
+              <Button onClick={() => setShowCreateModal(false)} variant="ghost" className="flex-1">
                 Cancel
               </Button>
-              <Button variant="primary"
+              <Button
+                variant="primary"
                 onClick={handleCreateRole}
                 disabled={isCreating}
                 className="flex-1"

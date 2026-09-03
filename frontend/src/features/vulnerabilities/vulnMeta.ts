@@ -24,7 +24,12 @@ export const STATUS_META: Record<VulnStatus, { label: [string, string]; color: s
 };
 
 export const STATUS_ORDER: VulnStatus[] = [
-  'open', 'triaged', 'in_remediation', 'remediated', 'accepted', 'false_positive',
+  'open',
+  'triaged',
+  'in_remediation',
+  'remediated',
+  'accepted',
+  'false_positive',
 ];
 
 export const TIER_META: Record<string, { color: string; label: [string, string] }> = {
@@ -46,4 +51,4 @@ export const SOURCE_LABEL: Record<VulnSource, string> = {
   manual: 'Manuel',
 };
 
-export const pick = <T,>(v: [T, T], lang: 'fr' | 'en'): T => (lang === 'fr' ? v[0] : v[1]);
+export const pick = <T>(v: [T, T], lang: 'fr' | 'en'): T => (lang === 'fr' ? v[0] : v[1]);

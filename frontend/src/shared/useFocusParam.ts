@@ -11,7 +11,11 @@
 import { useCallback } from 'react';
 import { useSearchParams } from 'react-router';
 
-export function useFocusParam(): { focusId: string | null; focusTab: string | null; clearFocus: () => void } {
+export function useFocusParam(): {
+  focusId: string | null;
+  focusTab: string | null;
+  clearFocus: () => void;
+} {
   const [params, setParams] = useSearchParams();
   const focusId = params.get('focus');
   // Optional companion: which tab of the focused entity's drawer to open.
@@ -26,7 +30,7 @@ export function useFocusParam(): { focusId: string | null; focusTab: string | nu
         next.delete('tab');
         return next;
       },
-      { replace: true }
+      { replace: true },
     );
   }, [setParams]);
   return { focusId, focusTab, clearFocus };

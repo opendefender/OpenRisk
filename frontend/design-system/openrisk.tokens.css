@@ -224,10 +224,10 @@
      what makes an OpenRisk surface recognisable without a logo on it.
      Not #000: black removes the ability to go darker, which a sunken well and
      a scrim both need. */
-  --surface-0: #111111;   /* page canvas, furthest back */
-  --surface-1: #171717;   /* cards, panels, table body */
-  --surface-2: #1c1c1c;   /* raised: modals, dropdowns, popovers */
-  --surface-3: #242423;   /* hover/active on a raised element */
+  --surface-0: #111111; /* page canvas, furthest back */
+  --surface-1: #171717; /* cards, panels, table body */
+  --surface-2: #1c1c1c; /* raised: modals, dropdowns, popovers */
+  --surface-3: #242423; /* hover/active on a raised element */
   --surface-sunken: #0c0c0c;
   --surface-overlay: rgba(8, 8, 8, 0.76);
 
@@ -253,7 +253,7 @@
   --accent-soft: rgba(91, 124, 255, 0.14);
   --accent-line: rgba(91, 124, 255, 0.32);
   --accent-400: #8aa1ff;
-  --accent-500: #6e8bff;   /* the step that is safe as small TEXT */
+  --accent-500: #6e8bff; /* the step that is safe as small TEXT */
   --accent-solid: #2547f0; /* dark enough for white text on a filled button */
 
   --focus-ring-color: var(--accent);
@@ -437,7 +437,7 @@
   --elev-3: 0 16px 48px rgba(20, 22, 40, 0.14);
   --elev-overlay: 0 24px 64px rgba(20, 22, 40, 0.22);
 
-  --hairline: rgba(17, 17, 17, 0.10);
+  --hairline: rgba(17, 17, 17, 0.1);
   --grid-line: rgba(17, 17, 17, 0.05);
 }
 
@@ -524,11 +524,11 @@
   --content-max: 1180px;
   --content-max-wide: 1320px;
   --prose-max: 68ch;
-  --shell-max: 76rem;          /* marketing shell */
+  --shell-max: 76rem; /* marketing shell */
   --sidebar-w: 248px;
   --sidebar-w-collapsed: 64px;
-  --header-h: 56px;            /* console */
-  --header-h-site: 64px;       /* marketing */
+  --header-h: 56px; /* console */
+  --header-h-site: 64px; /* marketing */
 }
 
 /* ==========================================================================
@@ -549,7 +549,9 @@
    symptoms. Note that collapsing durations stops the ANIMATION but still moves
    the element: any hover transform must ALSO be neutralised, per component. */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {

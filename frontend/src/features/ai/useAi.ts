@@ -4,11 +4,7 @@
 // React Query hooks for the GRC AI assistant.
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import {
-  aiService,
-  type ChatTurn,
-  type Locale,
-} from './aiService';
+import { aiService, type ChatTurn, type Locale } from './aiService';
 
 const AI_KEY = ['ai'];
 

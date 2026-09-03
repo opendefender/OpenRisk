@@ -345,43 +345,83 @@
    (59, 60, 65, 70, 75, 80, 85, 90, 95, 120). The ORDER is the contract — note
    that tooltip outranks modal, because a tooltip on a control inside a dialog
    has to be readable. */
-@utility z-base { z-index: var(--z-base); }
-@utility z-raised { z-index: var(--z-raised); }
-@utility z-sticky { z-index: var(--z-sticky); }
-@utility z-nav { z-index: var(--z-nav); }
-@utility z-header { z-index: var(--z-header); }
-@utility z-dropdown { z-index: var(--z-dropdown); }
-@utility z-drawer { z-index: var(--z-drawer); }
-@utility z-modal { z-index: var(--z-modal); }
-@utility z-popover { z-index: var(--z-popover); }
-@utility z-toast { z-index: var(--z-toast); }
-@utility z-tooltip { z-index: var(--z-tooltip); }
+@utility z-base {
+  z-index: var(--z-base);
+}
+@utility z-raised {
+  z-index: var(--z-raised);
+}
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+@utility z-nav {
+  z-index: var(--z-nav);
+}
+@utility z-header {
+  z-index: var(--z-header);
+}
+@utility z-dropdown {
+  z-index: var(--z-dropdown);
+}
+@utility z-drawer {
+  z-index: var(--z-drawer);
+}
+@utility z-modal {
+  z-index: var(--z-modal);
+}
+@utility z-popover {
+  z-index: var(--z-popover);
+}
+@utility z-toast {
+  z-index: var(--z-toast);
+}
+@utility z-tooltip {
+  z-index: var(--z-tooltip);
+}
 
 /* Five durations, and the longest is 400ms — reserved for a panel travelling
    the width of the screen. Anything the user does dozens of times an hour
    (hover, press, open a menu) is on fast or base, which is the difference
    between a product that feels quick and one that feels animated. */
-@utility duration-instant { transition-duration: var(--dur-instant); }
-@utility duration-fast { transition-duration: var(--dur-fast); }
-@utility duration-base { transition-duration: var(--dur-base); }
-@utility duration-slow { transition-duration: var(--dur-slow); }
-@utility duration-panel { transition-duration: var(--dur-panel); }
+@utility duration-instant {
+  transition-duration: var(--dur-instant);
+}
+@utility duration-fast {
+  transition-duration: var(--dur-fast);
+}
+@utility duration-base {
+  transition-duration: var(--dur-base);
+}
+@utility duration-slow {
+  transition-duration: var(--dur-slow);
+}
+@utility duration-panel {
+  transition-duration: var(--dur-panel);
+}
 
 /* THE KEYLINE — the OpenRisk signature. A 2px accent rule marking the active
    element: the selected nav item, the current tab, the focused panel, the row
    being acted on. It replaces the filled-pill / glow / gradient vocabulary that
    makes every dashboard look like every other dashboard, and it costs one
    border instead of a background. */
-@utility border-keyline { border-width: var(--keyline-w); }
+@utility border-keyline {
+  border-width: var(--keyline-w);
+}
 
 /* The v3 config carried a `borderColor` scale ALONGSIDE the colour scale, so
    both `border-subtle` (from borderColor) and `border-border-subtle` (from
    colors) were valid and both are in use. v4 has no borderColor namespace — a
    colour key generates every property at once — so the short forms are declared
    here rather than rewritten across the 7 files that use them. */
-@utility border-subtle { border-color: var(--border-subtle); }
-@utility border-strong { border-color: var(--border-strong); }
-@utility border-control { border-color: var(--border-control); }
+@utility border-subtle {
+  border-color: var(--border-subtle);
+}
+@utility border-strong {
+  border-color: var(--border-strong);
+}
+@utility border-control {
+  border-color: var(--border-control);
+}
 
 /* `text-accent` resolves to the TEXT step, `bg-accent` and `border-accent` to
    the MARK. One theme key cannot fork by property, so the fork is declared

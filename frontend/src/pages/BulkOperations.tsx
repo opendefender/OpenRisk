@@ -4,7 +4,16 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, Clock, AlertCircle, Trash2, Play, Pause, RefreshCw, Loader } from 'lucide-react';
+import {
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Trash2,
+  Play,
+  Pause,
+  RefreshCw,
+  Loader,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { getAccessToken } from '../lib/session';
@@ -76,7 +85,7 @@ export default function BulkOperations() {
   const fetchOperations = async () => {
     try {
       const response = await fetch('/api/v1/bulk-operations', {
-        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -91,12 +100,9 @@ export default function BulkOperations() {
 
   const fetchOperationLogs = async (operationId: string) => {
     try {
-      const response = await fetch(
-        `/api/v1/bulk-operations/${operationId}/logs`,
-        {
-          headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
-        }
-      );
+      const response = await fetch(`/api/v1/bulk-operations/${operationId}/logs`, {
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+      });
       if (response.ok) {
         const data = await response.json();
         setOperationLogs(data || []);
@@ -115,13 +121,10 @@ export default function BulkOperations() {
     if (!confirm('Cancel this operation?')) return;
 
     try {
-      const response = await fetch(
-        `/api/v1/bulk-operations/${operationId}/cancel`,
-        {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
-        }
-      );
+      const response = await fetch(`/api/v1/bulk-operations/${operationId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+      });
 
       if (response.ok) {
         toast.success('Operation cancelled');
@@ -140,7 +143,7 @@ export default function BulkOperations() {
     try {
       const response = await fetch(`/api/v1/bulk-operations/${operationId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
       });
 
       if (response.ok) {
@@ -279,9 +282,7 @@ export default function BulkOperations() {
                           <div className="flex items-center gap-3">
                             <StatusIcon
                               className={`w-5 h-5 ${
-                                operation.status === 'in_progress'
-                                  ? 'animate-spin'
-                                  : ''
+                                operation.status === 'in_progress' ? 'animate-spin' : ''
                               }`}
                             />
                             <div>
@@ -321,10 +322,10 @@ export default function BulkOperations() {
                                 operation.status === 'completed'
                                   ? 'bg-success'
                                   : operation.status === 'failed'
-                                  ? 'bg-danger'
-                                  : operation.status === 'in_progress'
-                                  ? 'bg-accent'
-                                  : 'bg-warning'
+                                    ? 'bg-danger'
+                                    : operation.status === 'in_progress'
+                                      ? 'bg-accent'
+                                      : 'bg-warning'
                               }`}
                             />
                           </div>
@@ -384,8 +385,7 @@ export default function BulkOperations() {
                 <div>
                   <label className="text-fg-secondary">Progress</label>
                   <p className="font-medium">
-                    {selectedOperation.completed_items}/{selectedOperation.total_items}{' '}
-                    items
+                    {selectedOperation.completed_items}/{selectedOperation.total_items} items
                   </p>
                   <div className="w-full bg-surface-2 rounded-full h-2 mt-2 overflow-hidden">
                     <div
@@ -400,8 +400,7 @@ export default function BulkOperations() {
                   <p className="font-medium">
                     {selectedOperation.total_items > 0
                       ? (
-                          (selectedOperation.completed_items /
-                            selectedOperation.total_items) *
+                          (selectedOperation.completed_items / selectedOperation.total_items) *
                           100
                         ).toFixed(1)
                       : 0}
@@ -440,9 +439,7 @@ export default function BulkOperations() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() =>
-                        handleCancelOperation(selectedOperation.id)
-                      }
+                      onClick={() => handleCancelOperation(selectedOperation.id)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-yellow-900 hover:bg-yellow-800 rounded text-sm transition"
                     >
                       <Pause className="w-4 h-4" />
@@ -476,9 +473,7 @@ export default function BulkOperations() {
                         }`}
                       >
                         <div className="font-medium">{log.item_id}</div>
-                        {log.error_message && (
-                          <div className="text-xs">{log.error_message}</div>
-                        )}
+                        {log.error_message && <div className="text-xs">{log.error_message}</div>}
                       </div>
                     ))}
                   </div>

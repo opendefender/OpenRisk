@@ -29,18 +29,27 @@ export function useUsers() {
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'users'] });
   const setStatus = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => api.patch(`/users/${id}/status`, { is_active }),
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      api.patch(`/users/${id}/status`, { is_active }),
     onSuccess: invalidate,
   });
   const setRole = useMutation({
-    mutationFn: ({ id, role }: { id: string; role: string }) => api.patch(`/users/${id}/role`, { role }),
+    mutationFn: ({ id, role }: { id: string; role: string }) =>
+      api.patch(`/users/${id}/role`, { role }),
     onSuccess: invalidate,
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: invalidate,
   });
-  return { users: query.data ?? [], isLoading: query.isLoading, isError: query.isError, setStatus, setRole, remove };
+  return {
+    users: query.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    setStatus,
+    setRole,
+    remove,
+  };
 }
 
 /* ---------------- API Tokens (/tokens) ---------------- */
@@ -69,7 +78,14 @@ export function useTokens() {
     mutationFn: (id: string) => api.post(`/tokens/${id}/revoke`),
     onSuccess: invalidate,
   });
-  return { tokens: query.data ?? [], isLoading: query.isLoading, isError: query.isError, refetch: query.refetch, create, revoke };
+  return {
+    tokens: query.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+    create,
+    revoke,
+  };
 }
 
 /* ---------------- Custom Fields (/custom-fields) ---------------- */
@@ -121,8 +137,12 @@ export function useAuditLogs() {
   const query = useQuery({
     queryKey: ['admin', 'audit'],
     queryFn: async () => {
-      const d = (await api.get<AuditEntry[] | { items?: AuditEntry[]; logs?: AuditEntry[]; data?: AuditEntry[] }>('/audit-logs')).data;
-      return Array.isArray(d) ? d : d.items ?? d.logs ?? d.data ?? [];
+      const d = (
+        await api.get<
+          AuditEntry[] | { items?: AuditEntry[]; logs?: AuditEntry[]; data?: AuditEntry[] }
+        >('/audit-logs')
+      ).data;
+      return Array.isArray(d) ? d : (d.items ?? d.logs ?? d.data ?? []);
     },
     retry: false,
   });
@@ -140,7 +160,7 @@ export function useTenants() {
     queryKey: ['admin', 'tenants'],
     queryFn: async () => {
       const d = (await api.get<Org[] | { items?: Org[]; tenants?: Org[] }>('/rbac/tenants')).data;
-      return Array.isArray(d) ? d : d.items ?? d.tenants ?? [];
+      return Array.isArray(d) ? d : (d.items ?? d.tenants ?? []);
     },
     retry: false,
   });

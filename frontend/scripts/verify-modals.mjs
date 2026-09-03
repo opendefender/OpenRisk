@@ -37,27 +37,48 @@ const CASES = [
   {
     id: 'create-risk',
     route: '/risks',
-    open: async (page) => clickFirst(page, ['button:has-text("Nouveau risque")', 'button:has-text("New risk")']),
+    open: async (page) =>
+      clickFirst(page, ['button:has-text("Nouveau risque")', 'button:has-text("New risk")']),
   },
   {
     id: 'create-asset',
     route: '/assets',
-    open: async (page) => clickFirst(page, ['button:has-text("Nouvel actif")', 'button:has-text("New asset")', 'button:has-text("Ajouter")']),
+    open: async (page) =>
+      clickFirst(page, [
+        'button:has-text("Nouvel actif")',
+        'button:has-text("New asset")',
+        'button:has-text("Ajouter")',
+      ]),
   },
   {
     id: 'create-mitigation',
     route: '/risks/mitigations',
-    open: async (page) => clickFirst(page, ['button:has-text("Nouvelle")', 'button:has-text("New mitigation")', 'button:has-text("Créer")']),
+    open: async (page) =>
+      clickFirst(page, [
+        'button:has-text("Nouvelle")',
+        'button:has-text("New mitigation")',
+        'button:has-text("Créer")',
+      ]),
   },
   {
     id: 'approval-request',
     route: '/governance?tab=approvals',
-    open: async (page) => clickFirst(page, ['button:has-text("Demander")', 'button:has-text("approbation")', 'button:has-text("Request")']),
+    open: async (page) =>
+      clickFirst(page, [
+        'button:has-text("Demander")',
+        'button:has-text("approbation")',
+        'button:has-text("Request")',
+      ]),
   },
   {
     id: 'report-preview',
     route: '/reports',
-    open: async (page) => clickFirst(page, ['button:has-text("Aperçu")', 'button:has-text("Preview")', 'button:has-text("Générer")']),
+    open: async (page) =>
+      clickFirst(page, [
+        'button:has-text("Aperçu")',
+        'button:has-text("Preview")',
+        'button:has-text("Générer")',
+      ]),
   },
 ];
 
@@ -123,7 +144,10 @@ for (const theme of ['light', 'dark']) {
         continue;
       }
 
-      await page.waitForSelector('[role="dialog"], .fixed.inset-0', { state: 'visible', timeout: 5000 });
+      await page.waitForSelector('[role="dialog"], .fixed.inset-0', {
+        state: 'visible',
+        timeout: 5000,
+      });
       await page.waitForTimeout(400); // settle the entrance animation
 
       const file = `${OUT}/${c.id}-${theme}.png`;
@@ -143,7 +167,9 @@ for (const theme of ['light', 'dark']) {
         .analyze()
         .catch(() => ({ violations: [] }));
 
-      const serious = axeResults.violations.filter((v) => ['critical', 'serious'].includes(v.impact));
+      const serious = axeResults.violations.filter((v) =>
+        ['critical', 'serious'].includes(v.impact),
+      );
 
       results.push({
         id: c.id,
@@ -152,7 +178,11 @@ for (const theme of ['light', 'dark']) {
         surface,
       });
     } catch (err) {
-      results.push({ id: c.id, theme, status: `ERROR — ${String(err).split('\n')[0].slice(0, 70)}` });
+      results.push({
+        id: c.id,
+        theme,
+        status: `ERROR — ${String(err).split('\n')[0].slice(0, 70)}`,
+      });
     }
   }
 
@@ -170,5 +200,7 @@ for (const r of results) {
 }
 console.log(`\nScreenshots in ${OUT}`);
 
-const failed = results.filter((r) => (r.status ?? '').startsWith('AXE') || (r.status ?? '').startsWith('FAIL'));
+const failed = results.filter(
+  (r) => (r.status ?? '').startsWith('AXE') || (r.status ?? '').startsWith('FAIL'),
+);
 process.exit(failed.length > 0 ? 1 : 0);

@@ -12,15 +12,30 @@
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  FlaskConical, X, CheckCircle2, MinusCircle, XCircle, CircleSlash, Ban,
-  ShieldCheck, Loader2, ChevronDown, ChevronRight, AlertTriangle, Database,
+  FlaskConical,
+  X,
+  CheckCircle2,
+  MinusCircle,
+  XCircle,
+  CircleSlash,
+  Ban,
+  ShieldCheck,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  Database,
 } from 'lucide-react';
 import { Btn, Card } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAutomationMutations } from './useAutomation';
 import { ACTION_META, pick } from './automationMeta';
 import type {
-  AutomationRule, DryRunReport, DryRunStep, DryRunVerdict, DryRunInput,
+  AutomationRule,
+  DryRunReport,
+  DryRunStep,
+  DryRunVerdict,
+  DryRunInput,
 } from './automationService';
 
 const VERDICT: Record<
@@ -28,16 +43,35 @@ const VERDICT: Record<
   { icon: typeof CheckCircle2; color: string; fr: string; en: string }
 > = {
   would_run: { icon: CheckCircle2, color: 'var(--low)', fr: 'S’exécuterait', en: 'Would run' },
-  would_skip: { icon: MinusCircle, color: 'var(--fg-secondary)', fr: 'Serait ignorée', en: 'Would skip' },
+  would_skip: {
+    icon: MinusCircle,
+    color: 'var(--fg-secondary)',
+    fr: 'Serait ignorée',
+    en: 'Would skip',
+  },
   would_fail: { icon: XCircle, color: 'var(--critical)', fr: 'Échouerait', en: 'Would fail' },
-  not_reached: { icon: CircleSlash, color: 'var(--fg-secondary)', fr: 'Jamais atteinte', en: 'Never reached' },
-  not_matched: { icon: Ban, color: 'var(--medium)', fr: 'Conditions non remplies', en: 'Conditions not met' },
+  not_reached: {
+    icon: CircleSlash,
+    color: 'var(--fg-secondary)',
+    fr: 'Jamais atteinte',
+    en: 'Never reached',
+  },
+  not_matched: {
+    icon: Ban,
+    color: 'var(--medium)',
+    fr: 'Conditions non remplies',
+    en: 'Conditions not met',
+  },
 };
 
 function PayloadTable({ payload }: { payload: Record<string, unknown> }) {
   const entries = Object.entries(payload ?? {});
   if (entries.length === 0) {
-    return <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>—</p>;
+    return (
+      <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
+        —
+      </p>
+    );
   }
   return (
     <div className="overflow-x-auto">
@@ -45,7 +79,10 @@ function PayloadTable({ payload }: { payload: Record<string, unknown> }) {
         <tbody>
           {entries.map(([k, v]) => (
             <tr key={k}>
-              <td className="pr-3 py-0.5 align-top mono whitespace-nowrap" style={{ color: 'var(--fg-secondary)' }}>
+              <td
+                className="pr-3 py-0.5 align-top mono whitespace-nowrap"
+                style={{ color: 'var(--fg-secondary)' }}
+              >
                 {k}
               </td>
               <td className="py-0.5 mono break-all" style={{ color: 'var(--fg-primary)' }}>
@@ -71,14 +108,19 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
       className="rounded-[10px] border"
       style={{
         borderColor: isFailure ? 'var(--critical)' : 'var(--border)',
-        background: isFailure ? 'color-mix(in srgb, var(--critical) 6%, transparent)' : 'transparent',
+        background: isFailure
+          ? 'color-mix(in srgb, var(--critical) 6%, transparent)'
+          : 'transparent',
       }}
     >
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-start gap-2.5 p-3 text-left"
       >
-        <span className="mono text-[11px] pt-0.5 w-5 shrink-0" style={{ color: 'var(--fg-secondary)' }}>
+        <span
+          className="mono text-[11px] pt-0.5 w-5 shrink-0"
+          style={{ color: 'var(--fg-secondary)' }}
+        >
           {step.index + 1}
         </span>
         <Icon size={16} style={{ color: meta.color }} className="shrink-0 mt-0.5" />
@@ -89,7 +131,10 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
             </span>
             <span
               className="text-[10.5px] font-bold px-1.5 py-0.5 rounded"
-              style={{ background: `color-mix(in srgb, ${meta.color} 15%, transparent)`, color: meta.color }}
+              style={{
+                background: `color-mix(in srgb, ${meta.color} 15%, transparent)`,
+                color: meta.color,
+              }}
             >
               {pick({ fr: meta.fr, en: meta.en }, lang)}
             </span>
@@ -103,13 +148,20 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
             {step.detail}
           </span>
         </span>
-        {open ? <ChevronDown size={14} className="shrink-0 mt-1" /> : <ChevronRight size={14} className="shrink-0 mt-1" />}
+        {open ? (
+          <ChevronDown size={14} className="shrink-0 mt-1" />
+        ) : (
+          <ChevronRight size={14} className="shrink-0 mt-1" />
+        )}
       </button>
 
       {open && (
         <div className="px-3 pb-3 pl-10 grid gap-3 md:grid-cols-2">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
+            <p
+              className="text-[11px] font-bold uppercase tracking-wide mb-1"
+              style={{ color: 'var(--fg-secondary)' }}
+            >
               {lang === 'fr' ? 'Données à cet instant' : 'Payload at this point'}
             </p>
             <PayloadTable payload={step.payload} />
@@ -117,7 +169,10 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
           <div>
             {step.params && Object.keys(step.params).length > 0 && (
               <>
-                <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
+                <p
+                  className="text-[11px] font-bold uppercase tracking-wide mb-1"
+                  style={{ color: 'var(--fg-secondary)' }}
+                >
                   {lang === 'fr' ? 'Paramètres de l’action' : 'Action parameters'}
                 </p>
                 <PayloadTable payload={step.params} />
@@ -125,7 +180,10 @@ function StepRow({ step, isFailure }: { step: DryRunStep; isFailure: boolean }) 
             )}
             {step.produces && Object.keys(step.produces).length > 0 && (
               <>
-                <p className="text-[11px] font-bold uppercase tracking-wide mb-1 mt-2" style={{ color: 'var(--fg-secondary)' }}>
+                <p
+                  className="text-[11px] font-bold uppercase tracking-wide mb-1 mt-2"
+                  style={{ color: 'var(--fg-secondary)' }}
+                >
                   {lang === 'fr' ? 'Ajouterait au contexte' : 'Would add to the context'}
                 </p>
                 <PayloadTable payload={step.produces} />
@@ -168,7 +226,8 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
 
   const cancel = () => {
     abortRef.current?.abort();
-    if (report?.id) void import('./automationService').then((m) => m.automationService.cancelDryRun(report.id));
+    if (report?.id)
+      void import('./automationService').then((m) => m.automationService.cancelDryRun(report.id));
   };
 
   const running = dryRun.isPending;
@@ -206,7 +265,10 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
           {/* The guarantee, stated where the user is about to rely on it. */}
           <div
             className="rounded-[10px] p-3 flex items-start gap-2.5"
-            style={{ background: 'color-mix(in srgb, var(--low) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--low) 30%, transparent)' }}
+            style={{
+              background: 'color-mix(in srgb, var(--low) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--low) 30%, transparent)',
+            }}
           >
             <ShieldCheck size={16} style={{ color: 'var(--low)' }} className="shrink-0 mt-0.5" />
             <p className="text-[12.5px]" style={{ color: 'var(--fg-primary)' }}>
@@ -220,16 +282,25 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
           <Card>
             <div className="p-4 flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-[11.5px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+                <span
+                  className="text-[11.5px] font-semibold"
+                  style={{ color: 'var(--fg-secondary)' }}
+                >
                   {tr('Et si la criticité était…', 'What if the severity were…')}
                 </span>
                 <select
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value)}
                   className="h-9 px-2 rounded-[9px] text-[13px]"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--fg-primary)' }}
+                  style={{
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border-strong)',
+                    color: 'var(--fg-primary)',
+                  }}
                 >
-                  <option value="">{tr('(garder la valeur réelle)', '(keep the real value)')}</option>
+                  <option value="">
+                    {tr('(garder la valeur réelle)', '(keep the real value)')}
+                  </option>
                   <option value="critical">critical</option>
                   <option value="high">high</option>
                   <option value="medium">medium</option>
@@ -237,13 +308,17 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
                 </select>
               </label>
               <Btn
-                label={running ? tr('Test en cours…', 'Testing…') : tr('Lancer le test', 'Run the test')}
+                label={
+                  running ? tr('Test en cours…', 'Testing…') : tr('Lancer le test', 'Run the test')
+                }
                 icon={running ? Loader2 : FlaskConical}
                 primary
                 onClick={run}
                 disabled={running}
               />
-              {running && <Btn label={tr('Annuler le test', 'Cancel test')} icon={X} onClick={cancel} />}
+              {running && (
+                <Btn label={tr('Annuler le test', 'Cancel test')} icon={X} onClick={cancel} />
+              )}
             </div>
           </Card>
 
@@ -251,7 +326,10 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
             <>
               {/* Where the trace's subject came from — a green run on invented
                   data must never read as a green run on the tenant's data. */}
-              <div className="flex items-start gap-2 text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
+              <div
+                className="flex items-start gap-2 text-[12px]"
+                style={{ color: 'var(--fg-secondary)' }}
+              >
                 <Database size={14} className="shrink-0 mt-0.5" />
                 <span>
                   {report.real_subject
@@ -263,19 +341,37 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
 
               <div className="flex flex-wrap gap-2">
                 {[
-                  { n: report.would_run, label: tr('s’exécuteraient', 'would run'), color: 'var(--low)' },
-                  { n: report.would_skip, label: tr('ignorées', 'skipped'), color: 'var(--fg-secondary)' },
-                  { n: report.would_fail, label: tr('échoueraient', 'would fail'), color: 'var(--critical)' },
+                  {
+                    n: report.would_run,
+                    label: tr('s’exécuteraient', 'would run'),
+                    color: 'var(--low)',
+                  },
+                  {
+                    n: report.would_skip,
+                    label: tr('ignorées', 'skipped'),
+                    color: 'var(--fg-secondary)',
+                  },
+                  {
+                    n: report.would_fail,
+                    label: tr('échoueraient', 'would fail'),
+                    color: 'var(--critical)',
+                  },
                 ].map((s) => (
                   <span
                     key={s.label}
                     className="text-[12px] px-2.5 py-1 rounded-[8px] font-semibold"
-                    style={{ background: `color-mix(in srgb, ${s.color} 12%, transparent)`, color: s.color }}
+                    style={{
+                      background: `color-mix(in srgb, ${s.color} 12%, transparent)`,
+                      color: s.color,
+                    }}
                   >
                     {s.n} {s.label}
                   </span>
                 ))}
-                <span className="text-[12px] px-2.5 py-1 rounded-[8px] mono" style={{ color: 'var(--fg-secondary)' }}>
+                <span
+                  className="text-[12px] px-2.5 py-1 rounded-[8px] mono"
+                  style={{ color: 'var(--fg-secondary)' }}
+                >
                   {report.duration_ms} ms
                 </span>
               </div>
@@ -284,16 +380,17 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
                   "it does nothing" report, and no step explains it. */}
               <Card>
                 <div className="p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
+                  <p
+                    className="text-[11px] font-bold uppercase tracking-wide mb-1"
+                    style={{ color: 'var(--fg-secondary)' }}
+                  >
                     {tr('Conditions', 'Conditions')}
                   </p>
                   <p
                     className="text-[13px]"
                     style={{ color: report.conditions_matched ? 'var(--low)' : 'var(--medium)' }}
                   >
-                    {report.conditions_matched
-                      ? tr('✓ ', '✓ ')
-                      : tr('✗ ', '✗ ')}
+                    {report.conditions_matched ? tr('✓ ', '✓ ') : tr('✗ ', '✗ ')}
                     {report.conditions_detail}
                   </p>
                 </div>
@@ -302,10 +399,17 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
               {report.failure_reason && (
                 <div
                   className="rounded-[10px] p-3.5"
-                  style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', border: '1px solid var(--critical)' }}
+                  style={{
+                    background: 'color-mix(in srgb, var(--critical) 8%, transparent)',
+                    border: '1px solid var(--critical)',
+                  }}
                 >
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle size={16} style={{ color: 'var(--critical)' }} className="shrink-0 mt-0.5" />
+                    <AlertTriangle
+                      size={16}
+                      style={{ color: 'var(--critical)' }}
+                      className="shrink-0 mt-0.5"
+                    />
                     <div className="min-w-0">
                       <p className="text-[13px] font-bold" style={{ color: 'var(--critical)' }}>
                         {tr('Point d’échec : étape ', 'Failure point: step ')}
@@ -317,7 +421,10 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
                       </p>
                       {report.payload_at_failure && (
                         <div className="mt-2">
-                          <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--fg-secondary)' }}>
+                          <p
+                            className="text-[11px] font-bold uppercase tracking-wide mb-1"
+                            style={{ color: 'var(--fg-secondary)' }}
+                          >
                             {tr('Données à cet instant', 'Payload at that moment')}
                           </p>
                           <PayloadTable payload={report.payload_at_failure} />

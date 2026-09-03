@@ -35,8 +35,8 @@ export const Settings = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.id 
-                  ? 'bg-primary/10 text-accent-strong' 
+                activeTab === tab.id
+                  ? 'bg-primary/10 text-accent-strong'
                   : 'text-fg-secondary hover:text-fg-primary hover:bg-surface-1/5'
               }`}
             >
@@ -60,7 +60,9 @@ export const Settings = () => {
             {activeTab === 'integrations' && <IntegrationsTab />}
             {activeTab === 'team' && <TeamTab />}
             {activeTab === 'rbac' && <RBACTab />}
-            {activeTab === 'security' && <div className="text-fg-muted">Security Audit Logs (Coming Soon)</div>}
+            {activeTab === 'security' && (
+              <div className="text-fg-muted">Security Audit Logs (Coming Soon)</div>
+            )}
           </motion.div>
         </div>
       </div>

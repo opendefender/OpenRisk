@@ -24,7 +24,13 @@ import type { IncidentSeverity, IncidentStakeholder } from './incidentService';
 
 const CHANNELS = ['in_app', 'email', 'slack', 'teams', 'sms'] as const;
 
-export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (id: number) => void }) {
+export function DeclareIncidentModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated?: (id: number) => void;
+}) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { createIncident } = useIncidents();
@@ -73,7 +79,12 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
         asset_ids: assetIDs,
         stakeholders: stakeholders.filter((s) => s.role || s.user_id),
       });
-      toast.success(tr('Incident déclaré — les parties prenantes sont notifiées.', 'Incident declared — stakeholders notified.'));
+      toast.success(
+        tr(
+          'Incident déclaré — les parties prenantes sont notifiées.',
+          'Incident declared — stakeholders notified.',
+        ),
+      );
       onCreated?.(inc.id);
       onClose();
     } catch (e) {
@@ -86,20 +97,37 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
   };
 
   const field = 'w-full px-3 py-2 rounded-[9px] text-[13px] outline-none';
-  const fieldStyle = { border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--fg-primary)' } as const;
+  const fieldStyle = {
+    border: '1px solid var(--border-strong)',
+    background: 'var(--bg)',
+    color: 'var(--fg-primary)',
+  } as const;
 
   const sortedRisks = useMemo(() => risks.slice(0, 200), [risks]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.4)' }}>
-      <div className="w-full max-w-[640px] max-h-[90vh] flex flex-col rounded-[14px] or-scalein"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}>
-        <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
-          <h2 className="text-[15px] font-bold inline-flex items-center gap-2" style={{ color: 'var(--fg-primary)' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,.4)' }}
+    >
+      <div
+        className="w-full max-w-[640px] max-h-[90vh] flex flex-col rounded-[14px] or-scalein"
+        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+      >
+        <div
+          className="px-5 py-4 flex items-center justify-between shrink-0"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <h2
+            className="text-[15px] font-bold inline-flex items-center gap-2"
+            style={{ color: 'var(--fg-primary)' }}
+          >
             <Siren size={16} style={{ color: 'var(--critical)' }} />
             {tr('Déclarer un incident', 'Declare an incident')}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg" aria-label={tr('Fermer', 'Close')}><X size={18} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg" aria-label={tr('Fermer', 'Close')}>
+            <X size={18} />
+          </button>
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto">
@@ -107,39 +135,87 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
             <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
               {tr('Que se passe-t-il ?', 'What is happening?')}
             </span>
-            <input autoFocus className={field} style={fieldStyle} value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder={tr('Ex : exfiltration suspectée depuis le serveur de facturation', 'e.g. suspected exfiltration from the billing server')} />
+            <input
+              autoFocus
+              className={field}
+              style={fieldStyle}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={tr(
+                'Ex : exfiltration suspectée depuis le serveur de facturation',
+                'e.g. suspected exfiltration from the billing server',
+              )}
+            />
           </label>
 
           <label className="block">
             <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
               {tr('Ce que l’on sait pour l’instant', 'What we know so far')}
             </span>
-            <textarea rows={3} className={field} style={fieldStyle} value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder={tr('Les faits, pas les hypothèses. Elles iront dans le post-mortem.', 'Facts, not theories. Those belong in the post-mortem.')} />
+            <textarea
+              rows={3}
+              className={field}
+              style={fieldStyle}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={tr(
+                'Les faits, pas les hypothèses. Elles iront dans le post-mortem.',
+                'Facts, not theories. Those belong in the post-mortem.',
+              )}
+            />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>{tr('Gravité', 'Severity')}</span>
-              <select className={field} style={fieldStyle} value={severity} onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}>
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+                {tr('Gravité', 'Severity')}
+              </span>
+              <select
+                className={field}
+                style={fieldStyle}
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}
+              >
                 {SEVERITIES.map((s) => (
-                  <option key={s} value={s}>{lang === 'fr' ? SEV[s].fr : SEV[s].en}</option>
+                  <option key={s} value={s}>
+                    {lang === 'fr' ? SEV[s].fr : SEV[s].en}
+                  </option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>{tr('Type', 'Type')}</span>
-              <select className={field} style={fieldStyle} value={type} onChange={(e) => setType(e.target.value)}>
-                {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+                {tr('Type', 'Type')}
+              </span>
+              <select
+                className={field}
+                style={fieldStyle}
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
 
           {criticalWarning && (
-            <div className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
-              style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)', color: 'var(--fg-primary)' }}>
-              <AlertTriangle size={15} style={{ color: 'var(--critical)' }} className="shrink-0 mt-0.5" />
+            <div
+              className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
+              style={{
+                background: 'color-mix(in srgb, var(--critical) 8%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)',
+                color: 'var(--fg-primary)',
+              }}
+            >
+              <AlertTriangle
+                size={15}
+                style={{ color: 'var(--critical)' }}
+                className="shrink-0 mt-0.5"
+              />
               <span>
                 {tr(
                   'Un incident critique ne pourra pas être clôturé tant que son post-mortem n’est pas publié.',
@@ -154,11 +230,22 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
             <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
               {tr('Actifs concernés', 'Assets affected')}
             </span>
-            <div className="mt-1 max-h-[120px] overflow-y-auto rounded-[9px] p-2 space-y-1" style={{ border: '1px solid var(--border)' }}>
-              {assets.length === 0 && <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>{tr('Aucun actif dans l’inventaire.', 'No assets in the inventory.')}</p>}
+            <div
+              className="mt-1 max-h-[120px] overflow-y-auto rounded-[9px] p-2 space-y-1"
+              style={{ border: '1px solid var(--border)' }}
+            >
+              {assets.length === 0 && (
+                <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
+                  {tr('Aucun actif dans l’inventaire.', 'No assets in the inventory.')}
+                </p>
+              )}
               {assets.map((a) => (
                 <label key={a.id} className="flex items-center gap-2 text-[12.5px]">
-                  <input type="checkbox" checked={assetIDs.includes(a.id)} onChange={() => toggleIn(assetIDs, setAssetIDs, a.id)} />
+                  <input
+                    type="checkbox"
+                    checked={assetIDs.includes(a.id)}
+                    onChange={() => toggleIn(assetIDs, setAssetIDs, a.id)}
+                  />
                   <span style={{ color: 'var(--fg-primary)' }}>{a.name}</span>
                   <span style={{ color: 'var(--fg-secondary)' }}>· {a.type}</span>
                 </label>
@@ -171,13 +258,27 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
               {tr('Risques réalisés', 'Risks this realises')}
             </span>
             <p className="text-[11.5px] mb-1" style={{ color: 'var(--fg-secondary)' }}>
-              {tr('Les actions correctives du post-mortem viendront s’y rattacher.', 'The post-mortem’s corrective actions will attach to it.')}
+              {tr(
+                'Les actions correctives du post-mortem viendront s’y rattacher.',
+                'The post-mortem’s corrective actions will attach to it.',
+              )}
             </p>
-            <div className="max-h-[120px] overflow-y-auto rounded-[9px] p-2 space-y-1" style={{ border: '1px solid var(--border)' }}>
-              {sortedRisks.length === 0 && <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>{tr('Aucun risque au registre.', 'No risks in the register.')}</p>}
+            <div
+              className="max-h-[120px] overflow-y-auto rounded-[9px] p-2 space-y-1"
+              style={{ border: '1px solid var(--border)' }}
+            >
+              {sortedRisks.length === 0 && (
+                <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
+                  {tr('Aucun risque au registre.', 'No risks in the register.')}
+                </p>
+              )}
               {sortedRisks.map((r) => (
                 <label key={r.id} className="flex items-center gap-2 text-[12.5px]">
-                  <input type="checkbox" checked={riskIDs.includes(r.id)} onChange={() => toggleIn(riskIDs, setRiskIDs, r.id)} />
+                  <input
+                    type="checkbox"
+                    checked={riskIDs.includes(r.id)}
+                    onChange={() => toggleIn(riskIDs, setRiskIDs, r.id)}
+                  />
                   <span style={{ color: 'var(--fg-primary)' }}>{r.title}</span>
                 </label>
               ))}
@@ -191,31 +292,65 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
               <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
                 {tr('Parties prenantes à notifier', 'Stakeholders to notify')}
               </span>
-              <button onClick={() => setStakeholders((s) => [...s, { channels: ['in_app', 'email'] }])}
-                className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}>
+              <button
+                onClick={() => setStakeholders((s) => [...s, { channels: ['in_app', 'email'] }])}
+                className="text-[12px] font-semibold inline-flex items-center gap-1"
+                style={{ color: 'var(--accent-500)' }}
+              >
                 <Plus size={13} /> {tr('Ajouter', 'Add')}
               </button>
             </div>
             <div className="mt-1.5 space-y-2">
               {stakeholders.map((sh, i) => (
-                <div key={i} className="rounded-[9px] p-2.5 space-y-2" style={{ border: '1px solid var(--border)' }}>
+                <div
+                  key={i}
+                  className="rounded-[9px] p-2.5 space-y-2"
+                  style={{ border: '1px solid var(--border)' }}
+                >
                   <div className="flex gap-2">
-                    <select className={field} style={fieldStyle} value={sh.user_id ?? ''}
-                      onChange={(e) => setStakeholders((list) => list.map((x, j) => j === i ? { ...x, user_id: e.target.value || undefined } : x))}>
+                    <select
+                      className={field}
+                      style={fieldStyle}
+                      value={sh.user_id ?? ''}
+                      onChange={(e) =>
+                        setStakeholders((list) =>
+                          list.map((x, j) =>
+                            j === i ? { ...x, user_id: e.target.value || undefined } : x,
+                          ),
+                        )
+                      }
+                    >
                       <option value="">{tr('— par rôle —', '— by role —')}</option>
-                      {users.map((u) => <option key={u.user_id} value={u.user_id}>{u.email}</option>)}
+                      {users.map((u) => (
+                        <option key={u.user_id} value={u.user_id}>
+                          {u.email}
+                        </option>
+                      ))}
                     </select>
-                    <select className={field} style={fieldStyle} value={sh.role ?? ''}
-                      onChange={(e) => setStakeholders((list) => list.map((x, j) => j === i ? { ...x, role: e.target.value || undefined } : x))}>
+                    <select
+                      className={field}
+                      style={fieldStyle}
+                      value={sh.role ?? ''}
+                      onChange={(e) =>
+                        setStakeholders((list) =>
+                          list.map((x, j) =>
+                            j === i ? { ...x, role: e.target.value || undefined } : x,
+                          ),
+                        )
+                      }
+                    >
                       <option value="">{tr('— aucun rôle —', '— no role —')}</option>
                       <option value="admin">admin</option>
                       <option value="rssi">rssi</option>
                       <option value="dsi">dsi</option>
                       <option value="security_analyst">security_analyst</option>
                     </select>
-                    <button onClick={() => setStakeholders((list) => list.filter((_, j) => j !== i))}
+                    <button
+                      onClick={() => setStakeholders((list) => list.filter((_, j) => j !== i))}
                       className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
-                      style={{ background: 'var(--bg-hover)', color: 'var(--critical)' }} aria-label={tr('Retirer', 'Remove')}>
+                      style={{ background: 'var(--bg-hover)', color: 'var(--critical)' }}
+                      aria-label={tr('Retirer', 'Remove')}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -223,17 +358,30 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
                     {CHANNELS.map((ch) => {
                       const on = sh.channels?.includes(ch) ?? false;
                       return (
-                        <button key={ch}
-                          onClick={() => setStakeholders((list) => list.map((x, j) => {
-                            if (j !== i) return x;
-                            const cur = x.channels ?? [];
-                            return { ...x, channels: cur.includes(ch) ? cur.filter((c) => c !== ch) : [...cur, ch] };
-                          }))}
+                        <button
+                          key={ch}
+                          onClick={() =>
+                            setStakeholders((list) =>
+                              list.map((x, j) => {
+                                if (j !== i) return x;
+                                const cur = x.channels ?? [];
+                                return {
+                                  ...x,
+                                  channels: cur.includes(ch)
+                                    ? cur.filter((c) => c !== ch)
+                                    : [...cur, ch],
+                                };
+                              }),
+                            )
+                          }
                           className="h-7 px-2 rounded-[7px] text-[11.5px] font-semibold"
                           style={{
-                            background: on ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'var(--bg-hover)',
+                            background: on
+                              ? 'color-mix(in srgb, var(--accent) 14%, transparent)'
+                              : 'var(--bg-hover)',
                             color: on ? 'var(--accent)' : 'var(--fg-secondary)',
-                          }}>
+                          }}
+                        >
                           {ch}
                         </button>
                       );
@@ -243,17 +391,28 @@ export function DeclareIncidentModal({ onClose, onCreated }: { onClose: () => vo
               ))}
               {stakeholders.length === 0 && (
                 <p className="text-[12px]" style={{ color: 'var(--medium)' }}>
-                  {tr('Sans partie prenante, l’alerte partira aux administrateurs.', 'With no stakeholder, the alert goes to the administrators.')}
+                  {tr(
+                    'Sans partie prenante, l’alerte partira aux administrateurs.',
+                    'With no stakeholder, the alert goes to the administrators.',
+                  )}
                 </p>
               )}
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-4 flex justify-end gap-2 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+        <div
+          className="px-5 py-4 flex justify-end gap-2 shrink-0"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
           <Btn label={tr('Annuler', 'Cancel')} onClick={onClose} />
-          <Btn label={saving ? tr('Déclaration…', 'Declaring…') : tr('Déclarer', 'Declare')} icon={Siren} primary
-            onClick={submit} disabled={!canSubmit || saving} />
+          <Btn
+            label={saving ? tr('Déclaration…', 'Declaring…') : tr('Déclarer', 'Declare')}
+            icon={Siren}
+            primary
+            onClick={submit}
+            disabled={!canSubmit || saving}
+          />
         </div>
       </div>
     </div>

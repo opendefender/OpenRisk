@@ -24,7 +24,7 @@ import type { EntitySection } from './types';
 // Code-split: the drawer, its four sections and their queries are dead weight
 // for a session that never opens one.
 const EntityDrawer = lazy(() =>
-  import('./EntityDrawer').then((m) => ({ default: m.EntityDrawer }))
+  import('./EntityDrawer').then((m) => ({ default: m.EntityDrawer })),
 );
 
 export function EntityDrawerHost() {

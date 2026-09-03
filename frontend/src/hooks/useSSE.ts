@@ -112,9 +112,12 @@ export function useSSE({
         // hammering a permanently-unavailable endpoint (e.g. one that isn't deployed).
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, reconnectInterval * Math.pow(1.5, reconnectAttemptsRef.current - 1)); // Exponential backoff
+          reconnectTimeoutRef.current = setTimeout(
+            () => {
+              connect();
+            },
+            reconnectInterval * Math.pow(1.5, reconnectAttemptsRef.current - 1),
+          ); // Exponential backoff
         }
       });
 

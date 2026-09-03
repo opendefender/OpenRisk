@@ -87,14 +87,8 @@ export function Tooltip({
   /* floating-ui's setReference/setFloating are callback-ref SETTERS, not ref
      reads, but reaching them through `refs.` during render trips the React
      refs lint rule. Wrapping them is the pattern already used by RowMenu. */
-  const setReference = useCallback(
-    (node: HTMLElement | null) => refs.setReference(node),
-    [refs],
-  );
-  const setFloating = useCallback(
-    (node: HTMLElement | null) => refs.setFloating(node),
-    [refs],
-  );
+  const setReference = useCallback((node: HTMLElement | null) => refs.setReference(node), [refs]);
+  const setFloating = useCallback((node: HTMLElement | null) => refs.setFloating(node), [refs]);
 
   const interactions = useInteractions([
     // safePolygon keeps the tooltip open while the pointer travels toward it.

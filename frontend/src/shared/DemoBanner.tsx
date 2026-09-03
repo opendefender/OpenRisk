@@ -46,9 +46,10 @@ export function DemoBanner() {
   const lang = useUIStore((s) => s.lang);
   if (!isDemo) return null;
 
-  const message = lang === 'fr'
-    ? 'Données de démonstration — ce tenant ne contient pas vos données réelles'
-    : 'Demonstration data — this tenant does not contain your real data';
+  const message =
+    lang === 'fr'
+      ? 'Données de démonstration — ce tenant ne contient pas vos données réelles'
+      : 'Demonstration data — this tenant does not contain your real data';
 
   return (
     <div

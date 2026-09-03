@@ -57,7 +57,11 @@ export function ReportJobPage() {
           </span>
         ) : null
       }
-      actions={done ? <Btn label={tr('Télécharger', 'Download')} icon={Download} primary onClick={download} /> : null}
+      actions={
+        done ? (
+          <Btn label={tr('Télécharger', 'Download')} icon={Download} primary onClick={download} />
+        ) : null
+      }
     >
       {job && (
         <>
@@ -74,21 +78,34 @@ export function ReportJobPage() {
                   color: failed ? 'var(--critical)' : done ? 'var(--low)' : 'var(--fg-muted)',
                 }}
               >
-                {failed ? <AlertTriangle size={22} /> : done ? <CheckCircle2 size={22} /> : <RefreshCw size={22} className="animate-spin" />}
+                {failed ? (
+                  <AlertTriangle size={22} />
+                ) : done ? (
+                  <CheckCircle2 size={22} />
+                ) : (
+                  <RefreshCw size={22} className="animate-spin" />
+                )}
               </div>
 
               <div className="flex-1 min-w-0">
                 {running && (
                   <>
-                    <div className="text-[14px] font-semibold text-ink mb-1">{tr('Génération en cours…', 'Generating…')}</div>
+                    <div className="text-[14px] font-semibold text-ink mb-1">
+                      {tr('Génération en cours…', 'Generating…')}
+                    </div>
                     <div className="text-[12.5px] text-ink-soft">
-                      {tr('Cette page se mettra à jour automatiquement.', 'This page will update on its own.')}
+                      {tr(
+                        'Cette page se mettra à jour automatiquement.',
+                        'This page will update on its own.',
+                      )}
                     </div>
                   </>
                 )}
                 {done && (
                   <>
-                    <div className="text-[14px] font-semibold text-ink mb-1">{tr('Rapport prêt', 'Report ready')}</div>
+                    <div className="text-[14px] font-semibold text-ink mb-1">
+                      {tr('Rapport prêt', 'Report ready')}
+                    </div>
                     <div className="text-[12.5px] text-ink-soft">
                       {tr(
                         'Ce document est figé à la date de génération : le retélécharger renvoie exactement le même fichier.',
@@ -99,8 +116,12 @@ export function ReportJobPage() {
                 )}
                 {failed && (
                   <>
-                    <div className="text-[14px] font-semibold text-ink mb-1">{tr('Génération échouée', 'Generation failed')}</div>
-                    <div className="text-[12.5px] text-ink-soft">{job.error || tr('Raison inconnue.', 'Unknown reason.')}</div>
+                    <div className="text-[14px] font-semibold text-ink mb-1">
+                      {tr('Génération échouée', 'Generation failed')}
+                    </div>
+                    <div className="text-[12.5px] text-ink-soft">
+                      {job.error || tr('Raison inconnue.', 'Unknown reason.')}
+                    </div>
                   </>
                 )}
               </div>
@@ -109,9 +130,13 @@ export function ReportJobPage() {
 
           <Card style={{ padding: '4px 18px 14px', marginTop: 16 }}>
             <DetailField label={tr('Fichier', 'File')}>{job.filename}</DetailField>
-            <DetailField label={tr('Taille', 'Size')}>{formatBytes(job.size_bytes, lang)}</DetailField>
+            <DetailField label={tr('Taille', 'Size')}>
+              {formatBytes(job.size_bytes, lang)}
+            </DetailField>
             <DetailField label={tr('Généré le', 'Generated at')}>
-              {job.completed_at ? new Date(job.completed_at).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US') : '—'}
+              {job.completed_at
+                ? new Date(job.completed_at).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US')
+                : '—'}
             </DetailField>
           </Card>
 
@@ -119,7 +144,10 @@ export function ReportJobPage() {
               the round trip. The only onward paths are the artifact itself and
               the list of past reports. */}
           <div className="mt-5 flex items-center gap-4">
-            <Link to="/reports" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-accent hover:underline">
+            <Link
+              to="/reports"
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-accent hover:underline"
+            >
               <FileText size={14} /> {tr('Tous les rapports', 'All reports')}
             </Link>
           </div>

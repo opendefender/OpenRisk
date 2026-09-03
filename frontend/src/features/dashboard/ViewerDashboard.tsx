@@ -69,7 +69,7 @@ export function ViewerDashboard() {
     },
     {
       label: tr('Critiques', 'Critical'),
-      val: (sev.CRITICAL ?? sev.critical) ?? 0,
+      val: sev.CRITICAL ?? sev.critical ?? 0,
       icon: AlertTriangle,
       col: 'var(--critical)',
       onClick: () => navigate(deepLink('risks', { filters: { criticality: 'critical' }, sort })),
@@ -89,7 +89,10 @@ export function ViewerDashboard() {
     <DashboardShell>
       <PersonaHeader
         title={tr('Vue d’ensemble', 'Overview')}
-        subtitle={tr('Aperçu en lecture seule de la posture de sécurité.', 'A read-only snapshot of the security posture.')}
+        subtitle={tr(
+          'Aperçu en lecture seule de la posture de sécurité.',
+          'A read-only snapshot of the security posture.',
+        )}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
@@ -114,9 +117,13 @@ export function ViewerDashboard() {
       </div>
 
       <Card style={{ padding: '18px 14px' }}>
-        <div className="text-[14px] font-semibold text-ink mb-2 px-2">{tr('Risques récents', 'Recent risks')}</div>
+        <div className="text-[14px] font-semibold text-ink mb-2 px-2">
+          {tr('Risques récents', 'Recent risks')}
+        </div>
         {recent.length === 0 ? (
-          <div className="px-2 py-8 text-center text-[13px] text-ink-muted">{tr('Aucun risque à afficher.', 'No risks to show.')}</div>
+          <div className="px-2 py-8 text-center text-[13px] text-ink-muted">
+            {tr('Aucun risque à afficher.', 'No risks to show.')}
+          </div>
         ) : (
           recent.map((r) => {
             const crit = critOf(r);
@@ -127,12 +134,22 @@ export function ViewerDashboard() {
                 onClick={() => navigate(deepLink('risks', { focus: r.id }))}
                 className="w-full flex items-center gap-3 px-2 py-[11px] rounded-[10px] hover:bg-hover transition-colors text-left"
               >
-                <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: critColor[crit] }} />
+                <span
+                  className="w-[9px] h-[9px] rounded-full shrink-0"
+                  style={{ background: critColor[crit] }}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium text-ink truncate">{r.title}</div>
-                  <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">{r.assets?.[0]?.name ?? '—'}</div>
+                  <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">
+                    {r.assets?.[0]?.name ?? '—'}
+                  </div>
                 </div>
-                <span className="mono text-[13px] font-bold w-[34px] text-right" style={{ color: critColor[crit] }}>{r.score.toFixed(1)}</span>
+                <span
+                  className="mono text-[13px] font-bold w-[34px] text-right"
+                  style={{ color: critColor[crit] }}
+                >
+                  {r.score.toFixed(1)}
+                </span>
               </button>
             );
           })

@@ -77,7 +77,10 @@ export function ResetPasswordScreen() {
         <div style={cascade(0, reduced)}>
           <div
             className="w-11 h-11 rounded-[13px] flex items-center justify-center mb-4"
-            style={{ background: 'color-mix(in srgb, var(--low) 14%, transparent)', color: 'var(--low)' }}
+            style={{
+              background: 'color-mix(in srgb, var(--low) 14%, transparent)',
+              color: 'var(--low)',
+            }}
           >
             <CheckCircle2 size={22} />
           </div>
@@ -102,7 +105,9 @@ export function ResetPasswordScreen() {
       <form onSubmit={submit} noValidate>
         <div style={cascade(0, reduced)}>
           <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{copy.resetTitle}</h1>
-          <p className="text-[14px] text-ink-soft mb-[26px] leading-relaxed">{copy.resetSubtitle}</p>
+          <p className="text-[14px] text-ink-soft mb-[26px] leading-relaxed">
+            {copy.resetSubtitle}
+          </p>
         </div>
 
         <ErrorBanner>{error}</ErrorBanner>
@@ -174,7 +179,10 @@ export function ResetPasswordScreen() {
           </button>
         </div>
 
-        <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(4, reduced)}>
+        <div
+          className="text-center text-[13px] text-ink-soft mt-[18px]"
+          style={cascade(4, reduced)}
+        >
           <Link to="/login" className="font-semibold">
             {copy.backToSignIn}
           </Link>

@@ -89,7 +89,8 @@ export function useScanPreview(jobId: string | undefined) {
   });
 
   const importPreview = useMutation({
-    mutationFn: (selections: ImportSelection[]) => scannerService.importPreview(jobId as string, selections),
+    mutationFn: (selections: ImportSelection[]) =>
+      scannerService.importPreview(jobId as string, selections),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['scanner'] });
       qc.invalidateQueries({ queryKey: ['assets'] });

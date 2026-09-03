@@ -29,10 +29,10 @@ export const Login = () => {
     setIsLoading(true);
     try {
       await login(email, password);
-      toast.success("Welcome back to OpenRisk");
+      toast.success('Welcome back to OpenRisk');
       navigate('/');
     } catch (err) {
-      toast.error("Incorrect email or password. Please check and try again.");
+      toast.error('Incorrect email or password. Please check and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -87,109 +87,113 @@ export const Login = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-accent-soft rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
+      {/* Background Effects */}
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-accent-soft rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
 
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-border-strong/10 p-8 rounded-2xl shadow-2xl relative z-10"
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-border-strong/10 p-8 rounded-2xl shadow-2xl relative z-10"
+      >
+        <div className="flex justify-center mb-8">
+          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
+            <Zap className="text-fg-primary" fill="currentColor" />
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-bold text-center text-fg-primary mb-2">Welcome back</h1>
+        <p className="text-fg-secondary text-center mb-8 text-sm">
+          Enter your credentials to access the secure vault.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Field label="Email">
+            <Input
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+            />
+          </Field>
+          <Field label="Password">
+            <Input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Field>
+
+          <Button variant="primary" type="submit" className="w-full mt-4 group" loading={isLoading}>
+            Sign In{' '}
+            <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </form>
+
+        {/* SSO Divider */}
+        <div className="mt-6 flex items-center gap-3">
+          <div className="flex-1 h-px bg-surface-3" />
+          <span className="text-xs text-fg-muted px-2">OR</span>
+          <div className="flex-1 h-px bg-surface-3" />
+        </div>
+
+        {/* SSO Button */}
+        <motion.button
+          onClick={() => setShowSSOOptions(!showSSOOptions)}
+          className="w-full mt-4 px-4 py-2 border border-border-default rounded-lg text-sm text-fg-secondary hover:bg-surface-2/50 hover:border-border-default transition-all"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-            <div className="flex justify-center mb-8">
-                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
-                    <Zap className="text-fg-primary" fill="currentColor" />
-                </div>
-            </div>
+          Continue with SSO
+        </motion.button>
 
-            <h1 className="text-2xl font-bold text-center text-fg-primary mb-2">Welcome back</h1>
-            <p className="text-fg-secondary text-center mb-8 text-sm">Enter your credentials to access the secure vault.</p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <Field label="Email">
-                  <Input
-                      type="email"
-                      placeholder="name@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoFocus
-                  />
-                </Field>
-                <Field label="Password">
-                  <Input
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                  />
-                </Field>
-
-                <Button variant="primary" type="submit" className="w-full mt-4 group" loading={isLoading}>
-                    Sign In <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-            </form>
-
-            {/* SSO Divider */}
-            <div className="mt-6 flex items-center gap-3">
-                <div className="flex-1 h-px bg-surface-3" />
-                <span className="text-xs text-fg-muted px-2">OR</span>
-                <div className="flex-1 h-px bg-surface-3" />
-            </div>
-
-            {/* SSO Button */}
-            <motion.button
-                onClick={() => setShowSSOOptions(!showSSOOptions)}
-                className="w-full mt-4 px-4 py-2 border border-border-default rounded-lg text-sm text-fg-secondary hover:bg-surface-2/50 hover:border-border-default transition-all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+        {/* SSO Providers */}
+        <AnimatePresence>
+          {showSSOOptions && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 grid grid-cols-2 gap-2"
             >
-                Continue with SSO
-            </motion.button>
+              {ssoProviders.map((provider) => {
+                const Icon = provider.icon;
+                return (
+                  <motion.button
+                    key={provider.id}
+                    onClick={() =>
+                      provider.id === 'saml' ? handleSAML2Login() : handleOAuth2Login(provider.id)
+                    }
+                    className={`flex items-center justify-center gap-2 px-3 py-2 border border-border-default rounded-lg text-xs font-medium text-fg-secondary transition-all ${provider.color}`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Icon size={16} />
+                    <span>{provider.name}</span>
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* SSO Providers */}
-            <AnimatePresence>
-                {showSSOOptions && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-4 grid grid-cols-2 gap-2"
-                    >
-                        {ssoProviders.map((provider) => {
-                            const Icon = provider.icon;
-                            return (
-                                <motion.button
-                                    key={provider.id}
-                                    onClick={() =>
-                                        provider.id === 'saml'
-                                            ? handleSAML2Login()
-                                            : handleOAuth2Login(provider.id)
-                                    }
-                                    className={`flex items-center justify-center gap-2 px-3 py-2 border border-border-default rounded-lg text-xs font-medium text-fg-secondary transition-all ${provider.color}`}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                >
-                                    <Icon size={16} />
-                                    <span>{provider.name}</span>
-                                </motion.button>
-                            );
-                        })}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+        <div className="mt-6 text-center text-sm">
+          <span className="text-fg-secondary">Don't have an account? </span>
+          <Link
+            to="/register"
+            className="text-primary hover:text-info-text font-medium transition-colors"
+          >
+            Create one
+          </Link>
+        </div>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-fg-secondary">Don't have an account? </span>
-              <Link to="/register" className="text-primary hover:text-info-text font-medium transition-colors">
-                Create one
-              </Link>
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-fg-muted">
-                <Lock size={12} />
-                <span>End-to-end encrypted connection</span>
-            </div>
-        </motion.div>
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-fg-muted">
+          <Lock size={12} />
+          <span>End-to-end encrypted connection</span>
+        </div>
+      </motion.div>
     </div>
   );
 };

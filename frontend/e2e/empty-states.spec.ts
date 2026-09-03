@@ -111,7 +111,10 @@ test.describe.configure({ mode: 'serial' });
 let page: Page;
 
 test.beforeAll(async ({ browser }) => {
-  test.skip(!(await apiReachable()), `API unreachable at ${API} — start the stack to run this suite`);
+  test.skip(
+    !(await apiReachable()),
+    `API unreachable at ${API} — start the stack to run this suite`,
+  );
 
   const res = await fetch(`${API}/auth/register`, {
     method: 'POST',
@@ -198,7 +201,9 @@ async function assertEmptyState(page: Page, where: string): Promise<Locator> {
   ).toContain(variant);
   // A blank tenant is a first-use situation, never an error one. Catching
   // `error` here is how a silently failing endpoint gets noticed.
-  expect(variant, `${where}: rendered the error variant on a healthy blank tenant`).not.toBe('error');
+  expect(variant, `${where}: rendered the error variant on a healthy blank tenant`).not.toBe(
+    'error',
+  );
   return empty;
 }
 

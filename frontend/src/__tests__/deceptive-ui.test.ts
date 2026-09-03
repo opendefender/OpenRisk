@@ -74,7 +74,9 @@ describe('placeholder routes', () => {
       'compliance/remediations',
     ];
     for (const path of legacy) {
-      const route = new RegExp(`<Route\\s+path="${path.replace(/\//g, '\\/')}"[^>]*element=\\{<Navigate`);
+      const route = new RegExp(
+        `<Route\\s+path="${path.replace(/\//g, '\\/')}"[^>]*element=\\{<Navigate`,
+      );
       expect(route.test(app), `${path} must redirect, not render`).toBe(true);
     }
   });
@@ -198,7 +200,9 @@ describe('cross-identity isolation', () => {
     // down. Clearing on one side only leaves the gap the other way (W0-05 / D9).
     const store = read('hooks/useAuthStore.ts');
     const calls = store.match(/clearSessionScope\(\)/g) ?? [];
-    expect(calls.length, 'expected login, adoptSession and logout to clear').toBeGreaterThanOrEqual(3);
+    expect(calls.length, 'expected login, adoptSession and logout to clear').toBeGreaterThanOrEqual(
+      3,
+    );
   });
 
   it('the query client is handed to the session scope at start-up', () => {

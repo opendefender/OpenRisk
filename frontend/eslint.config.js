@@ -1,13 +1,13 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
-import noRawColors from './eslint-rules/no-raw-colors.js'
-import noMockData from './eslint-rules/no-mock-data.js'
-import noAdHocDesignValues from './eslint-rules/no-ad-hoc-design-values.js'
-import noDesignCliches from './eslint-rules/no-design-cliches.js'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import noRawColors from './eslint-rules/no-raw-colors.js';
+import noMockData from './eslint-rules/no-mock-data.js';
+import noAdHocDesignValues from './eslint-rules/no-ad-hoc-design-values.js';
+import noDesignCliches from './eslint-rules/no-design-cliches.js';
 
 /**
  * Local plugin. Kept in-repo rather than published: the rule encodes this
@@ -20,7 +20,7 @@ const openrisk = {
     'no-ad-hoc-design-values': noAdHocDesignValues,
     'no-design-cliches': noDesignCliches,
   },
-}
+};
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -277,4 +277,4 @@ export default defineConfig([
       ],
     },
   },
-])
+]);

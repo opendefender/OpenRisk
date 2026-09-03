@@ -61,7 +61,10 @@ export const PAGE_LIMIT = 20;
  *     secondary key, then by id; re-sorting here would silently disagree with
  *     the server as soon as there is a second page.
  */
-export function useActionItems({ limit = PAGE_LIMIT, offset = 0 }: UseActionItemsOptions = {}): UseActionItemsResult {
+export function useActionItems({
+  limit = PAGE_LIMIT,
+  offset = 0,
+}: UseActionItemsOptions = {}): UseActionItemsResult {
   const tenant = useAuthStore((s) => s.user?.tenant_id) ?? 'anonymous';
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: actionCenterKey(tenant, limit, offset),

@@ -58,7 +58,12 @@ api.interceptors.request.use((config) => {
 // (broken or not) also return 401 without that field — e.g. a missing permission, or a route
 // whose guard is misconfigured. Redirecting to /login on *any* 401 logs the user out for those
 // too, even though their session is perfectly valid. Only force logout on genuine token failures.
-const TOKEN_ERROR_CODES = new Set(['TOKEN_EXPIRED', 'TOKEN_REVOKED', 'TOKEN_INVALID', 'UNAUTHORIZED']);
+const TOKEN_ERROR_CODES = new Set([
+  'TOKEN_EXPIRED',
+  'TOKEN_REVOKED',
+  'TOKEN_INVALID',
+  'UNAUTHORIZED',
+]);
 
 // A single in-flight refresh shared by every request that 401s at once, so a
 // dashboard full of widgets that all expire together triggers ONE /auth/refresh,

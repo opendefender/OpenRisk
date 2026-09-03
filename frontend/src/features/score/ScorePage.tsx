@@ -81,10 +81,16 @@ export function ScorePage() {
                 />
                 <div
                   className="rounded-[14px] p-4 sm:col-span-2"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-strong)',
+                  }}
                 >
                   <div className="text-[12px] text-ink-muted">
-                    {tr('Réduction obtenue par les mitigations', 'Reduction achieved by mitigations')}
+                    {tr(
+                      'Réduction obtenue par les mitigations',
+                      'Reduction achieved by mitigations',
+                    )}
                   </div>
                   <div className="mono text-[20px] font-bold text-ink mt-0.5">
                     {Math.round(score.mitigation_effectiveness * 100)}%

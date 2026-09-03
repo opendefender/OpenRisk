@@ -66,7 +66,6 @@ describe('App Integration', () => {
     expect(screen.getByTestId('login-submit')).toBeInTheDocument();
   });
 
-
   it('should render Dashboard when authenticated', async () => {
     vi.mocked(useAuthStore).mockImplementation((selector: any) => {
       const store = {

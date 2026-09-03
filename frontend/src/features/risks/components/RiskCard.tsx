@@ -29,12 +29,13 @@ export const RiskCard = ({ risk, onClick }: RiskCardProps) => {
   // score), NOT the legacy `level` field, which is not reliably populated and
   // rendered every risk as MEDIUM regardless of score.
   const band = (risk.criticality ?? risk.level ?? 'low').toString().toUpperCase();
-  const riskLevelColor = {
-    CRITICAL: 'bg-danger-surface border-danger/50',
-    HIGH: 'bg-warning-surface border-warning/50',
-    MEDIUM: 'bg-warning-surface border-warning/50',
-    LOW: 'bg-info-surface border-accent-line',
-  }[band] || 'bg-info-surface border-accent-line';
+  const riskLevelColor =
+    {
+      CRITICAL: 'bg-danger-surface border-danger/50',
+      HIGH: 'bg-warning-surface border-warning/50',
+      MEDIUM: 'bg-warning-surface border-warning/50',
+      LOW: 'bg-info-surface border-accent-line',
+    }[band] || 'bg-info-surface border-accent-line';
 
   return (
     <div

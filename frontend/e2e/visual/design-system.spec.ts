@@ -59,7 +59,6 @@ const GALLERIES = [
  */
 const LANGS = ['en', 'fr'] as const;
 
-
 /**
  * Web fonts are fetched at runtime (Inter / DM Sans / JetBrains Mono). A
  * screenshot taken before they land captures the fallback face, so the same
@@ -196,7 +195,9 @@ for (const viewport of VIEWPORTS) {
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         );
-        expect(overflow, `${gallery} overflows horizontally by ${overflow}px`).toBeLessThanOrEqual(0);
+        expect(overflow, `${gallery} overflows horizontally by ${overflow}px`).toBeLessThanOrEqual(
+          0,
+        );
       }
     });
   }
@@ -216,7 +217,8 @@ test('touch targets clear the WCAG 2.5.8 minimum', async ({ page }) => {
       const r = el.getBoundingClientRect();
       // The link variant is inline text, exempt by 2.5.8's inline exception.
       if (el.className.includes('underline')) continue;
-      if (r.width < 24 || r.height < 24) small.push(`${el.textContent?.trim()} ${r.width}x${r.height}`);
+      if (r.width < 24 || r.height < 24)
+        small.push(`${el.textContent?.trim()} ${r.width}x${r.height}`);
     }
     return small;
   });
@@ -320,7 +322,9 @@ test('no control is clipped by its row in French', async ({ page }) => {
     for (const el of document.querySelectorAll('main button, main label')) {
       // scrollWidth past clientWidth means the text is cut off, not wrapped.
       if (el.scrollWidth > el.clientWidth + 1) {
-        bad.push(`${el.tagName.toLowerCase()} "${el.textContent?.trim()}" ${el.scrollWidth}>${el.clientWidth}`);
+        bad.push(
+          `${el.tagName.toLowerCase()} "${el.textContent?.trim()}" ${el.scrollWidth}>${el.clientWidth}`,
+        );
       }
     }
     return bad;

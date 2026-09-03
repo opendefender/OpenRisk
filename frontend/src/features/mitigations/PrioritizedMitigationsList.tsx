@@ -20,7 +20,7 @@ interface MitigationData {
   cost: number;
   mitigation_time: number;
   weighted_priority: number;
-  risk: RiskData; 
+  risk: RiskData;
 }
 
 // Business value -> visual intent, as a lookup rather than a styling string.
@@ -28,12 +28,16 @@ interface MitigationData {
 // inside the data helper: changing how a "high cost" badge looks meant editing
 // business logic.
 const formatCost = (cost: number): { label: string; intent: BadgeIntent } => {
-    switch(cost) {
-        case 1: return { label: 'Faible', intent: 'success' };
-        case 2: return { label: 'Moyen', intent: 'warning' };
-        case 3: return { label: 'Élevé', intent: 'danger' };
-        default: return { label: 'N/A', intent: 'unavailable' };
-    }
+  switch (cost) {
+    case 1:
+      return { label: 'Faible', intent: 'success' };
+    case 2:
+      return { label: 'Moyen', intent: 'warning' };
+    case 3:
+      return { label: 'Élevé', intent: 'danger' };
+    default:
+      return { label: 'N/A', intent: 'unavailable' };
+  }
 };
 
 export const PrioritizedMitigationsList = () => {
@@ -41,12 +45,13 @@ export const PrioritizedMitigationsList = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/mitigations/recommended')
-       .then(res => {
-           setMitigations(res.data);
-       })
-       .catch(console.error)
-       .finally(() => setIsLoading(false));
+    api
+      .get('/mitigations/recommended')
+      .then((res) => {
+        setMitigations(res.data);
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) {
@@ -56,9 +61,13 @@ export const PrioritizedMitigationsList = () => {
       </div>
     );
   }
-  
+
   if (mitigations.length === 0) {
-      return <div className="p-6 text-center text-fg-muted">Aucune mitigation en cours. Créez des risques pour générer des actions !</div>;
+    return (
+      <div className="p-6 text-center text-fg-muted">
+        Aucune mitigation en cours. Créez des risques pour générer des actions !
+      </div>
+    );
   }
 
   return (
@@ -67,16 +76,22 @@ export const PrioritizedMitigationsList = () => {
         <Zap size={20} className="text-warning-text mr-2" /> Priorité Intelligente
       </h2>
       <p className="text-fg-secondary text-sm">
-        Liste des actions classées par leur impact maximal par rapport à l'effort minimal (Coût/Temps).
+        Liste des actions classées par leur impact maximal par rapport à l'effort minimal
+        (Coût/Temps).
       </p>
 
       {mitigations.map((m) => {
         const costInfo = formatCost(m.cost);
-        const priorityColor = m.weighted_priority > 10 ? 'bg-danger/50' : m.weighted_priority > 5 ? 'bg-warning/50' : 'bg-surface-3/50';
+        const priorityColor =
+          m.weighted_priority > 10
+            ? 'bg-danger/50'
+            : m.weighted_priority > 5
+              ? 'bg-warning/50'
+              : 'bg-surface-3/50';
 
         return (
-          <div 
-            key={m.id} 
+          <div
+            key={m.id}
             className={`p-4 border border-border-default rounded-lg shadow-xl transition-all duration-200 hover:border-accent ${priorityColor}`}
           >
             <div className="flex justify-between items-start">
@@ -88,25 +103,27 @@ export const PrioritizedMitigationsList = () => {
             </div>
 
             <div className="mt-2 text-sm text-fg-secondary flex flex-wrap gap-x-4 gap-y-2">
-                <div className="flex items-center">
-                    <ShieldAlert size={14} className="text-danger-text mr-1" />
-                    <span>Risque: {m.risk?.title || 'N/A'} (Score: {m.risk?.score || '?'})</span>
-                </div>
-                <div className="flex items-center">
-                    <DollarSign size={14} className="text-fg-secondary mr-1" />
-                    <Badge intent={costInfo.intent}>{costInfo.label} Coût</Badge>
-                </div>
-                <div className="flex items-center">
-                    <Clock size={14} className="text-fg-secondary mr-1" />
-                    <span>{m.mitigation_time} Jours Est.</span>
-                </div>
+              <div className="flex items-center">
+                <ShieldAlert size={14} className="text-danger-text mr-1" />
+                <span>
+                  Risque: {m.risk?.title || 'N/A'} (Score: {m.risk?.score || '?'})
+                </span>
+              </div>
+              <div className="flex items-center">
+                <DollarSign size={14} className="text-fg-secondary mr-1" />
+                <Badge intent={costInfo.intent}>{costInfo.label} Coût</Badge>
+              </div>
+              <div className="flex items-center">
+                <Clock size={14} className="text-fg-secondary mr-1" />
+                <span>{m.mitigation_time} Jours Est.</span>
+              </div>
             </div>
 
             <div className="mt-3 w-full bg-surface-3 rounded-full h-2.5">
-                <div 
-                    className="h-2.5 rounded-full bg-success transition-all duration-500" 
-                    style={{ width: `${m.progress}%` }}
-                ></div>
+              <div
+                className="h-2.5 rounded-full bg-success transition-all duration-500"
+                style={{ width: `${m.progress}%` }}
+              ></div>
             </div>
             <p className="text-xs text-fg-secondary mt-1">{m.progress}% Complété</p>
           </div>

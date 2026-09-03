@@ -81,7 +81,9 @@ describe('MFAPostAhaPrompt', () => {
   it('stays silent once enrolment is already mandatory', async () => {
     // The banner is already an alert and the server is already refusing
     // requests. A modal on top of that is noise stacked on a blocker.
-    fetchMFAStatus.mockResolvedValue(status({ state: 'required', required: true, privileged: true }));
+    fetchMFAStatus.mockResolvedValue(
+      status({ state: 'required', required: true, privileged: true }),
+    );
     renderPrompt();
 
     await waitFor(() => expect(fetchMFAStatus).toHaveBeenCalled());
@@ -99,7 +101,10 @@ describe('MFAPostAhaPrompt', () => {
   });
 
   it('asks again once the cooldown has elapsed', async () => {
-    localStorage.setItem('openrisk_mfa_post_aha_prompt_at', String(Date.now() - 25 * 60 * 60 * 1000));
+    localStorage.setItem(
+      'openrisk_mfa_post_aha_prompt_at',
+      String(Date.now() - 25 * 60 * 60 * 1000),
+    );
     renderPrompt();
     expect(await screen.findByTestId('mfa-post-aha-prompt')).toBeInTheDocument();
   });

@@ -31,7 +31,9 @@ export const reportService = {
    * offer a format the engine would refuse on submit.
    */
   async catalogue(locale: string): Promise<ReportCatalogue> {
-    const { data } = await api.get<ReportCatalogue>(`/reports/types?locale=${encodeURIComponent(locale)}`);
+    const { data } = await api.get<ReportCatalogue>(
+      `/reports/types?locale=${encodeURIComponent(locale)}`,
+    );
     return data;
   },
 
@@ -42,7 +44,9 @@ export const reportService = {
     params.set('limit', String(filter.limit ?? 20));
     if (filter.offset) params.set('offset', String(filter.offset));
     params.set('sort', filter.sort ?? '-created_at');
-    const { data } = await api.get<{ items: Report[]; total: number }>(`/reports?${params.toString()}`);
+    const { data } = await api.get<{ items: Report[]; total: number }>(
+      `/reports?${params.toString()}`,
+    );
     return data;
   },
 

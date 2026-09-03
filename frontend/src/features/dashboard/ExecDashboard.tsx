@@ -23,7 +23,11 @@ import { WidgetState } from './WidgetState';
 import { DashboardShell, PersonaHeader, ScoreHero, StatCard, Card } from './shared';
 
 const KRI_COL: Record<string, string> = {
-  critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)', info: 'var(--fg-muted)',
+  critical: 'var(--critical)',
+  high: 'var(--high)',
+  medium: 'var(--medium)',
+  low: 'var(--low)',
+  info: 'var(--fg-muted)',
 };
 
 export function ExecDashboard() {
@@ -37,14 +41,20 @@ export function ExecDashboard() {
   const kris = data?.kris ?? [];
 
   const money = (n: number) =>
-    new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { notation: n >= 1_000_000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(n) + ' FCFA';
+    new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+      notation: n >= 1_000_000 ? 'compact' : 'standard',
+      maximumFractionDigits: 1,
+    }).format(n) + ' FCFA';
   const kriUnit = (u: string) => (u === '%' ? '%' : u === 'days' ? tr(' j', ' d') : '');
 
   return (
     <DashboardShell>
       <PersonaHeader
         title={tr('Direction', 'Executive')}
-        subtitle={tr('La posture en un écran : score, exposition financière, indicateurs clés.', 'Your posture at a glance: score, financial exposure, key indicators.')}
+        subtitle={tr(
+          'La posture en un écran : score, exposition financière, indicateurs clés.',
+          'Your posture at a glance: score, financial exposure, key indicators.',
+        )}
         actionLabel={tr('Rapport conseil', 'Board report')}
         onAction={() => navigate('/reports')}
       />
@@ -56,28 +66,62 @@ export function ExecDashboard() {
         skeletonHeight={260}
         retry={() => void query.refetch()}
       >
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
-        <ScoreHero
-          title={tr('Cyber score', 'Cyber score')}
-          score={Math.round(cyber?.score ?? 0)}
-          grade={cyber?.grade}
-          hint={tr('Note composite A–F sur 4 axes pondérés : conformité, risques, vulnérabilités, incidents.', 'Composite A–F grade over 4 weighted axes: compliance, risks, vulnerabilities, incidents.')}
-          ctaLabel={tr('Voir Analytics', 'View analytics')}
-          onDetails={() => navigate('/?view=executive')}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <StatCard label={tr('Exposition annuelle (ALE)', 'Annual exposure (ALE)')} value={money(fin?.total_ale?.xaf ?? 0)} col="var(--accent)" icon={Coins} onClick={() => navigate('/analytics/financial')} />
-          <StatCard label={tr('Pire cas', 'Worst case')} value={money(fin?.total_ale_worst?.xaf ?? 0)} col="var(--critical)" icon={AlertTriangle} onClick={() => navigate('/analytics/financial')} />
-          <StatCard label={tr('Risques', 'Risks')} value={String(fin?.total_risks ?? 0)} col="var(--high)" icon={ShieldAlert} onClick={() => navigate(deepLink('risks', { sort: { key: 'score', dir: 'desc' } }))} />
-          <StatCard label={tr('Quantifiés', 'Quantified')} value={String(fin?.quantified_risks ?? 0)} col="var(--low)" icon={CheckCircle2} onClick={() => navigate('/analytics/financial')} />
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
+          <ScoreHero
+            title={tr('Cyber score', 'Cyber score')}
+            score={Math.round(cyber?.score ?? 0)}
+            grade={cyber?.grade}
+            hint={tr(
+              'Note composite A–F sur 4 axes pondérés : conformité, risques, vulnérabilités, incidents.',
+              'Composite A–F grade over 4 weighted axes: compliance, risks, vulnerabilities, incidents.',
+            )}
+            ctaLabel={tr('Voir Analytics', 'View analytics')}
+            onDetails={() => navigate('/?view=executive')}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard
+              label={tr('Exposition annuelle (ALE)', 'Annual exposure (ALE)')}
+              value={money(fin?.total_ale?.xaf ?? 0)}
+              col="var(--accent)"
+              icon={Coins}
+              onClick={() => navigate('/analytics/financial')}
+            />
+            <StatCard
+              label={tr('Pire cas', 'Worst case')}
+              value={money(fin?.total_ale_worst?.xaf ?? 0)}
+              col="var(--critical)"
+              icon={AlertTriangle}
+              onClick={() => navigate('/analytics/financial')}
+            />
+            <StatCard
+              label={tr('Risques', 'Risks')}
+              value={String(fin?.total_risks ?? 0)}
+              col="var(--high)"
+              icon={ShieldAlert}
+              onClick={() => navigate(deepLink('risks', { sort: { key: 'score', dir: 'desc' } }))}
+            />
+            <StatCard
+              label={tr('Quantifiés', 'Quantified')}
+              value={String(fin?.quantified_risks ?? 0)}
+              col="var(--low)"
+              icon={CheckCircle2}
+              onClick={() => navigate('/analytics/financial')}
+            />
+          </div>
         </div>
-      </div>
       </WidgetState>
 
       <Card style={{ padding: '18px 20px' }}>
         <div className="flex items-center justify-between mb-4">
-          <div className="text-[14px] font-semibold text-ink">{tr('Indicateurs clés de risque (KRI)', 'Key risk indicators (KRI)')}</div>
-          <button onClick={() => navigate('/?view=executive')} className="text-[12px] font-semibold text-accent hover:underline">{tr('Détails', 'Details')}</button>
+          <div className="text-[14px] font-semibold text-ink">
+            {tr('Indicateurs clés de risque (KRI)', 'Key risk indicators (KRI)')}
+          </div>
+          <button
+            onClick={() => navigate('/?view=executive')}
+            className="text-[12px] font-semibold text-accent hover:underline"
+          >
+            {tr('Détails', 'Details')}
+          </button>
         </div>
         <WidgetState
           lang={lang}
@@ -89,14 +133,23 @@ export function ExecDashboard() {
           emptyTitle={tr('Aucun indicateur calculable', 'No indicator can be computed yet')}
           emptyDescription={tr(
             'Les KRI se calculent à partir des risques, des vulnérabilités, de la conformité et des incidents. Ils apparaissent dès que l’une de ces sources contient des données.',
-            'KRIs are computed from risks, vulnerabilities, compliance and incidents. They appear as soon as any of those holds data.'
+            'KRIs are computed from risks, vulnerabilities, compliance and incidents. They appear as soon as any of those holds data.',
           )}
         >
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {kris.map((k) => (
-              <div key={k.key} className="rounded-xl p-3.5" style={{ background: 'var(--bg-hover)' }}>
-                <div className="mono text-[22px] font-bold leading-none" style={{ color: KRI_COL[k.severity] ?? 'var(--fg-primary)' }}>
-                  {new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 1 }).format(k.value)}
+              <div
+                key={k.key}
+                className="rounded-xl p-3.5"
+                style={{ background: 'var(--bg-hover)' }}
+              >
+                <div
+                  className="mono text-[22px] font-bold leading-none"
+                  style={{ color: KRI_COL[k.severity] ?? 'var(--fg-primary)' }}
+                >
+                  {new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+                    maximumFractionDigits: 1,
+                  }).format(k.value)}
                   {kriUnit(k.unit)}
                 </div>
                 <div className="text-[11.5px] text-ink-soft mt-1.5">{k.label}</div>

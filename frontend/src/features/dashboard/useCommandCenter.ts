@@ -133,7 +133,8 @@ export function useDashboardStats(selection: PeriodSelection) {
 export function useAssetStatistics(selection: PeriodSelection) {
   return useQuery({
     queryKey: [ASSET_STATS_KEY, periodKey(selection)],
-    queryFn: ({ signal }) => query<AssetStatistics>('/assets/statistics', periodParams(selection), signal),
+    queryFn: ({ signal }) =>
+      query<AssetStatistics>('/assets/statistics', periodParams(selection), signal),
     staleTime: STALE,
   });
 }

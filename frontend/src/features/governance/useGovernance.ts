@@ -23,7 +23,10 @@ export function useAuditEvents(filter: AuditFilter) {
 }
 
 export function useDelegations() {
-  return useQuery({ queryKey: [...KEY, 'delegations'], queryFn: governanceService.listDelegations });
+  return useQuery({
+    queryKey: [...KEY, 'delegations'],
+    queryFn: governanceService.listDelegations,
+  });
 }
 
 export function useEffectivePermissions(delegateId?: string) {
@@ -100,8 +103,12 @@ export function useGovernanceMutations() {
   });
 
   return {
-    createDelegation, revokeDelegation,
-    createWorkflow, deleteWorkflow,
-    submitApproval, decideApproval, cancelApproval,
+    createDelegation,
+    revokeDelegation,
+    createWorkflow,
+    deleteWorkflow,
+    submitApproval,
+    decideApproval,
+    cancelApproval,
   };
 }

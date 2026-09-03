@@ -85,7 +85,11 @@ export const evidenceService = {
   },
 
   /** A rejection must carry a reason; the server refuses one without. */
-  async review(id: string, review: 'accepted' | 'rejected' | 'pending', note?: string): Promise<Evidence> {
+  async review(
+    id: string,
+    review: 'accepted' | 'rejected' | 'pending',
+    note?: string,
+  ): Promise<Evidence> {
     const { data } = await api.post<Evidence>(`/evidence/${id}/review`, { review, note });
     return data;
   },
@@ -97,7 +101,9 @@ export const evidenceService = {
   /** The worklist: what proof is missing, and whether it is absent or stale. */
   async missing(frameworkId?: string): Promise<FrameworkEvidenceCoverage[]> {
     const qs = frameworkId ? `?framework_id=${encodeURIComponent(frameworkId)}` : '';
-    const { data } = await api.get<{ frameworks: FrameworkEvidenceCoverage[] }>(`/evidence/missing${qs}`);
+    const { data } = await api.get<{ frameworks: FrameworkEvidenceCoverage[] }>(
+      `/evidence/missing${qs}`,
+    );
     return data.frameworks ?? [];
   },
 

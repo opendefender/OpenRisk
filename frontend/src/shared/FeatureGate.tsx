@@ -18,7 +18,7 @@ const BENEFITS: Record<string, { title: string; description: string }> = {
   financial_quantification: {
     title: 'Quantification financière Monte-Carlo',
     description:
-      "Chiffrez votre exposition en XAF et justifiez vos budgets sécurité auprès de la direction. Disponible à partir du plan Pro.",
+      'Chiffrez votre exposition en XAF et justifiez vos budgets sécurité auprès de la direction. Disponible à partir du plan Pro.',
   },
   ai_advisor: {
     title: 'Assistant IA GRC',
@@ -37,27 +37,37 @@ const BENEFITS: Record<string, { title: string; description: string }> = {
   },
   scanner: {
     title: "Scanner d'infrastructure",
-    description: 'Découverte automatique de vos actifs et vulnérabilités. Disponible à partir du plan Pro.',
+    description:
+      'Découverte automatique de vos actifs et vulnérabilités. Disponible à partir du plan Pro.',
   },
   automation: {
     title: 'Automatisation (SOAR)',
-    description: 'Enchaînez alertes, tickets et escalades SLA sans intervention manuelle. Disponible à partir du plan Pro.',
+    description:
+      'Enchaînez alertes, tickets et escalades SLA sans intervention manuelle. Disponible à partir du plan Pro.',
   },
   cti: {
     title: 'Renseignement sur les menaces (CTI)',
-    description: 'Enrichissez vos vulnérabilités avec NVD, CISA-KEV et MITRE ATT&CK. Disponible à partir du plan Business.',
+    description:
+      'Enrichissez vos vulnérabilités avec NVD, CISA-KEV et MITRE ATT&CK. Disponible à partir du plan Business.',
   },
   governance: {
     title: 'Gouvernance & approbations',
-    description: 'Workflows Maker-Checker et piste d’audit infalsifiable. Disponible à partir du plan Business.',
+    description:
+      'Workflows Maker-Checker et piste d’audit infalsifiable. Disponible à partir du plan Business.',
   },
   sso: {
     title: 'SSO / SAML',
-    description: 'Authentification centralisée via votre annuaire d’entreprise. Disponible à partir du plan Business.',
+    description:
+      'Authentification centralisée via votre annuaire d’entreprise. Disponible à partir du plan Business.',
   },
 };
 
-const PLAN_LABEL: Record<string, string> = { free: 'Free', pro: 'Pro', business: 'Business', enterprise: 'Enterprise' };
+const PLAN_LABEL: Record<string, string> = {
+  free: 'Free',
+  pro: 'Pro',
+  business: 'Business',
+  enterprise: 'Enterprise',
+};
 
 interface FeatureGateProps {
   feature: string;
@@ -79,7 +89,11 @@ export function FeatureGate({ feature, children, title, description, moment }: F
   return (
     <UpsellLock
       title={title ?? meta?.title ?? 'Fonctionnalité premium'}
-      description={description ?? meta?.description ?? `Disponible à partir du plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}.`}
+      description={
+        description ??
+        meta?.description ??
+        `Disponible à partir du plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}.`
+      }
       ctaLabel={`Passer au plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}`}
       moment={moment ?? `Plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}`}
       onUpgrade={() => navigate('/settings?tab=billing')}

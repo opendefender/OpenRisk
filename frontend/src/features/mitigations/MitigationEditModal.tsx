@@ -24,7 +24,13 @@ interface Props {
 export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Props) => {
   // Esc closes this overlay (spec §2).
   useEscapeToClose(isOpen, onClose);
-  const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { isSubmitting },
+  } = useForm();
   const [newSubTitle, setNewSubTitle] = useState('');
 
   // The three accountability slots. The API has accepted them since the
@@ -32,7 +38,9 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
   // create/update payloads) — this form simply never sent them, which is why a
   // mitigation could not be given an owner from anywhere in the product.
   const [owners, setOwners] = useState<Record<OwnershipRole, string | null>>({
-    owner: null, assignee: null, reviewer: null,
+    owner: null,
+    assignee: null,
+    reviewer: null,
   });
 
   useEffect(() => {
@@ -41,7 +49,8 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
       setValue('cost', mitigation.cost || 1);
       setValue('mitigation_time', mitigation.mitigation_time || 1);
       setValue('status', mitigation.status || 'PLANNED');
-      if (mitigation.due_date) setValue('due_date', new Date(mitigation.due_date).toISOString().slice(0,10));
+      if (mitigation.due_date)
+        setValue('due_date', new Date(mitigation.due_date).toISOString().slice(0, 10));
     } else {
       reset();
     }
@@ -60,7 +69,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
             assignee: mitigation.assignee_id ?? null,
             reviewer: mitigation.reviewer_id ?? null,
           }
-        : { owner: null, assignee: null, reviewer: null }
+        : { owner: null, assignee: null, reviewer: null },
     );
   }
 
@@ -108,7 +117,7 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
         onClose();
         return;
       }
-      toast.error('Impossible d\'ajouter la sous-action');
+      toast.error("Impossible d'ajouter la sous-action");
     }
   };
 
@@ -151,13 +160,23 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-surface-overlay z-40" />
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="fixed inset-0 m-auto w-full max-w-md h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-50 overflow-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-surface-overlay z-40"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed inset-0 m-auto w-full max-w-md h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-50 overflow-auto"
+          >
             <h3 className="text-lg font-semibold text-fg-primary mb-4">Modifier la mitigation</h3>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <Field label="Titre">
-                <Input  {...register('title')}
-                />
+                <Input {...register('title')} />
               </Field>
 
               <div className="space-y-2">
@@ -193,43 +212,69 @@ export const MitigationEditModal = ({ isOpen, onClose, mitigation, onSaved }: Pr
                   </div>
                 </div>
                 <Field label="Temps (jours)">
-                  <Input type="number"  {...register('mitigation_time')}
-                  />
+                  <Input type="number" {...register('mitigation_time')} />
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Coût (1-3)">
-                  <Input type="number"  {...register('cost')}
-                  />
+                  <Input type="number" {...register('cost')} />
                 </Field>
                 <Field label="Due date">
-                  <Input type="date"  {...register('due_date')}
-                  />
+                  <Input type="date" {...register('due_date')} />
                 </Field>
               </div>
               {/* Sub-actions checklist */}
               <div className="mt-3">
                 <h4 className="text-sm font-medium text-fg-primary mb-2">Checklist</h4>
                 <div className="space-y-2">
-                  {mitigation?.sub_actions?.length ? mitigation.sub_actions.map((s: any) => (
-                    <div key={s.id} className="flex items-center justify-between bg-muted p-2 rounded">
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" checked={s.completed} onChange={() => toggleSub(s)} />
-                        <span className={s.completed ? 'line-through text-muted-foreground' : ''}>{s.title}</span>
+                  {mitigation?.sub_actions?.length ? (
+                    mitigation.sub_actions.map((s: any) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between bg-muted p-2 rounded"
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={s.completed}
+                            onChange={() => toggleSub(s)}
+                          />
+                          <span className={s.completed ? 'line-through text-muted-foreground' : ''}>
+                            {s.title}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-sm text-danger-text"
+                          onClick={() => deleteSub(s)}
+                        >
+                          Supprimer
+                        </button>
                       </div>
-                      <button type="button" className="text-sm text-danger-text" onClick={() => deleteSub(s)}>Supprimer</button>
-                    </div>
-                  )) : <div className="text-xs text-muted-foreground">Aucune sous-action</div>}
+                    ))
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Aucune sous-action</div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 mt-2">
-                  <Input value={newSubTitle} onChange={(e:any) => setNewSubTitle(e.target.value)} placeholder="Nouvelle sous-action" />
-                  <Button variant="primary" type="button" onClick={addSubAction}>Ajouter</Button>
+                  <Input
+                    value={newSubTitle}
+                    onChange={(e: any) => setNewSubTitle(e.target.value)}
+                    placeholder="Nouvelle sous-action"
+                  />
+                  <Button variant="primary" type="button" onClick={addSubAction}>
+                    Ajouter
+                  </Button>
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <Button variant="ghost" type="button" onClick={onClose}>Annuler</Button>
-                <Button variant="primary" type="submit" loading={isSubmitting}>Sauvegarder</Button>
+                <Button variant="ghost" type="button" onClick={onClose}>
+                  Annuler
+                </Button>
+                <Button variant="primary" type="submit" loading={isSubmitting}>
+                  Sauvegarder
+                </Button>
               </div>
             </form>
           </motion.div>

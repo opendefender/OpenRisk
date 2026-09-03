@@ -75,7 +75,9 @@ export function MFAPostAhaPrompt() {
   }, [open]);
 
   if (enrolling) {
-    return <MFAEnrollmentDialog onClose={() => setEnrolling(false)} onEnrolled={() => setOpen(false)} />;
+    return (
+      <MFAEnrollmentDialog onClose={() => setEnrolling(false)} onEnrolled={() => setOpen(false)} />
+    );
   }
   if (!open) return null;
 
@@ -93,10 +95,20 @@ export function MFAPostAhaPrompt() {
         data-testid="mfa-post-aha-prompt"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[420px] rounded-[16px] overflow-hidden"
-        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
       >
-        <div className="px-[22px] pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
+        <div
+          className="px-[22px] pt-5 pb-4 flex items-center gap-3"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div
+            className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+          >
             <ShieldCheck size={18} aria-hidden="true" />
           </div>
           <div id="mfa-aha-title" className="disp text-[17px] font-bold text-ink flex-1">
@@ -116,11 +128,14 @@ export function MFAPostAhaPrompt() {
         <div id="mfa-aha-body" className="px-[22px] py-5 text-[13px] text-ink-soft leading-relaxed">
           {tr(
             'Votre registre de risques et votre posture de conformité vivent désormais dans OpenRisk. L’authentification à deux facteurs empêche qu’un mot de passe compromis suffise à y accéder — deux minutes suffisent.',
-            'Your risk register and compliance posture now live in OpenRisk. Two-factor authentication stops a leaked password from being enough to reach them — it takes two minutes.'
+            'Your risk register and compliance posture now live in OpenRisk. Two-factor authentication stops a leaked password from being enough to reach them — it takes two minutes.',
           )}
         </div>
 
-        <div className="px-[22px] py-4 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+        <div
+          className="px-[22px] py-4 flex justify-end gap-2"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
           <button
             type="button"
             onClick={() => setOpen(false)}
@@ -133,13 +148,17 @@ export function MFAPostAhaPrompt() {
             type="button"
             onClick={() => setEnrolling(true)}
             className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary transition-all"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+            style={{
+              border: 'none',
+              background: 'var(--accent-solid)',
+              color: 'var(--fg-on-solid)',
+            }}
           >
             {tr('Activer le MFA', 'Enable MFA')}
           </button>
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -78,7 +78,11 @@ function envelope(overrides: Partial<RealtimeEnvelope> = {}): RealtimeEnvelope {
 function connect(client: RealtimeClient, tenantId = 'tenant-a'): FakeEventSource {
   client.start();
   const source = FakeEventSource.last();
-  source.emit('stream.hello', { tenant_id: tenantId, connection_id: 'conn-1', envelope_version: 1 });
+  source.emit('stream.hello', {
+    tenant_id: tenantId,
+    connection_id: 'conn-1',
+    envelope_version: 1,
+  });
   return source;
 }
 

@@ -66,7 +66,10 @@ export function RelationsSection({ groups, isLoading, error, onRetry, onOpen }: 
       {visible.map((group) => (
         <section key={group.key} aria-labelledby={`rel-${group.key}`}>
           <div className="mb-2 flex items-baseline justify-between gap-2">
-            <h3 id={`rel-${group.key}`} className="text-2xs font-semibold uppercase tracking-wide text-fg-muted">
+            <h3
+              id={`rel-${group.key}`}
+              className="text-2xs font-semibold uppercase tracking-wide text-fg-muted"
+            >
               {group.label}
             </h3>
             {group.items.length > 0 && (
