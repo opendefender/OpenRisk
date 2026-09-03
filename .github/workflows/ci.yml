@@ -244,6 +244,15 @@ jobs:
       - name: Bundle budget (< 180 KB gzip initial)
         run: cd frontend && npm run build && npm run budget
 
+      # anime.js (#445, D-028) is the second animation runtime in this bundle and
+      # is admitted for one job: drawing SVG on entry, on lazily-routed screens.
+      # This asserts it never reaches the preloaded graph — which is the whole
+      # basis on which it was approved — and that its own chunk stays inside its
+      # gzip ceiling. `npm run budget` above cannot see it: that gate counts only
+      # preloaded JS, and anime.js is deliberately not in it.
+      - name: anime.js stays lazy and within its ceiling
+        run: cd frontend && npm run budget:anime
+
       - name: Upload visual diffs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -407,6 +416,9 @@ jobs:
       # #462. Route/on-demand chunks excluded.
       - name: Enforce bundle-size budget (< 180 KB gzip initial)
         run: cd frontend && npm run budget
+
+      - name: anime.js stays lazy and within its ceiling (#445)
+        run: cd frontend && npm run budget:anime
 
       - name: Upload artifact
         # v3 was retired by GitHub and now fails at runtime (#341) — it aborts
