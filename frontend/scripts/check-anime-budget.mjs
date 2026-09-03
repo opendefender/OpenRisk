@@ -50,9 +50,7 @@ const animeChunks = files.filter((f) => /^anime-/.test(f));
 
 /* ---------------------------------------------- 1. never preloaded -------- */
 const html = readFileSync(indexHtml, 'utf8');
-const preloaded = new Set(
-  [...html.matchAll(/assets\/([A-Za-z0-9_-]+\.js)/g)].map((m) => m[1]),
-);
+const preloaded = new Set([...html.matchAll(/assets\/([A-Za-z0-9_-]+\.js)/g)].map((m) => m[1]));
 
 const leaked = animeChunks.filter((f) => preloaded.has(f));
 if (leaked.length > 0) {

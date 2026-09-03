@@ -70,6 +70,31 @@ and the clip animation, not redesigning anything.
 
 **Unblocked** — #445. #444's unticked "entry draw" task, which closed unbuilt, lands here.
 
+### D-027 — Prettier is adopted and the tree is swept now, not at a later boundary · 2026-09-02
+**Decided** — Option A. Prettier is adopted, the sweep is taken immediately in its
+own PR (#505), and `format:check` becomes a blocking CI gate with no `||` fallback.
+**Rationale (owner)** — Accepted the revised recommendation. The original advice was
+to defer to the ds-v1 boundary because a repo-wide mechanical diff would collide
+with the open ds-v1 PRs; on re-measurement that reason had evaporated — #497, #498
+and #499 had all merged and the only open PR in the repo was #500 itself. The tree
+was quiet at the moment of asking, and #475, #457 and #438 are `status:ready` and
+would have ended that as soon as anyone started them. Deferring would have bought
+nothing and cost the window.
+**Consequence** — `prettier@3` is a devDependency; `.prettierrc` encodes the
+measured house style (single quotes, semicolons, 2-space, printWidth 100) rather
+than Prettier's defaults; 414 files are reformatted in one mechanical commit kept
+separate from the tooling commit so the diff can be reviewed by ignoring it.
+`eslint-config-prettier` is deliberately absent — the ESLint config carries no
+stylistic rules, and the lint ratchet holding at exactly 321 across a 414-file
+reformat is the evidence. Sweeping also surfaced the one file in the tree PostCSS
+cannot parse, `NotificationBadge.css`, which had two lines of JavaScript at the top.
+**Depends on** — #500 (#341), which rewrote the frontend lint job this gate lives
+in. #500 merged on 2026-09-03; #506 was rebuilt on the resulting master.
+**Unblocked** — #341 criterion "eliminate ESLint errors" keeps its ratchet; the
+frontend lint job gains its third real gate.
+
+---
+
 ### D-025 — the ExecutiveDashboard doughnut is converted to bars plus a KPI figure · 2026-09-02
 **Decided** — Option A. `features/analytics/ExecutiveDashboard.tsx`'s risk-distribution doughnut
 becomes severity **bars**, with the total shown as a KPI figure rather than sitting inside a ring.

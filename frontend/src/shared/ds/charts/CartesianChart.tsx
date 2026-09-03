@@ -336,15 +336,15 @@ function Plot<Row extends object>({
           }
           return (
             <Group key={s.key} clipPath={`url(#${uid}-${si})`}>
-            <LinePath
-              data={data}
-              x={centre}
-              y={value}
-              curve={curveMonotoneX}
-              stroke={colour}
-              strokeWidth={2}
-              strokeDasharray={DASHES[si % DASHES.length]}
-            />
+              <LinePath
+                data={data}
+                x={centre}
+                y={value}
+                curve={curveMonotoneX}
+                stroke={colour}
+                strokeWidth={2}
+                strokeDasharray={DASHES[si % DASHES.length]}
+              />
             </Group>
           );
         })}

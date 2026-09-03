@@ -57,18 +57,22 @@ export default defineConfig({
             id.includes('postcss-value-parser') ||
             id.includes('react-use-measure')
           )
-            return 'charts'
+            return 'charts';
           // anime.js gets its OWN chunk (#445, D-028) rather than riding along in
-          // `charts`. That is what makes the 12 KB gzip ceiling in
+          // `charts`. That is what makes the gzip ceiling in
           // scripts/check-anime-budget.mjs measurable at all: mixed into the
           // charts chunk alongside visx there would be no number to assert.
-          if (id.includes('animejs')) return 'anime'
-          if (id.includes('@zxcvbn-ts')) return 'zxcvbn' // password-strength dictionaries (huge)
-          if (id.includes('leaflet')) return 'maps'
-          if (id.includes('@hello-pangea') || id.includes('react-grid-layout') || id.includes('react-resizable'))
-            return 'dnd'
-          if (id.includes('lodash')) return 'lodash'
-          if (id.includes('date-fns')) return 'datefns'
+          if (id.includes('animejs')) return 'anime';
+          if (id.includes('@zxcvbn-ts')) return 'zxcvbn'; // password-strength dictionaries (huge)
+          if (id.includes('leaflet')) return 'maps';
+          if (
+            id.includes('@hello-pangea') ||
+            id.includes('react-grid-layout') ||
+            id.includes('react-resizable')
+          )
+            return 'dnd';
+          if (id.includes('lodash')) return 'lodash';
+          if (id.includes('date-fns')) return 'datefns';
           if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('/zod/'))
             return 'forms';
           if (id.includes('react-confetti') || id.includes('use-sound') || id.includes('howler'))

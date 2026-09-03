@@ -111,8 +111,18 @@ export const CLOUD_CRED_FIELDS: Partial<Record<ScannerProvider, CredField[]>> = 
     // false CRITICAL is how a real one gets skimmed past, and suppressing the
     // rule repo-wide would hide an actually leaked key. Keep the shape of the
     // value, never the marker — including in this comment.
-    { key: 'service_account_json', label: 'Service Account JSON', placeholder: '{ … contents of the downloaded key file … }', kind: 'textarea' },
-    { key: 'project_id', label: 'Project ID (optional)', placeholder: 'my-project-123', kind: 'text' },
+    {
+      key: 'service_account_json',
+      label: 'Service Account JSON',
+      placeholder: '{ … contents of the downloaded key file … }',
+      kind: 'textarea',
+    },
+    {
+      key: 'project_id',
+      label: 'Project ID (optional)',
+      placeholder: 'my-project-123',
+      kind: 'text',
+    },
   ],
   kubernetes: [
     {

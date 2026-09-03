@@ -28,14 +28,24 @@ vi.mock('@visx/responsive', () => ({
 }));
 
 vi.mock('animejs', () => ({
-  createScope: () => ({ add: (cb: () => void) => { cb(); return { revert: vi.fn() }; }, revert: vi.fn() }),
+  createScope: () => ({
+    add: (cb: () => void) => {
+      cb();
+      return { revert: vi.fn() };
+    },
+    revert: vi.fn(),
+  }),
   animate: vi.fn(),
   stagger: vi.fn(() => 0),
 }));
 
 import { CartesianChart } from '../CartesianChart';
 
-interface Row { month: string; opened: number; trend: number }
+interface Row {
+  month: string;
+  opened: number;
+  trend: number;
+}
 const DATA: Row[] = [
   { month: 'Jan', opened: 12, trend: 3 },
   { month: 'Feb', opened: 8, trend: 6 },
@@ -44,9 +54,13 @@ const DATA: Row[] = [
 function setReducedMotion(reduce: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: reduce && query.includes('prefers-reduced-motion'),
-    media: query, onchange: null,
-    addListener: vi.fn(), removeListener: vi.fn(),
-    addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
   }));
 }
 
