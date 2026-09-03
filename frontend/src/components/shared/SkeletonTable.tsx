@@ -17,11 +17,7 @@ interface SkeletonTableProps {
   className?: string;
 }
 
-export const SkeletonTable = ({
-  rows = 5,
-  columns = 6,
-  className,
-}: SkeletonTableProps) => {
+export const SkeletonTable = ({ rows = 5, columns = 6, className }: SkeletonTableProps) => {
   const pulseVariants: Variants = {
     animate: {
       opacity: [0.5, 1, 0.5],

@@ -59,12 +59,12 @@ export const AutoDetectedBadge = ({
         'group relative inline-flex items-center rounded-full border font-medium',
         'bg-success/20 border-success/50 text-success-text',
         sizeClasses[size],
-        className
+        className,
       )}
     >
       <Zap size={iconSizes[size]} className="shrink-0" />
       <span>Auto</span>
-      
+
       {/* Tooltip */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-surface-1 border border-border-default rounded-lg text-xs text-fg-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
         {tooltipText}

@@ -103,11 +103,12 @@ export const CreateControlModal = ({ isOpen, onClose, frameworkId }: CreateContr
                     autoFocus
                   />
                 </Field>
-                <Field label={t('compliance.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
-                  <Input
-                    {...register('name')}
-                    disabled={isSubmitting}
-                  />
+                <Field
+                  label={t('compliance.form.name')}
+                  message={errors.name?.message}
+                  status={errors.name?.message ? 'invalid' : 'default'}
+                >
+                  <Input {...register('name')} disabled={isSubmitting} />
                 </Field>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">

@@ -28,9 +28,27 @@ const ROWS: Row[] = [
 ];
 
 const COLUMNS: Column<Row>[] = [
-  { key: 'name', header: 'Nom', hideable: false, sortValue: (r) => r.name, exportValue: (r) => r.name },
-  { key: 'sev', header: 'Sévérité', sortValue: (r) => r.sev, exportValue: (r) => r.sev, render: (r) => <span>{r.sev}</span> },
-  { key: 'score', header: 'Score', sortValue: (r) => r.score, exportValue: (r) => r.score, render: (r) => <span>{r.score}</span> },
+  {
+    key: 'name',
+    header: 'Nom',
+    hideable: false,
+    sortValue: (r) => r.name,
+    exportValue: (r) => r.name,
+  },
+  {
+    key: 'sev',
+    header: 'Sévérité',
+    sortValue: (r) => r.sev,
+    exportValue: (r) => r.sev,
+    render: (r) => <span>{r.sev}</span>,
+  },
+  {
+    key: 'score',
+    header: 'Score',
+    sortValue: (r) => r.score,
+    exportValue: (r) => r.score,
+    render: (r) => <span>{r.score}</span>,
+  },
 ].map((c) => ({ render: (r: Row) => <span>{r.name}</span>, ...c })) as Column<Row>[];
 
 const FACETS: Facet<Row>[] = [
@@ -190,7 +208,9 @@ describe('sorting', () => {
 
   it('exposes the sort state to assistive technology', () => {
     renderTable({}, ['/?sort=score:desc']);
-    const header = screen.getAllByRole('columnheader').find((h) => h.textContent?.includes('Score'))!;
+    const header = screen
+      .getAllByRole('columnheader')
+      .find((h) => h.textContent?.includes('Score'))!;
     expect(header).toHaveAttribute('aria-sort', 'descending');
   });
 });
@@ -230,7 +250,9 @@ describe('selection scope', () => {
   });
 
   it('hides a bulk action the user has no permission for', () => {
-    const bulk: BulkAction<Row>[] = [{ key: 'del', label: 'Supprimer', hidden: true, run: vi.fn() }];
+    const bulk: BulkAction<Row>[] = [
+      { key: 'del', label: 'Supprimer', hidden: true, run: vi.fn() },
+    ];
     renderTable({ bulkActions: bulk });
     fireEvent.click(screen.getByTestId('row-select-a'));
     expect(screen.queryByTestId('bulk-action-del')).not.toBeInTheDocument();
@@ -250,7 +272,9 @@ describe('row actions', () => {
   });
 
   it('renders no trigger at all when every action is hidden for this row', () => {
-    const actions: RowAction<Row>[] = [{ key: 'del', label: 'Supprimer', hidden: () => true, onSelect: vi.fn() }];
+    const actions: RowAction<Row>[] = [
+      { key: 'del', label: 'Supprimer', hidden: () => true, onSelect: vi.fn() },
+    ];
     renderTable({ rowActions: actions });
     expect(screen.queryByTestId('row-menu-trigger')).not.toBeInTheDocument();
   });
@@ -314,7 +338,9 @@ describe('grid semantics', () => {
   it('marks selected rows for assistive technology', () => {
     renderTable();
     fireEvent.click(screen.getByTestId('row-select-b'));
-    const row = screen.getAllByTestId('table-row').find((r) => r.getAttribute('data-row-id') === 'b')!;
+    const row = screen
+      .getAllByTestId('table-row')
+      .find((r) => r.getAttribute('data-row-id') === 'b')!;
     expect(row).toHaveAttribute('aria-selected', 'true');
   });
 });

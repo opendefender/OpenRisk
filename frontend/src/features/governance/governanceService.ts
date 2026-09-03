@@ -12,8 +12,16 @@ import { api } from '../../lib/api';
 // ---------------------------------------------------------------------------
 
 export type AuditAction =
-  | 'create' | 'update' | 'delete' | 'submit' | 'approve' | 'reject'
-  | 'delegate' | 'revoke' | 'login' | 'export';
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'submit'
+  | 'approve'
+  | 'reject'
+  | 'delegate'
+  | 'revoke'
+  | 'login'
+  | 'export';
 
 export interface AuditEvent {
   id: string;
@@ -286,19 +294,25 @@ export const governanceService = {
   auditExportUrl: (filter: AuditFilter = {}): string =>
     `/governance/audit-events/export${qs(filter)}`,
   exportAuditCsv: (filter: AuditFilter = {}): Promise<Blob> =>
-    api.get(`/governance/audit-events/export${qs(filter)}`, { responseType: 'blob' }).then((r) => r.data as Blob),
+    api
+      .get(`/governance/audit-events/export${qs(filter)}`, { responseType: 'blob' })
+      .then((r) => r.data as Blob),
   // A signed JSON export carries the entries, the chain verdict at export time
   // and an HMAC over both — so a recipient can re-check it offline.
   exportAuditJson: (filter: AuditFilter = {}): Promise<Blob> =>
     api
-      .get(`/governance/audit-events/export${qs({ ...filter, format: 'json' } as AuditFilter)}`, { responseType: 'blob' })
+      .get(`/governance/audit-events/export${qs({ ...filter, format: 'json' } as AuditFilter)}`, {
+        responseType: 'blob',
+      })
       .then((r) => r.data as Blob),
   verifyAuditChain: (): Promise<AuditChainReport> =>
     api.get<AuditChainReport>('/governance/audit-events/verify').then((r) => r.data),
   getRetention: (): Promise<AuditRetentionPolicy> =>
     api.get<AuditRetentionPolicy>('/governance/audit-retention').then((r) => r.data),
   setRetention: (days: number): Promise<AuditRetentionPolicy> =>
-    api.put<AuditRetentionPolicy>('/governance/audit-retention', { retention_days: days }).then((r) => r.data),
+    api
+      .put<AuditRetentionPolicy>('/governance/audit-retention', { retention_days: days })
+      .then((r) => r.data),
   applyRetention: (): Promise<PruneResult> =>
     api.post<PruneResult>('/governance/audit-retention/apply', {}).then((r) => r.data),
 
@@ -310,7 +324,11 @@ export const governanceService = {
   revokeDelegation: (id: string): Promise<Delegation> =>
     api.post<Delegation>(`/governance/delegations/${id}/revoke`, {}).then((r) => r.data),
   effectivePermissions: (delegateId?: string): Promise<EffectivePermissions> =>
-    api.get<EffectivePermissions>(`/governance/delegations/effective${delegateId ? `?delegate_id=${delegateId}` : ''}`).then((r) => r.data),
+    api
+      .get<EffectivePermissions>(
+        `/governance/delegations/effective${delegateId ? `?delegate_id=${delegateId}` : ''}`,
+      )
+      .then((r) => r.data),
 
   // Approval workflows (config)
   listWorkflows: (): Promise<ApprovalWorkflow[]> =>
@@ -323,20 +341,26 @@ export const governanceService = {
     api.delete(`/governance/workflows/${id}`).then(() => undefined),
 
   // Approval requests (inbox)
-  listApprovals: (params: { status?: string; entity_type?: string; mine?: boolean } = {}): Promise<ApprovalRequest[]> => {
+  listApprovals: (
+    params: { status?: string; entity_type?: string; mine?: boolean } = {},
+  ): Promise<ApprovalRequest[]> => {
     const p = new URLSearchParams();
     if (params.status) p.append('status', params.status);
     if (params.entity_type) p.append('entity_type', params.entity_type);
     if (params.mine) p.append('mine', 'true');
     const s = p.toString();
-    return api.get<ApprovalRequest[]>(`/governance/approvals${s ? `?${s}` : ''}`).then((r) => r.data);
+    return api
+      .get<ApprovalRequest[]>(`/governance/approvals${s ? `?${s}` : ''}`)
+      .then((r) => r.data);
   },
   // The detail view carries per-step progress and whether the CALLER may sign —
   // so a disabled button can explain itself rather than produce a 403 on click.
   getApproval: (id: string): Promise<ApprovalDetail> =>
     api.get<ApprovalDetail>(`/governance/approvals/${id}`).then((r) => r.data),
   listRequestTypes: (): Promise<ApprovalRequestType[]> =>
-    api.get<{ items: ApprovalRequestType[] }>('/governance/request-types').then((r) => r.data.items ?? []),
+    api
+      .get<{ items: ApprovalRequestType[] }>('/governance/request-types')
+      .then((r) => r.data.items ?? []),
   submitApproval: (input: SubmitApprovalInput): Promise<ApprovalRequest> =>
     api.post<ApprovalRequest>('/governance/approvals', input).then((r) => r.data),
   decideApproval: (id: string, input: DecideApprovalInput): Promise<ApprovalRequest> =>

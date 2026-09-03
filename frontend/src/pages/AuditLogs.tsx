@@ -162,9 +162,7 @@ export default function AuditLogs() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-fg-primary mb-2">
-              Action
-            </label>
+            <label className="block text-sm font-medium text-fg-primary mb-2">Action</label>
             <select
               value={actionFilter}
               onChange={(e) => {
@@ -187,9 +185,7 @@ export default function AuditLogs() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-fg-primary mb-2">
-              Result
-            </label>
+            <label className="block text-sm font-medium text-fg-primary mb-2">Result</label>
             <select
               value={resultFilter}
               onChange={(e) => {
@@ -232,17 +228,14 @@ export default function AuditLogs() {
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {logs.map((log) => (
-                <tr
-                  key={log.id}
-                  className="hover:bg-surface-sunken transition-colors"
-                >
+                <tr key={log.id} className="hover:bg-surface-sunken transition-colors">
                   <td className="px-6 py-4 text-sm text-fg-muted whitespace-nowrap">
                     {format(new Date(log.timestamp), 'MMM d, yyyy HH:mm:ss')}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${getActionBadgeColor(
-                        log.action
+                        log.action,
                       )}`}
                     >
                       {log.action.replace(/_/g, ' ')}
@@ -262,9 +255,7 @@ export default function AuditLogs() {
                       <div className="text-xs text-danger-text">{log.error_message}</div>
                     )}
                     {log.resource && (
-                      <div className="text-xs text-fg-muted">
-                        Resource: {log.resource}
-                      </div>
+                      <div className="text-xs text-fg-muted">Resource: {log.resource}</div>
                     )}
                   </td>
                 </tr>
@@ -309,9 +300,7 @@ export default function AuditLogs() {
             >
               Previous
             </button>
-            <span className="px-4 py-2 text-sm text-fg-muted">
-              Page {page}
-            </span>
+            <span className="px-4 py-2 text-sm text-fg-muted">Page {page}</span>
             <button
               onClick={() => setPage(page + 1)}
               disabled={logs.length < limit}

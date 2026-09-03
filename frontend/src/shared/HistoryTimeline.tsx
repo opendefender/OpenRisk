@@ -47,23 +47,41 @@ function metaFor(kind?: string) {
   return (kind && KIND_META[kind]) || { color: 'var(--fg-muted)', Icon: Dot };
 }
 
-export function HistoryTimeline({ entries, isLoading, error, emptyLabel, errorLabel, formatDate }: HistoryTimelineProps): ReactNode {
+export function HistoryTimeline({
+  entries,
+  isLoading,
+  error,
+  emptyLabel,
+  errorLabel,
+  formatDate,
+}: HistoryTimelineProps): ReactNode {
   const fmt = formatDate ?? ((iso: string) => new Date(iso).toLocaleString());
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
-        {[0, 1, 2].map((i) => <div key={i} className="or-skeleton h-16 rounded-[12px]" />)}
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="or-skeleton h-16 rounded-[12px]" />
+        ))}
       </div>
     );
   }
   if (error) {
-    return <div className="text-center py-8 text-[13px]" style={{ color: 'var(--critical)' }}>{errorLabel ?? 'Failed to load history.'}</div>;
+    return (
+      <div className="text-center py-8 text-[13px]" style={{ color: 'var(--critical)' }}>
+        {errorLabel ?? 'Failed to load history.'}
+      </div>
+    );
   }
   if (!entries.length) {
     return (
       <div className="flex flex-col items-center justify-center text-center py-10 gap-2">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}><Clock size={20} /></div>
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}
+        >
+          <Clock size={20} />
+        </div>
         <div className="text-[13px] text-ink-soft">{emptyLabel ?? 'No changes recorded yet.'}</div>
       </div>
     );
@@ -75,13 +93,25 @@ export function HistoryTimeline({ entries, isLoading, error, emptyLabel, errorLa
         const { color, Icon } = metaFor(e.kind);
         const last = i === entries.length - 1;
         return (
-          <div key={e.id} className="flex gap-3" style={{ animation: 'or-fadeup .3s ease both', animationDelay: `${Math.min(i * 0.03, 0.24)}s` }}>
+          <div
+            key={e.id}
+            className="flex gap-3"
+            style={{
+              animation: 'or-fadeup .3s ease both',
+              animationDelay: `${Math.min(i * 0.03, 0.24)}s`,
+            }}
+          >
             {/* rail: dot + connecting line */}
             <div className="flex flex-col items-center shrink-0">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: `color-mix(in srgb,${color} 16%,transparent)`, color }}>
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: `color-mix(in srgb,${color} 16%,transparent)`, color }}
+              >
                 <Icon size={14} />
               </div>
-              {!last && <div className="w-px flex-1 my-1" style={{ background: 'var(--border)' }} />}
+              {!last && (
+                <div className="w-px flex-1 my-1" style={{ background: 'var(--border)' }} />
+              )}
             </div>
             {/* content */}
             <div className={`flex-1 min-w-0 ${last ? '' : 'pb-4'}`}>
@@ -90,15 +120,24 @@ export function HistoryTimeline({ entries, isLoading, error, emptyLabel, errorLa
               {e.fields && e.fields.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {e.fields.map((f) => (
-                    <span key={f.label} className="text-[11px] px-2 py-1 rounded-[7px]" style={{ background: 'var(--bg-hover)', color: 'var(--text-soft)' }}>
-                      <span className="text-ink-muted">{f.label}</span> <span className="mono text-ink">{f.value}</span>
+                    <span
+                      key={f.label}
+                      className="text-[11px] px-2 py-1 rounded-[7px]"
+                      style={{ background: 'var(--bg-hover)', color: 'var(--text-soft)' }}
+                    >
+                      <span className="text-ink-muted">{f.label}</span>{' '}
+                      <span className="mono text-ink">{f.value}</span>
                     </span>
                   ))}
                 </div>
               )}
               <div className="flex items-center gap-3 mt-1.5 text-[11.5px] text-ink-muted">
-                <span className="inline-flex items-center gap-1"><User size={12} /> {e.actor}</span>
-                <span className="inline-flex items-center gap-1"><Clock size={12} /> {fmt(e.at)}</span>
+                <span className="inline-flex items-center gap-1">
+                  <User size={12} /> {e.actor}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock size={12} /> {fmt(e.at)}
+                </span>
               </div>
             </div>
           </div>

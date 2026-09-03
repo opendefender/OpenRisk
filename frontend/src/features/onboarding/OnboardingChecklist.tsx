@@ -95,7 +95,10 @@ export function OnboardingChecklist() {
                 )}
           </div>
         </div>
-        <span className="mono text-[12.5px] font-semibold text-ink-soft shrink-0" aria-live="polite">
+        <span
+          className="mono text-[12.5px] font-semibold text-ink-soft shrink-0"
+          aria-live="polite"
+        >
           {done}/{total}
         </span>
       </div>
@@ -107,7 +110,7 @@ export function OnboardingChecklist() {
         // A progressbar with no accessible name is announced as a bare
         // percentage with nothing to say what it measures. Named, not
         // aria-hidden: the number IS the useful part of this card.
-        aria-label={tr("Progression de la prise en main", 'Onboarding progress')}
+        aria-label={tr('Progression de la prise en main', 'Onboarding progress')}
         aria-valuenow={state.percent}
         aria-valuemin={0}
         aria-valuemax={100}

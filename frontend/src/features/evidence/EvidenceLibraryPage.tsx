@@ -11,8 +11,19 @@
 
 import { useMemo, useState } from 'react';
 import {
-  FileText, Camera, Settings2, BadgeCheck, ScrollText, Plus, Link2, Trash2,
-  Check, X, Download, ExternalLink, Search,
+  FileText,
+  Camera,
+  Settings2,
+  BadgeCheck,
+  ScrollText,
+  Plus,
+  Link2,
+  Trash2,
+  Check,
+  X,
+  Download,
+  ExternalLink,
+  Search,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
 import { EmptyState } from '../../shared/EmptyState';
@@ -20,7 +31,10 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import {
-  useEvidenceLibrary, useCreateEvidence, useReviewEvidence, useDeleteEvidence,
+  useEvidenceLibrary,
+  useCreateEvidence,
+  useReviewEvidence,
+  useDeleteEvidence,
 } from './useEvidence';
 import { EVIDENCE_STATUS_META, EVIDENCE_TYPE_META, expiryLabel } from './evidenceMeta';
 import { EvidenceDrawer } from './EvidenceDrawer';
@@ -58,7 +72,10 @@ export function EvidenceLibraryPage() {
   const [selected, setSelected] = useState<Evidence | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const { data, isLoading, error, refetch } = useEvidenceLibrary({ q: search || undefined, limit: 200 });
+  const { data, isLoading, error, refetch } = useEvidenceLibrary({
+    q: search || undefined,
+    limit: 200,
+  });
   const createEvidence = useCreateEvidence();
   const review = useReviewEvidence();
   const remove = useDeleteEvidence();
@@ -101,7 +118,11 @@ export function EvidenceLibraryPage() {
         count={data ? `${data.total}` : null}
         actions={
           canWrite ? (
-            <Btn icon={Plus} onClick={() => setCreating(true)} label={tr('Enregistrer une preuve', 'Record evidence')} />
+            <Btn
+              icon={Plus}
+              onClick={() => setCreating(true)}
+              label={tr('Enregistrer une preuve', 'Record evidence')}
+            />
           ) : null
         }
       />
@@ -109,7 +130,7 @@ export function EvidenceLibraryPage() {
       {/* The sentence the screen exists to say. */}
       <p className="text-[13px] text-ink-muted -mt-2 mb-4 max-w-[68ch]">
         {tr(
-          "Une preuve enregistrée ici peut justifier plusieurs contrôles, dans plusieurs référentiels : inutile de la téléverser à nouveau. Une preuve expirée ou rejetée cesse de justifier quoi que ce soit.",
+          'Une preuve enregistrée ici peut justifier plusieurs contrôles, dans plusieurs référentiels : inutile de la téléverser à nouveau. Une preuve expirée ou rejetée cesse de justifier quoi que ce soit.',
           'Evidence recorded here can substantiate several controls across several frameworks — no need to upload it again. Expired or rejected evidence stops substantiating anything.',
         )}
       </p>
@@ -144,7 +165,10 @@ export function EvidenceLibraryPage() {
       ) : error ? (
         <ErrorState
           title={tr('Impossible de charger la bibliothèque', 'Could not load the library')}
-          description={tr('Réessayez, ou contactez un administrateur.', 'Try again, or contact an administrator.')}
+          description={tr(
+            'Réessayez, ou contactez un administrateur.',
+            'Try again, or contact an administrator.',
+          )}
           onRetry={() => refetch()}
         />
       ) : items.length === 0 ? (
@@ -166,7 +190,11 @@ export function EvidenceLibraryPage() {
           }
           primaryAction={
             canWrite && !search && tab === 'all' ? (
-              <Btn icon={Plus} onClick={() => setCreating(true)} label={tr('Enregistrer une preuve', 'Record evidence')} />
+              <Btn
+                icon={Plus}
+                onClick={() => setCreating(true)}
+                label={tr('Enregistrer une preuve', 'Record evidence')}
+              />
             ) : undefined
           }
         />
@@ -210,7 +238,10 @@ export function EvidenceLibraryPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink-muted whitespace-nowrap">
-                        {tr(EVIDENCE_TYPE_META[e.type]?.fr ?? e.type, EVIDENCE_TYPE_META[e.type]?.en ?? e.type)}
+                        {tr(
+                          EVIDENCE_TYPE_META[e.type]?.fr ?? e.type,
+                          EVIDENCE_TYPE_META[e.type]?.en ?? e.type,
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {/* The count IS the point of the library: one artifact,
@@ -219,7 +250,9 @@ export function EvidenceLibraryPage() {
                         <span className="inline-flex items-center gap-1.5 text-ink-muted">
                           <Link2 size={13} />
                           {e.control_ids.length}{' '}
-                          {e.control_ids.length === 1 ? tr('contrôle', 'control') : tr('contrôles', 'controls')}
+                          {e.control_ids.length === 1
+                            ? tr('contrôle', 'control')
+                            : tr('contrôles', 'controls')}
                         </span>
                         {e.controls && e.controls.length > 0 ? (
                           <div className="text-[11.5px] text-ink-muted/80 truncate max-w-[26ch]">
@@ -228,12 +261,17 @@ export function EvidenceLibraryPage() {
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-ink-muted whitespace-nowrap">
-                        {new Date(e.collected_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB')}
+                        {new Date(e.collected_at).toLocaleDateString(
+                          lang === 'fr' ? 'fr-FR' : 'en-GB',
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span
                           className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[12px] font-medium"
-                          style={{ color: meta.color, background: `color-mix(in srgb, ${meta.color} 12%, transparent)` }}
+                          style={{
+                            color: meta.color,
+                            background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
+                          }}
                           title={tr(meta.hint.fr, meta.hint.en)}
                         >
                           {tr(meta.fr, meta.en)}
@@ -274,7 +312,10 @@ export function EvidenceLibraryPage() {
                               onClick={() =>
                                 review.mutate(
                                   { id: e.id, review: 'accepted' },
-                                  { onSuccess: () => toast.success(tr('Preuve acceptée', 'Evidence accepted')) },
+                                  {
+                                    onSuccess: () =>
+                                      toast.success(tr('Preuve acceptée', 'Evidence accepted')),
+                                  },
                                 )
                               }
                             >
@@ -297,7 +338,8 @@ export function EvidenceLibraryPage() {
                               title={tr('Supprimer', 'Delete')}
                               onClick={() =>
                                 remove.mutate(e.id, {
-                                  onSuccess: () => toast.success(tr('Preuve supprimée', 'Evidence deleted')),
+                                  onSuccess: () =>
+                                    toast.success(tr('Preuve supprimée', 'Evidence deleted')),
                                 })
                               }
                             >

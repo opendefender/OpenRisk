@@ -47,7 +47,7 @@ export function useI18n(): UseI18nReturn {
       const translation = getNestedValue(dict, key);
       return translation || defaultValue || key;
     },
-    [getNestedValue, locale]
+    [getNestedValue, locale],
   );
 
   return { t, locale, setLocale: setLang };

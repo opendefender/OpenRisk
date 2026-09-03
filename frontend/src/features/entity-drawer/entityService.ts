@@ -38,11 +38,15 @@ interface AxiosLikeError {
 function toEntityError(err: unknown): EntityError {
   const e = err as AxiosLikeError;
   const status = e?.response?.status ?? 0;
-  const message = e?.response?.data?.error ?? e?.response?.data?.message ?? e?.message ?? 'Request failed';
+  const message =
+    e?.response?.data?.error ?? e?.response?.data?.message ?? e?.message ?? 'Request failed';
   return { status, message };
 }
 
-async function get<T>(url: string, params?: Record<string, string | number | undefined>): Promise<T> {
+async function get<T>(
+  url: string,
+  params?: Record<string, string | number | undefined>,
+): Promise<T> {
   try {
     const { data } = await api.get<T>(url, { params });
     return data;
@@ -71,7 +75,7 @@ export async function fetchRelations(type: EntityType, id: string): Promise<Rela
 export function fetchTimeline(
   type: EntityType,
   id: string,
-  opts: { cursor?: string; limit?: number; kind?: string } = {}
+  opts: { cursor?: string; limit?: number; kind?: string } = {},
 ): Promise<TimelinePage> {
   return get<TimelinePage>(`${base(type, id)}/timeline`, {
     cursor: opts.cursor || undefined,
@@ -83,14 +87,14 @@ export function fetchTimeline(
 export function fetchAudit(
   type: EntityType,
   id: string,
-  opts: { limit?: number; offset?: number } = {}
+  opts: { limit?: number; offset?: number } = {},
 ): Promise<AuditPage> {
   return get<AuditPage>(`${base(type, id)}/audit`, { limit: opts.limit, offset: opts.offset });
 }
 
 /** The tenant-wide activity feed. */
 export function fetchTenantTimeline(
-  opts: { cursor?: string; limit?: number; kind?: string } = {}
+  opts: { cursor?: string; limit?: number; kind?: string } = {},
 ): Promise<TimelinePage> {
   return get<TimelinePage>('/timeline', {
     cursor: opts.cursor || undefined,

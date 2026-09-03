@@ -13,8 +13,14 @@ import { useUIStore } from '../../store/uiStore';
 
 // G-then-key jump targets.
 const GOTO: Record<string, string> = {
-  d: '/', r: '/risks', v: '/vulnerabilities', m: '/risks/mitigations',
-  i: '/incidents', c: '/compliance', a: '/assets', s: '/settings',
+  d: '/',
+  r: '/risks',
+  v: '/vulnerabilities',
+  m: '/risks/mitigations',
+  i: '/incidents',
+  c: '/compliance',
+  a: '/assets',
+  s: '/settings',
 };
 
 function isTyping(el: EventTarget | null): boolean {
@@ -34,7 +40,11 @@ export function GlobalShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return; // leave chords (⌘K…) alone
-      if (e.key === 'Escape') { setHelpOpen(false); gPending.current = false; return; }
+      if (e.key === 'Escape') {
+        setHelpOpen(false);
+        gPending.current = false;
+        return;
+      }
       if (isTyping(e.target)) return;
 
       // Second key of a "G then X" jump.
@@ -42,7 +52,10 @@ export function GlobalShortcuts() {
         gPending.current = false;
         if (gTimer.current) clearTimeout(gTimer.current);
         const dest = GOTO[e.key.toLowerCase()];
-        if (dest) { e.preventDefault(); navigate(dest); }
+        if (dest) {
+          e.preventDefault();
+          navigate(dest);
+        }
         return;
       }
 
@@ -65,7 +78,9 @@ export function GlobalShortcuts() {
           e.preventDefault();
           gPending.current = true;
           if (gTimer.current) clearTimeout(gTimer.current);
-          gTimer.current = setTimeout(() => { gPending.current = false; }, 1200);
+          gTimer.current = setTimeout(() => {
+            gPending.current = false;
+          }, 1200);
           break;
       }
     };
@@ -112,27 +127,51 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-95 flex items-center justify-center p-4"
-      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
+      style={{
+        background: 'var(--surface-overlay)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        animation: 'or-fadein .16s ease',
+      }}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[460px] rounded-[16px] overflow-hidden shadow-card-lg"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)' }}
+        style={{
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)',
+        }}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <span className="text-[15px] font-bold text-ink">{tr('Raccourcis clavier', 'Keyboard shortcuts')}</span>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-muted hover:bg-hover transition-colors" aria-label={tr('Fermer', 'Close')}><X size={16} /></button>
+          <span className="text-[15px] font-bold text-ink">
+            {tr('Raccourcis clavier', 'Keyboard shortcuts')}
+          </span>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"
+            aria-label={tr('Fermer', 'Close')}
+          >
+            <X size={16} />
+          </button>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 max-h-[70vh] overflow-y-auto">
           {groups.map((g) => (
             <div key={g.title}>
-              <div className="text-[10.5px] font-semibold uppercase tracking-[.07em] text-ink-muted mb-2">{g.title}</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-[.07em] text-ink-muted mb-2">
+                {g.title}
+              </div>
               <div className="space-y-1.5">
                 {g.items.map(([key, label]) => (
                   <div key={key} className="flex items-center justify-between gap-3">
                     <span className="text-[13px] text-ink-soft">{label}</span>
-                    <kbd className="mono text-[11px] font-semibold px-1.5 py-0.5 rounded text-ink-muted shrink-0" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>{key}</kbd>
+                    <kbd
+                      className="mono text-[11px] font-semibold px-1.5 py-0.5 rounded text-ink-muted shrink-0"
+                      style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+                    >
+                      {key}
+                    </kbd>
                   </div>
                 ))}
               </div>

@@ -25,5 +25,6 @@ export const primaryBtn =
   'w-full h-[46px] rounded-xl text-[14px] font-semibold text-fg-primary transition-opacity';
 
 export const primaryStyle: React.CSSProperties = {
-  background: 'var(--accent-solid)', color: 'var(--fg-on-solid)',
+  background: 'var(--accent-solid)',
+  color: 'var(--fg-on-solid)',
 };

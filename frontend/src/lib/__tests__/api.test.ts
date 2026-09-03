@@ -32,7 +32,13 @@ afterEach(() => {
 
 function expired(config: unknown) {
   const err = new Error('401') as Error & { response?: unknown; config?: unknown };
-  err.response = { status: 401, data: { code: 'TOKEN_EXPIRED' }, headers: {}, config, statusText: '' };
+  err.response = {
+    status: 401,
+    data: { code: 'TOKEN_EXPIRED' },
+    headers: {},
+    config,
+    statusText: '',
+  };
   err.config = config;
   return err;
 }
@@ -43,9 +49,10 @@ function ok(config: unknown, data: unknown) {
 
 describe('api interceptor — refresh & retry on TOKEN_EXPIRED', () => {
   it('refreshes once and replays the request with the new token', async () => {
-    const post = vi
-      .spyOn(axios, 'post')
-      .mockResolvedValue({ status: 200, data: { token_pair: { access_token: 'fresh-token' } } } as never);
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({
+      status: 200,
+      data: { token_pair: { access_token: 'fresh-token' } },
+    } as never);
 
     let calls = 0;
     const adapter: MockCall = async (config) => {

@@ -38,7 +38,9 @@ export const GamificationDashboard = ({
   rankings = [],
   isLoading = false,
 }: GamificationDashboardProps) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'leaderboard'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'leaderboard'>(
+    'overview',
+  );
   const [userRank, setUserRank] = useState(1);
 
   useEffect(() => {
@@ -60,14 +62,23 @@ export const GamificationDashboard = ({
     <div className="space-y-6">
       {/* User Level Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className={`bg-linear-to-br ${getLevelColor(userStats.level)} border-2 border-border-strong/20`}>
+        <Card
+          className={`bg-linear-to-br ${getLevelColor(userStats.level)} border-2 border-border-strong/20`}
+        >
           <div className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Level Circle */}
               <div className="flex items-center justify-center">
                 <div className="relative w-32 h-32">
                   <svg className="absolute inset-0 transform -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.1)"
+                      strokeWidth="4"
+                    />
                     <motion.circle
                       cx="50"
                       cy="50"
@@ -96,12 +107,16 @@ export const GamificationDashboard = ({
               <div className="space-y-4">
                 <div>
                   <p className="text-fg-primary/80 text-sm mb-2">Total Experience</p>
-                  <p className="text-3xl font-bold text-fg-primary">{userStats.totalXP.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-fg-primary">
+                    {userStats.totalXP.toLocaleString()}
+                  </p>
                   <p className="text-xs text-fg-primary/60 mt-1">XP</p>
                 </div>
                 <div>
                   <p className="text-fg-primary/80 text-sm mb-2">Next Level</p>
-                  <p className="text-lg font-semibold text-fg-primary">{userStats.nextLevelXP.toLocaleString()} XP</p>
+                  <p className="text-lg font-semibold text-fg-primary">
+                    {userStats.nextLevelXP.toLocaleString()} XP
+                  </p>
                 </div>
               </div>
 
@@ -127,8 +142,12 @@ export const GamificationDashboard = ({
             {/* Progress Bar */}
             <div className="mt-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-fg-primary/80">Progress to Level {userStats.level + 1}</span>
-                <span className="text-sm font-semibold text-fg-primary">{userStats.progressPercent}%</span>
+                <span className="text-sm text-fg-primary/80">
+                  Progress to Level {userStats.level + 1}
+                </span>
+                <span className="text-sm font-semibold text-fg-primary">
+                  {userStats.progressPercent}%
+                </span>
               </div>
               <div className="w-full h-3 bg-surface-overlay rounded-full overflow-hidden backdrop-blur-sm">
                 <motion.div
@@ -190,7 +209,9 @@ export const GamificationDashboard = ({
                   <p className="text-fg-secondary text-sm">Achievements</p>
                   <Medal size={20} className="text-success-text opacity-60" />
                 </div>
-                <p className="text-3xl font-bold text-fg-primary">{userStats.achievements.length}</p>
+                <p className="text-3xl font-bold text-fg-primary">
+                  {userStats.achievements.length}
+                </p>
                 <p className="text-xs text-fg-muted mt-2">Unlocked</p>
               </div>
             </Card>
@@ -295,15 +316,9 @@ export const GamificationDashboard = ({
                       >
                         {/* Rank */}
                         <div className="shrink-0 w-8">
-                          {user.rank === 1 && (
-                            <div className="text-2xl">🥇</div>
-                          )}
-                          {user.rank === 2 && (
-                            <div className="text-2xl">🥈</div>
-                          )}
-                          {user.rank === 3 && (
-                            <div className="text-2xl">🥉</div>
-                          )}
+                          {user.rank === 1 && <div className="text-2xl">🥇</div>}
+                          {user.rank === 2 && <div className="text-2xl">🥈</div>}
+                          {user.rank === 3 && <div className="text-2xl">🥉</div>}
                           {user.rank > 3 && (
                             <p className="text-lg font-bold text-fg-secondary">#{user.rank}</p>
                           )}
@@ -311,15 +326,17 @@ export const GamificationDashboard = ({
 
                         {/* User Info */}
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div
-                            className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0 text-fg-primary font-semibold text-sm"
-                          >
+                          <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0 text-fg-primary font-semibold text-sm">
                             {user.username.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`font-medium ${isCurrent ? 'text-info-text' : 'text-fg-primary'}`}>
+                            <p
+                              className={`font-medium ${isCurrent ? 'text-info-text' : 'text-fg-primary'}`}
+                            >
                               {user.username}
-                              {isCurrent && <span className="text-xs text-info-text ml-2">(You)</span>}
+                              {isCurrent && (
+                                <span className="text-xs text-info-text ml-2">(You)</span>
+                              )}
                             </p>
                             <p className="text-xs text-fg-secondary">Level {user.level}</p>
                           </div>
@@ -327,7 +344,9 @@ export const GamificationDashboard = ({
 
                         {/* XP */}
                         <div className="text-right shrink-0">
-                          <p className="text-lg font-bold text-fg-primary">{user.totalXP.toLocaleString()}</p>
+                          <p className="text-lg font-bold text-fg-primary">
+                            {user.totalXP.toLocaleString()}
+                          </p>
                           <p className="text-xs text-fg-secondary">XP</p>
                         </div>
                       </motion.div>

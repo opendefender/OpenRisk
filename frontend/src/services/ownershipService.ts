@@ -74,7 +74,10 @@ export const ownershipService = {
    * validates against, so what the picker offers and what the server accepts
    * cannot drift apart.
    */
-  async listAssignable(params: AssignableQuery = {}, signal?: AbortSignal): Promise<AssignableResult> {
+  async listAssignable(
+    params: AssignableQuery = {},
+    signal?: AbortSignal,
+  ): Promise<AssignableResult> {
     const { data } = await api.get<AssignableResult>('/ownership/assignable', { params, signal });
     return data;
   },
@@ -93,7 +96,9 @@ export const ownershipService = {
  * `null` means "unassign". Without that distinction, saving a form that does
  * not include a reviewer would silently unassign the reviewer.
  */
-export function ownershipPatch(changes: Partial<Record<OwnershipRole, string | null>>): Record<string, string | null> {
+export function ownershipPatch(
+  changes: Partial<Record<OwnershipRole, string | null>>,
+): Record<string, string | null> {
   const patch: Record<string, string | null> = {};
   if ('owner' in changes) patch.owner_id = changes.owner ?? null;
   if ('assignee' in changes) patch.assignee_id = changes.assignee ?? null;
@@ -117,11 +122,14 @@ export function slotEmail(entity: Ownership | undefined, role: OwnershipRole): s
   return entity.reviewer_email ?? '';
 }
 
-export const ROLE_LABELS: Record<OwnershipRole, { fr: string; en: string; hint_fr: string; hint_en: string }> = {
+export const ROLE_LABELS: Record<
+  OwnershipRole,
+  { fr: string; en: string; hint_fr: string; hint_en: string }
+> = {
   owner: {
     fr: 'Responsable',
     en: 'Owner',
-    hint_fr: "Répond du résultat.",
+    hint_fr: 'Répond du résultat.',
     hint_en: 'Answers for the outcome.',
   },
   assignee: {

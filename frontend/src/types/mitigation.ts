@@ -50,7 +50,14 @@ export interface Evidence {
 export interface TimelineEvent {
   id: string;
   mitigation_id: string;
-  type: 'created' | 'status_changed' | 'assigned' | 'auto_completed' | 'reverted' | 'evidence_added' | 'comment_added';
+  type:
+    | 'created'
+    | 'status_changed'
+    | 'assigned'
+    | 'auto_completed'
+    | 'reverted'
+    | 'evidence_added'
+    | 'comment_added';
   actor_id?: string;
   actor_name?: string;
   description: string;

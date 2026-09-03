@@ -26,7 +26,8 @@ type Tr = (fr: string, en: string) => string;
 /** The server's message when it sent one. It distinguishes expired from
  *  revoked from already-used; a generic string would erase that. */
 function apiMessage(err: unknown, fallback: string): string {
-  const r = (err as { response?: { status?: number; data?: { error?: string; message?: string } } })?.response;
+  const r = (err as { response?: { status?: number; data?: { error?: string; message?: string } } })
+    ?.response;
   return r?.data?.error || r?.data?.message || fallback;
 }
 
@@ -44,7 +45,9 @@ export function AcceptInvitationPage() {
   const signedInEmail = useAuthStore((s) => s.user?.email);
 
   const [preview, setPreview] = useState<InvitationPreview | null>(null);
-  const [loadError, setLoadError] = useState<{ message: string; recoverable: boolean } | null>(null);
+  const [loadError, setLoadError] = useState<{ message: string; recoverable: boolean } | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
@@ -65,8 +68,14 @@ export function AcceptInvitationPage() {
       });
       return;
     }
-    organizationService.previewInvitation(token)
-      .then((p) => { if (!cancelled) { setPreview(p); setLoading(false); } })
+    organizationService
+      .previewInvitation(token)
+      .then((p) => {
+        if (!cancelled) {
+          setPreview(p);
+          setLoading(false);
+        }
+      })
       .catch((err) => {
         if (cancelled) return;
         setLoading(false);
@@ -75,16 +84,22 @@ export function AcceptInvitationPage() {
           // 410 means the invitation existed and is finished — expired,
           // revoked or already used — and the server says which. 404 means the
           // link resolves to nothing, and deliberately says no more than that.
-          message: code === 410
-            ? apiMessage(err, tr("Cette invitation n'est plus valable.", 'This invitation is no longer valid.'))
-            : tr(
-              "Ce lien d'invitation n'est pas valable. Il a peut-être déjà été utilisé, ou remplacé par un envoi plus récent.",
-              'This invitation link is not valid. It may have already been used, or replaced by a more recent one.',
-            ),
+          message:
+            code === 410
+              ? apiMessage(
+                  err,
+                  tr("Cette invitation n'est plus valable.", 'This invitation is no longer valid.'),
+                )
+              : tr(
+                  "Ce lien d'invitation n'est pas valable. Il a peut-être déjà été utilisé, ou remplacé par un envoi plus récent.",
+                  'This invitation link is not valid. It may have already been used, or replaced by a more recent one.',
+                ),
           recoverable: code === 410,
         });
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // tr is derived from lang; re-previewing on a language switch is harmless
     // and keeps the error copy in the right language.
   }, [token, lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -107,19 +122,29 @@ export function AcceptInvitationPage() {
           toast.info(tr('Compte créé — connectez-vous.', 'Account created — please sign in.'));
         }
       }
-      setDone({ organization: res.organization_name || preview.organization_name, createdAccount: res.created_account });
+      setDone({
+        organization: res.organization_name || preview.organization_name,
+        createdAccount: res.created_account,
+      });
     } catch (err) {
       const code = statusOf(err);
       if (code === 401) {
         // The address already has an account and nobody is signed in. Attaching
         // a seat to it without authentication would be an account takeover, so
         // the honest next step is: sign in, then come back to this link.
-        setSubmitError(tr(
-          `Un compte existe déjà pour ${preview.email}. Connectez-vous, puis rouvrez ce lien.`,
-          `An account already exists for ${preview.email}. Sign in, then open this link again.`,
-        ));
+        setSubmitError(
+          tr(
+            `Un compte existe déjà pour ${preview.email}. Connectez-vous, puis rouvrez ce lien.`,
+            `An account already exists for ${preview.email}. Sign in, then open this link again.`,
+          ),
+        );
       } else {
-        setSubmitError(apiMessage(err, tr("L'acceptation a échoué. Réessayez.", 'Accepting failed. Please try again.')));
+        setSubmitError(
+          apiMessage(
+            err,
+            tr("L'acceptation a échoué. Réessayez.", 'Accepting failed. Please try again.'),
+          ),
+        );
       }
     } finally {
       setSubmitting(false);
@@ -127,34 +152,56 @@ export function AcceptInvitationPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5" style={{ background: 'var(--bg-app)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center p-5"
+      style={{ background: 'var(--bg-app)' }}
+    >
       <div className="w-full max-w-[440px]">
         <div className="flex items-center gap-2.5 mb-7 justify-center">
           <OpenRiskLogo size={30} />
           <span className="text-[19px] font-bold text-ink">OpenRisk</span>
         </div>
 
-        <div className="rounded-[18px] p-6" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+        <div
+          className="rounded-[18px] p-6"
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-card)',
+          }}
+        >
           {loading && (
             <div className="flex flex-col items-center gap-3 py-8 text-ink-soft">
               <Loader2 size={26} className="animate-spin" />
-              <span className="text-[13.5px]">{tr("Vérification de l'invitation…", 'Checking the invitation…')}</span>
+              <span className="text-[13.5px]">
+                {tr("Vérification de l'invitation…", 'Checking the invitation…')}
+              </span>
             </div>
           )}
 
           {!loading && loadError && (
             <div className="text-center py-4">
-              <span aria-hidden className="w-12 h-12 rounded-[14px] mx-auto mb-4 flex items-center justify-center"
-                style={{ background: 'color-mix(in srgb, var(--high) 14%, transparent)', color: 'var(--high)' }}>
+              <span
+                aria-hidden
+                className="w-12 h-12 rounded-[14px] mx-auto mb-4 flex items-center justify-center"
+                style={{
+                  background: 'color-mix(in srgb, var(--high) 14%, transparent)',
+                  color: 'var(--high)',
+                }}
+              >
                 <AlertTriangle size={24} />
               </span>
               <h1 className="text-[17px] font-bold text-ink mb-2">
                 {tr('Invitation indisponible', 'Invitation unavailable')}
               </h1>
-              <p role="alert" className="text-[13.5px] text-ink-soft leading-relaxed mb-5">{loadError.message}</p>
-              <button onClick={() => navigate('/login')}
+              <p role="alert" className="text-[13.5px] text-ink-soft leading-relaxed mb-5">
+                {loadError.message}
+              </p>
+              <button
+                onClick={() => navigate('/login')}
                 className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold"
-                style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-primary)' }}>
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-primary)' }}
+              >
                 {tr('Aller à la connexion', 'Go to sign in')}
               </button>
             </div>
@@ -162,8 +209,14 @@ export function AcceptInvitationPage() {
 
           {!loading && done && (
             <div className="text-center py-4">
-              <span aria-hidden className="w-12 h-12 rounded-[14px] mx-auto mb-4 flex items-center justify-center"
-                style={{ background: 'color-mix(in srgb, var(--low) 14%, transparent)', color: 'var(--low)' }}>
+              <span
+                aria-hidden
+                className="w-12 h-12 rounded-[14px] mx-auto mb-4 flex items-center justify-center"
+                style={{
+                  background: 'color-mix(in srgb, var(--low) 14%, transparent)',
+                  color: 'var(--low)',
+                }}
+              >
                 <CheckCircle2 size={24} />
               </span>
               <h1 className="text-[17px] font-bold text-ink mb-2">
@@ -175,10 +228,12 @@ export function AcceptInvitationPage() {
                   `You are now a member of ${done.organization}.`,
                 )}
               </p>
-              <button onClick={() => navigate('/')}
+              <button
+                onClick={() => navigate('/')}
                 className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold inline-flex items-center justify-center gap-2"
-                style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
-                {tr("Ouvrir OpenRisk", 'Open OpenRisk')} <ArrowRight size={16} />
+                style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+              >
+                {tr('Ouvrir OpenRisk', 'Open OpenRisk')} <ArrowRight size={16} />
               </button>
             </div>
           )}
@@ -186,19 +241,30 @@ export function AcceptInvitationPage() {
           {!loading && preview && !done && (
             <>
               <div className="flex items-center gap-3 mb-5">
-                <span aria-hidden className="w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
+                <span
+                  aria-hidden
+                  className="w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+                >
                   <Building2 size={21} />
                 </span>
                 <div className="min-w-0">
-                  <h1 className="text-[16px] font-bold text-ink truncate">{preview.organization_name}</h1>
+                  <h1 className="text-[16px] font-bold text-ink truncate">
+                    {preview.organization_name}
+                  </h1>
                   <div className="text-[12.5px] text-ink-soft">
-                    {tr('vous invite à rejoindre son espace', 'invites you to join their workspace')}
+                    {tr(
+                      'vous invite à rejoindre son espace',
+                      'invites you to join their workspace',
+                    )}
                   </div>
                 </div>
               </div>
 
-              <dl className="rounded-[11px] p-3.5 mb-5 text-[13px]" style={{ background: 'var(--bg-hover)' }}>
+              <dl
+                className="rounded-[11px] p-3.5 mb-5 text-[13px]"
+                style={{ background: 'var(--bg-hover)' }}
+              >
                 <div className="flex justify-between gap-3 mb-1.5">
                   <dt className="text-ink-muted">{tr('Adresse invitée', 'Invited address')}</dt>
                   <dd className="text-ink font-medium truncate">{preview.email}</dd>
@@ -210,8 +276,14 @@ export function AcceptInvitationPage() {
               </dl>
 
               {signedInEmail && signedInEmail.toLowerCase() !== preview.email.toLowerCase() && (
-                <div role="alert" className="mb-4 px-3 py-2.5 rounded-[10px] text-[12.5px] flex items-start gap-2"
-                  style={{ background: 'color-mix(in srgb, var(--high) 12%, transparent)', color: 'var(--high)' }}>
+                <div
+                  role="alert"
+                  className="mb-4 px-3 py-2.5 rounded-[10px] text-[12.5px] flex items-start gap-2"
+                  style={{
+                    background: 'color-mix(in srgb, var(--high) 12%, transparent)',
+                    color: 'var(--high)',
+                  }}
+                >
                   <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                   <span>
                     {tr(
@@ -225,21 +297,44 @@ export function AcceptInvitationPage() {
               <form onSubmit={accept}>
                 {preview.requires_signup && (
                   <>
-                    <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="acc-name">
+                    <label
+                      className="block text-[12px] font-semibold text-ink-soft mb-1.5"
+                      htmlFor="acc-name"
+                    >
                       {tr('Votre nom complet', 'Your full name')}
                     </label>
-                    <input id="acc-name" required value={fullName} autoFocus
+                    <input
+                      id="acc-name"
+                      required
+                      value={fullName}
+                      autoFocus
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none mb-3"
-                      style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }} />
-                    <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="acc-pw">
+                      style={{
+                        border: '1px solid var(--border-strong)',
+                        background: 'var(--bg-app)',
+                      }}
+                    />
+                    <label
+                      className="block text-[12px] font-semibold text-ink-soft mb-1.5"
+                      htmlFor="acc-pw"
+                    >
                       {tr('Choisissez un mot de passe', 'Choose a password')}
                     </label>
-                    <input id="acc-pw" type="password" required minLength={12} value={password}
+                    <input
+                      id="acc-pw"
+                      type="password"
+                      required
+                      minLength={12}
+                      value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       aria-describedby="acc-pw-help"
                       className="w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none mb-1.5"
-                      style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }} />
+                      style={{
+                        border: '1px solid var(--border-strong)',
+                        background: 'var(--bg-app)',
+                      }}
+                    />
                     <p id="acc-pw-help" className="text-[11.5px] text-ink-muted mb-4">
                       {tr('12 caractères minimum.', 'At least 12 characters.')}
                     </p>
@@ -247,15 +342,25 @@ export function AcceptInvitationPage() {
                 )}
 
                 {submitError && (
-                  <div role="alert" className="mb-3 px-3 py-2.5 rounded-[10px] text-[12.5px] flex items-start gap-2"
-                    style={{ background: 'color-mix(in srgb, var(--critical) 12%, transparent)', color: 'var(--critical)' }}>
-                    <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{submitError}</span>
+                  <div
+                    role="alert"
+                    className="mb-3 px-3 py-2.5 rounded-[10px] text-[12.5px] flex items-start gap-2"
+                    style={{
+                      background: 'color-mix(in srgb, var(--critical) 12%, transparent)',
+                      color: 'var(--critical)',
+                    }}
+                  >
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />{' '}
+                    <span>{submitError}</span>
                   </div>
                 )}
 
-                <button type="submit" disabled={submitting}
+                <button
+                  type="submit"
+                  disabled={submitting}
                   className="w-full h-[44px] rounded-[10px] text-[14px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
+                  style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+                >
                   {submitting && <Loader2 size={15} className="animate-spin" />}
                   {submitting
                     ? tr('Un instant…', 'One moment…')
@@ -266,13 +371,15 @@ export function AcceptInvitationPage() {
               </form>
 
               <p className="text-[11.5px] text-ink-muted mt-4 text-center leading-snug">
-                {tr(
-                  "Ce lien expire le ",
-                  'This link expires on ',
+                {tr('Ce lien expire le ', 'This link expires on ')}
+                {new Date(preview.expires_at).toLocaleDateString(
+                  lang === 'fr' ? 'fr-FR' : 'en-GB',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  },
                 )}
-                {new Date(preview.expires_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                })}
                 .
               </p>
             </>

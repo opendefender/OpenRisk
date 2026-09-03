@@ -7,7 +7,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRiskStore, type Risk } from '../hooks/useRiskStore';
 import { Button } from '../shared/ds';
 import { EditRiskModal } from '../features/risks/components/EditRiskModal';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, TrendingUp, AlertCircle, Shield } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  TrendingUp,
+  AlertCircle,
+  Shield,
+} from 'lucide-react';
 import { ViewToggle } from '../components/ViewToggle';
 import { motion } from 'framer-motion';
 
@@ -42,7 +50,10 @@ export const Risks = () => {
 
   const [editRisk, setEditRisk] = useState<Risk | null>(null);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / localPageSize)), [total, localPageSize]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / localPageSize)),
+    [total, localPageSize],
+  );
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -52,7 +63,14 @@ export const Risks = () => {
           <ViewToggle view={view} onViewChange={setView} />
           <div className="flex items-center gap-3">
             <label className="text-sm text-fg-secondary">Per page</label>
-            <select value={localPageSize} onChange={(e) => { setLocalPageSize(Number(e.target.value)); setLocalPage(1); }} className="bg-surface p-2 rounded text-sm">
+            <select
+              value={localPageSize}
+              onChange={(e) => {
+                setLocalPageSize(Number(e.target.value));
+                setLocalPage(1);
+              }}
+              className="bg-surface p-2 rounded text-sm"
+            >
               <option value={5}>5</option>
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -72,10 +90,13 @@ export const Risks = () => {
                   if (sortBy === 'title') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('title');
                 }}
-                aria-sort={sortBy === 'title' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'title' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
+                }
               >
                 <span>Title</span>
-                {sortBy === 'title' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'title' &&
+                  (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </button>
             </div>
             <div className="col-span-1">
@@ -86,10 +107,13 @@ export const Risks = () => {
                   if (sortBy === 'score') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('score');
                 }}
-                aria-sort={sortBy === 'score' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'score' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
+                }
               >
                 <span>Score</span>
-                {sortBy === 'score' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'score' &&
+                  (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </button>
             </div>
             <div className="col-span-1">
@@ -100,10 +124,13 @@ export const Risks = () => {
                   if (sortBy === 'impact') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('impact');
                 }}
-                aria-sort={sortBy === 'impact' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'impact' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
+                }
               >
                 <span>Impact</span>
-                {sortBy === 'impact' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'impact' &&
+                  (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </button>
             </div>
             <div className="col-span-1">
@@ -114,10 +141,17 @@ export const Risks = () => {
                   if (sortBy === 'probability') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('probability');
                 }}
-                aria-sort={sortBy === 'probability' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'probability'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
               >
                 <span>Probability</span>
-                {sortBy === 'probability' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'probability' &&
+                  (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </button>
             </div>
             <div className="col-span-2">
@@ -128,10 +162,13 @@ export const Risks = () => {
                   if (sortBy === 'status') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('status');
                 }}
-                aria-sort={sortBy === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
+                }
               >
                 <span>Status</span>
-                {sortBy === 'status' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'status' &&
+                  (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </button>
             </div>
             <div className="col-span-2">
@@ -142,10 +179,17 @@ export const Risks = () => {
                   if (sortBy === 'created_at') setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
                   setSortBy('created_at');
                 }}
-                aria-sort={sortBy === 'created_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'created_at'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
               >
                 <span>Created</span>
-                {sortBy === 'created_at' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                {sortBy === 'created_at' &&
+                  (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </button>
             </div>
             <div className="col-span-1">Actions</div>
@@ -164,18 +208,25 @@ export const Risks = () => {
             <div className="p-6 text-center">No risks found.</div>
           ) : (
             risks.map((r: Risk) => (
-              <div key={r.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-1/2">
+              <div
+                key={r.id}
+                className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-1/2"
+              >
                 <div className="col-span-6">
                   <div className="font-medium text-sm">{r.title}</div>
                   <div className="text-xs text-fg-muted">{r.description?.slice(0, 120)}</div>
                 </div>
                 <div className="col-span-1 font-mono font-bold">{r.score}</div>
                 <div className="col-span-2 text-sm">{r.status}</div>
-                <div className="col-span-2 text-sm">{r.tags?.slice(0,3).join(', ')}</div>
+                <div className="col-span-2 text-sm">{r.tags?.slice(0, 3).join(', ')}</div>
                 <div className="col-span-1">
                   <div className="flex gap-2">
-                    <Button onClick={() => setSelectedRisk(r)} variant="ghost">View</Button>
-                    <Button onClick={() => setEditRisk(r)} variant="ghost">Edit</Button>
+                    <Button onClick={() => setSelectedRisk(r)} variant="ghost">
+                      View
+                    </Button>
+                    <Button onClick={() => setEditRisk(r)} variant="ghost">
+                      Edit
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -209,7 +260,9 @@ export const Risks = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-fg-primary group-hover:text-primary transition-colors">{r.title}</h3>
+                    <h3 className="font-semibold text-fg-primary group-hover:text-primary transition-colors">
+                      {r.title}
+                    </h3>
                     <p className="text-xs text-fg-muted mt-1">{r.description?.slice(0, 100)}</p>
                   </div>
                   <div className="ml-4 text-right">
@@ -235,11 +288,15 @@ export const Risks = () => {
                     <span className="text-xs text-fg-secondary flex items-center gap-1">
                       <Shield size={14} /> Status
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      r.status === 'MITIGATED' ? 'bg-success/20 text-success-text' :
-                      r.status === 'OPEN' ? 'bg-danger/20 text-danger-text' :
-                      'bg-warning/20 text-warning-text'
-                    }`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        r.status === 'MITIGATED'
+                          ? 'bg-success/20 text-success-text'
+                          : r.status === 'OPEN'
+                            ? 'bg-danger/20 text-danger-text'
+                            : 'bg-warning/20 text-warning-text'
+                      }`}
+                    >
                       {r.status}
                     </span>
                   </div>
@@ -248,7 +305,10 @@ export const Risks = () => {
                 {r.tags && r.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {r.tags.slice(0, 3).map((tag, i) => (
-                      <span key={i} className="text-xs bg-primary/10 text-accent-strong px-2 py-1 rounded">
+                      <span
+                        key={i}
+                        className="text-xs bg-primary/10 text-accent-strong px-2 py-1 rounded"
+                      >
                         {tag}
                       </span>
                     ))}
@@ -256,8 +316,16 @@ export const Risks = () => {
                 )}
 
                 <div className="flex gap-2 pt-4 border-t border-border">
-                  <Button onClick={() => setSelectedRisk(r)} variant="ghost" className="flex-1 text-xs">View</Button>
-                  <Button onClick={() => setEditRisk(r)} variant="ghost" className="flex-1 text-xs">Edit</Button>
+                  <Button
+                    onClick={() => setSelectedRisk(r)}
+                    variant="ghost"
+                    className="flex-1 text-xs"
+                  >
+                    View
+                  </Button>
+                  <Button onClick={() => setEditRisk(r)} variant="ghost" className="flex-1 text-xs">
+                    Edit
+                  </Button>
                 </div>
               </motion.div>
             ))
@@ -270,9 +338,23 @@ export const Risks = () => {
       <div className="mt-4 flex items-center justify-between">
         <div className="text-sm text-fg-secondary">Total: {total}</div>
         <div className="flex items-center gap-2">
-          <Button variant="primary" onClick={() => setLocalPage((p) => Math.max(1, p - 1))} className="p-2"><ChevronLeft /></Button>
-          <div className="px-3">{localPage} / {totalPages}</div>
-          <Button variant="primary" onClick={() => setLocalPage((p) => Math.min(totalPages, p + 1))} className="p-2"><ChevronRight /></Button>
+          <Button
+            variant="primary"
+            onClick={() => setLocalPage((p) => Math.max(1, p - 1))}
+            className="p-2"
+          >
+            <ChevronLeft />
+          </Button>
+          <div className="px-3">
+            {localPage} / {totalPages}
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => setLocalPage((p) => Math.min(totalPages, p + 1))}
+            className="p-2"
+          >
+            <ChevronRight />
+          </Button>
         </div>
       </div>
     </div>

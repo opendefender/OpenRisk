@@ -116,9 +116,7 @@ export function TimelineSection({
                   </time>
                   <span aria-hidden>·</span>
                   <span>
-                    {ev.actor
-                      ? ev.actor.email || ev.actor.label || shortId(ev.actor.id)
-                      : 'System'}
+                    {ev.actor ? ev.actor.email || ev.actor.label || shortId(ev.actor.id) : 'System'}
                   </span>
                   <span aria-hidden>·</span>
                   <span>{SOURCE_LABEL[ev.source] ?? ev.source}</span>

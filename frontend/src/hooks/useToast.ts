@@ -16,65 +16,50 @@ export interface ToastOptions {
 }
 
 export function useToast() {
-  const success = useCallback(
-    (message: string, options?: ToastOptions) => {
-      return sonnerToast.success(message, {
-        description: options?.description,
-        duration: options?.duration ?? 3000,
-        action: options?.action,
-      });
-    },
-    []
-  );
+  const success = useCallback((message: string, options?: ToastOptions) => {
+    return sonnerToast.success(message, {
+      description: options?.description,
+      duration: options?.duration ?? 3000,
+      action: options?.action,
+    });
+  }, []);
 
-  const error = useCallback(
-    (message: string, options?: ToastOptions) => {
-      return sonnerToast.error(message, {
-        description: options?.description,
-        duration: options?.duration ?? 4000,
-        action: options?.action,
-      });
-    },
-    []
-  );
+  const error = useCallback((message: string, options?: ToastOptions) => {
+    return sonnerToast.error(message, {
+      description: options?.description,
+      duration: options?.duration ?? 4000,
+      action: options?.action,
+    });
+  }, []);
 
-  const warning = useCallback(
-    (message: string, options?: ToastOptions) => {
-      return sonnerToast.warning(message, {
-        description: options?.description,
-        duration: options?.duration ?? 3500,
-        action: options?.action,
-      });
-    },
-    []
-  );
+  const warning = useCallback((message: string, options?: ToastOptions) => {
+    return sonnerToast.warning(message, {
+      description: options?.description,
+      duration: options?.duration ?? 3500,
+      action: options?.action,
+    });
+  }, []);
 
-  const info = useCallback(
-    (message: string, options?: ToastOptions) => {
-      return sonnerToast.info(message, {
-        description: options?.description,
-        duration: options?.duration ?? 3000,
-        action: options?.action,
-      });
-    },
-    []
-  );
+  const info = useCallback((message: string, options?: ToastOptions) => {
+    return sonnerToast.info(message, {
+      description: options?.description,
+      duration: options?.duration ?? 3000,
+      action: options?.action,
+    });
+  }, []);
 
-  const loading = useCallback(
-    (message: string, options?: Omit<ToastOptions, 'duration'>) => {
-      return sonnerToast.loading(message, {
-        description: options?.description,
-        action: options?.action,
-      });
-    },
-    []
-  );
+  const loading = useCallback((message: string, options?: Omit<ToastOptions, 'duration'>) => {
+    return sonnerToast.loading(message, {
+      description: options?.description,
+      action: options?.action,
+    });
+  }, []);
 
   const promise = useCallback(
-    <T,>(
+    <T>(
       promise: Promise<T>,
       messages: { loading: string; success: string; error: string },
-      options?: ToastOptions
+      options?: ToastOptions,
     ) => {
       return sonnerToast.promise(promise, {
         ...messages,
@@ -82,7 +67,7 @@ export function useToast() {
         action: options?.action,
       });
     },
-    []
+    [],
   );
 
   return {

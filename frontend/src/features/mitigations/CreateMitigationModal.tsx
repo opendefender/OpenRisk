@@ -34,7 +34,12 @@ interface CreateMitigationModalProps {
   riskId?: string;
 }
 
-export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: CreateMitigationModalProps) => {
+export const CreateMitigationModal = ({
+  isOpen,
+  onClose,
+  onCreated,
+  riskId,
+}: CreateMitigationModalProps) => {
   // Esc closes this overlay (spec §2).
   useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
@@ -126,45 +131,77 @@ export const CreateMitigationModal = ({ isOpen, onClose, onCreated, riskId }: Cr
                   <h2 className="text-2xl font-semibold text-ink">Créer un plan d'atténuation</h2>
                   <p className="text-sm text-ink-muted">Créez un plan pour atténuer un risque</p>
                 </div>
-                <button type="button" onClick={handleClose} className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
-                <Field label="Titre" message={errors.title?.message} status={errors.title?.message ? 'invalid' : 'default'}>
-                  <Input  {...register('title')}  disabled={isSubmitting}
-                  />
-                </Field>
+                  <Field
+                    label="Titre"
+                    message={errors.title?.message}
+                    status={errors.title?.message ? 'invalid' : 'default'}
+                  >
+                    <Input {...register('title')} disabled={isSubmitting} />
+                  </Field>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Description</label>
-                  <textarea {...register('description')} rows={4} className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40" disabled={isSubmitting} />
-                  {errors.description && <p className="text-xs text-danger-text">{errors.description.message}</p>}
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Deadline</label>
-                    <Input type="date" {...register('due_date')} disabled={isSubmitting} />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      Description
+                    </label>
+                    <textarea
+                      {...register('description')}
+                      rows={4}
+                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
+                      disabled={isSubmitting}
+                    />
+                    {errors.description && (
+                      <p className="text-xs text-danger-text">{errors.description.message}</p>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Priorité</label>
-                    <select {...register('priority')} className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink">
-                      <option value="critical">Critique</option>
-                      <option value="high">Élevé</option>
-                      <option value="medium">Moyen</option>
-                      <option value="low">Bas</option>
-                    </select>
-                  </div>
-                </div>
 
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        Deadline
+                      </label>
+                      <Input type="date" {...register('due_date')} disabled={isSubmitting} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        Priorité
+                      </label>
+                      <select
+                        {...register('priority')}
+                        className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
+                      >
+                        <option value="critical">Critique</option>
+                        <option value="high">Élevé</option>
+                        <option value="medium">Moyen</option>
+                        <option value="low">Bas</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
-                  <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
-                  <Button type="submit" variant="secondary" loading={isSubmitting} className="gap-2"><Zap size={16} />Créer</Button>
+                  <Button type="button" variant="ghost" onClick={handleClose}>
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    loading={isSubmitting}
+                    className="gap-2"
+                  >
+                    <Zap size={16} />
+                    Créer
+                  </Button>
                 </div>
               </form>
             </div>

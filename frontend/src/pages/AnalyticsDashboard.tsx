@@ -36,7 +36,9 @@ const AnalyticsDashboard: React.FC = () => {
   const [aggregatedData, setAggregatedData] = useState<TimeSeriesData[]>([]);
   const [metricCards, setMetricCards] = useState<MetricCard[]>([]);
   const [trendData, setTrendData] = useState<TrendData | null>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('daily');
+  const [selectedPeriod, setSelectedPeriod] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>(
+    'daily',
+  );
   const [loading, setLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState('latency_ms');
 
@@ -46,7 +48,9 @@ const AnalyticsDashboard: React.FC = () => {
       setLoading(true);
       try {
         // Fetch time series data
-        const response = await fetch(`/api/analytics/timeseries?metric=${selectedMetric}&period=${selectedPeriod}`);
+        const response = await fetch(
+          `/api/analytics/timeseries?metric=${selectedMetric}&period=${selectedPeriod}`,
+        );
         if (response.ok) {
           const data = await response.json();
           setTimeSeriesData(data.points || []);
@@ -72,7 +76,9 @@ const AnalyticsDashboard: React.FC = () => {
     const average = values.reduce((a, b) => a + b, 0) / values.length;
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const stdDev = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - average, 2), 0) / values.length);
+    const stdDev = Math.sqrt(
+      values.reduce((sq, n) => sq + Math.pow(n - average, 2), 0) / values.length,
+    );
 
     return { average, min, max, stdDev };
   };
@@ -116,9 +122,7 @@ const AnalyticsDashboard: React.FC = () => {
         <div className="bg-surface-1 rounded-lg shadow p-6 mb-8">
           <div className="flex gap-4 flex-wrap items-center">
             <div>
-              <label className="block text-sm font-medium text-fg-primary mb-2">
-                Metric
-              </label>
+              <label className="block text-sm font-medium text-fg-primary mb-2">Metric</label>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value)}
@@ -133,9 +137,7 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-fg-primary mb-2">
-                Period
-              </label>
+              <label className="block text-sm font-medium text-fg-primary mb-2">Period</label>
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value as any)}
@@ -199,11 +201,15 @@ const AnalyticsDashboard: React.FC = () => {
               </div>
               <div className="border-l-4 border-purple-500 pl-4">
                 <p className="text-fg-muted text-sm">Magnitude</p>
-                <p className="text-xl font-bold text-fg-primary">{trendData.magnitude.toFixed(2)}</p>
+                <p className="text-xl font-bold text-fg-primary">
+                  {trendData.magnitude.toFixed(2)}
+                </p>
               </div>
               <div className="border-l-4 border-success pl-4">
                 <p className="text-fg-muted text-sm">Confidence</p>
-                <p className="text-xl font-bold text-fg-primary">{(trendData.confidence * 100).toFixed(1)}%</p>
+                <p className="text-xl font-bold text-fg-primary">
+                  {(trendData.confidence * 100).toFixed(1)}%
+                </p>
               </div>
               <div className="border-l-4 border-warning pl-4">
                 <p className="text-fg-muted text-sm">Forecast</p>

@@ -49,21 +49,36 @@ export function useCountUp(target: number, duration = 1100): number {
   return value;
 }
 
-export const Card = ({ children, className = '', style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) => (
+export const Card = ({
+  children,
+  className = '',
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) => (
   <div className={`or-card ${className}`} style={style}>
     {children}
   </div>
 );
 
 /** Locale number formatter shared by every persona. */
-export const numFmt = (lang: string) => (n: number) => Math.round(n).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US');
+export const numFmt = (lang: string) => (n: number) =>
+  Math.round(n).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US');
 
 /* ---------------- persona header ---------------- */
 
 export function PersonaHeader({
-  title, subtitle, actionLabel, onAction,
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
 }: {
-  title: string; subtitle: string; actionLabel?: string; onAction?: () => void;
+  title: string;
+  subtitle: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
     <div className="flex items-start justify-between flex-wrap gap-3.5 mb-[22px]">
@@ -106,7 +121,10 @@ export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpe
   const inner = (
     <>
       <div className="flex items-center mb-3.5">
-        <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center" style={{ color: col, background: softFill(col, 14) }}>
+        <div
+          className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center"
+          style={{ color: col, background: softFill(col, 14) }}
+        >
           <Icon size={18} strokeWidth={1.75} />
         </div>
       </div>
@@ -118,27 +136,54 @@ export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpe
     </>
   );
   return onClick ? (
-    <button onClick={onClick} className="or-card text-left p-[18px] hover:bg-hover transition-colors">{inner}</button>
+    <button
+      onClick={onClick}
+      className="or-card text-left p-[18px] hover:bg-hover transition-colors"
+    >
+      {inner}
+    </button>
   ) : (
     <div className="or-card p-[18px]">{inner}</div>
   );
 }
 
 /** Like KpiCard but for a pre-formatted string value (e.g. "117 500 000 FCFA"). */
-export function StatCard({ label, value, col, icon: Icon, onClick }: { label: string; value: string; col: string; icon?: LucideIcon; onClick?: () => void }) {
+export function StatCard({
+  label,
+  value,
+  col,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  col: string;
+  icon?: LucideIcon;
+  onClick?: () => void;
+}) {
   const inner = (
     <>
       {Icon && (
-        <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center mb-3.5" style={{ color: col, background: softFill(col, 14) }}>
+        <div
+          className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center mb-3.5"
+          style={{ color: col, background: softFill(col, 14) }}
+        >
           <Icon size={18} strokeWidth={1.75} />
         </div>
       )}
-      <div className="disp mono text-[24px] font-bold text-ink leading-tight wrap-break-word">{value}</div>
+      <div className="disp mono text-[24px] font-bold text-ink leading-tight wrap-break-word">
+        {value}
+      </div>
       <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>
     </>
   );
   return onClick ? (
-    <button onClick={onClick} className="or-card text-left p-[18px] hover:bg-hover transition-colors w-full">{inner}</button>
+    <button
+      onClick={onClick}
+      className="or-card text-left p-[18px] hover:bg-hover transition-colors w-full"
+    >
+      {inner}
+    </button>
   ) : (
     <div className="or-card p-[18px]">{inner}</div>
   );
@@ -169,12 +214,26 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
 
 /** Radial gauge. `max`/`grade` let it show a 0–100 score or an A–F cyber grade. */
 export function ScoreHero({
-  score, title, ctaLabel, onDetails, grade, max = 100, hint,
+  score,
+  title,
+  ctaLabel,
+  onDetails,
+  grade,
+  max = 100,
+  hint,
 }: {
-  score: number; title: string; ctaLabel: string; onDetails: () => void; grade?: string; max?: number; hint?: string;
+  score: number;
+  title: string;
+  ctaLabel: string;
+  onDetails: () => void;
+  grade?: string;
+  max?: number;
+  hint?: string;
 }) {
   const val = Math.round(useCountUp(score));
-  const cx = 110, cy = 112, r = 76;
+  const cx = 110,
+    cy = 112,
+    r = 76;
   const pct = Math.max(0, Math.min(1, val / max));
   const track = arcPath(cx, cy, r, -115, 115);
   const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
@@ -182,22 +241,44 @@ export function ScoreHero({
   return (
     <Card>
       <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
-        {title}{hint && <InfoHint text={hint} />}
+        {title}
+        {hint && <InfoHint text={hint} />}
       </div>
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150">
-          <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />
-          <path d={prog} fill="none" stroke={col} strokeWidth={14} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />
+          <path
+            d={track}
+            fill="none"
+            stroke="var(--bg-hover)"
+            strokeWidth={14}
+            strokeLinecap="round"
+          />
+          <path
+            d={prog}
+            fill="none"
+            stroke={col}
+            strokeWidth={14}
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 6px ${col})` }}
+          />
         </svg>
         <div className="absolute left-0 right-0 text-center" style={{ top: '52px' }}>
-          <div className="disp mono text-[44px] font-bold text-ink leading-none">{grade ?? val}</div>
-          <div className="text-[12px] text-ink-muted mt-0.5">{grade ? `${val}/${max}` : `/ ${max}`}</div>
+          <div className="disp mono text-[44px] font-bold text-ink leading-none">
+            {grade ?? val}
+          </div>
+          <div className="text-[12px] text-ink-muted mt-0.5">
+            {grade ? `${val}/${max}` : `/ ${max}`}
+          </div>
         </div>
       </div>
       <button
         onClick={onDetails}
         className="mx-[22px] mb-5 mt-3 h-[34px] rounded-[9px] text-[12.5px] font-semibold text-ink hover:bg-hover transition-colors"
-        style={{ width: 'calc(100% - 44px)', border: '1px solid var(--border-strong)', background: 'transparent' }}
+        style={{
+          width: 'calc(100% - 44px)',
+          border: '1px solid var(--border-strong)',
+          background: 'transparent',
+        }}
       >
         {ctaLabel}
       </button>
@@ -209,7 +290,10 @@ export function ScoreHero({
 export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1320px]" style={{ animation: 'or-fadeup .4s ease' }}>
+      <div
+        className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1320px]"
+        style={{ animation: 'or-fadeup .4s ease' }}
+      >
         {/* OR26-03 — every persona dashboard frames itself with this shell
             except the posture one, which mounts the same pair itself. Putting
             the prompt here means an analyst, an executive or a viewer sees it

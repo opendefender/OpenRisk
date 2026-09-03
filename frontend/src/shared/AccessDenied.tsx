@@ -82,7 +82,10 @@ export function AccessDenied({ permission, pathname }: AccessDeniedProps) {
           <span className="text-2xs uppercase tracking-wide text-ink-muted shrink-0">
             {tr('Permission requise', 'Required permission')}
           </span>
-          <code data-testid="missing-permission" className="mono text-xs font-semibold text-ink truncate">
+          <code
+            data-testid="missing-permission"
+            className="mono text-xs font-semibold text-ink truncate"
+          >
             {permission}
           </code>
           <button

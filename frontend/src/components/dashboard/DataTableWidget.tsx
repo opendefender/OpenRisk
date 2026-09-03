@@ -109,7 +109,8 @@ const DataTableWidget: React.FC<DataTableWidgetProps> = ({
                           <span
                             className={`text-sm font-medium ${item.trend >= 0 ? 'text-success-text' : 'text-danger-text'}`}
                           >
-                            {item.trend >= 0 ? '+' : ''}{item.trend}%
+                            {item.trend >= 0 ? '+' : ''}
+                            {item.trend}%
                           </span>
                         </div>
                       </td>

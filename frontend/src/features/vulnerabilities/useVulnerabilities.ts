@@ -25,7 +25,10 @@ export function useVulnStats() {
 }
 
 export function useVulnConnectors() {
-  return useQuery({ queryKey: [...VULNS_KEY, 'connectors'], queryFn: vulnerabilityService.connectors });
+  return useQuery({
+    queryKey: [...VULNS_KEY, 'connectors'],
+    queryFn: vulnerabilityService.connectors,
+  });
 }
 
 export function useVulnMutations() {

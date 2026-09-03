@@ -22,7 +22,14 @@ function Stack() {
 describe('useEscapeToClose', () => {
   it('closes the overlay on Escape', () => {
     let closed = false;
-    render(<Overlay label="solo" onClosed={() => { closed = true; }} />);
+    render(
+      <Overlay
+        label="solo"
+        onClosed={() => {
+          closed = true;
+        }}
+      />,
+    );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(closed).toBe(true);
   });
@@ -41,7 +48,14 @@ describe('useEscapeToClose', () => {
 
   it('ignores other keys', () => {
     let closed = false;
-    render(<Overlay label="solo" onClosed={() => { closed = true; }} />);
+    render(
+      <Overlay
+        label="solo"
+        onClosed={() => {
+          closed = true;
+        }}
+      />,
+    );
     fireEvent.keyDown(document, { key: 'Enter' });
     expect(closed).toBe(false);
   });

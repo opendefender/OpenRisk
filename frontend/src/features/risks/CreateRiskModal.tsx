@@ -25,10 +25,7 @@ import { useScorePreview } from '../../hooks/useScore';
 import { bandColor, bandLabel } from '../../services/scoreService';
 import { ScoreExplainerButton } from '../../shared/ScoreExplainer';
 import { useUIStore } from '../../store/uiStore';
-import {
-  useInvalidateActivation,
-  useOnboardingSuggestions,
-} from '../onboarding/useActivation';
+import { useInvalidateActivation, useOnboardingSuggestions } from '../onboarding/useActivation';
 import type { RiskSuggestion } from '../../services/activationService';
 
 const createRiskSchema = z.object({
@@ -110,12 +107,15 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const watchedAssetIds = watch('asset_ids') ?? [];
 
   // The live figure comes from the server's model, debounced at 300 ms.
-  const { data: preview } = useScorePreview({
-    scope: 'risk',
-    probability: watchedProbability,
-    impact: watchedImpact,
-    asset_criticality: watchedCriticality,
-  }, isOpen);
+  const { data: preview } = useScorePreview(
+    {
+      scope: 'risk',
+      probability: watchedProbability,
+      impact: watchedImpact,
+      asset_criticality: watchedCriticality,
+    },
+    isOpen,
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -210,223 +210,264 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
               <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
                   <h2 className="text-2xl font-semibold text-ink">{t('risks.createRisk')}</h2>
-                  <p className="text-sm text-ink-muted">Créez un risque avec score en temps réel.</p>
+                  <p className="text-sm text-ink-muted">
+                    Créez un risque avec score en temps réel.
+                  </p>
                 </div>
-                <button type="button" onClick={handleClose} className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
-                {/* Guided first risk (spec §5). Three drafts drawn from the
+                  {/* Guided first risk (spec §5). Three drafts drawn from the
                     sector chosen at signup. We do NOT create anything: clicking
                     one fills the form, and the user adjusts and validates it —
                     which is the difference between "the product made a risk" and
                     "I made my first risk". Only shown while the form is untouched
                     so it never gets in the way of someone who knows what to type. */}
-                <SuggestionPicker
-                  suggestions={suggestions?.risks ?? []}
-                  visible={!watchedTitle?.trim() && !watchedDescription?.trim()}
-                  lang={lang}
-                  onPick={(sugg) => {
-                    setValue('title', sugg.title, { shouldValidate: true });
-                    setValue('description', sugg.description, { shouldValidate: true });
-                    setValue('probability', sugg.probability, { shouldValidate: true });
-                    setValue('impact', sugg.impact, { shouldValidate: true });
-                    if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
-                  }}
-                />
-                <Field label={t('risks.riskName')} message={errors.title?.message} status={errors.title?.message ? 'invalid' : 'default'}>
-                  <Input
-                    {...register('title')}
-                    disabled={isSubmitting}
+                  <SuggestionPicker
+                    suggestions={suggestions?.risks ?? []}
+                    visible={!watchedTitle?.trim() && !watchedDescription?.trim()}
+                    lang={lang}
+                    onPick={(sugg) => {
+                      setValue('title', sugg.title, { shouldValidate: true });
+                      setValue('description', sugg.description, { shouldValidate: true });
+                      setValue('probability', sugg.probability, { shouldValidate: true });
+                      setValue('impact', sugg.impact, { shouldValidate: true });
+                      if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
+                    }}
                   />
-                </Field>
-                <div className="space-y-1.5">
-                  <label htmlFor="create-risk-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskDescription')}</label>
-                  <textarea
-                    id="create-risk-description"
-                    {...register('description')}
-                    rows={5}
-                    className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
-                    disabled={isSubmitting}
-                  />
-                  {errors.description && <p className="text-xs text-danger-text">{errors.description.message}</p>}
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                      {t('risks.probability')}
-                      <FieldHelp field="probability" lang={lang} sector={sector} />
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      {...register('probability', { valueAsNumber: true })}
-                      className="w-full"
-                    />
-                    <div className="flex items-center justify-between text-xs text-ink-muted">
-                      <span>0</span>
-                      <span>{watchedProbability.toFixed(2)}</span>
-                      <span>1</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                      {t('risks.impact')}
-                      <FieldHelp field="impact" lang={lang} sector={sector} />
-                    </label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      step={1}
-                      {...register('impact', { valueAsNumber: true })}
-                      className="w-full"
-                    />
-                    <div className="flex items-center justify-between text-xs text-ink-muted">
-                      <span>1</span>
-                      <span>{watchedImpact}</span>
-                      <span>10</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                      {t('risks.riskAssetCriticality')}
-                      <FieldHelp field="asset_criticality" lang={lang} sector={sector} />
-                    </label>
-                    <input
-                      type="range"
-                      min={0.1}
-                      max={3}
-                      step={0.1}
-                      {...register('assetCriticality', { valueAsNumber: true })}
-                      className="w-full"
-                    />
-                    <div className="flex items-center justify-between text-xs text-ink-muted">
-                      <span>0.1</span>
-                      <span>{watchedCriticality.toFixed(1)}</span>
-                      <span>3.0</span>
-                    </div>
-                  </div>
-                </div>
-
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-border bg-hover p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.18em] text-ink-muted">
-                        Score en direct
-                        <ScoreExplainerButton score={preview} />
-                      </p>
-                      <p className="text-3xl font-semibold text-ink">
-                        {preview ? preview.value.toFixed(1) : '—'}
-                        <span className="text-sm text-ink-muted"> / 100</span>
-                      </p>
-                    </div>
-                    {/* Band and colour are the server's, exactly as received. */}
-                    <div
-                      className="rounded-3xl px-4 py-2 text-xs font-semibold"
-                      style={{
-                        background: `color-mix(in srgb, ${bandColor(preview?.band)} 16%, transparent)`,
-                        color: bandColor(preview?.band),
-                      }}
+                  <Field
+                    label={t('risks.riskName')}
+                    message={errors.title?.message}
+                    status={errors.title?.message ? 'invalid' : 'default'}
+                  >
+                    <Input {...register('title')} disabled={isSubmitting} />
+                  </Field>
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="create-risk-description"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
                     >
-                      {bandLabel(preview?.band, lang)}
+                      {t('risks.riskDescription')}
+                    </label>
+                    <textarea
+                      id="create-risk-description"
+                      {...register('description')}
+                      rows={5}
+                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
+                      disabled={isSubmitting}
+                    />
+                    {errors.description && (
+                      <p className="text-xs text-danger-text">{errors.description.message}</p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        {t('risks.probability')}
+                        <FieldHelp field="probability" lang={lang} sector={sector} />
+                      </label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        {...register('probability', { valueAsNumber: true })}
+                        className="w-full"
+                      />
+                      <div className="flex items-center justify-between text-xs text-ink-muted">
+                        <span>0</span>
+                        <span>{watchedProbability.toFixed(2)}</span>
+                        <span>1</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        {t('risks.impact')}
+                        <FieldHelp field="impact" lang={lang} sector={sector} />
+                      </label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        step={1}
+                        {...register('impact', { valueAsNumber: true })}
+                        className="w-full"
+                      />
+                      <div className="flex items-center justify-between text-xs text-ink-muted">
+                        <span>1</span>
+                        <span>{watchedImpact}</span>
+                        <span>10</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        {t('risks.riskAssetCriticality')}
+                        <FieldHelp field="asset_criticality" lang={lang} sector={sector} />
+                      </label>
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={3}
+                        step={0.1}
+                        {...register('assetCriticality', { valueAsNumber: true })}
+                        className="w-full"
+                      />
+                      <div className="flex items-center justify-between text-xs text-ink-muted">
+                        <span>0.1</span>
+                        <span>{watchedCriticality.toFixed(1)}</span>
+                        <span>3.0</span>
+                      </div>
                     </div>
                   </div>
-                </motion.div>
 
-                {/* Classification — three separate concepts, three separate
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-3xl border border-border bg-hover p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.18em] text-ink-muted">
+                          Score en direct
+                          <ScoreExplainerButton score={preview} />
+                        </p>
+                        <p className="text-3xl font-semibold text-ink">
+                          {preview ? preview.value.toFixed(1) : '—'}
+                          <span className="text-sm text-ink-muted"> / 100</span>
+                        </p>
+                      </div>
+                      {/* Band and colour are the server's, exactly as received. */}
+                      <div
+                        className="rounded-3xl px-4 py-2 text-xs font-semibold"
+                        style={{
+                          background: `color-mix(in srgb, ${bandColor(preview?.band)} 16%, transparent)`,
+                          color: bandColor(preview?.band),
+                        }}
+                      >
+                        {bandLabel(preview?.band, lang)}
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Classification — three separate concepts, three separate
                     fields. Conflating them is what put a user's label in the
                     "Référentiel" column wearing a framework badge. */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                    Catégorie
-                  </label>
-                  <select
-                    {...register('category_id')}
-                    className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Non classé</option>
-                    {(categories ?? []).map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-ink-muted">
-                    Vocabulaire contrôlé, configuré par votre organisation — à ne pas confondre avec les étiquettes libres.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                    {t('risks.riskFramework')}
-                  </label>
-                  <ComplianceMappingField
-                    value={mappings}
-                    onChange={setMappings}
-                    disabled={isSubmitting}
-                    onImportFramework={() => setImportOpen(true)}
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{t('risks.riskAssets')}</label>
-                    <div className="rounded-3xl border border-border bg-app p-3 min-h-[120px] overflow-y-auto">
-                      {assetsLoading ? (
-                        <p className="text-xs text-ink-muted">Chargement des assets...</p>
-                      ) : assets.length === 0 ? (
-                        <p className="text-xs text-ink-muted">Aucun asset disponible</p>
-                      ) : (
-                        <div className="grid gap-2">
-                          {assets.map((asset) => (
-                            <button
-                              type="button"
-                              key={asset.id}
-                              onClick={() => {
-                                const current = watchedAssetIds || [];
-                                if (current.includes(asset.id)) {
-                                  setValue('asset_ids', current.filter((id) => id !== asset.id), { shouldValidate: true });
-                                } else {
-                                  setValue('asset_ids', [...current, asset.id], { shouldValidate: true });
-                                }
-                              }}
-                              className={`w-full rounded-2xl border px-3 py-2 text-left text-sm transition-colors ${watchedAssetIds.includes(asset.id) ? 'border-primary bg-primary/10 text-accent' : 'border-border bg-app text-ink-soft hover:border-border-strong'}`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <Database size={16} />
-                                <span>{asset.name}</span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      Catégorie
+                    </label>
+                    <select
+                      {...register('category_id')}
+                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Non classé</option>
+                      {(categories ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-ink-muted">
+                      Vocabulaire contrôlé, configuré par votre organisation — à ne pas confondre
+                      avec les étiquettes libres.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      {t('risks.riskFramework')}
+                    </label>
+                    <ComplianceMappingField
+                      value={mappings}
+                      onChange={setMappings}
+                      disabled={isSubmitting}
+                      onImportFramework={() => setImportOpen(true)}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        {t('risks.riskAssets')}
+                      </label>
+                      <div className="rounded-3xl border border-border bg-app p-3 min-h-[120px] overflow-y-auto">
+                        {assetsLoading ? (
+                          <p className="text-xs text-ink-muted">Chargement des assets...</p>
+                        ) : assets.length === 0 ? (
+                          <p className="text-xs text-ink-muted">Aucun asset disponible</p>
+                        ) : (
+                          <div className="grid gap-2">
+                            {assets.map((asset) => (
+                              <button
+                                type="button"
+                                key={asset.id}
+                                onClick={() => {
+                                  const current = watchedAssetIds || [];
+                                  if (current.includes(asset.id)) {
+                                    setValue(
+                                      'asset_ids',
+                                      current.filter((id) => id !== asset.id),
+                                      { shouldValidate: true },
+                                    );
+                                  } else {
+                                    setValue('asset_ids', [...current, asset.id], {
+                                      shouldValidate: true,
+                                    });
+                                  }
+                                }}
+                                className={`w-full rounded-2xl border px-3 py-2 text-left text-sm transition-colors ${watchedAssetIds.includes(asset.id) ? 'border-primary bg-primary/10 text-accent' : 'border-border bg-app text-ink-soft hover:border-border-strong'}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Database size={16} />
+                                  <span>{asset.name}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <Field label={t('risks.riskTags')}>
-                  <Input
-                    {...register('tags', {
-                      setValueAs: (value) => typeof value === 'string' ? value.split(',').map((tag) => tag.trim()).filter(Boolean) : value,
-                    })}
-                    placeholder="critical, api, cloud"
-                    disabled={isSubmitting}
-                  />
-                </Field>
-
+                  <Field label={t('risks.riskTags')}>
+                    <Input
+                      {...register('tags', {
+                        setValueAs: (value) =>
+                          typeof value === 'string'
+                            ? value
+                                .split(',')
+                                .map((tag) => tag.trim())
+                                .filter(Boolean)
+                            : value,
+                      })}
+                      placeholder="critical, api, cloud"
+                      disabled={isSubmitting}
+                    />
+                  </Field>
                 </div>
 
                 <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
-                  <Button type="button" variant="ghost" onClick={handleClose}>Annuler</Button>
-                  <Button type="submit" variant="secondary" loading={isSubmitting} className="gap-2">
+                  <Button type="button" variant="ghost" onClick={handleClose}>
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    loading={isSubmitting}
+                    className="gap-2"
+                  >
                     <Zap size={16} /> {t('common.save')}
                   </Button>
                 </div>
@@ -447,9 +488,9 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
             />
           ) : null}
         </>
-        )}
-      </AnimatePresence>
-    );
+      )}
+    </AnimatePresence>
+  );
 };
 
 /**
@@ -479,7 +520,10 @@ function SuggestionPicker({
       <div className="flex items-center gap-2 mb-1">
         <Sparkles size={15} className="text-primary" />
         <span className="text-sm font-semibold text-ink">
-          {tr('Partir d’un risque courant de votre secteur', 'Start from a common risk in your sector')}
+          {tr(
+            'Partir d’un risque courant de votre secteur',
+            'Start from a common risk in your sector',
+          )}
         </span>
       </div>
       <p className="text-xs text-ink-muted mb-3">
@@ -503,7 +547,9 @@ function SuggestionPicker({
                 P {s.probability.toFixed(2)} · I {s.impact}
               </span>
             </div>
-            <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-ink-soft">{s.description}</p>
+            <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-ink-soft">
+              {s.description}
+            </p>
           </button>
         ))}
       </div>

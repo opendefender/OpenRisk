@@ -37,10 +37,38 @@ declare module 'react-grid-layout' {
     margin?: [number, number];
     draggableHandle?: string;
     children?: React.ReactNode;
-    onDragStart?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onDragStop?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onResizeStart?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onResizeStop?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
+    onDragStart?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onDragStop?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onResizeStart?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onResizeStop?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
   }
 
   export const GridLayout: React.FC<GridLayoutProps>;

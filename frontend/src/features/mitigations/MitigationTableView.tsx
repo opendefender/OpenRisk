@@ -155,19 +155,22 @@ export const MitigationTableView = memo(function MitigationTableView({
                 />
               </td>
               <td className="px-4 py-3">
-                <span className={cn(
-                  'px-2 py-1 rounded text-xs font-medium',
-                  mitigation.priority === 'critical' ? 'bg-danger/20 text-danger-text' :
-                  mitigation.priority === 'high' ? 'bg-warning/20 text-warning-text' :
-                  mitigation.priority === 'medium' ? 'bg-warning/20 text-warning-text' :
-                  'bg-success/20 text-success-text'
-                )}>
+                <span
+                  className={cn(
+                    'px-2 py-1 rounded text-xs font-medium',
+                    mitigation.priority === 'critical'
+                      ? 'bg-danger/20 text-danger-text'
+                      : mitigation.priority === 'high'
+                        ? 'bg-warning/20 text-warning-text'
+                        : mitigation.priority === 'medium'
+                          ? 'bg-warning/20 text-warning-text'
+                          : 'bg-success/20 text-success-text',
+                  )}
+                >
                   {mitigation.priority}
                 </span>
               </td>
-              <td className="px-4 py-3 text-fg-secondary">
-                {mitigation.progress_percentage}%
-              </td>
+              <td className="px-4 py-3 text-fg-secondary">{mitigation.progress_percentage}%</td>
               <td className="px-4 py-3 text-fg-secondary">
                 {new Date(mitigation.due_date).toLocaleDateString('fr-FR')}
               </td>
@@ -184,9 +187,7 @@ export const MitigationTableView = memo(function MitigationTableView({
                 )}
               </td>
               <td className="px-4 py-3">
-                {mitigation.auto_detected_count > 0 && (
-                  <AutoDetectedBadge size="sm" />
-                )}
+                {mitigation.auto_detected_count > 0 && <AutoDetectedBadge size="sm" />}
               </td>
             </motion.tr>
           ))}

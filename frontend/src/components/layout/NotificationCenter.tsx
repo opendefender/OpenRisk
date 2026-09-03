@@ -10,7 +10,8 @@ import { useNotificationStore } from '../../hooks/useNotificationStore';
 import { Button } from '../../shared/ds';
 
 export const NotificationCenter = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll } = useNotificationStore();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll } =
+    useNotificationStore();
   const [isOpen, setIsOpen] = useState(false);
 
   const getIconAndColor = (type: string) => {
@@ -47,10 +48,7 @@ export const NotificationCenter = () => {
         {isOpen && (
           <>
             {/* Backdrop */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setIsOpen(false)}
-            />
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
             {/* Notification Panel */}
             <motion.div

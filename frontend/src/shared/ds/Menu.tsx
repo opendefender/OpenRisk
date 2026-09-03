@@ -24,12 +24,7 @@
  * help someone navigating by keyboard — the separation does.
  */
 
-import {
-  cloneElement,
-  useRef,
-  useState,
-  type ReactElement,
-} from 'react';
+import { cloneElement, useRef, useState, type ReactElement } from 'react';
 import {
   FloatingFocusManager,
   FloatingPortal,
@@ -72,13 +67,7 @@ export interface MenuProps {
   className?: string;
 }
 
-export function Menu({
-  trigger,
-  items,
-  placement = 'bottom-end',
-  label,
-  className,
-}: MenuProps) {
+export function Menu({ trigger, items, placement = 'bottom-end', label, className }: MenuProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const listRef = useRef<Array<HTMLElement | null>>([]);

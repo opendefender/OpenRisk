@@ -17,4 +17,4 @@ export {
   Empty as EmptyState,
   type EmptyProps as EmptyStateProps,
   type EmptyVariant as EmptyStateVariant,
-} from "./ds/Empty";
+} from './ds/Empty';

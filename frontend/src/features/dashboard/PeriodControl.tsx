@@ -21,12 +21,7 @@
 import { useId, useState } from 'react';
 import { CalendarRange, Check } from 'lucide-react';
 
-import {
-  PERIOD_PRESETS,
-  periodLabel,
-  type PeriodSelection,
-  type PeriodPreset,
-} from './period';
+import { PERIOD_PRESETS, periodLabel, type PeriodSelection, type PeriodPreset } from './period';
 
 export function PeriodControl({
   selection,
@@ -145,7 +140,9 @@ export function PeriodControl({
 
       {/* The scope sentence. The control filters some widgets and not others, so
           it says which — rather than letting the user assume "all of them". */}
-      <p className="text-[11px] text-ink-muted max-w-[340px] text-right leading-snug">{scopeNote}</p>
+      <p className="text-[11px] text-ink-muted max-w-[340px] text-right leading-snug">
+        {scopeNote}
+      </p>
     </div>
   );
 }

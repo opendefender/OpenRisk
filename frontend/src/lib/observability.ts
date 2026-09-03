@@ -34,7 +34,9 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
 
 /** A short, human-quotable id (not a UUID) tying the UI message to the log. */
 function correlationId(): string {
-  const rnd = Math.floor(Math.random() * 0xfffff).toString(16).padStart(5, '0');
+  const rnd = Math.floor(Math.random() * 0xfffff)
+    .toString(16)
+    .padStart(5, '0');
   const t = Date.now().toString(36).slice(-4);
   return `${t}-${rnd}`.toUpperCase();
 }

@@ -36,9 +36,27 @@ export function LeaderboardPage() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
 
   const rules: [string, string, string][] = [
-    [tr('Risques traités', 'Risks treated'), tr('Faire passer un risque en « traité » avec un plan documenté.', 'Move a risk to "treated" with a documented plan.'), '/risks'],
-    [tr('Preuves déposées', 'Evidence filed'), tr('Attacher une preuve valide à un contrôle de conformité.', 'Attach valid evidence to a compliance control.'), '/compliance'],
-    [tr('Incidents résolus', 'Incidents resolved'), tr('Clore un incident dans les délais de son SLA.', 'Close an incident within its SLA.'), '/incidents'],
+    [
+      tr('Risques traités', 'Risks treated'),
+      tr(
+        'Faire passer un risque en « traité » avec un plan documenté.',
+        'Move a risk to "treated" with a documented plan.',
+      ),
+      '/risks',
+    ],
+    [
+      tr('Preuves déposées', 'Evidence filed'),
+      tr(
+        'Attacher une preuve valide à un contrôle de conformité.',
+        'Attach valid evidence to a compliance control.',
+      ),
+      '/compliance',
+    ],
+    [
+      tr('Incidents résolus', 'Incidents resolved'),
+      tr('Clore un incident dans les délais de son SLA.', 'Close an incident within its SLA.'),
+      '/incidents',
+    ],
   ];
 
   return (
@@ -60,13 +78,23 @@ export function LeaderboardPage() {
               label={tr('M’avertir au lancement', 'Notify me at launch')}
               icon={Sparkles}
               primary
-              onClick={() => toast(tr('Nous vous préviendrons dès que le classement sera actif.', 'We will let you know as soon as rankings go live.'), { icon: '🏆' })}
+              onClick={() =>
+                toast(
+                  tr(
+                    'Nous vous préviendrons dès que le classement sera actif.',
+                    'We will let you know as soon as rankings go live.',
+                  ),
+                  { icon: '🏆' },
+                )
+              }
             />
           }
         />
 
         <div className="px-6">
-          <div className="text-[13px] font-semibold text-ink mb-3">{tr('Comment les points seront gagnés', 'How points will be earned')}</div>
+          <div className="text-[13px] font-semibold text-ink mb-3">
+            {tr('Comment les points seront gagnés', 'How points will be earned')}
+          </div>
           <div className="flex flex-col gap-2">
             {rules.map(([name, how, href], i) => (
               <button
@@ -75,7 +103,10 @@ export function LeaderboardPage() {
                 className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left hover:bg-hover transition-colors"
                 style={{ border: '1px solid var(--border)' }}
               >
-                <div className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
+                <div
+                  className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+                >
                   <Trophy size={15} />
                 </div>
                 <div className="flex-1 min-w-0">

@@ -56,7 +56,7 @@ export const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Please fix the errors below');
       return;
@@ -76,7 +76,7 @@ export const Register = () => {
     } catch (err: any) {
       const status = err?.response?.status;
       const message = err?.response?.data?.error || 'Registration failed';
-      
+
       if (status === 409) {
         setErrors({ email: 'Email or username already in use' });
       } else if (status === 400) {
@@ -95,7 +95,7 @@ export const Register = () => {
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-accent-soft rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-surface/50 backdrop-blur-xl border border-border-strong/10 p-8 rounded-2xl shadow-2xl relative z-10"
@@ -107,7 +107,9 @@ export const Register = () => {
         </div>
 
         <h1 className="text-2xl font-bold text-center text-fg-primary mb-2">Create Account</h1>
-        <p className="text-fg-secondary text-center mb-8 text-sm">Join OpenRisk to manage risks and mitigations</p>
+        <p className="text-fg-secondary text-center mb-8 text-sm">
+          Join OpenRisk to manage risks and mitigations
+        </p>
 
         {errors.form && (
           <div className="mb-6 p-3 bg-danger/10 border border-danger/20 rounded-lg flex items-start gap-3">
@@ -118,7 +120,11 @@ export const Register = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Field label="Full Name" message={errors.fullName} status={errors.fullName ? 'invalid' : 'default'}>
+            <Field
+              label="Full Name"
+              message={errors.fullName}
+              status={errors.fullName ? 'invalid' : 'default'}
+            >
               <Input
                 type="text"
                 placeholder="John Doe"
@@ -132,7 +138,11 @@ export const Register = () => {
           </div>
 
           <div>
-            <Field label="Username" message={errors.username} status={errors.username ? 'invalid' : 'default'}>
+            <Field
+              label="Username"
+              message={errors.username}
+              status={errors.username ? 'invalid' : 'default'}
+            >
               <Input
                 type="text"
                 placeholder="johndoe"
@@ -146,7 +156,11 @@ export const Register = () => {
           </div>
 
           <div>
-            <Field label="Email" message={errors.email} status={errors.email ? 'invalid' : 'default'}>
+            <Field
+              label="Email"
+              message={errors.email}
+              status={errors.email ? 'invalid' : 'default'}
+            >
               <Input
                 type="email"
                 placeholder="name@company.com"
@@ -160,7 +174,11 @@ export const Register = () => {
           </div>
 
           <div>
-            <Field label="Password" message={errors.password} status={errors.password ? 'invalid' : 'default'}>
+            <Field
+              label="Password"
+              message={errors.password}
+              status={errors.password ? 'invalid' : 'default'}
+            >
               <Input
                 type="password"
                 placeholder="••••••••"
@@ -175,7 +193,11 @@ export const Register = () => {
           </div>
 
           <div>
-            <Field label="Confirm Password" message={errors.confirmPassword} status={errors.confirmPassword ? 'invalid' : 'default'}>
+            <Field
+              label="Confirm Password"
+              message={errors.confirmPassword}
+              status={errors.confirmPassword ? 'invalid' : 'default'}
+            >
               <Input
                 type="password"
                 placeholder="••••••••"
@@ -189,13 +211,17 @@ export const Register = () => {
           </div>
 
           <Button variant="primary" type="submit" className="w-full mt-6 group" loading={isLoading}>
-            Create Account <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+            Create Account{' '}
+            <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
         </form>
 
         <div className="mt-6 text-center text-sm">
           <span className="text-fg-secondary">Already have an account? </span>
-          <Link to="/login" className="text-primary hover:text-info-text font-medium transition-colors">
+          <Link
+            to="/login"
+            className="text-primary hover:text-info-text font-medium transition-colors"
+          >
             Sign In
           </Link>
         </div>

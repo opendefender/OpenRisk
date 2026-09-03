@@ -52,11 +52,23 @@ export interface FilterLabels {
   delete: string;
 }
 
-export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, onDeleteView, labels }: FilterPanelProps<T>) {
+export function FilterPanel<T>({
+  facets,
+  api,
+  resultCount,
+  views,
+  onSaveView,
+  onDeleteView,
+  labels,
+}: FilterPanelProps<T>) {
   const [open, setOpen] = useState(false);
   const [viewName, setViewName] = useState('');
 
-  const { refs: anchor, floatingStyles, context } = useFloating({
+  const {
+    refs: anchor,
+    floatingStyles,
+    context,
+  } = useFloating({
     open,
     onOpenChange: setOpen,
     placement: 'bottom-end',
@@ -68,7 +80,9 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
       size({
         padding: 8,
         apply({ availableHeight, elements }) {
-          Object.assign(elements.floating.style, { maxHeight: `${Math.max(220, availableHeight)}px` });
+          Object.assign(elements.floating.style, {
+            maxHeight: `${Math.max(220, availableHeight)}px`,
+          });
         },
       }),
     ],
@@ -81,7 +95,6 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
 
   const active = api.activeFilterCount;
   const canSaveView = active > 0 || api.state.q.length > 0;
-
 
   // floating-ui hands back *callback ref setters*, not ref objects. Wrapping
   // them keeps the JSX free of member access, which the react-hooks/refs rule
@@ -139,10 +152,18 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
             >
               <div
                 className="flex items-center justify-between px-4 py-3 sticky top-0"
-                style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}
+                style={{
+                  borderBottom: '1px solid var(--border)',
+                  background: 'var(--bg-elevated)',
+                }}
               >
                 <span className="text-[13.5px] font-semibold text-ink">{labels.filters}</span>
-                <button type="button" onClick={() => setOpen(false)} aria-label={labels.close} className="text-ink-muted hover:text-ink">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label={labels.close}
+                  className="text-ink-muted hover:text-ink"
+                >
                   <X size={16} />
                 </button>
               </div>
@@ -198,7 +219,10 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
                         <button
                           type="button"
                           data-testid={`saved-view-${v.name}`}
-                          onClick={() => { api.apply(v.state); setOpen(false); }}
+                          onClick={() => {
+                            api.apply(v.state);
+                            setOpen(false);
+                          }}
                           className="flex-1 text-left h-8 px-2.5 rounded-[8px] text-[12.5px] font-medium text-ink hover:bg-hover transition-colors"
                         >
                           {v.name}
@@ -221,7 +245,11 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
                     e.preventDefault();
                     const name = viewName.trim();
                     if (!name || !canSaveView) return;
-                    onSaveView(name, { q: api.state.q, filters: api.state.filters, sort: api.state.sort });
+                    onSaveView(name, {
+                      q: api.state.q,
+                      filters: api.state.filters,
+                      sort: api.state.sort,
+                    });
                     setViewName('');
                   }}
                 >
@@ -253,7 +281,10 @@ export function FilterPanel<T>({ facets, api, resultCount, views, onSaveView, on
                 className="flex items-center justify-between px-4 py-3 sticky bottom-0"
                 style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-elevated)' }}
               >
-                <span className="text-[12.5px] font-semibold text-ink" data-testid="filters-result-count">
+                <span
+                  className="text-[12.5px] font-semibold text-ink"
+                  data-testid="filters-result-count"
+                >
                   {labels.results(resultCount)}
                 </span>
                 <button
@@ -314,7 +345,11 @@ export function ActiveFilterChips<T>({
           {c.label} <X size={12} />
         </button>
       ))}
-      <button type="button" onClick={onClear} className="text-[11.5px] font-semibold text-ink-muted hover:text-ink px-1.5">
+      <button
+        type="button"
+        onClick={onClear}
+        className="text-[11.5px] font-semibold text-ink-muted hover:text-ink px-1.5"
+      >
         {clearLabel}
       </button>
     </div>

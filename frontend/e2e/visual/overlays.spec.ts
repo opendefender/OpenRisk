@@ -100,7 +100,6 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/shared/ds/Modal.tsx',
 ]);
 
-
 /**
  * Web fonts are fetched at runtime (Inter / DM Sans / JetBrains Mono). A
  * screenshot taken before they land captures the fallback face, so the same

@@ -52,7 +52,9 @@ for (const file of walk(SRC)) {
 
   // Only count the signatures that make something an *overlay*; a page that
   // merely calls toast() is not one.
-  const isOverlay = /role=["']dialog["']|fixed inset-0|role=["'](?:menu|listbox|tooltip)["']/.test(src);
+  const isOverlay = /role=["']dialog["']|fixed inset-0|role=["'](?:menu|listbox|tooltip)["']/.test(
+    src,
+  );
   if (!isOverlay) continue;
 
   const raw = (
@@ -115,9 +117,7 @@ if (process.argv.includes('--check')) {
     /* missing file is a mismatch */
   }
   if (current.trim() !== body.trim()) {
-    console.error(
-      'docs/ui/overlays.md is out of date.\nRun: node scripts/overlay-inventory.mjs',
-    );
+    console.error('docs/ui/overlays.md is out of date.\nRun: node scripts/overlay-inventory.mjs');
     process.exit(1);
   }
   console.log(`overlay inventory up to date (${rows.length} overlays, ${clean} clean).`);

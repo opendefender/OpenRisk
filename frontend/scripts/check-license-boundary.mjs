@@ -133,11 +133,7 @@ for (const file of files) {
 /** Candidate on-disk paths for an extension-less relative import. */
 function candidates(base) {
   const exts = ['.ts', '.tsx', '.js', '.jsx', '.css'];
-  return [
-    base,
-    ...exts.map((e) => base + e),
-    ...exts.map((e) => join(base, 'index' + e)),
-  ];
+  return [base, ...exts.map((e) => base + e), ...exts.map((e) => join(base, 'index' + e))];
 }
 
 /** Resolves a relative specifier to a repo-relative path, or null if unresolved. */

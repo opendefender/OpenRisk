@@ -7,12 +7,32 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, FileText, Sun, Moon, Languages, Search, ShieldAlert, Database, Bug, Loader2, ClipboardCheck, Scale, Globe, Users, type LucideIcon } from 'lucide-react';
+import {
+  Plus,
+  FileText,
+  Sun,
+  Moon,
+  Languages,
+  Search,
+  ShieldAlert,
+  Database,
+  Bug,
+  Loader2,
+  ClipboardCheck,
+  Scale,
+  Globe,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { visibleNavGroups } from '../../shared/navModel';
 import { usePermissions } from '../../hooks/usePermissions';
-import { universalSearch, type SearchResult, type SearchResultType } from '../../services/searchService';
+import {
+  universalSearch,
+  type SearchResult,
+  type SearchResultType,
+} from '../../services/searchService';
 
 interface CmdItem {
   label: string;
@@ -119,24 +139,53 @@ export const CommandPalette = () => {
           navigate(it.href ?? it.path);
           close();
         },
-      }))
+      })),
     );
     const actions: CmdItem[] = [
-      { label: L.newRisk, icon: Plus, shortcut: 'N', run: () => { window.dispatchEvent(new CustomEvent('openrisk:new-risk')); close(); } },
-      { label: L.genReport, icon: FileText, run: () => { navigate('/reports'); close(); } },
       {
-        label: lang === 'fr' ? (theme === 'dark' ? 'Thème clair' : 'Thème sombre') : theme === 'dark' ? 'Light theme' : 'Dark theme',
+        label: L.newRisk,
+        icon: Plus,
+        shortcut: 'N',
+        run: () => {
+          window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
+          close();
+        },
+      },
+      {
+        label: L.genReport,
+        icon: FileText,
+        run: () => {
+          navigate('/reports');
+          close();
+        },
+      },
+      {
+        label:
+          lang === 'fr'
+            ? theme === 'dark'
+              ? 'Thème clair'
+              : 'Thème sombre'
+            : theme === 'dark'
+              ? 'Light theme'
+              : 'Dark theme',
         icon: theme === 'dark' ? Sun : Moon,
-        run: () => { toggleTheme(); close(); },
+        run: () => {
+          toggleTheme();
+          close();
+        },
       },
       {
         label: lang === 'fr' ? 'English' : 'Français',
         icon: Languages,
-        run: () => { toggleLang(); close(); },
+        run: () => {
+          toggleLang();
+          close();
+        },
       },
     ];
     const q = query.trim().toLowerCase();
-    const flt = (items: CmdItem[]) => (q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items);
+    const flt = (items: CmdItem[]) =>
+      q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
     // Backend already matched these to the query — render as-is (no client filter).
     const resultItems: CmdItem[] = results.map((r) => ({
       label: r.title,
@@ -193,7 +242,10 @@ export const CommandPalette = () => {
             placeholder={L.cmdkPlaceholder}
             className="flex-1 bg-transparent border-none outline-none text-ink text-[15px] placeholder:text-ink-muted"
           />
-          <span className="mono text-[10.5px] px-[7px] py-[3px] rounded-md text-ink-muted" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>
+          <span
+            className="mono text-[10.5px] px-[7px] py-[3px] rounded-md text-ink-muted"
+            style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+          >
             ESC
           </span>
         </div>
@@ -218,19 +270,27 @@ export const CommandPalette = () => {
                     <span className="flex-1 min-w-0">
                       <span className="block text-[13.5px] text-ink truncate">{it.label}</span>
                       {it.subtitle && (
-                        <span className="block text-[11px] text-ink-muted truncate">{it.subtitle}</span>
+                        <span className="block text-[11px] text-ink-muted truncate">
+                          {it.subtitle}
+                        </span>
                       )}
                     </span>
                     {it.badge && (
                       <span
                         className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
-                        style={{ color: it.badge.tone, background: `color-mix(in srgb, ${it.badge.tone} 16%, transparent)` }}
+                        style={{
+                          color: it.badge.tone,
+                          background: `color-mix(in srgb, ${it.badge.tone} 16%, transparent)`,
+                        }}
                       >
                         {it.badge.text}
                       </span>
                     )}
                     {it.shortcut && (
-                      <span className="mono text-[10.5px] px-1.5 py-0.5 rounded text-ink-muted" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>
+                      <span
+                        className="mono text-[10.5px] px-1.5 py-0.5 rounded text-ink-muted"
+                        style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+                      >
                         {it.shortcut}
                       </span>
                     )}

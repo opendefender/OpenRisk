@@ -36,7 +36,9 @@ export const ScoreEngineConfiguration = () => {
         setConfigs(response.data);
         setSelectedConfig(response.data.default);
       } else {
-        toast.error('Erreur', { description: response.error || 'Impossible de charger les configurations' });
+        toast.error('Erreur', {
+          description: response.error || 'Impossible de charger les configurations',
+        });
       }
     } catch (error) {
       console.error('Error loading configs:', error);
@@ -359,7 +361,9 @@ export const ScoreEngineConfiguration = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-fg-secondary mb-3">Matrice de Risque</h3>
+                  <h3 className="text-sm font-semibold text-fg-secondary mb-3">
+                    Matrice de Risque
+                  </h3>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(selectedConfig.risk_matrix_thresholds).map(([key, value]) => (
                       <div key={key} className="bg-surface-2 rounded p-2 text-sm">
@@ -385,7 +389,9 @@ export const ScoreEngineConfiguration = () => {
             </div>
           ) : (
             <div className="bg-surface-1 border border-border-subtle rounded-lg p-8 text-center">
-              <p className="text-fg-secondary">Sélectionnez une configuration pour voir les détails</p>
+              <p className="text-fg-secondary">
+                Sélectionnez une configuration pour voir les détails
+              </p>
             </div>
           )}
         </motion.div>

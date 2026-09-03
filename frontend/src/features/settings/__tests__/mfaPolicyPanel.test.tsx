@@ -16,7 +16,9 @@ import type { MFAPolicy } from '../../auth/mfaPolicyService';
 const fetchMFAPolicy = vi.fn();
 const saveMFAPolicy = vi.fn();
 vi.mock('../../auth/mfaPolicyService', async () => {
-  const actual = await vi.importActual<typeof import('../../auth/mfaPolicyService')>('../../auth/mfaPolicyService');
+  const actual = await vi.importActual<typeof import('../../auth/mfaPolicyService')>(
+    '../../auth/mfaPolicyService',
+  );
   return {
     ...actual,
     fetchMFAPolicy: (...a: unknown[]) => fetchMFAPolicy(...a),

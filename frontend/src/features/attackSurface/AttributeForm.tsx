@@ -145,13 +145,7 @@ function AttributeField({ def, value, onChange, disabled, error }: FieldProps) {
   );
 }
 
-function FieldWidget({
-  id,
-  def,
-  value,
-  onChange,
-  disabled,
-}: FieldProps & { id: string }) {
+function FieldWidget({ id, def, value, onChange, disabled }: FieldProps & { id: string }) {
   switch (def.type) {
     case 'boolean':
       return (

@@ -30,7 +30,12 @@ export const AUDIT_TYPE_LABEL: Record<string, { fr: string; en: string }> = {
   surveillance: { fr: 'Surveillance', en: 'Surveillance' },
 };
 
-export const AUDIT_STATUS_ORDER: AuditStatus[] = ['planned', 'in_progress', 'completed', 'cancelled'];
+export const AUDIT_STATUS_ORDER: AuditStatus[] = [
+  'planned',
+  'in_progress',
+  'completed',
+  'cancelled',
+];
 
 export const REMEDIATION_STATUS_META: Record<RemediationStatus, Meta> = {
   open: { color: 'var(--critical)', fr: 'Ouvert', en: 'Open' },
@@ -46,7 +51,12 @@ export const REMEDIATION_PRIORITY_META: Record<RemediationPriority, Meta> = {
   critical: { color: 'var(--critical)', fr: 'Critique', en: 'Critical' },
 };
 
-export const REMEDIATION_STATUS_ORDER: RemediationStatus[] = ['open', 'in_progress', 'completed', 'cancelled'];
+export const REMEDIATION_STATUS_ORDER: RemediationStatus[] = [
+  'open',
+  'in_progress',
+  'completed',
+  'cancelled',
+];
 
 /** Formats an ISO date for display, or an em dash when absent. */
 export function formatDate(iso: string | null | undefined, lang: 'fr' | 'en'): string {
@@ -54,6 +64,8 @@ export function formatDate(iso: string | null | undefined, lang: 'fr' | 'en'): s
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }

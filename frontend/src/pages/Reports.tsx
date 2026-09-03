@@ -10,7 +10,17 @@ import { Button } from '../shared/ds';
 import { useReportStore } from '../hooks/useReportStore';
 
 export const Reports = () => {
-  const { reports, stats, total, page, pageSize, isLoading, error, fetchReports, fetchReportStats } = useReportStore();
+  const {
+    reports,
+    stats,
+    total,
+    page,
+    pageSize,
+    isLoading,
+    error,
+    fetchReports,
+    fetchReportStats,
+  } = useReportStore();
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -72,7 +82,9 @@ export const Reports = () => {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2">Reports</h2>
-        <p className="text-fg-secondary">Generate and manage security reports for compliance and auditing</p>
+        <p className="text-fg-secondary">
+          Generate and manage security reports for compliance and auditing
+        </p>
       </div>
 
       {/* Stats */}
@@ -83,21 +95,15 @@ export const Reports = () => {
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-fg-secondary text-sm mb-2">Completed</div>
-          <div className="text-3xl font-bold text-success-text">
-            {stats?.completed || 0}
-          </div>
+          <div className="text-3xl font-bold text-success-text">{stats?.completed || 0}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-fg-secondary text-sm mb-2">Generating</div>
-          <div className="text-3xl font-bold text-warning-text">
-            {stats?.generating || 0}
-          </div>
+          <div className="text-3xl font-bold text-warning-text">{stats?.generating || 0}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-fg-secondary text-sm mb-2">Scheduled</div>
-          <div className="text-3xl font-bold text-info-text">
-            {stats?.scheduled || 0}
-          </div>
+          <div className="text-3xl font-bold text-info-text">{stats?.scheduled || 0}</div>
         </div>
       </div>
 
@@ -179,7 +185,9 @@ export const Reports = () => {
                   </div>
                 </div>
                 <div className="col-span-2">
-                  <span className={`text-xs font-bold px-2 py-1 rounded border ${getTypeColor(report.type)}`}>
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded border ${getTypeColor(report.type)}`}
+                  >
                     {report.type.toUpperCase()}
                   </span>
                 </div>
@@ -200,30 +208,18 @@ export const Reports = () => {
                 <div className="col-span-2 flex justify-end gap-2">
                   {report.status === 'completed' && (
                     <>
-                      <Button
-                        variant="ghost"
-                        title="Download"
-                      >
+                      <Button variant="ghost" title="Download">
                         <Download size={16} />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        title="Preview"
-                      >
+                      <Button variant="ghost" title="Preview">
                         <Eye size={16} />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        title="Share"
-                      >
+                      <Button variant="ghost" title="Share">
                         <Share2 size={16} />
                       </Button>
                     </>
                   )}
-                  <Button
-                    variant="ghost"
-                    title="Delete"
-                  >
+                  <Button variant="ghost" title="Delete">
                     <Trash2 size={16} className="text-danger-text" />
                   </Button>
                 </div>

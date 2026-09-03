@@ -33,8 +33,14 @@ export const complianceService = {
     return response.data;
   },
 
-  importCatalog: async (frameworkId: string, payload: ImportCatalogInput): Promise<ImportCatalogResult> => {
-    const response = await api.post<ImportCatalogResult>(`/compliance/frameworks/${frameworkId}/import-catalog`, payload);
+  importCatalog: async (
+    frameworkId: string,
+    payload: ImportCatalogInput,
+  ): Promise<ImportCatalogResult> => {
+    const response = await api.post<ImportCatalogResult>(
+      `/compliance/frameworks/${frameworkId}/import-catalog`,
+      payload,
+    );
     return response.data;
   },
 
@@ -58,7 +64,9 @@ export const complianceService = {
   },
 
   getProgress: async (frameworkId: string): Promise<ComplianceProgress> => {
-    const response = await api.get<ComplianceProgress>(`/compliance/frameworks/${frameworkId}/progress`);
+    const response = await api.get<ComplianceProgress>(
+      `/compliance/frameworks/${frameworkId}/progress`,
+    );
     return response.data;
   },
 
@@ -95,12 +103,20 @@ export const complianceService = {
   },
 
   listControls: async (frameworkId: string): Promise<ComplianceControl[]> => {
-    const response = await api.get<ComplianceControl[]>(`/compliance/frameworks/${frameworkId}/controls`);
+    const response = await api.get<ComplianceControl[]>(
+      `/compliance/frameworks/${frameworkId}/controls`,
+    );
     return response.data;
   },
 
-  createControl: async (frameworkId: string, payload: CreateControlInput): Promise<ComplianceControl> => {
-    const response = await api.post<ComplianceControl>(`/compliance/frameworks/${frameworkId}/controls`, payload);
+  createControl: async (
+    frameworkId: string,
+    payload: CreateControlInput,
+  ): Promise<ComplianceControl> => {
+    const response = await api.post<ComplianceControl>(
+      `/compliance/frameworks/${frameworkId}/controls`,
+      payload,
+    );
     return response.data;
   },
 
@@ -109,8 +125,14 @@ export const complianceService = {
     return response.data;
   },
 
-  updateControl: async (controlId: string, payload: UpdateControlInput): Promise<ComplianceControl> => {
-    const response = await api.patch<ComplianceControl>(`/compliance/controls/${controlId}`, payload);
+  updateControl: async (
+    controlId: string,
+    payload: UpdateControlInput,
+  ): Promise<ComplianceControl> => {
+    const response = await api.patch<ComplianceControl>(
+      `/compliance/controls/${controlId}`,
+      payload,
+    );
     return response.data;
   },
 
@@ -119,22 +141,34 @@ export const complianceService = {
   },
 
   listEvidences: async (controlId: string): Promise<ControlEvidence[]> => {
-    const response = await api.get<ControlEvidence[]>(`/compliance/controls/${controlId}/evidences`);
+    const response = await api.get<ControlEvidence[]>(
+      `/compliance/controls/${controlId}/evidences`,
+    );
     return response.data;
   },
 
-  createEvidence: async (controlId: string, file: File, description?: string): Promise<ControlEvidence> => {
+  createEvidence: async (
+    controlId: string,
+    file: File,
+    description?: string,
+  ): Promise<ControlEvidence> => {
     const formData = new FormData();
     formData.append('file', file);
     if (description) formData.append('description', description);
-    const response = await api.post<ControlEvidence>(`/compliance/controls/${controlId}/evidences`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await api.post<ControlEvidence>(
+      `/compliance/controls/${controlId}/evidences`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
     return response.data;
   },
 
   downloadEvidence: async (evidenceId: string, filename: string): Promise<void> => {
-    const response = await api.get(`/compliance/evidences/${evidenceId}/download`, { responseType: 'blob' });
+    const response = await api.get(`/compliance/evidences/${evidenceId}/download`, {
+      responseType: 'blob',
+    });
     const url = URL.createObjectURL(response.data as Blob);
     const link = document.createElement('a');
     link.href = url;
@@ -169,21 +203,30 @@ export const complianceService = {
   },
   // generateRemediations opens a remediation plan for every open gap under the
   // audit's framework, in one click. Idempotent (skips gaps already covered).
-  generateRemediations: async (auditId: string): Promise<{ created: number; skipped: number; plans: RemediationPlan[] }> => {
-    const response = await api.post<{ created: number; skipped: number; plans: RemediationPlan[] }>(`/compliance/audits/${auditId}/generate-remediations`);
+  generateRemediations: async (
+    auditId: string,
+  ): Promise<{ created: number; skipped: number; plans: RemediationPlan[] }> => {
+    const response = await api.post<{ created: number; skipped: number; plans: RemediationPlan[] }>(
+      `/compliance/audits/${auditId}/generate-remediations`,
+    );
     return response.data;
   },
 
   // --- Remediation plans ----------------------------------------------------
   listRemediations: async (filter?: RemediationFilter): Promise<RemediationPlan[]> => {
-    const response = await api.get<RemediationPlan[]>('/compliance/remediations', { params: filter });
+    const response = await api.get<RemediationPlan[]>('/compliance/remediations', {
+      params: filter,
+    });
     return response.data;
   },
   createRemediation: async (payload: CreateRemediationInput): Promise<RemediationPlan> => {
     const response = await api.post<RemediationPlan>('/compliance/remediations', payload);
     return response.data;
   },
-  updateRemediation: async (id: string, payload: UpdateRemediationInput): Promise<RemediationPlan> => {
+  updateRemediation: async (
+    id: string,
+    payload: UpdateRemediationInput,
+  ): Promise<RemediationPlan> => {
     const response = await api.patch<RemediationPlan>(`/compliance/remediations/${id}`, payload);
     return response.data;
   },

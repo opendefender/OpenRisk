@@ -8,7 +8,8 @@ import { api } from '../lib/api';
 export type RiskStatus = 'open' | 'in_progress' | 'mitigated' | 'accepted' | 'closed';
 export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 // ISO 31000 lifecycle phases (Identifier → Analyser → Évaluer → Traiter → Surveiller → Clôturer).
-export type RiskPhase = 'identified' | 'analyzed' | 'evaluated' | 'treated' | 'monitored' | 'closed';
+export type RiskPhase =
+  'identified' | 'analyzed' | 'evaluated' | 'treated' | 'monitored' | 'closed';
 
 export interface Risk {
   id: string;

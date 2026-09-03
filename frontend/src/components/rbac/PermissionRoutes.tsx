@@ -28,10 +28,15 @@ export const ProtectedRoute: React.FC<{
   }
 
   if (requiredLevel !== undefined) {
-    const userLevel = user.role === 'Administrator' ? 9 : 
-                      user.role === 'Manager' ? 6 : 
-                      user.role === 'Analyst' ? 3 : 0;
-    
+    const userLevel =
+      user.role === 'Administrator'
+        ? 9
+        : user.role === 'Manager'
+          ? 6
+          : user.role === 'Analyst'
+            ? 3
+            : 0;
+
     if (userLevel < requiredLevel) {
       return <>{fallback || <div>Insufficient permissions</div>}</>;
     }
@@ -74,9 +79,7 @@ export const PermissionRoute: React.FC<{
   } else if (permission) {
     hasAccess = perms.can(permission);
   } else if (permissions.length > 0) {
-    hasAccess = requireAll
-      ? perms.canAll(permissions)
-      : perms.canAny(permissions);
+    hasAccess = requireAll ? perms.canAll(permissions) : perms.canAny(permissions);
   }
 
   if (!hasAccess) {

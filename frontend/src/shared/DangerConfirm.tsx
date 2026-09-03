@@ -38,7 +38,16 @@ interface DangerConfirmProps {
 }
 
 export function DangerConfirm({
-  open, onClose, title, subject, intro, impact, alternatives, confirmLabel, onConfirm, busy,
+  open,
+  onClose,
+  title,
+  subject,
+  intro,
+  impact,
+  alternatives,
+  confirmLabel,
+  onConfirm,
+  busy,
 }: DangerConfirmProps) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);

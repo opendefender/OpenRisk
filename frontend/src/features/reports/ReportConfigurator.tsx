@@ -19,7 +19,10 @@ import { useFrameworks } from '../compliance/useCompliance';
 import { useAudits } from '../compliance/useCompliance';
 import { useReportCatalogue } from './useReports';
 import type {
-  CreateReportInput, ReportFormat, ReportLocale, ReportTypeOption,
+  CreateReportInput,
+  ReportFormat,
+  ReportLocale,
+  ReportTypeOption,
 } from '../../types/report';
 
 export function ReportConfigurator({
@@ -68,8 +71,7 @@ export function ReportConfigurator({
 
   const needsFramework = selected?.scope === 'framework';
   const needsAudit = selected?.scope === 'audit';
-  const canSubmit =
-    Boolean(selected) && !pending && (!needsFramework || Boolean(frameworkId));
+  const canSubmit = Boolean(selected) && !pending && (!needsFramework || Boolean(frameworkId));
 
   async function submit() {
     if (!selected) return;
@@ -131,7 +133,9 @@ export function ReportConfigurator({
                         <FileText size={14} className="text-ink-muted shrink-0" />
                         <span className="text-[13px] text-ink font-medium">{t.title}</span>
                       </div>
-                      <p className="text-[12px] text-ink-muted mt-1 leading-snug">{t.description}</p>
+                      <p className="text-[12px] text-ink-muted mt-1 leading-snug">
+                        {t.description}
+                      </p>
                       <p className="text-[11px] text-ink-muted/80 mt-1">
                         {t.template_key} v{t.template_version}
                       </p>
@@ -160,10 +164,13 @@ export function ReportConfigurator({
                   ) : null}
 
                   {needsAudit ? (
-                    <Section label={tr('Audit', 'Audit')} hint={tr(
-                      'Laisser vide pour couvrir tous les audits.',
-                      'Leave empty to cover every audit.',
-                    )}>
+                    <Section
+                      label={tr('Audit', 'Audit')}
+                      hint={tr(
+                        'Laisser vide pour couvrir tous les audits.',
+                        'Leave empty to cover every audit.',
+                      )}
+                    >
                       <select
                         value={auditId}
                         onChange={(e) => setAuditId(e.target.value)}
@@ -179,10 +186,13 @@ export function ReportConfigurator({
                     </Section>
                   ) : null}
 
-                  <Section label={tr('Période', 'Period')} hint={tr(
-                    "Laisser vide pour couvrir depuis l'origine.",
-                    'Leave empty to cover all time.',
-                  )}>
+                  <Section
+                    label={tr('Période', 'Period')}
+                    hint={tr(
+                      "Laisser vide pour couvrir depuis l'origine.",
+                      'Leave empty to cover all time.',
+                    )}
+                  >
                     <div className="flex items-center gap-2">
                       <input
                         type="date"
@@ -244,10 +254,13 @@ export function ReportConfigurator({
                     </Section>
                   </div>
 
-                  <Section label={tr('Destinataires', 'Recipients')} hint={tr(
-                    'Inscrits sur le document, séparés par des virgules.',
-                    'Recorded on the document, comma separated.',
-                  )}>
+                  <Section
+                    label={tr('Destinataires', 'Recipients')}
+                    hint={tr(
+                      'Inscrits sur le document, séparés par des virgules.',
+                      'Recorded on the document, comma separated.',
+                    )}
+                  >
                     <input
                       value={recipients}
                       onChange={(e) => setRecipients(e.target.value)}
@@ -280,7 +293,11 @@ export function ReportConfigurator({
           </span>
           <div className="flex gap-2">
             <Btn onClick={onClose} label={tr('Annuler', 'Cancel')} />
-            <Btn disabled={!canSubmit} onClick={submit} label={pending ? tr('Envoi…', 'Submitting…') : tr('Générer', 'Generate')} />
+            <Btn
+              disabled={!canSubmit}
+              onClick={submit}
+              label={pending ? tr('Envoi…', 'Submitting…') : tr('Générer', 'Generate')}
+            />
           </div>
         </footer>
       </div>

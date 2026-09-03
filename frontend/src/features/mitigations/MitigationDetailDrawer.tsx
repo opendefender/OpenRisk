@@ -45,7 +45,9 @@ export const MitigationDetailDrawer = ({
   // Esc closes this overlay (spec §2).
   useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'overview' | 'sub-actions' | 'evidence' | 'timeline' | 'ai'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'sub-actions' | 'evidence' | 'timeline' | 'ai'
+  >('overview');
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [descriptionValue, setDescriptionValue] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -78,7 +80,9 @@ export const MitigationDetailDrawer = ({
 
   const progress = useMemo(() => {
     if (!subActions.length) return 0;
-    return Math.round((subActions.filter((sa: SubAction) => sa.status === 'DONE').length / subActions.length) * 100);
+    return Math.round(
+      (subActions.filter((sa: SubAction) => sa.status === 'DONE').length / subActions.length) * 100,
+    );
   }, [subActions]);
 
   const autoDetectedCount = useMemo(() => {
@@ -111,10 +115,7 @@ export const MitigationDetailDrawer = ({
         >
           <div className="shrink-0 border-b border-border-default px-6 py-4 flex items-center justify-between">
             <h2 className="text-lg font-bold text-fg-primary">Détails du plan</h2>
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-surface-3 rounded transition-colors"
-            >
+            <button onClick={onClose} className="p-1 hover:bg-surface-3 rounded transition-colors">
               <X size={20} className="text-fg-secondary" />
             </button>
           </div>
@@ -128,7 +129,7 @@ export const MitigationDetailDrawer = ({
                   'px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
                   activeTab === tab
                     ? 'border-accent text-fg-primary'
-                    : 'border-transparent text-fg-secondary hover:text-fg-secondary'
+                    : 'border-transparent text-fg-secondary hover:text-fg-secondary',
                 )}
               >
                 {tab === 'overview' && 'Aperçu'}
@@ -152,7 +153,9 @@ export const MitigationDetailDrawer = ({
                     <div>
                       <p className="text-xs text-fg-muted mb-1">Statut</p>
                       <div className="flex items-center gap-2">
-                        <div className={cn('w-2 h-2 rounded-full', getStatusColor(mitigation.status))} />
+                        <div
+                          className={cn('w-2 h-2 rounded-full', getStatusColor(mitigation.status))}
+                        />
                         <span className="text-sm text-fg-primary capitalize">
                           {t(`mitigations.status.${mitigation.status.toLowerCase()}`)}
                         </span>
@@ -179,12 +182,7 @@ export const MitigationDetailDrawer = ({
 
                   <div>
                     <p className="text-xs text-fg-muted mb-2">Progression</p>
-                    <ProgressBar
-                      value={progress}
-                      max={100}
-                      showPercentage
-                      animated
-                    />
+                    <ProgressBar value={progress} max={100} showPercentage animated />
                     <p className="text-xs text-fg-secondary mt-2">
                       {completedCount}/{subActions.length} actions
                       {autoDetectedCount > 0 && ` (${autoDetectedCount} auto-détectées)`}
@@ -213,7 +211,8 @@ export const MitigationDetailDrawer = ({
                           className="w-full min-h-[100px] px-3 py-2 bg-surface-2 border border-border-default rounded text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent"
                         />
                         <div className="flex gap-2">
-                          <Button variant="primary"
+                          <Button
+                            variant="primary"
                             onClick={handleSaveDescription}
                             disabled={isUpdating}
                           >
@@ -265,17 +264,13 @@ export const MitigationDetailDrawer = ({
 
               {activeTab === 'evidence' && (
                 <div className="space-y-3">
-                  <p className="text-sm text-fg-muted text-center py-8">
-                    Aucune preuve ajoutée
-                  </p>
+                  <p className="text-sm text-fg-muted text-center py-8">Aucune preuve ajoutée</p>
                 </div>
               )}
 
               {activeTab === 'timeline' && (
                 <div className="space-y-3">
-                  <p className="text-sm text-fg-muted text-center py-8">
-                    Aucun événement
-                  </p>
+                  <p className="text-sm text-fg-muted text-center py-8">Aucun événement</p>
                 </div>
               )}
 
@@ -289,7 +284,8 @@ export const MitigationDetailDrawer = ({
                           Suggestions de l'IA
                         </p>
                         <p className="text-xs text-fg-secondary">
-                          L'assistant IA peut vous proposer des actions pour optimiser ce plan d'atténuation.
+                          L'assistant IA peut vous proposer des actions pour optimiser ce plan
+                          d'atténuation.
                         </p>
                       </div>
                     </div>

@@ -158,13 +158,16 @@ jobs:
       - name: Check TypeScript
         run: cd frontend && npm run type-check
 
-      # The Prettier step that stood here was removed by #341. It ran
-      # `npm run format:check || npm run format` — the `||` meant it could not
-      # fail, so it gated nothing — and both scripts, plus Prettier itself, have
-      # never existed in this repo. Adding them means reformatting 492 of ~550
-      # frontend files, the same repo-wide mechanical diff D-022 declined for
-      # the `any` sweep and for the same reason: it would collide with every
-      # open ds-v1 PR. Recorded as D-027 for the owner to schedule.
+      # Formatting, BLOCKING and with no `||` (#505, D-027).
+      #
+      # The step that stood here until #341 ran
+      # `npm run format:check || npm run format`. The `||` meant it could not
+      # fail; both scripts, and Prettier itself, had never existed in this repo.
+      # #341 deleted the pretence and escalated the real question as D-027,
+      # which chose adoption. #505 added Prettier and swept 414 files, so this
+      # is now a gate that can actually fail — and must, on an unformatted file.
+      - name: Check code formatting (Prettier)
+        run: cd frontend && npm run format:check
 
   # The design tokens carry two claims that were, until now, only assertions in
   # a comment: that every text/surface pair meets its WCAG target in both

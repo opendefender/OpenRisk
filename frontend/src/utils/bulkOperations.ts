@@ -42,7 +42,7 @@ export const createBulkOperation = (
   type: BulkOperation['type'],
   targetIds: string[],
   permissions?: string[],
-  roleId?: string
+  roleId?: string,
 ): BulkOperation => {
   return {
     id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -59,7 +59,9 @@ export const createBulkOperation = (
 /**
  * Validate bulk operation
  */
-export const validateBulkOperation = (op: BulkOperation): {
+export const validateBulkOperation = (
+  op: BulkOperation,
+): {
   valid: boolean;
   errors: string[];
 } => {
@@ -92,7 +94,7 @@ export const validateBulkOperation = (op: BulkOperation): {
  */
 export const parseCSVForBulkOps = (
   csv: string,
-  format: 'users' | 'roles' = 'users'
+  format: 'users' | 'roles' = 'users',
 ): { ids: string[]; headers: string[]; errors: string[] } => {
   const errors: string[] = [];
   const lines = csv.trim().split('\n');
@@ -144,7 +146,7 @@ export const processBulkOperationInBatches = async (
   op: BulkOperation,
   processFn: (targetId: string) => Promise<OperationResult>,
   batchSize: number = 10,
-  onProgress?: (completed: number, total: number) => void
+  onProgress?: (completed: number, total: number) => void,
 ): Promise<BulkOperationStats> => {
   const startTime = Date.now();
   const batches = chunkArray(op.targetIds, batchSize);
@@ -163,7 +165,7 @@ export const processBulkOperationInBatches = async (
             error: error instanceof Error ? error.message : 'Unknown error',
           };
         }
-      })
+      }),
     );
 
     for (const result of batchResults) {
@@ -191,10 +193,7 @@ export const processBulkOperationInBatches = async (
 /**
  * Generate CSV export for operation results
  */
-export const exportResultsAsCSV = (
-  op: BulkOperation,
-  stats: BulkOperationStats
-): string => {
+export const exportResultsAsCSV = (op: BulkOperation, stats: BulkOperationStats): string => {
   const lines: string[] = [];
 
   // Header
@@ -221,20 +220,13 @@ export const exportResultsAsCSV = (
 /**
  * Create undo operation from original
  */
-export const createUndoOperation = (
-  originalOp: BulkOperation
-): BulkOperation | null => {
+export const createUndoOperation = (originalOp: BulkOperation): BulkOperation | null => {
   // Only grant operations can be easily undone
   if (originalOp.type !== 'grant') {
     return null;
   }
 
-  return createBulkOperation(
-    'revoke',
-    originalOp.targetIds,
-    originalOp.permissions,
-    undefined
-  );
+  return createBulkOperation('revoke', originalOp.targetIds, originalOp.permissions, undefined);
 };
 
 /**
@@ -258,31 +250,21 @@ export const getOperationSummary = (op: BulkOperation): string => {
  */
 export const canRetryOperation = (op: BulkOperation): boolean => {
   return (
-    op.status === 'failed' &&
-    (op.results?.some((r) => !r.success) || op.results?.length === 0)
+    op.status === 'failed' && (op.results?.some((r) => !r.success) || op.results?.length === 0)
   );
 };
 
 /**
  * Create retry operation for failed items
  */
-export const createRetryOperation = (
-  originalOp: BulkOperation
-): BulkOperation | null => {
-  const failedIds = originalOp.results
-    ?.filter((r) => !r.success)
-    .map((r) => r.targetId);
+export const createRetryOperation = (originalOp: BulkOperation): BulkOperation | null => {
+  const failedIds = originalOp.results?.filter((r) => !r.success).map((r) => r.targetId);
 
   if (!failedIds || failedIds.length === 0) {
     return null;
   }
 
-  return createBulkOperation(
-    originalOp.type,
-    failedIds,
-    originalOp.permissions,
-    originalOp.roleId
-  );
+  return createBulkOperation(originalOp.type, failedIds, originalOp.permissions, originalOp.roleId);
 };
 
 /**
@@ -310,21 +292,13 @@ export const filterOperations = (
     maxTargets?: number;
     afterDate?: Date;
     beforeDate?: Date;
-  }
+  },
 ): BulkOperation[] => {
   return operations.filter((op) => {
     if (criteria.type && op.type !== criteria.type) return false;
     if (criteria.status && op.status !== criteria.status) return false;
-    if (
-      criteria.minTargets &&
-      op.targetIds.length < criteria.minTargets
-    )
-      return false;
-    if (
-      criteria.maxTargets &&
-      op.targetIds.length > criteria.maxTargets
-    )
-      return false;
+    if (criteria.minTargets && op.targetIds.length < criteria.minTargets) return false;
+    if (criteria.maxTargets && op.targetIds.length > criteria.maxTargets) return false;
     if (criteria.afterDate && op.createdAt < criteria.afterDate) return false;
     if (criteria.beforeDate && op.createdAt > criteria.beforeDate) return false;
     return true;
@@ -334,7 +308,9 @@ export const filterOperations = (
 /**
  * Get operation statistics
  */
-export const getOperationStats = (operations: BulkOperation[]): {
+export const getOperationStats = (
+  operations: BulkOperation[],
+): {
   totalOperations: number;
   byType: Record<string, number>;
   byStatus: Record<string, number>;
@@ -351,16 +327,14 @@ export const getOperationStats = (operations: BulkOperation[]): {
     },
     byStatus: {
       pending: operations.filter((op) => op.status === 'pending').length,
-      'in-progress': operations.filter((op) => op.status === 'in-progress')
-        .length,
+      'in-progress': operations.filter((op) => op.status === 'in-progress').length,
       completed: operations.filter((op) => op.status === 'completed').length,
       failed: operations.filter((op) => op.status === 'failed').length,
     },
     totalTargets: operations.reduce((sum, op) => sum + op.targetIds.length, 0),
     averageTargetsPerOp:
       operations.length > 0
-        ? operations.reduce((sum, op) => sum + op.targetIds.length, 0) /
-          operations.length
+        ? operations.reduce((sum, op) => sum + op.targetIds.length, 0) / operations.length
         : 0,
   };
 };

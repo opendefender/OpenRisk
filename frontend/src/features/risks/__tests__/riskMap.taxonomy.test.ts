@@ -76,7 +76,13 @@ describe('riskMap — the three classification concepts stay apart', () => {
     const ui = mapRisk(
       risk({
         control_mappings: [
-          { id: 'm1', risk_id: 'r1', framework_id: 'fw1', control_id: null, framework_name: 'NIST CSF' },
+          {
+            id: 'm1',
+            risk_id: 'r1',
+            framework_id: 'fw1',
+            control_id: null,
+            framework_name: 'NIST CSF',
+          },
         ],
       }),
       'fr',

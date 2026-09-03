@@ -76,7 +76,7 @@ export default function CustomFields() {
   const fetchFields = async () => {
     try {
       const response = await fetch('/api/v1/custom-fields', {
-        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -92,7 +92,7 @@ export default function CustomFields() {
   const fetchTemplates = async () => {
     try {
       const response = await fetch('/api/v1/custom-fields/templates', {
-        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -119,7 +119,7 @@ export default function CustomFields() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAccessToken() ?? ''}`,
+          Authorization: `Bearer ${getAccessToken() ?? ''}`,
         },
         body: JSON.stringify(formData),
       });
@@ -152,7 +152,7 @@ export default function CustomFields() {
     try {
       const response = await fetch(`/api/v1/custom-fields/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${getAccessToken() ?? ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
       });
 
       if (response.ok) {
@@ -309,9 +309,7 @@ export default function CustomFields() {
                               Searchable
                             </div>
                           )}
-                          {field.default_value && (
-                            <div>Default: {field.default_value}</div>
-                          )}
+                          {field.default_value && <div>Default: {field.default_value}</div>}
                         </div>
                       </div>
                       <div className="flex gap-2 ml-4">
@@ -424,9 +422,7 @@ export default function CustomFields() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
                     placeholder="e.g., Department, Cost Center"
                   />
@@ -440,9 +436,7 @@ export default function CustomFields() {
                     {fieldTypes.map((type) => (
                       <button
                         key={type.value}
-                        onClick={() =>
-                          setFormData({ ...formData, type: type.value as any })
-                        }
+                        onClick={() => setFormData({ ...formData, type: type.value as any })}
                         className={`p-3 border rounded text-center transition ${
                           formData.type === type.value
                             ? 'bg-accent border-accent'
@@ -462,9 +456,7 @@ export default function CustomFields() {
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-accent resize-none"
                     rows={3}
                     placeholder="Field description"
@@ -472,14 +464,10 @@ export default function CustomFields() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-fg-secondary mb-1">
-                    Scope
-                  </label>
+                  <label className="block text-sm font-medium text-fg-secondary mb-1">Scope</label>
                   <select
                     value={formData.scope}
-                    onChange={(e) =>
-                      setFormData({ ...formData, scope: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
                     className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary focus:outline-none focus:border-accent"
                   >
                     {scopes.map((scope) => (
@@ -495,9 +483,7 @@ export default function CustomFields() {
                     type="checkbox"
                     id="required"
                     checked={formData.is_required}
-                    onChange={(e) =>
-                      setFormData({ ...formData, is_required: e.target.checked })
-                    }
+                    onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
                     className="w-4 h-4 rounded"
                   />
                   <label htmlFor="required" className="text-sm text-fg-secondary">
@@ -510,9 +496,7 @@ export default function CustomFields() {
                     type="checkbox"
                     id="searchable"
                     checked={formData.is_searchable}
-                    onChange={(e) =>
-                      setFormData({ ...formData, is_searchable: e.target.checked })
-                    }
+                    onChange={(e) => setFormData({ ...formData, is_searchable: e.target.checked })}
                     className="w-4 h-4 rounded"
                   />
                   <label htmlFor="searchable" className="text-sm text-fg-secondary">
@@ -528,9 +512,7 @@ export default function CustomFields() {
                     <input
                       type="text"
                       value={formData.default_value}
-                      onChange={(e) =>
-                        setFormData({ ...formData, default_value: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, default_value: e.target.value })}
                       className="w-full px-3 py-2 bg-surface-2 border border-border-default rounded text-fg-primary placeholder-zinc-500 focus:outline-none focus:border-accent"
                       placeholder="Optional default value"
                     />

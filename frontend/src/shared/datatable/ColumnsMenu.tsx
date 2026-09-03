@@ -34,9 +34,21 @@ interface ColumnsMenuProps<T> {
   labels: { columns: string; reset: string; show: string; hide: string; up: string; down: string };
 }
 
-export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onReset, labels }: ColumnsMenuProps<T>) {
+export function ColumnsMenu<T>({
+  columns,
+  order,
+  hidden,
+  onToggle,
+  onMove,
+  onReset,
+  labels,
+}: ColumnsMenuProps<T>) {
   const [open, setOpen] = useState(false);
-  const { refs: anchor, floatingStyles, context } = useFloating({
+  const {
+    refs: anchor,
+    floatingStyles,
+    context,
+  } = useFloating({
     open,
     onOpenChange: setOpen,
     placement: 'bottom-end',
@@ -48,7 +60,10 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
       size({
         padding: 8,
         apply({ availableHeight, elements }) {
-          Object.assign(elements.floating.style, { maxHeight: `${Math.max(200, availableHeight)}px`, overflowY: 'auto' });
+          Object.assign(elements.floating.style, {
+            maxHeight: `${Math.max(200, availableHeight)}px`,
+            overflowY: 'auto',
+          });
         },
       }),
     ],
@@ -62,7 +77,6 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
   const ordered = order
     .map((key) => columns.find((c) => c.key === key))
     .filter((c): c is Column<T> => !!c);
-
 
   // floating-ui hands back *callback ref setters*, not ref objects. Wrapping
   // them keeps the JSX free of member access, which the react-hooks/refs rule
@@ -81,7 +95,11 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
         aria-label={labels.columns}
         title={labels.columns}
         className="h-9 w-9 rounded-[10px] inline-flex items-center justify-center transition-colors hover:bg-hover shrink-0"
-        style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-secondary)' }}
+        style={{
+          border: '1px solid var(--border-strong)',
+          background: 'var(--bg-elevated)',
+          color: 'var(--fg-secondary)',
+        }}
       >
         <Columns3 size={16} strokeWidth={1.8} />
       </button>
@@ -112,9 +130,14 @@ export function ColumnsMenu<T>({ columns, order, hidden, onToggle, onMove, onRes
               {ordered.map((col, i) => {
                 const isHidden = hidden.includes(col.key);
                 const lockable = col.hideable === false;
-                const name = col.headerLabel ?? (typeof col.header === 'string' ? col.header : col.key);
+                const name =
+                  col.headerLabel ?? (typeof col.header === 'string' ? col.header : col.key);
                 return (
-                  <div key={col.key} className="flex items-center gap-1 px-1 py-0.5" data-testid={`column-row-${col.key}`}>
+                  <div
+                    key={col.key}
+                    className="flex items-center gap-1 px-1 py-0.5"
+                    data-testid={`column-row-${col.key}`}
+                  >
                     <button
                       type="button"
                       disabled={lockable}

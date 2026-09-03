@@ -32,25 +32,53 @@ export function AiEvidenceAnalysis({ evidenceId }: { evidenceId: string }) {
         onClick={() => analyze.mutate({ evidenceId, locale })}
         disabled={analyze.isPending}
         className="inline-flex items-center gap-1.5 text-[11.5px] font-medium px-2.5 py-1 rounded-full disabled:opacity-60"
-        style={{ border: '1px solid var(--accent-line)', background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+        style={{
+          border: '1px solid var(--accent-line)',
+          background: 'var(--accent-soft)',
+          color: 'var(--accent-500)',
+        }}
       >
-        {analyze.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-        {analyze.isPending ? tr('Analyse…', 'Analysing…') : res ? tr('Ré-analyser (IA)', 'Re-analyse (AI)') : tr('Analyser (IA)', 'Analyse (AI)')}
+        {analyze.isPending ? (
+          <Loader2 size={13} className="animate-spin" />
+        ) : (
+          <Sparkles size={13} />
+        )}
+        {analyze.isPending
+          ? tr('Analyse…', 'Analysing…')
+          : res
+            ? tr('Ré-analyser (IA)', 'Re-analyse (AI)')
+            : tr('Analyser (IA)', 'Analyse (AI)')}
       </button>
 
       {res && v && (
-        <div className="mt-2 p-3 rounded-[11px] text-[12px]" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-fadeup .2s ease' }}>
+        <div
+          className="mt-2 p-3 rounded-[11px] text-[12px]"
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            animation: 'or-fadeup .2s ease',
+          }}
+        >
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-fg-primary" style={{ background: v.color }}>
+            <span
+              className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-fg-primary"
+              style={{ background: v.color }}
+            >
               {tr(v.fr, v.en)}
             </span>
-            <span className="text-ink-muted text-[11px]">{tr('Confiance', 'Confidence')} {(res.confidence * 100).toFixed(0)}%</span>
-            <span className="text-ink-muted text-[10.5px] ml-auto">{analyze.data?.generated_by}</span>
+            <span className="text-ink-muted text-[11px]">
+              {tr('Confiance', 'Confidence')} {(res.confidence * 100).toFixed(0)}%
+            </span>
+            <span className="text-ink-muted text-[10.5px] ml-auto">
+              {analyze.data?.generated_by}
+            </span>
           </div>
           <div className="text-ink-soft leading-relaxed">{res.rationale}</div>
           {res.gaps.length > 0 && (
             <ul className="mt-1.5 list-disc pl-4 text-ink-soft">
-              {res.gaps.map((g, i) => <li key={i}>{g}</li>)}
+              {res.gaps.map((g, i) => (
+                <li key={i}>{g}</li>
+              ))}
             </ul>
           )}
           {res.suggestions.length > 0 && (

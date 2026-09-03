@@ -71,7 +71,10 @@ export interface ForgotPasswordResult {
  * Resolves identically whether or not the address has an account — that is the
  * server's contract, and the UI must not try to infer anything more from it.
  */
-export async function requestPasswordReset(email: string, locale: Lang): Promise<ForgotPasswordResult> {
+export async function requestPasswordReset(
+  email: string,
+  locale: Lang,
+): Promise<ForgotPasswordResult> {
   const { data } = await api.post<ForgotPasswordResult>('/auth/password/forgot', { email, locale });
   return data;
 }
@@ -153,7 +156,11 @@ export interface MFASetupResult {
  * Settings passes nothing and rides the ordinary session cookie.
  */
 export async function setupMFA(enrollmentToken?: string): Promise<MFASetupResult> {
-  const { data } = await api.post<MFASetupResult>('/auth/mfa/setup', {}, authHeaders(enrollmentToken));
+  const { data } = await api.post<MFASetupResult>(
+    '/auth/mfa/setup',
+    {},
+    authHeaders(enrollmentToken),
+  );
   return data;
 }
 
@@ -164,7 +171,10 @@ export async function setupMFA(enrollmentToken?: string): Promise<MFASetupResult
  * completes the half-finished login in the same response. Voluntary enrolment
  * from Settings keeps the session it already has and gets no pair.
  */
-export async function verifyMFA(code: string, enrollmentToken?: string): Promise<MFAChallengeResult> {
+export async function verifyMFA(
+  code: string,
+  enrollmentToken?: string,
+): Promise<MFAChallengeResult> {
   const { data } = await api.post<MFAChallengeResult>(
     '/auth/mfa/verify',
     { code },

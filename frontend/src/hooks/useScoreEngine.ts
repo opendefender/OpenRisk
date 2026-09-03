@@ -93,22 +93,25 @@ export const useScoreEngine = (): UseScoreEngineReturn => {
     }
   }, []);
 
-  const createConfig = useCallback(async (config: Partial<ScoringConfig>) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await createScoringConfig(config);
-      if (response.error) {
-        setError(response.error);
-      } else {
-        await loadConfigs();
+  const createConfig = useCallback(
+    async (config: Partial<ScoringConfig>) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await createScoringConfig(config);
+        if (response.error) {
+          setError(response.error);
+        } else {
+          await loadConfigs();
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [loadConfigs]);
+    },
+    [loadConfigs],
+  );
 
   const updateConfig = useCallback(
     async (configId: string, updates: Partial<ScoringConfig>) => {
@@ -127,7 +130,7 @@ export const useScoreEngine = (): UseScoreEngineReturn => {
         setIsLoading(false);
       }
     },
-    [loadConfigs]
+    [loadConfigs],
   );
 
   const computeScore = useCallback(async (input: ComputeScoreInput) => {

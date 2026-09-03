@@ -89,7 +89,9 @@ export const AssetsPage = () => {
           icon={Server}
           title={t('assets.noAssets')}
           description={t('assets.noAssetsDescription')}
-          primaryAction={<Btn label={t('assets.createAsset')} icon={Plus} primary onClick={openCreateModal} />}
+          primaryAction={
+            <Btn label={t('assets.createAsset')} icon={Plus} primary onClick={openCreateModal} />
+          }
         />
       ) : view === 'table' ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto scrollbar-thin shadow-sm">
@@ -116,7 +118,8 @@ export const AssetsPage = () => {
                   <td className="px-6 py-4">
                     {asset.risks && asset.risks.length > 0 ? (
                       <span className="text-danger-text font-bold flex items-center gap-1">
-                        {asset.risks.length} <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+                        {asset.risks.length}{' '}
+                        <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                       </span>
                     ) : (
                       <span className="text-fg-muted">-</span>
@@ -185,7 +188,8 @@ export const AssetsPage = () => {
                   <span className="text-xs text-fg-secondary">{t('assets.activeRisks')}</span>
                   {asset.risks && asset.risks.length > 0 ? (
                     <span className="text-danger-text font-bold flex items-center gap-1">
-                      {asset.risks.length} <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+                      {asset.risks.length}{' '}
+                      <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                     </span>
                   ) : (
                     <span className="text-fg-muted">-</span>

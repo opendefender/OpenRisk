@@ -108,7 +108,7 @@ function renderDrawer(props: Partial<React.ComponentProps<typeof EntityDrawer>> 
           {...props}
         />
       </QueryClientProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
   return { onClose, onOpenEntity, onTabChange };
 }
@@ -158,7 +158,7 @@ describe('summary', () => {
             unavailable: 'a control has an implementation status, not a score',
           },
         },
-      })
+      }),
     );
     renderDrawer();
 
@@ -374,7 +374,9 @@ describe('sections', () => {
     renderDrawer({ tab: 'audit' });
 
     await screen.findByText('Log4Shell exposure');
-    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
   });
 });
 
@@ -404,7 +406,7 @@ describe('actions', () => {
             permission: 'risks:update',
           },
         ],
-      })
+      }),
     );
     renderDrawer();
 

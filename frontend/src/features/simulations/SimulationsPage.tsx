@@ -29,13 +29,32 @@ export function SimulationsPage() {
 
   // Real analyses that answer part of the same question today.
   const alternatives: [typeof Atom, string, string, string][] = [
-    [Atom, tr('Cartographie des dépendances', 'Dependency map'), tr('Voir quels actifs tombent avec un actif compromis.', 'See which assets fall with a compromised one.'), '/assets/topology'],
-    [Coins, tr('Quantification financière', 'Financial quantification'), tr('Chiffrer la perte annualisée d’un risque (ALE, pire cas).', 'Quantify a risk’s annualised loss (ALE, worst case).'), '/analytics/financial'],
+    [
+      Atom,
+      tr('Cartographie des dépendances', 'Dependency map'),
+      tr(
+        'Voir quels actifs tombent avec un actif compromis.',
+        'See which assets fall with a compromised one.',
+      ),
+      '/assets/topology',
+    ],
+    [
+      Coins,
+      tr('Quantification financière', 'Financial quantification'),
+      tr(
+        'Chiffrer la perte annualisée d’un risque (ALE, pire cas).',
+        'Quantify a risk’s annualised loss (ALE, worst case).',
+      ),
+      '/analytics/financial',
+    ],
   ];
 
   return (
     <PageFrame>
-      <PageHeader title={L.simTitle} badge={<PreviewBadge label={tr('Bientôt', 'Coming soon')} />} />
+      <PageHeader
+        title={L.simTitle}
+        badge={<PreviewBadge label={tr('Bientôt', 'Coming soon')} />}
+      />
       <div className="text-[13.5px] text-ink-soft -mt-2 mb-5">{L.simSub}</div>
 
       <Card style={{ padding: '8px 4px 24px' }}>
@@ -50,8 +69,13 @@ export function SimulationsPage() {
         />
 
         <div className="px-6">
-          <div className="text-[13px] font-semibold text-ink mb-3">{tr('En attendant', 'In the meantime')}</div>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
+          <div className="text-[13px] font-semibold text-ink mb-3">
+            {tr('En attendant', 'In the meantime')}
+          </div>
+          <div
+            className="grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}
+          >
             {alternatives.map(([Icon, title, desc, href]) => (
               <button
                 key={href}
@@ -59,7 +83,10 @@ export function SimulationsPage() {
                 className="text-left rounded-[12px] p-4 hover:bg-hover transition-colors"
                 style={{ border: '1px solid var(--border)' }}
               >
-                <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
+                <div
+                  className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-3"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+                >
                   <Icon size={17} />
                 </div>
                 <div className="text-[13.5px] font-semibold text-ink mb-1">{title}</div>

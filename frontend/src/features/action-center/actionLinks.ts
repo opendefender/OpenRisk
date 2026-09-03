@@ -82,11 +82,23 @@ export interface ActionTypePresentation {
  * rendering a nameless row in production.
  */
 export const ACTION_TYPE_PRESENTATION: Record<ActionItemType, ActionTypePresentation> = {
-  overdue_mitigation: { icon: ShieldCheck, labelKey: 'overdue_mitigation', tone: 'text-danger-text' },
+  overdue_mitigation: {
+    icon: ShieldCheck,
+    labelKey: 'overdue_mitigation',
+    tone: 'text-danger-text',
+  },
   critical_risk: { icon: AlertTriangle, labelKey: 'critical_risk', tone: 'text-danger-text' },
-  pending_approval: { icon: ClipboardCheck, labelKey: 'pending_approval', tone: 'text-warning-text' },
+  pending_approval: {
+    icon: ClipboardCheck,
+    labelKey: 'pending_approval',
+    tone: 'text-warning-text',
+  },
   open_incident: { icon: Siren, labelKey: 'open_incident', tone: 'text-danger-text' },
-  expiring_evidence: { icon: CalendarClock, labelKey: 'expiring_evidence', tone: 'text-warning-text' },
+  expiring_evidence: {
+    icon: CalendarClock,
+    labelKey: 'expiring_evidence',
+    tone: 'text-warning-text',
+  },
   overdue_remediation: { icon: Wrench, labelKey: 'overdue_remediation', tone: 'text-warning-text' },
 };
 
@@ -107,9 +119,7 @@ const UNKNOWN_PRESENTATION: ActionTypePresentation = {
  * `safeDeepLink`'s job, applied to every item regardless of type.
  */
 export function presentationFor(type: string): ActionTypePresentation {
-  return (
-    ACTION_TYPE_PRESENTATION[type as ActionItemType] ?? UNKNOWN_PRESENTATION
-  );
+  return ACTION_TYPE_PRESENTATION[type as ActionItemType] ?? UNKNOWN_PRESENTATION;
 }
 
 /** An item that has earned a row: it has a link that goes somewhere real. */

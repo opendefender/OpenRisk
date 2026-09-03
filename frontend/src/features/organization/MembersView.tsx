@@ -16,8 +16,20 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import {
-  Users, UserPlus, Mail, History, ShieldCheck, X, Copy, RefreshCw, Ban,
-  Trash2, CheckCircle2, Clock, AlertTriangle, Search,
+  Users,
+  UserPlus,
+  Mail,
+  History,
+  ShieldCheck,
+  X,
+  Copy,
+  RefreshCw,
+  Ban,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Search,
 } from 'lucide-react';
 import { Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
 import { EmptyState } from '../../shared/EmptyState';
@@ -28,11 +40,21 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useEscapeToClose } from '../../shared/useBackTo';
 import { useRbacCatalog } from '../rbac/useRbac';
 import {
-  useMembers, useInvitations, useMembershipAudit, useInviteMember,
-  useResendInvitation, useRevokeInvitation, useSetMemberRole, useSetMemberStatus,
+  useMembers,
+  useInvitations,
+  useMembershipAudit,
+  useInviteMember,
+  useResendInvitation,
+  useRevokeInvitation,
+  useSetMemberRole,
+  useSetMemberStatus,
 } from './useOrganization';
 import type {
-  MemberView, InvitationView, MemberRole, MembershipStatus, InviteResult,
+  MemberView,
+  InvitationView,
+  MemberRole,
+  MembershipStatus,
+  InviteResult,
 } from './organizationService';
 
 type Tab = 'members' | 'invitations' | 'history';
@@ -61,12 +83,26 @@ function fmtDate(iso: string | undefined, lang: 'fr' | 'en'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
-function TabBtn({ id, label, icon: Icon, tab, count, onSelect }: {
-  id: Tab; label: string; icon: typeof Users; tab: Tab; count?: number; onSelect: (t: Tab) => void;
+function TabBtn({
+  id,
+  label,
+  icon: Icon,
+  tab,
+  count,
+  onSelect,
+}: {
+  id: Tab;
+  label: string;
+  icon: typeof Users;
+  tab: Tab;
+  count?: number;
+  onSelect: (t: Tab) => void;
 }) {
   const active = tab === id;
   return (
@@ -86,7 +122,9 @@ function TabBtn({ id, label, icon: Icon, tab, count, onSelect }: {
         <span
           className="ml-0.5 px-1.5 rounded-full text-[10.5px] font-bold"
           style={{
-            background: active ? 'color-mix(in srgb, var(--fg-on-solid) 22%, transparent)' : 'var(--bg-hover)',
+            background: active
+              ? 'color-mix(in srgb, var(--fg-on-solid) 22%, transparent)'
+              : 'var(--bg-hover)',
             color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
           }}
         >
@@ -117,11 +155,14 @@ export function MembersView() {
   const closeInvite = () => {
     setManualInvite(false);
     if (params.get('action')) {
-      setParams((prev) => {
-        const n = new URLSearchParams(prev);
-        n.delete('action');
-        return n;
-      }, { replace: true });
+      setParams(
+        (prev) => {
+          const n = new URLSearchParams(prev);
+          n.delete('action');
+          return n;
+        },
+        { replace: true },
+      );
     }
   };
 
@@ -151,10 +192,29 @@ export function MembersView() {
   return (
     <>
       <div className="flex gap-2 mb-4 flex-wrap items-center">
-        <TabBtn id="members" label={tr('Membres', 'Members')} icon={Users} tab={tab} onSelect={setTab} />
-        <TabBtn id="invitations" label={tr('Invitations', 'Invitations')} icon={Mail} tab={tab} count={pendingCount} onSelect={setTab} />
+        <TabBtn
+          id="members"
+          label={tr('Membres', 'Members')}
+          icon={Users}
+          tab={tab}
+          onSelect={setTab}
+        />
+        <TabBtn
+          id="invitations"
+          label={tr('Invitations', 'Invitations')}
+          icon={Mail}
+          tab={tab}
+          count={pendingCount}
+          onSelect={setTab}
+        />
         {canAudit && (
-          <TabBtn id="history" label={tr("Journal d'accès", 'Access history')} icon={History} tab={tab} onSelect={setTab} />
+          <TabBtn
+            id="history"
+            label={tr("Journal d'accès", 'Access history')}
+            icon={History}
+            tab={tab}
+            onSelect={setTab}
+          />
         )}
         <div className="flex-1" />
         {canInvite && (
@@ -194,7 +254,9 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   const setRole = useSetMemberRole();
   const setStatusM = useSetMemberStatus();
 
-  const [confirm, setConfirm] = useState<null | { member: MemberView; next: MembershipStatus }>(null);
+  const [confirm, setConfirm] = useState<null | { member: MemberView; next: MembershipStatus }>(
+    null,
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const roleLabel = (key: string): string => {
@@ -205,30 +267,37 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
 
   const changeRole = (m: MemberView, value: string) => {
     setBusyId(m.member_id);
-    const input = value === ADMIN_OPTION
-      ? { memberId: m.member_id, role: 'admin' as MemberRole, businessRole: '' }
-      : { memberId: m.member_id, role: 'user' as MemberRole, businessRole: value };
+    const input =
+      value === ADMIN_OPTION
+        ? { memberId: m.member_id, role: 'admin' as MemberRole, businessRole: '' }
+        : { memberId: m.member_id, role: 'user' as MemberRole, businessRole: value };
     setRole.mutate(input, {
       onSuccess: () => toast.success(tr('Rôle mis à jour', 'Role updated')),
-      onError: (err) => toast.error(apiMessage(err, tr('La mise à jour a échoué.', 'The update failed.'))),
+      onError: (err) =>
+        toast.error(apiMessage(err, tr('La mise à jour a échoué.', 'The update failed.'))),
       onSettled: () => setBusyId(null),
     });
   };
 
   const applyStatus = (m: MemberView, next: MembershipStatus, reason?: string) => {
     setBusyId(m.member_id);
-    setStatusM.mutate({ memberId: m.member_id, status: next, reason }, {
-      onSuccess: () => {
-        toast.success(next === 'active'
-          ? tr('Accès rétabli', 'Access restored')
-          : next === 'deactivated'
-            ? tr('Membre désactivé', 'Member deactivated')
-            : tr('Accès révoqué', 'Access revoked'));
-        setConfirm(null);
+    setStatusM.mutate(
+      { memberId: m.member_id, status: next, reason },
+      {
+        onSuccess: () => {
+          toast.success(
+            next === 'active'
+              ? tr('Accès rétabli', 'Access restored')
+              : next === 'deactivated'
+                ? tr('Membre désactivé', 'Member deactivated')
+                : tr('Accès révoqué', 'Access revoked'),
+          );
+          setConfirm(null);
+        },
+        onError: (err) => toast.error(apiMessage(err, tr('Action impossible.', 'Action failed.'))),
+        onSettled: () => setBusyId(null),
       },
-      onError: (err) => toast.error(apiMessage(err, tr('Action impossible.', 'Action failed.'))),
-      onSettled: () => setBusyId(null),
-    });
+    );
   };
 
   if (isLoading) return <SkeletonRows rows={5} />;
@@ -236,7 +305,10 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
     return (
       <ErrorState
         title={tr('Impossible de charger les membres', 'Could not load members')}
-        description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+        description={tr(
+          'Réessayez, ou contactez un administrateur si le problème persiste.',
+          'Retry, or contact an administrator if this persists.',
+        )}
         onRetry={() => void refetch()}
         retryLabel={tr('Réessayer', 'Retry')}
       />
@@ -268,66 +340,121 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
             color={s === '' ? undefined : STATUS_STYLE[s].color}
           />
         ))}
-        {isFetching && <RefreshCw size={14} className="text-ink-muted animate-spin" aria-label={tr('Chargement', 'Loading')} />}
+        {isFetching && (
+          <RefreshCw
+            size={14}
+            className="text-ink-muted animate-spin"
+            aria-label={tr('Chargement', 'Loading')}
+          />
+        )}
       </div>
 
       {rows.length === 0 ? (
         <EmptyState
           variant={search || status ? 'no-results' : 'first-use'}
           icon={Users}
-          title={search || status ? tr('Aucun résultat', 'No results') : tr('Aucun membre', 'No members')}
-          description={search || status
-            ? tr('Aucun membre ne correspond à ce filtre.', 'No member matches this filter.')
-            : tr('Invitez votre premier collègue pour collaborer.', 'Invite your first colleague to collaborate.')}
+          title={
+            search || status ? tr('Aucun résultat', 'No results') : tr('Aucun membre', 'No members')
+          }
+          description={
+            search || status
+              ? tr('Aucun membre ne correspond à ce filtre.', 'No member matches this filter.')
+              : tr(
+                  'Invitez votre premier collègue pour collaborer.',
+                  'Invite your first colleague to collaborate.',
+                )
+          }
         />
       ) : (
         <Card className="p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]" style={{ minWidth: 760 }}>
-              <caption className="sr-only">{tr("Membres de l'organisation", 'Organization members')}</caption>
+              <caption className="sr-only">
+                {tr("Membres de l'organisation", 'Organization members')}
+              </caption>
               <thead>
-                <tr className="text-left text-ink-muted text-[11px] uppercase tracking-wide" style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th scope="col" className="px-4 py-3 font-semibold">{tr('Membre', 'Member')}</th>
-                  <th scope="col" className="px-4 py-3 font-semibold">{tr('Statut', 'Status')}</th>
-                  <th scope="col" className="px-4 py-3 font-semibold">{tr('Accès', 'Access')}</th>
-                  <th scope="col" className="px-4 py-3 font-semibold">{tr('Membre depuis', 'Member since')}</th>
-                  <th scope="col" className="px-4 py-3 font-semibold text-right">{tr('Actions', 'Actions')}</th>
+                <tr
+                  className="text-left text-ink-muted text-[11px] uppercase tracking-wide"
+                  style={{ borderBottom: '1px solid var(--border)' }}
+                >
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    {tr('Membre', 'Member')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    {tr('Statut', 'Status')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    {tr('Accès', 'Access')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    {tr('Membre depuis', 'Member since')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold text-right">
+                    {tr('Actions', 'Actions')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((m) => {
                   const isSelf = me?.id === m.user_id;
                   const st = STATUS_STYLE[m.status] ?? STATUS_STYLE.active;
-                  const selectValue = m.org_role === 'admin' ? ADMIN_OPTION : m.business_role ?? '';
+                  const selectValue =
+                    m.org_role === 'admin' ? ADMIN_OPTION : (m.business_role ?? '');
                   const busy = busyId === m.member_id;
                   // The owner and your own row are refused by the server; the
                   // controls say so rather than offering a click that 403s.
                   const locked = m.is_owner || isSelf;
                   return (
-                    <tr key={m.member_id} data-testid="member-row" style={{ borderBottom: '1px solid var(--border)', opacity: m.is_active ? 1 : 0.72 }}>
+                    <tr
+                      key={m.member_id}
+                      data-testid="member-row"
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        opacity: m.is_active ? 1 : 0.72,
+                      }}
+                    >
                       <td className="px-4 py-3">
                         <div className="font-semibold text-ink flex items-center gap-2">
                           {m.full_name || m.email}
                           {m.is_owner && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded font-bold"
+                              style={{
+                                background: 'var(--accent-soft)',
+                                color: 'var(--accent-500)',
+                              }}
+                            >
                               {tr('Propriétaire', 'Owner')}
                             </span>
                           )}
-                          {isSelf && <span className="text-[11px] text-ink-muted">({tr('vous', 'you')})</span>}
+                          {isSelf && (
+                            <span className="text-[11px] text-ink-muted">
+                              ({tr('vous', 'you')})
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11.5px] text-ink-muted">{m.email}</div>
                       </td>
                       <td className="px-4 py-3">
                         {/* Colour AND words: a status must not depend on hue alone. */}
-                        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: st.color }}>
-                          <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
+                        <span
+                          className="inline-flex items-center gap-1.5 text-[12px] font-semibold"
+                          style={{ color: st.color }}
+                        >
+                          <span
+                            aria-hidden
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ background: st.color }}
+                          />
                           {tr(st.fr, st.en)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {locked ? (
                           <span className="text-[12px] text-ink-muted">
-                            {m.is_owner ? tr('Accès complet', 'Full access') : tr('Votre propre rôle', 'Your own role')}
+                            {m.is_owner
+                              ? tr('Accès complet', 'Full access')
+                              : tr('Votre propre rôle', 'Your own role')}
                           </span>
                         ) : (
                           <select
@@ -336,17 +463,29 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                             onChange={(e) => changeRole(m, e.target.value)}
                             aria-label={tr(`Rôle de ${m.email}`, `Role for ${m.email}`)}
                             className="h-8 px-2 rounded-[8px] text-[12.5px] bg-transparent"
-                            style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-primary)', opacity: busy ? 0.6 : 1 }}
+                            style={{
+                              border: '1px solid var(--border-strong)',
+                              color: 'var(--fg-primary)',
+                              opacity: busy ? 0.6 : 1,
+                            }}
                           >
-                            <option value={ADMIN_OPTION}>{tr('Administrateur (accès complet)', 'Administrator (full access)')}</option>
-                            <option value="">{tr('— Aucun rôle métier —', '— No business role —')}</option>
+                            <option value={ADMIN_OPTION}>
+                              {tr('Administrateur (accès complet)', 'Administrator (full access)')}
+                            </option>
+                            <option value="">
+                              {tr('— Aucun rôle métier —', '— No business role —')}
+                            </option>
                             {catalog?.business_roles.map((r) => (
-                              <option key={r.key} value={r.key}>{roleLabel(r.key)}</option>
+                              <option key={r.key} value={r.key}>
+                                {roleLabel(r.key)}
+                              </option>
                             ))}
                           </select>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-ink-soft text-[12px]">{fmtDate(m.joined_at, lang)}</td>
+                      <td className="px-4 py-3 text-ink-soft text-[12px]">
+                        {fmtDate(m.joined_at, lang)}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
                           {!locked && canDeactivate && m.status === 'active' && (
@@ -354,7 +493,10 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                               onClick={() => setConfirm({ member: m, next: 'deactivated' })}
                               disabled={busy}
                               className="h-8 px-2.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5"
-                              style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
+                              style={{
+                                border: '1px solid var(--border-strong)',
+                                color: 'var(--fg-secondary)',
+                              }}
                             >
                               <Ban size={13} /> {tr('Désactiver', 'Deactivate')}
                             </button>
@@ -364,18 +506,28 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                               onClick={() => applyStatus(m, 'active')}
                               disabled={busy}
                               className="h-8 px-2.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5"
-                              style={{ border: '1px solid var(--border-strong)', color: 'var(--low)' }}
+                              style={{
+                                border: '1px solid var(--border-strong)',
+                                color: 'var(--low)',
+                              }}
                             >
-                              <CheckCircle2 size={13} /> {busy ? tr('…', '…') : tr('Réactiver', 'Reactivate')}
+                              <CheckCircle2 size={13} />{' '}
+                              {busy ? tr('…', '…') : tr('Réactiver', 'Reactivate')}
                             </button>
                           )}
                           {!locked && canDeactivate && m.status !== 'revoked' && (
                             <button
                               onClick={() => setConfirm({ member: m, next: 'revoked' })}
                               disabled={busy}
-                              aria-label={tr(`Révoquer l'accès de ${m.email}`, `Revoke access for ${m.email}`)}
+                              aria-label={tr(
+                                `Révoquer l'accès de ${m.email}`,
+                                `Revoke access for ${m.email}`,
+                              )}
                               className="h-8 w-8 rounded-[8px] inline-flex items-center justify-center"
-                              style={{ border: '1px solid var(--border-strong)', color: 'var(--critical)' }}
+                              style={{
+                                border: '1px solid var(--border-strong)',
+                                color: 'var(--critical)',
+                              }}
                             >
                               <Trash2 size={13} />
                             </button>
@@ -397,39 +549,58 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
       <DangerConfirm
         open={!!confirm}
         onClose={() => setConfirm(null)}
-        title={confirm?.next === 'revoked'
-          ? tr("Révoquer l'accès", 'Revoke access')
-          : tr('Désactiver le membre', 'Deactivate member')}
+        title={
+          confirm?.next === 'revoked'
+            ? tr("Révoquer l'accès", 'Revoke access')
+            : tr('Désactiver le membre', 'Deactivate member')
+        }
         subject={confirm?.member.email}
-        intro={confirm?.next === 'revoked'
-          ? tr(
-            "Cette personne perdra immédiatement l'accès à l'organisation et ses sessions seront fermées. La révocation est définitive : il faudra une nouvelle invitation pour la faire revenir.",
-            'This person immediately loses access to the organization and their sessions are ended. Revocation is final: bringing them back requires a new invitation.',
-          )
-          : tr(
-            "Cette personne perdra l'accès à l'organisation et ses sessions seront fermées. Vous pourrez la réactiver à tout moment.",
-            'This person loses access to the organization and their sessions are ended. You can reactivate them at any time.',
-          )}
-        impact={confirm ? [
-          { label: tr('Rôle', 'Role'), value: confirm.member.org_role },
-          { label: tr('Membre depuis', 'Member since'), value: fmtDate(confirm.member.joined_at, lang) },
-          {
-            label: tr('Sessions', 'Sessions'),
-            value: tr('fermées sous 15 minutes', 'ended within 15 minutes'),
-          },
-        ] : []}
-        alternatives={confirm?.next === 'revoked' ? [
-          {
-            label: tr('Désactiver — réversible', 'Deactivate — reversible'),
-            description: tr(
-              "L'accès est suspendu et peut être rétabli d'un clic.",
-              'Access is suspended and can be restored with one click.',
-            ),
-            icon: Ban,
-            onClick: () => confirm && applyStatus(confirm.member, 'deactivated'),
-          },
-        ] : undefined}
-        confirmLabel={confirm?.next === 'revoked' ? tr("Révoquer l'accès", 'Revoke access') : tr('Désactiver', 'Deactivate')}
+        intro={
+          confirm?.next === 'revoked'
+            ? tr(
+                "Cette personne perdra immédiatement l'accès à l'organisation et ses sessions seront fermées. La révocation est définitive : il faudra une nouvelle invitation pour la faire revenir.",
+                'This person immediately loses access to the organization and their sessions are ended. Revocation is final: bringing them back requires a new invitation.',
+              )
+            : tr(
+                "Cette personne perdra l'accès à l'organisation et ses sessions seront fermées. Vous pourrez la réactiver à tout moment.",
+                'This person loses access to the organization and their sessions are ended. You can reactivate them at any time.',
+              )
+        }
+        impact={
+          confirm
+            ? [
+                { label: tr('Rôle', 'Role'), value: confirm.member.org_role },
+                {
+                  label: tr('Membre depuis', 'Member since'),
+                  value: fmtDate(confirm.member.joined_at, lang),
+                },
+                {
+                  label: tr('Sessions', 'Sessions'),
+                  value: tr('fermées sous 15 minutes', 'ended within 15 minutes'),
+                },
+              ]
+            : []
+        }
+        alternatives={
+          confirm?.next === 'revoked'
+            ? [
+                {
+                  label: tr('Désactiver — réversible', 'Deactivate — reversible'),
+                  description: tr(
+                    "L'accès est suspendu et peut être rétabli d'un clic.",
+                    'Access is suspended and can be restored with one click.',
+                  ),
+                  icon: Ban,
+                  onClick: () => confirm && applyStatus(confirm.member, 'deactivated'),
+                },
+              ]
+            : undefined
+        }
+        confirmLabel={
+          confirm?.next === 'revoked'
+            ? tr("Révoquer l'accès", 'Revoke access')
+            : tr('Désactiver', 'Deactivate')
+        }
         onConfirm={() => confirm && applyStatus(confirm.member, confirm.next)}
         busy={setStatusM.isPending}
       />
@@ -454,7 +625,10 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
     return (
       <ErrorState
         title={tr('Impossible de charger les invitations', 'Could not load invitations')}
-        description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+        description={tr(
+          'Réessayez, ou contactez un administrateur si le problème persiste.',
+          'Retry, or contact an administrator if this persists.',
+        )}
         onRetry={() => void refetch()}
         retryLabel={tr('Réessayer', 'Retry')}
       />
@@ -477,14 +651,18 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
 
   const doResend = (inv: InvitationView) => {
     setBusyId(inv.id);
-    resend.mutate({ id: inv.id }, {
-      onSuccess: (res) => {
-        if (res.delivery === 'sent') toast.success(tr('Invitation renvoyée', 'Invitation re-sent'));
-        else setRelink(res); // the link has to be relayed by hand — show it
+    resend.mutate(
+      { id: inv.id },
+      {
+        onSuccess: (res) => {
+          if (res.delivery === 'sent')
+            toast.success(tr('Invitation renvoyée', 'Invitation re-sent'));
+          else setRelink(res); // the link has to be relayed by hand — show it
+        },
+        onError: (err) => toast.error(apiMessage(err, tr("L'envoi a échoué.", 'The send failed.'))),
+        onSettled: () => setBusyId(null),
       },
-      onError: (err) => toast.error(apiMessage(err, tr("L'envoi a échoué.", 'The send failed.'))),
-      onSettled: () => setBusyId(null),
-    });
+    );
   };
 
   return (
@@ -494,13 +672,28 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
           <table className="w-full text-[13px]" style={{ minWidth: 720 }}>
             <caption className="sr-only">{tr('Invitations', 'Invitations')}</caption>
             <thead>
-              <tr className="text-left text-ink-muted text-[11px] uppercase tracking-wide" style={{ borderBottom: '1px solid var(--border)' }}>
-                <th scope="col" className="px-4 py-3 font-semibold">{tr('Adresse', 'Address')}</th>
-                <th scope="col" className="px-4 py-3 font-semibold">{tr('Rôle', 'Role')}</th>
-                <th scope="col" className="px-4 py-3 font-semibold">{tr('Statut', 'Status')}</th>
-                <th scope="col" className="px-4 py-3 font-semibold">{tr('Expire le', 'Expires')}</th>
-                <th scope="col" className="px-4 py-3 font-semibold">{tr('Envois', 'Sends')}</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-right">{tr('Actions', 'Actions')}</th>
+              <tr
+                className="text-left text-ink-muted text-[11px] uppercase tracking-wide"
+                style={{ borderBottom: '1px solid var(--border)' }}
+              >
+                <th scope="col" className="px-4 py-3 font-semibold">
+                  {tr('Adresse', 'Address')}
+                </th>
+                <th scope="col" className="px-4 py-3 font-semibold">
+                  {tr('Rôle', 'Role')}
+                </th>
+                <th scope="col" className="px-4 py-3 font-semibold">
+                  {tr('Statut', 'Status')}
+                </th>
+                <th scope="col" className="px-4 py-3 font-semibold">
+                  {tr('Expire le', 'Expires')}
+                </th>
+                <th scope="col" className="px-4 py-3 font-semibold">
+                  {tr('Envois', 'Sends')}
+                </th>
+                <th scope="col" className="px-4 py-3 font-semibold text-right">
+                  {tr('Actions', 'Actions')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -509,7 +702,11 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                 const busy = busyId === inv.id;
                 const open = inv.status === 'pending' || inv.status === 'expired';
                 return (
-                  <tr key={inv.id} data-testid="invitation-row" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <tr
+                    key={inv.id}
+                    data-testid="invitation-row"
+                    style={{ borderBottom: '1px solid var(--border)' }}
+                  >
                     <td className="px-4 py-3">
                       <div className="font-medium text-ink">{inv.email}</div>
                       {inv.invited_by_email && (
@@ -520,8 +717,15 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{inv.role}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: st.color }}>
-                        <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[12px] font-semibold"
+                        style={{ color: st.color }}
+                      >
+                        <span
+                          aria-hidden
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ background: st.color }}
+                        />
                         {tr(st.fr, st.en)}
                       </span>
                     </td>
@@ -540,11 +744,19 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                             // The server's own answer, so the button is disabled
                             // for the same reason the API would refuse it.
                             disabled={busy || !inv.can_resend}
-                            title={inv.can_resend
-                              ? tr("Renvoyer l'invitation", 'Re-send the invitation')
-                              : tr('Renvoi trop fréquent — patientez un instant', 'Re-sending too often — wait a moment')}
+                            title={
+                              inv.can_resend
+                                ? tr("Renvoyer l'invitation", 'Re-send the invitation')
+                                : tr(
+                                    'Renvoi trop fréquent — patientez un instant',
+                                    'Re-sending too often — wait a moment',
+                                  )
+                            }
                             className="h-8 px-2.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-45"
-                            style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
+                            style={{
+                              border: '1px solid var(--border-strong)',
+                              color: 'var(--fg-secondary)',
+                            }}
                           >
                             <RefreshCw size={13} className={busy ? 'animate-spin' : ''} />
                             {busy ? tr('Envoi…', 'Sending…') : tr('Renvoyer', 'Re-send')}
@@ -554,9 +766,15 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
                           <button
                             onClick={() => setRevoking(inv)}
                             disabled={busy}
-                            aria-label={tr(`Révoquer l'invitation de ${inv.email}`, `Revoke the invitation for ${inv.email}`)}
+                            aria-label={tr(
+                              `Révoquer l'invitation de ${inv.email}`,
+                              `Revoke the invitation for ${inv.email}`,
+                            )}
                             className="h-8 w-8 rounded-[8px] inline-flex items-center justify-center"
-                            style={{ border: '1px solid var(--border-strong)', color: 'var(--critical)' }}
+                            style={{
+                              border: '1px solid var(--border-strong)',
+                              color: 'var(--critical)',
+                            }}
                           >
                             <X size={14} />
                           </button>
@@ -580,16 +798,24 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
           'Le lien envoyé cessera immédiatement de fonctionner. Vous pourrez inviter à nouveau cette adresse.',
           'The link that was sent stops working immediately. You can invite this address again afterwards.',
         )}
-        impact={revoking ? [
-          { label: tr('Rôle proposé', 'Offered role'), value: revoking.role },
-          { label: tr('Envois', 'Sends'), value: String(revoking.send_count) },
-        ] : []}
+        impact={
+          revoking
+            ? [
+                { label: tr('Rôle proposé', 'Offered role'), value: revoking.role },
+                { label: tr('Envois', 'Sends'), value: String(revoking.send_count) },
+              ]
+            : []
+        }
         confirmLabel={tr('Révoquer', 'Revoke')}
         onConfirm={() => {
           if (!revoking) return;
           revoke.mutate(revoking.id, {
-            onSuccess: () => { toast.success(tr('Invitation révoquée', 'Invitation revoked')); setRevoking(null); },
-            onError: (err) => toast.error(apiMessage(err, tr('La révocation a échoué.', 'Revocation failed.'))),
+            onSuccess: () => {
+              toast.success(tr('Invitation révoquée', 'Invitation revoked'));
+              setRevoking(null);
+            },
+            onError: (err) =>
+              toast.error(apiMessage(err, tr('La révocation a échoué.', 'Revocation failed.'))),
           });
         }}
         busy={revoke.isPending}
@@ -609,8 +835,11 @@ function AccessHistory({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   if (isError) {
     return (
       <ErrorState
-        title={tr("Impossible de charger le journal", 'Could not load the history')}
-        description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+        title={tr('Impossible de charger le journal', 'Could not load the history')}
+        description={tr(
+          'Réessayez, ou contactez un administrateur si le problème persiste.',
+          'Retry, or contact an administrator if this persists.',
+        )}
         onRetry={() => void refetch()}
         retryLabel={tr('Réessayer', 'Retry')}
       />
@@ -640,7 +869,10 @@ function AccessHistory({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
               aria-hidden
               className="w-7 h-7 rounded-[9px] shrink-0 flex items-center justify-center mt-0.5"
               style={{
-                background: e.action === 'revoke' ? 'color-mix(in srgb, var(--critical) 14%, transparent)' : 'var(--bg-hover)',
+                background:
+                  e.action === 'revoke'
+                    ? 'color-mix(in srgb, var(--critical) 14%, transparent)'
+                    : 'var(--bg-hover)',
                 color: e.action === 'revoke' ? 'var(--critical)' : 'var(--fg-secondary)',
               }}
             >
@@ -680,12 +912,14 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const input = role === ADMIN_OPTION
-      ? { email, role: 'admin' as MemberRole, locale: lang }
-      : { email, role: 'user' as MemberRole, business_role: role, locale: lang };
+    const input =
+      role === ADMIN_OPTION
+        ? { email, role: 'admin' as MemberRole, locale: lang }
+        : { email, role: 'user' as MemberRole, business_role: role, locale: lang };
     invite.mutate(input, {
       onSuccess: (res) => setResult(res),
-      onError: (err) => setError(apiMessage(err, tr("L'invitation a échoué.", 'The invitation failed.'))),
+      onError: (err) =>
+        setError(apiMessage(err, tr("L'invitation a échoué.", 'The invitation failed.'))),
     });
   };
 
@@ -696,8 +930,14 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
   return (
     <Overlay onClose={onClose}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[16px] font-bold text-ink">{tr('Inviter un membre', 'Invite a member')}</h2>
-        <button onClick={onClose} className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover" aria-label={tr('Fermer', 'Close')}>
+        <h2 className="text-[16px] font-bold text-ink">
+          {tr('Inviter un membre', 'Invite a member')}
+        </h2>
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover"
+          aria-label={tr('Fermer', 'Close')}
+        >
           <X size={17} />
         </button>
       </div>
@@ -706,7 +946,11 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
           {tr('Adresse email', 'Email address')}
         </label>
         <input
-          id="inv-email" type="email" required value={email} autoFocus
+          id="inv-email"
+          type="email"
+          required
+          value={email}
+          autoFocus
           onChange={(e) => setEmail(e.target.value)}
           placeholder="collegue@exemple.com"
           className="w-full h-[42px] px-3.5 rounded-[11px] text-[14px] text-ink outline-none mb-3"
@@ -716,15 +960,21 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
           {tr('Accès', 'Access')}
         </label>
         <select
-          id="inv-role" value={role} onChange={(e) => setRole(e.target.value)}
+          id="inv-role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
           className="w-full h-[42px] px-3 rounded-[11px] text-[14px] text-ink outline-none mb-2"
           style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }}
         >
           <option value="">{tr('— Aucun rôle métier —', '— No business role —')}</option>
           {catalog?.business_roles.map((r) => (
-            <option key={r.key} value={r.key}>{lang === 'fr' ? r.label_fr : r.label_en}</option>
+            <option key={r.key} value={r.key}>
+              {lang === 'fr' ? r.label_fr : r.label_en}
+            </option>
           ))}
-          <option value={ADMIN_OPTION}>{tr('Administrateur (accès complet)', 'Administrator (full access)')}</option>
+          <option value={ADMIN_OPTION}>
+            {tr('Administrateur (accès complet)', 'Administrator (full access)')}
+          </option>
         </select>
         {/* The default option grants nothing — least privilege is the right
             default, but an admin who does not know that invites a colleague
@@ -745,18 +995,27 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
         </p>
 
         {error && (
-          <div role="alert" className="mb-3 px-3 py-2.5 rounded-[10px] text-[12.5px] flex items-start gap-2"
-            style={{ background: 'color-mix(in srgb, var(--critical) 12%, transparent)', color: 'var(--critical)' }}>
+          <div
+            role="alert"
+            className="mb-3 px-3 py-2.5 rounded-[10px] text-[12.5px] flex items-start gap-2"
+            style={{
+              background: 'color-mix(in srgb, var(--critical) 12%, transparent)',
+              color: 'var(--critical)',
+            }}
+          >
             <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{error}</span>
           </div>
         )}
 
         <button
-          type="submit" disabled={invite.isPending || !email}
+          type="submit"
+          disabled={invite.isPending || !email}
           className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold disabled:opacity-60"
           style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
         >
-          {invite.isPending ? tr('Envoi…', 'Sending…') : tr("Envoyer l'invitation", 'Send invitation')}
+          {invite.isPending
+            ? tr('Envoi…', 'Sending…')
+            : tr("Envoyer l'invitation", 'Send invitation')}
         </button>
       </form>
     </Overlay>
@@ -767,14 +1026,23 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
  * Shown after an invite or a re-send. What it says depends on what actually
  * happened to the email — the product never claims a delivery it did not make.
  */
-function ManualLinkDialog({ tr, result, onClose, created }: {
-  tr: Tr; result: InviteResult; onClose: () => void; created?: boolean;
+function ManualLinkDialog({
+  tr,
+  result,
+  onClose,
+  created,
+}: {
+  tr: Tr;
+  result: InviteResult;
+  onClose: () => void;
+  created?: boolean;
 }) {
   useEscapeToClose(true, onClose);
   const sent = result.delivery === 'sent';
   const copy = () => {
     if (!result.accept_url) return;
-    navigator.clipboard?.writeText(result.accept_url)
+    navigator.clipboard
+      ?.writeText(result.accept_url)
       .then(() => toast.success(tr('Lien copié', 'Link copied')))
       .catch(() => toast.error(tr('Copie impossible', 'Could not copy')));
   };
@@ -786,7 +1054,9 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
           aria-hidden
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
           style={{
-            background: sent ? 'color-mix(in srgb, var(--low) 14%, transparent)' : 'color-mix(in srgb, var(--high) 14%, transparent)',
+            background: sent
+              ? 'color-mix(in srgb, var(--low) 14%, transparent)'
+              : 'color-mix(in srgb, var(--high) 14%, transparent)',
             color: sent ? 'var(--low)' : 'var(--high)',
           }}
         >
@@ -796,7 +1066,10 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
           <h2 className="text-[15px] font-bold text-ink">
             {sent
               ? tr('Invitation envoyée', 'Invitation sent')
-              : tr('Invitation créée — à transmettre vous-même', 'Invitation created — deliver it yourself')}
+              : tr(
+                  'Invitation créée — à transmettre vous-même',
+                  'Invitation created — deliver it yourself',
+                )}
           </h2>
           <div className="text-[13px] text-ink-soft mt-0.5 truncate">{result.invitation.email}</div>
         </div>
@@ -806,25 +1079,33 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
         <p className="text-[13px] text-ink-soft leading-relaxed mb-4">
           {created
             ? tr(
-              "Le lien d'invitation a été envoyé par email. Il expire dans 7 jours et vous pouvez le révoquer à tout moment depuis l'onglet Invitations.",
-              'The invitation link was emailed. It expires in 7 days and you can revoke it at any time from the Invitations tab.',
-            )
+                "Le lien d'invitation a été envoyé par email. Il expire dans 7 jours et vous pouvez le révoquer à tout moment depuis l'onglet Invitations.",
+                'The invitation link was emailed. It expires in 7 days and you can revoke it at any time from the Invitations tab.',
+              )
             : tr('Le lien a été renvoyé par email.', 'The link was re-sent by email.')}
         </p>
       ) : (
         <>
           <p className="text-[13px] text-ink-soft leading-relaxed mb-3">
-            {result.delivery_detail || tr(
-              "L'email n'a pas pu partir. Transmettez ce lien à la personne concernée — il n'est affiché qu'une seule fois.",
-              'The email could not be sent. Pass this link to the person yourself — it is shown only once.',
-            )}
+            {result.delivery_detail ||
+              tr(
+                "L'email n'a pas pu partir. Transmettez ce lien à la personne concernée — il n'est affiché qu'une seule fois.",
+                'The email could not be sent. Pass this link to the person yourself — it is shown only once.',
+              )}
           </p>
           {result.accept_url && (
-            <div className="flex items-center gap-2 p-3 rounded-[10px] mb-4"
-              style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-strong)' }}>
-              <code className="mono text-[12px] text-ink flex-1 break-all">{result.accept_url}</code>
-              <button onClick={copy} className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover shrink-0"
-                aria-label={tr('Copier le lien', 'Copy the link')}>
+            <div
+              className="flex items-center gap-2 p-3 rounded-[10px] mb-4"
+              style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-strong)' }}
+            >
+              <code className="mono text-[12px] text-ink flex-1 break-all">
+                {result.accept_url}
+              </code>
+              <button
+                onClick={copy}
+                className="w-8 h-8 rounded-[8px] flex items-center justify-center text-ink-muted hover:bg-hover shrink-0"
+                aria-label={tr('Copier le lien', 'Copy the link')}
+              >
                 <Copy size={16} />
               </button>
             </div>
@@ -832,8 +1113,11 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
         </>
       )}
 
-      <button onClick={onClose} className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold"
-        style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}>
+      <button
+        onClick={onClose}
+        className="w-full h-[42px] rounded-[10px] text-[14px] font-semibold"
+        style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+      >
         {tr('Terminé', 'Done')}
       </button>
     </Overlay>
@@ -842,11 +1126,23 @@ function ManualLinkDialog({ tr, result, onClose, created }: {
 
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-90 flex items-center justify-center p-4"
-      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
-      <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
+    <div
+      className="fixed inset-0 z-90 flex items-center justify-center p-4"
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[460px] rounded-[16px] p-5"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-overlay)', animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)' }}>
+        style={{
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-overlay)',
+          animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)',
+        }}
+      >
         {children}
       </div>
     </div>

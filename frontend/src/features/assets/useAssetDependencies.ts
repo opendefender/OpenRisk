@@ -34,7 +34,7 @@ export function useAssetDependencies() {
       if (previous) {
         queryClient.setQueryData(
           DEPENDENCIES_QUERY_KEY,
-          previous.filter((d) => d.id !== id)
+          previous.filter((d) => d.id !== id),
         );
       }
       return { previous };
@@ -53,6 +53,6 @@ export function useAssetDependencies() {
       createDependency,
       deleteDependency,
     }),
-    [query, createDependency, deleteDependency]
+    [query, createDependency, deleteDependency],
   );
 }

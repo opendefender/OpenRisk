@@ -27,7 +27,11 @@ export function useEntitlements() {
 
 /** Convenience: is a feature enabled on the current plan, and which plan unlocks
  *  it. Returns a safe default (locked) while loading. */
-export function useFeature(feature: string): { enabled: boolean; requiredPlan: PlanKey; loading: boolean } {
+export function useFeature(feature: string): {
+  enabled: boolean;
+  requiredPlan: PlanKey;
+  loading: boolean;
+} {
   const { data, isLoading } = useEntitlements();
   const f = data?.features?.[feature];
   return {

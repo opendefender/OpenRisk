@@ -109,7 +109,10 @@ export function SmartRiskRadar({ data, lang }: { data: SmartRiskScore; lang: 'fr
                 <span className="text-ink-muted"> · {Math.round(f.weight * 100)}%</span>
               </span>
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
+            <div
+              className="h-1.5 rounded-full overflow-hidden"
+              style={{ background: 'var(--bg-hover)' }}
+            >
               <div
                 className="h-full rounded-full"
                 style={{

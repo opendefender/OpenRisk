@@ -14,19 +14,19 @@ export interface UseNotificationAudioOptions {
 /**
  * Custom hook for handling notification sounds and desktop notifications
  * Provides Web Notifications API integration with fallback to audio
- * 
+ *
  * @example
  * const { playSound, sendDesktopNotification, requestPermission } = useNotificationAudio({
  *   enabled: true,
  *   volume: 0.7,
  * });
- * 
+ *
  * // Request permission first
  * await requestPermission();
- * 
+ *
  * // Play sound
  * playSound();
- * 
+ *
  * // Send desktop notification
  * sendDesktopNotification({
  *   title: 'Critical Risk Alert',
@@ -171,7 +171,7 @@ export const useNotificationAudio = ({
         console.error('[Notification] Failed to send desktop notification:', error);
       }
     },
-    [enabled, isNotificationSupported]
+    [enabled, isNotificationSupported],
   );
 
   /**
@@ -205,7 +205,7 @@ export const useNotificationAudio = ({
       // Send desktop notification
       sendDesktopNotification(title, options);
     },
-    [playSound, sendDesktopNotification]
+    [playSound, sendDesktopNotification],
   );
 
   /**

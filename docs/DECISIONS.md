@@ -5,52 +5,36 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-027 — Prettier: adopt it and take the 492-file sweep, or drop the format gate for good? · 2026-09-02
-**Context** — #341 (D-022, item 3) asked for the `type-check`, `format` and
-`format:check` scripts that `.github/workflows/ci.yml` already invoked. Two of
-the three are done. `format`/`format:check` are not, and the reason is worth a
-decision rather than an agent's judgement.
-
-Prettier has never existed in this repository: no dependency, no config, no
-script. The CI step that called it read
-
-```yaml
-run: cd frontend && npm run format:check || npm run format
-```
-
-— the `||` meant the step could not fail even once the scripts existed, so it
-gated nothing. Measured on 2026-09-02: `npx prettier --check` rewrites **492 of
-~550** frontend source files.
-
-**Options**
-- **A — adopt Prettier, sweep now.** One mechanical commit reformatting 492
-  files, then `format:check` becomes a real blocking gate.
-  *Cost:* it conflicts with essentially every open ds-v1 PR, which is the exact
-  objection D-022 raised when it declined the `any` sweep, at roughly four times
-  the file count.
-- **B — adopt Prettier, sweep at the ds-v1 boundary.** Same end state, scheduled
-  for the moment the ds-v1 PRs are merged and the tree is quiet.
-- **C — no Prettier.** ESLint already enforces the rules that change behaviour;
-  formatting stays a review-time preference and the CI step stays deleted.
-
-**Recommendation — B.** The end state in A is right and C gives up a real
-consistency win, but a 492-file diff landed mid-milestone would be resolved by
-whoever rebases, not by whoever reviews it. The gate is worth having; it is not
-worth having this week.
-
-**Interim state (shipped in #341)** — the fake Prettier step is **removed** from
-`frontend-lint`. Nothing regressed by removing it: it could never fail. The lint
-job now runs the ESLint ratchet and `npm run type-check`, both blocking.
-
-**Cost of delay** — low and non-compounding. Formatting drift is mechanical and
-a later sweep fixes it wholesale, unlike the `any` debt in D-022, which grows
-with every merge.
-
-**Blocked** — nothing. #341 ships without it.
+None. Every entry in this register is resolved as of 2026-09-02.
 
 ## Resolved
 
 <!-- Append: date · decision · rationale · issues unblocked -->
+
+### D-027 — Prettier is adopted and the tree is swept now, not at a later boundary · 2026-09-02
+**Decided** — Option A. Prettier is adopted, the sweep is taken immediately in its
+own PR (#505), and `format:check` becomes a blocking CI gate with no `||` fallback.
+**Rationale (owner)** — Accepted the revised recommendation. The original advice was
+to defer to the ds-v1 boundary because a repo-wide mechanical diff would collide
+with the open ds-v1 PRs; on re-measurement that reason had evaporated — #497, #498
+and #499 had all merged and the only open PR in the repo was #500 itself. The tree
+was quiet at the moment of asking, and #475, #457 and #438 are `status:ready` and
+would have ended that as soon as anyone started them. Deferring would have bought
+nothing and cost the window.
+**Consequence** — `prettier@3` is a devDependency; `.prettierrc` encodes the
+measured house style (single quotes, semicolons, 2-space, printWidth 100) rather
+than Prettier's defaults; 414 files are reformatted in one mechanical commit kept
+separate from the tooling commit so the diff can be reviewed by ignoring it.
+`eslint-config-prettier` is deliberately absent — the ESLint config carries no
+stylistic rules, and the lint ratchet holding at exactly 321 across a 414-file
+reformat is the evidence. Sweeping also surfaced the one file in the tree PostCSS
+cannot parse, `NotificationBadge.css`, which had two lines of JavaScript at the top.
+**Depends on** — #500 (#341), which rewrote the frontend lint job this gate lives
+in. #500 merged on 2026-09-03; #506 was rebuilt on the resulting master.
+**Unblocked** — #341 criterion "eliminate ESLint errors" keeps its ratchet; the
+frontend lint job gains its third real gate.
+
+---
 
 ### D-025 — the ExecutiveDashboard doughnut is converted to bars plus a KPI figure · 2026-09-02
 **Decided** — Option A. `features/analytics/ExecutiveDashboard.tsx`'s risk-distribution doughnut

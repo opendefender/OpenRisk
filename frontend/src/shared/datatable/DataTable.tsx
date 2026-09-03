@@ -34,7 +34,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Search, X,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Download,
+  Loader2,
+  Search,
+  X,
 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { EmptyState } from '../EmptyState';
@@ -107,10 +114,13 @@ function useLabels() {
       searchAria: fr ? 'Recherche instantanée' : 'Instant search',
       clearSearch: fr ? 'Effacer la recherche' : 'Clear search',
       filters: fr ? 'Filtres' : 'Filters',
-      results: (n: number) => (fr ? `${n} résultat${n > 1 ? 's' : ''}` : `${n} result${n > 1 ? 's' : ''}`),
+      results: (n: number) =>
+        fr ? `${n} résultat${n > 1 ? 's' : ''}` : `${n} result${n > 1 ? 's' : ''}`,
       reset: fr ? 'Réinitialiser' : 'Reset',
       savedViews: fr ? 'Filtres sauvegardés' : 'Saved filters',
-      saveCurrent: fr ? 'Appliquez un filtre pour pouvoir le sauvegarder.' : 'Apply a filter to be able to save it.',
+      saveCurrent: fr
+        ? 'Appliquez un filtre pour pouvoir le sauvegarder.'
+        : 'Apply a filter to be able to save it.',
       viewNamePlaceholder: fr ? 'Nommer ce filtre…' : 'Name this filter…',
       save: fr ? 'Enregistrer' : 'Save',
       close: fr ? 'Fermer' : 'Close',
@@ -125,9 +135,14 @@ function useLabels() {
       exportView: fr ? 'Exporter la vue' : 'Export view',
       selectAllPage: fr ? 'Tout sélectionner sur la page' : 'Select all on this page',
       selectRow: fr ? 'Sélectionner la ligne' : 'Select row',
-      pageSelected: (n: number) => (fr ? `Les ${n} lignes de cette page sont sélectionnées.` : `All ${n} rows on this page are selected.`),
-      selectAllMatching: (n: number) => (fr ? `Sélectionner les ${n} résultats` : `Select all ${n} results`),
-      allMatchingSelected: (n: number) => (fr ? `Les ${n} résultats sont sélectionnés.` : `All ${n} results are selected.`),
+      pageSelected: (n: number) =>
+        fr
+          ? `Les ${n} lignes de cette page sont sélectionnées.`
+          : `All ${n} rows on this page are selected.`,
+      selectAllMatching: (n: number) =>
+        fr ? `Sélectionner les ${n} résultats` : `Select all ${n} results`,
+      allMatchingSelected: (n: number) =>
+        fr ? `Les ${n} résultats sont sélectionnés.` : `All ${n} results are selected.`,
       clearSelection: fr ? 'Effacer la sélection' : 'Clear selection',
       selected: (n: number) => (fr ? `${n} sélectionné${n > 1 ? 's' : ''}` : `${n} selected`),
       failed: fr ? 'Échec' : 'Failed',
@@ -191,7 +206,10 @@ export function DataTable<T>({
 
   /* ------------------------------------------------------ column preferences */
   const allKeys = useMemo(() => columns.map((c) => c.key), [columns]);
-  const defaultHidden = useMemo(() => columns.filter((c) => c.defaultHidden).map((c) => c.key), [columns]);
+  const defaultHidden = useMemo(
+    () => columns.filter((c) => c.defaultHidden).map((c) => c.key),
+    [columns],
+  );
   const prefs = useColumnPrefs(id, allKeys, defaultHidden);
   const visibleColumns = useMemo(
     () =>
@@ -298,7 +316,10 @@ export function DataTable<T>({
     setAllMatching(false);
   }, []);
 
-  const selectedRows = useMemo(() => pageRows.filter((r) => selectedIds.has(rowKey(r))), [pageRows, selectedIds, rowKey]);
+  const selectedRows = useMemo(
+    () => pageRows.filter((r) => selectedIds.has(rowKey(r))),
+    [pageRows, selectedIds, rowKey],
+  );
   const selectionCount = allMatching ? resultCount : selectedIds.size;
 
   const buildScope = useCallback(
@@ -342,7 +363,9 @@ export function DataTable<T>({
   const virtualItems = virtualise ? virtualizer.getVirtualItems() : [];
   const paddingTop = virtualise && virtualItems.length ? virtualItems[0].start : 0;
   const paddingBottom =
-    virtualise && virtualItems.length ? virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+    virtualise && virtualItems.length
+      ? virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+      : 0;
 
   // Focus follows the keyboard even when the target row is not mounted yet.
   useEffect(() => {
@@ -419,7 +442,11 @@ export function DataTable<T>({
         await onExportAllMatching();
       } else {
         const source = selectedIds.size > 0 ? selectedRows : mode === 'client' ? sorted : pageRows;
-        exportRowsToCsv(`${exportFilename}-${new Date().toISOString().slice(0, 10)}.csv`, source, visibleColumns);
+        exportRowsToCsv(
+          `${exportFilename}-${new Date().toISOString().slice(0, 10)}.csv`,
+          source,
+          visibleColumns,
+        );
       }
     } finally {
       setExporting(false);
@@ -446,7 +473,8 @@ export function DataTable<T>({
   }, [searchDraft, state.q, api]);
 
   /* -------------------------------------------------------------- rendering */
-  const sortableKey = (col: Column<T>) => (mode === 'server' ? col.sortKey : col.sortValue ? col.key : undefined);
+  const sortableKey = (col: Column<T>) =>
+    mode === 'server' ? col.sortKey : col.sortValue ? col.key : undefined;
   const colCount = visibleColumns.length + (selectable ? 1 : 0) + (rowActions.length ? 1 : 0);
   const firstIndexOnPage = resultCount === 0 ? 0 : (currentPage - 1) * state.pageSize + 1;
   const lastIndexOnPage = Math.min(currentPage * state.pageSize, resultCount);
@@ -455,7 +483,10 @@ export function DataTable<T>({
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       <div className="relative flex-1 min-w-[200px]">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+        <Search
+          size={15}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
+        />
         <input
           value={searchDraft}
           onChange={(e) => setSearchDraft(e.target.value)}
@@ -509,9 +540,17 @@ export function DataTable<T>({
           disabled={exporting}
           data-testid="table-export"
           className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-[7px] transition-all hover:bg-hover disabled:opacity-60 shrink-0"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
+          style={{
+            border: '1px solid var(--border-strong)',
+            background: 'var(--bg-elevated)',
+            color: 'var(--fg-primary)',
+          }}
         >
-          {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} strokeWidth={1.8} />}
+          {exporting ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Download size={16} strokeWidth={1.8} />
+          )}
           {selectedIds.size > 0 ? L.exportSelection : L.exportView}
         </button>
       )}
@@ -542,7 +581,13 @@ export function DataTable<T>({
         }}
       >
         {selectable && (
-          <td style={{ width: 38 }} onClick={(e) => { e.stopPropagation(); toggleRow(rid); }}>
+          <td
+            style={{ width: 38 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleRow(rid);
+            }}
+          >
             <input
               type="checkbox"
               checked={isSelected}
@@ -557,7 +602,9 @@ export function DataTable<T>({
         {visibleColumns.map((col) => (
           <td
             key={col.key}
-            className={[col.frozen ? 'frozen' : '', col.align === 'right' ? 'num' : ''].join(' ').trim()}
+            className={[col.frozen ? 'frozen' : '', col.align === 'right' ? 'num' : '']
+              .join(' ')
+              .trim()}
             style={{ width: col.width }}
           >
             {col.render(row)}
@@ -587,7 +634,11 @@ export function DataTable<T>({
               onClick={onRetry}
               data-testid="table-retry"
               className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
-              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
+              style={{
+                border: '1px solid var(--border-strong)',
+                background: 'var(--bg-elevated)',
+                color: 'var(--fg-primary)',
+              }}
             >
               {L.retry}
             </button>
@@ -613,7 +664,11 @@ export function DataTable<T>({
             onClick={() => api.clearFilters()}
             data-testid="table-clear-filters"
             className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
-            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-primary)' }}
+            style={{
+              border: '1px solid var(--border-strong)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--fg-primary)',
+            }}
           >
             {L.clearFilters}
           </button>
@@ -658,12 +713,19 @@ export function DataTable<T>({
               {visibleColumns.map((col) => {
                 const key = sortableKey(col);
                 const active = !!key && state.sort?.key === key;
-                const ariaSort = active ? (state.sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none';
-                const name = col.headerLabel ?? (typeof col.header === 'string' ? col.header : col.key);
+                const ariaSort = active
+                  ? state.sort!.dir === 'asc'
+                    ? 'ascending'
+                    : 'descending'
+                  : 'none';
+                const name =
+                  col.headerLabel ?? (typeof col.header === 'string' ? col.header : col.key);
                 return (
                   <th
                     key={col.key}
-                    className={[key ? 'sortable' : '', col.align === 'right' ? 'num' : ''].join(' ').trim()}
+                    className={[key ? 'sortable' : '', col.align === 'right' ? 'num' : '']
+                      .join(' ')
+                      .trim()}
                     style={{ width: col.width }}
                     aria-sort={key ? ariaSort : undefined}
                   >
@@ -682,7 +744,11 @@ export function DataTable<T>({
                       >
                         {col.header}
                         {active ? (
-                          state.sort!.dir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
+                          state.sort!.dir === 'asc' ? (
+                            <ChevronUp size={13} />
+                          ) : (
+                            <ChevronDown size={13} />
+                          )
                         ) : null}
                       </button>
                     ) : (
@@ -740,13 +806,25 @@ export function DataTable<T>({
           className="mb-2 px-3 py-2 rounded-[10px] text-[12.5px] flex flex-wrap items-center gap-2"
           style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
         >
-          <span>{allMatching ? L.allMatchingSelected(resultCount) : L.pageSelected(pageIds.length)}</span>
+          <span>
+            {allMatching ? L.allMatchingSelected(resultCount) : L.pageSelected(pageIds.length)}
+          </span>
           {allMatching ? (
-            <button type="button" onClick={clearSelection} className="font-semibold underline" data-testid="select-scope-clear">
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="font-semibold underline"
+              data-testid="select-scope-clear"
+            >
               {L.clearSelection}
             </button>
           ) : (
-            <button type="button" onClick={() => setAllMatching(true)} className="font-semibold underline" data-testid="select-scope-all">
+            <button
+              type="button"
+              onClick={() => setAllMatching(true)}
+              className="font-semibold underline"
+              data-testid="select-scope-all"
+            >
               {L.selectAllMatching(resultCount)}
             </button>
           )}
@@ -764,7 +842,11 @@ export function DataTable<T>({
           is never told "50 rows" while sitting on 1 284. */}
       {pageRows.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 mt-3">
-          <span className="text-[12.5px] text-ink-soft" data-testid="table-range" aria-live="polite">
+          <span
+            className="text-[12.5px] text-ink-soft"
+            data-testid="table-range"
+            aria-live="polite"
+          >
             {L.rowsRange(firstIndexOnPage, lastIndexOnPage, resultCount)}
           </span>
           <div className="flex-1" />
@@ -777,7 +859,9 @@ export function DataTable<T>({
               style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
             >
               {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
             {L.perPage}

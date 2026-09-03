@@ -47,9 +47,11 @@ export function topologyToSvg(state: LayoutState, opts: ExportOptions): string {
   const parts: string[] = [];
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" ` +
-      `viewBox="${b.minX} ${b.minY} ${w} ${h}">`
+      `viewBox="${b.minX} ${b.minY} ${w} ${h}">`,
   );
-  parts.push(`<rect x="${b.minX}" y="${b.minY}" width="${w}" height="${h}" fill="${opts.background}"/>`);
+  parts.push(
+    `<rect x="${b.minX}" y="${b.minY}" width="${w}" height="${h}" fill="${opts.background}"/>`,
+  );
 
   // Edges first, so nodes sit on top of them.
   parts.push('<g stroke-linecap="round" fill="none">');
@@ -60,7 +62,7 @@ export function topologyToSvg(state: LayoutState, opts: ExportOptions): string {
       `<path d="M${e.source.x.toFixed(1)} ${e.source.y.toFixed(1)}L${e.target.x.toFixed(1)} ${e.target.y.toFixed(1)}" ` +
         `stroke="${opts.ink}" stroke-opacity="${on ? 0.45 : 0.08}" stroke-width="${on ? 1.4 : 1}"` +
         (dash.length ? ` stroke-dasharray="${dash.join(' ')}"` : '') +
-        '/>'
+        '/>',
     );
   }
   parts.push('</g>');
@@ -70,21 +72,23 @@ export function topologyToSvg(state: LayoutState, opts: ExportOptions): string {
     const on = !dim || opts.highlighted?.has(n.id);
     parts.push(
       `<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${n.r.toFixed(1)}" ` +
-        `fill="${opts.colorOf(n.id)}" fill-opacity="${on ? 1 : 0.15}"/>`
+        `fill="${opts.colorOf(n.id)}" fill-opacity="${on ? 1 : 0.15}"/>`,
     );
   }
   parts.push('</g>');
 
   // Labels only for nodes big enough to carry one — labelling 2 000 nodes
   // produces an unreadable smear, and the export is meant to be read.
-  parts.push(`<g font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" fill="${opts.ink}">`);
+  parts.push(
+    `<g font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" fill="${opts.ink}">`,
+  );
   for (const n of state.nodes) {
     if (n.r < 7 && state.nodes.length > 120) continue;
     const on = !dim || opts.highlighted?.has(n.id);
     if (!on) continue;
     parts.push(
       `<text x="${(n.x + n.r + 3).toFixed(1)}" y="${(n.y + 3).toFixed(1)}" fill-opacity="0.8">` +
-        `${escapeXml(n.node.name ?? '')}</text>`
+        `${escapeXml(n.node.name ?? '')}</text>`,
     );
   }
   parts.push('</g>');
@@ -92,7 +96,7 @@ export function topologyToSvg(state: LayoutState, opts: ExportOptions): string {
   if (opts.title) {
     parts.push(
       `<text x="${b.minX + 16}" y="${b.minY + 26}" font-family="ui-sans-serif, system-ui, sans-serif" ` +
-        `font-size="14" font-weight="600" fill="${opts.ink}">${escapeXml(opts.title)}</text>`
+        `font-size="14" font-weight="600" fill="${opts.ink}">${escapeXml(opts.title)}</text>`,
     );
   }
 
@@ -111,7 +115,11 @@ function triggerDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function downloadSvg(state: LayoutState, opts: ExportOptions, filename = 'topologie.svg'): void {
+export function downloadSvg(
+  state: LayoutState,
+  opts: ExportOptions,
+  filename = 'topologie.svg',
+): void {
   triggerDownload(new Blob([topologyToSvg(state, opts)], { type: 'image/svg+xml' }), filename);
 }
 
@@ -123,7 +131,7 @@ export function downloadSvg(state: LayoutState, opts: ExportOptions, filename = 
 export async function downloadPng(
   state: LayoutState,
   opts: ExportOptions,
-  filename = 'topologie.png'
+  filename = 'topologie.png',
 ): Promise<void> {
   const svg = topologyToSvg(state, opts);
   const b = bounds(state, 40);
@@ -136,7 +144,7 @@ export async function downloadPng(
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Le rendu PNG a échoué."));
+      img.onerror = () => reject(new Error('Le rendu PNG a échoué.'));
       img.src = url;
     });
 

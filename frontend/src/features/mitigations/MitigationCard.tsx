@@ -59,7 +59,7 @@ const getDeadlineColor = (daysLeft: number): string => {
 
 const getDeadlineLabel = (daysLeft: number): string => {
   if (daysLeft < 0) return `${Math.abs(daysLeft)}j en retard`;
-  if (daysLeft === 0) return 'Aujourd\'hui';
+  if (daysLeft === 0) return "Aujourd'hui";
   if (daysLeft === 1) return 'Demain';
   return `${daysLeft}j restants`;
 };
@@ -76,7 +76,8 @@ export const MitigationCard = ({
   const deadlineLabel = useMemo(() => getDeadlineLabel(daysLeft), [daysLeft]);
   const riskLevel = useMemo(() => getRiskLevel(mitigation.priority), [mitigation.priority]);
 
-  const completedSubActions = mitigation.sub_actions?.filter((s) => s.status === 'DONE')?.length ?? 0;
+  const completedSubActions =
+    mitigation.sub_actions?.filter((s) => s.status === 'DONE')?.length ?? 0;
   const totalSubActions = mitigation.sub_actions?.length ?? 0;
   const autoCompletedCount = mitigation.auto_detected_count ?? 0;
 
@@ -94,7 +95,9 @@ export const MitigationCard = ({
       className={cn(
         'p-4 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing',
         isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100',
-        isSelected ? 'border-accent bg-accent-soft' : 'border-border-default bg-surface-1/40 hover:border-border-default',
+        isSelected
+          ? 'border-accent bg-accent-soft'
+          : 'border-border-default bg-surface-1/40 hover:border-border-default',
       )}
       onClick={onClick}
     >
@@ -108,9 +111,7 @@ export const MitigationCard = ({
 
       {/* Risk context (optional) */}
       {mitigation.risk_title && (
-        <p className="text-xs text-fg-secondary mb-2 truncate">
-          Risque: {mitigation.risk_title}
-        </p>
+        <p className="text-xs text-fg-secondary mb-2 truncate">Risque: {mitigation.risk_title}</p>
       )}
 
       {/* Progress + Sub-actions count */}
@@ -128,12 +129,13 @@ export const MitigationCard = ({
         <motion.div
           className={cn(
             'inline-flex items-center gap-1.5 px-2 py-1 rounded border text-xs font-medium',
-            deadlineColor
+            deadlineColor,
           )}
-          animate={isOverdue ? { boxShadow: [
-            '0 0 0 0 rgba(239, 68, 68, 0.4)',
-            '0 0 0 8px rgba(239, 68, 68, 0)',
-          ] } : undefined}
+          animate={
+            isOverdue
+              ? { boxShadow: ['0 0 0 0 rgba(239, 68, 68, 0.4)', '0 0 0 8px rgba(239, 68, 68, 0)'] }
+              : undefined
+          }
           transition={isOverdue ? { duration: 1.5, repeat: Infinity } : undefined}
         >
           <Calendar size={12} />

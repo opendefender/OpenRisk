@@ -95,10 +95,7 @@ export function Field({
         {label && (
           <label
             htmlFor={id}
-            className={cn(
-              'text-xs font-medium text-fg-secondary',
-              disabled && 'opacity-55',
-            )}
+            className={cn('text-xs font-medium text-fg-secondary', disabled && 'opacity-55')}
           >
             {label}
             {required && (
@@ -162,7 +159,6 @@ function controlClasses(status: FieldStatus, extra?: string): string {
     extra,
   );
 }
-
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Shows a spinner in the trailing slot (async validation, remote lookup). */

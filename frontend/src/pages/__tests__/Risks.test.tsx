@@ -51,7 +51,12 @@ describe('Risks page - pagination', () => {
 
     // initial useEffect should call fetchRisks with page 1 and limit 5
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith({ page: 1, limit: 5, sort_by: 'score', sort_dir: 'desc' });
+      expect(mockFetch).toHaveBeenCalledWith({
+        page: 1,
+        limit: 5,
+        sort_by: 'score',
+        sort_dir: 'desc',
+      });
     });
   });
 
@@ -71,7 +76,12 @@ describe('Risks page - pagination', () => {
     fireEvent.click(nextButton);
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith({ page: 2, limit: 5, sort_by: 'score', sort_dir: 'desc' });
+      expect(mockFetch).toHaveBeenCalledWith({
+        page: 2,
+        limit: 5,
+        sort_by: 'score',
+        sort_dir: 'desc',
+      });
     });
   });
 

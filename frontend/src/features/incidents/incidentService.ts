@@ -248,7 +248,9 @@ export const incidentService = {
 
   // Where incidents come from — the catalogue plus this tenant's real counts.
   origins: async (): Promise<{ items: IncidentOriginCount[]; total: number }> => {
-    const response = await api.get<{ items: IncidentOriginCount[]; total: number }>('/incidents/origins');
+    const response = await api.get<{ items: IncidentOriginCount[]; total: number }>(
+      '/incidents/origins',
+    );
     return response.data;
   },
 
@@ -283,7 +285,11 @@ export const incidentService = {
     return response.data;
   },
 
-  setActionStatus: async (id: number, actionId: number, status: IncidentActionStatus): Promise<void> => {
+  setActionStatus: async (
+    id: number,
+    actionId: number,
+    status: IncidentActionStatus,
+  ): Promise<void> => {
     await api.put(`/incidents/${id}/actions/${actionId}`, { status });
   },
 };

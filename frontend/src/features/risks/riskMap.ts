@@ -119,7 +119,7 @@ export function mapRisk(r: Risk, lang: 'fr' | 'en'): UiRisk {
     fw: primary ? mappingLabel(primary) : '—',
     fwHref: primary ? mappingHref(primary) : '',
     status: toRiskStatus(r.status),
-    phase: (r.lifecycle_phase ?? 'identified'),
+    phase: r.lifecycle_phase ?? 'identified',
     owner: initialsOf(ownerName),
     ownerName: ownerName || '—',
     mod: relTime(rr.updated_at ?? r.created_at, lang),

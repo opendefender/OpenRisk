@@ -8,8 +8,27 @@
 import { useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { ArrowLeft, Download, ClipboardCheck, Paperclip, Upload, Trash2, X, FileText, Plus } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Chip, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
+import {
+  ArrowLeft,
+  Download,
+  ClipboardCheck,
+  Paperclip,
+  Upload,
+  Trash2,
+  X,
+  FileText,
+  Plus,
+} from 'lucide-react';
+import {
+  PageFrame,
+  PageHeader,
+  Btn,
+  Chip,
+  Card,
+  RingGauge,
+  SkeletonRows,
+  EmptyState,
+} from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -20,7 +39,11 @@ import { CreateControlDialog } from './ComplianceModals';
 import { ControlMappingsSection } from './ControlMappingsSection';
 import { AiEvidenceAnalysis } from '../ai/AiEvidenceAnalysis';
 import { relTime } from '../risks/riskMap';
-import { CONTROL_STATUSES, type ControlStatus, type ComplianceControl } from '../../types/compliance';
+import {
+  CONTROL_STATUSES,
+  type ControlStatus,
+  type ComplianceControl,
+} from '../../types/compliance';
 import { useEscapeToClose } from '../../shared/useBackTo';
 
 const STATUS_META: Record<string, { color: string; fr: string; en: string }> = {
@@ -54,7 +77,8 @@ export function FrameworkDetail() {
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const ct of controls) c[ct.status ?? 'not_implemented'] = (c[ct.status ?? 'not_implemented'] ?? 0) + 1;
+    for (const ct of controls)
+      c[ct.status ?? 'not_implemented'] = (c[ct.status ?? 'not_implemented'] ?? 0) + 1;
     return c;
   }, [controls]);
 
@@ -62,18 +86,22 @@ export function FrameworkDetail() {
   // the header gauge tracks status changes optimistically, in real time. Falls
   // back to the overview figures until the control list has loaded.
   const loaded = controls.length > 0 || !isLoading;
-  const total = loaded ? controls.length : fw?.total ?? 0;
+  const total = loaded ? controls.length : (fw?.total ?? 0);
   const implementedCount = counts.implemented ?? 0;
   const applicable = total - (counts.not_applicable ?? 0);
-  const pct = loaded ? (applicable > 0 ? Math.round((implementedCount / applicable) * 100) : 0) : fw?.pct ?? 0;
-  const passed = loaded ? implementedCount : fw?.passed ?? 0;
+  const pct = loaded
+    ? applicable > 0
+      ? Math.round((implementedCount / applicable) * 100)
+      : 0
+    : (fw?.pct ?? 0);
+  const passed = loaded ? implementedCount : (fw?.passed ?? 0);
 
   const filtered = filter === 'all' ? controls : controls.filter((c) => c.status === filter);
   const col = fw ? frameworkColorFor(fw.name, fwIndex) : 'var(--accent)';
 
   const evidenceRequiredMsg = tr(
     'Ajoutez au moins une preuve avant de marquer ce contrôle « Implémenté ».',
-    'Add at least one piece of evidence before marking this control as Implemented.'
+    'Add at least one piece of evidence before marking this control as Implemented.',
   );
 
   const setStatus = (c: ComplianceControl, status: ControlStatus) => {
@@ -97,15 +125,20 @@ export function FrameworkDetail() {
             toast.error(tr('Mise à jour échouée', 'Update failed'));
           }
         },
-      }
+      },
     );
   };
 
   const removeControl = (c: ComplianceControl) => {
-    if (!window.confirm(tr(
-      `Supprimer le contrôle « ${c.reference_code || c.name} » ?`,
-      `Delete control "${c.reference_code || c.name}"?`
-    ))) return;
+    if (
+      !window.confirm(
+        tr(
+          `Supprimer le contrôle « ${c.reference_code || c.name} » ?`,
+          `Delete control "${c.reference_code || c.name}"?`,
+        ),
+      )
+    )
+      return;
     deleteControl.mutate(c.id as string, {
       onError: () => toast.error(tr('Suppression échouée', 'Delete failed')),
     });
@@ -124,7 +157,10 @@ export function FrameworkDetail() {
 
   return (
     <PageFrame wide>
-      <button onClick={() => navigate('/compliance')} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-soft hover:text-ink transition-colors mb-3">
+      <button
+        onClick={() => navigate('/compliance')}
+        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-soft hover:text-ink transition-colors mb-3"
+      >
         <ArrowLeft size={15} /> {L.n_compliance}
       </button>
 
@@ -133,7 +169,13 @@ export function FrameworkDetail() {
         count={`${passed}/${total} ${tr('contrôles', 'controls')}`}
         actions={
           <>
-            {canCreate && <Btn label={tr('Contrôle', 'Control')} icon={Plus} onClick={() => setShowCreate(true)} />}
+            {canCreate && (
+              <Btn
+                label={tr('Contrôle', 'Control')}
+                icon={Plus}
+                onClick={() => setShowCreate(true)}
+              />
+            )}
             <Btn label={L.exportPdf} icon={Download} primary onClick={downloadReport} />
           </>
         }
@@ -146,12 +188,18 @@ export function FrameworkDetail() {
               <span className="mono text-[18px] font-bold text-ink">{pct}%</span>
             </RingGauge>
             <div className="flex-1 min-w-[200px]">
-              <div className="text-[13px] text-ink-soft mb-2">{fw.description || `${fw.name} · ${fw.version ?? ''}`}</div>
+              <div className="text-[13px] text-ink-soft mb-2">
+                {fw.description || `${fw.name} · ${fw.version ?? ''}`}
+              </div>
               <div className="flex gap-4 flex-wrap">
                 {CONTROL_STATUSES.map((s) => (
-                  <span key={s} className="inline-flex items-center gap-1.5 text-[12px] text-ink-soft">
+                  <span
+                    key={s}
+                    className="inline-flex items-center gap-1.5 text-[12px] text-ink-soft"
+                  >
                     <span className="w-2 h-2 rounded-full" style={{ background: meta(s).color }} />
-                    {tr(meta(s).fr, meta(s).en)} · <span className="mono font-semibold text-ink">{counts[s] ?? 0}</span>
+                    {tr(meta(s).fr, meta(s).en)} ·{' '}
+                    <span className="mono font-semibold text-ink">{counts[s] ?? 0}</span>
                   </span>
                 ))}
               </div>
@@ -161,9 +209,19 @@ export function FrameworkDetail() {
       )}
 
       <div className="flex gap-2 mb-4 flex-wrap">
-        <Chip label={tr('Tous', 'All')} active={filter === 'all'} onClick={() => setFilter('all')} />
+        <Chip
+          label={tr('Tous', 'All')}
+          active={filter === 'all'}
+          onClick={() => setFilter('all')}
+        />
         {CONTROL_STATUSES.map((s) => (
-          <Chip key={s} label={`${tr(meta(s).fr, meta(s).en)} · ${counts[s] ?? 0}`} active={filter === s} onClick={() => setFilter(s)} color={meta(s).color} />
+          <Chip
+            key={s}
+            label={`${tr(meta(s).fr, meta(s).en)} · ${counts[s] ?? 0}`}
+            active={filter === s}
+            onClick={() => setFilter(s)}
+            color={meta(s).color}
+          />
         ))}
       </div>
 
@@ -177,39 +235,84 @@ export function FrameworkDetail() {
             <table className="w-full border-collapse" style={{ minWidth: 760 }}>
               <thead style={{ borderBottom: '1px solid var(--border)' }}>
                 <tr>
-                  {[tr('Réf.', 'Ref.'), tr('Contrôle', 'Control'), tr('Source', 'Source'), tr('Statut', 'Status'), tr('Preuves', 'Evidence')].map((t) => (
-                    <th key={t} className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]">{t}</th>
+                  {[
+                    tr('Réf.', 'Ref.'),
+                    tr('Contrôle', 'Control'),
+                    tr('Source', 'Source'),
+                    tr('Statut', 'Status'),
+                    tr('Preuves', 'Evidence'),
+                  ].map((t) => (
+                    <th
+                      key={t}
+                      className="text-left text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted px-3 pb-[11px]"
+                    >
+                      {t}
+                    </th>
                   ))}
-                  {canDelete && <th className="px-3 pb-[11px]" aria-label={tr('Actions', 'Actions')} />}
+                  {canDelete && (
+                    <th className="px-3 pb-[11px]" aria-label={tr('Actions', 'Actions')} />
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((c) => (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td className="px-3 py-3 align-top"><span className="mono text-[12px] font-semibold text-ink whitespace-nowrap">{c.reference_code}</span></td>
+                    <td className="px-3 py-3 align-top">
+                      <span className="mono text-[12px] font-semibold text-ink whitespace-nowrap">
+                        {c.reference_code}
+                      </span>
+                    </td>
                     <td className="px-3 py-3">
                       <div className="text-[13.5px] font-medium text-ink">{c.name}</div>
-                      {c.description && <div className="text-[12px] text-ink-muted mt-0.5 max-w-[520px] leading-snug">{c.description}</div>}
+                      {c.description && (
+                        <div className="text-[12px] text-ink-muted mt-0.5 max-w-[520px] leading-snug">
+                          {c.description}
+                        </div>
+                      )}
                     </td>
-                    <td className="px-3 py-3 align-top"><span className="text-[11.5px] text-ink-muted">{c.source_reference || '—'}</span></td>
+                    <td className="px-3 py-3 align-top">
+                      <span className="text-[11.5px] text-ink-muted">
+                        {c.source_reference || '—'}
+                      </span>
+                    </td>
                     <td className="px-3 py-3 align-top">
                       <div className="relative inline-flex items-center">
-                        <span className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none" style={{ background: meta(c.status).color }} />
+                        <span
+                          className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none"
+                          style={{ background: meta(c.status).color }}
+                        />
                         <select
                           value={c.status}
                           disabled={!canUpdate}
                           onChange={(e) => setStatus(c, e.target.value as ControlStatus)}
                           className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
-                          style={{ color: meta(c.status).color, background: `color-mix(in srgb,${meta(c.status).color} 12%,transparent)`, border: `1px solid color-mix(in srgb,${meta(c.status).color} 30%,transparent)`, cursor: canUpdate ? 'pointer' : 'not-allowed' }}
+                          style={{
+                            color: meta(c.status).color,
+                            background: `color-mix(in srgb,${meta(c.status).color} 12%,transparent)`,
+                            border: `1px solid color-mix(in srgb,${meta(c.status).color} 30%,transparent)`,
+                            cursor: canUpdate ? 'pointer' : 'not-allowed',
+                          }}
                         >
                           {CONTROL_STATUSES.map((s) => (
-                            <option key={s} value={s} style={{ color: 'var(--fg-primary)', background: 'var(--bg-elevated)' }}>{tr(meta(s).fr, meta(s).en)}</option>
+                            <option
+                              key={s}
+                              value={s}
+                              style={{
+                                color: 'var(--fg-primary)',
+                                background: 'var(--bg-elevated)',
+                              }}
+                            >
+                              {tr(meta(s).fr, meta(s).en)}
+                            </option>
                           ))}
                         </select>
                       </div>
                     </td>
                     <td className="px-3 py-3 align-top">
-                      <EvidenceButton count={c.evidence_count ?? 0} onClick={() => setEvidenceControl(c)} />
+                      <EvidenceButton
+                        count={c.evidence_count ?? 0}
+                        onClick={() => setEvidenceControl(c)}
+                      />
                     </td>
                     {canDelete && (
                       <td className="px-3 py-3 align-top text-right">
@@ -259,8 +362,16 @@ function EvidenceButton({ count, onClick }: { count: number; onClick: () => void
       className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[12px] font-semibold transition-all hover:brightness-110"
       style={
         has
-          ? { border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)', background: 'var(--accent-soft)', color: 'var(--accent-500)' }
-          : { border: '1px dashed var(--border-strong)', background: 'var(--bg-elevated)', color: 'var(--fg-secondary)' }
+          ? {
+              border: '1px solid color-mix(in srgb,var(--accent) 30%,transparent)',
+              background: 'var(--accent-soft)',
+              color: 'var(--accent-500)',
+            }
+          : {
+              border: '1px dashed var(--border-strong)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--fg-secondary)',
+            }
       }
       title={tr('Gérer les preuves', 'Manage evidence')}
     >
@@ -276,7 +387,9 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
   useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { evidences, isLoading, createEvidence, deleteEvidence, downloadEvidence } = useEvidences(control.id);
+  const { evidences, isLoading, createEvidence, deleteEvidence, downloadEvidence } = useEvidences(
+    control.id,
+  );
   const { undoRemove, isHidden } = useUndoableRemove();
   const visibleEvidences = evidences.filter((e) => !isHidden(e.id));
   const fileRef = useRef<HTMLInputElement>(null);
@@ -286,69 +399,151 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
     createEvidence.mutate(
       { file, description: description || undefined },
       {
-        onSuccess: () => { setDescription(''); if (fileRef.current) fileRef.current.value = ''; toast.success(tr('Preuve importée', 'Evidence uploaded')); },
+        onSuccess: () => {
+          setDescription('');
+          if (fileRef.current) fileRef.current.value = '';
+          toast.success(tr('Preuve importée', 'Evidence uploaded'));
+        },
         onError: () => toast.error(tr('Import échoué', 'Upload failed')),
-      }
+      },
     );
   };
 
   return (
-    <div className="fixed inset-0 z-70 flex justify-end" style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)', animation: 'or-fadein .2s ease' }} onClick={onClose}>
+    <div
+      className="fixed inset-0 z-70 flex justify-end"
+      style={{
+        background: 'rgba(0,0,0,.45)',
+        backdropFilter: 'blur(3px)',
+        animation: 'or-fadein .2s ease',
+      }}
+      onClick={onClose}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
         className="h-full flex flex-col"
-        style={{ width: 'min(94vw,520px)', background: 'var(--bg-secondary)', borderLeft: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)' }}
+        style={{
+          width: 'min(94vw,520px)',
+          background: 'var(--bg-secondary)',
+          borderLeft: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+          animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)',
+        }}
       >
         <div className="px-[22px] pt-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-start gap-3">
             <div className="flex-1">
-              <div className="mono text-[12px] font-semibold text-ink-muted mb-1">{control.reference_code}</div>
+              <div className="mono text-[12px] font-semibold text-ink-muted mb-1">
+                {control.reference_code}
+              </div>
               <div className="disp text-[16px] font-bold text-ink leading-snug">{control.name}</div>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft" style={{ background: 'var(--bg-hover)' }}><X size={18} /></button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft"
+              style={{ background: 'var(--bg-hover)' }}
+            >
+              <X size={18} />
+            </button>
           </div>
-          {control.source_reference && <div className="text-[11.5px] text-ink-muted mt-2">{control.source_reference}</div>}
+          {control.source_reference && (
+            <div className="text-[11.5px] text-ink-muted mt-2">{control.source_reference}</div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-[22px]">
           {/* uploader */}
-          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2.5">{tr('Importer une preuve', 'Upload evidence')}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2.5">
+            {tr('Importer une preuve', 'Upload evidence')}
+          </div>
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder={tr('Description (optionnel) — ex. « Politique SSI v2.1 signée »', 'Description (optional) — e.g. "Signed IS policy v2.1"')}
+            placeholder={tr(
+              'Description (optionnel) — ex. « Politique SSI v2.1 signée »',
+              'Description (optional) — e.g. "Signed IS policy v2.1"',
+            )}
             className="w-full h-10 px-3.5 mb-2.5 rounded-[10px] text-[13px] text-ink outline-none"
             style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
           />
-          <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload(f);
+            }}
+          />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={createEvidence.isPending}
             className="w-full h-[92px] rounded-[12px] flex flex-col items-center justify-center gap-1.5 text-[12.5px] font-medium text-ink-soft hover:text-accent-strong hover:border-accent transition-colors disabled:opacity-60"
-            style={{ border: '1.5px dashed var(--border-strong)', background: 'var(--bg-elevated)' }}
+            style={{
+              border: '1.5px dashed var(--border-strong)',
+              background: 'var(--bg-elevated)',
+            }}
           >
             <Upload size={20} />
-            {createEvidence.isPending ? tr('Import en cours…', 'Uploading…') : tr('Cliquez pour choisir un fichier', 'Click to choose a file')}
+            {createEvidence.isPending
+              ? tr('Import en cours…', 'Uploading…')
+              : tr('Cliquez pour choisir un fichier', 'Click to choose a file')}
           </button>
 
           {/* list */}
-          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mt-6 mb-2.5">{tr('Preuves', 'Evidence')} · {visibleEvidences.length}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mt-6 mb-2.5">
+            {tr('Preuves', 'Evidence')} · {visibleEvidences.length}
+          </div>
           {isLoading ? (
             <SkeletonRows rows={2} height={52} />
           ) : visibleEvidences.length === 0 ? (
-            <div className="text-center py-8 text-[13px] text-ink-muted">{tr('Aucune preuve pour ce contrôle.', 'No evidence for this control yet.')}</div>
+            <div className="text-center py-8 text-[13px] text-ink-muted">
+              {tr('Aucune preuve pour ce contrôle.', 'No evidence for this control yet.')}
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {visibleEvidences.map((e) => (
-                <div key={e.id} className="rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
+                <div
+                  key={e.id}
+                  className="rounded-[11px]"
+                  style={{ border: '1px solid var(--border)' }}
+                >
                   <div className="flex items-center gap-3 px-3 py-2.5">
-                    <div className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}><FileText size={17} /></div>
+                    <div
+                      className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
+                      style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+                    >
+                      <FileText size={17} />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium text-ink truncate">{e.filename}</div>
-                      <div className="text-[11.5px] text-ink-muted truncate">{e.description || tr('Sans description', 'No description')} · {relTime(e.created_at, lang)}</div>
+                      <div className="text-[11.5px] text-ink-muted truncate">
+                        {e.description || tr('Sans description', 'No description')} ·{' '}
+                        {relTime(e.created_at, lang)}
+                      </div>
                     </div>
-                    <button onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors" title={tr('Télécharger', 'Download')}><Download size={15} /></button>
-                    <button onClick={() => undoRemove(e.id, { message: tr('Preuve supprimée', 'Evidence removed'), undoLabel: tr('Annuler', 'Undo'), onCommit: () => deleteEvidence.mutate(e.id), onError: () => toast.error(tr('Suppression échouée', 'Delete failed')) })} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ color: 'var(--critical)' }} title={tr('Supprimer', 'Delete')}><Trash2 size={15} /></button>
+                    <button
+                      onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors"
+                      title={tr('Télécharger', 'Download')}
+                    >
+                      <Download size={15} />
+                    </button>
+                    <button
+                      onClick={() =>
+                        undoRemove(e.id, {
+                          message: tr('Preuve supprimée', 'Evidence removed'),
+                          undoLabel: tr('Annuler', 'Undo'),
+                          onCommit: () => deleteEvidence.mutate(e.id),
+                          onError: () => toast.error(tr('Suppression échouée', 'Delete failed')),
+                        })
+                      }
+                      className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                      style={{ color: 'var(--critical)' }}
+                      title={tr('Supprimer', 'Delete')}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                   <AiEvidenceAnalysis evidenceId={e.id} />
                 </div>

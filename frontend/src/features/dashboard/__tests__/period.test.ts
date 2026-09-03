@@ -144,7 +144,8 @@ describe('periodLabel', () => {
   });
 
   it('shows a custom range as its dates', () => {
-    expect(periodLabel({ kind: 'custom', from: '2026-08-01', to: '2026-09-01' }, 'en'))
-      .toBe('2026-08-01 → 2026-09-01');
+    expect(periodLabel({ kind: 'custom', from: '2026-08-01', to: '2026-09-01' }, 'en')).toBe(
+      '2026-08-01 → 2026-09-01',
+    );
   });
 });

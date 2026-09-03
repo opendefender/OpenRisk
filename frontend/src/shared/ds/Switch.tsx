@@ -28,8 +28,10 @@ import { useControlWiring } from './fieldContext';
 
 export type SwitchSize = 'sm' | 'md';
 
-export interface SwitchProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size' | 'children' | 'role'> {
+export interface SwitchProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'size' | 'children' | 'role'
+> {
   label?: ReactNode;
   description?: ReactNode;
   size?: SwitchSize;
@@ -62,7 +64,8 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
      announces as "Consent I accept", which is two questions read as one. */
   const inputId = id ?? (label ? generated : wiredId);
   const descriptionId = description ? `${inputId}-description` : undefined;
-  const describedBy = [aria['aria-describedby'], descriptionId].filter(Boolean).join(' ') || undefined;
+  const describedBy =
+    [aria['aria-describedby'], descriptionId].filter(Boolean).join(' ') || undefined;
   const isDisabled = disabled ?? aria.disabled;
 
   /* `size` is a union from a caller; normalise before indexing so an unexpected

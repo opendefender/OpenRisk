@@ -42,14 +42,18 @@ export function PersonalizeCard({ compact }: { compact?: boolean }) {
   return (
     <div className={compact ? '' : 'space-y-4'}>
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mb-2">{tr('Thème', 'Theme')}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mb-2">
+          {tr('Thème', 'Theme')}
+        </div>
         <div className="flex gap-2">
           {themeBtn('light', Sun, tr('Clair', 'Light'))}
           {themeBtn('dark', Moon, tr('Sombre', 'Dark'))}
         </div>
       </div>
       <div className={compact ? 'mt-3' : ''}>
-        <div className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mb-2">{tr('Couleur d’accent', 'Accent color')}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mb-2">
+          {tr('Couleur d’accent', 'Accent color')}
+        </div>
         <div className="flex gap-2.5">
           {ACCENTS.map((a) => {
             const active = variant === a.key;
@@ -58,9 +62,19 @@ export function PersonalizeCard({ compact }: { compact?: boolean }) {
                 key={a.key}
                 onClick={() => setVariant(a.key)}
                 className="flex items-center gap-2 h-9 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors"
-                style={{ background: 'var(--bg-hover)', border: `1px solid ${active ? a.color : 'transparent'}`, color: active ? 'var(--fg-primary)' : 'var(--fg-secondary)' }}
+                style={{
+                  background: 'var(--bg-hover)',
+                  border: `1px solid ${active ? a.color : 'transparent'}`,
+                  color: active ? 'var(--fg-primary)' : 'var(--fg-secondary)',
+                }}
               >
-                <span className="w-4 h-4 rounded-full" style={{ background: a.color, boxShadow: active ? `0 0 0 2px var(--bg-hover), 0 0 0 3px ${a.color}` : 'none' }} />
+                <span
+                  className="w-4 h-4 rounded-full"
+                  style={{
+                    background: a.color,
+                    boxShadow: active ? `0 0 0 2px var(--bg-hover), 0 0 0 3px ${a.color}` : 'none',
+                  }}
+                />
                 {a.label}
               </button>
             );

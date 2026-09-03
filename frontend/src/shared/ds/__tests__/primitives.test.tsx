@@ -100,7 +100,12 @@ describe('Field', () => {
 
   it('exposes the description and the error to the control, in that order', () => {
     render(
-      <Field label="CVSS" description="Base score from the scanner" message="Must be 0–10" status="invalid">
+      <Field
+        label="CVSS"
+        description="Base score from the scanner"
+        message="Must be 0–10"
+        status="invalid"
+      >
         <Input />
       </Field>,
     );
@@ -373,7 +378,9 @@ describe('Tabs', () => {
     // Roving tabindex: Tab enters the tablist once and then moves ON to the
     // panel, rather than walking through every tab.
     render(<TabsHarness />);
-    const inOrder = screen.getAllByRole('tab').filter((tab) => tab.getAttribute('tabindex') === '0');
+    const inOrder = screen
+      .getAllByRole('tab')
+      .filter((tab) => tab.getAttribute('tabindex') === '0');
     expect(inOrder).toHaveLength(1);
   });
 

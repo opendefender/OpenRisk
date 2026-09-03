@@ -21,7 +21,13 @@ import { useUIStore } from '../../store/uiStore';
 
 type Phase = 'loading' | 'scan' | 'error';
 
-export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => void; onEnrolled?: () => void }) {
+export function MFAEnrollmentDialog({
+  onClose,
+  onEnrolled,
+}: {
+  onClose: () => void;
+  onEnrolled?: () => void;
+}) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const invalidateStatus = useInvalidateMFAStatus();
@@ -72,11 +78,18 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
     try {
       await verifyMFA(code.trim());
       await invalidateStatus();
-      toast.success(tr('Authentification à deux facteurs activée', 'Two-factor authentication enabled'));
+      toast.success(
+        tr('Authentification à deux facteurs activée', 'Two-factor authentication enabled'),
+      );
       onEnrolled?.();
       onClose();
     } catch {
-      setError(tr('Code invalide. Vérifiez l’heure de votre appareil et réessayez.', 'Invalid code. Check your device clock and try again.'));
+      setError(
+        tr(
+          'Code invalide. Vérifiez l’heure de votre appareil et réessayez.',
+          'Invalid code. Check your device clock and try again.',
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -114,10 +127,20 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
         className="w-full max-w-[440px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden outline-none"
-        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
       >
-        <div className="px-[22px] pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
+        <div
+          className="px-[22px] pt-5 pb-4 flex items-center gap-3"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div
+            className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+          >
             <ShieldCheck size={18} />
           </div>
           <div id="mfa-enrol-title" className="disp text-[17px] font-bold text-ink flex-1">
@@ -146,7 +169,7 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
             <div className="text-[13px]" style={{ color: 'var(--critical)' }} role="alert">
               {tr(
                 "Impossible de démarrer l'activation. Réessayez, ou contactez un administrateur si le problème persiste.",
-                'Could not start enrollment. Try again, or contact an administrator if this persists.'
+                'Could not start enrollment. Try again, or contact an administrator if this persists.',
               )}
             </div>
           )}
@@ -156,18 +179,29 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
               <p className="text-[13px] text-ink-soft leading-relaxed">
                 {tr(
                   'Scannez ce QR code avec votre application d’authentification, puis saisissez le code à 6 chiffres qu’elle affiche.',
-                  'Scan this QR code with your authenticator app, then enter the 6-digit code it shows.'
+                  'Scan this QR code with your authenticator app, then enter the 6-digit code it shows.',
                 )}
               </p>
 
               {qrSrc && (
-                <div className="flex justify-center p-3 rounded-[13px]" style={{ background: '#fff' }}>
-                  <img src={qrSrc} alt={tr('QR code d’activation MFA', 'MFA enrollment QR code')} width={168} height={168} />
+                <div
+                  className="flex justify-center p-3 rounded-[13px]"
+                  style={{ background: '#fff' }}
+                >
+                  <img
+                    src={qrSrc}
+                    alt={tr('QR code d’activation MFA', 'MFA enrollment QR code')}
+                    width={168}
+                    height={168}
+                  />
                 </div>
               )}
 
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-[12px] px-3 py-2 rounded-[9px] text-ink break-all" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                <code
+                  className="flex-1 text-[12px] px-3 py-2 rounded-[9px] text-ink break-all"
+                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+                >
                   {setup.secret}
                 </code>
                 <button
@@ -189,12 +223,19 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
                   <p className="text-[12px] text-ink-soft mb-2 leading-relaxed">
                     {tr(
                       'Conservez-les hors ligne. Chacun ne fonctionne qu’une fois, et ils sont votre seule issue si vous perdez votre appareil.',
-                      'Keep these offline. Each works once, and they are your only way back in if you lose your device.'
+                      'Keep these offline. Each works once, and they are your only way back in if you lose your device.',
                     )}
                   </p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {setup.backup_codes.map((c) => (
-                      <code key={c} className="text-[12px] px-2 py-1.5 rounded-[8px] text-ink text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                      <code
+                        key={c}
+                        className="text-[12px] px-2 py-1.5 rounded-[8px] text-ink text-center"
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
                         {c}
                       </code>
                     ))}
@@ -219,7 +260,12 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
               </label>
 
               {error && (
-                <div id="mfa-enrol-error" role="alert" className="text-[12.5px]" style={{ color: 'var(--critical)' }}>
+                <div
+                  id="mfa-enrol-error"
+                  role="alert"
+                  className="text-[12.5px]"
+                  style={{ color: 'var(--critical)' }}
+                >
                   {error}
                 </div>
               )}
@@ -227,7 +273,10 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
           )}
         </div>
 
-        <div className="px-[22px] py-4 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+        <div
+          className="px-[22px] py-4 flex justify-end gap-2"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -240,7 +289,11 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
             type="submit"
             disabled={busy || phase !== 'scan' || code.trim().length < 6}
             className="h-9 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-60"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+            style={{
+              border: 'none',
+              background: 'var(--accent-solid)',
+              color: 'var(--fg-on-solid)',
+            }}
           >
             {busy && <Loader2 size={15} className="animate-spin" />}
             {tr('Activer', 'Enable')}
@@ -248,6 +301,6 @@ export function MFAEnrollmentDialog({ onClose, onEnrolled }: { onClose: () => vo
         </div>
       </form>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -55,7 +55,10 @@ function GuardPlaceholder() {
     >
       <div
         className="h-8 w-8 rounded-full animate-spin"
-        style={{ border: '3px solid var(--border-subtle)', borderTopColor: 'var(--accent, #2e6be6)' }}
+        style={{
+          border: '3px solid var(--border-subtle)',
+          borderTopColor: 'var(--accent, #2e6be6)',
+        }}
         role="status"
         aria-label="Chargement…"
       />

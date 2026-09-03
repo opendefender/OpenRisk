@@ -17,8 +17,7 @@ import { isAxiosError } from 'axios';
 export function apiErrorMessage(err: unknown): string {
   if (!isAxiosError(err)) return '';
   const data = err.response?.data as
-    | { error?: unknown; message?: unknown; details?: unknown }
-    | undefined;
+    { error?: unknown; message?: unknown; details?: unknown } | undefined;
   if (!data) return '';
   for (const candidate of [data.message, data.error, data.details]) {
     if (typeof candidate === 'string' && candidate.trim() !== '') {

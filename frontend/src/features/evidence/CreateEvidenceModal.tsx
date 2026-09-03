@@ -87,22 +87,30 @@ export function CreateEvidenceModal({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={tr('ex. Rapport de test d\'intrusion 2026', 'e.g. Penetration test report 2026')}
+              placeholder={tr(
+                "ex. Rapport de test d'intrusion 2026",
+                'e.g. Penetration test report 2026',
+              )}
               className="w-full px-3 py-2 text-[13px] rounded-lg bg-surface-2 border border-line text-ink"
             />
           </Field>
 
-          <Field label={tr('Nature', 'Nature')} hint={tr(
-            "Ce qu'un auditeur demande : pas le format du fichier.",
-            'What an auditor asks about — not the file format.',
-          )}>
+          <Field
+            label={tr('Nature', 'Nature')}
+            hint={tr(
+              "Ce qu'un auditeur demande : pas le format du fichier.",
+              'What an auditor asks about — not the file format.',
+            )}
+          >
             <div className="flex flex-wrap gap-1.5">
               {(Object.keys(EVIDENCE_TYPE_META) as EvidenceType[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setType(t)}
                   className={`px-2.5 py-1 rounded-full text-[12.5px] border ${
-                    type === t ? 'border-accent text-accent bg-accent/10' : 'border-line text-ink-muted'
+                    type === t
+                      ? 'border-accent text-accent bg-accent/10'
+                      : 'border-line text-ink-muted'
                   }`}
                 >
                   {tr(EVIDENCE_TYPE_META[t].fr, EVIDENCE_TYPE_META[t].en)}
@@ -111,10 +119,13 @@ export function CreateEvidenceModal({
             </div>
           </Field>
 
-          <Field label={tr('Fichier', 'File')} hint={tr(
-            'Facultatif : une preuve peut être un lien ou une déclaration écrite.',
-            'Optional: evidence can be a link or a written statement.',
-          )}>
+          <Field
+            label={tr('Fichier', 'File')}
+            hint={tr(
+              'Facultatif : une preuve peut être un lien ou une déclaration écrite.',
+              'Optional: evidence can be a link or a written statement.',
+            )}
+          >
             <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-line cursor-pointer text-[13px] text-ink-muted hover:bg-surface-2">
               <Upload size={15} />
               {file ? (
@@ -149,10 +160,13 @@ export function CreateEvidenceModal({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label={tr('Collectée le', 'Collected on')} hint={tr(
-              'Quand la preuve a été prise, pas aujourd\'hui.',
-              'When the proof was taken, not today.',
-            )}>
+            <Field
+              label={tr('Collectée le', 'Collected on')}
+              hint={tr(
+                "Quand la preuve a été prise, pas aujourd'hui.",
+                'When the proof was taken, not today.',
+              )}
+            >
               <input
                 type="date"
                 value={collectedAt}
@@ -160,10 +174,10 @@ export function CreateEvidenceModal({
                 className="w-full px-3 py-2 text-[13px] rounded-lg bg-surface-2 border border-line text-ink"
               />
             </Field>
-            <Field label={tr('Valide jusqu\'au', 'Valid until')} hint={tr(
-              'Laisser vide si elle n\'expire pas.',
-              'Leave empty if it never expires.',
-            )}>
+            <Field
+              label={tr("Valide jusqu'au", 'Valid until')}
+              hint={tr("Laisser vide si elle n'expire pas.", 'Leave empty if it never expires.')}
+            >
               <input
                 type="date"
                 value={validUntil}
@@ -173,10 +187,13 @@ export function CreateEvidenceModal({
             </Field>
           </div>
 
-          <Field label={tr('Contrôles justifiés', 'Controls substantiated')} hint={tr(
-            'Une même preuve peut en couvrir plusieurs, dans plusieurs référentiels.',
-            'One artifact can cover several, across several frameworks.',
-          )}>
+          <Field
+            label={tr('Contrôles justifiés', 'Controls substantiated')}
+            hint={tr(
+              'Une même preuve peut en couvrir plusieurs, dans plusieurs référentiels.',
+              'One artifact can cover several, across several frameworks.',
+            )}
+          >
             <select
               value={frameworkId}
               onChange={(e) => setFrameworkId(e.target.value)}
@@ -207,7 +224,9 @@ export function CreateEvidenceModal({
                       }
                     />
                     <span className="min-w-0">
-                      <span className="font-mono text-[12px] text-ink-muted mr-1.5">{c.reference_code}</span>
+                      <span className="font-mono text-[12px] text-ink-muted mr-1.5">
+                        {c.reference_code}
+                      </span>
                       <span className="text-ink">{c.name}</span>
                     </span>
                   </label>
@@ -239,7 +258,11 @@ export function CreateEvidenceModal({
 
         <footer className="px-5 py-3.5 border-t border-line flex justify-end gap-2 shrink-0">
           <Btn onClick={onClose} label={tr('Annuler', 'Cancel')} />
-          <Btn disabled={!canSubmit} onClick={submit} label={pending ? tr('Enregistrement…', 'Saving…') : tr('Enregistrer', 'Save')} />
+          <Btn
+            disabled={!canSubmit}
+            onClick={submit}
+            label={pending ? tr('Enregistrement…', 'Saving…') : tr('Enregistrer', 'Save')}
+          />
         </footer>
       </div>
     </div>

@@ -20,7 +20,14 @@ const LOGO_PATH =
 
 export function OpenRiskLogo({ size = 20, className, title = 'OpenRisk' }: LogoProps) {
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} className={className} role="img" aria-label={title}>
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={className}
+      role="img"
+      aria-label={title}
+    >
       <title>{title}</title>
       <path d={LOGO_PATH} fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
     </svg>

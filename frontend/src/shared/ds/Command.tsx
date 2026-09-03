@@ -39,9 +39,9 @@ import {
   useState,
   type KeyboardEvent,
   type ReactNode,
-} from "react";
-import { type LucideIcon } from "lucide-react";
-import { cn } from "./cn";
+} from 'react';
+import { type LucideIcon } from 'lucide-react';
+import { cn } from './cn';
 
 export interface CommandItem {
   /** Stable across filtering; used for the option id and as the React key. */
@@ -77,7 +77,10 @@ export interface CommandProps {
 
 /** NFD-normalise and strip combining marks, so `règlement` matches `reglement`. */
 function fold(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 }
 
 function matches(item: CommandItem, folded: string): boolean {
@@ -88,14 +91,14 @@ function matches(item: CommandItem, folded: string): boolean {
 
 export function Command({
   items,
-  placeholder = "Type a command or search…",
-  emptyMessage = "No results",
+  placeholder = 'Type a command or search…',
+  emptyMessage = 'No results',
   label,
   maxVisible = 50,
   autoFocus,
   className,
 }: CommandProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [requestedIndex, setActiveIndex] = useState(0);
   const listId = useId();
   const inputId = useId();
@@ -113,7 +116,7 @@ export function Command({
   const groups = useMemo(() => {
     const m = new Map<string, CommandItem[]>();
     for (const item of visible) {
-      const key = item.group ?? "";
+      const key = item.group ?? '';
       const bucket = m.get(key);
       if (bucket) bucket.push(item);
       else m.set(key, [item]);
@@ -131,10 +134,8 @@ export function Command({
   /* Keeps the active row in view when arrowing past the fold. `block: 'nearest'`
      rather than centring, so the list does not lurch on every keystroke. */
   useEffect(() => {
-    const node = listRef.current?.querySelector<HTMLElement>(
-      '[data-active="true"]',
-    );
-    node?.scrollIntoView({ block: "nearest" });
+    const node = listRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+    node?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex]);
 
   function step(delta: number) {
@@ -151,23 +152,23 @@ export function Command({
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     switch (e.key) {
-      case "ArrowDown":
+      case 'ArrowDown':
         e.preventDefault();
         step(1);
         break;
-      case "ArrowUp":
+      case 'ArrowUp':
         e.preventDefault();
         step(-1);
         break;
-      case "Home":
+      case 'Home':
         e.preventDefault();
         setActiveIndex(0);
         break;
-      case "End":
+      case 'End':
         e.preventDefault();
         setActiveIndex(Math.max(0, visible.length - 1));
         break;
-      case "Enter":
+      case 'Enter':
         e.preventDefault();
         activate(visible[activeIndex]);
         break;
@@ -176,12 +177,10 @@ export function Command({
     }
   }
 
-  const activeId = visible[activeIndex]
-    ? `${listId}-${visible[activeIndex].id}`
-    : undefined;
+  const activeId = visible[activeIndex] ? `${listId}-${visible[activeIndex].id}` : undefined;
 
   return (
-    <div className={cn("flex flex-col overflow-hidden", className)}>
+    <div className={cn('flex flex-col overflow-hidden', className)}>
       <input
         id={inputId}
         type="text"
@@ -202,10 +201,10 @@ export function Command({
         autoComplete="off"
         spellCheck={false}
         className={cn(
-          "w-full shrink-0 border-b border-default bg-transparent",
-          "h-(--control-h-lg) px-(--control-px-md)",
-          "text-sm text-fg-primary placeholder:text-fg-muted",
-          "outline-none",
+          'w-full shrink-0 border-b border-default bg-transparent',
+          'h-(--control-h-lg) px-(--control-px-md)',
+          'text-sm text-fg-primary placeholder:text-fg-muted',
+          'outline-none',
         )}
       />
 
@@ -217,17 +216,11 @@ export function Command({
         className="max-h-80 overflow-y-auto overscroll-contain py-1"
       >
         {visible.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-fg-muted">
-            {emptyMessage}
-          </p>
+          <p className="px-3 py-6 text-center text-sm text-fg-muted">{emptyMessage}</p>
         )}
 
         {groups.map(([groupLabel, groupItems]) => (
-          <div
-            key={groupLabel || "__ungrouped"}
-            role="group"
-            aria-label={groupLabel || undefined}
-          >
+          <div key={groupLabel || '__ungrouped'} role="group" aria-label={groupLabel || undefined}>
             {groupLabel && (
               <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
                 {groupLabel}
@@ -256,20 +249,16 @@ export function Command({
                   onClick={() => activate(item)}
                   onMouseEnter={() => !item.disabled && setActiveIndex(index)}
                   className={cn(
-                    "mx-1 flex cursor-pointer items-center gap-2 rounded-sm px-2",
-                    "min-h-(--control-h-sm) text-sm text-fg-primary",
-                    isActive && "bg-surface-3",
-                    item.disabled && "cursor-not-allowed opacity-55",
+                    'mx-1 flex cursor-pointer items-center gap-2 rounded-sm px-2',
+                    'min-h-(--control-h-sm) text-sm text-fg-primary',
+                    isActive && 'bg-surface-3',
+                    item.disabled && 'cursor-not-allowed opacity-55',
                   )}
                 >
-                  {Icon && (
-                    <Icon size={14} aria-hidden="true" className="shrink-0" />
-                  )}
+                  {Icon && <Icon size={14} aria-hidden="true" className="shrink-0" />}
                   <span className="flex-1 truncate">{item.label}</span>
                   {item.shortcut && (
-                    <kbd className="shrink-0 font-mono text-2xs text-fg-muted">
-                      {item.shortcut}
-                    </kbd>
+                    <kbd className="shrink-0 font-mono text-2xs text-fg-muted">{item.shortcut}</kbd>
                   )}
                 </div>
               );
