@@ -545,8 +545,8 @@ arrived.
 required check. `CONTRIBUTING.md` must state that `git commit -s` is mandatory.
 Switching to `cla-assistant` later is a workflow change; commits merged under DCO
 keep their trailer as their record, so nothing has to be re-signed.
-**Unblocked** — #453 opened to execute it (`status:ready`). Enforcement is not live until
-the owner flips the required-check setting by hand; #453 says so in its DoD.
+**Unblocked** — executed by #455 (#453, its duplicate, was closed). Enforcement is not live
+until the owner flips the required-check setting by hand; #455 says so in its DoD.
 
 ### D-014 — `design-system/` is relicensed to Apache-2.0 · 2026-08-31
 **Decided** — Option A. `design-system/` becomes `Apache-2.0` and gains a

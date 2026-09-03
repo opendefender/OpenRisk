@@ -1,0 +1,103 @@
+name: DCO
+
+# Enforces CLA.md §7: every commit in a pull request must carry a well-formed
+# `Signed-off-by:` trailer. See docs/DECISIONS.md, D-015 (option A).
+#
+# Deliberately runs on `pull_request`, never `pull_request_target`: this job
+# reads untrusted branch content and must not hold a privileged token.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco-check:
+    name: Signed-off-by trailer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Verify Signed-off-by on every commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # A well-formed trailer: a non-empty name, then an address of the form
+          # local@domain.tld inside angle brackets. Anchored at both ends so a
+          # substring never passes. Case-insensitive, as git treats trailer keys.
+          TRAILER_RE='^Signed-off-by:[[:space:]]*[^<>[:space:]][^<>]*<[^<>[:space:]@]+@[^<>[:space:]@]+\.[^<>[:space:]@]+>[[:space:]]*$'
+
+          # Merge commits that GitHub generates inside a pull request carry no
+          # author sign-off; --no-merges excludes them (acceptance criterion 4).
+          if MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA" 2>/dev/null); then
+            RANGE="$MERGE_BASE..$HEAD_SHA"
+          else
+            RANGE="$BASE_SHA..$HEAD_SHA"
+          fi
+
+          COMMITS=$(git rev-list --no-merges "$RANGE")
+
+          if [ -z "$COMMITS" ]; then
+            echo "No non-merge commits in this pull request. Nothing to check."
+            exit 0
+          fi
+
+          total=0
+          failed=0
+          report=""
+
+          for sha in $COMMITS; do
+            total=$((total + 1))
+            if git show -s --format=%B "$sha" | grep -qiE "$TRAILER_RE"; then
+              echo "PASS $(git show -s --format='%h %s' "$sha")"
+            else
+              failed=$((failed + 1))
+              line="$(git show -s --format='%H %s' "$sha")"
+              echo "FAIL $line"
+              report="${report}- \`${line}\`"$'\n'
+            fi
+          done
+
+          CLA_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/HEAD/CLA.md"
+
+          if [ "$failed" -eq 0 ]; then
+            echo "All ${total} commit(s) carry a valid Signed-off-by trailer."
+            {
+              echo "### DCO check passed"
+              echo
+              echo "All ${total} commit(s) carry a valid \`Signed-off-by\` trailer."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "### DCO check failed"
+            echo
+            echo "${failed} of ${total} commit(s) lack a well-formed \`Signed-off-by\` trailer:"
+            echo
+            printf '%s\n' "$report"
+            echo "Every commit must record acceptance of [\`CLA.md\`](${CLA_URL}) §7 with a trailer of this exact form:"
+            echo
+            echo '```'
+            echo 'Signed-off-by: Jane Doe <jane@example.com>'
+            echo '```'
+            echo
+            echo "**To fix this branch,** sign off every commit already on it, then update the remote:"
+            echo
+            echo '```bash'
+            echo "git rebase --signoff ${BASE_SHA}"
+            echo "git push --force-with-lease"
+            echo '```'
+            echo
+            echo "Use \`git commit -s\` from then on and the trailer is added for you."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          exit 1

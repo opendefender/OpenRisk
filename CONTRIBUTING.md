@@ -448,6 +448,35 @@ The agreement is [`CLA.md`](CLA.md). By agreeing to it, you confirm that:
 2. You are legally entitled to grant the above license.
 3. This is a license agreement only; you retain ownership of your original contributions.
 
+### How to accept it — sign off every commit
+
+You accept the agreement per commit, with a `Signed-off-by` trailer carrying your real name
+and an email address you control ([`CLA.md`](CLA.md) §7):
+
+```
+Signed-off-by: Jane Doe <jane@example.com>
+```
+
+Pass `-s` and git writes it for you, from your `user.name` and `user.email`:
+
+```bash
+git commit -s -m "feat(risks): add residual score column (#123)"
+```
+
+**This is enforced.** The `DCO` check
+([`.github/workflows/dco.yml`](.github/workflows/dco.yml)) runs on every pull request and
+fails it when any commit lacks a well-formed trailer, naming the offending commits. If you
+have already written commits without one, sign off the whole branch at once and update the
+remote:
+
+```bash
+git rebase --signoff origin/master
+git push --force-with-lease
+```
+
+Merge commits are exempt — the check ignores them. Nothing in your existing history outside
+the pull request is touched.
+
 ## License
 
 By contributing to OpenRisk, you agree to the terms of the [CLA](CLA.md) and acknowledge the
