@@ -58,6 +58,11 @@ export default defineConfig({
             id.includes('react-use-measure')
           )
             return 'charts'
+          // anime.js gets its OWN chunk (#445, D-028) rather than riding along in
+          // `charts`. That is what makes the 12 KB gzip ceiling in
+          // scripts/check-anime-budget.mjs measurable at all: mixed into the
+          // charts chunk alongside visx there would be no number to assert.
+          if (id.includes('animejs')) return 'anime'
           if (id.includes('@zxcvbn-ts')) return 'zxcvbn' // password-strength dictionaries (huge)
           if (id.includes('leaflet')) return 'maps'
           if (id.includes('@hello-pangea') || id.includes('react-grid-layout') || id.includes('react-resizable'))
