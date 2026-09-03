@@ -14,7 +14,7 @@ function renderState(props: Partial<React.ComponentProps<typeof WidgetState>>) {
   return render(
     <WidgetState lang="en" isLoading={false} error={null} {...props}>
       <div data-testid="payload">{FABRICATED}</div>
-    </WidgetState>
+    </WidgetState>,
   );
 }
 
@@ -88,7 +88,7 @@ describe('WidgetState', () => {
     render(
       <WidgetState lang="fr" isLoading={false} error={new Error('x')}>
         <div />
-      </WidgetState>
+      </WidgetState>,
     );
     expect(screen.getByText(/données indisponibles/i)).toBeInTheDocument();
   });

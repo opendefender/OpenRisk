@@ -44,8 +44,10 @@ import { Check, Minus } from 'lucide-react';
 import { cn } from './cn';
 import { useControlWiring } from './fieldContext';
 
-export interface CheckboxProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size' | 'children'> {
+export interface CheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'size' | 'children'
+> {
   /** Sits beside the box. Omit only when an aria-label is supplied instead. */
   label?: ReactNode;
   /** Secondary line under the label. Reaches the input via aria-describedby. */
@@ -74,7 +76,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     if (inner.current) inner.current.indeterminate = indeterminate;
   }, [indeterminate]);
 
-  const describedBy = [aria['aria-describedby'], descriptionId].filter(Boolean).join(' ') || undefined;
+  const describedBy =
+    [aria['aria-describedby'], descriptionId].filter(Boolean).join(' ') || undefined;
   const isDisabled = disabled ?? aria.disabled;
 
   const box = (
@@ -143,7 +146,12 @@ export interface CheckboxGroupProps {
   /** Rendered as a real <legend>: it names the group for a screen reader. */
   legend: ReactNode;
   description?: ReactNode;
-  options: ReadonlyArray<{ value: string; label: ReactNode; description?: ReactNode; disabled?: boolean }>;
+  options: ReadonlyArray<{
+    value: string;
+    label: ReactNode;
+    description?: ReactNode;
+    disabled?: boolean;
+  }>;
   value: readonly string[];
   onValueChange: (next: string[]) => void;
   disabled?: boolean;
@@ -189,7 +197,12 @@ export function CheckboxGroup({
           {description}
         </p>
       )}
-      <div className={cn('flex gap-x-4', orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap')}>
+      <div
+        className={cn(
+          'flex gap-x-4',
+          orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap',
+        )}
+      >
         {options.map((option) => (
           <Checkbox
             key={option.value}

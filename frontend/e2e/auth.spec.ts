@@ -77,7 +77,10 @@ const PROVIDERS = [
 
 test.describe('OAuth providers', () => {
   for (const provider of PROVIDERS) {
-    test(`${provider.label}: the button starts a PKCE-protected flow`, async ({ page, request }) => {
+    test(`${provider.label}: the button starts a PKCE-protected flow`, async ({
+      page,
+      request,
+    }) => {
       await page.goto('/login');
       await expect(page.getByTestId(`oauth-${provider.id}`)).toBeVisible();
 
@@ -140,10 +143,21 @@ test.describe('OAuth providers', () => {
 
   test('every OAuth error code renders some message', async ({ page }) => {
     const codes = [
-      'access_denied', 'consent_required', 'provider_error', 'state_missing',
-      'state_invalid', 'code_missing', 'exchange_failed', 'userinfo_failed',
-      'unsupported_provider', 'provider_not_configured', 'email_unverified',
-      'no_email', 'account_disabled', 'no_account', 'internal',
+      'access_denied',
+      'consent_required',
+      'provider_error',
+      'state_missing',
+      'state_invalid',
+      'code_missing',
+      'exchange_failed',
+      'userinfo_failed',
+      'unsupported_provider',
+      'provider_not_configured',
+      'email_unverified',
+      'no_email',
+      'account_disabled',
+      'no_account',
+      'internal',
     ];
 
     for (const code of codes) {
@@ -160,7 +174,9 @@ test.describe('OAuth providers', () => {
  * ------------------------------------------------------------------ */
 
 test.describe('account enumeration', () => {
-  test('the reset request answers identically for known and unknown addresses', async ({ request }) => {
+  test('the reset request answers identically for known and unknown addresses', async ({
+    request,
+  }) => {
     // The core anti-enumeration property, checked at the wire level: status,
     // body and headers must not differ.
     const known = await request.post(`${API}/auth/password/forgot`, {
@@ -182,14 +198,18 @@ test.describe('account enumeration', () => {
       await page.getByTestId('forgot-email').fill(email);
       await page.getByTestId('forgot-submit').click();
       await expect(page.getByTestId('auth-success').or(page.getByRole('heading'))).toBeVisible();
-      bodies.push((await page.locator('form, [data-testid=auth-success]').first().innerText()).trim());
+      bodies.push(
+        (await page.locator('form, [data-testid=auth-success]').first().innerText()).trim(),
+      );
     }
 
     // Whatever the screen says, it must say the same thing both times.
     expect(bodies[0]).toBe(bodies[1]);
   });
 
-  test('login does not distinguish a wrong password from an unknown account', async ({ request }) => {
+  test('login does not distinguish a wrong password from an unknown account', async ({
+    request,
+  }) => {
     const wrongPassword = await request.post(`${API}/auth/login`, {
       data: { email: ACCOUNT.email, password: 'Definitely-Not-The-Password-1' },
     });
@@ -214,8 +234,10 @@ test.describe('account enumeration', () => {
       statuses.push(r.status());
     }
 
-    expect(statuses.filter((s) => s === 429).length, 'expected the cap to bite for an unknown address')
-      .toBeGreaterThan(0);
+    expect(
+      statuses.filter((s) => s === 429).length,
+      'expected the cap to bite for an unknown address',
+    ).toBeGreaterThan(0);
   });
 });
 
@@ -252,7 +274,9 @@ test.describe('password reset', () => {
     expect(body.code).toBe('invalid_token');
   });
 
-  test('the forgot-password link on the sign-in screen actually goes somewhere', async ({ page }) => {
+  test('the forgot-password link on the sign-in screen actually goes somewhere', async ({
+    page,
+  }) => {
     // It used to be an href="#" with preventDefault — a control that looked live
     // and did nothing.
     await page.goto('/login');
@@ -287,7 +311,9 @@ test.describe('password policy', () => {
     expect(a.blocking.map((r: { code: string }) => r.code)).toContain('needs_more_classes');
   });
 
-  test('refuses a decorated dictionary word that passes length and classes', async ({ request }) => {
+  test('refuses a decorated dictionary word that passes length and classes', async ({
+    request,
+  }) => {
     // The shape a naive length+classes rule lets straight through.
     const a = await assess(request, 'Password1234!');
     expect(a.ok).toBe(false);
@@ -314,7 +340,9 @@ test.describe('password policy', () => {
     }
   });
 
-  test('the server refuses a weak password even if the client would allow it', async ({ request }) => {
+  test('the server refuses a weak password even if the client would allow it', async ({
+    request,
+  }) => {
     // Server-authoritative: the browser's opinion is not consulted.
     const response = await request.post(`${API}/auth/password/reset`, {
       data: { token: 'irrelevant-the-policy-runs-first', new_password: 'short', locale: 'en' },
@@ -419,11 +447,12 @@ test.describe('sign-in screen', () => {
     const page = await context.newPage();
     await page.goto('/login');
 
-    const animated = await page.evaluate(() =>
-      [...document.querySelectorAll('*')].filter((el) => {
-        const name = getComputedStyle(el).animationName;
-        return name && name !== 'none';
-      }).length,
+    const animated = await page.evaluate(
+      () =>
+        [...document.querySelectorAll('*')].filter((el) => {
+          const name = getComputedStyle(el).animationName;
+          return name && name !== 'none';
+        }).length,
     );
 
     expect(animated, 'no element may animate under reduced motion').toBe(0);
@@ -434,8 +463,7 @@ test.describe('sign-in screen', () => {
     await page.goto('/login');
 
     const overLong = await page.evaluate(() => {
-      const parse = (v: string) =>
-        v.trim().endsWith('ms') ? parseFloat(v) : parseFloat(v) * 1000;
+      const parse = (v: string) => (v.trim().endsWith('ms') ? parseFloat(v) : parseFloat(v) * 1000);
 
       const offenders: string[] = [];
       for (const el of document.querySelectorAll('*')) {

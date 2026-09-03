@@ -57,15 +57,9 @@ export const ProgressBar = ({
           )}
         </div>
       )}
-      <div className={cn(
-        'w-full bg-surface-3 rounded-full overflow-hidden',
-        sizeClasses[size]
-      )}>
+      <div className={cn('w-full bg-surface-3 rounded-full overflow-hidden', sizeClasses[size])}>
         <motion.div
-          className={cn(
-            'h-full rounded-full transition-all duration-500',
-            variantClasses[variant]
-          )}
+          className={cn('h-full rounded-full transition-all duration-500', variantClasses[variant])}
           initial={animated ? { width: 0 } : undefined}
           animate={{ width: `${percentage}%` }}
           transition={animated ? { duration: 0.6, ease: 'easeOut' } : undefined}

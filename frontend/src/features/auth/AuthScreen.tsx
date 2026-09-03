@@ -80,7 +80,9 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
       const existing = params.get('existing_provider');
       // Naming the provider that DOES own the address is what makes this
       // recoverable — a bare refusal strands someone on their own account.
-      return existing ? copy.oauthConflictWith(providerLabel(existing)) : copy.oauth.provider_conflict;
+      return existing
+        ? copy.oauthConflictWith(providerLabel(existing))
+        : copy.oauth.provider_conflict;
     }
     return copy.oauth[code] ?? copy.oauth.internal;
   }, [params, copy]);
@@ -202,7 +204,11 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
         </label>
         {/* Was an href="#" with preventDefault — a control that looked live and
             did nothing. It now goes to the real flow. */}
-        <Link to="/forgot-password" data-testid="forgot-password-link" className="text-[12.5px] font-medium">
+        <Link
+          to="/forgot-password"
+          data-testid="forgot-password-link"
+          className="text-[12.5px] font-medium"
+        >
           {copy.forgotPassword}
         </Link>
       </div>
@@ -464,8 +470,12 @@ function MFAEnrollment({ token }: { token: string }) {
           style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
           data-testid="backup-codes"
         >
-          <div className="text-[12.5px] font-semibold text-ink mb-1">{copy.mfaEnrolBackupTitle}</div>
-          <p className="text-[11.5px] text-ink-muted mb-2 leading-snug">{copy.mfaEnrolBackupBody}</p>
+          <div className="text-[12.5px] font-semibold text-ink mb-1">
+            {copy.mfaEnrolBackupTitle}
+          </div>
+          <p className="text-[11.5px] text-ink-muted mb-2 leading-snug">
+            {copy.mfaEnrolBackupBody}
+          </p>
           <div className="grid grid-cols-2 gap-1.5">
             {backupCodes.map((c) => (
               <code key={c} className="mono text-[12px] text-ink">
@@ -542,7 +552,8 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
     setError('');
     try {
       const local = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_.-]/g, '');
-      const username = local.length >= 3 ? local : `${local || 'user'}${Date.now().toString().slice(-4)}`;
+      const username =
+        local.length >= 3 ? local : `${local || 'user'}${Date.now().toString().slice(-4)}`;
       const company = `${fullName.trim()}${lang === 'fr' ? ' — espace' : ' — workspace'}`;
 
       await api.post('/auth/register', {
@@ -575,7 +586,9 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
       if (status === 409) {
         setError(copy.registerEmailExists);
       } else if (status === 400) {
-        const msg = axios.isAxiosError(err) ? (err.response?.data as { error?: string })?.error : undefined;
+        const msg = axios.isAxiosError(err)
+          ? (err.response?.data as { error?: string })?.error
+          : undefined;
         setError(msg || copy.registerFailed);
       } else {
         setError(copy.registerFailed);

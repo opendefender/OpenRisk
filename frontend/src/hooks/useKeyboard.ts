@@ -20,7 +20,7 @@ interface KeyboardOptions {
 export function useKeyboard(
   options: KeyboardOptions,
   callback: (event: KeyboardEvent) => void,
-  disabled: boolean = false
+  disabled: boolean = false,
 ) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -28,7 +28,9 @@ export function useKeyboard(
 
       const matchKey = event.key.toLowerCase() === options.key.toLowerCase();
       const matchCtrl = options.ctrl ? event.ctrlKey : !event.ctrlKey || options.ctrl === undefined;
-      const matchShift = options.shift ? event.shiftKey : !event.shiftKey || options.shift === undefined;
+      const matchShift = options.shift
+        ? event.shiftKey
+        : !event.shiftKey || options.shift === undefined;
       const matchAlt = options.alt ? event.altKey : !event.altKey || options.alt === undefined;
       const matchMeta = options.meta ? event.metaKey : !event.metaKey || options.meta === undefined;
 
@@ -37,7 +39,7 @@ export function useKeyboard(
         callback(event);
       }
     },
-    [options, callback, disabled]
+    [options, callback, disabled],
   );
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export function useKeyboard(
  */
 export function useKeyboardShortcuts(
   shortcuts: Array<{ options: KeyboardOptions; callback: (event: KeyboardEvent) => void }>,
-  disabled: boolean = false
+  disabled: boolean = false,
 ) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -59,10 +61,16 @@ export function useKeyboardShortcuts(
 
       shortcuts.forEach(({ options, callback }) => {
         const matchKey = event.key.toLowerCase() === options.key.toLowerCase();
-        const matchCtrl = options.ctrl ? event.ctrlKey : !event.ctrlKey || options.ctrl === undefined;
-        const matchShift = options.shift ? event.shiftKey : !event.shiftKey || options.shift === undefined;
+        const matchCtrl = options.ctrl
+          ? event.ctrlKey
+          : !event.ctrlKey || options.ctrl === undefined;
+        const matchShift = options.shift
+          ? event.shiftKey
+          : !event.shiftKey || options.shift === undefined;
         const matchAlt = options.alt ? event.altKey : !event.altKey || options.alt === undefined;
-        const matchMeta = options.meta ? event.metaKey : !event.metaKey || options.meta === undefined;
+        const matchMeta = options.meta
+          ? event.metaKey
+          : !event.metaKey || options.meta === undefined;
 
         if (matchKey && matchCtrl && matchShift && matchAlt && matchMeta) {
           event.preventDefault();
@@ -70,7 +78,7 @@ export function useKeyboardShortcuts(
         }
       });
     },
-    [shortcuts, disabled]
+    [shortcuts, disabled],
   );
 
   useEffect(() => {

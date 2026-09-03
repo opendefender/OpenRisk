@@ -79,8 +79,12 @@ export function useMembershipAudit(limit = 50) {
 export function useInviteMember() {
   const invalidate = useInvalidateMembership();
   return useMutation({
-    mutationFn: (input: { email: string; role: MemberRole; business_role?: string; locale?: string }) =>
-      organizationService.invite(input),
+    mutationFn: (input: {
+      email: string;
+      role: MemberRole;
+      business_role?: string;
+      locale?: string;
+    }) => organizationService.invite(input),
     onSuccess: invalidate,
   });
 }
@@ -105,8 +109,15 @@ export function useRevokeInvitation() {
 export function useSetMemberRole() {
   const invalidate = useInvalidateMembership();
   return useMutation({
-    mutationFn: ({ memberId, role, businessRole }: { memberId: string; role: MemberRole; businessRole?: string }) =>
-      organizationService.setRole(memberId, role, businessRole),
+    mutationFn: ({
+      memberId,
+      role,
+      businessRole,
+    }: {
+      memberId: string;
+      role: MemberRole;
+      businessRole?: string;
+    }) => organizationService.setRole(memberId, role, businessRole),
     onSuccess: invalidate,
   });
 }
@@ -114,8 +125,15 @@ export function useSetMemberRole() {
 export function useSetMemberStatus() {
   const invalidate = useInvalidateMembership();
   return useMutation({
-    mutationFn: ({ memberId, status, reason }: { memberId: string; status: MembershipStatus; reason?: string }) =>
-      organizationService.setStatus(memberId, status, reason),
+    mutationFn: ({
+      memberId,
+      status,
+      reason,
+    }: {
+      memberId: string;
+      status: MembershipStatus;
+      reason?: string;
+    }) => organizationService.setStatus(memberId, status, reason),
     onSuccess: invalidate,
   });
 }

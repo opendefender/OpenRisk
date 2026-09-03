@@ -16,7 +16,7 @@
  * spaces or surrounding words silently rejected) is worst on the login path.
  */
 
-export type OtpAlphabet = "numeric" | "alphanumeric";
+export type OtpAlphabet = 'numeric' | 'alphanumeric';
 
 const PATTERN: Record<OtpAlphabet, RegExp> = {
   numeric: /[^0-9]/g,
@@ -32,12 +32,8 @@ const PATTERN: Record<OtpAlphabet, RegExp> = {
  * out of an email. Anything that is not a code character is simply not a code
  * character.
  */
-export function sanitiseCode(
-  raw: string,
-  alphabet: OtpAlphabet,
-  length?: number,
-): string {
-  const cleaned = raw.replace(PATTERN[alphabet], "");
-  const cased = alphabet === "alphanumeric" ? cleaned.toUpperCase() : cleaned;
+export function sanitiseCode(raw: string, alphabet: OtpAlphabet, length?: number): string {
+  const cleaned = raw.replace(PATTERN[alphabet], '');
+  const cased = alphabet === 'alphanumeric' ? cleaned.toUpperCase() : cleaned;
   return length === undefined ? cased : cased.slice(0, length);
 }

@@ -12,7 +12,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  ShieldCheck, ShieldAlert, Loader2, Download, Clock, RefreshCw, FileJson, FileSpreadsheet,
+  ShieldCheck,
+  ShieldAlert,
+  Loader2,
+  Download,
+  Clock,
+  RefreshCw,
+  FileJson,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Btn, Card } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
@@ -29,7 +36,13 @@ function download(blob: Blob, name: string) {
   URL.revokeObjectURL(url);
 }
 
-export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; isAdmin: boolean }) {
+export function AuditIntegrityPanel({
+  filter,
+  isAdmin,
+}: {
+  filter: AuditFilter;
+  isAdmin: boolean;
+}) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const qc = useQueryClient();
@@ -68,7 +81,10 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
     onSuccess: (res) => {
       toast.success(
         res.pruned > 0
-          ? tr(`${res.pruned} entrée(s) purgée(s) et scellée(s).`, `${res.pruned} entries pruned and sealed.`)
+          ? tr(
+              `${res.pruned} entrée(s) purgée(s) et scellée(s).`,
+              `${res.pruned} entries pruned and sealed.`,
+            )
           : tr('Rien à purger.', 'Nothing to prune.'),
       );
       void qc.invalidateQueries({ queryKey: KEY });
@@ -88,9 +104,10 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
   const doExport = async (format: 'csv' | 'json') => {
     setExporting(format);
     try {
-      const blob = format === 'json'
-        ? await governanceService.exportAuditJson(filter)
-        : await governanceService.exportAuditCsv(filter);
+      const blob =
+        format === 'json'
+          ? await governanceService.exportAuditJson(filter)
+          : await governanceService.exportAuditCsv(filter);
       download(blob, `audit-trail-${new Date().toISOString().slice(0, 10)}.${format}`);
       toast.success(tr('Export signé téléchargé', 'Signed export downloaded'));
     } catch {
@@ -113,20 +130,37 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
       <Card style={{ padding: '14px 16px' }}>
         <div className="flex items-start gap-3 flex-wrap">
           {report.isLoading ? (
-            <Loader2 size={18} className="animate-spin shrink-0 mt-0.5" style={{ color: 'var(--fg-secondary)' }} />
+            <Loader2
+              size={18}
+              className="animate-spin shrink-0 mt-0.5"
+              style={{ color: 'var(--fg-secondary)' }}
+            />
           ) : valid ? (
             <ShieldCheck size={18} style={{ color: 'var(--low)' }} className="shrink-0 mt-0.5" />
           ) : (
-            <ShieldAlert size={18} style={{ color: 'var(--critical)' }} className="shrink-0 mt-0.5" />
+            <ShieldAlert
+              size={18}
+              style={{ color: 'var(--critical)' }}
+              className="shrink-0 mt-0.5"
+            />
           )}
 
           <div className="flex-1 min-w-[280px]">
-            <p className="text-[13.5px] font-bold" style={{ color: valid ? 'var(--low)' : 'var(--critical)' }}>
+            <p
+              className="text-[13.5px] font-bold"
+              style={{ color: valid ? 'var(--low)' : 'var(--critical)' }}
+            >
               {report.isLoading
                 ? tr('Vérification de la chaîne…', 'Verifying the chain…')
                 : valid
-                  ? tr('Chaîne intacte — aucune altération détectée', 'Chain intact — no alteration detected')
-                  : tr('Chaîne rompue — le journal a été altéré', 'Chain broken — the journal has been altered')}
+                  ? tr(
+                      'Chaîne intacte — aucune altération détectée',
+                      'Chain intact — no alteration detected',
+                    )
+                  : tr(
+                      'Chaîne rompue — le journal a été altéré',
+                      'Chain broken — the journal has been altered',
+                    )}
             </p>
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
               {tr(
@@ -137,7 +171,8 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
             {r && (
               <p className="text-[11.5px] mt-1 mono" style={{ color: 'var(--fg-secondary)' }}>
                 {r.verified}/{r.total_events} {tr('vérifiées', 'verified')}
-                {r.seals > 0 && ` · ${r.seals} ${tr('scellé(s) de rétention', 'retention seal(s)')}`}
+                {r.seals > 0 &&
+                  ` · ${r.seals} ${tr('scellé(s) de rétention', 'retention seal(s)')}`}
                 {r.head_hash && ` · ${tr('tête', 'head')} ${r.head_hash.slice(0, 12)}…`}
                 {` · ${new Date(r.checked_at).toLocaleString()}`}
               </p>
@@ -145,19 +180,41 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
           </div>
 
           <div className="flex items-center gap-2">
-            <Btn label={verifying ? tr('Vérification…', 'Verifying…') : tr('Vérifier', 'Verify')}
-              icon={verifying ? Loader2 : RefreshCw} onClick={runVerify} disabled={verifying} />
-            <Btn label={exporting === 'csv' ? '…' : 'CSV'} icon={FileSpreadsheet} onClick={() => doExport('csv')} disabled={exporting !== null} />
-            <Btn label={exporting === 'json' ? '…' : 'JSON'} icon={FileJson} onClick={() => doExport('json')} disabled={exporting !== null} />
+            <Btn
+              label={verifying ? tr('Vérification…', 'Verifying…') : tr('Vérifier', 'Verify')}
+              icon={verifying ? Loader2 : RefreshCw}
+              onClick={runVerify}
+              disabled={verifying}
+            />
+            <Btn
+              label={exporting === 'csv' ? '…' : 'CSV'}
+              icon={FileSpreadsheet}
+              onClick={() => doExport('csv')}
+              disabled={exporting !== null}
+            />
+            <Btn
+              label={exporting === 'json' ? '…' : 'JSON'}
+              icon={FileJson}
+              onClick={() => doExport('json')}
+              disabled={exporting !== null}
+            />
           </div>
         </div>
 
         {!valid && breaks.length > 0 && (
           <div className="mt-3 space-y-1.5">
             {breaks.slice(0, 8).map((b, i) => (
-              <div key={i} className="text-[12px] rounded-[8px] px-2.5 py-1.5"
-                style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', color: 'var(--fg-primary)' }}>
-                <span className="mono font-bold" style={{ color: 'var(--critical)' }}>#{b.sequence}</span>{' '}
+              <div
+                key={i}
+                className="text-[12px] rounded-[8px] px-2.5 py-1.5"
+                style={{
+                  background: 'color-mix(in srgb, var(--critical) 8%, transparent)',
+                  color: 'var(--fg-primary)',
+                }}
+              >
+                <span className="mono font-bold" style={{ color: 'var(--critical)' }}>
+                  #{b.sequence}
+                </span>{' '}
                 <span className="font-semibold">{b.kind}</span> — {b.detail}
               </div>
             ))}
@@ -187,7 +244,10 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
               </p>
               <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
                 {days === 0
-                  ? tr('Conservation illimitée — rien n’est jamais supprimé.', 'Kept forever — nothing is ever deleted.')
+                  ? tr(
+                      'Conservation illimitée — rien n’est jamais supprimé.',
+                      'Kept forever — nothing is ever deleted.',
+                    )
                   : tr(
                       `Les entrées de plus de ${days} jours sont purgées. La purge est scellée : la chaîne reste vérifiable de part et d’autre de la coupure.`,
                       `Entries older than ${days} days are pruned. The prune is sealed: the chain stays verifiable across the gap.`,
@@ -197,22 +257,41 @@ export function AuditIntegrityPanel({ filter, isAdmin }: { filter: AuditFilter; 
               </p>
             </div>
             <input
-              type="number" min={0} max={3650} step={30}
+              type="number"
+              min={0}
+              max={3650}
+              step={30}
               value={days}
               onChange={(e) => setDraftDays(Number(e.target.value))}
               className="h-9 w-[110px] px-2.5 rounded-[9px] text-[13px] mono"
-              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--fg-primary)' }}
+              style={{
+                border: '1px solid var(--border-strong)',
+                background: 'var(--bg)',
+                color: 'var(--fg-primary)',
+              }}
             />
-            <span className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>{tr('jours', 'days')}</span>
-            <Btn label={tr('Enregistrer', 'Save')} onClick={() => saveRetention.mutate(days)} disabled={saveRetention.isPending} />
+            <span className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
+              {tr('jours', 'days')}
+            </span>
+            <Btn
+              label={tr('Enregistrer', 'Save')}
+              onClick={() => saveRetention.mutate(days)}
+              disabled={saveRetention.isPending}
+            />
             {retentionDays > 0 && (
-              <Btn label={tr('Purger maintenant', 'Prune now')} icon={Download}
-                onClick={() => applyRetention.mutate()} disabled={applyRetention.isPending} />
+              <Btn
+                label={tr('Purger maintenant', 'Prune now')}
+                icon={Download}
+                onClick={() => applyRetention.mutate()}
+                disabled={applyRetention.isPending}
+              />
             )}
           </div>
           <p className="text-[11.5px] mt-1.5" style={{ color: 'var(--fg-secondary)' }}>
-            {tr('0 = conserver indéfiniment. Minimum 30 jours si une fenêtre est définie.',
-                '0 = keep forever. Minimum 30 days when a window is set.')}
+            {tr(
+              '0 = conserver indéfiniment. Minimum 30 jours si une fenêtre est définie.',
+              '0 = keep forever. Minimum 30 days when a window is set.',
+            )}
           </p>
         </Card>
       )}

@@ -90,7 +90,13 @@ export function useScorePreview(input: ScorePreviewInput, enabled = true) {
     // Compared by value: the caller rebuilds the object on every render, so a
     // reference check would re-arm the timer forever and never fire.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input.probability, input.impact, input.asset_criticality, input.mitigation_effectiveness, input.scope]);
+  }, [
+    input.probability,
+    input.impact,
+    input.asset_criticality,
+    input.mitigation_effectiveness,
+    input.scope,
+  ]);
 
   return useQuery<Score>({
     queryKey: ['score', 'preview', debounced],

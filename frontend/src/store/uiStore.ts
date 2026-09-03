@@ -74,8 +74,8 @@ function applyDensity(density: Density) {
 const DENSITY_CYCLE: Density[] = ['comfort', 'compact', 'spacious'];
 
 // Legacy i18n key used by the pre-existing useI18n hook; default to FR per design.
-const legacyLocale = (typeof localStorage !== 'undefined' &&
-  (localStorage.getItem('locale') as Lang)) || 'fr';
+const legacyLocale =
+  (typeof localStorage !== 'undefined' && (localStorage.getItem('locale') as Lang)) || 'fr';
 
 export const useUIStore = create<UIState>()(
   persist(
@@ -120,7 +120,8 @@ export const useUIStore = create<UIState>()(
         set({ density });
       },
       cycleDensity: () => {
-        const next = DENSITY_CYCLE[(DENSITY_CYCLE.indexOf(get().density) + 1) % DENSITY_CYCLE.length];
+        const next =
+          DENSITY_CYCLE[(DENSITY_CYCLE.indexOf(get().density) + 1) % DENSITY_CYCLE.length];
         applyDensity(next);
         set({ density: next });
       },
@@ -148,8 +149,8 @@ export const useUIStore = create<UIState>()(
           applyDensity(state.density);
         }
       },
-    }
-  )
+    },
+  ),
 );
 
 // Apply immediately on module load for the very first paint (before rehydrate runs).

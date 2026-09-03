@@ -12,7 +12,13 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { apiErrorMessage } from '../../lib/apiError';
 import { riskRuleService, type DraftRisk, type VulnRiskRule } from './riskRuleService';
 
-const CRITICALITIES: VulnRiskRule['min_asset_criticality'][] = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const CRITICALITIES: VulnRiskRule['min_asset_criticality'][] = [
+  '',
+  'LOW',
+  'MEDIUM',
+  'HIGH',
+  'CRITICAL',
+];
 
 /**
  * The vulnerability→risk rule, and the queue of drafts it proposed.
@@ -51,7 +57,7 @@ export default function RiskRulePage() {
 
   const dirty = useMemo(
     () => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved),
-    [draft, saved]
+    [draft, saved],
   );
 
   // The preview follows the DRAFT, so the numbers answer "what happens if I save
@@ -84,19 +90,20 @@ export default function RiskRulePage() {
       void queryClient.invalidateQueries({ queryKey: ['attack-surface', 'draft-risks'] });
       void queryClient.invalidateQueries({ queryKey: ['risks'] });
       setSelected(new Set());
-      const n = vars.decision === 'accept' ? res.accepted?.length ?? 0 : res.dismissed?.length ?? 0;
+      const n =
+        vars.decision === 'accept' ? (res.accepted?.length ?? 0) : (res.dismissed?.length ?? 0);
       const failed = Object.keys(res.failed ?? {}).length;
       // Partial success is reported as partial: silently claiming success for a
       // batch where three items failed is how a review queue stops being trusted.
       if (failed > 0) {
         toast.error(
-          `${n} risque(s) traité(s), ${failed} en échec : ${Object.values(res.failed ?? {}).join(', ')}`
+          `${n} risque(s) traité(s), ${failed} en échec : ${Object.values(res.failed ?? {}).join(', ')}`,
         );
       } else {
         toast.success(
           vars.decision === 'accept'
             ? `${n} risque(s) ajouté(s) au registre.`
-            : `${n} proposition(s) écartée(s).`
+            : `${n} proposition(s) écartée(s).`,
         );
       }
     },
@@ -126,12 +133,15 @@ export default function RiskRulePage() {
                 Règle de création automatique
               </h2>
               <p className="mt-1 max-w-2xl text-[13px]" style={{ color: 'var(--fg-muted)' }}>
-                Quand une vulnérabilité remplit toutes ces conditions, un risque est créé
-                en <strong>brouillon</strong>. Il n'entre jamais directement dans le
-                registre : c'est vous qui décidez, plus bas.
+                Quand une vulnérabilité remplit toutes ces conditions, un risque est créé en{' '}
+                <strong>brouillon</strong>. Il n'entre jamais directement dans le registre : c'est
+                vous qui décidez, plus bas.
               </p>
             </div>
-            <label className="flex shrink-0 items-center gap-2 text-[13px]" style={{ color: 'var(--fg-secondary)' }}>
+            <label
+              className="flex shrink-0 items-center gap-2 text-[13px]"
+              style={{ color: 'var(--fg-secondary)' }}
+            >
               <input
                 type="checkbox"
                 checked={draft.enabled}
@@ -153,19 +163,33 @@ export default function RiskRulePage() {
                 disabled={!isAdmin}
                 onChange={(e) => set('min_cvss', Number(e.target.value))}
                 className="w-full rounded-lg border px-2.5 py-1.5 text-sm"
-                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--fg-primary)' }}
+                style={{
+                  background: 'var(--surface-2)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--fg-primary)',
+                }}
               />
             </Field>
 
-            <Field label="Criticité de l'actif au minimum" help="Un actif sans criticité définie ne satisfait aucun seuil.">
+            <Field
+              label="Criticité de l'actif au minimum"
+              help="Un actif sans criticité définie ne satisfait aucun seuil."
+            >
               <select
                 value={draft.min_asset_criticality}
                 disabled={!isAdmin}
                 onChange={(e) =>
-                  set('min_asset_criticality', e.target.value as VulnRiskRule['min_asset_criticality'])
+                  set(
+                    'min_asset_criticality',
+                    e.target.value as VulnRiskRule['min_asset_criticality'],
+                  )
                 }
                 className="w-full rounded-lg border px-2.5 py-1.5 text-sm"
-                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--fg-primary)' }}
+                style={{
+                  background: 'var(--surface-2)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--fg-primary)',
+                }}
               >
                 {CRITICALITIES.map((c) => (
                   <option key={c} value={c}>
@@ -207,7 +231,10 @@ export default function RiskRulePage() {
             className="mt-4 rounded-xl border p-3"
             style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
           >
-            <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--fg-secondary)' }}>
+            <div
+              className="flex items-center gap-2 text-[13px]"
+              style={{ color: 'var(--fg-secondary)' }}
+            >
               <Sparkles size={14} />
               {previewing ? (
                 'Simulation en cours…'
@@ -229,7 +256,11 @@ export default function RiskRulePage() {
             {preview && preview.samples.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {preview.samples.slice(0, 5).map((s) => (
-                  <li key={s.vulnerability_id} className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
+                  <li
+                    key={s.vulnerability_id}
+                    className="text-[12px]"
+                    style={{ color: 'var(--fg-muted)' }}
+                  >
                     • {s.cve_id ? `${s.cve_id} — ` : ''}
                     {s.title}
                     {s.asset_name ? ` (${s.asset_name})` : ''}
@@ -239,23 +270,29 @@ export default function RiskRulePage() {
             )}
 
             {/* A rule producing nothing explains itself rather than just looking broken. */}
-            {preview && preview.would_create === 0 && Object.keys(preview.top_rejections).length > 0 && (
-              <div className="mt-2">
-                <p className="text-[12px] font-medium" style={{ color: 'var(--fg-muted)' }}>
-                  Pourquoi rien ne se déclencherait :
-                </p>
-                <ul className="mt-1 space-y-0.5">
-                  {Object.entries(preview.top_rejections)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
-                    .map(([reason, n]) => (
-                      <li key={reason} className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
-                        • {reason} ({n})
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            )}
+            {preview &&
+              preview.would_create === 0 &&
+              Object.keys(preview.top_rejections).length > 0 && (
+                <div className="mt-2">
+                  <p className="text-[12px] font-medium" style={{ color: 'var(--fg-muted)' }}>
+                    Pourquoi rien ne se déclencherait :
+                  </p>
+                  <ul className="mt-1 space-y-0.5">
+                    {Object.entries(preview.top_rejections)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 3)
+                      .map(([reason, n]) => (
+                        <li
+                          key={reason}
+                          className="text-[12px]"
+                          style={{ color: 'var(--fg-muted)' }}
+                        >
+                          • {reason} ({n})
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
           </div>
 
           {isAdmin && (
@@ -315,7 +352,10 @@ export default function RiskRulePage() {
           />
         ) : (
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--fg-muted)' }}>
+            <label
+              className="flex items-center gap-2 text-[12px]"
+              style={{ color: 'var(--fg-muted)' }}
+            >
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -407,7 +447,10 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-[12px] font-medium" style={{ color: 'var(--fg-secondary)' }}>
+      <label
+        className="mb-1 block text-[12px] font-medium"
+        style={{ color: 'var(--fg-secondary)' }}
+      >
         {label}
       </label>
       {children}
@@ -435,7 +478,10 @@ function Toggle({
 }) {
   return (
     <div>
-      <label className="flex items-start gap-2 text-[13px]" style={{ color: 'var(--fg-secondary)' }}>
+      <label
+        className="flex items-start gap-2 text-[13px]"
+        style={{ color: 'var(--fg-secondary)' }}
+      >
         <input
           type="checkbox"
           className="mt-0.5"

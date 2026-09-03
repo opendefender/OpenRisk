@@ -57,7 +57,9 @@ function ScoreBlock({ score }: { score: EntityScore }) {
               healthy zero. That is exactly this case. */}
           <Badge intent="unavailable">Not available</Badge>
         </div>
-        {score.unavailable && <div className="mt-1 text-2xs text-fg-muted">{score.unavailable}</div>}
+        {score.unavailable && (
+          <div className="mt-1 text-2xs text-fg-muted">{score.unavailable}</div>
+        )}
       </div>
     );
   }
@@ -69,7 +71,9 @@ function ScoreBlock({ score }: { score: EntityScore }) {
         <span className="text-2xs uppercase tracking-wide text-fg-muted">{score.label}</span>
         <span className="font-mono text-md font-semibold tabular-nums text-fg-primary">
           {formatNumber(score.value)}
-          <span className="ml-0.5 text-2xs font-normal text-fg-muted">/ {formatNumber(score.max)}</span>
+          <span className="ml-0.5 text-2xs font-normal text-fg-muted">
+            / {formatNumber(score.max)}
+          </span>
         </span>
       </div>
       <div
@@ -109,7 +113,11 @@ function FieldValue({ field }: { field: EntityField }): ReactNode {
         </div>
       );
     case 'badge':
-      return <Badge intent={intentOf(field.tone)} size="sm">{field.value}</Badge>;
+      return (
+        <Badge intent={intentOf(field.tone)} size="sm">
+          {field.value}
+        </Badge>
+      );
     case 'link':
       return field.href ? (
         <a
@@ -140,7 +148,9 @@ function FieldValue({ field }: { field: EntityField }): ReactNode {
         </span>
       );
     case 'multiline':
-      return <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg-primary">{field.value}</p>;
+      return (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg-primary">{field.value}</p>
+      );
     default:
       return <span className="text-sm text-fg-primary">{field.value}</span>;
   }
@@ -163,7 +173,9 @@ export function SummarySection({ summary }: { summary: EntitySummary }) {
       <div className="flex flex-wrap items-center gap-2">
         {summary.status && <ChipBadge chip={summary.status} />}
         {summary.severity && <ChipBadge chip={summary.severity} />}
-        <Badge intent="neutral" size="sm">{summary.type_label}</Badge>
+        <Badge intent="neutral" size="sm">
+          {summary.type_label}
+        </Badge>
       </div>
 
       <ScoreBlock score={summary.score} />

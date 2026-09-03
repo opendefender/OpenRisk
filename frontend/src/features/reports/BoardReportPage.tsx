@@ -44,7 +44,7 @@ function StatusBadge({ status }: { status: BoardReport['status'] }) {
         'inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border',
         approved
           ? 'bg-success/10 text-success-text border-success/30'
-          : 'bg-warning/10 text-warning-text border-warning/30'
+          : 'bg-warning/10 text-warning-text border-warning/30',
       )}
     >
       {approved ? <CheckCircle2 size={12} /> : <ScrollText size={12} />}
@@ -71,7 +71,7 @@ export const BoardReportPage = () => {
   const onGenerate = () => {
     generate.mutate(
       { period_label: period.trim() || undefined, locale },
-      { onSuccess: (r) => setSelectedId(r.id) }
+      { onSuccess: (r) => setSelectedId(r.id) },
     );
     setPeriod('');
   };
@@ -109,7 +109,12 @@ export const BoardReportPage = () => {
             <option value="fr">FR</option>
             <option value="en">EN</option>
           </select>
-          <Button variant="primary" onClick={onGenerate} loading={generate.isPending} className="shadow-lg shadow-primary/20">
+          <Button
+            variant="primary"
+            onClick={onGenerate}
+            loading={generate.isPending}
+            className="shadow-lg shadow-primary/20"
+          >
             <Sparkles size={16} className="mr-2" />
             Générer
           </Button>
@@ -189,16 +194,23 @@ function ReportCard({
       onClick={onSelect}
       className={cn(
         'w-full text-left bg-surface border rounded-xl p-4 transition-all',
-        active ? 'border-primary/60 ring-1 ring-primary/40' : 'border-border hover:border-border-default'
+        active
+          ? 'border-primary/60 ring-1 ring-primary/40'
+          : 'border-border hover:border-border-default',
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="font-semibold text-sm text-fg-primary truncate">{report.period_label}</span>
+        <span className="font-semibold text-sm text-fg-primary truncate">
+          {report.period_label}
+        </span>
         <StatusBadge status={report.status} />
       </div>
       <div className="flex items-center gap-4 text-xs text-fg-secondary">
         <span>
-          Conformité <span className="text-fg-primary font-medium">{Math.round(report.overall_compliance_percent)}%</span>
+          Conformité{' '}
+          <span className="text-fg-primary font-medium">
+            {Math.round(report.overall_compliance_percent)}%
+          </span>
         </span>
         <span>
           Risques <span className="text-fg-primary font-medium">{report.risks_total}</span>
@@ -341,7 +353,9 @@ function ReportDetail({
         <div className="flex items-start justify-between gap-4 mb-1">
           <div>
             <h3 className="text-lg font-bold text-fg-primary">{report.title}</h3>
-            <p className="text-xs text-fg-muted mt-0.5">{provenanceLabel(report.generated_by_model)}</p>
+            <p className="text-xs text-fg-muted mt-0.5">
+              {provenanceLabel(report.generated_by_model)}
+            </p>
           </div>
           <StatusBadge status={report.status} />
         </div>
@@ -352,10 +366,16 @@ function ReportDetail({
           <KpiTile
             label="Risques actifs"
             value={`${report.risks_total}`}
-            sub={report.risks_critical > 0 ? `${report.risks_critical} critiques` : 'aucun critique'}
+            sub={
+              report.risks_critical > 0 ? `${report.risks_critical} critiques` : 'aucun critique'
+            }
             danger={report.risks_critical > 0}
           />
-          <KpiTile label="Exposition estimée" value={formatFCFA(report.financial_exposure_fcfa)} small />
+          <KpiTile
+            label="Exposition estimée"
+            value={formatFCFA(report.financial_exposure_fcfa)}
+            small
+          />
         </div>
 
         <RiskChips report={report} />
@@ -397,7 +417,9 @@ function ReportDetail({
 
           {report.frameworks_snapshot && report.frameworks_snapshot.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-fg-secondary mb-2">Conformité par référentiel</h4>
+              <h4 className="text-sm font-semibold text-fg-secondary mb-2">
+                Conformité par référentiel
+              </h4>
               <div className="space-y-2">
                 {report.frameworks_snapshot.map((f) => (
                   <div key={f.name + f.version} className="flex items-center gap-3">
@@ -425,7 +447,12 @@ function ReportDetail({
         <div className="flex flex-wrap items-center gap-2 mt-6 pt-4 border-t border-border">
           {!readOnly && (
             <>
-              <Button variant="primary" onClick={onSave} disabled={!dirty} loading={update.isPending}>
+              <Button
+                variant="primary"
+                onClick={onSave}
+                disabled={!dirty}
+                loading={update.isPending}
+              >
                 Enregistrer les modifications
               </Button>
               <Button
@@ -473,7 +500,9 @@ function KpiTile({
   return (
     <div className="bg-surface-1/5 border border-border rounded-lg p-3">
       <div className="text-[11px] uppercase tracking-wide text-fg-muted mb-1">{label}</div>
-      <div className={cn('font-bold', small ? 'text-base' : 'text-2xl', danger && 'text-danger-text')}>
+      <div
+        className={cn('font-bold', small ? 'text-base' : 'text-2xl', danger && 'text-danger-text')}
+      >
         {value}
       </div>
       {sub && <div className="text-[11px] text-fg-muted mt-0.5">{sub}</div>}
@@ -524,7 +553,9 @@ function Section({
         <h4 className="text-sm font-semibold text-fg-secondary">{title}</h4>
       </div>
       {readOnly ? (
-        <p className="text-sm text-fg-secondary whitespace-pre-wrap leading-relaxed">{value || '—'}</p>
+        <p className="text-sm text-fg-secondary whitespace-pre-wrap leading-relaxed">
+          {value || '—'}
+        </p>
       ) : (
         <textarea
           value={value}

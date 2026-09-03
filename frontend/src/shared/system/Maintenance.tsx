@@ -14,7 +14,7 @@ export function Maintenance() {
       tone="var(--medium)"
       title={tr('Maintenance en cours', 'Under maintenance')}
       message={tr(
-        "OpenRisk est momentanément indisponible pour une opération de maintenance planifiée. Merci de réessayer dans quelques minutes.",
+        'OpenRisk est momentanément indisponible pour une opération de maintenance planifiée. Merci de réessayer dans quelques minutes.',
         'OpenRisk is briefly unavailable for planned maintenance. Please try again in a few minutes.',
       )}
       actions={

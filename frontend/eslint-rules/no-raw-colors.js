@@ -24,24 +24,54 @@
 // Tailwind's default palette families. `white`/`black` are included because
 // `bg-white` is exactly as theme-blind as `bg-zinc-50`.
 const PALETTES = [
-  'slate', 'gray', 'zinc', 'neutral', 'stone',
-  'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal',
-  'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose',
+  'slate',
+  'gray',
+  'zinc',
+  'neutral',
+  'stone',
+  'red',
+  'orange',
+  'amber',
+  'yellow',
+  'lime',
+  'green',
+  'emerald',
+  'teal',
+  'cyan',
+  'sky',
+  'blue',
+  'indigo',
+  'violet',
+  'purple',
+  'fuchsia',
+  'pink',
+  'rose',
 ];
 
 // Utility prefixes that take a colour.
 const PREFIXES = [
-  'bg', 'text', 'border', 'ring', 'divide', 'outline', 'decoration',
-  'shadow', 'accent', 'caret', 'fill', 'stroke', 'from', 'via', 'to',
+  'bg',
+  'text',
+  'border',
+  'ring',
+  'divide',
+  'outline',
+  'decoration',
+  'shadow',
+  'accent',
+  'caret',
+  'fill',
+  'stroke',
+  'from',
+  'via',
+  'to',
 ];
 
 const PALETTE_CLASS = new RegExp(
   `(?:^|\\s|:)(?:${PREFIXES.join('|')})-(?:${PALETTES.join('|')})-(?:50|100|200|300|400|500|600|700|800|900|950)\\b`,
 );
 
-const ACHROMATIC_CLASS = new RegExp(
-  `(?:^|\\s|:)(?:${PREFIXES.join('|')})-(?:white|black)\\b`,
-);
+const ACHROMATIC_CLASS = new RegExp(`(?:^|\\s|:)(?:${PREFIXES.join('|')})-(?:white|black)\\b`);
 
 // #rgb, #rrggbb, #rrggbbaa
 const HEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/;

@@ -47,12 +47,12 @@ export const useThreatStore = create<ThreatStore>((set) => {
       set({ isLoading: true, error: null });
       try {
         const token = useAuthStore.getState().token;
-        
+
         let url = `${apiBaseUrl}/threats`;
         const queryParams = new URLSearchParams();
         if (params.severity) queryParams.append('severity', params.severity);
         if (params.country) queryParams.append('country', params.country);
-        
+
         if (queryParams.toString()) {
           url += `?${queryParams.toString()}`;
         }

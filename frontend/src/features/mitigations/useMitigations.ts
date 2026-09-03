@@ -30,17 +30,35 @@ export interface UiMiti {
 }
 
 // Backend uses PLANNED for a freshly-created plan (not TODO) — both land in "todo".
-const COL: Record<string, Column> = { PLANNED: 'todo', TODO: 'todo', IN_PROGRESS: 'progress', REVIEW: 'review', DONE: 'done' };
-const CRIT: Record<string, Criticality> = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
+const COL: Record<string, Column> = {
+  PLANNED: 'todo',
+  TODO: 'todo',
+  IN_PROGRESS: 'progress',
+  REVIEW: 'review',
+  DONE: 'done',
+};
+const CRIT: Record<string, Criticality> = {
+  critical: 'critical',
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+};
 
 function fmtDate(iso?: string): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  return Number.isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
 export function mapMitigation(m: Mitigation): UiMiti {
-  const mm = m as Mitigation & { assignee?: string; risk_title?: string; created_at?: string; progress?: number };
+  const mm = m as Mitigation & {
+    assignee?: string;
+    risk_title?: string;
+    created_at?: string;
+    progress?: number;
+  };
   const column = COL[m.status] ?? 'todo';
   const overdue = column !== 'done' && !!m.due_date && new Date(m.due_date).getTime() < Date.now();
   return {
@@ -73,5 +91,11 @@ export function useMitigations() {
   const columns: Record<Column, UiMiti[]> = { todo: [], progress: [], review: [], done: [] };
   for (const m of items) columns[m.column].push(m);
   // isError/refetch let the table render a retry instead of an empty board.
-  return { items, columns, isLoading: query.isLoading, isError: query.isError, refetch: () => void query.refetch() };
+  return {
+    items,
+    columns,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: () => void query.refetch(),
+  };
 }

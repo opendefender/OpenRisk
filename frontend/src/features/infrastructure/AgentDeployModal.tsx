@@ -37,7 +37,9 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
       (d) => alive && setData(d),
       () => alive && setErr(true),
     );
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [config.id]);
 
   const copy = (what: string, value: string) => {
@@ -51,7 +53,11 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
     ? `docker run -d --network host \\\n  -e OPENRISK_TOKEN=${data.registration_token.slice(0, 16)}… \\\n  ${data.downloads.docker}`
     : '';
 
-  const osOptions: { key: 'windows' | 'macos' | 'linux' | 'docker'; label: string; icon: typeof Monitor }[] = [
+  const osOptions: {
+    key: 'windows' | 'macos' | 'linux' | 'docker';
+    label: string;
+    icon: typeof Monitor;
+  }[] = [
     { key: 'windows', label: 'Windows (.exe)', icon: Monitor },
     { key: 'linux', label: 'Linux (binary)', icon: Terminal },
     { key: 'macos', label: 'macOS (.app)', icon: Apple },
@@ -60,11 +66,29 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
-      <div className="relative w-full max-w-[520px] max-h-[90vh] flex flex-col rounded-2xl glass-strong overflow-hidden" style={{ border: '1px solid var(--border-strong)', animation: 'or-scalein .22s ease' }}>
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="text-[15px] font-semibold text-ink">{tr('Déployer un Agent', 'Deploy an Agent')}</div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover" aria-label="Close"><X size={18} /></button>
+      <div
+        className="absolute inset-0"
+        style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(2px)' }}
+        onClick={onClose}
+      />
+      <div
+        className="relative w-full max-w-[520px] max-h-[90vh] flex flex-col rounded-2xl glass-strong overflow-hidden"
+        style={{ border: '1px solid var(--border-strong)', animation: 'or-scalein .22s ease' }}
+      >
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div className="text-[15px] font-semibold text-ink">
+            {tr('Déployer un Agent', 'Deploy an Agent')}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
@@ -75,15 +99,28 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
             )}
           </p>
 
-          <div className="text-[12px] font-semibold text-ink-soft">{tr('Télécharger pour', 'Download for')} <span className="text-ink">{config.name}</span></div>
+          <div className="text-[12px] font-semibold text-ink-soft">
+            {tr('Télécharger pour', 'Download for')} <span className="text-ink">{config.name}</span>
+          </div>
           <div className="grid grid-cols-2 gap-2.5">
             {osOptions.map((o) => (
               <a
                 key={o.key}
-                href={data && o.key !== 'docker' ? safeExternalUrl(new URL(data.downloads[o.key], api_origin()).href) : undefined}
+                href={
+                  data && o.key !== 'docker'
+                    ? safeExternalUrl(new URL(data.downloads[o.key], api_origin()).href)
+                    : undefined
+                }
                 target="_blank"
                 rel="noreferrer"
-                onClick={o.key === 'docker' && data ? (e) => { e.preventDefault(); copy('docker', dockerCmd); } : undefined}
+                onClick={
+                  o.key === 'docker' && data
+                    ? (e) => {
+                        e.preventDefault();
+                        copy('docker', dockerCmd);
+                      }
+                    : undefined
+                }
                 className="flex items-center gap-2.5 rounded-xl px-3.5 py-3 transition-all hover:brightness-110"
                 style={{
                   border: `1px solid ${o.key === os ? 'var(--accent)' : 'var(--border-strong)'}`,
@@ -92,34 +129,73 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
                   opacity: data ? 1 : 0.6,
                 }}
               >
-                <o.icon size={18} strokeWidth={1.7} style={{ color: o.key === os ? 'var(--accent)' : 'var(--fg-secondary)' }} />
+                <o.icon
+                  size={18}
+                  strokeWidth={1.7}
+                  style={{ color: o.key === os ? 'var(--accent)' : 'var(--fg-secondary)' }}
+                />
                 <span className="text-[12.5px] font-semibold text-ink">{o.label}</span>
-                {o.key === os && <span className="ml-auto text-[10px] font-bold uppercase" style={{ color: 'var(--accent-500)' }}>{tr('détecté', 'detected')}</span>}
+                {o.key === os && (
+                  <span
+                    className="ml-auto text-[10px] font-bold uppercase"
+                    style={{ color: 'var(--accent-500)' }}
+                  >
+                    {tr('détecté', 'detected')}
+                  </span>
+                )}
               </a>
             ))}
           </div>
 
-          {err && <div className="text-[12.5px]" style={{ color: 'var(--critical)' }}>{tr("Impossible de générer le jeton d'enrôlement.", 'Could not generate the enrolment token.')}</div>}
+          {err && (
+            <div className="text-[12.5px]" style={{ color: 'var(--critical)' }}>
+              {tr(
+                "Impossible de générer le jeton d'enrôlement.",
+                'Could not generate the enrolment token.',
+              )}
+            </div>
+          )}
 
           {data && (
             <>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-semibold text-ink-soft">{tr("Jeton d'enrôlement (valide 24h)", 'Registration token (valid 24h)')}</span>
-                  <button onClick={() => copy('token', data.registration_token)} className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: 'var(--accent-500)' }}>
-                    {copied === 'token' ? <Check size={13} /> : <Copy size={13} />}{tr('Copier', 'Copy')}
+                  <span className="text-[12px] font-semibold text-ink-soft">
+                    {tr("Jeton d'enrôlement (valide 24h)", 'Registration token (valid 24h)')}
+                  </span>
+                  <button
+                    onClick={() => copy('token', data.registration_token)}
+                    className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold"
+                    style={{ color: 'var(--accent-500)' }}
+                  >
+                    {copied === 'token' ? <Check size={13} /> : <Copy size={13} />}
+                    {tr('Copier', 'Copy')}
                   </button>
                 </div>
-                <div className="font-mono text-[11px] rounded-lg px-3 py-2.5 break-all" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
+                <div
+                  className="font-mono text-[11px] rounded-lg px-3 py-2.5 break-all"
+                  style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
+                >
                   {data.registration_token.slice(0, 44)}…
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">{tr('Lancer via Docker', 'Run with Docker')}</span>
+                <span className="text-[12px] font-semibold text-ink-soft">
+                  {tr('Lancer via Docker', 'Run with Docker')}
+                </span>
                 <div className="relative">
-                  <pre className="font-mono text-[11px] rounded-lg px-3 py-2.5 overflow-x-auto" style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>{dockerCmd}</pre>
-                  <button onClick={() => copy('docker', dockerCmd)} className="absolute top-2 right-2 text-ink-soft hover:text-ink" aria-label="Copy">
+                  <pre
+                    className="font-mono text-[11px] rounded-lg px-3 py-2.5 overflow-x-auto"
+                    style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
+                  >
+                    {dockerCmd}
+                  </pre>
+                  <button
+                    onClick={() => copy('docker', dockerCmd)}
+                    className="absolute top-2 right-2 text-ink-soft hover:text-ink"
+                    aria-label="Copy"
+                  >
                     {copied === 'docker' ? <Check size={14} /> : <Copy size={14} />}
                   </button>
                 </div>
@@ -128,8 +204,13 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2.5 px-5 py-4" style={{ borderTop: '1px solid var(--border)' }}>
-          <span className="text-[11.5px] text-ink-muted inline-flex items-center gap-1.5"><Download size={13} /> {tr('< 15 Mo · démarre au boot', '< 15 MB · starts on boot')}</span>
+        <div
+          className="flex items-center justify-between gap-2.5 px-5 py-4"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <span className="text-[11.5px] text-ink-muted inline-flex items-center gap-1.5">
+            <Download size={13} /> {tr('< 15 Mo · démarre au boot', '< 15 MB · starts on boot')}
+          </span>
           <Btn label={tr('Fermer', 'Close')} onClick={onClose} />
         </div>
       </div>

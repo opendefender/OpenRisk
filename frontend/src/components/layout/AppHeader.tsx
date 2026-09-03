@@ -15,19 +15,28 @@
 
 import { useSyncExternalStore, useState } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  Search, Bell, Sun, Moon, Menu,
-  Rows2, Rows3, Rows4, Keyboard,
-} from 'lucide-react';
+import { Search, Bell, Sun, Moon, Menu, Rows2, Rows3, Rows4, Keyboard } from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { Hint } from '../../shared/Hint';
-import { categoryMeta, categoryForType, type NotifCategory } from '../../shared/notificationCategory';
+import {
+  categoryMeta,
+  categoryForType,
+  type NotifCategory,
+} from '../../shared/notificationCategory';
 import { Breadcrumbs } from '../../shared/Breadcrumbs';
-import { getConnectionStatus, subscribeConnection, type ConnectionState } from '../../lib/connection';
+import {
+  getConnectionStatus,
+  subscribeConnection,
+  type ConnectionState,
+} from '../../lib/connection';
 import { useRealtimeStatus } from '../../features/realtime/useRealtime';
-import { useNotifications, useUnreadCount, useNotificationActions } from '../../features/notifications/useNotifications';
+import {
+  useNotifications,
+  useUnreadCount,
+  useNotificationActions,
+} from '../../features/notifications/useNotifications';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, SkeletonRows } from '../../shared/ui';
 
@@ -56,11 +65,13 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
   const unreadCount = useUnreadCount();
 
   return (
-    <header
-      className="h-[58px] shrink-0 flex items-center gap-3 px-3 sm:px-[18px] border-b border-border sticky top-0 z-50 glass"
-    >
+    <header className="h-[58px] shrink-0 flex items-center gap-3 px-3 sm:px-[18px] border-b border-border sticky top-0 z-50 glass">
       {/* Mobile hamburger */}
-      <button onClick={onOpenMobileNav} className={cn(iconBtn, 'lg:hidden')} aria-label="Open navigation">
+      <button
+        onClick={onOpenMobileNav}
+        className={cn(iconBtn, 'lg:hidden')}
+        aria-label="Open navigation"
+      >
         <Menu size={18} />
       </button>
 
@@ -79,7 +90,10 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
       >
         <Search size={15} strokeWidth={1.8} />
         <span className="flex-1 text-left">{L.search}</span>
-        <span className="mono text-[10.5px] px-1.5 py-0.5 rounded-[5px]" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>
+        <span
+          className="mono text-[10.5px] px-1.5 py-0.5 rounded-[5px]"
+          style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+        >
           ⌘K
         </span>
       </button>
@@ -88,24 +102,40 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
 
       {/* Actions */}
       <div className="flex items-center gap-0.5">
-        <button onClick={() => setCmdkOpen(true)} className={cn(iconBtn, 'sm:hidden')} aria-label="Search">
+        <button
+          onClick={() => setCmdkOpen(true)}
+          className={cn(iconBtn, 'sm:hidden')}
+          aria-label="Search"
+        >
           <Search size={18} />
         </button>
 
         <ConnectionDot lang={lang} />
 
-        <button onClick={toggleLang} className={iconBtn} title="Language" aria-label="Toggle language">
+        <button
+          onClick={toggleLang}
+          className={iconBtn}
+          title="Language"
+          aria-label="Toggle language"
+        >
           <span className="mono text-[11px] font-semibold">{lang.toUpperCase()}</span>
         </button>
 
         <Hint
           id="header-density"
           side="bottom"
-          text={lang === 'fr'
-            ? 'Ajustez la densité des tables et listes : Confort · Compact · Spacieux.'
-            : 'Adjust table & list density: Comfort · Compact · Spacious.'}
+          text={
+            lang === 'fr'
+              ? 'Ajustez la densité des tables et listes : Confort · Compact · Spacieux.'
+              : 'Adjust table & list density: Comfort · Compact · Spacious.'
+          }
         >
-          <button onClick={cycleDensity} className={cn(iconBtn, 'hidden sm:flex')} title={densityMeta.label} aria-label={densityMeta.label}>
+          <button
+            onClick={cycleDensity}
+            className={cn(iconBtn, 'hidden sm:flex')}
+            title={densityMeta.label}
+            aria-label={densityMeta.label}
+          >
             <densityMeta.Icon size={18} strokeWidth={1.7} />
           </button>
         </Hint>
@@ -116,9 +146,11 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         <Hint
           id="header-shortcuts"
           side="bottom"
-          text={lang === 'fr'
-            ? 'Raccourcis clavier — ou appuyez sur « ? » à tout moment.'
-            : 'Keyboard shortcuts — or press “?” anytime.'}
+          text={
+            lang === 'fr'
+              ? 'Raccourcis clavier — ou appuyez sur « ? » à tout moment.'
+              : 'Keyboard shortcuts — or press “?” anytime.'
+          }
         >
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('openrisk:shortcuts'))}
@@ -132,7 +164,12 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
 
         {/* Notifications */}
         <div className="relative">
-          <button onClick={() => setNotifOpen((v) => !v)} className={cn(iconBtn, 'relative')} title={L.notifTitle} aria-label={L.notifTitle}>
+          <button
+            onClick={() => setNotifOpen((v) => !v)}
+            className={cn(iconBtn, 'relative')}
+            title={L.notifTitle}
+            aria-label={L.notifTitle}
+          >
             <Bell size={18} strokeWidth={1.7} />
             {/* Lit only when the server reports unread items. This was static
                 markup, so it glowed on tenants with no notifications at all. */}
@@ -147,7 +184,11 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         </div>
 
         <button onClick={toggleTheme} className={iconBtn} title="Theme" aria-label="Toggle theme">
-          {theme === 'dark' ? <Sun size={18} strokeWidth={1.7} /> : <Moon size={18} strokeWidth={1.7} />}
+          {theme === 'dark' ? (
+            <Sun size={18} strokeWidth={1.7} />
+          ) : (
+            <Moon size={18} strokeWidth={1.7} />
+          )}
         </button>
       </div>
     </header>
@@ -181,7 +222,10 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
     };
   });
   const shown = filter === 'all' ? items : items.filter((it) => it.category === filter);
-  const cats: (NotifCategory | 'all')[] = ['all', ...Array.from(new Set(items.map((it) => it.category)))];
+  const cats: (NotifCategory | 'all')[] = [
+    'all',
+    ...Array.from(new Set(items.map((it) => it.category))),
+  ];
 
   return (
     <>
@@ -195,7 +239,10 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between px-[17px] py-[15px] border-b border-border">
           <span className="text-[14px] font-semibold text-ink">{L.notifTitle}</span>
           {items.some((it) => it.unread) && (
-            <button onClick={() => markAllRead.mutate()} className="text-[12px] font-medium text-accent hover:brightness-110">
+            <button
+              onClick={() => markAllRead.mutate()}
+              className="text-[12px] font-medium text-accent hover:brightness-110"
+            >
               {L.notifAll}
             </button>
           )}
@@ -213,7 +260,10 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
                   key={c}
                   onClick={() => setFilter(c)}
                   className="shrink-0 h-[26px] px-2.5 rounded-full text-[11.5px] font-semibold transition-colors"
-                  style={{ background: active ? 'var(--accent-soft)' : 'var(--bg-hover)', color: active ? 'var(--accent)' : 'var(--fg-secondary)' }}
+                  style={{
+                    background: active ? 'var(--accent-soft)' : 'var(--bg-hover)',
+                    color: active ? 'var(--accent)' : 'var(--fg-secondary)',
+                  }}
                 >
                   {label}
                 </button>
@@ -224,12 +274,17 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
 
         <div className="max-h-[340px] overflow-y-auto">
           {isLoading ? (
-            <div className="p-3"><SkeletonRows rows={3} height={44} /></div>
+            <div className="p-3">
+              <SkeletonRows rows={3} height={44} />
+            </div>
           ) : isError ? (
             <EmptyState
               variant="error"
               title={tr('Notifications indisponibles', 'Notifications unavailable')}
-              description={tr('Impossible de charger vos notifications.', 'Could not load your notifications.')}
+              description={tr(
+                'Impossible de charger vos notifications.',
+                'Could not load your notifications.',
+              )}
               className="py-10"
             />
           ) : shown.length === 0 ? (
@@ -237,8 +292,19 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
               variant="first-use"
               icon={Bell}
               title={tr('Aucune notification', 'No notifications')}
-              description={tr('Vous serez alerté ici des risques critiques, des SLA dépassés et des tâches qui vous sont assignées.', 'You will be alerted here about critical risks, breached SLAs and tasks assigned to you.')}
-              primaryAction={<Btn label={tr('Régler mes alertes', 'Tune my alerts')} onClick={() => { onClose(); navigate('/settings'); }} />}
+              description={tr(
+                'Vous serez alerté ici des risques critiques, des SLA dépassés et des tâches qui vous sont assignées.',
+                'You will be alerted here about critical risks, breached SLAs and tasks assigned to you.',
+              )}
+              primaryAction={
+                <Btn
+                  label={tr('Régler mes alertes', 'Tune my alerts')}
+                  onClick={() => {
+                    onClose();
+                    navigate('/settings');
+                  }}
+                />
+              }
               className="py-10"
             />
           ) : (
@@ -247,33 +313,54 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
               return (
                 <div
                   key={it.id}
-                  onClick={() => { if (it.unread) markRead.mutate(it.id); }}
+                  onClick={() => {
+                    if (it.unread) markRead.mutate(it.id);
+                  }}
                   className="flex gap-3 px-[17px] py-[13px] border-b border-border cursor-pointer hover:bg-hover transition-colors"
-                  style={{ background: it.unread ? 'color-mix(in srgb,var(--accent) 4%,transparent)' : 'transparent' }}
+                  style={{
+                    background: it.unread
+                      ? 'color-mix(in srgb,var(--accent) 4%,transparent)'
+                      : 'transparent',
+                  }}
                 >
                   <div
                     className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center shrink-0"
-                    style={{ background: `color-mix(in srgb,${it.color} 14%,transparent)`, color: it.color }}
+                    style={{
+                      background: `color-mix(in srgb,${it.color} 14%,transparent)`,
+                      color: it.color,
+                    }}
                   >
                     <Icon size={17} strokeWidth={1.7} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold text-ink mb-0.5">{it.title}</div>
-                    {it.body && <div className="text-[12px] text-ink-soft leading-snug">{it.body}</div>}
+                    {it.body && (
+                      <div className="text-[12px] text-ink-soft leading-snug">{it.body}</div>
+                    )}
                     <div className="text-[11px] text-ink-muted mt-1 flex items-center gap-1.5">
                       {it.time}
-                      <span className="px-1.5 py-px rounded-full text-[10px] font-semibold" style={{ color: categoryMeta(it.category).color, background: `color-mix(in srgb, ${categoryMeta(it.category).color} 14%, transparent)` }}>
+                      <span
+                        className="px-1.5 py-px rounded-full text-[10px] font-semibold"
+                        style={{
+                          color: categoryMeta(it.category).color,
+                          background: `color-mix(in srgb, ${categoryMeta(it.category).color} 14%, transparent)`,
+                        }}
+                      >
                         {categoryMeta(it.category).label[lang]}
                       </span>
                     </div>
                   </div>
-                  {it.unread && <span className="w-[7px] h-[7px] rounded-full shrink-0 mt-1.5" style={{ background: 'var(--accent)' }} />}
+                  {it.unread && (
+                    <span
+                      className="w-[7px] h-[7px] rounded-full shrink-0 mt-1.5"
+                      style={{ background: 'var(--accent)' }}
+                    />
+                  )}
                 </div>
               );
             })
           )}
         </div>
-
       </div>
     </>
   );
@@ -293,42 +380,81 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
 // difference between a screen that refreshes itself and one the user has to
 // reload, and the user is entitled to know which they are looking at.
 function ConnectionDot({ lang }: { lang: 'fr' | 'en' }) {
-  const status = useSyncExternalStore(subscribeConnection, getConnectionStatus, getConnectionStatus);
+  const status = useSyncExternalStore(
+    subscribeConnection,
+    getConnectionStatus,
+    getConnectionStatus,
+  );
   const live = useRealtimeStatus();
   const fr = lang === 'fr';
 
-  const meta: Record<ConnectionState, { color: string; label: [string, string]; pulse: boolean }> = {
-    online: { color: 'var(--low)', label: ['Connecté au serveur', 'Connected to the server'], pulse: true },
-    degraded: { color: 'var(--high)', label: ['Serveur injoignable', 'Server unreachable'], pulse: false },
-    offline: { color: 'var(--fg-muted)', label: ['Hors ligne', 'Offline'], pulse: false },
-  };
+  const meta: Record<ConnectionState, { color: string; label: [string, string]; pulse: boolean }> =
+    {
+      online: {
+        color: 'var(--low)',
+        label: ['Connecté au serveur', 'Connected to the server'],
+        pulse: true,
+      },
+      degraded: {
+        color: 'var(--high)',
+        label: ['Serveur injoignable', 'Server unreachable'],
+        pulse: false,
+      },
+      offline: { color: 'var(--fg-muted)', label: ['Hors ligne', 'Offline'], pulse: false },
+    };
   let m = meta[status.state];
   let state: string = status.state;
 
   if (status.state === 'online') {
     switch (live.state) {
       case 'CONNECTED':
-        m = { color: 'var(--low)', label: ['Mises à jour en direct', 'Live updates on'], pulse: true };
+        m = {
+          color: 'var(--low)',
+          label: ['Mises à jour en direct', 'Live updates on'],
+          pulse: true,
+        };
         state = 'live';
         break;
       case 'RECONNECTING':
       case 'INITIALIZING':
-        m = { color: 'var(--medium)', label: ['Reconnexion au flux…', 'Reconnecting to the live stream…'], pulse: false };
+        m = {
+          color: 'var(--medium)',
+          label: ['Reconnexion au flux…', 'Reconnecting to the live stream…'],
+          pulse: false,
+        };
         state = 'live-reconnecting';
         break;
       case 'RESYNCING':
-        m = { color: 'var(--medium)', label: ['Resynchronisation en cours', 'Resynchronising'], pulse: false };
+        m = {
+          color: 'var(--medium)',
+          label: ['Resynchronisation en cours', 'Resynchronising'],
+          pulse: false,
+        };
         state = 'live-resyncing';
         break;
       case 'FORBIDDEN':
         // Said plainly rather than shown as a fault: nothing is broken, this
         // account simply may not hold a stream.
-        m = { color: 'var(--fg-muted)', label: ['Direct non autorisé pour ce compte', 'Live updates not permitted for this account'], pulse: false };
+        m = {
+          color: 'var(--fg-muted)',
+          label: [
+            'Direct non autorisé pour ce compte',
+            'Live updates not permitted for this account',
+          ],
+          pulse: false,
+        };
         state = 'live-forbidden';
         break;
       case 'ERROR':
       case 'DISCONNECTED':
-        m = { color: 'var(--fg-muted)', label: ['Direct interrompu — rechargez pour actualiser', 'Live updates stopped — reload to refresh'], pulse: false };
+        m = {
+          color: 'var(--fg-muted)',
+          label: [
+            'Direct interrompu — rechargez pour actualiser',
+            'Live updates stopped — reload to refresh',
+          ],
+          pulse: false,
+        };
         state = 'live-off';
         break;
     }
@@ -352,7 +478,9 @@ function ConnectionDot({ lang }: { lang: 'fr' | 'en' }) {
         narrating every risk update in a busy tenant would make the page
         unusable, and the state is the only part a user needs read aloud.
       */}
-      <span className="sr-only" role="status" aria-live="polite">{label}</span>
+      <span className="sr-only" role="status" aria-live="polite">
+        {label}
+      </span>
     </div>
   );
 }

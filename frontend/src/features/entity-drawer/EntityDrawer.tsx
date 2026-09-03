@@ -33,7 +33,12 @@ import {
 } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { isEntityError } from './entityService';
-import { useEntity, useEntityAudit, useEntityRelations, useEntityTimeline } from './useEntityDrawer';
+import {
+  useEntity,
+  useEntityAudit,
+  useEntityRelations,
+  useEntityTimeline,
+} from './useEntityDrawer';
 import { AuditSection } from './sections/AuditSection';
 import { RelationsSection } from './sections/RelationsSection';
 import { SummarySection } from './sections/SummarySection';
@@ -41,7 +46,10 @@ import { TimelineSection } from './sections/TimelineSection';
 import { useUIStrings } from '../../shared/uiStrings';
 import type { EntityAction, EntitySection, EntityType } from './types';
 
-const SECTION_LABEL_KEY: Record<EntitySection, 'ed_sec_summary' | 'ed_sec_relations' | 'ed_sec_timeline' | 'ed_sec_audit'> = {
+const SECTION_LABEL_KEY: Record<
+  EntitySection,
+  'ed_sec_summary' | 'ed_sec_relations' | 'ed_sec_timeline' | 'ed_sec_audit'
+> = {
   summary: 'ed_sec_summary',
   relations: 'ed_sec_relations',
   timeline: 'ed_sec_timeline',
@@ -59,7 +67,14 @@ export interface EntityDrawerProps {
   onOpenEntity: (type: EntityType, id: string) => void;
 }
 
-export function EntityDrawer({ type, id, tab, onTabChange, onClose, onOpenEntity }: EntityDrawerProps) {
+export function EntityDrawer({
+  type,
+  id,
+  tab,
+  onTabChange,
+  onClose,
+  onOpenEntity,
+}: EntityDrawerProps) {
   const L = useUIStrings();
   const entity = useEntity(type, id);
   const sections = useMemo(() => entity.data?.sections ?? [], [entity.data]);
@@ -67,7 +82,7 @@ export function EntityDrawer({ type, id, tab, onTabChange, onClose, onOpenEntity
   // A tab named in the URL that this entity does not offer — an old link, or a
   // caller who has since lost the audit permission — falls back to the first
   // section the server DID offer, rather than rendering an empty panel.
-  const activeTab: EntitySection = sections.includes(tab) ? tab : sections[0] ?? 'summary';
+  const activeTab: EntitySection = sections.includes(tab) ? tab : (sections[0] ?? 'summary');
 
   // Each section fetches only while it is the open one. Opening a drawer on
   // Overview never pays for a relation query nobody asked for.
@@ -77,12 +92,12 @@ export function EntityDrawer({ type, id, tab, onTabChange, onClose, onOpenEntity
 
   const items: TabItem<EntitySection>[] = useMemo(
     () => sections.map((s) => ({ id: s, label: L[SECTION_LABEL_KEY[s]] })),
-    [sections, L]
+    [sections, L],
   );
 
   const timelineEvents = useMemo(
     () => timeline.data?.pages.flatMap((p) => p.events) ?? [],
-    [timeline.data]
+    [timeline.data],
   );
 
   // Screen readers are told which record the drawer now shows. Without this a
@@ -197,30 +212,16 @@ function EntityLoadError({
     }
     if (error.status === 404) {
       return (
-        <EmptyState
-          variant="no-results"
-          title={L.ed_notFound}
-          description={L.ed_notFoundDesc}
-        />
+        <EmptyState variant="no-results" title={L.ed_notFound} description={L.ed_notFoundDesc} />
       );
     }
     if (error.status === 400) {
       return (
-        <EmptyState
-          variant="no-results"
-          title={L.ed_badLink}
-          description={L.ed_badLinkDesc}
-        />
+        <EmptyState variant="no-results" title={L.ed_badLink} description={L.ed_badLinkDesc} />
       );
     }
   }
-  return (
-    <ErrorState
-      title={L.ed_loadFailed}
-      description={L.ed_retryDesc}
-      onRetry={onRetry}
-    />
-  );
+  return <ErrorState title={L.ed_loadFailed} description={L.ed_retryDesc} onRetry={onRetry} />;
 }
 
 /**

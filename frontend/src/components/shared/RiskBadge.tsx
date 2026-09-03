@@ -64,12 +64,7 @@ const getRiskConfig = (level: RiskLevel | string) => {
   return RISK_CONFIGS[key] ?? RISK_CONFIGS.LOW;
 };
 
-export const RiskBadge = ({
-  level,
-  animated = true,
-  size = 'md',
-  className,
-}: RiskBadgeProps) => {
+export const RiskBadge = ({ level, animated = true, size = 'md', className }: RiskBadgeProps) => {
   const config = getRiskConfig(level);
   const Icon = config.icon;
 
@@ -97,7 +92,7 @@ export const RiskBadge = ({
         config.border,
         config.text,
         sizeClasses[size],
-        className
+        className,
       )}
     >
       <Icon size={iconSizes[size]} className="shrink-0" />

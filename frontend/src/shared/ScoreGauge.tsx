@@ -75,7 +75,13 @@ export function ScoreGauge({
 
       <div className="relative flex justify-center">
         <svg viewBox="0 0 220 150" width="220" height="150" role="img" aria-label={title}>
-          <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={14} strokeLinecap="round" />
+          <path
+            d={track}
+            fill="none"
+            stroke="var(--bg-hover)"
+            strokeWidth={14}
+            strokeLinecap="round"
+          />
           {measured && (
             <path
               d={prog}

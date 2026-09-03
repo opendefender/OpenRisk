@@ -21,14 +21,19 @@ export default function ComingSoon() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="min-h-full flex flex-col items-center justify-center px-6 py-20 text-center" style={{ animation: 'or-fadeup .4s ease' }}>
+      <div
+        className="min-h-full flex flex-col items-center justify-center px-6 py-20 text-center"
+        style={{ animation: 'or-fadeup .4s ease' }}
+      >
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
           style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
         >
           <Icon size={30} strokeWidth={1.6} />
         </div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent mb-2">{L.soon}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent mb-2">
+          {L.soon}
+        </div>
         <h1 className="disp text-[24px] font-bold tracking-tight text-ink mb-2">{label}</h1>
         <p className="text-[14px] text-ink-soft max-w-sm mb-8">{L.soonSub}</p>
         <button

@@ -40,13 +40,21 @@ export function MFAPolicyPanel() {
     if (policy && !touched) setDays(String(policy.grace_days));
   }, [policy, touched]);
 
-  if (isLoading) return <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={2} height={36} /></Card>;
+  if (isLoading)
+    return (
+      <Card style={{ padding: '20px 22px' }}>
+        <SkeletonRows rows={2} height={36} />
+      </Card>
+    );
   if (isError || !policy) {
     return (
       <Card style={{ padding: '20px 22px' }}>
         <ErrorState
           title={tr('Politique MFA indisponible', 'MFA policy unavailable')}
-          description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Try again, or contact an administrator if this persists.')}
+          description={tr(
+            'Réessayez, ou contactez un administrateur si le problème persiste.',
+            'Try again, or contact an administrator if this persists.',
+          )}
           onRetry={() => void refetch()}
           retryLabel={tr('Réessayer', 'Retry')}
         />
@@ -55,9 +63,16 @@ export function MFAPolicyPanel() {
   }
 
   const parsed = Number(days);
-  const valid = days.trim() !== '' && Number.isInteger(parsed) && parsed >= policy.min_days && parsed <= policy.max_days;
+  const valid =
+    days.trim() !== '' &&
+    Number.isInteger(parsed) &&
+    parsed >= policy.min_days &&
+    parsed <= policy.max_days;
   const dirty = touched && String(policy.grace_days) !== days.trim();
-  const roles = [...(policy.privileged_org_roles ?? []), ...(policy.privileged_business_roles ?? [])];
+  const roles = [
+    ...(policy.privileged_org_roles ?? []),
+    ...(policy.privileged_business_roles ?? []),
+  ];
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,20 +85,22 @@ export function MFAPolicyPanel() {
       onError: () =>
         toast.error(
           tr(
-            "Enregistrement impossible. Vérifiez que vous êtes administrateur de cette organisation.",
-            'Could not save. Check that you are an administrator of this organization.'
-          )
+            'Enregistrement impossible. Vérifiez que vous êtes administrateur de cette organisation.',
+            'Could not save. Check that you are an administrator of this organization.',
+          ),
         ),
     });
   };
 
   return (
     <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
-      <div className="text-[15px] font-semibold text-ink mb-1.5">{tr('Politique MFA', 'MFA policy')}</div>
+      <div className="text-[15px] font-semibold text-ink mb-1.5">
+        {tr('Politique MFA', 'MFA policy')}
+      </div>
       <p className="text-[13px] text-ink-soft leading-relaxed mb-4">
         {tr(
           "Les comptes privilégiés disposent d'un délai pour activer l'authentification à deux facteurs. Passé ce délai, l'accès est bloqué côté serveur jusqu'à l'activation — sur l'interface comme sur l'API.",
-          'Privileged accounts get a window to enable two-factor authentication. After it expires, access is blocked server-side until they enroll — in the UI and on the API alike.'
+          'Privileged accounts get a window to enable two-factor authentication. After it expires, access is blocked server-side until they enroll — in the UI and on the API alike.',
         )}
       </p>
 
@@ -118,7 +135,11 @@ export function MFAPolicyPanel() {
             type="submit"
             disabled={!valid || !dirty || save.isPending}
             className="h-10 px-4 rounded-[10px] text-[13px] font-semibold text-fg-primary inline-flex items-center gap-1.5 transition-all disabled:opacity-50"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+            style={{
+              border: 'none',
+              background: 'var(--accent-solid)',
+              color: 'var(--fg-on-solid)',
+            }}
           >
             {save.isPending && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
             {tr('Enregistrer', 'Save')}
@@ -131,7 +152,7 @@ export function MFAPolicyPanel() {
           <span style={{ color: 'var(--critical)' }} role="alert">
             {tr(
               `Saisissez un nombre entier entre ${policy.min_days} et ${policy.max_days}.`,
-              `Enter a whole number between ${policy.min_days} and ${policy.max_days}.`
+              `Enter a whole number between ${policy.min_days} and ${policy.max_days}.`,
             )}
           </span>
         ) : (
@@ -139,12 +160,12 @@ export function MFAPolicyPanel() {
             <div>
               {parsed === 0
                 ? tr(
-                    "0 jour : le MFA est exigé dès la première connexion des comptes concernés.",
-                    '0 days: MFA is required from the first sign-in for affected accounts.'
+                    '0 jour : le MFA est exigé dès la première connexion des comptes concernés.',
+                    '0 days: MFA is required from the first sign-in for affected accounts.',
                   )
                 : tr(
                     `Après ${policy.grace_days} jour${policy.grace_days > 1 ? 's' : ''}, les comptes concernés doivent activer le MFA avant de continuer.`,
-                    `After ${policy.grace_days} day${policy.grace_days === 1 ? '' : 's'}, affected accounts must enable MFA before continuing.`
+                    `After ${policy.grace_days} day${policy.grace_days === 1 ? '' : 's'}, affected accounts must enable MFA before continuing.`,
                   )}
             </div>
             {roles.length > 0 && (
@@ -153,7 +174,7 @@ export function MFAPolicyPanel() {
                 <span className="text-ink font-medium">{roles.join(', ')}</span>
                 {tr(
                   '. Les autres membres reçoivent une recommandation, jamais un blocage.',
-                  '. Other members get a recommendation, never a block.'
+                  '. Other members get a recommendation, never a block.',
                 )}
               </div>
             )}
@@ -161,7 +182,7 @@ export function MFAPolicyPanel() {
               <div className="mt-1 text-ink-muted">
                 {tr(
                   `Valeur par défaut (${policy.default_days} jours) — cette organisation n'a pas encore choisi.`,
-                  `Default value (${policy.default_days} days) — this organization has not chosen yet.`
+                  `Default value (${policy.default_days} days) — this organization has not chosen yet.`,
                 )}
               </div>
             )}
@@ -169,7 +190,7 @@ export function MFAPolicyPanel() {
               <div className="mt-1 text-ink-muted">
                 {tr(
                   "Seul un administrateur de l'organisation peut modifier ce délai.",
-                  'Only an organization administrator can change this window.'
+                  'Only an organization administrator can change this window.',
                 )}
               </div>
             )}
@@ -194,9 +215,14 @@ export function MFAAccountPanel() {
       return (
         <div className="flex items-center justify-between gap-3">
           <span className="text-[13px] text-ink-soft">
-            {tr("État du MFA indisponible pour le moment.", 'MFA status unavailable right now.')}
+            {tr('État du MFA indisponible pour le moment.', 'MFA status unavailable right now.')}
           </span>
-          <button type="button" onClick={() => void refetch()} className="text-[13px] font-semibold" style={{ color: 'var(--accent-500)' }}>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="text-[13px] font-semibold"
+            style={{ color: 'var(--accent-500)' }}
+          >
             {tr('Réessayer', 'Retry')}
           </button>
         </div>
@@ -213,7 +239,10 @@ export function MFAAccountPanel() {
     return (
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <span className="text-[13px] text-ink-soft">
-          {tr("Le MFA n'est pas encore activé sur votre compte.", 'MFA is not enabled on your account yet.')}
+          {tr(
+            "Le MFA n'est pas encore activé sur votre compte.",
+            'MFA is not enabled on your account yet.',
+          )}
         </span>
         <button
           type="button"
@@ -229,7 +258,9 @@ export function MFAAccountPanel() {
 
   return (
     <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
-      <div className="text-[15px] font-semibold text-ink mb-3">{tr('Votre authentification', 'Your authentication')}</div>
+      <div className="text-[15px] font-semibold text-ink mb-3">
+        {tr('Votre authentification', 'Your authentication')}
+      </div>
       {body()}
       {enrolling && <MFAEnrollmentDialog onClose={() => setEnrolling(false)} />}
     </Card>

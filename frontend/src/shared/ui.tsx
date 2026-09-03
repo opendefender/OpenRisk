@@ -21,7 +21,10 @@ export function useCountUp(target: number, duration = 1100): number {
   const raf = useRef<number>(0);
   useEffect(() => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) { setValue(target); return; }
+    if (reduce) {
+      setValue(target);
+      return;
+    }
     const t0 = performance.now();
     const tick = (now: number) => {
       let p = Math.min(1, (now - t0) / duration);
@@ -48,8 +51,18 @@ export function arcPath(cx: number, cy: number, r: number, a0: number, a1: numbe
 
 /* ---------------- surfaces ---------------- */
 
-export const Card = ({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
-  <div className={`or-card ${className}`} style={style}>{children}</div>
+export const Card = ({
+  children,
+  className = '',
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) => (
+  <div className={`or-card ${className}`} style={style}>
+    {children}
+  </div>
 );
 
 /** Standard scrollable page frame (fade-up in, max width, padding). */
@@ -64,7 +77,17 @@ export const PageFrame = ({ children, wide }: { children: React.ReactNode; wide?
   </div>
 );
 
-export function PageHeader({ title, count, actions, badge }: { title: string; count?: string | null; actions?: React.ReactNode; badge?: React.ReactNode }) {
+export function PageHeader({
+  title,
+  count,
+  actions,
+  badge,
+}: {
+  title: string;
+  count?: string | null;
+  actions?: React.ReactNode;
+  badge?: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between flex-wrap gap-3 mb-[18px]">
       <div className="flex items-center gap-3">
@@ -96,10 +119,23 @@ export function PageHeader({ title, count, actions, badge }: { title: string; co
  * variant-based.
  */
 export function Btn({
-  label, icon: Icon, onClick, primary, danger, className = '', type = 'button', disabled, loading,
+  label,
+  icon: Icon,
+  onClick,
+  primary,
+  danger,
+  className = '',
+  type = 'button',
+  disabled,
+  loading,
 }: {
-  label?: string; icon?: LucideIcon; onClick?: () => void; primary?: boolean; danger?: boolean;
-  className?: string; type?: 'button' | 'submit';
+  label?: string;
+  icon?: LucideIcon;
+  onClick?: () => void;
+  primary?: boolean;
+  danger?: boolean;
+  className?: string;
+  type?: 'button' | 'submit';
   /** Disables the button and dims it — for actions in flight (a mutation's
    *  isPending) so the same request cannot be fired twice. */
   disabled?: boolean;
@@ -124,7 +160,17 @@ export function Btn({
   );
 }
 
-export function Chip({ label, active, onClick, color }: { label: string; active?: boolean; onClick?: () => void; color?: string }) {
+export function Chip({
+  label,
+  active,
+  onClick,
+  color,
+}: {
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+  color?: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -132,7 +178,7 @@ export function Chip({ label, active, onClick, color }: { label: string; active?
       style={{
         border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
         background: active ? (color ? softFill(color, 16) : 'var(--accent-soft)') : 'transparent',
-        color: active ? color ?? 'var(--accent)' : 'var(--fg-secondary)',
+        color: active ? (color ?? 'var(--accent)') : 'var(--fg-secondary)',
       }}
     >
       {label}
@@ -142,7 +188,17 @@ export function Chip({ label, active, onClick, color }: { label: string; active?
 
 /** Square icon-only control. `title` is both the tooltip and the accessible
  *  name — an icon button without one is unusable with a screen reader. */
-export function IconBtn({ icon: Icon, onClick, title, active }: { icon: LucideIcon; onClick?: () => void; title?: string; active?: boolean }) {
+export function IconBtn({
+  icon: Icon,
+  onClick,
+  title,
+  active,
+}: {
+  icon: LucideIcon;
+  onClick?: () => void;
+  title?: string;
+  active?: boolean;
+}) {
   return (
     <Button
       variant={active ? 'secondary' : 'ghost'}
@@ -162,8 +218,17 @@ export function CritBadge({ crit }: { crit: Criticality }) {
   const label = { critical: L.critical, high: L.high, medium: L.medium, low: L.low }[crit];
   const col = critColor[crit];
   return (
-    <span className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full" style={{ color: col, background: softFill(col, 15) }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: col, animation: crit === 'critical' ? 'or-pulsedot 1.5s infinite' : 'none' }} />
+    <span
+      className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full"
+      style={{ color: col, background: softFill(col, 15) }}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{
+          background: col,
+          animation: crit === 'critical' ? 'or-pulsedot 1.5s infinite' : 'none',
+        }}
+      />
       {label}
     </span>
   );
@@ -187,13 +252,23 @@ export function StatusPill({ status }: { status: RiskStatus }) {
   );
 }
 
-export function Avatar({ initials, size = 26, title }: { initials: string; size?: number; title?: string }) {
+export function Avatar({
+  initials,
+  size = 26,
+  title,
+}: {
+  initials: string;
+  size?: number;
+  title?: string;
+}) {
   return (
     <div
       title={title ?? initials}
       className="rounded-full flex items-center justify-center font-bold shrink-0"
       style={{
-        width: size, height: size, fontSize: size * 0.4,
+        width: size,
+        height: size,
+        fontSize: size * 0.4,
         // A flat accent fill. The 135deg gradient this replaces put a piece of
         // brand decoration on every row of every table that shows an owner.
         background: 'var(--accent-solid)',
@@ -206,9 +281,21 @@ export function Avatar({ initials, size = 26, title }: { initials: string; size?
 }
 
 export function FwBadge({ fw }: { fw: string }) {
-  const col = { ISO27001: '#7c6cff', COBAC: '#30d158', BCEAO: '#ff9f0a', NIST: '#0a84ff', DORA: '#ff2d92', SOC2: '#64d2ff', ANSSI: '#ff453a' }[fw] ?? 'var(--fg-secondary)';
+  const col =
+    {
+      ISO27001: '#7c6cff',
+      COBAC: '#30d158',
+      BCEAO: '#ff9f0a',
+      NIST: '#0a84ff',
+      DORA: '#ff2d92',
+      SOC2: '#64d2ff',
+      ANSSI: '#ff453a',
+    }[fw] ?? 'var(--fg-secondary)';
   return (
-    <span className="text-2xs font-semibold px-2 py-0.5 rounded-sm" style={{ color: col, background: softFill(col, 14) }}>
+    <span
+      className="text-2xs font-semibold px-2 py-0.5 rounded-sm"
+      style={{ color: col, background: softFill(col, 14) }}
+    >
       {fw}
     </span>
   );
@@ -222,27 +309,58 @@ export function ScoreText({ score }: { score: number }) {
 
 /** Semicircular gauge with a big centered value (used by score hero + compliance). */
 export function RadialGauge({
-  value, max = 100, size = 220, label, suffix, color, countUp = true,
+  value,
+  max = 100,
+  size = 220,
+  label,
+  suffix,
+  color,
+  countUp = true,
 }: {
-  value: number; max?: number; size?: number; label?: string; suffix?: string; color?: string; countUp?: boolean;
+  value: number;
+  max?: number;
+  size?: number;
+  label?: string;
+  suffix?: string;
+  color?: string;
+  countUp?: boolean;
 }) {
   const shown = useCountUp(countUp ? value : 0);
   const v = countUp ? shown : value;
   const pct = Math.max(0, Math.min(1, v / max));
   const h = size * 0.68;
-  const cx = size / 2, cy = size * 0.51, r = size * 0.345;
+  const cx = size / 2,
+    cy = size * 0.51,
+    r = size * 0.345;
   const track = arcPath(cx, cy, r, -115, 115);
   const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
-  const col = color ?? (pct >= 0.7 ? 'var(--low)' : pct >= 0.45 ? 'var(--high)' : 'var(--critical)');
+  const col =
+    color ?? (pct >= 0.7 ? 'var(--low)' : pct >= 0.45 ? 'var(--high)' : 'var(--critical)');
   const display = max === 100 ? Math.round(v).toString() : v.toFixed(1);
   return (
     <div className="relative flex justify-center" style={{ width: size, height: h }}>
       <svg viewBox={`0 0 ${size} ${h}`} width={size} height={h}>
-        <path d={track} fill="none" stroke="var(--bg-hover)" strokeWidth={size * 0.064} strokeLinecap="round" />
-        <path d={prog} fill="none" stroke={col} strokeWidth={size * 0.064} strokeLinecap="round" style={{ filter: `drop-shadow(0 0 6px ${col})` }} />
+        <path
+          d={track}
+          fill="none"
+          stroke="var(--bg-hover)"
+          strokeWidth={size * 0.064}
+          strokeLinecap="round"
+        />
+        <path
+          d={prog}
+          fill="none"
+          stroke={col}
+          strokeWidth={size * 0.064}
+          strokeLinecap="round"
+          style={{ filter: `drop-shadow(0 0 6px ${col})` }}
+        />
       </svg>
       <div className="absolute left-0 right-0 text-center" style={{ top: h * 0.34 }}>
-        <div className="disp mono font-bold text-ink leading-none" style={{ fontSize: size * 0.2 }}>{display}{suffix}</div>
+        <div className="disp mono font-bold text-ink leading-none" style={{ fontSize: size * 0.2 }}>
+          {display}
+          {suffix}
+        </div>
         {label && <div className="text-[12px] text-ink-muted mt-1">{label}</div>}
       </div>
     </div>
@@ -250,7 +368,19 @@ export function RadialGauge({
 }
 
 /** Full-circle progress ring with centered content (compliance / simulation gauges). */
-export function RingGauge({ value, size = 128, color, thickness, children }: { value: number; size?: number; color: string; thickness?: number; children?: React.ReactNode }) {
+export function RingGauge({
+  value,
+  size = 128,
+  color,
+  thickness,
+  children,
+}: {
+  value: number;
+  size?: number;
+  color: string;
+  thickness?: number;
+  children?: React.ReactNode;
+}) {
   const stroke = thickness ?? Math.max(6, size * 0.075);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -258,10 +388,30 @@ export function RingGauge({ value, size = 128, color, thickness, children }: { v
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-hover)" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1)' }} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="var(--bg-hover)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - pct)}
+          style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1)' }}
+        />
       </svg>
-      {children && <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>}
+      {children && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
+      )}
     </div>
   );
 }

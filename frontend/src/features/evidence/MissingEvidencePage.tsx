@@ -14,7 +14,16 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, RefreshCw, FileWarning, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { PageFrame, PageHeader, Btn, Card, Chip, RingGauge, SkeletonRows, ErrorState } from '../../shared/ui';
+import {
+  PageFrame,
+  PageHeader,
+  Btn,
+  Card,
+  Chip,
+  RingGauge,
+  SkeletonRows,
+  ErrorState,
+} from '../../shared/ui';
 import { EmptyState } from '../../shared/EmptyState';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -69,7 +78,11 @@ export function MissingEvidencePage() {
       <PageHeader
         title={tr('Preuves manquantes', 'Missing evidence')}
         actions={
-          <Btn icon={ArrowLeft} onClick={() => navigate('/compliance')} label={tr('Conformité', 'Compliance')} />
+          <Btn
+            icon={ArrowLeft}
+            onClick={() => navigate('/compliance')}
+            label={tr('Conformité', 'Compliance')}
+          />
         }
       />
 
@@ -89,7 +102,9 @@ export function MissingEvidencePage() {
             'Importez un référentiel pour voir quelles preuves vous manquent.',
             'Import a framework to see which evidence you are missing.',
           )}
-          primaryAction={<Btn onClick={() => navigate('/compliance')} label={tr('Conformité', 'Compliance')} />}
+          primaryAction={
+            <Btn onClick={() => navigate('/compliance')} label={tr('Conformité', 'Compliance')} />
+          }
         />
       ) : (
         <>
@@ -101,7 +116,9 @@ export function MissingEvidencePage() {
                 <span className="text-[12px] font-semibold text-ink">{Math.round(overall)}%</span>
               </RingGauge>
               <div>
-                <div className="text-[12px] text-ink-muted">{tr('Couverts par une preuve valide', 'Covered by valid evidence')}</div>
+                <div className="text-[12px] text-ink-muted">
+                  {tr('Couverts par une preuve valide', 'Covered by valid evidence')}
+                </div>
                 <div className="text-[15px] text-ink font-semibold">
                   {totals.covered} / {totals.controls}
                 </div>
@@ -155,7 +172,10 @@ export function MissingEvidencePage() {
                         {Math.round(fw.percent_covered)}%
                       </div>
                     </div>
-                    <Btn onClick={() => navigate(`/compliance/frameworks/${fw.framework_id}`)} label={tr('Ouvrir', 'Open')} />
+                    <Btn
+                      onClick={() => navigate(`/compliance/frameworks/${fw.framework_id}`)}
+                      label={tr('Ouvrir', 'Open')}
+                    />
                   </div>
 
                   {rows.length === 0 ? (
@@ -188,9 +208,8 @@ export function MissingEvidencePage() {
                                 {m.total_evidence > 0 ? (
                                   <span className="text-ink-muted">
                                     {' '}
-                                    · {m.total_evidence}{' '}
-                                    {tr('preuve(s) rattachée(s)', 'attached')}, {m.covering_evidence}{' '}
-                                    {tr('valide(s)', 'valid')}
+                                    · {m.total_evidence} {tr('preuve(s) rattachée(s)', 'attached')},{' '}
+                                    {m.covering_evidence} {tr('valide(s)', 'valid')}
                                   </span>
                                 ) : null}
                                 {m.nearest_expiry ? (
@@ -205,7 +224,11 @@ export function MissingEvidencePage() {
                               </div>
                             </div>
                             {canWrite ? (
-                              <Btn icon={m.kind === 'no_evidence' ? FileWarning : RefreshCw} onClick={() => setCollecting(m)} label={tr(meta.action.fr, meta.action.en)} />
+                              <Btn
+                                icon={m.kind === 'no_evidence' ? FileWarning : RefreshCw}
+                                onClick={() => setCollecting(m)}
+                                label={tr(meta.action.fr, meta.action.en)}
+                              />
                             ) : null}
                           </li>
                         );
@@ -249,7 +272,10 @@ function StatCard({
   return (
     <Card className="p-4">
       <div className="text-[12px] text-ink-muted">{label}</div>
-      <div className="text-[22px] font-semibold" style={{ color: value > 0 ? color : 'var(--ink)' }}>
+      <div
+        className="text-[22px] font-semibold"
+        style={{ color: value > 0 ? color : 'var(--ink)' }}
+      >
         {value}
       </div>
       <div className="text-[11.5px] text-ink-muted">{hint}</div>

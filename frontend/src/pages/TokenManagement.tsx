@@ -80,9 +80,14 @@ export const TokenManagement = () => {
       setNewTokenValue(response.data.token_value);
       setFormData({ name: '', description: '' });
       await fetchTokens();
-      toast.success('Token created successfully. Copy the token value now - you won\'t see it again!');
+      toast.success(
+        "Token created successfully. Copy the token value now - you won't see it again!",
+      );
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Couldn't create the API token. Please check your input and try again.");
+      toast.error(
+        err.response?.data?.message ||
+          "Couldn't create the API token. Please check your input and try again.",
+      );
     } finally {
       setIsCreating(false);
     }
@@ -95,7 +100,7 @@ export const TokenManagement = () => {
 
     try {
       await api.post(`/tokens/${tokenId}/revoke`);
-      setTokens(tokens.map(t => t.id === tokenId ? { ...t, status: 'revoked' } : t));
+      setTokens(tokens.map((t) => (t.id === tokenId ? { ...t, status: 'revoked' } : t)));
       toast.success('Token revoked');
     } catch (err) {
       toast.error("We couldn't disable this token. Please try again.");
@@ -109,7 +114,7 @@ export const TokenManagement = () => {
 
     try {
       await api.delete(`/tokens/${tokenId}`);
-      setTokens(tokens.filter(t => t.id !== tokenId));
+      setTokens(tokens.filter((t) => t.id !== tokenId));
       toast.success('Token deleted');
     } catch (err) {
       toast.error("We couldn't remove this token. Please try again.");
@@ -136,11 +141,11 @@ export const TokenManagement = () => {
     toast.success('Copied to clipboard');
   };
 
-  const filteredTokens = tokens.filter(token => 
-    token.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTokens = tokens.filter((token) =>
+    token.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const activeTokens = filteredTokens.filter(t => t.status === 'active').length;
+  const activeTokens = filteredTokens.filter((t) => t.status === 'active').length;
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Never';
@@ -205,7 +210,7 @@ export const TokenManagement = () => {
           >
             <div className="text-fg-secondary text-sm font-medium">Revoked</div>
             <div className="text-2xl font-bold text-danger-text mt-1">
-              {tokens.filter(t => t.status === 'revoked').length}
+              {tokens.filter((t) => t.status === 'revoked').length}
             </div>
           </motion.div>
         </div>
@@ -220,7 +225,9 @@ export const TokenManagement = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="font-semibold text-success-text mb-2">New Token Created</h3>
-                <p className="text-sm text-fg-secondary mb-3">Save this token now. You won't be able to see it again!</p>
+                <p className="text-sm text-fg-secondary mb-3">
+                  Save this token now. You won't be able to see it again!
+                </p>
                 <div className="bg-surface-1 rounded px-3 py-2 flex items-center justify-between">
                   <code className="text-sm text-fg-primary break-all">{newTokenValue}</code>
                   <button
@@ -243,7 +250,8 @@ export const TokenManagement = () => {
 
         {/* Controls */}
         <div className="flex gap-4 mb-6">
-          <Button variant="primary"
+          <Button
+            variant="primary"
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="gap-2"
           >
@@ -288,11 +296,7 @@ export const TokenManagement = () => {
                 <Button variant="primary" type="submit" disabled={isCreating} className="gap-2">
                   {isCreating ? 'Creating...' : 'Create Token'}
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  variant="secondary"
-                >
+                <Button type="button" onClick={() => setShowCreateForm(false)} variant="secondary">
                   Cancel
                 </Button>
               </div>
@@ -336,15 +340,19 @@ export const TokenManagement = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold text-fg-primary">{token.name}</h3>
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        token.status === 'active'
-                          ? 'bg-success/10 text-success-text border border-success/20'
-                          : 'bg-danger/10 text-danger-text border border-danger/20'
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded font-medium ${
+                          token.status === 'active'
+                            ? 'bg-success/10 text-success-text border border-success/20'
+                            : 'bg-danger/10 text-danger-text border border-danger/20'
+                        }`}
+                      >
                         {token.status.charAt(0).toUpperCase() + token.status.slice(1)}
                       </span>
                       {token.token_prefix && (
-                        <span className="text-xs text-fg-muted font-mono">{token.token_prefix}...</span>
+                        <span className="text-xs text-fg-muted font-mono">
+                          {token.token_prefix}...
+                        </span>
                       )}
                     </div>
                     {token.description && (
@@ -362,10 +370,15 @@ export const TokenManagement = () => {
                         </div>
                       )}
                       {token.expires_at && (
-                        <div className={`flex items-center gap-1 ${
-                          isExpired(token.expires_at) ? 'text-danger-text' :
-                          isExpiringSoon(token.expires_at) ? 'text-warning-text' : ''
-                        }`}>
+                        <div
+                          className={`flex items-center gap-1 ${
+                            isExpired(token.expires_at)
+                              ? 'text-danger-text'
+                              : isExpiringSoon(token.expires_at)
+                                ? 'text-warning-text'
+                                : ''
+                          }`}
+                        >
                           <Lock className="w-3 h-3" />
                           Expires: {formatDate(token.expires_at)}
                           {isExpiringSoon(token.expires_at) && ' (Soon)'}
@@ -373,7 +386,7 @@ export const TokenManagement = () => {
                         </div>
                       )}
                     </div>
-                    {(token.permissions && token.permissions.length > 0) && (
+                    {token.permissions && token.permissions.length > 0 && (
                       <div className="mt-3">
                         <p className="text-xs text-fg-secondary mb-1">Permissions:</p>
                         <div className="flex flex-wrap gap-1">

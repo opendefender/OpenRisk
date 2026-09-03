@@ -46,7 +46,11 @@ export function RowMenu<T>({ row, actions, label }: RowMenuProps<T>) {
 
   const visible = actions.filter((a) => !a.hidden?.(row));
 
-  const { refs: anchor, floatingStyles, context } = useFloating({
+  const {
+    refs: anchor,
+    floatingStyles,
+    context,
+  } = useFloating({
     open,
     onOpenChange: setOpen,
     placement: 'bottom-end',
@@ -80,9 +84,12 @@ export function RowMenu<T>({ row, actions, label }: RowMenuProps<T>) {
     loop: true,
     focusItemOnOpen: true,
   });
-  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions([click, dismiss, role, listNav]);
-
-
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions([
+    click,
+    dismiss,
+    role,
+    listNav,
+  ]);
 
   // floating-ui hands back *callback ref setters*, not ref objects. Wrapping
   // them keeps the JSX free of member access, which the react-hooks/refs rule

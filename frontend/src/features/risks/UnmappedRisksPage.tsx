@@ -49,7 +49,9 @@ export function UnmappedRisksPage() {
       </p>
 
       {isLoading ? (
-        <Card><SkeletonRows rows={5} /></Card>
+        <Card>
+          <SkeletonRows rows={5} />
+        </Card>
       ) : isError ? (
         <Card>
           <div className="p-6 text-center text-[13px] text-ink-muted">
@@ -84,7 +86,9 @@ export function UnmappedRisksPage() {
                 <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                   <span
                     className="mono w-12 shrink-0 text-right text-[15px] font-bold"
-                    style={{ color: critColor[(r.criticality?.toLowerCase() as Criticality) ?? 'low'] }}
+                    style={{
+                      color: critColor[(r.criticality?.toLowerCase() as Criticality) ?? 'low'],
+                    }}
                   >
                     {r.score.toFixed(1)}
                   </span>
@@ -145,7 +149,10 @@ function InlineMapper({ riskId, onDone }: { riskId: string; onDone: () => void }
     const failed: string[] = [];
     for (const d of drafts) {
       try {
-        await create.mutateAsync({ framework_id: d.framework_id, control_id: d.control_id ?? null });
+        await create.mutateAsync({
+          framework_id: d.framework_id,
+          control_id: d.control_id ?? null,
+        });
       } catch {
         failed.push(d.label);
       }
@@ -177,10 +184,18 @@ function InlineMapper({ riskId, onDone }: { riskId: string; onDone: () => void }
           className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-semibold disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--fg-primary))' }}
         >
-          {create.isPending ? <Loader2 size={13} className="animate-spin" /> : <BookOpen size={13} />}
+          {create.isPending ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <BookOpen size={13} />
+          )}
           {tr('Enregistrer le mapping', 'Save the mapping')}
         </button>
-        <button type="button" onClick={onDone} className="text-[12.5px] text-ink-muted hover:text-ink">
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-[12.5px] text-ink-muted hover:text-ink"
+        >
           {tr('Annuler', 'Cancel')}
         </button>
       </div>

@@ -12,18 +12,17 @@
  *  `finding` is a Vulnerability (there is no findings table) and `vendor` is an
  *  Asset of category vendor (there is no vendors table). */
 export type EntityType =
-  | 'asset'
-  | 'risk'
-  | 'vulnerability'
-  | 'finding'
-  | 'control'
-  | 'incident'
-  | 'vendor'
-  | 'evidence';
+  'asset' | 'risk' | 'vulnerability' | 'finding' | 'control' | 'incident' | 'vendor' | 'evidence';
 
 export const ENTITY_TYPES: readonly EntityType[] = [
-  'asset', 'risk', 'vulnerability', 'finding',
-  'control', 'incident', 'vendor', 'evidence',
+  'asset',
+  'risk',
+  'vulnerability',
+  'finding',
+  'control',
+  'incident',
+  'vendor',
+  'evidence',
 ] as const;
 
 export function isEntityType(v: string | null | undefined): v is EntityType {
@@ -37,8 +36,7 @@ export type EntitySection = 'summary' | 'relations' | 'timeline' | 'audit';
 
 /** Design-system badge intents. */
 export type Tone =
-  | 'critical' | 'high' | 'medium' | 'low'
-  | 'success' | 'warning' | 'info' | 'neutral';
+  'critical' | 'high' | 'medium' | 'low' | 'success' | 'warning' | 'info' | 'neutral';
 
 export interface Chip {
   value: string;
@@ -47,8 +45,16 @@ export interface Chip {
 }
 
 export type FieldKind =
-  | 'text' | 'date' | 'user' | 'badge' | 'number'
-  | 'money' | 'link' | 'tags' | 'boolean' | 'multiline';
+  | 'text'
+  | 'date'
+  | 'user'
+  | 'badge'
+  | 'number'
+  | 'money'
+  | 'link'
+  | 'tags'
+  | 'boolean'
+  | 'multiline';
 
 export interface EntityField {
   key: string;
@@ -155,8 +161,7 @@ export interface RelationsResponse {
   groups: RelationGroup[];
 }
 
-export type TimelineSourceName =
-  | 'audit' | 'risk_history' | 'incident_timeline' | 'asset_snapshot';
+export type TimelineSourceName = 'audit' | 'risk_history' | 'incident_timeline' | 'asset_snapshot';
 
 export interface TimelineChange {
   field: string;

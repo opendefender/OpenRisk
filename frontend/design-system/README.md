@@ -26,7 +26,7 @@ with the reason it exists — an unlisted difference is drift, and drift is what
 produced the split this contract was written to end.
 
 Two kinds of deliberate difference are recorded there. `ALLOWED` is a different
-*value*; `RENAMED` is a different *name* for the same value, which is what the
+_value_; `RENAMED` is a different _name_ for the same value, which is what the
 console needs for the text-colour roles: the canonical file calls them
 `--text-primary|secondary|muted|inverse|on-solid`, and in Tailwind v4 `--text-*`
 is the font-size namespace, so the console declares them as `--fg-*` (#442). The

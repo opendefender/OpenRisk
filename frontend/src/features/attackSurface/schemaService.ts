@@ -24,19 +24,16 @@ export const assetSchemaService = {
 
   update: async (
     category: AssetCategory,
-    payload: UpdateAssetTypeSchemaInput
+    payload: UpdateAssetTypeSchemaInput,
   ): Promise<AssetTypeSchema> => {
-    const { data } = await api.put<AssetTypeSchema>(
-      `/attack-surface/schemas/${category}`,
-      payload
-    );
+    const { data } = await api.put<AssetTypeSchema>(`/attack-surface/schemas/${category}`, payload);
     return data;
   },
 
   reset: async (category: AssetCategory): Promise<AssetTypeSchema> => {
     const { data } = await api.post<AssetTypeSchema>(
       `/attack-surface/schemas/${category}/reset`,
-      {}
+      {},
     );
     return data;
   },

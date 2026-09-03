@@ -8,14 +8,7 @@
 import { api } from '../lib/api';
 
 export type SearchResultType =
-  | 'risk'
-  | 'asset'
-  | 'vulnerability'
-  | 'control'
-  | 'audit'
-  | 'report'
-  | 'cve'
-  | 'user';
+  'risk' | 'asset' | 'vulnerability' | 'control' | 'audit' | 'report' | 'cve' | 'user';
 
 export interface SearchResult {
   type: SearchResultType;

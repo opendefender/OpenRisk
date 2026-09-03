@@ -41,7 +41,9 @@ export const reportJobService = {
   },
 
   async list(limit = 25): Promise<ReportJob[]> {
-    const { data } = await api.get<{ data: ReportJob[] | null }>('/reports/jobs', { params: { limit } });
+    const { data } = await api.get<{ data: ReportJob[] | null }>('/reports/jobs', {
+      params: { limit },
+    });
     return data.data ?? [];
   },
 

@@ -24,10 +24,14 @@ import { CveDetailDrawer } from './CveDetailDrawer';
 
 const sevToCrit = (s: string): Criticality => {
   switch ((s || '').toUpperCase()) {
-    case 'CRITICAL': return 'critical';
-    case 'HIGH': return 'high';
-    case 'MEDIUM': return 'medium';
-    default: return 'low';
+    case 'CRITICAL':
+      return 'critical';
+    case 'HIGH':
+      return 'high';
+    case 'MEDIUM':
+      return 'medium';
+    default:
+      return 'low';
   }
 };
 
@@ -51,7 +55,12 @@ export function ThreatIntel() {
   const [sev, setSev] = useState('');
   const [openCve, setOpenCve] = useState<string | null>(null);
   const { data: stats } = useCTIStats();
-  const { data: vulns, isLoading, isError, refetch } = useCTIVulnerabilities({
+  const {
+    data: vulns,
+    isLoading,
+    isError,
+    refetch,
+  } = useCTIVulnerabilities({
     query: q || undefined,
     severity: sev || undefined,
     limit: 60,
@@ -61,7 +70,13 @@ export function ThreatIntel() {
 
   const onSync = () => {
     sync.mutate(undefined, {
-      onSuccess: (r) => toast.success(tr(`Flux synchronisé — ${r.total_vulnerabilities} CVE`, `Feed synced — ${r.total_vulnerabilities} CVEs`)),
+      onSuccess: (r) =>
+        toast.success(
+          tr(
+            `Flux synchronisé — ${r.total_vulnerabilities} CVE`,
+            `Feed synced — ${r.total_vulnerabilities} CVEs`,
+          ),
+        ),
       onError: () => toast.error(tr('Échec de la synchronisation', 'Sync failed')),
     });
   };
@@ -69,21 +84,32 @@ export function ThreatIntel() {
   const matching = match.isPending;
   const onMatch = () => {
     match.mutate(undefined, {
-      onSuccess: (r) => toast.success(
-        r.risks_created > 0
-          ? tr(`${r.risks_created} risque(s) créé(s) depuis les CVE`, `${r.risks_created} risk(s) created from CVEs`)
-          : tr('Aucune nouvelle exposition détectée', 'No new exposure detected'),
-      ),
+      onSuccess: (r) =>
+        toast.success(
+          r.risks_created > 0
+            ? tr(
+                `${r.risks_created} risque(s) créé(s) depuis les CVE`,
+                `${r.risks_created} risk(s) created from CVEs`,
+              )
+            : tr('Aucune nouvelle exposition détectée', 'No new exposure detected'),
+        ),
       onError: () => toast.error(tr('Échec du matching', 'Matching failed')),
     });
   };
 
-  const statCards: [string, string, string][] = useMemo(() => ([
-    [String(stats?.total ?? 0), tr('CVE actives', 'Active CVEs'), 'var(--accent)'],
-    [String(stats?.critical ?? 0), tr('Critiques', 'Critical'), 'var(--critical)'],
-    [String(stats?.cisa_known ?? 0), tr('CISA KEV (exploitées)', 'CISA KEV (exploited)'), 'var(--high)'],
-    [String(stats?.cti_risks ?? 0), tr('Risques auto-créés', 'Auto-created risks'), 'var(--low)'],
-  ]), [stats, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  const statCards: [string, string, string][] = useMemo(
+    () => [
+      [String(stats?.total ?? 0), tr('CVE actives', 'Active CVEs'), 'var(--accent)'],
+      [String(stats?.critical ?? 0), tr('Critiques', 'Critical'), 'var(--critical)'],
+      [
+        String(stats?.cisa_known ?? 0),
+        tr('CISA KEV (exploitées)', 'CISA KEV (exploited)'),
+        'var(--high)',
+      ],
+      [String(stats?.cti_risks ?? 0), tr('Risques auto-créés', 'Auto-created risks'), 'var(--low)'],
+    ],
+    [stats, lang],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const list: CTIVulnerability[] = vulns ?? [];
 
@@ -95,7 +121,11 @@ export function ThreatIntel() {
         actions={
           <div className="flex items-center gap-2">
             <Btn
-              label={matching ? tr('Analyse des actifs…', 'Matching assets…') : tr('Matcher les actifs', 'Match assets')}
+              label={
+                matching
+                  ? tr('Analyse des actifs…', 'Matching assets…')
+                  : tr('Matcher les actifs', 'Match assets')
+              }
               icon={matching ? Loader2 : Crosshair}
               onClick={onMatch}
               disabled={matching || syncing}
@@ -117,7 +147,9 @@ export function ThreatIntel() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {statCards.map(([v, lbl, col]) => (
           <Card key={lbl} style={{ padding: '16px 18px' }}>
-            <div className="disp mono text-[28px] font-bold" style={{ color: col }}>{v}</div>
+            <div className="disp mono text-[28px] font-bold" style={{ color: col }}>
+              {v}
+            </div>
             <div className="text-[12.5px] text-ink-soft mt-1">{lbl}</div>
           </Card>
         ))}
@@ -139,9 +171,11 @@ export function ThreatIntel() {
             key={s || 'all'}
             onClick={() => setSev(s)}
             className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors"
-            style={sev === s
-              ? { background: 'var(--accent)', color: '#fff' }
-              : { background: 'var(--bg-hover)', color: 'var(--text-soft)' }}
+            style={
+              sev === s
+                ? { background: 'var(--accent)', color: '#fff' }
+                : { background: 'var(--bg-hover)', color: 'var(--text-soft)' }
+            }
           >
             {s === '' ? tr('Toutes', 'All') : s}
           </button>
@@ -163,8 +197,21 @@ export function ThreatIntel() {
           <EmptyState
             icon={Globe}
             title={tr('Aucune CVE', 'No CVEs yet')}
-            description={tr('Synchronisez NVD + CISA KEV pour peupler le flux.', 'Sync NVD + CISA KEV to populate the feed.')}
-            primaryAction={<Btn label={syncing ? tr('Synchronisation…', 'Syncing…') : tr('Synchroniser', 'Sync feed')} icon={syncing ? Loader2 : Globe} primary onClick={onSync} disabled={syncing} />}
+            description={tr(
+              'Synchronisez NVD + CISA KEV pour peupler le flux.',
+              'Sync NVD + CISA KEV to populate the feed.',
+            )}
+            primaryAction={
+              <Btn
+                label={
+                  syncing ? tr('Synchronisation…', 'Syncing…') : tr('Synchroniser', 'Sync feed')
+                }
+                icon={syncing ? Loader2 : Globe}
+                primary
+                onClick={onSync}
+                disabled={syncing}
+              />
+            }
           />
         ) : (
           list.map((v, i) => {
@@ -186,26 +233,50 @@ export function ThreatIntel() {
                 style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}
               >
                 <div className="w-[52px] shrink-0 text-center">
-                  <div className="mono text-[17px] font-bold" style={{ color: critColor[crit] }}>{v.cvss_v3 > 0 ? v.cvss_v3.toFixed(1) : '—'}</div>
+                  <div className="mono text-[17px] font-bold" style={{ color: critColor[crit] }}>
+                    {v.cvss_v3 > 0 ? v.cvss_v3.toFixed(1) : '—'}
+                  </div>
                   <div className="text-[9px] text-ink-muted tracking-[.04em]">CVSS</div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-medium text-ink truncate">{v.description || v.cve_id}</div>
+                  <div className="text-[13.5px] font-medium text-ink truncate">
+                    {v.description || v.cve_id}
+                  </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="mono text-[11.5px] text-ink-muted">{v.cve_id}</span>
                     {v.cisa_known && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--critical) 16%, transparent)', color: 'var(--critical)' }}>
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                        style={{
+                          background: 'color-mix(in srgb, var(--critical) 16%, transparent)',
+                          color: 'var(--critical)',
+                        }}
+                      >
                         <ShieldAlert size={10} /> CISA KEV
                       </span>
                     )}
                     {techniques.map((t) => (
-                      <span key={t} className="mono text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-soft)' }}>{t}</span>
+                      <span
+                        key={t}
+                        className="mono text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                        style={{ background: 'var(--bg-hover)', color: 'var(--text-soft)' }}
+                      >
+                        {t}
+                      </span>
                     ))}
                   </div>
                 </div>
-                <span className="text-[11.5px] text-ink-soft whitespace-nowrap hidden sm:inline">{relTime(v.published_at, tr)}</span>
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold w-[92px]" style={{ color: critColor[crit] }}>
-                  <span className="w-[7px] h-[7px] rounded-full" style={{ background: critColor[crit] }} />
+                <span className="text-[11.5px] text-ink-soft whitespace-nowrap hidden sm:inline">
+                  {relTime(v.published_at, tr)}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold w-[92px]"
+                  style={{ color: critColor[crit] }}
+                >
+                  <span
+                    className="w-[7px] h-[7px] rounded-full"
+                    style={{ background: critColor[crit] }}
+                  />
                   {v.severity ? v.severity.charAt(0) + v.severity.slice(1).toLowerCase() : '—'}
                 </span>
               </div>

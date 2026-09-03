@@ -4,7 +4,18 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect, useState } from 'react';
-import { Search, Star, Download, CheckCircle, AlertCircle, Trash2, Plus, RefreshCw, Eye, Code } from 'lucide-react';
+import {
+  Search,
+  Star,
+  Download,
+  CheckCircle,
+  AlertCircle,
+  Trash2,
+  Plus,
+  RefreshCw,
+  Eye,
+  Code,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAccessToken } from '../lib/session';
 
@@ -63,8 +74,8 @@ export default function Marketplace() {
       try {
         const response = await fetch('/api/v1/marketplace/connectors', {
           headers: {
-            'Authorization': `Bearer ${getAccessToken() ?? ''}`
-          }
+            Authorization: `Bearer ${getAccessToken() ?? ''}`,
+          },
         });
         const data = await response.json();
         setConnectors(data.data || []);
@@ -80,8 +91,8 @@ export default function Marketplace() {
       try {
         const response = await fetch('/api/v1/marketplace/apps', {
           headers: {
-            'Authorization': `Bearer ${getAccessToken() ?? ''}`
-          }
+            Authorization: `Bearer ${getAccessToken() ?? ''}`,
+          },
         });
         const data = await response.json();
         setInstalledApps(data.data || []);
@@ -95,9 +106,10 @@ export default function Marketplace() {
   }, []);
 
   // Filter and search connectors
-  const filteredConnectors = connectors.filter(connector => {
-    const matchesSearch = connector.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        connector.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredConnectors = connectors.filter((connector) => {
+    const matchesSearch =
+      connector.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      connector.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || connector.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -110,14 +122,14 @@ export default function Marketplace() {
       const response = await fetch('/api/v1/marketplace/apps', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getAccessToken() ?? ''}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${getAccessToken() ?? ''}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           connector_id: connectorId,
           app_name: appName,
-          configuration: {}
-        })
+          configuration: {},
+        }),
       });
 
       if (response.ok) {
@@ -140,11 +152,11 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${getAccessToken() ?? ''}`
-        }
+          Authorization: `Bearer ${getAccessToken() ?? ''}`,
+        },
       });
 
-      setInstalledApps(installedApps.filter(app => app.id !== appId));
+      setInstalledApps(installedApps.filter((app) => app.id !== appId));
     } catch (error) {
       console.error('Failed to uninstall app:', error);
     }
@@ -157,13 +169,13 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}/${endpoint}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getAccessToken() ?? ''}`
-        }
+          Authorization: `Bearer ${getAccessToken() ?? ''}`,
+        },
       });
 
-      setInstalledApps(installedApps.map(app =>
-        app.id === appId ? { ...app, enabled: !enabled } : app
-      ));
+      setInstalledApps(
+        installedApps.map((app) => (app.id === appId ? { ...app, enabled: !enabled } : app)),
+      );
     } catch (error) {
       console.error('Failed to toggle app:', error);
     }
@@ -175,15 +187,15 @@ export default function Marketplace() {
       await fetch(`/api/v1/marketplace/apps/${appId}/sync`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getAccessToken() ?? ''}`
-        }
+          Authorization: `Bearer ${getAccessToken() ?? ''}`,
+        },
       });
 
       // Refresh apps list
       const response = await fetch('/api/v1/marketplace/apps', {
         headers: {
-          'Authorization': `Bearer ${getAccessToken() ?? ''}`
-        }
+          Authorization: `Bearer ${getAccessToken() ?? ''}`,
+        },
       });
       const data = await response.json();
       setInstalledApps(data.data || []);
@@ -292,7 +304,7 @@ export default function Marketplace() {
 
                 {/* Category Filter */}
                 <div className="flex gap-2 overflow-x-auto pb-2">
-                  {categories.map(cat => (
+                  {categories.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
@@ -329,8 +341,12 @@ export default function Marketplace() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-lg font-semibold text-fg-primary">{connector.name}</h3>
-                            <span className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(connector.status)}`}>
+                            <h3 className="text-lg font-semibold text-fg-primary">
+                              {connector.name}
+                            </h3>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(connector.status)}`}
+                            >
                               {getStatusIcon(connector.status)}
                               {connector.status}
                             </span>
@@ -443,7 +459,9 @@ export default function Marketplace() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold text-fg-primary">{app.name}</h3>
-                            <span className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(app.status)}`}>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(app.status)}`}
+                            >
                               {getStatusIcon(app.status)}
                               {app.status}
                             </span>
@@ -512,7 +530,8 @@ export default function Marketplace() {
               >
                 <h2 className="text-2xl font-bold text-fg-primary mb-2">Install Connector</h2>
                 <p className="text-fg-secondary mb-6">
-                  Install <span className="font-semibold text-info-text">{selectedConnector.name}</span>
+                  Install{' '}
+                  <span className="font-semibold text-info-text">{selectedConnector.name}</span>
                 </p>
 
                 <div className="space-y-4 mb-6">

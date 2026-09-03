@@ -100,7 +100,9 @@ export const taxonomyService = {
   },
 
   async listMappings(riskId: string): Promise<RiskControlMapping[]> {
-    const { data } = await api.get<{ items: RiskControlMapping[] }>(`/risks/${riskId}/control-mappings`);
+    const { data } = await api.get<{ items: RiskControlMapping[] }>(
+      `/risks/${riskId}/control-mappings`,
+    );
     return data.items ?? [];
   },
 

@@ -13,7 +13,15 @@
 // to do about it.
 
 import { useState } from 'react';
-import { AlertTriangle, ArrowRight, Check, Loader2, Lock, RotateCcw, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  Loader2,
+  Lock,
+  RotateCcw,
+  ShieldCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -95,7 +103,7 @@ export function LifecycleStepper({ riskId, onOpenMitigations, onOpenGovernance }
 
   const wayOutLabel = (guard: TransitionGuard) =>
     guard === 'governance_approval'
-      ? tr("Ouvrir la Gouvernance", 'Open Governance')
+      ? tr('Ouvrir la Gouvernance', 'Open Governance')
       : tr('Ouvrir le plan de mitigation', 'Open the mitigation plan');
 
   const forward = data.options.filter((o) => o.is_forward);
@@ -114,7 +122,11 @@ export function LifecycleStepper({ riskId, onOpenMitigations, onOpenGovernance }
           </span>
         </div>
         <p className="text-lg font-semibold text-ink">{data.current_label}</p>
-        <div className="mt-2 flex gap-1" role="img" aria-label={`${data.step_index + 1}/${data.step_count}`}>
+        <div
+          className="mt-2 flex gap-1"
+          role="img"
+          aria-label={`${data.step_index + 1}/${data.step_count}`}
+        >
           {Array.from({ length: data.step_count }).map((_, i) => (
             <span
               key={i}
@@ -150,7 +162,10 @@ export function LifecycleStepper({ riskId, onOpenMitigations, onOpenGovernance }
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           maxLength={1000}
-          placeholder={tr('Commentaire (optionnel, conservé dans la piste d’audit)', 'Comment (optional, kept in the audit trail)')}
+          placeholder={tr(
+            'Commentaire (optionnel, conservé dans la piste d’audit)',
+            'Comment (optional, kept in the audit trail)',
+          )}
           className="w-full rounded-2xl border border-border bg-elevated px-3 py-2 text-[13px] text-ink outline-none focus:border-accent"
         />
       ) : null}
@@ -170,7 +185,10 @@ export function LifecycleStepper({ riskId, onOpenMitigations, onOpenGovernance }
         ))}
         {data.options.length === 0 ? (
           <p className="text-[13px] text-ink-muted">
-            {tr('Aucune transition possible depuis cet état.', 'No transition is available from this state.')}
+            {tr(
+              'Aucune transition possible depuis cet état.',
+              'No transition is available from this state.',
+            )}
           </p>
         ) : null}
       </div>
@@ -204,13 +222,15 @@ function TransitionRow({
 }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const GuardIcon = opt.guard ? GUARD_ACTION[opt.guard]?.icon ?? Lock : Lock;
+  const GuardIcon = opt.guard ? (GUARD_ACTION[opt.guard]?.icon ?? Lock) : Lock;
 
   return (
     <div
       className="rounded-3xl border p-3 transition"
       style={{
-        borderColor: opt.allowed ? 'var(--border)' : 'color-mix(in srgb, var(--border) 70%, transparent)',
+        borderColor: opt.allowed
+          ? 'var(--border)'
+          : 'color-mix(in srgb, var(--border) 70%, transparent)',
         opacity: opt.allowed ? 1 : 0.78,
       }}
     >
@@ -224,7 +244,15 @@ function TransitionRow({
             color: opt.allowed ? 'var(--accent)' : 'var(--ink-muted)',
           }}
         >
-          {opt.allowed ? (opt.is_forward ? <ArrowRight size={14} /> : <RotateCcw size={14} />) : <GuardIcon size={14} />}
+          {opt.allowed ? (
+            opt.is_forward ? (
+              <ArrowRight size={14} />
+            ) : (
+              <RotateCcw size={14} />
+            )
+          ) : (
+            <GuardIcon size={14} />
+          )}
         </span>
 
         <span className="min-w-0 flex-1">

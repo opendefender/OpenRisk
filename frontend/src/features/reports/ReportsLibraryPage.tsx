@@ -9,7 +9,16 @@
 
 import { useState } from 'react';
 import {
-  FileText, Plus, Download, Trash2, ShieldCheck, Clock, Loader2, AlertTriangle, Check, Send,
+  FileText,
+  Plus,
+  Download,
+  Trash2,
+  ShieldCheck,
+  Clock,
+  Loader2,
+  AlertTriangle,
+  Check,
+  Send,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
 import { EmptyState } from '../../shared/EmptyState';
@@ -18,7 +27,11 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import { reportService } from '../../services/reportService';
 import {
-  useReports, useCreateReport, useTransitionReport, useDeleteReport, useVerifyReport,
+  useReports,
+  useCreateReport,
+  useTransitionReport,
+  useDeleteReport,
+  useVerifyReport,
 } from './useReports';
 import { ReportConfigurator } from './ReportConfigurator';
 import type { Report, ReportLifecycle } from '../../types/report';
@@ -31,11 +44,12 @@ const LIFECYCLE_META: Record<ReportLifecycle, { color: string; fr: string; en: s
 };
 
 /** The next step in the lifecycle, and what to call the button. */
-const NEXT_STEP: Partial<Record<ReportLifecycle, { to: ReportLifecycle; fr: string; en: string }>> = {
-  draft: { to: 'in_review', fr: 'Envoyer en relecture', en: 'Send for review' },
-  in_review: { to: 'approved', fr: 'Approuver', en: 'Approve' },
-  approved: { to: 'published', fr: 'Publier', en: 'Publish' },
-};
+const NEXT_STEP: Partial<Record<ReportLifecycle, { to: ReportLifecycle; fr: string; en: string }>> =
+  {
+    draft: { to: 'in_review', fr: 'Envoyer en relecture', en: 'Send for review' },
+    in_review: { to: 'approved', fr: 'Approuver', en: 'Approve' },
+    approved: { to: 'published', fr: 'Publier', en: 'Publish' },
+  };
 
 export function ReportsLibraryPage() {
   const lang = useUIStore((s) => s.lang);
@@ -61,7 +75,10 @@ export function ReportsLibraryPage() {
       const { contentHash } = await reportService.download(r.id, r.filename);
       toast.success(
         contentHash
-          ? tr(`Téléchargé · empreinte ${contentHash.slice(0, 16)}`, `Downloaded · hash ${contentHash.slice(0, 16)}`)
+          ? tr(
+              `Téléchargé · empreinte ${contentHash.slice(0, 16)}`,
+              `Downloaded · hash ${contentHash.slice(0, 16)}`,
+            )
           : tr('Téléchargé', 'Downloaded'),
       );
     } catch {
@@ -74,7 +91,12 @@ export function ReportsLibraryPage() {
     if (result.intact) {
       toast.success(tr('Document intact', 'Document intact'));
     } else {
-      toast.error(tr('Le document ne correspond plus à son empreinte', 'The document no longer matches its hash'));
+      toast.error(
+        tr(
+          'Le document ne correspond plus à son empreinte',
+          'The document no longer matches its hash',
+        ),
+      );
     }
   }
 
@@ -84,7 +106,11 @@ export function ReportsLibraryPage() {
         title={tr('Rapports', 'Reports')}
         count={data ? `${data.total}` : null}
         actions={
-          <Btn icon={Plus} onClick={() => setConfiguring(true)} label={tr('Générer un rapport', 'Generate a report')} />
+          <Btn
+            icon={Plus}
+            onClick={() => setConfiguring(true)}
+            label={tr('Générer un rapport', 'Generate a report')}
+          />
         }
       />
 
@@ -117,7 +143,11 @@ export function ReportsLibraryPage() {
             'Choose a type, a period, a language and a format. Generation runs in the background.',
           )}
           primaryAction={
-            <Btn icon={Plus} onClick={() => setConfiguring(true)} label={tr('Générer un rapport', 'Generate a report')} />
+            <Btn
+              icon={Plus}
+              onClick={() => setConfiguring(true)}
+              label={tr('Générer un rapport', 'Generate a report')}
+            />
           }
         />
       ) : (
@@ -157,7 +187,9 @@ export function ReportsLibraryPage() {
                         {new Date(r.created_at).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB')}
                       </span>
                       {r.requested_by_email ? <span>· {r.requested_by_email}</span> : null}
-                      <span>· {r.template_key} v{r.template_version}</span>
+                      <span>
+                        · {r.template_key} v{r.template_version}
+                      </span>
                       {r.content_fingerprint ? (
                         <span
                           className="font-mono"
@@ -201,7 +233,11 @@ export function ReportsLibraryPage() {
                   <div className="flex items-center gap-1.5 shrink-0">
                     {r.run_state === 'succeeded' ? (
                       <>
-                        <Btn icon={Download} onClick={() => handleDownload(r)} label={tr('Télécharger', 'Download')} />
+                        <Btn
+                          icon={Download}
+                          onClick={() => handleDownload(r)}
+                          label={tr('Télécharger', 'Download')}
+                        />
                         <button
                           className="p-1.5 rounded-md hover:bg-surface-3 text-ink-muted"
                           title={tr("Vérifier l'intégrité", 'Verify integrity')}
@@ -210,7 +246,23 @@ export function ReportsLibraryPage() {
                           <ShieldCheck size={15} />
                         </button>
                         {next && canApprove ? (
-                          <Btn icon={next.to === 'published' ? Send : Check} onClick={() => transition.mutate( { id: r.id, to: next.to }, { onSuccess: () => toast.success(tr('Rapport mis à jour', 'Report updated')), onError: (e) => toast.error( e instanceof Error ? e.message : tr('Refusé', 'Refused'), ), }, ) } label={tr(next.fr, next.en)} />
+                          <Btn
+                            icon={next.to === 'published' ? Send : Check}
+                            onClick={() =>
+                              transition.mutate(
+                                { id: r.id, to: next.to },
+                                {
+                                  onSuccess: () =>
+                                    toast.success(tr('Rapport mis à jour', 'Report updated')),
+                                  onError: (e) =>
+                                    toast.error(
+                                      e instanceof Error ? e.message : tr('Refusé', 'Refused'),
+                                    ),
+                                },
+                              )
+                            }
+                            label={tr(next.fr, next.en)}
+                          />
                         ) : null}
                       </>
                     ) : running ? (
@@ -226,7 +278,8 @@ export function ReportsLibraryPage() {
                         title={tr('Supprimer', 'Delete')}
                         onClick={() =>
                           remove.mutate(r.id, {
-                            onSuccess: () => toast.success(tr('Rapport supprimé', 'Report deleted')),
+                            onSuccess: () =>
+                              toast.success(tr('Rapport supprimé', 'Report deleted')),
                             onError: (e) =>
                               toast.error(e instanceof Error ? e.message : tr('Refusé', 'Refused')),
                           })

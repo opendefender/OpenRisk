@@ -59,7 +59,11 @@ export function CveDetailDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-40" style={{ background: 'var(--surface-overlay)' }} onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40"
+        style={{ background: 'var(--surface-overlay)' }}
+        onClick={onClose}
+      />
       <aside
         className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[520px] flex flex-col or-slidein"
         style={{ background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-strong)' }}
@@ -94,7 +98,11 @@ export function CveDetailDrawer({
               </p>
             )}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-ink-muted" aria-label={tr('Fermer', 'Close')}>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-ink-muted"
+            aria-label={tr('Fermer', 'Close')}
+          >
             <X size={18} />
           </button>
         </header>
@@ -112,14 +120,15 @@ export function CveDetailDrawer({
                 <p className="text-[12px]" style={{ color: 'var(--medium)' }}>
                   {tr(
                     'Le détail complet n’a pas pu être chargé — voici ce que le flux avait déjà.',
-                    'The full record could not be loaded — this is what the feed already had.'
+                    'The full record could not be loaded — this is what the feed already had.',
                   )}
                 </p>
               )}
 
               <Section title={tr('Description', 'Description')}>
                 <p className="text-[13px] text-ink-soft leading-relaxed">
-                  {v.description || tr('Aucune description fournie par le flux.', 'No description in the feed.')}
+                  {v.description ||
+                    tr('Aucune description fournie par le flux.', 'No description in the feed.')}
                 </p>
               </Section>
 
@@ -132,7 +141,9 @@ export function CveDetailDrawer({
               {v.cisa_known && v.cisa_due_date && (
                 <Section title={tr('Échéance CISA', 'CISA due date')}>
                   <p className="text-[13px]" style={{ color: 'var(--critical)' }}>
-                    {new Date(v.cisa_due_date).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB')}
+                    {new Date(v.cisa_due_date).toLocaleDateString(
+                      lang === 'fr' ? 'fr-FR' : 'en-GB',
+                    )}
                   </p>
                 </Section>
               )}
@@ -171,7 +182,10 @@ export function CveDetailDrawer({
               <Section title={tr('Dates', 'Dates')}>
                 <dl className="text-[12.5px] space-y-1">
                   <Row label={tr('Publié', 'Published')} value={fmtDate(v.published_at, lang)} />
-                  <Row label={tr('Mis à jour', 'Updated')} value={fmtDate(v.last_updated_at, lang)} />
+                  <Row
+                    label={tr('Mis à jour', 'Updated')}
+                    value={fmtDate(v.last_updated_at, lang)}
+                  />
                 </dl>
               </Section>
 
@@ -195,7 +209,9 @@ export function CveDetailDrawer({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mb-1.5">{title}</h3>
+      <h3 className="text-[11px] font-semibold uppercase tracking-[.06em] text-ink-muted mb-1.5">
+        {title}
+      </h3>
       {children}
     </section>
   );

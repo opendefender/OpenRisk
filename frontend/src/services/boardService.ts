@@ -4,11 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { api } from '../lib/api';
-import type {
-  BoardReport,
-  GenerateBoardReportInput,
-  UpdateBoardReportInput,
-} from '../types/board';
+import type { BoardReport, GenerateBoardReportInput, UpdateBoardReportInput } from '../types/board';
 
 export const boardService = {
   list: async (): Promise<BoardReport[]> => {

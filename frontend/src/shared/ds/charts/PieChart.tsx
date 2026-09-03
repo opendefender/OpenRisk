@@ -39,7 +39,8 @@ export interface PieSlice {
 }
 
 /** At most three. See the header — this is the guide's rule, as a type. */
-export type PieSlices = readonly [PieSlice] | readonly [PieSlice, PieSlice] | readonly [PieSlice, PieSlice, PieSlice];
+export type PieSlices =
+  readonly [PieSlice] | readonly [PieSlice, PieSlice] | readonly [PieSlice, PieSlice, PieSlice];
 
 export interface PieChartProps {
   slices: PieSlices;

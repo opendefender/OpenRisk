@@ -23,14 +23,18 @@ describe('deepLink', () => {
   });
 
   it('joins multiple values the way the table reads them', () => {
-    const { params } = parse(deepLink('assets', { filters: { criticality: ['critical', 'high'] } }));
+    const { params } = parse(
+      deepLink('assets', { filters: { criticality: ['critical', 'high'] } }),
+    );
     expect(params.get('f.criticality')).toBe('critical,high');
   });
 
   it('drops a facet the destination does not offer', () => {
     // The safe failure is a broader list, never a URL that claims a narrowing
     // the screen will not perform.
-    const { params } = parse(deepLink('assets', { filters: { severity: 'critical', criticality: 'high' } }));
+    const { params } = parse(
+      deepLink('assets', { filters: { severity: 'critical', criticality: 'high' } }),
+    );
     expect(params.has('f.severity')).toBe(false);
     expect(params.get('f.criticality')).toBe('high');
   });
@@ -67,7 +71,9 @@ describe('deepLink', () => {
   });
 
   it('ignores empty and null filter values rather than emitting f.key=', () => {
-    const { params } = parse(deepLink('risks', { filters: { criticality: '', status: undefined } }));
+    const { params } = parse(
+      deepLink('risks', { filters: { criticality: '', status: undefined } }),
+    );
     expect(params.has('f.criticality')).toBe(false);
     expect(params.has('f.status')).toBe(false);
   });

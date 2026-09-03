@@ -85,7 +85,10 @@ export function useEntityTimeline(type: EntityType | null, id: string | null, en
   return useInfiniteQuery({
     queryKey: [...entityKey(tenant, type ?? 'risk', id ?? ''), 'timeline'] as const,
     queryFn: ({ pageParam }) =>
-      fetchTimeline(type as EntityType, id as string, { cursor: pageParam as string | undefined, limit: 25 }),
+      fetchTimeline(type as EntityType, id as string, {
+        cursor: pageParam as string | undefined,
+        limit: 25,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor || undefined,
     enabled: enabled && !!type && !!id,

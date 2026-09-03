@@ -329,7 +329,13 @@ describe('accessibility (axe-core)', () => {
     const { container } = render(
       <form>
         <Fieldset legend="Notification settings" description="Applies to this tenant only.">
-          <Field label="Owner email" description="Where the digest goes." status="invalid" message="Not a valid address." required>
+          <Field
+            label="Owner email"
+            description="Where the digest goes."
+            status="invalid"
+            message="Not a valid address."
+            required
+          >
             <Input defaultValue="not-an-email" />
           </Field>
           <Checkbox label="Notify on breach" description="One email per incident." />

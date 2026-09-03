@@ -24,18 +24,34 @@ interface UpsellLockProps {
   children: ReactNode;
 }
 
-export function UpsellLock({ title, description, ctaLabel, onUpgrade, moment, children }: UpsellLockProps) {
+export function UpsellLock({
+  title,
+  description,
+  ctaLabel,
+  onUpgrade,
+  moment,
+  children,
+}: UpsellLockProps) {
   return (
     <div className="relative overflow-hidden rounded-[16px]">
-      <div className="pointer-events-none select-none" style={{ filter: 'blur(7px)', opacity: 0.45 }} aria-hidden="true">
+      <div
+        className="pointer-events-none select-none"
+        style={{ filter: 'blur(7px)', opacity: 0.45 }}
+        aria-hidden="true"
+      >
         {children}
       </div>
       <div
         className="absolute inset-0 flex items-center justify-center p-6 text-center"
-        style={{ background: 'radial-gradient(120% 90% at 50% 30%, transparent, var(--bg-primary) 78%)' }}
+        style={{
+          background: 'radial-gradient(120% 90% at 50% 30%, transparent, var(--bg-primary) 78%)',
+        }}
       >
         <div className="max-w-sm" style={{ animation: 'or-fadeup .4s ease' }}>
-          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center text-accent-strong" style={{ background: 'var(--accent-soft)' }}>
+          <div
+            className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center text-accent-strong"
+            style={{ background: 'var(--accent-soft)' }}
+          >
             <Lock size={22} />
           </div>
           {moment && (

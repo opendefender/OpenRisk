@@ -52,7 +52,7 @@ export const Users = () => {
   const toggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
       await api.patch(`/users/${userId}/status`, { is_active: !isActive });
-      setUsers(users.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
+      setUsers(users.map((u) => (u.id === userId ? { ...u, is_active: !isActive } : u)));
       toast.success(isActive ? 'User disabled' : 'User enabled');
     } catch (err) {
       toast.error("We couldn't update this user's status. Please try again.");
@@ -62,7 +62,7 @@ export const Users = () => {
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
       await api.patch(`/users/${userId}/role`, { role: newRole });
-      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
       toast.success('User role updated');
     } catch (err) {
       toast.error("Couldn't change the user's role. Please verify the selection and try again.");
@@ -81,18 +81,22 @@ export const Users = () => {
 
     try {
       await api.delete(`/users/${userId}`);
-      setUsers(users.filter(u => u.id !== userId));
+      setUsers(users.filter((u) => u.id !== userId));
       toast.success('User deleted');
     } catch (err) {
-      toast.error("We couldn't delete this user. Please try again or contact support if the problem persists.");
+      toast.error(
+        "We couldn't delete this user. Please try again or contact support if the problem persists.",
+      );
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === 'all' || user.role.toLowerCase() === selectedRole.toLowerCase();
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.full_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole =
+      selectedRole === 'all' || user.role.toLowerCase() === selectedRole.toLowerCase();
     return matchesSearch && matchesRole;
   });
 
@@ -140,7 +144,10 @@ export const Users = () => {
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fg-muted" />
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fg-muted"
+              />
               <input
                 type="text"
                 placeholder="Search by name, email, or username..."
@@ -175,11 +182,7 @@ export const Users = () => {
             <p className="text-fg-secondary">No users found</p>
           </motion.div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid gap-4"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-4">
             {filteredUsers.map((user) => (
               <motion.div
                 key={user.id}
@@ -206,12 +209,16 @@ export const Users = () => {
 
                   <div className="flex items-center gap-3 ml-4">
                     <div className="text-right">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}>
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}
+                      >
                         <Shield size={12} className="inline-block mr-1" />
                         {user.role}
                       </span>
                       <p className="text-xs text-fg-muted mt-1">
-                        {user.last_login ? `Last: ${new Date(user.last_login).toLocaleDateString()}` : 'Never logged in'}
+                        {user.last_login
+                          ? `Last: ${new Date(user.last_login).toLocaleDateString()}`
+                          : 'Never logged in'}
                       </p>
                     </div>
 

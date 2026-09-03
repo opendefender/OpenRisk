@@ -143,9 +143,7 @@ export function Tabs<T extends string = string>({
               'relative -mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-2.5',
               'text-sm font-medium transition-colors duration-fast ease-out',
               'disabled:pointer-events-none disabled:opacity-45',
-              active
-                ? 'text-fg-primary'
-                : 'text-fg-secondary hover:text-fg-primary',
+              active ? 'text-fg-primary' : 'text-fg-secondary hover:text-fg-primary',
             )}
           >
             {item.icon}

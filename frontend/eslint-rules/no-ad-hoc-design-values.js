@@ -43,7 +43,8 @@ const SCALED = {
  * Matches `<prefix>-[<value>]`, including a responsive or state variant
  * (`sm:text-[13px]`, `hover:rounded-[10px]`).
  */
-const ARBITRARY = /(?:^|\s)(?:[a-z-]+:)*(text|rounded|z|duration|ease|leading|tracking)-\[([^\]]+)\]/g;
+const ARBITRARY =
+  /(?:^|\s)(?:[a-z-]+:)*(text|rounded|z|duration|ease|leading|tracking)-\[([^\]]+)\]/g;
 
 /** A value that is itself a token reference is the correct way to use a token. */
 function isTokenReference(value) {

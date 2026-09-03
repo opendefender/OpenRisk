@@ -3,19 +3,19 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import 'leaflet/dist/leaflet.css';
-import './index.css'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ErrorBoundary } from './shared/system/ErrorBoundary'
-import { installGlobalErrorReporting } from './lib/observability'
-import { registerQueryClient } from './lib/sessionScope'
-import { onMFARequired } from './lib/api'
-import { MFA_STATUS_KEY } from './features/auth/useMfa'
+import './index.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ErrorBoundary } from './shared/system/ErrorBoundary';
+import { installGlobalErrorReporting } from './lib/observability';
+import { registerQueryClient } from './lib/sessionScope';
+import { onMFARequired } from './lib/api';
+import { MFA_STATUS_KEY } from './features/auth/useMfa';
 
 // Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
 // the cached value immediately and revalidate when the network allows (SWR), and
@@ -38,13 +38,13 @@ const queryClient = new QueryClient({
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
     },
   },
-})
+});
 
 // Hand the cache to the session scope, so signing out (or in) can empty it.
 // Without this the tab keeps one tenant's responses across a change of user —
 // logout and login are both soft navigations, so nothing else tears the cache
 // down (W0-05 / D9).
-registerQueryClient(queryClient)
+registerQueryClient(queryClient);
 
 // OR26-03 — when the server refuses a request because the account's MFA grace
 // period has expired, re-read the MFA state so the banner escalates to its
@@ -54,11 +54,11 @@ registerQueryClient(queryClient)
 // creating a cycle. It is a UI signal: it cannot grant access, and the server
 // refuses the next request regardless of whether anything listened.
 onMFARequired(() => {
-  void queryClient.invalidateQueries({ queryKey: MFA_STATUS_KEY })
-})
+  void queryClient.invalidateQueries({ queryKey: MFA_STATUS_KEY });
+});
 
 // Report uncaught errors and unhandled rejections (Sentry when present).
-installGlobalErrorReporting()
+installGlobalErrorReporting();
 
 /*
  * Loaded after first paint. Nothing can be toasted until the user has acted, and
@@ -66,7 +66,7 @@ installGlobalErrorReporting()
  * raw source) does not belong in the entry chunk. #443 PR 2 needed the room; the
  * reason it is correct is older than that.
  */
-const ThemedToaster = React.lazy(() => import('./shared/system/ThemedToaster'))
+const ThemedToaster = React.lazy(() => import('./shared/system/ThemedToaster'));
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -79,4 +79,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       </React.Suspense>
     </QueryClientProvider>
   </React.StrictMode>,
-)
+);

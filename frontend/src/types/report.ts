@@ -4,12 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 export type ReportType =
-  | 'executive_summary'
-  | 'compliance_framework'
-  | 'board'
-  | 'risk_register'
-  | 'incident'
-  | 'audit';
+  'executive_summary' | 'compliance_framework' | 'board' | 'risk_register' | 'incident' | 'audit';
 
 export type ReportFormat = 'pdf' | 'docx' | 'xlsx';
 

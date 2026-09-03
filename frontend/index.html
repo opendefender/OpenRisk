@@ -37,7 +37,10 @@
             density = s.density || density;
           }
 
-          root.setAttribute('data-theme', mode === 'system' ? (prefersDark() ? 'dark' : 'light') : mode);
+          root.setAttribute(
+            'data-theme',
+            mode === 'system' ? (prefersDark() ? 'dark' : 'light') : mode,
+          );
           root.setAttribute('data-variant', variant);
           if (density !== 'comfort') root.setAttribute('data-density', density);
         } catch (e) {

@@ -5,7 +5,14 @@
 
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { riskService, type Risk, type RiskQueryParams, type CreateRiskInput, type UpdateRiskInput, type BulkRiskActionInput } from '../../services/riskService';
+import {
+  riskService,
+  type Risk,
+  type RiskQueryParams,
+  type CreateRiskInput,
+  type UpdateRiskInput,
+  type BulkRiskActionInput,
+} from '../../services/riskService';
 
 const RISK_LIST_QUERY_KEY = ['risks'];
 
@@ -24,7 +31,9 @@ export function useRisks(params: RiskQueryParams = {}) {
     mutationFn: (payload: CreateRiskInput) => riskService.createRisk(payload),
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: RISK_LIST_QUERY_KEY });
-      const previous = queryClient.getQueryData<{ items: Risk[]; total: number }>(RISK_LIST_QUERY_KEY);
+      const previous = queryClient.getQueryData<{ items: Risk[]; total: number }>(
+        RISK_LIST_QUERY_KEY,
+      );
       if (previous) {
         const optimisticRisk: Risk = {
           id: `temp-${Date.now()}`,
@@ -62,10 +71,13 @@ export function useRisks(params: RiskQueryParams = {}) {
   });
 
   const updateRisk = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateRiskInput }) => riskService.updateRisk(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateRiskInput }) =>
+      riskService.updateRisk(id, payload),
     onMutate: async ({ id, payload }) => {
       await queryClient.cancelQueries({ queryKey: RISK_LIST_QUERY_KEY });
-      const previous = queryClient.getQueryData<{ items: Risk[]; total: number }>(RISK_LIST_QUERY_KEY);
+      const previous = queryClient.getQueryData<{ items: Risk[]; total: number }>(
+        RISK_LIST_QUERY_KEY,
+      );
       if (previous) {
         queryClient.setQueryData(RISK_LIST_QUERY_KEY, {
           ...previous,
@@ -86,7 +98,9 @@ export function useRisks(params: RiskQueryParams = {}) {
     mutationFn: (id: string) => riskService.deleteRisk(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: RISK_LIST_QUERY_KEY });
-      const previous = queryClient.getQueryData<{ items: Risk[]; total: number }>(RISK_LIST_QUERY_KEY);
+      const previous = queryClient.getQueryData<{ items: Risk[]; total: number }>(
+        RISK_LIST_QUERY_KEY,
+      );
       if (previous) {
         queryClient.setQueryData(RISK_LIST_QUERY_KEY, {
           items: previous.items.filter((risk) => risk.id !== id),
@@ -104,7 +118,8 @@ export function useRisks(params: RiskQueryParams = {}) {
   });
 
   const acceptRisk = useMutation({
-    mutationFn: ({ id, justification }: { id: string; justification: string }) => riskService.acceptRisk(id, justification),
+    mutationFn: ({ id, justification }: { id: string; justification: string }) =>
+      riskService.acceptRisk(id, justification),
     onSettled: () => queryClient.invalidateQueries({ queryKey: RISK_LIST_QUERY_KEY }),
   });
 
@@ -135,6 +150,6 @@ export function useRisks(params: RiskQueryParams = {}) {
       bulkAction,
       query,
     }),
-    [data, query, createRisk, updateRisk, deleteRisk, acceptRisk, duplicateRisk, bulkAction]
+    [data, query, createRisk, updateRisk, deleteRisk, acceptRisk, duplicateRisk, bulkAction],
   );
 }

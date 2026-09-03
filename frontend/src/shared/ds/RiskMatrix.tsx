@@ -43,9 +43,9 @@
  * takes one set of positions and a backend field has to exist first.
  */
 
-import type { ReactNode } from "react";
-import { cn } from "./cn";
-import { severity, type SeverityKey } from "./chart";
+import type { ReactNode } from 'react';
+import { cn } from './cn';
+import { severity, type SeverityKey } from './chart';
 
 /** The 1..5 buckets of either axis. */
 export type MatrixBucket = 1 | 2 | 3 | 4 | 5;
@@ -137,7 +137,7 @@ export function RiskMatrix({
   }
 
   return (
-    <div className={cn("relative min-w-0 overflow-x-auto", className)}>
+    <div className={cn('relative min-w-0 overflow-x-auto', className)}>
       {/* table-fixed: a matrix is a uniform grid. Without it the columns size to
           their contents, so a cell holding five markers renders wider than its
           neighbours and the axis stops being evenly spaced. */}
@@ -169,10 +169,7 @@ export function RiskMatrix({
         <tbody>
           {ROWS.map((probability) => (
             <tr key={probability}>
-              <th
-                scope="row"
-                className="w-8 text-center text-2xs font-semibold text-fg-muted"
-              >
+              <th scope="row" className="w-8 text-center text-2xs font-semibold text-fg-muted">
                 {probability}
               </th>
               {BUCKETS.map((impact) => {

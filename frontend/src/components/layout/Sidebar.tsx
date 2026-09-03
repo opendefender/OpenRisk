@@ -5,14 +5,28 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
+import {
+  ChevronsUpDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Settings,
+  LogOut,
+  Star,
+} from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { visibleNavGroups, pinnedItems, ALL_NAV_ITEMS, type NavItem, type NavCount } from '../../shared/navModel';
+import {
+  visibleNavGroups,
+  pinnedItems,
+  ALL_NAV_ITEMS,
+  type NavItem,
+  type NavCount,
+} from '../../shared/navModel';
 import { useScore } from '../../hooks/useScore';
 import { useOrganizationCounts } from '../../features/organization/useOrganization';
 import { bandColor, bandLabel, bandTextColor } from '../../services/scoreService';
@@ -33,13 +47,21 @@ function initials(name?: string, fallback = 'AD'): string {
 // Human-readable role label: the GRC business role (RSSI, Risk Manager, …) when
 // set, otherwise the org role (Administrator / Member).
 const BUSINESS_ROLE_LABELS: Record<string, string> = {
-  rssi: 'RSSI / CISO', dsi: 'DSI / CIO', risk_manager: 'Risk Manager', auditor: 'Auditeur',
-  compliance_officer: 'Responsable conformité', internal_control: 'Contrôle interne',
-  asset_owner: "Propriétaire d'actif", risk_owner: 'Propriétaire de risque',
-  security_analyst: 'Analyste sécurité', executive: 'Direction', viewer: 'Lecteur',
+  rssi: 'RSSI / CISO',
+  dsi: 'DSI / CIO',
+  risk_manager: 'Risk Manager',
+  auditor: 'Auditeur',
+  compliance_officer: 'Responsable conformité',
+  internal_control: 'Contrôle interne',
+  asset_owner: "Propriétaire d'actif",
+  risk_owner: 'Propriétaire de risque',
+  security_analyst: 'Analyste sécurité',
+  executive: 'Direction',
+  viewer: 'Lecteur',
 };
 function roleLabel(user?: { role?: string; business_role?: string } | null): string {
-  if (user?.business_role && BUSINESS_ROLE_LABELS[user.business_role]) return BUSINESS_ROLE_LABELS[user.business_role];
+  if (user?.business_role && BUSINESS_ROLE_LABELS[user.business_role])
+    return BUSINESS_ROLE_LABELS[user.business_role];
   if (user?.role === 'admin' || user?.role === 'root') return 'Administrateur';
   return user?.role ? user.role : 'Membre';
 }
@@ -72,7 +94,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const navGroups = useMemo(
     () => visibleNavGroups(can, isAdmin()),
     // `can`/`isAdmin` are stable per permission set (memoized in usePermissions).
-    [can, isAdmin]
+    [can, isAdmin],
   );
   // Dashboard (and any future pinned entry) is hoisted above the intention groups.
   const pinned = useMemo(() => pinnedItems(navGroups), [navGroups]);
@@ -139,7 +161,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
         title={L[item.labelKey]}
         className={cn(
           'w-full flex items-center gap-[11px] px-[11px] py-2 rounded-[9px] relative mb-0.5 transition-colors',
-          active ? 'bg-accent-soft' : 'hover:bg-hover'
+          active ? 'bg-accent-soft' : 'hover:bg-hover',
         )}
       >
         <span
@@ -165,7 +187,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             figure, and the whole point of removing the hardcoded '12' was that
             a counter must never state something nobody measured. Zero is also
             absent: a badge means "something is waiting", and nothing is. */}
-        {item.badge && navCounts[item.badge.count] > 0 &&
+        {item.badge &&
+          navCounts[item.badge.count] > 0 &&
           (collapsed ? (
             <span
               className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
@@ -202,13 +225,18 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           'lg:static lg:shrink-0 lg:translate-x-0',
           collapsed ? 'lg:w-[66px]' : 'lg:w-[248px]',
           'fixed inset-y-0 left-0 w-[248px] max-w-[82vw]',
-          mobileOpen ? 'translate-x-0 shadow-card-lg' : '-translate-x-full lg:translate-x-0'
+          mobileOpen ? 'translate-x-0 shadow-card-lg' : '-translate-x-full lg:translate-x-0',
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo + org switcher */}
           <div className="px-[14px] pt-4 pb-2.5">
-            <div className={cn('flex items-center gap-2.5 px-1.5 pb-3.5', collapsed && 'justify-center px-0')}>
+            <div
+              className={cn(
+                'flex items-center gap-2.5 px-1.5 pb-3.5',
+                collapsed && 'justify-center px-0',
+              )}
+            >
               <div
                 className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center shrink-0 text-fg-on-solid"
                 style={{
@@ -254,7 +282,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               }}
               className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
               style={{
-                background: 'var(--accent-solid)', color: 'var(--fg-on-solid)',
+                background: 'var(--accent-solid)',
+                color: 'var(--fg-on-solid)',
               }}
               title={L.newRisk}
             >
@@ -278,7 +307,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     <div
                       className={cn(
                         'text-[10px] tracking-[0.09em] uppercase font-semibold px-3 pb-[7px] flex items-center gap-1.5',
-                        !group.core && 'text-ink-muted'
+                        !group.core && 'text-ink-muted',
                       )}
                       style={group.core ? { color: 'var(--accent-500)' } : undefined}
                     >
@@ -307,7 +336,10 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   {score}/100
                 </span>
               </div>
-              <div className="h-[5px] rounded-[5px] overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
+              <div
+                className="h-[5px] rounded-[5px] overflow-hidden"
+                style={{ background: 'var(--bg-hover)' }}
+              >
                 <div
                   className="h-full rounded-[5px]"
                   style={{
@@ -324,17 +356,31 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           <div className="relative px-[14px] py-3 border-t border-border">
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-59" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+                <div
+                  className="fixed inset-0 z-59"
+                  onClick={() => setMenuOpen(false)}
+                  aria-hidden="true"
+                />
                 <div
                   className="absolute left-[14px] right-[14px] z-60 rounded-[12px] overflow-hidden shadow-card-lg"
-                  style={{ bottom: 'calc(100% - 6px)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)' }}
+                  style={{
+                    bottom: 'calc(100% - 6px)',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+                  }}
                 >
                   <div className="px-3 py-2.5 border-b border-border">
-                    <div className="text-[12.5px] font-semibold text-ink truncate">{user?.full_name || user?.username || 'Admin'}</div>
+                    <div className="text-[12.5px] font-semibold text-ink truncate">
+                      {user?.full_name || user?.username || 'Admin'}
+                    </div>
                     <div className="text-[11px] text-ink-muted truncate">{user?.email}</div>
                   </div>
                   <button
-                    onClick={() => { setMenuOpen(false); navigate('/settings'); }}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate('/settings');
+                    }}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
                   >
                     <Settings size={16} strokeWidth={1.8} /> {tr('Paramètres', 'Settings')}
@@ -355,7 +401,10 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 onClick={() => setMenuOpen((v) => !v)}
                 title={tr('Compte', 'Account')}
                 aria-label={tr('Menu du compte', 'Account menu')}
-                className={cn('flex items-center gap-2.5 min-w-0 rounded-[9px] py-1 pr-1.5 hover:bg-hover transition-colors', collapsed ? 'px-1' : 'flex-1 pl-1')}
+                className={cn(
+                  'flex items-center gap-2.5 min-w-0 rounded-[9px] py-1 pr-1.5 hover:bg-hover transition-colors',
+                  collapsed ? 'px-1' : 'flex-1 pl-1',
+                )}
               >
                 <div
                   className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-accent-strong shrink-0"

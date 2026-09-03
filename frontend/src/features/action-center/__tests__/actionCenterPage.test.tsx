@@ -32,9 +32,8 @@ import { PAGE_LIMIT } from '../useActionItems';
 import type { ActionCenterResponse, ActionItem } from '../actionCenterService';
 
 vi.mock('../actionCenterService', async () => {
-  const actual = await vi.importActual<typeof import('../actionCenterService')>(
-    '../actionCenterService',
-  );
+  const actual =
+    await vi.importActual<typeof import('../actionCenterService')>('../actionCenterService');
   return { ...actual, actionCenterService: { list: vi.fn() } };
 });
 
@@ -80,7 +79,15 @@ function renderPage(initialPath = '/action-center') {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
-          <Route path="/action-center" element={<><ActionCenterPage /><LocationProbe /></>} />
+          <Route
+            path="/action-center"
+            element={
+              <>
+                <ActionCenterPage />
+                <LocationProbe />
+              </>
+            }
+          />
           <Route path="*" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -154,7 +161,9 @@ describe('ActionCenterPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT));
+    await waitFor(() =>
+      expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT),
+    );
     expect(screen.getByText('Approval 1')).toBeInTheDocument();
     expect(screen.queryByText('Approval 21')).not.toBeInTheDocument();
 
@@ -176,10 +185,14 @@ describe('ActionCenterPage', () => {
     );
 
     renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT));
+    await waitFor(() =>
+      expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT),
+    );
 
     fireEvent.click(screen.getByTestId('action-center-next'));
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/action-center?page=2'));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/action-center?page=2'),
+    );
 
     // Let page 2 settle before going back: the pager is disabled while a page
     // is in flight, so clicking mid-fetch would be a no-op and this test would
@@ -193,9 +206,7 @@ describe('ActionCenterPage', () => {
   });
 
   it('opens directly on the page named in the URL', async () => {
-    list.mockImplementation(async ({ offset = 0 } = {}) =>
-      envelope(approvals(21, 5), 25, offset),
-    );
+    list.mockImplementation(async ({ offset = 0 } = {}) => envelope(approvals(21, 5), 25, offset));
 
     renderPage('/action-center?page=2');
 
@@ -249,9 +260,26 @@ describe('ActionCenterPage', () => {
     // pages on it. A client that re-sorted by rank would agree on page one and
     // contradict the server here.
     const secondPage = [
-      item({ id: 'incident:9', type: 'open_incident', title: 'Ransomware', deep_link: '/incidents/9/war-room', category_rank: 4 }),
-      item({ id: 'mitigation:3', type: 'overdue_mitigation', title: 'Patch the VPN', deep_link: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0', category_rank: 1 }),
-      item({ id: 'approval:7', type: 'pending_approval', title: 'Accept legacy SFTP', category_rank: 3 }),
+      item({
+        id: 'incident:9',
+        type: 'open_incident',
+        title: 'Ransomware',
+        deep_link: '/incidents/9/war-room',
+        category_rank: 4,
+      }),
+      item({
+        id: 'mitigation:3',
+        type: 'overdue_mitigation',
+        title: 'Patch the VPN',
+        deep_link: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0',
+        category_rank: 1,
+      }),
+      item({
+        id: 'approval:7',
+        type: 'pending_approval',
+        title: 'Accept legacy SFTP',
+        category_rank: 3,
+      }),
     ];
     list.mockResolvedValue(envelope(secondPage, 23, PAGE_LIMIT));
 
@@ -259,7 +287,9 @@ describe('ActionCenterPage', () => {
 
     await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(3));
     expect(
-      screen.getAllByTestId('action-center-item').map((node) => node.getAttribute('data-action-type')),
+      screen
+        .getAllByTestId('action-center-item')
+        .map((node) => node.getAttribute('data-action-type')),
     ).toEqual(['open_incident', 'overdue_mitigation', 'pending_approval']);
   });
 
@@ -267,7 +297,11 @@ describe('ActionCenterPage', () => {
 
   it('renders a skeleton before the query resolves', async () => {
     let resolve: ((value: ActionCenterResponse) => void) | undefined;
-    list.mockReturnValue(new Promise<ActionCenterResponse>((r) => { resolve = r; }));
+    list.mockReturnValue(
+      new Promise<ActionCenterResponse>((r) => {
+        resolve = r;
+      }),
+    );
 
     renderPage();
 
@@ -318,7 +352,13 @@ describe('ActionCenterPage', () => {
       envelope(
         [
           item({ id: 'approval:2', type: 'pending_approval', title: 'Risk acceptance' }),
-          item({ id: 'ghost:1', type: 'critical_risk', title: 'Points nowhere', deep_link: '/risks/00000000-0000-0000-0000-000000000000', category_rank: 2 }),
+          item({
+            id: 'ghost:1',
+            type: 'critical_risk',
+            title: 'Points nowhere',
+            deep_link: '/risks/00000000-0000-0000-0000-000000000000',
+            category_rank: 2,
+          }),
         ],
         2,
         0,
@@ -341,9 +381,14 @@ describe('ActionCenterPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT));
+    await waitFor(() =>
+      expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT),
+    );
     expect(screen.getByTestId('action-center-next')).toHaveAttribute('aria-label', 'Page suivante');
-    expect(screen.getByTestId('action-center-prev')).toHaveAttribute('aria-label', 'Page précédente');
+    expect(screen.getByTestId('action-center-prev')).toHaveAttribute(
+      'aria-label',
+      'Page précédente',
+    );
   });
 
   /* --- AC9: axe ----------------------------------------------------------- */
@@ -352,7 +397,9 @@ describe('ActionCenterPage', () => {
     list.mockResolvedValue(envelope(approvals(1, PAGE_LIMIT), 25, 0));
 
     const { container } = renderPage();
-    await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT));
+    await waitFor(() =>
+      expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT),
+    );
 
     const results = await axe.run(container, {
       // jsdom has no layout engine, so contrast cannot be evaluated here; it is
@@ -377,7 +424,15 @@ describe('the dashboard panel', () => {
       <QueryClientProvider client={client}>
         <MemoryRouter initialEntries={['/']}>
           <Routes>
-            <Route path="*" element={<><ActionCenterPanel /><LocationProbe /></>} />
+            <Route
+              path="*"
+              element={
+                <>
+                  <ActionCenterPanel />
+                  <LocationProbe />
+                </>
+              }
+            />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -390,7 +445,9 @@ describe('the dashboard panel', () => {
     renderPanel();
 
     await waitFor(() => expect(screen.getByTestId('action-center-view-all')).toBeInTheDocument());
-    expect(screen.getByTestId('action-center-view-all').getAttribute('href')).toBe('/action-center');
+    expect(screen.getByTestId('action-center-view-all').getAttribute('href')).toBe(
+      '/action-center',
+    );
   });
 
   it('does not offer it when the panel already shows everything', async () => {

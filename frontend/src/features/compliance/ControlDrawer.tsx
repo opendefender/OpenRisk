@@ -25,14 +25,24 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
   const hasRole = useAuthStore((s) => s.hasRole);
   const isAdmin = hasRole('admin');
 
-  const { isControlDrawerOpen, activeControlId, activeDrawerTab, closeControlDrawer, setActiveDrawerTab } =
-    useComplianceUIStore();
+  const {
+    isControlDrawerOpen,
+    activeControlId,
+    activeDrawerTab,
+    closeControlDrawer,
+    setActiveDrawerTab,
+  } = useComplianceUIStore();
 
   const { controls, updateControl } = useControls(frameworkId);
   const control = controls.find((c) => c.id === activeControlId);
 
-  const { evidences, isLoading: evidencesLoading, createEvidence, deleteEvidence, downloadEvidence } =
-    useEvidences(activeControlId ?? undefined);
+  const {
+    evidences,
+    isLoading: evidencesLoading,
+    createEvidence,
+    deleteEvidence,
+    downloadEvidence,
+  } = useEvidences(activeControlId ?? undefined);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState('');
@@ -45,7 +55,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
       { id: control.id, payload: { status } },
       {
         onError: () => toast.error(t('errors.failedToUpdateControl')),
-      }
+      },
     );
   };
 
@@ -59,7 +69,7 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
           if (fileInputRef.current) fileInputRef.current.value = '';
         },
         onError: () => toast.error(t('errors.failedToUploadEvidence')),
-      }
+      },
     );
   };
 
@@ -71,7 +81,9 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
             key={tab}
             onClick={() => setActiveDrawerTab(tab)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeDrawerTab === tab ? 'bg-primary text-fg-primary' : 'text-fg-secondary hover:bg-surface-1/5'
+              activeDrawerTab === tab
+                ? 'bg-primary text-fg-primary'
+                : 'text-fg-secondary hover:bg-surface-1/5'
             }`}
           >
             {t(`compliance.tabs.${tab}`)}
@@ -85,7 +97,9 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
             <label className="text-xs font-semibold uppercase tracking-[0.18em] text-fg-muted">
               {t('compliance.referenceCode')}
             </label>
-            <p className="mt-1 font-mono text-sm text-fg-secondary">{control.reference_code || '—'}</p>
+            <p className="mt-1 font-mono text-sm text-fg-secondary">
+              {control.reference_code || '—'}
+            </p>
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-[0.18em] text-fg-muted">
@@ -187,7 +201,10 @@ export const ControlDrawer = ({ frameworkId }: ControlDrawerProps) => {
                         title={t('compliance.evidence.download')}
                         onClick={() =>
                           evidence.id &&
-                          downloadEvidence.mutate({ id: evidence.id, filename: evidence.filename ?? 'evidence' })
+                          downloadEvidence.mutate({
+                            id: evidence.id,
+                            filename: evidence.filename ?? 'evidence',
+                          })
                         }
                         className="rounded-lg p-2 text-fg-secondary hover:bg-surface-1/10 hover:text-fg-primary transition-colors"
                       >

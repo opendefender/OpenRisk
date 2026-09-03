@@ -18,7 +18,7 @@ const getAuthHeader = (): Record<string, string> => {
   try {
     const token = useAuthStore.getState?.().token;
     return {
-      'Authorization': `Bearer ${token || ''}`,
+      Authorization: `Bearer ${token || ''}`,
       'Content-Type': 'application/json',
     };
   } catch (error) {
@@ -96,7 +96,9 @@ export interface ScoringMetricsResponse {
 /**
  * Récupère toutes les configurations de scoring disponibles
  */
-export const getScoringConfigs = async (): Promise<ApiResponse<{ message: string; default: ScoringConfig }>> => {
+export const getScoringConfigs = async (): Promise<
+  ApiResponse<{ message: string; default: ScoringConfig }>
+> => {
   try {
     const response = await fetch(`${API_BASE_URL}/score-engine/configs`, {
       method: 'GET',
@@ -144,7 +146,9 @@ export const getScoringConfig = async (configId: string): Promise<ApiResponse<Sc
 /**
  * Crée une nouvelle configuration de scoring (Admin only)
  */
-export const createScoringConfig = async (config: Partial<ScoringConfig>): Promise<ApiResponse<ScoringConfig>> => {
+export const createScoringConfig = async (
+  config: Partial<ScoringConfig>,
+): Promise<ApiResponse<ScoringConfig>> => {
   try {
     const response = await fetch(`${API_BASE_URL}/score-engine/configs`, {
       method: 'POST',
@@ -171,7 +175,7 @@ export const createScoringConfig = async (config: Partial<ScoringConfig>): Promi
  */
 export const updateScoringConfig = async (
   configId: string,
-  updates: Partial<ScoringConfig>
+  updates: Partial<ScoringConfig>,
 ): Promise<ApiResponse<ScoringConfig>> => {
   try {
     const response = await fetch(`${API_BASE_URL}/score-engine/configs/${configId}`, {
@@ -198,7 +202,7 @@ export const updateScoringConfig = async (
  * Calcule le score d'un risque en utilisant une configuration spécifiée
  */
 export const computeRiskScore = async (
-  input: ComputeScoreInput
+  input: ComputeScoreInput,
 ): Promise<ApiResponse<ComputeScoreResponse>> => {
   try {
     const response = await fetch(`${API_BASE_URL}/score-engine/compute`, {
@@ -225,7 +229,7 @@ export const computeRiskScore = async (
  * Classe un risque en niveau basé sur un score
  */
 export const classifyRisk = async (
-  input: ClassifyRiskInput
+  input: ClassifyRiskInput,
 ): Promise<ApiResponse<ClassifyRiskResponse>> => {
   try {
     const response = await fetch(`${API_BASE_URL}/score-engine/classify`, {
@@ -251,7 +255,9 @@ export const classifyRisk = async (
 /**
  * Récupère la matrice de risque (seuils de classification)
  */
-export const getRiskMatrix = async (configId?: string): Promise<ApiResponse<RiskMatrixResponse>> => {
+export const getRiskMatrix = async (
+  configId?: string,
+): Promise<ApiResponse<RiskMatrixResponse>> => {
   try {
     const url = new URL(`${API_BASE_URL}/score-engine/matrix`);
     if (configId) {

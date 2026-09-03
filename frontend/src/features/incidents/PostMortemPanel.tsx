@@ -12,14 +12,19 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  ClipboardList, X, Plus, Trash2, CheckCircle2, AlertTriangle, Lock, ArrowRight,
+  ClipboardList,
+  X,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { Btn, Card } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { usePostMortem, usePostMortemMutations } from './useIncidents';
-import type {
-  CorrectiveAction, PostMortemTimelineEntry, PostMortemInput,
-} from './incidentService';
+import type { CorrectiveAction, PostMortemTimelineEntry, PostMortemInput } from './incidentService';
 
 const FIELD_LABEL: Record<string, { fr: string; en: string }> = {
   summary: { fr: 'Résumé', en: 'Summary' },
@@ -29,7 +34,13 @@ const FIELD_LABEL: Record<string, { fr: string; en: string }> = {
   corrective_actions: { fr: 'Actions correctives', en: 'Corrective actions' },
 };
 
-export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; onClose: () => void }) {
+export function PostMortemPanel({
+  incidentId,
+  onClose,
+}: {
+  incidentId: number;
+  onClose: () => void;
+}) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { data: view, isLoading } = usePostMortem(incidentId);
@@ -100,13 +111,31 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
   } as const;
 
   const Text = ({
-    k, label, hint, rows = 3,
-  }: { k: keyof PostMortemInput; label: string; hint: string; rows?: number }) => (
+    k,
+    label,
+    hint,
+    rows = 3,
+  }: {
+    k: keyof PostMortemInput;
+    label: string;
+    hint: string;
+    rows?: number;
+  }) => (
     <label className="block">
-      <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>{label}</span>
-      <span className="block text-[11.5px] mb-1" style={{ color: 'var(--fg-secondary)' }}>{hint}</span>
-      <textarea rows={rows} className={field} style={fieldStyle} disabled={published}
-        value={(form?.[k] as string) ?? ''} onChange={(e) => set(k, e.target.value as never)} />
+      <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+        {label}
+      </span>
+      <span className="block text-[11.5px] mb-1" style={{ color: 'var(--fg-secondary)' }}>
+        {hint}
+      </span>
+      <textarea
+        rows={rows}
+        className={field}
+        style={fieldStyle}
+        disabled={published}
+        value={(form?.[k] as string) ?? ''}
+        onChange={(e) => set(k, e.target.value as never)}
+      />
     </label>
   );
 
@@ -124,39 +153,66 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,.35)' }}>
-      <div className="w-full max-w-[760px] h-full overflow-y-auto or-slidein"
-        style={{ background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-strong)' }}>
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"
-          style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
+      <div
+        className="w-full max-w-[760px] h-full overflow-y-auto or-slidein"
+        style={{ background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-strong)' }}
+      >
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"
+          style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}
+        >
           <div>
-            <h2 className="text-[15px] font-bold inline-flex items-center gap-2" style={{ color: 'var(--fg-primary)' }}>
+            <h2
+              className="text-[15px] font-bold inline-flex items-center gap-2"
+              style={{ color: 'var(--fg-primary)' }}
+            >
               <ClipboardList size={16} style={{ color: 'var(--accent-500)' }} />
               {tr('Post-mortem', 'Post-mortem')} — INC-{incidentId}
             </h2>
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
               {published
                 ? tr('Publié — le compte rendu est figé.', 'Published — the record is frozen.')
-                : tr('Brouillon. Publier fige le compte rendu et crée les plans de mitigation.',
-                     'Draft. Publishing freezes the record and creates the mitigation plans.')}
+                : tr(
+                    'Brouillon. Publier fige le compte rendu et crée les plans de mitigation.',
+                    'Draft. Publishing freezes the record and creates the mitigation plans.',
+                  )}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg" aria-label={tr('Fermer', 'Close')}><X size={18} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg" aria-label={tr('Fermer', 'Close')}>
+            <X size={18} />
+          </button>
         </div>
 
         <div className="p-5 space-y-4">
-          {isLoading && <p className="text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>{tr('Chargement…', 'Loading…')}</p>}
+          {isLoading && (
+            <p className="text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>
+              {tr('Chargement…', 'Loading…')}
+            </p>
+          )}
 
           {view?.blocks_closure && (
-            <div className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
-              style={{ background: 'color-mix(in srgb, var(--critical) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)', color: 'var(--fg-primary)' }}>
-              <AlertTriangle size={15} style={{ color: 'var(--critical)' }} className="shrink-0 mt-0.5" />
+            <div
+              className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
+              style={{
+                background: 'color-mix(in srgb, var(--critical) 8%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)',
+                color: 'var(--fg-primary)',
+              }}
+            >
+              <AlertTriangle
+                size={15}
+                style={{ color: 'var(--critical)' }}
+                className="shrink-0 mt-0.5"
+              />
               <span>{view.blocks_closure}</span>
             </div>
           )}
 
           {published && (
-            <div className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
-              style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
+            <div
+              className="rounded-[10px] p-3 flex items-start gap-2.5 text-[12.5px]"
+              style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
+            >
               <Lock size={15} className="shrink-0 mt-0.5" />
               <span>
                 {tr(
@@ -169,32 +225,74 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
 
           {form && (
             <>
-              <Text k="summary" label={tr('Résumé', 'Summary')}
-                hint={tr('Ce qui s’est passé, en trois phrases, pour quelqu’un qui n’était pas là.',
-                         'What happened, in three sentences, for somebody who was not there.')} />
-              <Text k="root_cause" label={tr('Cause racine', 'Root cause')}
-                hint={tr('Pourquoi c’est arrivé — pas ce qui est arrivé. Descendez jusqu’à la décision ou l’absence de décision.',
-                         'Why it happened — not what happened. Go down to the decision, or the missing one.')} />
-              <Text k="contributing_factors" label={tr('Facteurs aggravants', 'Contributing factors')}
-                hint={tr('Les conditions qui ont permis à la cause racine de mordre.', 'The conditions that let the root cause bite.')} rows={2} />
-              <Text k="impact" label={tr('Impact', 'Impact')}
-                hint={tr('Ce que ça a coûté : utilisateurs, données, indisponibilité, argent, obligations.',
-                         'What it cost: users, data, downtime, money, obligations.')} rows={2} />
-              <Text k="detection" label={tr('Détection', 'Detection')}
-                hint={tr('Comment on l’a su. Y compris « un client nous l’a dit » — c’est le constat qui change les feuilles de route.',
-                         'How we found out. Including "a customer told us" — that is the finding that changes roadmaps.')} rows={2} />
-              <Text k="what_went_well" label={tr('Ce qui a bien fonctionné', 'What went well')}
-                hint={tr('Une revue qui ne liste que des échecs apprend aux gens à cacher les incidents.',
-                         'A review that lists only failures teaches people to hide incidents.')} rows={2} />
+              <Text
+                k="summary"
+                label={tr('Résumé', 'Summary')}
+                hint={tr(
+                  'Ce qui s’est passé, en trois phrases, pour quelqu’un qui n’était pas là.',
+                  'What happened, in three sentences, for somebody who was not there.',
+                )}
+              />
+              <Text
+                k="root_cause"
+                label={tr('Cause racine', 'Root cause')}
+                hint={tr(
+                  'Pourquoi c’est arrivé — pas ce qui est arrivé. Descendez jusqu’à la décision ou l’absence de décision.',
+                  'Why it happened — not what happened. Go down to the decision, or the missing one.',
+                )}
+              />
+              <Text
+                k="contributing_factors"
+                label={tr('Facteurs aggravants', 'Contributing factors')}
+                hint={tr(
+                  'Les conditions qui ont permis à la cause racine de mordre.',
+                  'The conditions that let the root cause bite.',
+                )}
+                rows={2}
+              />
+              <Text
+                k="impact"
+                label={tr('Impact', 'Impact')}
+                hint={tr(
+                  'Ce que ça a coûté : utilisateurs, données, indisponibilité, argent, obligations.',
+                  'What it cost: users, data, downtime, money, obligations.',
+                )}
+                rows={2}
+              />
+              <Text
+                k="detection"
+                label={tr('Détection', 'Detection')}
+                hint={tr(
+                  'Comment on l’a su. Y compris « un client nous l’a dit » — c’est le constat qui change les feuilles de route.',
+                  'How we found out. Including "a customer told us" — that is the finding that changes roadmaps.',
+                )}
+                rows={2}
+              />
+              <Text
+                k="what_went_well"
+                label={tr('Ce qui a bien fonctionné', 'What went well')}
+                hint={tr(
+                  'Une revue qui ne liste que des échecs apprend aux gens à cacher les incidents.',
+                  'A review that lists only failures teaches people to hide incidents.',
+                )}
+                rows={2}
+              />
 
               {/* Timeline */}
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+                  <span
+                    className="text-[12px] font-semibold"
+                    style={{ color: 'var(--fg-secondary)' }}
+                  >
                     {tr('Chronologie', 'Timeline')}
                   </span>
                   {!published && (
-                    <button onClick={addTimelineEntry} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}>
+                    <button
+                      onClick={addTimelineEntry}
+                      className="text-[12px] font-semibold inline-flex items-center gap-1"
+                      style={{ color: 'var(--accent-500)' }}
+                    >
                       <Plus size={13} /> {tr('Ajouter un moment', 'Add a moment')}
                     </button>
                   )}
@@ -202,23 +300,58 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
                 <div className="mt-1.5 space-y-2">
                   {(form.timeline ?? []).map((e, i) => (
                     <div key={i} className="flex gap-2">
-                      <input type="datetime-local" className={field} style={{ ...fieldStyle, maxWidth: 210 }} disabled={published}
+                      <input
+                        type="datetime-local"
+                        className={field}
+                        style={{ ...fieldStyle, maxWidth: 210 }}
+                        disabled={published}
                         value={e.at ? new Date(e.at).toISOString().slice(0, 16) : ''}
-                        onChange={(ev) => set('timeline', form.timeline.map((x, j) => j === i ? { ...x, at: new Date(ev.target.value).toISOString() } : x))} />
-                      <input className={field} style={fieldStyle} disabled={published} placeholder={tr('Que s’est-il passé ?', 'What happened?')}
+                        onChange={(ev) =>
+                          set(
+                            'timeline',
+                            form.timeline.map((x, j) =>
+                              j === i ? { ...x, at: new Date(ev.target.value).toISOString() } : x,
+                            ),
+                          )
+                        }
+                      />
+                      <input
+                        className={field}
+                        style={fieldStyle}
+                        disabled={published}
+                        placeholder={tr('Que s’est-il passé ?', 'What happened?')}
                         value={e.title}
-                        onChange={(ev) => set('timeline', form.timeline.map((x, j) => j === i ? { ...x, title: ev.target.value } : x))} />
+                        onChange={(ev) =>
+                          set(
+                            'timeline',
+                            form.timeline.map((x, j) =>
+                              j === i ? { ...x, title: ev.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
                       {!published && (
-                        <button onClick={() => set('timeline', form.timeline.filter((_, j) => j !== i))}
+                        <button
+                          onClick={() =>
+                            set(
+                              'timeline',
+                              form.timeline.filter((_, j) => j !== i),
+                            )
+                          }
                           className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
-                          style={{ background: 'var(--bg-hover)', color: 'var(--critical)' }}><Trash2 size={14} /></button>
+                          style={{ background: 'var(--bg-hover)', color: 'var(--critical)' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       )}
                     </div>
                   ))}
                   {(form.timeline ?? []).length === 0 && (
                     <p className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
-                      {tr('Reconstituez la séquence : détection, escalade, atténuation, résolution.',
-                          'Reconstruct the sequence: detection, escalation, mitigation, resolution.')}
+                      {tr(
+                        'Reconstituez la séquence : détection, escalade, atténuation, résolution.',
+                        'Reconstruct the sequence: detection, escalation, mitigation, resolution.',
+                      )}
                     </p>
                   )}
                 </div>
@@ -227,61 +360,131 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
               {/* Corrective actions — the part that leaves the document. */}
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+                  <span
+                    className="text-[12px] font-semibold"
+                    style={{ color: 'var(--fg-secondary)' }}
+                  >
                     {tr('Actions correctives', 'Corrective actions')}
                   </span>
                   {!published && (
-                    <button onClick={addAction} className="text-[12px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--accent-500)' }}>
+                    <button
+                      onClick={addAction}
+                      className="text-[12px] font-semibold inline-flex items-center gap-1"
+                      style={{ color: 'var(--accent-500)' }}
+                    >
                       <Plus size={13} /> {tr('Ajouter', 'Add')}
                     </button>
                   )}
                 </div>
                 <p className="text-[11.5px] mb-1.5" style={{ color: 'var(--fg-secondary)' }}>
-                  {tr('À la publication, chacune devient un plan de mitigation réel, suivi dans le module Mitigations.',
-                      'On publication, each becomes a real mitigation plan, tracked in the Mitigations module.')}
+                  {tr(
+                    'À la publication, chacune devient un plan de mitigation réel, suivi dans le module Mitigations.',
+                    'On publication, each becomes a real mitigation plan, tracked in the Mitigations module.',
+                  )}
                 </p>
                 <div className="space-y-2">
                   {(form.corrective_actions ?? []).map((a, i) => (
                     <Card key={i} style={{ padding: '10px 12px' }}>
                       <div className="flex gap-2 items-start">
                         <div className="flex-1 space-y-2">
-                          <input className={field} style={fieldStyle} disabled={published} placeholder={tr('Ce qu’il faut faire', 'What has to be done')}
+                          <input
+                            className={field}
+                            style={fieldStyle}
+                            disabled={published}
+                            placeholder={tr('Ce qu’il faut faire', 'What has to be done')}
                             value={a.title}
-                            onChange={(ev) => set('corrective_actions', form.corrective_actions.map((x, j) => j === i ? { ...x, title: ev.target.value } : x))} />
+                            onChange={(ev) =>
+                              set(
+                                'corrective_actions',
+                                form.corrective_actions.map((x, j) =>
+                                  j === i ? { ...x, title: ev.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
                           <div className="flex gap-2">
-                            <select className={field} style={{ ...fieldStyle, maxWidth: 150 }} disabled={published} value={a.priority ?? 'medium'}
-                              onChange={(ev) => set('corrective_actions', form.corrective_actions.map((x, j) => j === i ? { ...x, priority: ev.target.value } : x))}>
+                            <select
+                              className={field}
+                              style={{ ...fieldStyle, maxWidth: 150 }}
+                              disabled={published}
+                              value={a.priority ?? 'medium'}
+                              onChange={(ev) =>
+                                set(
+                                  'corrective_actions',
+                                  form.corrective_actions.map((x, j) =>
+                                    j === i ? { ...x, priority: ev.target.value } : x,
+                                  ),
+                                )
+                              }
+                            >
                               <option value="critical">critical</option>
                               <option value="high">high</option>
                               <option value="medium">medium</option>
                               <option value="low">low</option>
                             </select>
-                            <input type="date" className={field} style={{ ...fieldStyle, maxWidth: 170 }} disabled={published}
+                            <input
+                              type="date"
+                              className={field}
+                              style={{ ...fieldStyle, maxWidth: 170 }}
+                              disabled={published}
                               value={a.due_date ? a.due_date.slice(0, 10) : ''}
-                              onChange={(ev) => set('corrective_actions', form.corrective_actions.map((x, j) => j === i ? { ...x, due_date: ev.target.value ? new Date(ev.target.value).toISOString() : null } : x))} />
+                              onChange={(ev) =>
+                                set(
+                                  'corrective_actions',
+                                  form.corrective_actions.map((x, j) =>
+                                    j === i
+                                      ? {
+                                          ...x,
+                                          due_date: ev.target.value
+                                            ? new Date(ev.target.value).toISOString()
+                                            : null,
+                                        }
+                                      : x,
+                                  ),
+                                )
+                              }
+                            />
                           </div>
                           {a.mitigation_id && (
-                            <p className="text-[11.5px] inline-flex items-center gap-1" style={{ color: 'var(--low)' }}>
+                            <p
+                              className="text-[11.5px] inline-flex items-center gap-1"
+                              style={{ color: 'var(--low)' }}
+                            >
                               <CheckCircle2 size={12} />
                               {tr('Suivi comme plan de mitigation', 'Tracked as a mitigation plan')}
-                              <a href={`/mitigations?focus=${a.mitigation_id}`} className="inline-flex items-center gap-0.5 font-semibold" style={{ color: 'var(--accent-500)' }}>
+                              <a
+                                href={`/mitigations?focus=${a.mitigation_id}`}
+                                className="inline-flex items-center gap-0.5 font-semibold"
+                                style={{ color: 'var(--accent-500)' }}
+                              >
                                 {tr('ouvrir', 'open')} <ArrowRight size={11} />
                               </a>
                             </p>
                           )}
                         </div>
                         {!published && (
-                          <button onClick={() => set('corrective_actions', form.corrective_actions.filter((_, j) => j !== i))}
+                          <button
+                            onClick={() =>
+                              set(
+                                'corrective_actions',
+                                form.corrective_actions.filter((_, j) => j !== i),
+                              )
+                            }
                             className="w-9 h-9 rounded-[9px] flex items-center justify-center shrink-0"
-                            style={{ background: 'var(--bg-hover)', color: 'var(--critical)' }}><Trash2 size={14} /></button>
+                            style={{ background: 'var(--bg-hover)', color: 'var(--critical)' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         )}
                       </div>
                     </Card>
                   ))}
                   {(form.corrective_actions ?? []).length === 0 && (
                     <p className="text-[12px]" style={{ color: 'var(--medium)' }}>
-                      {tr('Une revue sans action corrective est un récit, pas une revue.',
-                          'A review with no corrective action is a story, not a review.')}
+                      {tr(
+                        'Une revue sans action corrective est un récit, pas une revue.',
+                        'A review with no corrective action is a story, not a review.',
+                      )}
                     </p>
                   )}
                 </div>
@@ -289,20 +492,36 @@ export function PostMortemPanel({ incidentId, onClose }: { incidentId: number; o
 
               {/* The checklist — a reviewer sees the remaining fields, not a wall. */}
               {!published && missing.length > 0 && (
-                <div className="rounded-[10px] p-3 text-[12.5px]"
-                  style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}>
-                  {tr('Reste à remplir avant publication : ', 'Still to fill in before publishing: ')}
+                <div
+                  className="rounded-[10px] p-3 text-[12.5px]"
+                  style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
+                >
+                  {tr(
+                    'Reste à remplir avant publication : ',
+                    'Still to fill in before publishing: ',
+                  )}
                   <strong style={{ color: 'var(--fg-primary)' }}>
-                    {missing.map((m) => (lang === 'fr' ? FIELD_LABEL[m]?.fr : FIELD_LABEL[m]?.en) ?? m).join(' · ')}
+                    {missing
+                      .map((m) => (lang === 'fr' ? FIELD_LABEL[m]?.fr : FIELD_LABEL[m]?.en) ?? m)
+                      .join(' · ')}
                   </strong>
                 </div>
               )}
 
               {!published && (
                 <div className="flex justify-end gap-2 pt-1">
-                  <Btn label={tr('Enregistrer le brouillon', 'Save draft')} onClick={doSave} disabled={save.isPending} />
-                  <Btn label={tr('Publier', 'Publish')} icon={CheckCircle2} primary
-                    onClick={doPublish} disabled={publish.isPending || missing.length > 0} />
+                  <Btn
+                    label={tr('Enregistrer le brouillon', 'Save draft')}
+                    onClick={doSave}
+                    disabled={save.isPending}
+                  />
+                  <Btn
+                    label={tr('Publier', 'Publish')}
+                    icon={CheckCircle2}
+                    primary
+                    onClick={doPublish}
+                    disabled={publish.isPending || missing.length > 0}
+                  />
                 </div>
               )}
             </>

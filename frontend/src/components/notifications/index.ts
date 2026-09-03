@@ -16,7 +16,8 @@ export type { NotificationPreferencesProps } from './NotificationPreferences';
 // API types
 export interface Notification {
   id: string;
-  type: 'critical_risk' | 'mitigation_deadline' | 'action_assigned' | 'risk_update' | 'risk_resolved';
+  type:
+    'critical_risk' | 'mitigation_deadline' | 'action_assigned' | 'risk_update' | 'risk_resolved';
   subject: string;
   message: string;
   status: 'pending' | 'sent' | 'delivered' | 'failed' | 'read';

@@ -30,7 +30,13 @@ export function Label({ htmlFor, children }: { htmlFor?: string; children: React
  * Under `prefers-reduced-motion` the global CSS rule strips the animation and
  * the other two still carry the meaning.
  */
-export function Shake({ errorKey, children }: { errorKey: string | number; children: React.ReactNode }) {
+export function Shake({
+  errorKey,
+  children,
+}: {
+  errorKey: string | number;
+  children: React.ReactNode;
+}) {
   return (
     <div key={String(errorKey)} style={errorKey ? { animation: 'or-shake 300ms ease' } : undefined}>
       {children}

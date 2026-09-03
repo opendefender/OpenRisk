@@ -5,7 +5,18 @@
 // destinations/exports (Board report, Compliance PDFs, risk-register CSV export…),
 // plus a recent-reports list.
 
-import { TrendingUp, FileText, ClipboardCheck, Siren, ShieldAlert, Atom, Sparkles, Plus, CalendarClock, type LucideIcon } from 'lucide-react';
+import {
+  TrendingUp,
+  FileText,
+  ClipboardCheck,
+  Siren,
+  ShieldAlert,
+  Atom,
+  Sparkles,
+  Plus,
+  CalendarClock,
+  type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -56,28 +67,85 @@ export function ReportsScreen() {
   };
 
   const tpls: [string, string, LucideIcon, () => void][] = [
-    [tr('Synthèse exécutive', 'Executive summary'), tr('Vue d’ensemble de la posture pour le COMEX', 'Posture overview for the executive committee'), TrendingUp, () => navigate('/?view=executive')],
-    [tr('Rapport Conseil', 'Board report'), tr('Reporting trimestriel de gouvernance', 'Quarterly governance reporting'), FileText, () => navigate('/reports/board')],
+    [
+      tr('Synthèse exécutive', 'Executive summary'),
+      tr(
+        'Vue d’ensemble de la posture pour le COMEX',
+        'Posture overview for the executive committee',
+      ),
+      TrendingUp,
+      () => navigate('/?view=executive'),
+    ],
+    [
+      tr('Rapport Conseil', 'Board report'),
+      tr('Reporting trimestriel de gouvernance', 'Quarterly governance reporting'),
+      FileText,
+      () => navigate('/reports/board'),
+    ],
     // The other half of the loop. This used to navigate to /compliance, whose
     // "Generate report" button navigated straight back here — a closed circuit
     // that never produced a PDF. It now picks a framework and generates, so the
     // journey ends on the document.
-    [tr('Conformité', 'Compliance'), tr('Rapport PDF détaillé par référentiel', 'Detailed PDF report per framework'), ClipboardCheck, () => setPicking(true)],
-    [tr('Registre d’incidents', 'Incident register'), tr('Tous les incidents en CSV', 'All incidents as CSV'), Siren, exportIncidents],
-    [tr('Export du registre', 'Register export'), tr('Tous les risques en CSV', 'All risks as CSV'), ShieldAlert, exportRegister],
-    [tr('Rapport de topologie', 'Topology report'), tr('Cartographie et chemins d’attaque', 'Topology and attack paths'), Atom, () => navigate('/assets/topology')],
+    [
+      tr('Conformité', 'Compliance'),
+      tr('Rapport PDF détaillé par référentiel', 'Detailed PDF report per framework'),
+      ClipboardCheck,
+      () => setPicking(true),
+    ],
+    [
+      tr('Registre d’incidents', 'Incident register'),
+      tr('Tous les incidents en CSV', 'All incidents as CSV'),
+      Siren,
+      exportIncidents,
+    ],
+    [
+      tr('Export du registre', 'Register export'),
+      tr('Tous les risques en CSV', 'All risks as CSV'),
+      ShieldAlert,
+      exportRegister,
+    ],
+    [
+      tr('Rapport de topologie', 'Topology report'),
+      tr('Cartographie et chemins d’attaque', 'Topology and attack paths'),
+      Atom,
+      () => navigate('/assets/topology'),
+    ],
   ];
 
   return (
     <PageFrame>
       <PageHeader title={L.n_reports} />
-      <div className="grid gap-4 mb-7" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+      <div
+        className="grid gap-4 mb-7"
+        style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}
+      >
         {tpls.map(([title, desc, Icon, run], i) => (
-          <Card key={title} style={{ padding: 20, animation: 'or-fadeup .4s ease both', animationDelay: `${i * 0.04}s` }}>
-            <div className="w-[42px] h-[42px] rounded-xl flex items-center justify-center mb-3.5" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}><Icon size={21} /></div>
+          <Card
+            key={title}
+            style={{
+              padding: 20,
+              animation: 'or-fadeup .4s ease both',
+              animationDelay: `${i * 0.04}s`,
+            }}
+          >
+            <div
+              className="w-[42px] h-[42px] rounded-xl flex items-center justify-center mb-3.5"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+            >
+              <Icon size={21} />
+            </div>
             <div className="text-[14.5px] font-semibold text-ink mb-1.5">{title}</div>
-            <div className="text-[12.5px] text-ink-soft leading-relaxed mb-4" style={{ minHeight: 36 }}>{desc}</div>
-            <button onClick={run} className="w-full h-9 rounded-[10px] text-[13px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors" style={{ border: '1px solid var(--border-strong)' }}>
+            <div
+              className="text-[12.5px] text-ink-soft leading-relaxed mb-4"
+              style={{ minHeight: 36 }}
+            >
+              {desc}
+            </div>
+            <button
+              onClick={run}
+              className="w-full h-9 rounded-[10px] text-[13px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
+              style={{ border: '1px solid var(--border-strong)' }}
+            >
               <Sparkles size={15} /> {tr('Générer', 'Generate')}
             </button>
           </Card>
@@ -102,12 +170,17 @@ export function ReportsScreen() {
           (W0-05 / D5). */}
       <Card style={{ padding: '18px 22px', marginBottom: 28 }}>
         <div className="flex items-start gap-3.5">
-          <div className="w-10 h-10 rounded-[11px] flex items-center justify-center shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}>
+          <div
+            className="w-10 h-10 rounded-[11px] flex items-center justify-center shrink-0"
+            style={{ background: 'var(--bg-hover)', color: 'var(--fg-muted)' }}
+          >
             <CalendarClock size={20} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-[14px] font-semibold text-ink">{tr('Rapports programmés', 'Scheduled reports')}</span>
+              <span className="text-[14px] font-semibold text-ink">
+                {tr('Rapports programmés', 'Scheduled reports')}
+              </span>
               <span
                 className="text-[10.5px] font-bold uppercase tracking-[.06em] px-2 py-0.5 rounded-full"
                 style={{ color: 'var(--fg-muted)', background: 'var(--bg-hover)' }}
@@ -134,7 +207,9 @@ export function ReportsScreen() {
       </Card>
 
       <Card style={{ padding: '18px 22px' }}>
-        <div className="text-[14px] font-semibold text-ink mb-3.5">{tr('Rapports récents', 'Recent reports')}</div>
+        <div className="text-[14px] font-semibold text-ink mb-3.5">
+          {tr('Rapports récents', 'Recent reports')}
+        </div>
         {/* The tenant's actual generated board reports. This list used to be three
             invented PDFs with invented dates, offering a Download button that did
             nothing — a fresh tenant appeared to have a reporting history. */}
@@ -144,15 +219,28 @@ export function ReportsScreen() {
           <EmptyState
             variant="error"
             title={tr('Rapports indisponibles', 'Reports unavailable')}
-            description={tr('Impossible de charger vos rapports générés.', 'Could not load your generated reports.')}
+            description={tr(
+              'Impossible de charger vos rapports générés.',
+              'Could not load your generated reports.',
+            )}
           />
         ) : recent.length === 0 ? (
           <EmptyState
             variant="first-use"
             icon={FileText}
             title={tr('Aucun rapport généré', 'No reports yet')}
-            description={tr('Les rapports que vous générez sont archivés ici, prêts à être relus ou téléchargés. Commencez par un rapport Conseil.', 'Reports you generate are archived here, ready to review or download. Start with a board report.')}
-            primaryAction={<Btn label={tr('Générer un rapport Conseil', 'Generate a board report')} icon={Plus} primary onClick={() => navigate('/reports/board')} />}
+            description={tr(
+              'Les rapports que vous générez sont archivés ici, prêts à être relus ou téléchargés. Commencez par un rapport Conseil.',
+              'Reports you generate are archived here, ready to review or download. Start with a board report.',
+            )}
+            primaryAction={
+              <Btn
+                label={tr('Générer un rapport Conseil', 'Generate a board report')}
+                icon={Plus}
+                primary
+                onClick={() => navigate('/reports/board')}
+              />
+            }
           />
         ) : (
           recent.map((r, i) => (
@@ -162,14 +250,27 @@ export function ReportsScreen() {
               className="w-full text-left flex items-center gap-3.5 py-3 px-1 hover:bg-hover transition-colors"
               style={{ borderTop: i ? '1px solid var(--border)' : 'none' }}
             >
-              <div className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center text-ink-soft shrink-0" style={{ background: 'var(--bg-hover)' }}><FileText size={17} /></div>
+              <div
+                className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center text-ink-soft shrink-0"
+                style={{ background: 'var(--bg-hover)' }}
+              >
+                <FileText size={17} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[13.5px] font-medium text-ink truncate">{r.title}</div>
                 <div className="text-[11.5px] text-ink-muted mt-0.5">
-                  {r.period_label} · {new Date(r.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {r.period_label} ·{' '}
+                  {new Date(r.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
                 </div>
               </div>
-              <span className="text-[11.5px] font-semibold px-2 py-[3px] rounded-md shrink-0" style={{ color: 'var(--fg-secondary)', background: 'var(--bg-hover)' }}>
+              <span
+                className="text-[11.5px] font-semibold px-2 py-[3px] rounded-md shrink-0"
+                style={{ color: 'var(--fg-secondary)', background: 'var(--bg-hover)' }}
+              >
                 {r.status === 'approved' ? tr('Approuvé', 'Approved') : tr('Brouillon', 'Draft')}
               </span>
             </button>

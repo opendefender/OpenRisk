@@ -127,191 +127,213 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
 
   return (
     <>
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleClose}
-            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 40 }}
-            transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
-              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl bg-primary/10 p-2 text-primary">
-                    <Server size={20} />
-                  </div>
-                  <h2 className="text-xl font-semibold text-ink">{t('assets.editAsset')}</h2>
-                </div>
-                <div className="flex items-center gap-1">
-                  {onShowHistory && asset?.id && (
-                    <button
-                      type="button"
-                      onClick={() => onShowHistory(asset.id as string)}
-                      className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-ink-soft hover:bg-hover hover:text-ink transition-colors"
-                      title={t('assets.history')}
-                    >
-                      <History size={16} />
-                      <span className="hidden sm:inline">{t('assets.history')}</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-                <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6 scrollbar-thin">
-                <Field label={t('assets.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
-                  <Input
-                    {...register('name')}
-                    disabled={isSubmitting}
-                    autoFocus
-                  />
-                </Field>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                      {t('assets.form.type')}
-                    </label>
-                    <select
-                      {...register('type')}
-                      disabled={isSubmitting}
-                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                    >
-                      {ASSET_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                      {t('assets.form.criticality')}
-                    </label>
-                    <select
-                      {...register('criticality')}
-                      disabled={isSubmitting}
-                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                    >
-                      {ASSET_CRITICALITIES.map((level) => (
-                        <option key={level} value={level}>
-                          {t(`assets.criticality.${level}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <Field label={t('assets.form.owner')}>
-                  <Input
-                    {...register('owner')}
-                    disabled={isSubmitting}
-                  />
-                </Field>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                    {t('assets.form.category', 'Catégorie typée')}
-                  </label>
-                  <select
-                    value={category}
-                    disabled={isSubmitting}
-                    onChange={(e) => {
-                      setCategory(e.target.value as AssetCategory | '');
-                      // Re-typing an asset re-validates against a different
-                      // schema; the previous bag does not belong to it.
-                      setAttributes({});
-                    }}
-                    className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                  >
-                    <option value="">{t('assets.form.noCategory', 'Aucune (sans attributs typés)')}</option>
-                    {ASSET_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {CATEGORY_LABELS[cat]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {category && defs.length > 0 ? (
-                  <div className="rounded-2xl border border-border p-4">
-                    <AttributeForm
-                      defs={defs}
-                      values={attributes}
-                      onChange={setAttributes}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                ) : null}
-
-                </div>
-
-                <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-elevated px-6 py-4">
-                  {canDelete ? (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDelete(true)}
-                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-danger-text hover:bg-danger/10 transition-colors"
-                    >
-                      <Trash2 size={15} />
-                      <span>{t('common.delete', 'Delete')}</span>
-                    </button>
-                  ) : <span />}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleClose}
+              className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 40 }}
+              transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
+                <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
                   <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" onClick={handleClose}>
-                      {t('common.cancel', 'Cancel')}
-                    </Button>
-                    <Button type="submit" variant="primary" loading={isSubmitting}>
-                      {t('common.save', 'Save')}
-                    </Button>
+                    <div className="rounded-2xl bg-primary/10 p-2 text-primary">
+                      <Server size={20} />
+                    </div>
+                    <h2 className="text-xl font-semibold text-ink">{t('assets.editAsset')}</h2>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {onShowHistory && asset?.id && (
+                      <button
+                        type="button"
+                        onClick={() => onShowHistory(asset.id as string)}
+                        className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-ink-soft hover:bg-hover hover:text-ink transition-colors"
+                        title={t('assets.history')}
+                      >
+                        <History size={16} />
+                        <span className="hidden sm:inline">{t('assets.history')}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
                   </div>
                 </div>
-              </form>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
 
-    <ImpactDialog
-      open={confirmingDelete && !!asset}
-      title={tr('Supprimer cet actif ?', 'Delete this asset?')}
-      subject={asset?.name ?? ''}
-      description={tr('Action irréversible. Voici ce qui sera impacté :', 'This cannot be undone. Here is what will be affected:')}
-      impacts={[
-        { label: tr('Risques qui s’appuient sur cet actif', 'Risks that rely on this asset'), detail: String(linkedRisks) },
-        { label: tr('Dépendances (cartographie) liées', 'Linked dependency edges'), detail: tr('retirées', 'removed') },
-      ]}
-      alternatives={onShowHistory && asset?.id ? [
-        {
-          label: tr('Consulter l’historique avant de supprimer', 'Review the history first'),
-          description: tr('Voyez qui a modifié cet actif et quand.', 'See who changed this asset and when.'),
-          onClick: () => { setConfirmingDelete(false); onShowHistory(asset.id as string); },
-        },
-      ] : []}
-      confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
-      cancelLabel={tr('Annuler', 'Cancel')}
-      loading={deleteAsset.isPending}
-      onConfirm={confirmDelete}
-      onClose={() => setConfirmingDelete(false)}
-    />
+                <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6 scrollbar-thin">
+                    <Field
+                      label={t('assets.form.name')}
+                      message={errors.name?.message}
+                      status={errors.name?.message ? 'invalid' : 'default'}
+                    >
+                      <Input {...register('name')} disabled={isSubmitting} autoFocus />
+                    </Field>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                          {t('assets.form.type')}
+                        </label>
+                        <select
+                          {...register('type')}
+                          disabled={isSubmitting}
+                          className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                        >
+                          {ASSET_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                          {t('assets.form.criticality')}
+                        </label>
+                        <select
+                          {...register('criticality')}
+                          disabled={isSubmitting}
+                          className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                        >
+                          {ASSET_CRITICALITIES.map((level) => (
+                            <option key={level} value={level}>
+                              {t(`assets.criticality.${level}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <Field label={t('assets.form.owner')}>
+                      <Input {...register('owner')} disabled={isSubmitting} />
+                    </Field>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                        {t('assets.form.category', 'Catégorie typée')}
+                      </label>
+                      <select
+                        value={category}
+                        disabled={isSubmitting}
+                        onChange={(e) => {
+                          setCategory(e.target.value as AssetCategory | '');
+                          // Re-typing an asset re-validates against a different
+                          // schema; the previous bag does not belong to it.
+                          setAttributes({});
+                        }}
+                        className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                      >
+                        <option value="">
+                          {t('assets.form.noCategory', 'Aucune (sans attributs typés)')}
+                        </option>
+                        {ASSET_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {CATEGORY_LABELS[cat]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {category && defs.length > 0 ? (
+                      <div className="rounded-2xl border border-border p-4">
+                        <AttributeForm
+                          defs={defs}
+                          values={attributes}
+                          onChange={setAttributes}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-elevated px-6 py-4">
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingDelete(true)}
+                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-danger-text hover:bg-danger/10 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                        <span>{t('common.delete', 'Delete')}</span>
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                    <div className="flex items-center gap-3">
+                      <Button type="button" variant="ghost" onClick={handleClose}>
+                        {t('common.cancel', 'Cancel')}
+                      </Button>
+                      <Button type="submit" variant="primary" loading={isSubmitting}>
+                        {t('common.save', 'Save')}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <ImpactDialog
+        open={confirmingDelete && !!asset}
+        title={tr('Supprimer cet actif ?', 'Delete this asset?')}
+        subject={asset?.name ?? ''}
+        description={tr(
+          'Action irréversible. Voici ce qui sera impacté :',
+          'This cannot be undone. Here is what will be affected:',
+        )}
+        impacts={[
+          {
+            label: tr('Risques qui s’appuient sur cet actif', 'Risks that rely on this asset'),
+            detail: String(linkedRisks),
+          },
+          {
+            label: tr('Dépendances (cartographie) liées', 'Linked dependency edges'),
+            detail: tr('retirées', 'removed'),
+          },
+        ]}
+        alternatives={
+          onShowHistory && asset?.id
+            ? [
+                {
+                  label: tr(
+                    'Consulter l’historique avant de supprimer',
+                    'Review the history first',
+                  ),
+                  description: tr(
+                    'Voyez qui a modifié cet actif et quand.',
+                    'See who changed this asset and when.',
+                  ),
+                  onClick: () => {
+                    setConfirmingDelete(false);
+                    onShowHistory(asset.id as string);
+                  },
+                },
+              ]
+            : []
+        }
+        confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
+        cancelLabel={tr('Annuler', 'Cancel')}
+        loading={deleteAsset.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setConfirmingDelete(false)}
+      />
     </>
   );
 };

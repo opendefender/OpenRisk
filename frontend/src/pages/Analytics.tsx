@@ -64,7 +64,8 @@ export default function Analytics() {
     try {
       setRefreshing(true);
       const response = await fetch('/api/v1/analytics/dashboard');
-      if (!response.ok) throw new Error("We couldn't load your dashboard. Please refresh the page.");
+      if (!response.ok)
+        throw new Error("We couldn't load your dashboard. Please refresh the page.");
       const data = await response.json();
       setDashboard(data);
       setError(null);
@@ -87,7 +88,7 @@ export default function Analytics() {
     try {
       const response = await fetch(`/api/v1/analytics/export?format=${format}`);
       if (!response.ok) throw new Error("We couldn't export the data. Please try again.");
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -98,7 +99,9 @@ export default function Analytics() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "We couldn't export the data. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "We couldn't export the data. Please try again.",
+      );
     }
   };
 
@@ -151,10 +154,12 @@ export default function Analytics() {
     value: count,
   }));
 
-  const frameworkData = Object.entries(riskMetrics.risks_by_framework).map(([framework, count]) => ({
-    name: framework,
-    risks: count,
-  }));
+  const frameworkData = Object.entries(riskMetrics.risks_by_framework).map(
+    ([framework, count]) => ({
+      name: framework,
+      risks: count,
+    }),
+  );
 
   return (
     <div className="space-y-6 pb-6">
@@ -328,12 +333,17 @@ function MetricCard({
   icon: Icon,
 }: MetricCardProps) {
   return (
-    <div className={`bg-surface-1 rounded-lg p-6 border ${alert ? 'border-danger' : 'border-border-default'}`}>
+    <div
+      className={`bg-surface-1 rounded-lg p-6 border ${alert ? 'border-danger' : 'border-border-default'}`}
+    >
       <div className="flex justify-between items-start">
         <div>
           <p className="text-fg-secondary text-sm font-medium">{title}</p>
-          <p className={`text-3xl font-bold mt-2 ${alert ? 'text-danger-text' : 'text-fg-primary'}`}>
-            {value}{suffix}
+          <p
+            className={`text-3xl font-bold mt-2 ${alert ? 'text-danger-text' : 'text-fg-primary'}`}
+          >
+            {value}
+            {suffix}
             {maxValue && <span className="text-sm text-fg-secondary">/{maxValue}</span>}
           </p>
           {change !== undefined && (
@@ -341,13 +351,13 @@ function MetricCard({
               +{change} {changeLabel}
             </p>
           )}
-          {percentage && (
-            <p className="text-sm text-info-text mt-2">
-              {percentage}%
-            </p>
-          )}
+          {percentage && <p className="text-sm text-info-text mt-2">{percentage}%</p>}
         </div>
-        {Icon && <div className="text-fg-muted"><Icon size={24} /></div>}
+        {Icon && (
+          <div className="text-fg-muted">
+            <Icon size={24} />
+          </div>
+        )}
       </div>
     </div>
   );

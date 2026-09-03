@@ -64,10 +64,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       <div className="relative">
         {/* Search Input */}
         <div className="relative flex items-center bg-surface-1 border border-border-default rounded-lg focus-within:border-accent focus-within:ring-1 focus-within:ring-focus transition-all">
-          <Search
-            className="absolute left-3 text-fg-secondary pointer-events-none"
-            size={18}
-          />
+          <Search className="absolute left-3 text-fg-secondary pointer-events-none" size={18} />
           <input
             ref={inputRef}
             type="text"
@@ -87,9 +84,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
           {/* Right icons */}
           <div className="absolute right-3 flex items-center gap-2">
-            {state.isLoading && (
-              <Loader className="animate-spin text-info-text" size={16} />
-            )}
+            {state.isLoading && <Loader className="animate-spin text-info-text" size={16} />}
             {showShortcutHint && !state.query && (
               <kbd className="hidden md:flex items-center gap-1 px-2 py-1 bg-surface-2 rounded text-xs text-fg-secondary border border-border-default">
                 <span>⌘</span>
@@ -125,9 +120,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-fg-primary font-medium truncate">
-                          {result.title}
-                        </h3>
+                        <h3 className="text-fg-primary font-medium truncate">{result.title}</h3>
                         {result.description && (
                           <p className="text-xs text-fg-secondary truncate mt-1">
                             {result.description}
@@ -158,7 +151,9 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     {/* Metadata Row */}
                     {result.probability !== undefined && result.impact !== undefined && (
                       <div className="flex items-center gap-4 mt-2 text-xs text-fg-secondary">
-                        <span>📊 P:{result.probability} I:{result.impact}</span>
+                        <span>
+                          📊 P:{result.probability} I:{result.impact}
+                        </span>
                         {result.matchScore !== undefined && (
                           <span className="text-info-text">
                             Match: {Math.round(result.matchScore * 100)}%
@@ -237,22 +232,13 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     <div className="font-semibold mb-2">Keyboard Shortcuts:</div>
                     <ul className="space-y-1">
                       <li>
-                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">
-                          ↓↑
-                        </kbd>{' '}
-                        Navigate
+                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">↓↑</kbd> Navigate
                       </li>
                       <li>
-                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">
-                          Enter
-                        </kbd>{' '}
-                        Select
+                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">Enter</kbd> Select
                       </li>
                       <li>
-                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">
-                          Esc
-                        </kbd>{' '}
-                        Close
+                        <kbd className="bg-surface-2 px-2 py-1 rounded text-xs">Esc</kbd> Close
                       </li>
                     </ul>
                   </div>
@@ -295,7 +281,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
   const filtered = commands.filter(
     (cmd) =>
       cmd.label.toLowerCase().includes(search.toLowerCase()) ||
-      cmd.description?.toLowerCase().includes(search.toLowerCase())
+      cmd.description?.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleExecute = (command: CommandPaletteCommand) => {
@@ -333,9 +319,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowDown') {
-                    setSelectedIndex((i) =>
-                      Math.min(i + 1, filtered.length - 1)
-                    );
+                    setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
                   } else if (e.key === 'ArrowUp') {
                     setSelectedIndex((i) => Math.max(i - 1, 0));
                   } else if (e.key === 'Enter' && filtered[selectedIndex]) {
@@ -356,18 +340,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ commands }) => {
                     key={cmd.id}
                     onClick={() => handleExecute(cmd)}
                     className={`w-full text-left px-4 py-3 border-b border-border-subtle last:border-b-0 transition-colors ${
-                      index === selectedIndex
-                        ? 'bg-accent-soft'
-                        : 'hover:bg-surface-2'
+                      index === selectedIndex ? 'bg-accent-soft' : 'hover:bg-surface-2'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-fg-primary font-medium">{cmd.label}</p>
                         {cmd.description && (
-                          <p className="text-xs text-fg-secondary mt-1">
-                            {cmd.description}
-                          </p>
+                          <p className="text-xs text-fg-secondary mt-1">{cmd.description}</p>
                         )}
                       </div>
                       {cmd.shortcut && (

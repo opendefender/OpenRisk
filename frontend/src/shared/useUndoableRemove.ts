@@ -52,7 +52,7 @@ export function useUndoableRemove() {
         },
       });
     },
-    [unhide]
+    [unhide],
   );
 
   return { undoRemove, isHidden, hidden };

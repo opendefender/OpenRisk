@@ -4,15 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useMemo, useState } from 'react';
-import {
-  ArrowDown,
-  ArrowUp,
-  Fingerprint,
-  Plus,
-  RotateCcw,
-  Save,
-  Trash2,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, Fingerprint, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { apiErrorMessage } from '../../lib/apiError';
@@ -51,10 +43,7 @@ export default function AssetSchemaSettings() {
   const [draft, setDraft] = useState<AttributeDef[]>([]);
   const [label, setLabel] = useState('');
 
-  const current = useMemo(
-    () => schemas.find((s) => s.category === selected),
-    [schemas, selected]
-  );
+  const current = useMemo(() => schemas.find((s) => s.category === selected), [schemas, selected]);
 
   // Re-sync the editable copy when the selected category's schema changes, by
   // adjusting state during render rather than in an effect.
@@ -69,7 +58,7 @@ export default function AssetSchemaSettings() {
     () =>
       JSON.stringify(draft) !== JSON.stringify(current?.attributes ?? []) ||
       label !== (current?.label ?? ''),
-    [draft, label, current]
+    [draft, label, current],
   );
 
   const patch = (i: number, next: Partial<AttributeDef>) =>
@@ -131,8 +120,8 @@ export default function AssetSchemaSettings() {
           Attributs par catégorie d'actif
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--fg-muted)' }}>
-          Ce que vous décrivez ici devient le formulaire de saisie et la validation
-          serveur pour chaque actif de cette catégorie.
+          Ce que vous décrivez ici devient le formulaire de saisie et la validation serveur pour
+          chaque actif de cette catégorie.
         </p>
       </header>
 
@@ -291,7 +280,9 @@ export default function AssetSchemaSettings() {
               </div>
 
               <div className="mt-2 grid gap-2 sm:grid-cols-12">
-                {(def.type === 'enum' || isListType(def.type)) && def.type !== 'ip_list' && def.type !== 'string_list' ? (
+                {(def.type === 'enum' || isListType(def.type)) &&
+                def.type !== 'ip_list' &&
+                def.type !== 'string_list' ? (
                   <input
                     className={`${inputCls} sm:col-span-7`}
                     style={inputSty}

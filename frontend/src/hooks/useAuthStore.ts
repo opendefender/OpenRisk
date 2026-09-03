@@ -112,7 +112,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
     // Flatten the nested Role object and fold in the JWT permissions/roles + the
     // business_role the backend returns, so RBAC gating works on the client.
-    const base: User = { ...data.user, role: data.user.role?.name ?? '', org_name: data.organization?.name };
+    const base: User = {
+      ...data.user,
+      role: data.user.role?.name ?? '',
+      org_name: data.organization?.name,
+    };
     const user = withTokenClaims(base, data.token_pair.access_token, data.business_role);
 
     // Drop anything the PREVIOUS identity left behind before adopting this one.
@@ -131,7 +135,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       token: data.token_pair.access_token,
       user,
       expiresIn: data.token_pair.expires_in,
-      isAuthenticated: true
+      isAuthenticated: true,
     });
 
     return { status: 'signed_in' };
@@ -179,7 +183,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       token: null,
       user: null,
       expiresIn: null,
-      isAuthenticated: false
+      isAuthenticated: false,
     });
   },
 
@@ -200,7 +204,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({
         token: data.token_pair.access_token,
         user,
-        expiresIn: data.token_pair.expires_in
+        expiresIn: data.token_pair.expires_in,
       });
     } catch (err) {
       // Token refresh failed, logout user
@@ -221,6 +225,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (!user) return false;
     // Match either the org role (root/admin/user) or the business role preset.
     const target = roleName.toLowerCase();
-    return user.role.toLowerCase() === target || (user.business_role ?? '').toLowerCase() === target;
-  }
+    return (
+      user.role.toLowerCase() === target || (user.business_role ?? '').toLowerCase() === target
+    );
+  },
 }));

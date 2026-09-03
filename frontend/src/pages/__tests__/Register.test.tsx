@@ -41,7 +41,7 @@ describe('Register Page', () => {
     render(
       <BrowserRouter>
         <Register />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     expect(screen.getByRole('heading', { name: 'Create Account' })).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('Register Page', () => {
     render(
       <BrowserRouter>
         <Register />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const loginLink = screen.getByRole('link', { name: /Sign In/i });
@@ -68,7 +68,7 @@ describe('Register Page', () => {
     render(
       <BrowserRouter>
         <Register />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const submitButton = screen.getByRole('button', { name: /Create Account/i });
@@ -84,7 +84,7 @@ describe('Register Page', () => {
     render(
       <BrowserRouter>
         <Register />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const fullNameInput = screen.getByPlaceholderText('John Doe') as HTMLInputElement;
@@ -107,12 +107,14 @@ describe('Register Page', () => {
 
   it('should submit valid form', async () => {
     const user = userEvent.setup();
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { user: { id: '1', email: 'test@example.com' } } });
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: { user: { id: '1', email: 'test@example.com' } },
+    });
 
     render(
       <BrowserRouter>
         <Register />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const fullNameInput = screen.getByPlaceholderText('John Doe');
@@ -129,12 +131,15 @@ describe('Register Page', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/register', expect.objectContaining({
-        email: 'test@example.com',
-        username: 'johndoe',
-        full_name: 'John Doe',
-        password: 'password123',
-      }));
+      expect(api.post).toHaveBeenCalledWith(
+        '/auth/register',
+        expect.objectContaining({
+          email: 'test@example.com',
+          username: 'johndoe',
+          full_name: 'John Doe',
+          password: 'password123',
+        }),
+      );
     });
   });
 
@@ -150,7 +155,7 @@ describe('Register Page', () => {
     render(
       <BrowserRouter>
         <Register />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const fullNameInput = screen.getByPlaceholderText('John Doe');

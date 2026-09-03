@@ -40,9 +40,14 @@ const STATUS_CONFIG: Record<string, { bg: string; label: string; textColor: stri
   cancelled: { bg: 'bg-surface-3', label: 'Annulé', textColor: 'text-fg-secondary' },
 };
 
-const DEFAULT_STATUS_CONFIG = { bg: 'bg-surface-3', label: 'Inconnu', textColor: 'text-fg-secondary' };
+const DEFAULT_STATUS_CONFIG = {
+  bg: 'bg-surface-3',
+  label: 'Inconnu',
+  textColor: 'text-fg-secondary',
+};
 
-const getStatusConfig = (status: Status) => STATUS_CONFIG[status?.toLowerCase()] ?? DEFAULT_STATUS_CONFIG;
+const getStatusConfig = (status: Status) =>
+  STATUS_CONFIG[status?.toLowerCase()] ?? DEFAULT_STATUS_CONFIG;
 
 const getSizeClasses = (size: 'xs' | 'sm' | 'md') => {
   switch (size) {
@@ -73,9 +78,7 @@ export const StatusDot = ({
         transition={animated ? { duration: 2, repeat: Infinity } : undefined}
       />
       {withLabel && (
-        <span className={cn('text-xs font-medium', config.textColor)}>
-          {config.label}
-        </span>
+        <span className={cn('text-xs font-medium', config.textColor)}>{config.label}</span>
       )}
     </div>
   );

@@ -99,7 +99,12 @@ export function stripDrawer(search: URLSearchParams): URLSearchParams {
  * same shape (entity.DeepLink), and this is its client-side twin for links the
  * client composes itself.
  */
-export function drawerHref(listPath: string, type: EntityType, id: string, tab?: EntitySection): string {
+export function drawerHref(
+  listPath: string,
+  type: EntityType,
+  id: string,
+  tab?: EntitySection,
+): string {
   const [path, query = ''] = listPath.split('?');
   const params = writeDrawer(new URLSearchParams(query), { type, id, tab });
   return `${path}?${params.toString()}`;
@@ -136,7 +141,7 @@ export function useDrawerController(): DrawerController {
     (type: EntityType, id: string, tab?: EntitySection) => {
       setParams((prev) => writeDrawer(prev, { type, id, tab }), { replace: false });
     },
-    [setParams]
+    [setParams],
   );
 
   const close = useCallback(() => {
@@ -151,10 +156,10 @@ export function useDrawerController(): DrawerController {
           if (!current) return prev;
           return writeDrawer(prev, { ...current, tab });
         },
-        { replace: true }
+        { replace: true },
       );
     },
-    [setParams]
+    [setParams],
   );
 
   return { state, open, close, setTab };

@@ -79,7 +79,11 @@ export const ScoreMeter = ({
             strokeLinecap="round"
             className={cn('transition-all', `bg-linear-to-r ${bgColor}`)}
             stroke={getScoreGradientColor(percentage)}
-            initial={animated ? { strokeDashoffset: 283 } : { strokeDashoffset: 283 - (283 * percentage) / 100 }}
+            initial={
+              animated
+                ? { strokeDashoffset: 283 }
+                : { strokeDashoffset: 283 - (283 * percentage) / 100 }
+            }
             animate={animated ? { strokeDashoffset: 283 - (283 * percentage) / 100 } : undefined}
             transition={animated ? { duration: 1, ease: 'easeInOut' } : undefined}
             strokeDasharray="283"
@@ -96,9 +100,7 @@ export const ScoreMeter = ({
           >
             {score.toFixed(1)}
           </motion.div>
-          {size !== 'sm' && (
-            <div className="text-xs text-fg-secondary">/100</div>
-          )}
+          {size !== 'sm' && <div className="text-xs text-fg-secondary">/100</div>}
         </div>
       </div>
 

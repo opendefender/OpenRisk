@@ -48,7 +48,10 @@ export async function saveMFAPolicy(graceDays: number): Promise<MFAPolicy> {
 }
 
 /** Days remaining before enrolment becomes mandatory, or null when it never does. */
-export function daysUntilDeadline(status: MFAStatus | null | undefined, now = new Date()): number | null {
+export function daysUntilDeadline(
+  status: MFAStatus | null | undefined,
+  now = new Date(),
+): number | null {
   if (!status?.deadline) return null;
   const deadline = new Date(status.deadline);
   if (Number.isNaN(deadline.getTime())) return null;

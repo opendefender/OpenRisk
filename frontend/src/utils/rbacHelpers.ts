@@ -9,7 +9,16 @@
  */
 
 export type PermissionAction = 'read' | 'create' | 'update' | 'delete' | 'manage' | 'all';
-export type PermissionResource = 'users' | 'roles' | 'tenants' | 'reports' | 'audit' | 'connector' | 'assets' | 'incidents' | 'risks';
+export type PermissionResource =
+  | 'users'
+  | 'roles'
+  | 'tenants'
+  | 'reports'
+  | 'audit'
+  | 'connector'
+  | 'assets'
+  | 'incidents'
+  | 'risks';
 
 /**
  * Check if a permission string matches a pattern
@@ -17,7 +26,7 @@ export type PermissionResource = 'users' | 'roles' | 'tenants' | 'reports' | 'au
  */
 export const matchesPermissionPattern = (
   userPermission: string,
-  requiredPermission: string
+  requiredPermission: string,
 ): boolean => {
   // Exact match
   if (userPermission === requiredPermission) return true;
@@ -40,13 +49,8 @@ export const matchesPermissionPattern = (
 /**
  * Check if user has a specific permission
  */
-export const hasPermission = (
-  userPermissions: string[],
-  requiredPermission: string
-): boolean => {
-  return userPermissions.some(perm =>
-    matchesPermissionPattern(perm, requiredPermission)
-  );
+export const hasPermission = (userPermissions: string[], requiredPermission: string): boolean => {
+  return userPermissions.some((perm) => matchesPermissionPattern(perm, requiredPermission));
 };
 
 /**
@@ -54,11 +58,9 @@ export const hasPermission = (
  */
 export const hasAllPermissions = (
   userPermissions: string[],
-  requiredPermissions: string[]
+  requiredPermissions: string[],
 ): boolean => {
-  return requiredPermissions.every(perm =>
-    hasPermission(userPermissions, perm)
-  );
+  return requiredPermissions.every((perm) => hasPermission(userPermissions, perm));
 };
 
 /**
@@ -66,11 +68,9 @@ export const hasAllPermissions = (
  */
 export const hasAnyPermission = (
   userPermissions: string[],
-  requiredPermissions: string[]
+  requiredPermissions: string[],
 ): boolean => {
-  return requiredPermissions.some(perm =>
-    hasPermission(userPermissions, perm)
-  );
+  return requiredPermissions.some((perm) => hasPermission(userPermissions, perm));
 };
 
 /**
@@ -115,7 +115,9 @@ const capitalize = (str: string): string => {
 /**
  * Get role hierarchy level
  */
-export const getRoleLevel = (roleLevel: number): { name: string; description: string; color: string } => {
+export const getRoleLevel = (
+  roleLevel: number,
+): { name: string; description: string; color: string } => {
   const levels = {
     0: { name: 'Viewer', description: 'Read-only access', color: 'zinc' },
     3: { name: 'Analyst', description: 'Can create and analyze', color: 'blue' },
@@ -129,10 +131,7 @@ export const getRoleLevel = (roleLevel: number): { name: string; description: st
 /**
  * Permission-based feature flag
  */
-export const isFeatureEnabled = (
-  userPermissions: string[],
-  feature: string
-): boolean => {
+export const isFeatureEnabled = (userPermissions: string[], feature: string): boolean => {
   const featurePermissionMap: Record<string, string[]> = {
     'role-management': ['roles:manage'],
     'tenant-management': ['tenants:manage'],
@@ -151,12 +150,10 @@ export const isFeatureEnabled = (
  */
 export const getAvailableActions = (
   userPermissions: string[],
-  resource: PermissionResource
+  resource: PermissionResource,
 ): PermissionAction[] => {
   const allActions = getResourceActions(resource);
-  return allActions.filter(action =>
-    hasPermission(userPermissions, `${resource}:${action}`)
-  );
+  return allActions.filter((action) => hasPermission(userPermissions, `${resource}:${action}`));
 };
 
 /**
@@ -219,7 +216,7 @@ export const isProtectedPermission = (permission: string): boolean => {
     'audit-logs:manage',
     'api-keys:manage',
   ];
-  return protectedPerms.includes(permission) || protectedPerms.some(p => permission.includes(p));
+  return protectedPerms.includes(permission) || protectedPerms.some((p) => permission.includes(p));
 };
 
 /**
@@ -227,7 +224,7 @@ export const isProtectedPermission = (permission: string): boolean => {
  */
 export const buildPermissionString = (
   resource: PermissionResource,
-  action: PermissionAction
+  action: PermissionAction,
 ): string => {
   return `${resource}:${action}`;
 };

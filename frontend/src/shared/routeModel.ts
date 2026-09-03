@@ -60,13 +60,39 @@ export const ROUTES: RouteNode[] = [
 
   /* ---------------- Risks ---------------- */
   { path: '/risks', labelKey: 'n_risks', perm: 'risks:read' },
-  { path: '/risks/import', label: { fr: 'Importer', en: 'Import' }, parent: '/risks', perm: 'risks:create' },
-  { path: '/risks/weighting', label: { fr: 'Pondération', en: 'Weighting' }, parent: '/risks', perm: 'risks:read' },
-  { path: '/risks/:riskId/timeline', label: { fr: 'Chronologie', en: 'Timeline' }, parent: '/risks', perm: 'risks:read' },
+  {
+    path: '/risks/import',
+    label: { fr: 'Importer', en: 'Import' },
+    parent: '/risks',
+    perm: 'risks:create',
+  },
+  {
+    path: '/risks/weighting',
+    label: { fr: 'Pondération', en: 'Weighting' },
+    parent: '/risks',
+    perm: 'risks:read',
+  },
+  {
+    path: '/risks/:riskId/timeline',
+    label: { fr: 'Chronologie', en: 'Timeline' },
+    parent: '/risks',
+    perm: 'risks:read',
+  },
   // Mitigations live under Risks: a mitigation only exists to reduce a risk, and
   // filing it anywhere else is what made "back" ambiguous from its detail view.
-  { path: '/risks/mitigations', labelKey: 'n_mitigations', parent: '/risks', perm: 'mitigations:read' },
-  { path: '/risks/mitigations/:mitigationId', label: { fr: 'Plan', en: 'Plan' }, parent: '/risks/mitigations', perm: 'mitigations:read', dynamic: true },
+  {
+    path: '/risks/mitigations',
+    labelKey: 'n_mitigations',
+    parent: '/risks',
+    perm: 'mitigations:read',
+  },
+  {
+    path: '/risks/mitigations/:mitigationId',
+    label: { fr: 'Plan', en: 'Plan' },
+    parent: '/risks/mitigations',
+    perm: 'mitigations:read',
+    dynamic: true,
+  },
 
   /* ---------------- Vulnerabilities / threats ---------------- */
   { path: '/vulnerabilities', labelKey: 'n_vulns', perm: 'vulnerabilities:read' },
@@ -76,26 +102,84 @@ export const ROUTES: RouteNode[] = [
 
   /* ---------------- Incidents ---------------- */
   { path: '/incidents', labelKey: 'n_incidents', perm: 'incidents:read' },
-  { path: '/incidents/:id/war-room', label: { fr: 'War Room', en: 'War Room' }, parent: '/incidents', perm: 'incidents:read' },
+  {
+    path: '/incidents/:id/war-room',
+    label: { fr: 'War Room', en: 'War Room' },
+    parent: '/incidents',
+    perm: 'incidents:read',
+  },
 
   /* ---------------- Compliance ---------------- */
   { path: '/compliance', labelKey: 'n_compliance', perm: 'compliance:frameworks:read' },
-  { path: '/compliance/frameworks/:frameworkId', label: { fr: 'Référentiel', en: 'Framework' }, parent: '/compliance', perm: 'compliance:controls:read', dynamic: true },
-  { path: '/compliance/frameworks/:frameworkId/gaps', label: { fr: 'Écarts', en: 'Gaps' }, parent: '/compliance/frameworks/:frameworkId', perm: 'compliance:controls:read' },
-  { path: '/compliance/gaps', label: { fr: "Analyse d'écarts", en: 'Gap analysis' }, parent: '/compliance', perm: 'compliance:controls:read' },
-  { path: '/compliance/evidence', label: { fr: 'Bibliothèque de preuves', en: 'Evidence library' }, parent: '/compliance', perm: 'compliance:evidences:read' },
-  { path: '/compliance/evidence/missing', label: { fr: 'Preuves manquantes', en: 'Missing evidence' }, parent: '/compliance/evidence', perm: 'compliance:evidences:read' },
-  { path: '/compliance/audits', label: { fr: 'Audits', en: 'Audits' }, parent: '/compliance', perm: 'compliance:audits:read' },
-  { path: '/compliance/audits/:auditId', label: { fr: 'Audit', en: 'Audit' }, parent: '/compliance/audits', perm: 'compliance:audits:read', dynamic: true },
-  { path: '/compliance/remediation', label: { fr: 'Plans de remédiation', en: 'Remediation plans' }, parent: '/compliance', perm: 'compliance:remediations:read' },
-  { path: '/compliance/remediation/:planId', label: { fr: 'Plan', en: 'Plan' }, parent: '/compliance/remediation', perm: 'compliance:remediations:read', dynamic: true },
+  {
+    path: '/compliance/frameworks/:frameworkId',
+    label: { fr: 'Référentiel', en: 'Framework' },
+    parent: '/compliance',
+    perm: 'compliance:controls:read',
+    dynamic: true,
+  },
+  {
+    path: '/compliance/frameworks/:frameworkId/gaps',
+    label: { fr: 'Écarts', en: 'Gaps' },
+    parent: '/compliance/frameworks/:frameworkId',
+    perm: 'compliance:controls:read',
+  },
+  {
+    path: '/compliance/gaps',
+    label: { fr: "Analyse d'écarts", en: 'Gap analysis' },
+    parent: '/compliance',
+    perm: 'compliance:controls:read',
+  },
+  {
+    path: '/compliance/evidence',
+    label: { fr: 'Bibliothèque de preuves', en: 'Evidence library' },
+    parent: '/compliance',
+    perm: 'compliance:evidences:read',
+  },
+  {
+    path: '/compliance/evidence/missing',
+    label: { fr: 'Preuves manquantes', en: 'Missing evidence' },
+    parent: '/compliance/evidence',
+    perm: 'compliance:evidences:read',
+  },
+  {
+    path: '/compliance/audits',
+    label: { fr: 'Audits', en: 'Audits' },
+    parent: '/compliance',
+    perm: 'compliance:audits:read',
+  },
+  {
+    path: '/compliance/audits/:auditId',
+    label: { fr: 'Audit', en: 'Audit' },
+    parent: '/compliance/audits',
+    perm: 'compliance:audits:read',
+    dynamic: true,
+  },
+  {
+    path: '/compliance/remediation',
+    label: { fr: 'Plans de remédiation', en: 'Remediation plans' },
+    parent: '/compliance',
+    perm: 'compliance:remediations:read',
+  },
+  {
+    path: '/compliance/remediation/:planId',
+    label: { fr: 'Plan', en: 'Plan' },
+    parent: '/compliance/remediation',
+    perm: 'compliance:remediations:read',
+    dynamic: true,
+  },
 
   /* ---------------- Assets ---------------- */
   { path: '/assets', labelKey: 'n_assets', perm: 'assets:read' },
   { path: '/assets/topology', labelKey: 'n_universe', parent: '/assets', perm: 'assets:read' },
   { path: '/assets/schemas', labelKey: 'n_assetSchemas', parent: '/assets', perm: 'assets:read' },
   { path: '/infrastructure', labelKey: 'n_infra', perm: 'scanner:read' },
-  { path: '/infrastructure/scans/:jobId', label: { fr: 'Aperçu du scan', en: 'Scan preview' }, parent: '/infrastructure', perm: 'scanner:read' },
+  {
+    path: '/infrastructure/scans/:jobId',
+    label: { fr: 'Aperçu du scan', en: 'Scan preview' },
+    parent: '/infrastructure',
+    perm: 'scanner:read',
+  },
 
   /* ---------------- Analytics ---------------- */
   // The executive view is a display mode of the dashboard (?view=executive), not
@@ -111,16 +195,42 @@ export const ROUTES: RouteNode[] = [
 
   /* ---------------- Reports ---------------- */
   { path: '/reports', labelKey: 'n_reports', perm: 'compliance:controls:read' },
-  { path: '/reports/library', label: { fr: 'Bibliothèque de rapports', en: 'Report library' }, parent: '/reports', perm: 'compliance:controls:read' },
-  { path: '/reports/jobs/:jobId', label: { fr: 'Rapport généré', en: 'Generated report' }, parent: '/reports', perm: 'compliance:controls:read', dynamic: true },
-  { path: '/reports/board', label: { fr: 'Rapports Conseil', en: 'Board reports' }, parent: '/reports', perm: 'reports:board:read' },
-  { path: '/reports/:reportId', label: { fr: 'Rapport', en: 'Report' }, parent: '/reports/board', perm: 'reports:board:read', dynamic: true },
+  {
+    path: '/reports/library',
+    label: { fr: 'Bibliothèque de rapports', en: 'Report library' },
+    parent: '/reports',
+    perm: 'compliance:controls:read',
+  },
+  {
+    path: '/reports/jobs/:jobId',
+    label: { fr: 'Rapport généré', en: 'Generated report' },
+    parent: '/reports',
+    perm: 'compliance:controls:read',
+    dynamic: true,
+  },
+  {
+    path: '/reports/board',
+    label: { fr: 'Rapports Conseil', en: 'Board reports' },
+    parent: '/reports',
+    perm: 'reports:board:read',
+  },
+  {
+    path: '/reports/:reportId',
+    label: { fr: 'Rapport', en: 'Report' },
+    parent: '/reports/board',
+    perm: 'reports:board:read',
+    dynamic: true,
+  },
   { path: '/recommendations', labelKey: 'n_ai', perm: 'risks:read' },
 
   /* ---------------- Automation / governance ---------------- */
   { path: '/automation', labelKey: 'n_automation', perm: 'automation:read' },
   { path: '/governance', labelKey: 'n_governance' },
-  { path: '/governance/audit-trail', label: { fr: "Piste d'audit", en: 'Audit trail' }, parent: '/governance' },
+  {
+    path: '/governance/audit-trail',
+    label: { fr: "Piste d'audit", en: 'Audit trail' },
+    parent: '/governance',
+  },
 
   /* ---------------- Settings ---------------- */
   { path: '/settings', labelKey: 'n_settings' },
@@ -187,7 +297,9 @@ export function resolveRoute(pathname: string): MatchedRoute | null {
  * /compliance/frameworks/abc/gaps yields a trail whose Framework link points at
  * /compliance/frameworks/abc rather than at the raw pattern.
  */
-export function routeTrail(pathname: string): Array<{ node: RouteNode; href: string; params: Record<string, string> }> {
+export function routeTrail(
+  pathname: string,
+): Array<{ node: RouteNode; href: string; params: Record<string, string> }> {
   const matched = resolveRoute(pathname);
   if (!matched) return [];
 

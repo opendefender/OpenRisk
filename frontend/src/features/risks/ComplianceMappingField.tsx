@@ -55,7 +55,12 @@ export function ComplianceMappingField({ value, onChange, onImportFramework, dis
     const ctrl = controlId ? controls?.find((c) => c.id === controlId) : undefined;
     const label = ctrl ? `${fw?.name ?? ''} · ${ctrl.reference_code}` : (fw?.name ?? '');
     // The same statement twice is still one statement.
-    if (value.some((m) => m.framework_id === frameworkId && (m.control_id ?? null) === (controlId || null))) return;
+    if (
+      value.some(
+        (m) => m.framework_id === frameworkId && (m.control_id ?? null) === (controlId || null),
+      )
+    )
+      return;
     onChange([...value, { framework_id: frameworkId, control_id: controlId || null, label }]);
     setControlId('');
   };
@@ -87,7 +92,7 @@ export function ComplianceMappingField({ value, onChange, onImportFramework, dis
         </p>
         <p className="mx-auto mt-1 max-w-[46ch] text-[12px] text-ink-muted">
           {tr(
-            "Importez-en un pour rattacher ce risque à un contrôle réel. Vous pouvez aussi créer le risque sans mapping et le rattacher plus tard depuis « Risques non mappés ».",
+            'Importez-en un pour rattacher ce risque à un contrôle réel. Vous pouvez aussi créer le risque sans mapping et le rattacher plus tard depuis « Risques non mappés ».',
             'Import one to link this risk to a real control. You can also create the risk without a mapping and link it later from "Unmapped risks".',
           )}
         </p>
@@ -115,7 +120,10 @@ export function ComplianceMappingField({ value, onChange, onImportFramework, dis
             <span
               key={`${m.framework_id}-${m.control_id ?? 'fw'}`}
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
-              style={{ background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--accent-500)' }}
+              style={{
+                background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
+                color: 'var(--accent-500)',
+              }}
             >
               <Check size={11} />
               {m.label}

@@ -72,7 +72,12 @@ export function RadioGroup({
           {description}
         </p>
       )}
-      <div className={cn('flex gap-x-4', orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap')}>
+      <div
+        className={cn(
+          'flex gap-x-4',
+          orientation === 'vertical' ? 'flex-col' : 'flex-row flex-wrap',
+        )}
+      >
         {options.map((option) => {
           const id = `${groupName}-${option.value}`;
           const optionDescriptionId = option.description ? `${id}-description` : undefined;

@@ -101,7 +101,6 @@ function rewriteImports(source, file) {
   );
 }
 
-
 /**
  * `<Input label error />` -> `<Field label message status><Input /></Field>`.
  *
@@ -211,7 +210,10 @@ function mergeDesignSystemImports(source) {
   const pattern = /import\s*\{([^}]*)\}\s*from\s*'([^']*shared\/ds)';\n/g;
   let match;
   while ((match = pattern.exec(source)) !== null) {
-    const names = match[1].split(',').map((n) => n.trim()).filter(Boolean);
+    const names = match[1]
+      .split(',')
+      .map((n) => n.trim())
+      .filter(Boolean);
     const existing = seen.get(match[2]) ?? [];
     seen.set(match[2], [...existing, ...names]);
   }
@@ -263,10 +265,8 @@ for (const file of walk(SRC)) {
   next = rewriteImports(next, file);
   if (next !== beforeFields && next.includes('<Field')) {
     // Field is now referenced; add it to the design-system import.
-    next = next.replace(
-      /import\s*\{([^}]*)\}\s*from\s*'([^']*shared\/ds)'/,
-      (full, names, path) =>
-        names.includes('Field') ? full : `import {${names.trimEnd()}, Field } from '${path}'`,
+    next = next.replace(/import\s*\{([^}]*)\}\s*from\s*'([^']*shared\/ds)'/, (full, names, path) =>
+      names.includes('Field') ? full : `import {${names.trimEnd()}, Field } from '${path}'`,
     );
   }
 

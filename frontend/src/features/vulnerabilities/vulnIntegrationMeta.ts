@@ -47,7 +47,11 @@ export const INTEGRATION_META: Record<Exclude<VulnSource, 'scanner' | 'manual'>,
     label: 'Qualys VMDR',
     category: 'network_scanner',
     livePull: true,
-    baseUrl: { label: ['URL du pod', 'Pod URL'], placeholder: 'https://qualysapi.qg3.apps.qualys.com', required: true },
+    baseUrl: {
+      label: ['URL du pod', 'Pod URL'],
+      placeholder: 'https://qualysapi.qg3.apps.qualys.com',
+      required: true,
+    },
     creds: [
       { key: 'username', label: ['Utilisateur', 'Username'] },
       { key: 'password', label: ['Mot de passe', 'Password'], secret: true },
@@ -110,7 +114,10 @@ export const TICKETING_META = {
   },
   servicenow: {
     label: 'ServiceNow',
-    baseUrl: { label: ['URL instance', 'Instance URL'], placeholder: 'https://acme.service-now.com' },
+    baseUrl: {
+      label: ['URL instance', 'Instance URL'],
+      placeholder: 'https://acme.service-now.com',
+    },
     projectLabel: ['Table', 'Table'] as [string, string],
     projectPlaceholder: 'incident',
     creds: [

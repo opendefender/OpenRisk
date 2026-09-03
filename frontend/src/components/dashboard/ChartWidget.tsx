@@ -35,7 +35,9 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({
   const widthClass = fullWidth ? 'col-span-full' : '';
 
   return (
-    <div className={`bg-surface-1 rounded-lg shadow-sm border border-border-subtle overflow-hidden ${widthClass}`}>
+    <div
+      className={`bg-surface-1 rounded-lg shadow-sm border border-border-subtle overflow-hidden ${widthClass}`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between p-4 border-b border-border-subtle">
         <div className="flex-1">

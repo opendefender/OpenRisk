@@ -74,7 +74,8 @@ export function useNotificationPreferences() {
 export function useUpdateNotificationPreferences() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (patch: NotificationPreferencePatch) => notificationService.updatePreferences(patch),
+    mutationFn: (patch: NotificationPreferencePatch) =>
+      notificationService.updatePreferences(patch),
     // The response IS the stored row, so seed the cache with it rather than
     // refetching: what renders afterwards is what the server holds, not what
     // the client hoped it would hold.

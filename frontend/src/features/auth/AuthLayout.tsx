@@ -49,7 +49,12 @@ const ORBIT_NODES: { color: string; angle: number; radius: number; period: numbe
  */
 function RiskOrbit({ reduced }: { reduced: boolean }) {
   return (
-    <svg viewBox="-140 -140 280 280" className="w-full h-full" role="presentation" aria-hidden="true">
+    <svg
+      viewBox="-140 -140 280 280"
+      className="w-full h-full"
+      role="presentation"
+      aria-hidden="true"
+    >
       <defs>
         <radialGradient id="orbit-core">
           <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.95" />
@@ -69,7 +74,15 @@ function RiskOrbit({ reduced }: { reduced: boolean }) {
       {/* Sweep line — the radar reference in the logo, made literal. */}
       {!reduced && (
         <g style={{ animation: 'or-orbit 12s linear infinite', transformOrigin: '0 0' }}>
-          <line x1="0" y1="0" x2="126" y2="0" stroke="var(--accent)" strokeWidth="1.5" opacity="0.5" />
+          <line
+            x1="0"
+            y1="0"
+            x2="126"
+            y2="0"
+            stroke="var(--accent)"
+            strokeWidth="1.5"
+            opacity="0.5"
+          />
         </g>
       )}
 
@@ -259,7 +272,10 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             <OpenRiskLogo size={20} />
           </div>
           <div>
-            <div className="disp text-[19px] font-bold leading-tight" style={{ color: ON_BRAND_PANEL }}>
+            <div
+              className="disp text-[19px] font-bold leading-tight"
+              style={{ color: ON_BRAND_PANEL }}
+            >
               OpenRisk
             </div>
             {/* eslint-disable-next-line openrisk/no-raw-colors -- brand surface, see above */}
@@ -269,7 +285,10 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           </div>
         </div>
 
-        <div className="relative flex-1 flex items-center justify-center" style={cascade(1, reduced)}>
+        <div
+          className="relative flex-1 flex items-center justify-center"
+          style={cascade(1, reduced)}
+        >
           <div style={{ width: 280, height: 280 }}>
             <RiskOrbit reduced={reduced} />
           </div>

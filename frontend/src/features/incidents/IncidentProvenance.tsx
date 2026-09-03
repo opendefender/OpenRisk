@@ -79,7 +79,8 @@ export function IncidentProvenance({ incident }: { incident: Incident }) {
             className="text-[12px] inline-flex items-center gap-1"
             style={{ color: 'var(--fg-secondary)' }}
           >
-            <HelpCircle size={12} /> {tr('D’où viennent les incidents ?', 'Where do incidents come from?')}
+            <HelpCircle size={12} />{' '}
+            {tr('D’où viennent les incidents ?', 'Where do incidents come from?')}
           </Link>
         </div>
       </div>
@@ -101,7 +102,10 @@ export function OriginChip({ incident }: { incident: Incident }) {
           : undefined
       }
       className="h-5 px-1.5 rounded-full text-[10.5px] font-semibold inline-flex items-center gap-1"
-      style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent-500)' }}
+      style={{
+        background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+        color: 'var(--accent-500)',
+      }}
     >
       <Bot size={10} /> {lang === 'fr' ? source.fr : source.en}
     </span>

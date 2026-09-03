@@ -25,9 +25,18 @@ export interface LabelProps extends LabelHTMLAttributes<HTMLLabelElement> {
   children: ReactNode;
 }
 
-export function Label({ required = false, disabled = false, className, children, ...rest }: LabelProps) {
+export function Label({
+  required = false,
+  disabled = false,
+  className,
+  children,
+  ...rest
+}: LabelProps) {
   return (
-    <label className={cn('text-xs font-medium text-fg-secondary', disabled && 'opacity-55', className)} {...rest}>
+    <label
+      className={cn('text-xs font-medium text-fg-secondary', disabled && 'opacity-55', className)}
+      {...rest}
+    >
       {children}
       {required && (
         <>

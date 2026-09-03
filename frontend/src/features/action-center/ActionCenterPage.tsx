@@ -40,7 +40,10 @@ export function ActionCenterPage() {
   const page = pageFromParam(params.get('page'));
   const offset = (page - 1) * PAGE_LIMIT;
 
-  const { items, total, isLoading, isError, refetch } = useActionItems({ limit: PAGE_LIMIT, offset });
+  const { items, total, isLoading, isError, refetch } = useActionItems({
+    limit: PAGE_LIMIT,
+    offset,
+  });
 
   // Filtering, never sorting: an item whose deep_link does not resolve is
   // dropped and logged rather than rendered as a row that goes nowhere. Order
@@ -112,7 +115,9 @@ export function ActionCenterPage() {
                 page > 1 ? t('actionCenter.emptyPageTitle') : t('actionCenter.emptyTitle')
               }
               description={
-                page > 1 ? t('actionCenter.emptyPageDescription') : t('actionCenter.emptyDescription')
+                page > 1
+                  ? t('actionCenter.emptyPageDescription')
+                  : t('actionCenter.emptyDescription')
               }
             />
           </div>
@@ -129,8 +134,14 @@ export function ActionCenterPage() {
 
       {showPager && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="text-xs text-fg-muted" data-testid="action-center-range" aria-live="polite">
-            {countKnown ? interpolate(t('actionCenter.range'), { from: firstOnPage, to: lastOnPage, total }) : ''}
+          <span
+            className="text-xs text-fg-muted"
+            data-testid="action-center-range"
+            aria-live="polite"
+          >
+            {countKnown
+              ? interpolate(t('actionCenter.range'), { from: firstOnPage, to: lastOnPage, total })
+              : ''}
           </span>
           <div className="flex-1" />
           <div className="inline-flex items-center gap-1">
@@ -144,8 +155,14 @@ export function ActionCenterPage() {
             >
               <ChevronLeft size={15} aria-hidden="true" />
             </button>
-            <span className="px-1.5 text-xs text-fg-primary" data-testid="action-center-page-indicator">
-              {interpolate(t('actionCenter.pageOf'), { page, pageCount: countKnown ? pageCount : '—' })}
+            <span
+              className="px-1.5 text-xs text-fg-primary"
+              data-testid="action-center-page-indicator"
+            >
+              {interpolate(t('actionCenter.pageOf'), {
+                page,
+                pageCount: countKnown ? pageCount : '—',
+              })}
             </span>
             <button
               type="button"

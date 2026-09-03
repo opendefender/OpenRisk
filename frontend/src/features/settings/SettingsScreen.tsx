@@ -11,11 +11,34 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router';
 import { toast } from 'sonner';
 import {
-  Settings as SettingsIcon, Users, KeyRound, Building2, SlidersHorizontal, Plug,
-  Siren, Shield, CreditCard, AlertTriangle, Plus, FileText, Check, Trash2, Copy, Database, PowerOff,
+  Settings as SettingsIcon,
+  Users,
+  KeyRound,
+  Building2,
+  SlidersHorizontal,
+  Plug,
+  Siren,
+  Shield,
+  CreditCard,
+  AlertTriangle,
+  Plus,
+  FileText,
+  Check,
+  Trash2,
+  Copy,
+  Database,
+  PowerOff,
   type LucideIcon,
 } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, ErrorState } from '../../shared/ui';
+import {
+  PageFrame,
+  PageHeader,
+  Btn,
+  Card,
+  SkeletonRows,
+  EmptyState,
+  ErrorState,
+} from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -31,7 +54,13 @@ import {
 import type { NotificationPreferencePatch } from '../notifications/notificationService';
 import { useChannelConfig } from '../automation/useAutomation';
 import { useVulnIntegrations, useVulnTicketing } from '../vulnerabilities/useVulnIntegrations';
-import { DataTable, useTableState, type Column, type Facet, type RowAction } from '../../shared/datatable';
+import {
+  DataTable,
+  useTableState,
+  type Column,
+  type Facet,
+  type RowAction,
+} from '../../shared/datatable';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 import { BillingPanel } from '../billing/BillingPanel';
@@ -39,7 +68,17 @@ import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
 
-type TabKey = 'general' | 'members' | 'tokens' | 'orgs' | 'fields' | 'integrations' | 'notif' | 'security' | 'billing' | 'danger';
+type TabKey =
+  | 'general'
+  | 'members'
+  | 'tokens'
+  | 'orgs'
+  | 'fields'
+  | 'integrations'
+  | 'notif'
+  | 'security'
+  | 'billing'
+  | 'danger';
 type Tr = (fr: string, en: string) => string;
 
 /* ---- reusable bits ----
@@ -67,7 +106,14 @@ type Tr = (fr: string, en: string) => string;
  *  - it is disabled while in flight, so a double-click cannot race two patches.
  */
 function ServerToggleRow({
-  label, sub, checked, onChange, busy, disabled, disabledReason, tr,
+  label,
+  sub,
+  checked,
+  onChange,
+  busy,
+  disabled,
+  disabledReason,
+  tr,
 }: {
   label: string;
   sub?: string | null;
@@ -93,12 +139,19 @@ function ServerToggleRow({
   };
   const inert = !!disabled || !!busy;
   return (
-    <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div
+      className="flex items-center justify-between gap-5 py-[15px]"
+      style={{ borderBottom: '1px solid var(--border)' }}
+    >
       <div className="flex-1">
-        <div className="text-[13.5px] font-medium text-ink" style={{ opacity: disabled ? 0.6 : 1 }}>{label}</div>
+        <div className="text-[13.5px] font-medium text-ink" style={{ opacity: disabled ? 0.6 : 1 }}>
+          {label}
+        </div>
         {sub && <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>}
         {disabled && disabledReason && (
-          <div className="text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--medium)' }}>{disabledReason}</div>
+          <div className="text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--medium)' }}>
+            {disabledReason}
+          </div>
         )}
       </div>
       <div className="flex items-center gap-2.5 shrink-0">
@@ -110,18 +163,36 @@ function ServerToggleRow({
             opacity: state === 'idle' ? 0 : 1,
           }}
         >
-          {state === 'error' ? tr('Échec — réessayez', 'Failed — retry') : tr('Enregistré ✓', 'Saved ✓')}
+          {state === 'error'
+            ? tr('Échec — réessayez', 'Failed — retry')
+            : tr('Enregistré ✓', 'Saved ✓')}
         </span>
         <button
           onClick={toggle}
           disabled={inert}
           className="relative shrink-0 disabled:opacity-50"
-          style={{ width: 42, height: 24, borderRadius: 20, background: checked ? 'var(--accent)' : 'var(--bg-hover)', transition: 'background .2s' }}
+          style={{
+            width: 42,
+            height: 24,
+            borderRadius: 20,
+            background: checked ? 'var(--accent)' : 'var(--bg-hover)',
+            transition: 'background .2s',
+          }}
           aria-pressed={checked}
           aria-label={label}
           data-testid={`pref-toggle-${label.replace(/\s+/g, '-').toLowerCase()}`}
         >
-          <span className="absolute rounded-full bg-surface-1" style={{ width: 20, height: 20, top: 2, left: checked ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+          <span
+            className="absolute rounded-full bg-surface-1"
+            style={{
+              width: 20,
+              height: 20,
+              top: 2,
+              left: checked ? 20 : 2,
+              transition: 'left .2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+            }}
+          />
         </button>
       </div>
     </div>
@@ -143,7 +214,10 @@ function ServerToggleRow({
  */
 function EnforcedPolicyRow({ label, sub, tr }: { label: string; sub: string; tr: Tr }) {
   return (
-    <div className="flex items-center justify-between gap-5 py-[15px]" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div
+      className="flex items-center justify-between gap-5 py-[15px]"
+      style={{ borderBottom: '1px solid var(--border)' }}
+    >
       <div className="flex-1">
         <div className="text-[13.5px] font-medium text-ink">{label}</div>
         <div className="text-[12px] text-ink-soft mt-0.5 leading-snug">{sub}</div>
@@ -158,7 +232,9 @@ function EnforcedPolicyRow({ label, sub, tr }: { label: string; sub: string; tr:
   );
 }
 
-const Title = ({ children }: { children: React.ReactNode }) => <div className="text-[14px] font-semibold text-ink mb-3.5">{children}</div>;
+const Title = ({ children }: { children: React.ReactNode }) => (
+  <div className="text-[14px] font-semibold text-ink mb-3.5">{children}</div>
+);
 
 /** Honest state for endpoints whose backing tables aren't provisioned yet. */
 function Unavailable({ tr }: { tr: Tr }) {
@@ -167,13 +243,27 @@ function Unavailable({ tr }: { tr: Tr }) {
       <EmptyState
         icon={Database}
         title={tr('Bientôt disponible', 'Not available yet')}
-        description={tr('Ce module nécessite une migration de base de données (tables non provisionnées dans cet environnement).', 'This module needs a database migration (tables are not provisioned in this environment).')}
+        description={tr(
+          'Ce module nécessite une migration de base de données (tables non provisionnées dans cet environnement).',
+          'This module needs a database migration (tables are not provisioned in this environment).',
+        )}
       />
     </Card>
   );
 }
 
-const TAB_KEYS: TabKey[] = ['general', 'members', 'tokens', 'orgs', 'fields', 'integrations', 'notif', 'security', 'billing', 'danger'];
+const TAB_KEYS: TabKey[] = [
+  'general',
+  'members',
+  'tokens',
+  'orgs',
+  'fields',
+  'integrations',
+  'notif',
+  'security',
+  'billing',
+  'danger',
+];
 
 export function SettingsScreen() {
   const L = useUIStrings();
@@ -192,12 +282,18 @@ export function SettingsScreen() {
     routeTab ?? (TAB_KEYS.includes(paramTab as TabKey) ? (paramTab as TabKey) : 'general'),
   );
   useEffect(() => {
-    if (routeTab) { setTab(routeTab); return; }
+    if (routeTab) {
+      setTab(routeTab);
+      return;
+    }
     if (paramTab && TAB_KEYS.includes(paramTab as TabKey)) setTab(paramTab as TabKey);
   }, [paramTab, routeTab]);
   const selectTab = (k: TabKey) => {
     setTab(k);
-    if (k === 'members') { navigate('/settings/members'); return; }
+    if (k === 'members') {
+      navigate('/settings/members');
+      return;
+    }
     // Leaving Members must leave its URL too, or the route would force the tab
     // straight back on the next render.
     const base = pathname === '/settings/members' ? '/settings' : pathname;
@@ -231,9 +327,18 @@ export function SettingsScreen() {
               data-testid={`settings-tab-${k}`}
               onClick={() => selectTab(k)}
               className="w-full flex items-center gap-2.5 px-3 py-[9px] rounded-[9px] mb-0.5 text-[13px] text-left whitespace-nowrap transition-colors"
-              style={{ background: tab === k ? 'var(--accent-soft)' : 'transparent', color: tab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)', fontWeight: tab === k ? 600 : 500 }}
+              style={{
+                background: tab === k ? 'var(--accent-soft)' : 'transparent',
+                color: tab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)',
+                fontWeight: tab === k ? 600 : 500,
+              }}
             >
-              <span style={{ color: tab === k ? 'var(--accent)' : 'var(--fg-muted)' }} className="flex"><Icon size={17} /></span>
+              <span
+                style={{ color: tab === k ? 'var(--accent)' : 'var(--fg-muted)' }}
+                className="flex"
+              >
+                <Icon size={17} />
+              </span>
               {lbl}
             </button>
           ))}
@@ -260,7 +365,8 @@ export function SettingsScreen() {
 // The token prefix cell used to render a Copy glyph that copied nothing. Module
 // scope keeps the handler stable so the columns memo survives.
 function copyPrefix(prefix: string, tr: Tr) {
-  navigator.clipboard?.writeText(prefix)
+  navigator.clipboard
+    ?.writeText(prefix)
     .then(() => toast.success(tr('Préfixe copié', 'Prefix copied')))
     .catch(() => toast.error(tr('Copie impossible', 'Could not copy')));
 }
@@ -269,8 +375,16 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
   const { tokens, isLoading, isError, refetch, create, revoke } = useTokens();
   const [name, setName] = useState('');
   // Revoking a token breaks any integration using it → impact-radiography confirm.
-  const [revokingToken, setRevokingToken] = useState<null | { id: string; name: string; lastUsed?: string | null }>(null);
-  const table = useTableState({ defaultSort: { key: 'created', dir: 'desc' }, defaultPageSize: 25, urlPrefix: 'tok_' });
+  const [revokingToken, setRevokingToken] = useState<null | {
+    id: string;
+    name: string;
+    lastUsed?: string | null;
+  }>(null);
+  const table = useTableState({
+    defaultSort: { key: 'created', dir: 'desc' },
+    defaultPageSize: 25,
+    urlPrefix: 'tok_',
+  });
 
   const doCreate = () => {
     const n = name.trim() || tr('Nouveau jeton', 'New token');
@@ -278,75 +392,132 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
       onSuccess: (res) => {
         setName('');
         const secret = res.data?.token;
-        if (secret) { navigator.clipboard?.writeText(secret).catch(() => {}); toast.success(tr('Jeton créé et copié dans le presse-papiers', 'Token created and copied to clipboard')); }
-        else toast.success(tr('Jeton créé', 'Token created'));
+        if (secret) {
+          navigator.clipboard?.writeText(secret).catch(() => {});
+          toast.success(
+            tr(
+              'Jeton créé et copié dans le presse-papiers',
+              'Token created and copied to clipboard',
+            ),
+          );
+        } else toast.success(tr('Jeton créé', 'Token created'));
       },
       onError: () => toast.error(tr('Création échouée', 'Creation failed')),
     });
   };
 
-  const facets: Facet<ApiToken>[] = useMemo(() => [
-    {
-      key: 'state',
-      label: tr('État', 'State'),
-      single: true,
-      options: [
-        { value: 'active', label: tr('Actifs', 'Active'), color: 'var(--low)' },
-        { value: 'revoked', label: tr('Révoqués', 'Revoked'), color: 'var(--critical)' },
-      ],
-      matches: (t, selected) => (selected.includes('revoked') ? !!t.revoked : !t.revoked),
-    },
-  ], [tr]);
+  const facets: Facet<ApiToken>[] = useMemo(
+    () => [
+      {
+        key: 'state',
+        label: tr('État', 'State'),
+        single: true,
+        options: [
+          { value: 'active', label: tr('Actifs', 'Active'), color: 'var(--low)' },
+          { value: 'revoked', label: tr('Révoqués', 'Revoked'), color: 'var(--critical)' },
+        ],
+        matches: (t, selected) => (selected.includes('revoked') ? !!t.revoked : !t.revoked),
+      },
+    ],
+    [tr],
+  );
 
-  const columns: Column<ApiToken>[] = useMemo(() => [
-    {
-      key: 'name',
-      header: tr('Nom', 'Name'),
-      frozen: true,
-      hideable: false,
-      sortValue: (t) => t.name.toLowerCase(),
-      exportValue: (t) => t.name,
-      render: (t) => (
-        <span className="text-[13.5px] font-medium text-ink" style={{ opacity: t.revoked ? 0.55 : 1 }}>
-          {t.name}{t.revoked ? ` · ${tr('révoqué', 'revoked')}` : ''}
-        </span>
-      ),
-    },
-    {
-      key: 'prefix',
-      header: tr('Préfixe', 'Prefix'),
-      exportValue: (t) => t.token_prefix ?? '',
-      render: (t) => (t.token_prefix ? (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); copyPrefix(t.token_prefix as string, tr); }}
-          className="mono text-[12px] text-ink-soft inline-flex items-center gap-1.5 rounded px-1 -mx-1 hover:bg-hover"
-          title={tr('Copier le préfixe', 'Copy prefix')}
-        >
-          {t.token_prefix}… <Copy size={12} className="text-ink-muted" />
-        </button>
-      ) : <span className="text-ink-muted text-[12px]">—</span>),
-    },
-    { key: 'created', header: tr('Créé', 'Created'), sortValue: (t) => new Date(t.created_at ?? 0).getTime(), exportValue: (t) => t.created_at ?? '', render: (t) => <span className="text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</span> },
-    { key: 'used', header: tr('Dernière util.', 'Last used'), sortValue: (t) => new Date(t.last_used_at ?? 0).getTime(), exportValue: (t) => t.last_used_at ?? '', render: (t) => <span className="text-[12px] text-ink-soft">{t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}</span> },
-  ], [tr, lang]);
+  const columns: Column<ApiToken>[] = useMemo(
+    () => [
+      {
+        key: 'name',
+        header: tr('Nom', 'Name'),
+        frozen: true,
+        hideable: false,
+        sortValue: (t) => t.name.toLowerCase(),
+        exportValue: (t) => t.name,
+        render: (t) => (
+          <span
+            className="text-[13.5px] font-medium text-ink"
+            style={{ opacity: t.revoked ? 0.55 : 1 }}
+          >
+            {t.name}
+            {t.revoked ? ` · ${tr('révoqué', 'revoked')}` : ''}
+          </span>
+        ),
+      },
+      {
+        key: 'prefix',
+        header: tr('Préfixe', 'Prefix'),
+        exportValue: (t) => t.token_prefix ?? '',
+        render: (t) =>
+          t.token_prefix ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                copyPrefix(t.token_prefix as string, tr);
+              }}
+              className="mono text-[12px] text-ink-soft inline-flex items-center gap-1.5 rounded px-1 -mx-1 hover:bg-hover"
+              title={tr('Copier le préfixe', 'Copy prefix')}
+            >
+              {t.token_prefix}… <Copy size={12} className="text-ink-muted" />
+            </button>
+          ) : (
+            <span className="text-ink-muted text-[12px]">—</span>
+          ),
+      },
+      {
+        key: 'created',
+        header: tr('Créé', 'Created'),
+        sortValue: (t) => new Date(t.created_at ?? 0).getTime(),
+        exportValue: (t) => t.created_at ?? '',
+        render: (t) => (
+          <span className="text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</span>
+        ),
+      },
+      {
+        key: 'used',
+        header: tr('Dernière util.', 'Last used'),
+        sortValue: (t) => new Date(t.last_used_at ?? 0).getTime(),
+        exportValue: (t) => t.last_used_at ?? '',
+        render: (t) => (
+          <span className="text-[12px] text-ink-soft">
+            {t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}
+          </span>
+        ),
+      },
+    ],
+    [tr, lang],
+  );
 
-  const rowActions: RowAction<ApiToken>[] = useMemo(() => [
-    {
-      key: 'revoke',
-      label: tr('Révoquer', 'Revoke'),
-      icon: Trash2,
-      danger: true,
-      hidden: (t) => !!t.revoked,
-      onSelect: (t) => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at }),
-    },
-  ], [tr]);
+  const rowActions: RowAction<ApiToken>[] = useMemo(
+    () => [
+      {
+        key: 'revoke',
+        label: tr('Révoquer', 'Revoke'),
+        icon: Trash2,
+        danger: true,
+        hidden: (t) => !!t.revoked,
+        onSelect: (t) => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at }),
+      },
+    ],
+    [tr],
+  );
 
   return (
     <>
       <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Nom du jeton (ex. CI/CD)', 'Token name (e.g. CI/CD)')} aria-label={tr('Nom du jeton', 'Token name')} className="flex-1 min-w-[200px] h-9 px-3.5 rounded-[10px] text-[13px] text-ink outline-none" style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }} />
-        <Btn label={tr('Générer un jeton', 'Generate token')} icon={Plus} primary onClick={doCreate} disabled={create.isPending} />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={tr('Nom du jeton (ex. CI/CD)', 'Token name (e.g. CI/CD)')}
+          aria-label={tr('Nom du jeton', 'Token name')}
+          className="flex-1 min-w-[200px] h-9 px-3.5 rounded-[10px] text-[13px] text-ink outline-none"
+          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+        />
+        <Btn
+          label={tr('Générer un jeton', 'Generate token')}
+          icon={Plus}
+          primary
+          onClick={doCreate}
+          disabled={create.isPending}
+        />
       </div>
 
       <DataTable
@@ -367,7 +538,16 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
         exportFilename="jetons-api"
         minWidth={620}
         pageSizeOptions={[10, 25, 50]}
-        empty={<EmptyState icon={KeyRound} title={tr('Aucun jeton API', 'No API tokens')} description={tr('Créez un jeton pour authentifier vos intégrations et scripts.', 'Create a token to authenticate your integrations and scripts.')} />}
+        empty={
+          <EmptyState
+            icon={KeyRound}
+            title={tr('Aucun jeton API', 'No API tokens')}
+            description={tr(
+              'Créez un jeton pour authentifier vos intégrations et scripts.',
+              'Create a token to authenticate your integrations and scripts.',
+            )}
+          />
+        }
       />
 
       <DangerConfirm
@@ -377,13 +557,32 @@ function TokensTab({ tr, lang }: { tr: Tr; lang: 'fr' | 'en' }) {
         subject={revokingToken?.name}
         intro={tr(
           'Toute intégration ou script utilisant ce jeton cessera immédiatement de fonctionner. Cette action est irréversible.',
-          'Any integration or script using this token stops working immediately. This action is irreversible.'
+          'Any integration or script using this token stops working immediately. This action is irreversible.',
         )}
-        impact={revokingToken ? [
-          { label: tr('Dernière utilisation', 'Last used'), value: revokingToken.lastUsed ? relTime(revokingToken.lastUsed, lang) : tr('jamais', 'never') },
-        ] : []}
+        impact={
+          revokingToken
+            ? [
+                {
+                  label: tr('Dernière utilisation', 'Last used'),
+                  value: revokingToken.lastUsed
+                    ? relTime(revokingToken.lastUsed, lang)
+                    : tr('jamais', 'never'),
+                },
+              ]
+            : []
+        }
         confirmLabel={tr('Révoquer le jeton', 'Revoke token')}
-        onConfirm={() => { if (revokingToken) revoke.mutate(revokingToken.id, { onSuccess: () => { toast.success(tr('Jeton révoqué', 'Token revoked')); setRevokingToken(null); }, onError: () => toast.error(tr('Révocation échouée — réessayez.', 'Revocation failed — retry.')) }); }}
+        onConfirm={() => {
+          if (revokingToken)
+            revoke.mutate(revokingToken.id, {
+              onSuccess: () => {
+                toast.success(tr('Jeton révoqué', 'Token revoked'));
+                setRevokingToken(null);
+              },
+              onError: () =>
+                toast.error(tr('Révocation échouée — réessayez.', 'Revocation failed — retry.')),
+            });
+        }}
         busy={revoke.isPending}
       />
     </>
@@ -423,10 +622,23 @@ function CustomFieldsTab({ tr }: { tr: Tr }) {
       ) : (
         <div className="p-3 flex flex-col gap-2">
           {fields.map((f) => (
-            <div key={f.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]" style={{ border: '1px solid var(--border)' }}>
+            <div
+              key={f.id}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]"
+              style={{ border: '1px solid var(--border)' }}
+            >
               <SlidersHorizontal size={16} className="text-ink-muted" />
-              <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{f.label || f.name}</div><div className="text-[11.5px] text-ink-muted">{f.field_type} · {f.entity_type}</div></div>
-              {f.required && <span className="text-[11px] font-semibold" style={{ color: 'var(--high)' }}>{tr('requis', 'required')}</span>}
+              <div className="flex-1">
+                <div className="text-[13.5px] font-medium text-ink">{f.label || f.name}</div>
+                <div className="text-[11.5px] text-ink-muted">
+                  {f.field_type} · {f.entity_type}
+                </div>
+              </div>
+              {f.required && (
+                <span className="text-[11px] font-semibold" style={{ color: 'var(--high)' }}>
+                  {tr('requis', 'required')}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -440,14 +652,28 @@ function OrgsTab({ tr }: { tr: Tr }) {
   if (isError) return <Unavailable tr={tr} />;
   return (
     <Card style={{ padding: '8px 8px 0', overflow: 'hidden' }}>
-      {isLoading ? <SkeletonRows rows={3} /> : tenants.length === 0 ? (
+      {isLoading ? (
+        <SkeletonRows rows={3} />
+      ) : tenants.length === 0 ? (
         <EmptyState icon={Building2} title={tr('Aucune organisation', 'No organizations')} />
       ) : (
         <div className="p-3 flex flex-col gap-2">
           {tenants.map((t, i) => (
-            <div key={t.id ?? i} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]" style={{ border: '1px solid var(--border)' }}>
-              <div className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[11px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>{(t.name ?? '?').slice(0, 2).toUpperCase()}</div>
-              <div className="flex-1"><div className="text-[13.5px] font-medium text-ink">{t.name}</div><div className="mono text-[11.5px] text-ink-muted">{t.slug ?? t.id}</div></div>
+            <div
+              key={t.id ?? i}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]"
+              style={{ border: '1px solid var(--border)' }}
+            >
+              <div
+                className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[11px] font-bold"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+              >
+                {(t.name ?? '?').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <div className="text-[13.5px] font-medium text-ink">{t.name}</div>
+                <div className="mono text-[11.5px] text-ink-muted">{t.slug ?? t.id}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -463,23 +689,37 @@ function GeneralTab({ tr }: { tr: Tr }) {
   const { data: org, isLoading, isError, refetch } = useOrganization();
 
   if (isLoading) {
-    return <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={4} /></Card>;
+    return (
+      <Card style={{ padding: '20px 22px' }}>
+        <SkeletonRows rows={4} />
+      </Card>
+    );
   }
   if (isError || !org) {
     return (
       <Card style={{ padding: '20px 22px' }}>
         <ErrorState
           title={tr("Impossible de charger l'organisation", 'Could not load the organization')}
-          description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if this persists.')}
+          description={tr(
+            'Réessayez, ou contactez un administrateur si le problème persiste.',
+            'Retry, or contact an administrator if this persists.',
+          )}
           onRetry={() => void refetch()}
         />
       </Card>
     );
   }
 
-  const initials = (org.name || 'OR').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const initials = (org.name || 'OR')
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
   const created = new Date(org.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   });
 
   return (
@@ -487,9 +727,15 @@ function GeneralTab({ tr }: { tr: Tr }) {
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Profil de l’organisation', 'Organization profile')}</Title>
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold overflow-hidden"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}>
-            {org.logo_url ? <img src={org.logo_url} alt="" className="w-full h-full object-cover" /> : initials}
+          <div
+            className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold overflow-hidden"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+          >
+            {org.logo_url ? (
+              <img src={org.logo_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="min-w-0">
             <div className="text-[16px] font-bold text-ink truncate">{org.name}</div>
@@ -499,9 +745,15 @@ function GeneralTab({ tr }: { tr: Tr }) {
         {/* Read-only, and honestly so: the backend serves this profile but has
             no endpoint that writes it. An input that looks editable and saves
             nothing is worse than a value that plainly is not. */}
-        <dl className="grid gap-x-6 gap-y-[14px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+        <dl
+          className="grid gap-x-6 gap-y-[14px]"
+          style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}
+        >
           <ReadOnly label={tr('Plan', 'Plan')} value={org.plan} />
-          <ReadOnly label={tr('Statut', 'Status')} value={org.is_active ? tr('Active', 'Active') : tr('Suspendue', 'Suspended')} />
+          <ReadOnly
+            label={tr('Statut', 'Status')}
+            value={org.is_active ? tr('Active', 'Active') : tr('Suspendue', 'Suspended')}
+          />
           <ReadOnly label={tr('Créée le', 'Created')} value={created} />
           <ReadOnly label={tr('Propriétaire', 'Owner')} value={org.owner_name || '—'} />
           {org.industry && <ReadOnly label={tr('Secteur', 'Industry')} value={org.industry} />}
@@ -523,12 +775,31 @@ function GeneralTab({ tr }: { tr: Tr }) {
 
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Membres', 'Members')}</Title>
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}
+        >
           <CountTile label={tr('Total', 'Total')} value={org.counts.total_members} />
-          <CountTile label={tr('Actifs', 'Active')} value={org.counts.active_members} color="var(--low)" />
-          <CountTile label={tr('Administrateurs', 'Administrators')} value={org.counts.admins} color="var(--accent)" />
-          <CountTile label={tr('Désactivés', 'Deactivated')} value={org.counts.deactivated_members} color="var(--high)" />
-          <CountTile label={tr('Invitations', 'Invitations')} value={org.counts.pending_invitations} color="var(--info)" />
+          <CountTile
+            label={tr('Actifs', 'Active')}
+            value={org.counts.active_members}
+            color="var(--low)"
+          />
+          <CountTile
+            label={tr('Administrateurs', 'Administrators')}
+            value={org.counts.admins}
+            color="var(--accent)"
+          />
+          <CountTile
+            label={tr('Désactivés', 'Deactivated')}
+            value={org.counts.deactivated_members}
+            color="var(--high)"
+          />
+          <CountTile
+            label={tr('Invitations', 'Invitations')}
+            value={org.counts.pending_invitations}
+            color="var(--info)"
+          />
         </div>
       </Card>
 
@@ -580,8 +851,12 @@ function GeneralTab({ tr }: { tr: Tr }) {
 function ReadOnly({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div>
-      <dt className="text-[11.5px] font-semibold text-ink-muted uppercase tracking-wide mb-1">{label}</dt>
-      <dd className="text-[13.5px] text-ink" style={{ opacity: muted ? 0.6 : 1 }}>{value}</dd>
+      <dt className="text-[11.5px] font-semibold text-ink-muted uppercase tracking-wide mb-1">
+        {label}
+      </dt>
+      <dd className="text-[13.5px] text-ink" style={{ opacity: muted ? 0.6 : 1 }}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -589,7 +864,12 @@ function ReadOnly({ label, value, muted }: { label: string; value: string; muted
 function CountTile({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
     <div className="px-3.5 py-3 rounded-[11px]" style={{ border: '1px solid var(--border)' }}>
-      <div className="text-[22px] font-bold leading-none" style={{ color: color ?? 'var(--fg-primary)' }}>{value}</div>
+      <div
+        className="text-[22px] font-bold leading-none"
+        style={{ color: color ?? 'var(--fg-primary)' }}
+      >
+        {value}
+      </div>
       <div className="text-[11.5px] text-ink-muted mt-1.5">{label}</div>
     </div>
   );
@@ -662,10 +942,34 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
   });
 
   const rows: Row[] = [
-    chRow('slack', 'Slack', tr('Alertes d’automatisation et d’incident', 'Automation and incident alerts'), ch?.has_slack, ch?.slack_enabled),
-    chRow('teams', 'Microsoft Teams', tr('Alertes d’automatisation et d’incident', 'Automation and incident alerts'), ch?.has_teams, ch?.teams_enabled),
-    chRow('webhook', tr('Webhook sortant', 'Outbound webhook'), tr('Charge utile signée (HMAC-SHA256)', 'Signed payload (HMAC-SHA256)'), ch?.has_webhook, ch?.webhook_enabled),
-    chRow('sms', 'SMS', tr('Passerelle HTTP générique', 'Generic HTTP gateway'), ch?.has_sms, ch?.sms_enabled),
+    chRow(
+      'slack',
+      'Slack',
+      tr('Alertes d’automatisation et d’incident', 'Automation and incident alerts'),
+      ch?.has_slack,
+      ch?.slack_enabled,
+    ),
+    chRow(
+      'teams',
+      'Microsoft Teams',
+      tr('Alertes d’automatisation et d’incident', 'Automation and incident alerts'),
+      ch?.has_teams,
+      ch?.teams_enabled,
+    ),
+    chRow(
+      'webhook',
+      tr('Webhook sortant', 'Outbound webhook'),
+      tr('Charge utile signée (HMAC-SHA256)', 'Signed payload (HMAC-SHA256)'),
+      ch?.has_webhook,
+      ch?.webhook_enabled,
+    ),
+    chRow(
+      'sms',
+      'SMS',
+      tr('Passerelle HTTP générique', 'Generic HTTP gateway'),
+      ch?.has_sms,
+      ch?.sms_enabled,
+    ),
     {
       key: 'ticketing',
       name: tick?.provider === 'servicenow' ? 'ServiceNow' : 'Jira',
@@ -689,16 +993,23 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
       </div>
 
       {loading ? (
-        <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={4} /></Card>
+        <Card style={{ padding: '20px 22px' }}>
+          <SkeletonRows rows={4} />
+        </Card>
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}
+        >
           {rows.map((r) => (
             <Card key={r.key} style={{ padding: 18 }}>
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-10 h-10 rounded-[11px] flex items-center justify-center"
                   style={{
-                    background: r.configured ? 'color-mix(in srgb,var(--low) 16%,transparent)' : 'var(--bg-hover)',
+                    background: r.configured
+                      ? 'color-mix(in srgb,var(--low) 16%,transparent)'
+                      : 'var(--bg-hover)',
                     color: r.configured ? 'var(--low)' : 'var(--fg-muted)',
                   }}
                 >
@@ -713,9 +1024,7 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
                 className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
                 style={{ border: '1px solid var(--border-strong)' }}
               >
-                {r.configured
-                  ? tr('Gérer', 'Manage')
-                  : tr('Configurer', 'Configure')}
+                {r.configured ? tr('Gérer', 'Manage') : tr('Configurer', 'Configure')}
               </button>
             </Card>
           ))}
@@ -727,7 +1036,10 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
               <div
                 className="w-10 h-10 rounded-[11px] flex items-center justify-center"
                 style={{
-                  background: scannersConfigured > 0 ? 'color-mix(in srgb,var(--low) 16%,transparent)' : 'var(--bg-hover)',
+                  background:
+                    scannersConfigured > 0
+                      ? 'color-mix(in srgb,var(--low) 16%,transparent)'
+                      : 'var(--bg-hover)',
                   color: scannersConfigured > 0 ? 'var(--low)' : 'var(--fg-muted)',
                 }}
               >
@@ -755,7 +1067,9 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
               className="w-full h-9 rounded-[10px] text-[12.5px] font-semibold text-ink inline-flex items-center justify-center gap-1.5 hover:bg-hover transition-colors"
               style={{ border: '1px solid var(--border-strong)' }}
             >
-              {scannersConfigured > 0 ? tr('Gérer', 'Manage') : tr('Connecter une source', 'Connect a source')}
+              {scannersConfigured > 0
+                ? tr('Gérer', 'Manage')
+                : tr('Connecter une source', 'Connect a source')}
             </button>
           </Card>
         </div>
@@ -772,17 +1086,32 @@ function IntegrationsTab({ tr }: { tr: Tr }) {
  * would be a guess dressed as a fact — and in this tab, a wrong guess in either
  * direction is the bug being fixed.
  */
-function IntegrationState({ row, tr }: { row: { configured: boolean; enabled: boolean; unknown: boolean }; tr: Tr }) {
+function IntegrationState({
+  row,
+  tr,
+}: {
+  row: { configured: boolean; enabled: boolean; unknown: boolean };
+  tr: Tr;
+}) {
   if (row.unknown) {
     return (
-      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--medium)', background: 'color-mix(in srgb,var(--medium) 14%,transparent)' }}>
+      <span
+        className="text-[11px] font-semibold px-2 py-1 rounded-full"
+        style={{
+          color: 'var(--medium)',
+          background: 'color-mix(in srgb,var(--medium) 14%,transparent)',
+        }}
+      >
         {tr('État inconnu', 'State unknown')}
       </span>
     );
   }
   if (!row.configured) {
     return (
-      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--fg-muted)', background: 'var(--bg-hover)' }}>
+      <span
+        className="text-[11px] font-semibold px-2 py-1 rounded-full"
+        style={{ color: 'var(--fg-muted)', background: 'var(--bg-hover)' }}
+      >
         {tr('Non connecté', 'Not connected')}
       </span>
     );
@@ -791,13 +1120,22 @@ function IntegrationState({ row, tr }: { row: { configured: boolean; enabled: bo
   // credentials are there, the channel is deliberately silent.
   if (!row.enabled) {
     return (
-      <span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{ color: 'var(--medium)', background: 'color-mix(in srgb,var(--medium) 14%,transparent)' }}>
+      <span
+        className="text-[11px] font-semibold px-2 py-1 rounded-full"
+        style={{
+          color: 'var(--medium)',
+          background: 'color-mix(in srgb,var(--medium) 14%,transparent)',
+        }}
+      >
         {tr('Configuré · en pause', 'Configured · paused')}
       </span>
     );
   }
   return (
-    <span className="text-[11px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1" style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}>
+    <span
+      className="text-[11px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1"
+      style={{ color: 'var(--low)', background: 'color-mix(in srgb,var(--low) 14%,transparent)' }}
+    >
       <Check size={11} /> {tr('Actif', 'Active')}
     </span>
   );
@@ -824,7 +1162,12 @@ function NotifTab({ tr }: { tr: Tr }) {
 
   // No default object while loading: rendering a switch position the server has
   // not confirmed is the same lie in a smaller frame.
-  if (isLoading) return <Card style={{ padding: '20px 22px' }}><SkeletonRows rows={5} /></Card>;
+  if (isLoading)
+    return (
+      <Card style={{ padding: '20px 22px' }}>
+        <SkeletonRows rows={5} />
+      </Card>
+    );
   if (isError || !prefs) {
     return (
       <Card style={{ padding: '20px 22px' }}>
@@ -865,13 +1208,31 @@ function NotifTab({ tr }: { tr: Tr }) {
         <div className="text-[12.5px] text-ink-soft mb-1">
           {user?.email || tr('Adresse du compte', 'Account address')}
         </div>
-        {([
-          ['email_on_critical_risk', tr('Un risque critique est signalé', 'A critical risk is raised'), tr('Inclut les escalades de SLA.', 'Includes SLA escalations.')],
-          ['email_on_mitigation_deadline', tr('Une échéance de mitigation approche', 'A mitigation deadline approaches'), tr('Rappels à J-7 et J-1.', 'Reminders at D-7 and D-1.')],
-          ['email_on_action_assigned', tr('Une action m’est assignée', 'An action is assigned to me'), null],
-          ['email_on_risk_update', tr('Un risque que je suis est modifié', 'A risk I follow is updated'), null],
-          ['email_on_risk_resolved', tr('Un risque est résolu', 'A risk is resolved'), null],
-        ] as const).map(([key, label, sub]) => (
+        {(
+          [
+            [
+              'email_on_critical_risk',
+              tr('Un risque critique est signalé', 'A critical risk is raised'),
+              tr('Inclut les escalades de SLA.', 'Includes SLA escalations.'),
+            ],
+            [
+              'email_on_mitigation_deadline',
+              tr('Une échéance de mitigation approche', 'A mitigation deadline approaches'),
+              tr('Rappels à J-7 et J-1.', 'Reminders at D-7 and D-1.'),
+            ],
+            [
+              'email_on_action_assigned',
+              tr('Une action m’est assignée', 'An action is assigned to me'),
+              null,
+            ],
+            [
+              'email_on_risk_update',
+              tr('Un risque que je suis est modifié', 'A risk I follow is updated'),
+              null,
+            ],
+            ['email_on_risk_resolved', tr('Un risque est résolu', 'A risk is resolved'), null],
+          ] as const
+        ).map(([key, label, sub]) => (
           <ServerToggleRow
             key={key}
             tr={tr}
@@ -880,7 +1241,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             checked={prefs[key]}
             busy={update.isPending}
             disabled={muted}
-            disabledReason={tr('Toutes les notifications sont suspendues.', 'All notifications are paused.')}
+            disabledReason={tr(
+              'Toutes les notifications sont suspendues.',
+              'All notifications are paused.',
+            )}
             onChange={(next) => set({ [key]: next })}
           />
         ))}
@@ -910,7 +1274,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             checked={prefs.enable_sound_notifications}
             busy={update.isPending}
             disabled={muted}
-            disabledReason={tr('Toutes les notifications sont suspendues.', 'All notifications are paused.')}
+            disabledReason={tr(
+              'Toutes les notifications sont suspendues.',
+              'All notifications are paused.',
+            )}
             onChange={(next) => set({ enable_sound_notifications: next })}
           />
           <ServerToggleRow
@@ -919,7 +1286,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             checked={prefs.enable_desktop_notifications}
             busy={update.isPending}
             disabled={muted}
-            disabledReason={tr('Toutes les notifications sont suspendues.', 'All notifications are paused.')}
+            disabledReason={tr(
+              'Toutes les notifications sont suspendues.',
+              'All notifications are paused.',
+            )}
             onChange={(next) => set({ enable_desktop_notifications: next })}
           />
         </div>
@@ -959,8 +1329,15 @@ function BillingTab({ tr: _tr }: { tr: Tr }) {
 function DangerTab({ L, tr: _tr }: { L: ReturnType<typeof useUIStrings>; tr: Tr }) {
   return (
     <div>
-      <div className="text-[15px] font-semibold mb-1.5" style={{ color: 'var(--critical)' }}>{L.s_danger}</div>
-      <div className="text-[13px] text-ink-soft mb-[18px]">{_tr('Ces actions sont irréversibles et suivent un délai de grâce de 30 jours.', 'These actions are irreversible and follow a 30-day grace period.')}</div>
+      <div className="text-[15px] font-semibold mb-1.5" style={{ color: 'var(--critical)' }}>
+        {L.s_danger}
+      </div>
+      <div className="text-[13px] text-ink-soft mb-[18px]">
+        {_tr(
+          'Ces actions sont irréversibles et suivent un délai de grâce de 30 jours.',
+          'These actions are irreversible and follow a 30-day grace period.',
+        )}
+      </div>
       <DangerZonePanel />
     </div>
   );

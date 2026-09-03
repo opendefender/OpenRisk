@@ -49,7 +49,14 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const { updateRisk, isLoading } = useRiskStore();
   const { assets, fetchAssets } = useAssetStore();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting }, reset } = useForm<RiskFormData>({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<RiskFormData>({
     resolver: zodResolver(riskSchema),
     defaultValues: {
       impact: 5,
@@ -57,7 +64,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       asset_ids: [],
       tags: '',
       frameworks: [],
-    }
+    },
   });
 
   useEffect(() => {
@@ -68,7 +75,10 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       setValue('impact', typeof risk.impact === 'number' ? risk.impact : 5);
       setValue('probability', typeof risk.probability === 'number' ? risk.probability : 0.5);
       setValue('tags', (risk.tags || []).join(','));
-      setValue('asset_ids', (risk.assets || []).map((a: any) => a.id));
+      setValue(
+        'asset_ids',
+        (risk.assets || []).map((a: any) => a.id),
+      );
       setValue('frameworks', risk.frameworks || []);
     } else {
       reset();
@@ -99,14 +109,24 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const selectedFrameworks = watch('frameworks') || [];
   const toggleAsset = (assetId: string) => {
     const current = selectedAssetIds;
-    if (current.includes(assetId)) setValue('asset_ids', current.filter((id: string) => id !== assetId), { shouldValidate: true });
+    if (current.includes(assetId))
+      setValue(
+        'asset_ids',
+        current.filter((id: string) => id !== assetId),
+        { shouldValidate: true },
+      );
     else setValue('asset_ids', [...current, assetId], { shouldValidate: true });
   };
 
   const frameworksList = ['ISO27001', 'CIS', 'NIST', 'OWASP'];
   const toggleFramework = (f: string) => {
     const current = selectedFrameworks;
-    if (current.includes(f)) setValue('frameworks', current.filter((v: string) => v !== f), { shouldValidate: true });
+    if (current.includes(f))
+      setValue(
+        'frameworks',
+        current.filter((v: string) => v !== f),
+        { shouldValidate: true },
+      );
     else setValue('frameworks', [...current, f], { shouldValidate: true });
   };
 
@@ -116,7 +136,10 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       // Split the comma-separated tags text into the array the API expects.
       const payload = {
         ...data,
-        tags: data.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        tags: data.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
       };
       await updateRisk(risk.id, payload);
       toast.success('Risque mis à jour');
@@ -129,32 +152,67 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
     }
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="fixed inset-0 bg-surface-overlay z-80" />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleClose}
+            className="fixed inset-0 bg-surface-overlay z-80"
+          />
 
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="fixed inset-0 m-auto w-full max-w-lg h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-90 overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed inset-0 m-auto w-full max-w-lg h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-90 overflow-hidden"
+          >
             <div className="flex justify-between items-center mb-6 border-b border-border-strong/5 pb-4">
               <h2 className="text-xl font-bold text-fg-primary flex items-center gap-2">
                 <ShieldAlert className="text-primary" size={20} /> Modifier le Risque
               </h2>
-              <button onClick={handleClose} className="text-fg-muted hover:text-fg-primary transition-colors"><X size={24} /></button>
+              <button
+                onClick={handleClose}
+                className="text-fg-muted hover:text-fg-primary transition-colors"
+              >
+                <X size={24} />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit((data: any) => onSubmit(data))} className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]">
-              <Field label="Titre" message={errors.title?.message} status={errors.title?.message ? 'invalid' : 'default'}>
-                <Input  {...register('title')}  disabled={isLoading}
-                />
+            <form
+              onSubmit={handleSubmit((data: any) => onSubmit(data))}
+              className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]"
+            >
+              <Field
+                label="Titre"
+                message={errors.title?.message}
+                status={errors.title?.message ? 'invalid' : 'default'}
+              >
+                <Input {...register('title')} disabled={isLoading} />
               </Field>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">Description</label>
-                <textarea {...register('description')} rows={4} disabled={isLoading} className={`w-full bg-surface-1 border ${errors.description ? 'border-danger' : 'border-border'} rounded-lg p-3 text-sm text-fg-primary focus:ring-2 focus:ring-primary/50 outline-none resize-none transition-colors ${isLoading ? 'opacity-70' : ''}`} />
-                {errors.description && <p className="text-xs text-danger-text mt-1">{errors.description?.message}</p>}
+                <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
+                  Description
+                </label>
+                <textarea
+                  {...register('description')}
+                  rows={4}
+                  disabled={isLoading}
+                  className={`w-full bg-surface-1 border ${errors.description ? 'border-danger' : 'border-border'} rounded-lg p-3 text-sm text-fg-primary focus:ring-2 focus:ring-primary/50 outline-none resize-none transition-colors ${isLoading ? 'opacity-70' : ''}`}
+                />
+                {errors.description && (
+                  <p className="text-xs text-danger-text mt-1">{errors.description?.message}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
@@ -173,10 +231,14 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                   />
                   <div className="flex items-center justify-between text-xs text-fg-secondary">
                     <span>0</span>
-                    <span className="font-semibold text-fg-primary">{(watch('impact') ?? 0).toFixed(1)}</span>
+                    <span className="font-semibold text-fg-primary">
+                      {(watch('impact') ?? 0).toFixed(1)}
+                    </span>
                     <span>10</span>
                   </div>
-                  {errors.impact && <p className="text-xs text-danger-text mt-1">{errors.impact?.message}</p>}
+                  {errors.impact && (
+                    <p className="text-xs text-danger-text mt-1">{errors.impact?.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -194,10 +256,14 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                   />
                   <div className="flex items-center justify-between text-xs text-fg-secondary">
                     <span>0</span>
-                    <span className="font-semibold text-fg-primary">{(watch('probability') ?? 0).toFixed(2)}</span>
+                    <span className="font-semibold text-fg-primary">
+                      {(watch('probability') ?? 0).toFixed(2)}
+                    </span>
                     <span>1</span>
                   </div>
-                  {errors.probability && <p className="text-xs text-danger-text mt-1">{errors.probability?.message}</p>}
+                  {errors.probability && (
+                    <p className="text-xs text-danger-text mt-1">{errors.probability?.message}</p>
+                  )}
                 </div>
               </div>
 
@@ -205,19 +271,36 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
               <div className="space-y-2 pt-2">
                 <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider flex justify-between">
                   Assets Affectés
-                  <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">{selectedAssetIds.length} sélectionné(s)</span>
+                  <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">
+                    {selectedAssetIds.length} sélectionné(s)
+                  </span>
                 </label>
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg bg-surface-1/30">
-                  {assets.length === 0 ? <div className="text-fg-muted text-xs w-full text-center py-2">Aucun asset.</div> : assets.map(a => (
-                    <button key={a.id} type="button" onClick={() => toggleAsset(a.id)} disabled={isLoading} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-accent-soft border-accent text-info-text' : 'bg-surface-2 border-border-default text-fg-secondary'} ${isLoading ? 'opacity-70' : ''}`}>
-                      {a.name}
-                    </button>
-                  ))}
+                  {assets.length === 0 ? (
+                    <div className="text-fg-muted text-xs w-full text-center py-2">
+                      Aucun asset.
+                    </div>
+                  ) : (
+                    assets.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => toggleAsset(a.id)}
+                        disabled={isLoading}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-accent-soft border-accent text-info-text' : 'bg-surface-2 border-border-default text-fg-secondary'} ${isLoading ? 'opacity-70' : ''}`}
+                      >
+                        {a.name}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
 
               <Field label="Tags (séparés par des virgules)">
-                <Input  {...register('tags')} placeholder="ex: critical, web-app, legacy" disabled={isLoading}
+                <Input
+                  {...register('tags')}
+                  placeholder="ex: critical, web-app, legacy"
+                  disabled={isLoading}
                 />
               </Field>
 
@@ -225,11 +308,19 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
               <div className="space-y-2 pt-2">
                 <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider flex justify-between">
                   Frameworks
-                  <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">{selectedFrameworks.length} sélectionné(s)</span>
+                  <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">
+                    {selectedFrameworks.length} sélectionné(s)
+                  </span>
                 </label>
                 <div className="flex flex-wrap gap-2 p-2">
-                  {frameworksList.map(f => (
-                    <button key={f} type="button" onClick={() => toggleFramework(f)} disabled={isLoading} className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedFrameworks.includes(f) ? 'bg-success/20 border-success text-success-text' : 'bg-surface-2 border-border-default text-fg-secondary hover:border-border-strong'}`}>
+                  {frameworksList.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => toggleFramework(f)}
+                      disabled={isLoading}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedFrameworks.includes(f) ? 'bg-success/20 border-success text-success-text' : 'bg-surface-2 border-border-default text-fg-secondary hover:border-border-strong'}`}
+                    >
                       {f}
                     </button>
                   ))}
@@ -237,8 +328,12 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
               </div>
 
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-strong/5 sticky bottom-0 bg-surface">
-                <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>Annuler</Button>
-                <Button variant="primary" type="submit" loading={isLoading || isSubmitting}>Enregistrer</Button>
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>
+                  Annuler
+                </Button>
+                <Button variant="primary" type="submit" loading={isLoading || isSubmitting}>
+                  Enregistrer
+                </Button>
               </div>
             </form>
           </motion.div>

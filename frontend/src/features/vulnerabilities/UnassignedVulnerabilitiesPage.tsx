@@ -58,11 +58,11 @@ export default function UnassignedVulnerabilitiesPage() {
       toast.success(
         assetId
           ? 'Vulnérabilité rattachée. La priorité a été recalculée avec la criticité de cet actif.'
-          : 'Vulnérabilité détachée : elle ne concerne aucun actif inventorié.'
+          : 'Vulnérabilité détachée : elle ne concerne aucun actif inventorié.',
       );
       setExpanded(null);
     } catch (err) {
-      toast.error(apiErrorMessage(err) || "Le rattachement a échoué.");
+      toast.error(apiErrorMessage(err) || 'Le rattachement a échoué.');
     }
   };
 
@@ -75,16 +75,18 @@ export default function UnassignedVulnerabilitiesPage() {
       />
 
       <p className="mb-4 text-[13px]" style={{ color: 'var(--fg-muted)' }}>
-        Ces vulnérabilités n'ont pas pu être attribuées à un actif avec assez de
-        certitude. Tant qu'elles ne le sont pas, elles sont priorisées sans
-        criticité métier — c'est-à-dire mal. Votre décision ici est conservée :
-        le prochain scan ne l'écrasera pas.
+        Ces vulnérabilités n'ont pas pu être attribuées à un actif avec assez de certitude. Tant
+        qu'elles ne le sont pas, elles sont priorisées sans criticité métier — c'est-à-dire mal.
+        Votre décision ici est conservée : le prochain scan ne l'écrasera pas.
       </p>
 
       {isLoading ? (
         <SkeletonRows rows={6} />
       ) : isError ? (
-        <div className="rounded-2xl border p-6 text-center" style={{ borderColor: 'var(--border)' }}>
+        <div
+          className="rounded-2xl border p-6 text-center"
+          style={{ borderColor: 'var(--border)' }}
+        >
           <p className="text-sm" style={{ color: 'var(--fg-secondary)' }}>
             La liste n'a pas pu être chargée.
           </p>
@@ -302,8 +304,7 @@ function VulnRow({
               style={{ color: 'var(--fg-muted)' }}
             >
               <HelpCircle size={13} />
-              Aucun actif candidat. Choisissez-en un manuellement, ou détachez la
-              vulnérabilité.
+              Aucun actif candidat. Choisissez-en un manuellement, ou détachez la vulnérabilité.
             </p>
           )}
 

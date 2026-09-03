@@ -21,8 +21,7 @@ const historyQueryKey = (assetId: string) => ['assets', assetId, 'history'];
 export function useAssets(filter?: AssetSearchFilter) {
   const queryClient = useQueryClient();
 
-  const hasFilter =
-    !!filter?.category || Object.keys(filter?.attributes ?? {}).length > 0;
+  const hasFilter = !!filter?.category || Object.keys(filter?.attributes ?? {}).length > 0;
 
   const query = useQuery({
     queryKey: hasFilter ? [...ASSETS_QUERY_KEY, filter] : ASSETS_QUERY_KEY,
@@ -45,7 +44,7 @@ export function useAssets(filter?: AssetSearchFilter) {
       if (previous) {
         queryClient.setQueryData(
           ASSETS_QUERY_KEY,
-          previous.map((a) => (a.id === id ? { ...a, ...payload } : a))
+          previous.map((a) => (a.id === id ? { ...a, ...payload } : a)),
         );
       }
       return { previous };
@@ -64,7 +63,7 @@ export function useAssets(filter?: AssetSearchFilter) {
       if (previous) {
         queryClient.setQueryData(
           ASSETS_QUERY_KEY,
-          previous.filter((a) => a.id !== id)
+          previous.filter((a) => a.id !== id),
         );
       }
       return { previous };
@@ -88,7 +87,7 @@ export function useAssets(filter?: AssetSearchFilter) {
       updateAsset,
       deleteAsset,
     }),
-    [query, createAsset, updateAsset, deleteAsset]
+    [query, createAsset, updateAsset, deleteAsset],
   );
 }
 

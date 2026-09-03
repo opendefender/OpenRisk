@@ -63,7 +63,7 @@ export function copyFor(status: MFAStatus, tr: (fr: string, en: string) => strin
         title: tr('Sécurisez votre compte', 'Secure your account'),
         body: tr(
           "L'authentification à deux facteurs protège votre compte même si votre mot de passe fuite. Deux minutes suffisent.",
-          'Two-factor authentication protects your account even if your password leaks. It takes two minutes.'
+          'Two-factor authentication protects your account even if your password leaks. It takes two minutes.',
         ),
         cta: tr('Activer le MFA', 'Enable MFA'),
       };
@@ -77,11 +77,11 @@ export function copyFor(status: MFAStatus, tr: (fr: string, en: string) => strin
           days === null
             ? tr(
                 'Votre rôle donne accès à des données et des réglages sensibles : une authentification à deux facteurs est requise.',
-                'Your role grants access to sensitive data and settings, so two-factor authentication is required.'
+                'Your role grants access to sensitive data and settings, so two-factor authentication is required.',
               )
             : tr(
                 `Votre rôle donne accès à des données sensibles. Il vous reste ${days} jour${days > 1 ? 's' : ''} pour activer le MFA.`,
-                `Your role grants access to sensitive data. You have ${days} day${days === 1 ? '' : 's'} left to enable MFA.`
+                `Your role grants access to sensitive data. You have ${days} day${days === 1 ? '' : 's'} left to enable MFA.`,
               ),
         cta: tr('Activer le MFA', 'Enable MFA'),
       };
@@ -95,11 +95,11 @@ export function copyFor(status: MFAStatus, tr: (fr: string, en: string) => strin
           days === null || days <= 0
             ? tr(
                 "L'accès à OpenRisk sera bloqué très prochainement tant que le MFA ne sera pas activé.",
-                'Access to OpenRisk will be blocked shortly until MFA is enabled.'
+                'Access to OpenRisk will be blocked shortly until MFA is enabled.',
               )
             : tr(
                 `Il vous reste ${days} jour${days > 1 ? 's' : ''}. Passé ce délai, l'accès sera bloqué jusqu'à l'activation du MFA.`,
-                `You have ${days} day${days === 1 ? '' : 's'} left. After that, access is blocked until MFA is enabled.`
+                `You have ${days} day${days === 1 ? '' : 's'} left. After that, access is blocked until MFA is enabled.`,
               ),
         cta: tr('Activer le MFA', 'Enable MFA'),
       };
@@ -111,7 +111,7 @@ export function copyFor(status: MFAStatus, tr: (fr: string, en: string) => strin
         title: tr('MFA requis', 'MFA required'),
         body: tr(
           "Le délai est écoulé. Activez une application d'authentification pour retrouver l'accès.",
-          'The grace period has ended. Enroll an authenticator to restore access.'
+          'The grace period has ended. Enroll an authenticator to restore access.',
         ),
         cta: tr('Activer le MFA', 'Enable MFA'),
       };
@@ -139,7 +139,11 @@ export function MFAEnrollmentBanner() {
   // noise is what people learn to skip.
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-[12.5px] text-ink-muted mb-4" role="status" aria-live="polite">
+      <div
+        className="flex items-center gap-2 text-[12.5px] text-ink-muted mb-4"
+        role="status"
+        aria-live="polite"
+      >
         <Loader2 size={14} className="animate-spin" aria-hidden="true" />
         {tr('Vérification de la sécurité du compte…', 'Checking account security…')}
       </div>
@@ -159,7 +163,7 @@ export function MFAEnrollmentBanner() {
         <span className="text-[12.5px] text-ink-soft">
           {tr(
             "Impossible de vérifier l'état du MFA de votre compte pour le moment.",
-            'Could not check your account’s MFA status right now.'
+            'Could not check your account’s MFA status right now.',
           )}
         </span>
         <button
@@ -212,7 +216,11 @@ export function MFAEnrollmentBanner() {
             type="button"
             onClick={() => setDialogOpen(true)}
             className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-fg-primary transition-all"
-            style={{ border: 'none', background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+            style={{
+              border: 'none',
+              background: 'var(--accent-solid)',
+              color: 'var(--fg-on-solid)',
+            }}
           >
             {copy.cta}
           </button>
