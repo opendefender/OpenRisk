@@ -104,18 +104,15 @@ export const CLOUD_CRED_FIELDS: Partial<Record<ScannerProvider, CredField[]>> = 
     },
   ],
   gcp: [
-    {
-      key: 'service_account_json',
-      label: 'Service Account JSON',
-      placeholder: '{ "type": "service_account", … }',
-      kind: 'textarea',
-    },
-    {
-      key: 'project_id',
-      label: 'Project ID (optional)',
-      placeholder: 'my-project-123',
-      kind: 'text',
-    },
+    // The placeholder deliberately does NOT reproduce the key file's opening
+    // type/account-kind pair. Trivy's gcp-service-account rule matches that
+    // literal, so this hint text — which has never held a credential — was
+    // reported as a CRITICAL leaked secret on every scan (#507). A permanent
+    // false CRITICAL is how a real one gets skimmed past, and suppressing the
+    // rule repo-wide would hide an actually leaked key. Keep the shape of the
+    // value, never the marker — including in this comment.
+    { key: 'service_account_json', label: 'Service Account JSON', placeholder: '{ … contents of the downloaded key file … }', kind: 'textarea' },
+    { key: 'project_id', label: 'Project ID (optional)', placeholder: 'my-project-123', kind: 'text' },
   ],
   kubernetes: [
     {
