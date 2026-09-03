@@ -30,7 +30,8 @@ const labels = {
   caption: 'Risk matrix — probability by impact',
   probability: 'Probability',
   impact: 'Impact',
-  band: (b: SeverityKey) => ({ critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', extreme: 'Extreme' })[b],
+  band: (b: SeverityKey) =>
+    ({ critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', extreme: 'Extreme' })[b],
   more: (n: number) => `+${n}`,
 };
 
@@ -116,7 +117,13 @@ describe('RiskMatrix', () => {
       item({ id: `r${n}`, label: `Risk ${n}`, probability: 3, impact: 3 }),
     );
     render(
-      <RiskMatrix items={many} cellBand={cellBand} labels={labels} maxPerCell={6} onSelect={vi.fn()} />,
+      <RiskMatrix
+        items={many}
+        cellBand={cellBand}
+        labels={labels}
+        maxPerCell={6}
+        onSelect={vi.fn()}
+      />,
     );
     expect(screen.getAllByRole('button')).toHaveLength(6);
     expect(screen.getByText('+3')).toBeInTheDocument();

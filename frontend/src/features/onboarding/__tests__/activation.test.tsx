@@ -19,7 +19,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { OnboardingChecklist } from '../OnboardingChecklist';
 import { nextActionableStep } from '../useActivation';
-import { i18n, type ActivationState, type ActivationStep } from '../../../services/activationService';
+import {
+  i18n,
+  type ActivationState,
+  type ActivationStep,
+} from '../../../services/activationService';
 
 // --- mocks -----------------------------------------------------------------
 
@@ -109,8 +113,20 @@ describe('OnboardingChecklist — renders server state only', () => {
     getState.mockResolvedValue(
       state([
         step({ key: 'first_risk', completed: true, completed_at: '2026-08-10T09:00:00Z' }),
-        step({ key: 'framework', primary: false, order: 2, label_i18n: { fr: 'Importez', en: 'Import' }, hint_i18n: {} }),
-        step({ key: 'team', primary: false, order: 3, label_i18n: { fr: 'Invitez', en: 'Invite' }, hint_i18n: {} }),
+        step({
+          key: 'framework',
+          primary: false,
+          order: 2,
+          label_i18n: { fr: 'Importez', en: 'Import' },
+          hint_i18n: {},
+        }),
+        step({
+          key: 'team',
+          primary: false,
+          order: 3,
+          label_i18n: { fr: 'Invitez', en: 'Invite' },
+          hint_i18n: {},
+        }),
       ]),
     );
 
@@ -148,7 +164,13 @@ describe('celebration — server-driven and idempotent', () => {
     getState.mockResolvedValue(
       state([
         step({ completed: true, completed_at: 'x', celebrate: true }),
-        step({ key: 'framework', primary: false, order: 2, label_i18n: { fr: 'a', en: 'a' }, hint_i18n: {} }),
+        step({
+          key: 'framework',
+          primary: false,
+          order: 2,
+          label_i18n: { fr: 'a', en: 'a' },
+          hint_i18n: {},
+        }),
       ]),
     );
 
@@ -162,7 +184,13 @@ describe('celebration — server-driven and idempotent', () => {
     getState.mockResolvedValue(
       state([
         step({ completed: true, completed_at: 'x', celebrate: false }),
-        step({ key: 'framework', primary: false, order: 2, label_i18n: { fr: 'a', en: 'a' }, hint_i18n: {} }),
+        step({
+          key: 'framework',
+          primary: false,
+          order: 2,
+          label_i18n: { fr: 'a', en: 'a' },
+          hint_i18n: {},
+        }),
       ]),
     );
 
@@ -184,7 +212,13 @@ describe('celebration — server-driven and idempotent', () => {
     getState.mockResolvedValue(
       state([
         step({ completed: true, completed_at: 'x', celebrate: true }),
-        step({ key: 'framework', primary: false, order: 2, label_i18n: { fr: 'a', en: 'a' }, hint_i18n: {} }),
+        step({
+          key: 'framework',
+          primary: false,
+          order: 2,
+          label_i18n: { fr: 'a', en: 'a' },
+          hint_i18n: {},
+        }),
       ]),
     );
 

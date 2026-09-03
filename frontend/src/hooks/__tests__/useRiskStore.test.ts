@@ -3,87 +3,89 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useRiskStore, type Risk } from '../useRiskStore'
-import { api } from '../../lib/api'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { useRiskStore, type Risk } from '../useRiskStore';
+import { api } from '../../lib/api';
 
 describe('useRiskStore', () => {
   beforeEach(() => {
     // reset store state
-    const s = useRiskStore.getState()
-    s.risks = []
-    s.total = 0
-    s.page = 1
-    s.pageSize = 10
-    vi.clearAllMocks()
-  })
+    const s = useRiskStore.getState();
+    s.risks = [];
+    s.total = 0;
+    s.page = 1;
+    s.pageSize = 10;
+    vi.clearAllMocks();
+  });
 
   afterEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('fetchRisks sets risks and total for paginated response', async () => {
-    const fakeData = { items: [{ id: 1, title: 'Risk A' }], total: 1 }
-    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: fakeData })
+    const fakeData = { items: [{ id: 1, title: 'Risk A' }], total: 1 };
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: fakeData });
 
-    await useRiskStore.getState().fetchRisks({ page: 1, limit: 10 })
+    await useRiskStore.getState().fetchRisks({ page: 1, limit: 10 });
 
-    const state = useRiskStore.getState()
-    expect(state.risks).toEqual(fakeData.items)
-    expect(state.total).toBe(1)
-    expect(api.get).toHaveBeenCalledWith('/risks', { params: { page: 1, limit: 10 } })
-  })
+    const state = useRiskStore.getState();
+    expect(state.risks).toEqual(fakeData.items);
+    expect(state.total).toBe(1);
+    expect(api.get).toHaveBeenCalledWith('/risks', { params: { page: 1, limit: 10 } });
+  });
 
   it('fetchRisks handles legacy array response', async () => {
-    const legacy = [{ id: 2, title: 'Risk B' }]
-    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: legacy })
+    const legacy = [{ id: 2, title: 'Risk B' }];
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: legacy });
 
-    await useRiskStore.getState().fetchRisks()
+    await useRiskStore.getState().fetchRisks();
 
-    const state = useRiskStore.getState()
-    expect(state.risks).toEqual(legacy)
-    expect(state.total).toBe(1)
-  })
+    const state = useRiskStore.getState();
+    expect(state.risks).toEqual(legacy);
+    expect(state.total).toBe(1);
+  });
 
   it('createRisk posts payload and refreshes list', async () => {
-    const newRisk = { title: 'New' }
-    vi.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 3, ...newRisk } })
+    const newRisk = { title: 'New' };
+    vi.spyOn(api, 'post').mockResolvedValueOnce({ data: { id: 3, ...newRisk } });
     // after create, fetchRisks will be called; mock its response
-    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: { items: [{ id: 3, title: 'New' }], total: 1 } })
+    vi.spyOn(api, 'get').mockResolvedValueOnce({
+      data: { items: [{ id: 3, title: 'New' }], total: 1 },
+    });
 
-    await useRiskStore.getState().createRisk(newRisk)
+    await useRiskStore.getState().createRisk(newRisk);
 
-    const state = useRiskStore.getState()
-    expect(api.post).toHaveBeenCalledWith('/risks', newRisk)
-    expect(state.risks).toEqual([{ id: 3, title: 'New' }])
-    expect(state.total).toBe(1)
-  })
+    const state = useRiskStore.getState();
+    expect(api.post).toHaveBeenCalledWith('/risks', newRisk);
+    expect(state.risks).toEqual([{ id: 3, title: 'New' }]);
+    expect(state.total).toBe(1);
+  });
 
   it('updateRisk patches the risk optimistically in place', async () => {
     // updateRisk is an OPTIMISTIC mutation (RULE #10): it patches the row in
     // place and reconciles with the PATCH response — it does not refetch.
-    const id = '4'
-    const patch = { title: 'Updated' }
-    useRiskStore.setState({ risks: [{ id, title: 'Old' } as unknown as Risk] })
-    vi.spyOn(api, 'patch').mockResolvedValueOnce({ data: { id, title: 'Updated' } })
+    const id = '4';
+    const patch = { title: 'Updated' };
+    useRiskStore.setState({ risks: [{ id, title: 'Old' } as unknown as Risk] });
+    vi.spyOn(api, 'patch').mockResolvedValueOnce({ data: { id, title: 'Updated' } });
 
-    await useRiskStore.getState().updateRisk(id, patch)
+    await useRiskStore.getState().updateRisk(id, patch);
 
-    const state = useRiskStore.getState()
-    expect(api.patch).toHaveBeenCalledWith(`/risks/${id}`, patch)
-    expect(state.risks).toEqual([{ id, title: 'Updated' }])
-  })
+    const state = useRiskStore.getState();
+    expect(api.patch).toHaveBeenCalledWith(`/risks/${id}`, patch);
+    expect(state.risks).toEqual([{ id, title: 'Updated' }]);
+  });
 
   it('deleteRisk calls delete and refreshes list', async () => {
-    const id = '5'
-    vi.spyOn(api, 'delete').mockResolvedValueOnce({ data: {} })
-    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: { items: [], total: 0 } })
+    const id = '5';
+    vi.spyOn(api, 'delete').mockResolvedValueOnce({ data: {} });
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ data: { items: [], total: 0 } });
 
-    await useRiskStore.getState().deleteRisk(id)
+    await useRiskStore.getState().deleteRisk(id);
 
-    const state = useRiskStore.getState()
-    expect(api.delete).toHaveBeenCalledWith(`/risks/${id}`)
-    expect(state.risks).toEqual([])
-    expect(state.total).toBe(0)
-  })
-})
+    const state = useRiskStore.getState();
+    expect(api.delete).toHaveBeenCalledWith(`/risks/${id}`);
+    expect(state.risks).toEqual([]);
+    expect(state.total).toBe(0);
+  });
+});

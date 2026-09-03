@@ -38,7 +38,10 @@ export const CreateFrameworkModal = ({ isOpen, onClose }: CreateFrameworkModalPr
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { name: '', version: '', description: '' } });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: '', version: '', description: '' },
+  });
 
   const handleClose = () => {
     reset();
@@ -94,19 +97,15 @@ export const CreateFrameworkModal = ({ isOpen, onClose }: CreateFrameworkModalPr
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <Field label={t('compliance.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
-                  <Input
-                    {...register('name')}
-                    disabled={isSubmitting}
-                    autoFocus
-                  />
+                <Field
+                  label={t('compliance.form.name')}
+                  message={errors.name?.message}
+                  status={errors.name?.message ? 'invalid' : 'default'}
+                >
+                  <Input {...register('name')} disabled={isSubmitting} autoFocus />
                 </Field>
                 <Field label={t('compliance.form.version')}>
-                  <Input
-                    {...register('version')}
-                    disabled={isSubmitting}
-                    placeholder="2022"
-                  />
+                  <Input {...register('version')} disabled={isSubmitting} placeholder="2022" />
                 </Field>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">

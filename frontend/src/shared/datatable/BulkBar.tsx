@@ -15,7 +15,11 @@ import { useState } from 'react';
 import { Check, Loader2, TriangleAlert, X } from 'lucide-react';
 import type { BulkAction, BulkScope } from './types';
 
-type Phase = { kind: 'idle' } | { kind: 'running'; key: string } | { kind: 'done'; key: string } | { kind: 'error'; key: string };
+type Phase =
+  | { kind: 'idle' }
+  | { kind: 'running'; key: string }
+  | { kind: 'done'; key: string }
+  | { kind: 'error'; key: string };
 
 interface BulkBarProps<T> {
   count: number;
@@ -35,7 +39,10 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
     try {
       await action.run(buildScope(action));
       setPhase({ kind: 'done', key: action.key });
-      window.setTimeout(() => setPhase((p) => (p.kind === 'done' && p.key === action.key ? { kind: 'idle' } : p)), 1600);
+      window.setTimeout(
+        () => setPhase((p) => (p.kind === 'done' && p.key === action.key ? { kind: 'idle' } : p)),
+        1600,
+      );
     } catch {
       setPhase({ kind: 'error', key: action.key });
     }
@@ -49,7 +56,9 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
       className="fixed bottom-6 left-1/2 z-60 glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
       style={{ transform: 'translateX(-50%)', animation: 'or-fadeup .2s ease' }}
     >
-      <span className="text-[13px] font-semibold text-ink" data-testid="bulk-count">{labels.selected(count)}</span>
+      <span className="text-[13px] font-semibold text-ink" data-testid="bulk-count">
+        {labels.selected(count)}
+      </span>
       <span className="w-px h-5" style={{ background: 'var(--border-strong)' }} />
 
       {visible.map((action) => {
@@ -67,13 +76,27 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
             className="h-8 px-3 rounded-lg text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60"
             style={
               failed
-                ? { background: 'color-mix(in srgb,var(--critical) 18%,transparent)', color: 'var(--critical)' }
+                ? {
+                    background: 'color-mix(in srgb,var(--critical) 18%,transparent)',
+                    color: 'var(--critical)',
+                  }
                 : action.danger
-                  ? { background: 'color-mix(in srgb,var(--critical) 14%,transparent)', color: 'var(--critical)' }
+                  ? {
+                      background: 'color-mix(in srgb,var(--critical) 14%,transparent)',
+                      color: 'var(--critical)',
+                    }
                   : { background: 'var(--bg-hover)', color: 'var(--fg-primary)' }
             }
           >
-            {running ? <Loader2 size={14} className="animate-spin" /> : done ? <Check size={14} /> : failed ? <TriangleAlert size={14} /> : Icon ? <Icon size={14} /> : null}
+            {running ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : done ? (
+              <Check size={14} />
+            ) : failed ? (
+              <TriangleAlert size={14} />
+            ) : Icon ? (
+              <Icon size={14} />
+            ) : null}
             {failed ? labels.failed : action.label}
           </button>
         );

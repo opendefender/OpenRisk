@@ -128,7 +128,9 @@ const AchievementCard = ({ achievement, index }: { achievement: Achievement; ind
                 <span className="text-xs font-medium text-fg-primary/60">
                   {achievement.progress} / {achievement.maxProgress}
                 </span>
-                <span className="text-xs font-medium text-fg-primary/60">{Math.round(progressPercent)}%</span>
+                <span className="text-xs font-medium text-fg-primary/60">
+                  {Math.round(progressPercent)}%
+                </span>
               </div>
               <div className="w-full h-2 bg-surface-overlay rounded-full overflow-hidden backdrop-blur-sm">
                 <motion.div
@@ -193,7 +195,9 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
                 <p className="text-fg-secondary text-sm">Unlocked</p>
                 <div className="flex items-baseline gap-2 mt-1">
                   <p className="text-3xl font-bold text-fg-primary">{unlockedCount}</p>
-                  <p className="text-sm text-fg-secondary">({Math.round((unlockedCount / totalCount) * 100)}%)</p>
+                  <p className="text-sm text-fg-secondary">
+                    ({Math.round((unlockedCount / totalCount) * 100)}%)
+                  </p>
                 </div>
               </div>
               <CheckCircle2 size={32} className="text-success-text opacity-60" />
@@ -206,7 +210,9 @@ export const AchievementTrackingUI = ({ achievements, isLoading }: AchievementTr
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-fg-secondary text-sm">Completion</p>
-                <p className="text-3xl font-bold text-fg-primary mt-1">{Math.round((unlockedCount / totalCount) * 100)}%</p>
+                <p className="text-3xl font-bold text-fg-primary mt-1">
+                  {Math.round((unlockedCount / totalCount) * 100)}%
+                </p>
               </div>
               <Flame size={32} className="text-warning-text opacity-60" />
             </div>

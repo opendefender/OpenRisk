@@ -127,15 +127,20 @@ export const aiService = {
     return res.data;
   },
 
-  async detectEmergingRisks(
-    input: { source?: string; text: string; context?: string; locale: Locale },
-  ): Promise<EmergingRisksResult> {
+  async detectEmergingRisks(input: {
+    source?: string;
+    text: string;
+    context?: string;
+    locale: Locale;
+  }): Promise<EmergingRisksResult> {
     const res = await api.post<EmergingRisksResult>('/ai/emerging-risks', input);
     return res.data;
   },
 
   async treatmentPlan(riskId: string, locale: Locale): Promise<TreatmentPlanResult> {
-    const res = await api.post<TreatmentPlanResult>(`/ai/risks/${riskId}/treatment-plan`, { locale });
+    const res = await api.post<TreatmentPlanResult>(`/ai/risks/${riskId}/treatment-plan`, {
+      locale,
+    });
     return res.data;
   },
 
@@ -145,7 +150,9 @@ export const aiService = {
   },
 
   async analyzeEvidence(evidenceId: string, locale: Locale): Promise<EvidenceAssessmentResult> {
-    const res = await api.post<EvidenceAssessmentResult>(`/ai/evidence/${evidenceId}/analyze`, { locale });
+    const res = await api.post<EvidenceAssessmentResult>(`/ai/evidence/${evidenceId}/analyze`, {
+      locale,
+    });
     return res.data;
   },
 };

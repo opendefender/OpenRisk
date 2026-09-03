@@ -9,7 +9,12 @@ import { X, Link2, Trash2, Check, Calendar, User, Layers } from 'lucide-react';
 import { Btn } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
-import { useEvidence, useReviewEvidence, useUnlinkEvidence, useUpdateEvidence } from './useEvidence';
+import {
+  useEvidence,
+  useReviewEvidence,
+  useUnlinkEvidence,
+  useUpdateEvidence,
+} from './useEvidence';
 import { EVIDENCE_STATUS_META, EVIDENCE_TYPE_META, expiryLabel } from './evidenceMeta';
 
 export function EvidenceDrawer({
@@ -49,12 +54,18 @@ export function EvidenceDrawer({
               <div className="flex items-center gap-2 mt-1">
                 <span
                   className="px-2 py-0.5 rounded-full text-[12px] font-medium"
-                  style={{ color: meta.color, background: `color-mix(in srgb, ${meta.color} 12%, transparent)` }}
+                  style={{
+                    color: meta.color,
+                    background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
+                  }}
                 >
                   {tr(meta.fr, meta.en)}
                 </span>
                 <span className="text-[12px] text-ink-muted">
-                  {tr(EVIDENCE_TYPE_META[evidence.type]?.fr ?? '', EVIDENCE_TYPE_META[evidence.type]?.en ?? '')}
+                  {tr(
+                    EVIDENCE_TYPE_META[evidence.type]?.fr ?? '',
+                    EVIDENCE_TYPE_META[evidence.type]?.en ?? '',
+                  )}
                 </span>
               </div>
             ) : null}
@@ -82,19 +93,26 @@ export function EvidenceDrawer({
                   <Calendar size={13} /> {tr('Collectée le', 'Collected on')}
                 </dt>
                 <dd className="text-ink mt-0.5">
-                  {new Date(evidence.collected_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB')}
+                  {new Date(evidence.collected_at).toLocaleDateString(
+                    lang === 'fr' ? 'fr-FR' : 'en-GB',
+                  )}
                 </dd>
               </div>
               <div>
                 <dt className="text-ink-muted flex items-center gap-1.5">
-                  <Calendar size={13} /> {tr('Valide jusqu\'au', 'Valid until')}
+                  <Calendar size={13} /> {tr("Valide jusqu'au", 'Valid until')}
                 </dt>
                 <dd className="text-ink mt-0.5">
                   {evidence.valid_until
-                    ? new Date(evidence.valid_until).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB')
+                    ? new Date(evidence.valid_until).toLocaleDateString(
+                        lang === 'fr' ? 'fr-FR' : 'en-GB',
+                      )
                     : tr("N'expire pas", 'Never expires')}
                   {evidence.days_until_expiry !== undefined ? (
-                    <span className="text-ink-muted"> · {expiryLabel(lang, evidence.days_until_expiry)}</span>
+                    <span className="text-ink-muted">
+                      {' '}
+                      · {expiryLabel(lang, evidence.days_until_expiry)}
+                    </span>
                   ) : null}
                 </dd>
               </div>
@@ -137,7 +155,25 @@ export function EvidenceDrawer({
                     onChange={(e) => setNewExpiry(e.target.value)}
                     className="px-2.5 py-1.5 text-[13px] rounded-lg bg-surface-2 border border-line text-ink"
                   />
-                  <Btn disabled={!newExpiry || update.isPending} onClick={() => update.mutate( { id: evidence.id, input: { valid_until: newExpiry } }, { onSuccess: () => { toast.success(tr('Validité mise à jour', 'Validity updated')); setNewExpiry(''); }, onError: () => toast.error(tr('Date refusée par le serveur', 'The server refused that date')), }, ) } label={tr('Enregistrer', 'Save')} />
+                  <Btn
+                    disabled={!newExpiry || update.isPending}
+                    onClick={() =>
+                      update.mutate(
+                        { id: evidence.id, input: { valid_until: newExpiry } },
+                        {
+                          onSuccess: () => {
+                            toast.success(tr('Validité mise à jour', 'Validity updated'));
+                            setNewExpiry('');
+                          },
+                          onError: () =>
+                            toast.error(
+                              tr('Date refusée par le serveur', 'The server refused that date'),
+                            ),
+                        },
+                      )
+                    }
+                    label={tr('Enregistrer', 'Save')}
+                  />
                 </div>
               </div>
             ) : null}
@@ -145,7 +181,8 @@ export function EvidenceDrawer({
             <section>
               <h3 className="text-[13px] font-medium text-ink mb-2 flex items-center gap-1.5">
                 <Link2 size={14} />
-                {tr('Contrôles justifiés', 'Controls substantiated')} ({evidence.controls?.length ?? 0})
+                {tr('Contrôles justifiés', 'Controls substantiated')} (
+                {evidence.controls?.length ?? 0})
               </h3>
               {evidence.controls && evidence.controls.length > 0 ? (
                 <ul className="space-y-1.5">
@@ -156,7 +193,9 @@ export function EvidenceDrawer({
                     >
                       <div className="min-w-0">
                         <div className="text-[13px] text-ink truncate">
-                          <span className="font-mono text-[12px] text-ink-muted mr-1.5">{c.reference_code}</span>
+                          <span className="font-mono text-[12px] text-ink-muted mr-1.5">
+                            {c.reference_code}
+                          </span>
                           {c.name}
                         </div>
                         <div className="text-[11.5px] text-ink-muted">{c.framework_name}</div>
@@ -168,7 +207,10 @@ export function EvidenceDrawer({
                           onClick={() =>
                             unlink.mutate(
                               { id: evidence.id, controlId: c.control_id },
-                              { onSuccess: () => toast.success(tr('Contrôle détaché', 'Control unlinked')) },
+                              {
+                                onSuccess: () =>
+                                  toast.success(tr('Contrôle détaché', 'Control unlinked')),
+                              },
                             )
                           }
                         >
@@ -208,17 +250,49 @@ export function EvidenceDrawer({
                       className="w-full px-3 py-2 text-[13px] rounded-lg bg-surface-2 border border-line text-ink"
                     />
                     <div className="flex gap-2">
-                      <Btn danger disabled={!rejectNote.trim() || review.isPending} onClick={() => review.mutate( { id: evidence.id, review: 'rejected', note: rejectNote }, { onSuccess: () => { toast.success(tr('Preuve rejetée', 'Evidence rejected')); setRejecting(false); setRejectNote(''); }, }, ) } label={tr('Confirmer le rejet', 'Confirm rejection')} />
+                      <Btn
+                        danger
+                        disabled={!rejectNote.trim() || review.isPending}
+                        onClick={() =>
+                          review.mutate(
+                            { id: evidence.id, review: 'rejected', note: rejectNote },
+                            {
+                              onSuccess: () => {
+                                toast.success(tr('Preuve rejetée', 'Evidence rejected'));
+                                setRejecting(false);
+                                setRejectNote('');
+                              },
+                            },
+                          )
+                        }
+                        label={tr('Confirmer le rejet', 'Confirm rejection')}
+                      />
                       <Btn onClick={() => setRejecting(false)} label={tr('Annuler', 'Cancel')} />
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">
                     {evidence.review !== 'accepted' ? (
-                      <Btn icon={Check} onClick={() => review.mutate( { id: evidence.id, review: 'accepted' }, { onSuccess: () => toast.success(tr('Preuve acceptée', 'Evidence accepted')) }, ) } label={tr('Accepter', 'Accept')} />
+                      <Btn
+                        icon={Check}
+                        onClick={() =>
+                          review.mutate(
+                            { id: evidence.id, review: 'accepted' },
+                            {
+                              onSuccess: () =>
+                                toast.success(tr('Preuve acceptée', 'Evidence accepted')),
+                            },
+                          )
+                        }
+                        label={tr('Accepter', 'Accept')}
+                      />
                     ) : null}
                     {evidence.review !== 'rejected' ? (
-                      <Btn icon={X} onClick={() => setRejecting(true)} label={tr('Rejeter', 'Reject')} />
+                      <Btn
+                        icon={X}
+                        onClick={() => setRejecting(true)}
+                        label={tr('Rejeter', 'Reject')}
+                      />
                     ) : null}
                   </div>
                 )}

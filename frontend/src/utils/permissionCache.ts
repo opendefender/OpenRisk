@@ -116,7 +116,7 @@ export class PermissionCache {
  */
 export const memoizePermissionCheck = (
   fn: (permission: string) => boolean,
-  cache?: PermissionCache
+  cache?: PermissionCache,
 ): ((permission: string) => boolean) => {
   const permCache = cache ?? new PermissionCache();
 
@@ -139,7 +139,7 @@ export const memoizePermissionCheck = (
 export const batchCheckPermissions = (
   permissions: string[],
   checkFn: (permission: string) => boolean,
-  cache?: PermissionCache
+  cache?: PermissionCache,
 ): Map<string, boolean> => {
   const result = new Map<string, boolean>();
   const permCache = cache ?? new PermissionCache();
@@ -207,9 +207,7 @@ export const permissionCache = new DebouncedPermissionCache();
  * React hook for getting cached permission check function
  * Provides memoized permission checking with cache management
  */
-export const useCachedPermissionCheck = (
-  checkFn: (permission: string) => boolean
-) => {
+export const useCachedPermissionCheck = (checkFn: (permission: string) => boolean) => {
   const memoizedCheck = memoizePermissionCheck(checkFn, permissionCache);
 
   return {

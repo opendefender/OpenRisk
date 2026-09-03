@@ -22,7 +22,12 @@ import {
 import type { PlanKey, Price } from '../../services/entitlementService';
 
 const PLANS: PlanKey[] = ['free', 'pro', 'business', 'enterprise'];
-const PLAN_LABEL: Record<PlanKey, string> = { free: 'Free', pro: 'Pro', business: 'Business', enterprise: 'Enterprise' };
+const PLAN_LABEL: Record<PlanKey, string> = {
+  free: 'Free',
+  pro: 'Pro',
+  business: 'Business',
+  enterprise: 'Enterprise',
+};
 const PLAN_PITCH: Record<PlanKey, string> = {
   free: 'Découvrir OpenRisk',
   pro: 'Équipes IT / Sécurité',
@@ -31,9 +36,26 @@ const PLAN_PITCH: Record<PlanKey, string> = {
 };
 const PLAN_HIGHLIGHTS: Record<PlanKey, string[]> = {
   free: ['2 utilisateurs', '50 risques', 'Conformité de base', 'Support communauté'],
-  pro: ['10 utilisateurs', '500 risques', 'Quantification financière', 'IA GRC · Automatisation', 'Support e-mail'],
-  business: ['50 utilisateurs', 'Risques illimités', 'SSO · Gouvernance · CTI', 'SLA 99,5 %', 'Support prioritaire'],
-  enterprise: ['Utilisateurs illimités', 'Multi-organisation · On-premise', 'SLA 99,9 %', 'Support dédié'],
+  pro: [
+    '10 utilisateurs',
+    '500 risques',
+    'Quantification financière',
+    'IA GRC · Automatisation',
+    'Support e-mail',
+  ],
+  business: [
+    '50 utilisateurs',
+    'Risques illimités',
+    'SSO · Gouvernance · CTI',
+    'SLA 99,5 %',
+    'Support prioritaire',
+  ],
+  enterprise: [
+    'Utilisateurs illimités',
+    'Multi-organisation · On-premise',
+    'SLA 99,9 %',
+    'Support dédié',
+  ],
 };
 
 function formatPrice(p: Price | undefined): string {
@@ -62,7 +84,9 @@ export function BillingPanel() {
   const [busyPlan, setBusyPlan] = useState<PlanKey | null>(null);
 
   if (isLoading || !ent) {
-    return <div className="h-40 rounded-[16px] animate-pulse" style={{ background: 'var(--bg-elev)' }} />;
+    return (
+      <div className="h-40 rounded-[16px] animate-pulse" style={{ background: 'var(--bg-elev)' }} />
+    );
   }
 
   const currentPlan = ent.plan;
@@ -108,55 +132,76 @@ export function BillingPanel() {
   return (
     <div className="space-y-6">
       {/* Current plan + trial */}
-      <div className="rounded-[16px] p-5" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}>
+      <div
+        className="rounded-[16px] p-5"
+        style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}
+      >
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="text-[12px] uppercase tracking-wide text-ink-soft">Plan actuel</div>
             <div className="disp text-[24px] font-bold text-ink flex items-center gap-2">
               {PLAN_LABEL[currentPlan]}
               {sub?.status === 'trialing' && ent.trial?.active && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full text-accent" style={{ background: 'color-mix(in srgb,var(--accent) 14%,transparent)' }}>
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full text-accent"
+                  style={{ background: 'color-mix(in srgb,var(--accent) 14%,transparent)' }}
+                >
                   Essai · {ent.trial.days_left} j restants
                 </span>
               )}
               {sub?.cancel_at_period_end && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: 'var(--medium)', background: 'color-mix(in srgb,var(--medium) 14%,transparent)' }}>
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{
+                    color: 'var(--medium)',
+                    background: 'color-mix(in srgb,var(--medium) 14%,transparent)',
+                  }}
+                >
                   Résiliation programmée
                 </span>
               )}
             </div>
           </div>
-          {sub && sub.status !== 'canceled' && !sub.cancel_at_period_end && currentPlan !== 'free' && (
-            <button
-              onClick={async () => {
-                try {
-                  await cancel.mutateAsync();
-                  toast.success('Résiliation enregistrée.');
-                } catch {
-                  toast.error('Résiliation impossible.');
-                }
-              }}
-              className="h-9 px-4 rounded-[10px] text-[13px] font-semibold"
-              style={{ border: '1px solid var(--border)', color: 'var(--ink-soft)' }}
-            >
-              Résilier
-            </button>
-          )}
+          {sub &&
+            sub.status !== 'canceled' &&
+            !sub.cancel_at_period_end &&
+            currentPlan !== 'free' && (
+              <button
+                onClick={async () => {
+                  try {
+                    await cancel.mutateAsync();
+                    toast.success('Résiliation enregistrée.');
+                  } catch {
+                    toast.error('Résiliation impossible.');
+                  }
+                }}
+                className="h-9 px-4 rounded-[10px] text-[13px] font-semibold"
+                style={{ border: '1px solid var(--border)', color: 'var(--ink-soft)' }}
+              >
+                Résilier
+              </button>
+            )}
         </div>
         {providers.length === 0 && (
           <div className="mt-3 text-[12.5px] text-ink-soft">
-            Aucun moyen de paiement n'est configuré sur cette instance — les plans payants s'activent en essai gratuit ou via l'équipe OpenRisk.
+            Aucun moyen de paiement n'est configuré sur cette instance — les plans payants
+            s'activent en essai gratuit ou via l'équipe OpenRisk.
           </div>
         )}
       </div>
 
       {/* Usage vs limits */}
-      <div className="rounded-[16px] p-5" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}>
+      <div
+        className="rounded-[16px] p-5"
+        style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}
+      >
         <div className="text-[13px] font-semibold text-ink mb-3">Usage vs limites</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {Object.entries(ent.limits).map(([key, l]) => {
             const unlimited = l.limit < 0;
-            const pct = unlimited ? 0 : Math.min(100, Math.round((l.used / Math.max(1, l.limit)) * 100));
+            const pct = unlimited
+              ? 0
+              : Math.min(100, Math.round((l.used / Math.max(1, l.limit)) * 100));
             const near = !unlimited && pct >= 80;
             return (
               <div key={key}>
@@ -166,10 +211,16 @@ export function BillingPanel() {
                     {l.used} {unlimited ? '/ ∞' : `/ ${l.limit}`}
                   </span>
                 </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                <div
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ background: 'var(--border)' }}
+                >
                   <div
                     className="h-full rounded-full transition-[width]"
-                    style={{ width: `${unlimited ? 6 : pct}%`, background: near ? 'var(--high)' : 'var(--accent)' }}
+                    style={{
+                      width: `${unlimited ? 6 : pct}%`,
+                      background: near ? 'var(--high)' : 'var(--accent)',
+                    }}
                   />
                 </div>
               </div>
@@ -218,12 +269,12 @@ export function BillingPanel() {
                 {isCurrent
                   ? 'Plan actuel'
                   : plan === 'enterprise'
-                  ? 'Nous contacter'
-                  : plan === 'free'
-                  ? 'Rétrograder'
-                  : !sub
-                  ? `Essai ${ent.trial_days} j gratuit`
-                  : `Choisir ${PLAN_LABEL[plan]}`}
+                    ? 'Nous contacter'
+                    : plan === 'free'
+                      ? 'Rétrograder'
+                      : !sub
+                        ? `Essai ${ent.trial_days} j gratuit`
+                        : `Choisir ${PLAN_LABEL[plan]}`}
               </button>
             </div>
           );
@@ -232,16 +283,31 @@ export function BillingPanel() {
 
       {/* Invoices */}
       {billing && billing.invoices.length > 0 && (
-        <div className="rounded-[16px] p-5" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}>
+        <div
+          className="rounded-[16px] p-5"
+          style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}
+        >
           <div className="text-[13px] font-semibold text-ink mb-3">Factures</div>
           <div className="space-y-2">
             {billing.invoices.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between text-[12.5px]">
-                <span className="text-ink-soft">{inv.number || inv.id.slice(0, 8)} · {new Date(inv.created_at).toLocaleDateString('fr-FR')}</span>
+                <span className="text-ink-soft">
+                  {inv.number || inv.id.slice(0, 8)} ·{' '}
+                  {new Date(inv.created_at).toLocaleDateString('fr-FR')}
+                </span>
                 <span className="flex items-center gap-3">
-                  <span className="font-semibold text-ink">{(inv.amount_cents / 100).toLocaleString('fr-FR')} {inv.currency}</span>
+                  <span className="font-semibold text-ink">
+                    {(inv.amount_cents / 100).toLocaleString('fr-FR')} {inv.currency}
+                  </span>
                   {inv.hosted_url && (
-                    <a href={inv.hosted_url} target="_blank" rel="noreferrer" className="text-accent font-semibold">Voir</a>
+                    <a
+                      href={inv.hosted_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent font-semibold"
+                    >
+                      Voir
+                    </a>
                   )}
                 </span>
               </div>
@@ -260,15 +326,27 @@ function TelemetryCard() {
   const setTelemetry = useSetTelemetry();
   if (!data) return null;
   return (
-    <div className="rounded-[16px] p-5" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}>
+    <div
+      className="rounded-[16px] p-5"
+      style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)' }}
+    >
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="max-w-[62ch]">
           <div className="text-[13px] font-semibold text-ink mb-1">Télémétrie anonyme (opt-in)</div>
           <div className="text-[12.5px] text-ink-soft leading-relaxed">
-            Aide-nous à améliorer OpenRisk en partageant des statistiques d'usage <strong>anonymes</strong> (jamais vos risques, actifs ou identités).
-            {data.env_forced_off && ' Désactivée sur cette instance par la variable d’environnement OPENRISK_TELEMETRY.'}{' '}
+            Aide-nous à améliorer OpenRisk en partageant des statistiques d'usage{' '}
+            <strong>anonymes</strong> (jamais vos risques, actifs ou identités).
+            {data.env_forced_off &&
+              ' Désactivée sur cette instance par la variable d’environnement OPENRISK_TELEMETRY.'}{' '}
             {data.schema_url && (
-              <a href={data.schema_url} target="_blank" rel="noreferrer" className="text-accent font-semibold">Schéma publié</a>
+              <a
+                href={data.schema_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent font-semibold"
+              >
+                Schéma publié
+              </a>
             )}
           </div>
         </div>

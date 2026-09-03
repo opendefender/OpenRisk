@@ -56,7 +56,10 @@ export function ForgotPasswordScreen() {
         <div style={cascade(0, reduced)}>
           <div
             className="w-11 h-11 rounded-[13px] flex items-center justify-center mb-4"
-            style={{ background: 'color-mix(in srgb, var(--low) 14%, transparent)', color: 'var(--low)' }}
+            style={{
+              background: 'color-mix(in srgb, var(--low) 14%, transparent)',
+              color: 'var(--low)',
+            }}
           >
             <MailCheck size={22} />
           </div>
@@ -82,7 +85,9 @@ export function ForgotPasswordScreen() {
       <form onSubmit={submit} noValidate>
         <div style={cascade(0, reduced)}>
           <h1 className="disp text-[24px] font-bold text-ink mb-1.5">{copy.forgotTitle}</h1>
-          <p className="text-[14px] text-ink-soft mb-[26px] leading-relaxed">{copy.forgotSubtitle}</p>
+          <p className="text-[14px] text-ink-soft mb-[26px] leading-relaxed">
+            {copy.forgotSubtitle}
+          </p>
         </div>
 
         <ErrorBanner>{error}</ErrorBanner>

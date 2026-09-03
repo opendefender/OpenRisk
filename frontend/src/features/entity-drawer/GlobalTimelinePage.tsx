@@ -56,9 +56,7 @@ export function GlobalTimelinePage() {
             <History size={18} aria-hidden />
             {L.act_title}
           </h1>
-          <p className="mt-1 max-w-[60ch] text-sm text-fg-secondary">
-            {L.act_intro}
-          </p>
+          <p className="mt-1 max-w-[60ch] text-sm text-fg-secondary">{L.act_intro}</p>
         </div>
       </header>
 
@@ -88,9 +86,7 @@ export function GlobalTimelinePage() {
         <EmptyState
           variant={kind ? 'no-results' : 'first-use'}
           title={kind ? L.act_emptyFiltered : L.act_emptyNone}
-          description={
-            kind ? L.act_emptyFilteredDesc : L.act_emptyNoneDesc
-          }
+          description={kind ? L.act_emptyFilteredDesc : L.act_emptyNoneDesc}
           primaryAction={
             kind ? (
               <Button variant="secondary" size="sm" onClick={() => setKind('')}>

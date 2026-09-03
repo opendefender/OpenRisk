@@ -77,13 +77,16 @@ export const RBACTab = () => {
   }
 
   // Group permissions by resource
-  const permissionsByResource = userPermissions.reduce((acc, perm) => {
-    if (!acc[perm.resource]) {
-      acc[perm.resource] = [];
-    }
-    acc[perm.resource].push(perm.action);
-    return acc;
-  }, {} as Record<string, string[]>);
+  const permissionsByResource = userPermissions.reduce(
+    (acc, perm) => {
+      if (!acc[perm.resource]) {
+        acc[perm.resource] = [];
+      }
+      acc[perm.resource].push(perm.action);
+      return acc;
+    },
+    {} as Record<string, string[]>,
+  );
 
   return (
     <div className="space-y-8">
@@ -172,7 +175,8 @@ export const RBACTab = () => {
                       />
                     </div>
                     <span className="text-xs font-medium text-fg-secondary">
-                      Level {role.level}: {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Unknown'}
+                      Level {role.level}:{' '}
+                      {levelLabels[role.level as keyof typeof levelLabels]?.name || 'Unknown'}
                     </span>
                   </div>
                 </motion.div>
@@ -182,10 +186,15 @@ export const RBACTab = () => {
 
           {isAdmin && allRoles.length > 0 && (
             <div className="mt-8 p-4 rounded-lg bg-accent-soft border border-accent-line">
-              <h4 className="text-sm font-semibold text-info-text mb-3">Admin - All Available Roles</h4>
+              <h4 className="text-sm font-semibold text-info-text mb-3">
+                Admin - All Available Roles
+              </h4>
               <div className="space-y-2">
                 {allRoles.map((role) => (
-                  <div key={role.id} className="flex items-center justify-between p-3 rounded bg-surface-1/50">
+                  <div
+                    key={role.id}
+                    className="flex items-center justify-between p-3 rounded bg-surface-1/50"
+                  >
                     <span className="text-sm text-fg-secondary">{role.name}</span>
                     <span className="text-xs text-fg-muted">Level {role.level}</span>
                   </div>
@@ -212,7 +221,9 @@ export const RBACTab = () => {
             <div className="space-y-6">
               {Object.entries(permissionsByResource).map(([resource, actions]) => (
                 <div key={resource} className="border border-border rounded-lg p-6 bg-surface/50">
-                  <h3 className="text-lg font-semibold text-fg-primary mb-4 capitalize">{resource}</h3>
+                  <h3 className="text-lg font-semibold text-fg-primary mb-4 capitalize">
+                    {resource}
+                  </h3>
                   <div className="grid grid-cols-2 gap-3">
                     {actions.map((action) => (
                       <div
@@ -235,13 +246,22 @@ export const RBACTab = () => {
           <div className="mt-8 p-4 rounded-lg bg-surface-1 border border-border-subtle">
             <h4 className="text-sm font-semibold text-fg-primary mb-3">Permission Format</h4>
             <p className="text-xs text-fg-secondary">
-              Permissions are formatted as <code className="text-primary">resource:action</code>. For example:
+              Permissions are formatted as <code className="text-primary">resource:action</code>.
+              For example:
             </p>
             <ul className="text-xs text-fg-secondary mt-2 space-y-1 ml-4 list-disc">
-              <li><code className="text-primary">reports:read</code> - Ability to view reports</li>
-              <li><code className="text-primary">audit:manage</code> - Ability to manage audit logs</li>
-              <li><code className="text-primary">user:create</code> - Ability to create users</li>
-              <li><code className="text-primary">*</code> - Full access (admin only)</li>
+              <li>
+                <code className="text-primary">reports:read</code> - Ability to view reports
+              </li>
+              <li>
+                <code className="text-primary">audit:manage</code> - Ability to manage audit logs
+              </li>
+              <li>
+                <code className="text-primary">user:create</code> - Ability to create users
+              </li>
+              <li>
+                <code className="text-primary">*</code> - Full access (admin only)
+              </li>
             </ul>
           </div>
         </motion.div>
@@ -253,7 +273,10 @@ export const RBACTab = () => {
           <Shield className="w-5 h-5 text-info-text shrink-0 mt-0.5" />
           <div className="text-sm text-info-text">
             <p className="font-medium mb-1">About Your Access</p>
-            <p>Your roles and permissions determine what actions you can perform in OpenRisk. If you need additional access, contact your administrator.</p>
+            <p>
+              Your roles and permissions determine what actions you can perform in OpenRisk. If you
+              need additional access, contact your administrator.
+            </p>
           </div>
         </div>
       </div>

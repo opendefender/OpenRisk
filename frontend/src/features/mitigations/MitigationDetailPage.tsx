@@ -25,10 +25,17 @@ import { useMitigations, type Column } from './useMitigations';
 import type { BoardStatus } from '../../services/mitigationService';
 
 const COL_TO_STATUS: Record<Column, BoardStatus> = {
-  todo: 'PLANNED', progress: 'IN_PROGRESS', review: 'REVIEW', done: 'DONE',
+  todo: 'PLANNED',
+  progress: 'IN_PROGRESS',
+  review: 'REVIEW',
+  done: 'DONE',
 };
 const STATUS_TO_COL: Record<string, Column> = {
-  PLANNED: 'todo', TODO: 'todo', IN_PROGRESS: 'progress', REVIEW: 'review', DONE: 'done',
+  PLANNED: 'todo',
+  TODO: 'todo',
+  IN_PROGRESS: 'progress',
+  REVIEW: 'review',
+  DONE: 'done',
 };
 
 export function MitigationDetailPage() {
@@ -42,7 +49,8 @@ export function MitigationDetailPage() {
   const miti = useMemo(() => items.find((m) => m.id === mitigationId), [items, mitigationId]);
 
   const setStatus = useMutation({
-    mutationFn: (status: BoardStatus) => mitigationService.setStatus(mitigationId as string, status),
+    mutationFn: (status: BoardStatus) =>
+      mitigationService.setStatus(mitigationId as string, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mitigations'] });
       toast.success(tr('Statut mis à jour', 'Status updated'));
@@ -67,11 +75,17 @@ export function MitigationDetailPage() {
       subtitle={
         miti ? (
           <>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: critColor[miti.crit] }} />
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: critColor[miti.crit] }}
+            />
             <span className="mono text-[11.5px] text-ink-muted">{miti.risk}</span>
             <span
               className="text-[11.5px] font-semibold px-2 py-[2px] rounded-full"
-              style={{ color: critColor[miti.crit], background: softFill(critColor[miti.crit], 15) }}
+              style={{
+                color: critColor[miti.crit],
+                background: softFill(critColor[miti.crit], 15),
+              }}
             >
               {miti.crit}
             </span>
@@ -88,7 +102,10 @@ export function MitigationDetailPage() {
             </div>
             <div
               className="inline-flex rounded-[10px] p-0.5 w-full"
-              style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-secondary)' }}
+              style={{
+                border: '1px solid var(--border-strong)',
+                background: 'var(--bg-secondary)',
+              }}
             >
               {steps.map(([col, label]) => {
                 const active = current === col;
@@ -98,7 +115,10 @@ export function MitigationDetailPage() {
                     disabled={setStatus.isPending}
                     onClick={() => !active && setStatus.mutate(COL_TO_STATUS[col])}
                     className="flex-1 h-9 rounded-[8px] text-[12px] font-semibold transition-colors disabled:opacity-60"
-                    style={{ background: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)' }}
+                    style={{
+                      background: active ? 'var(--accent)' : 'transparent',
+                      color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
+                    }}
                   >
                     {label}
                   </button>
@@ -112,13 +132,21 @@ export function MitigationDetailPage() {
               {tr('Avancement', 'Progress')}
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
+              <div
+                className="flex-1 h-1.5 rounded overflow-hidden"
+                style={{ background: 'var(--bg-hover)' }}
+              >
                 <div
                   className="h-full rounded"
-                  style={{ width: `${miti.progress}%`, background: miti.progress === 100 ? 'var(--low)' : 'var(--accent)' }}
+                  style={{
+                    width: `${miti.progress}%`,
+                    background: miti.progress === 100 ? 'var(--low)' : 'var(--accent)',
+                  }}
                 />
               </div>
-              <span className="mono text-[11px] text-ink-muted w-9 text-right">{miti.progress}%</span>
+              <span className="mono text-[11px] text-ink-muted w-9 text-right">
+                {miti.progress}%
+              </span>
             </div>
           </div>
 
@@ -145,7 +173,9 @@ export function MitigationDetailPage() {
 
           {miti.description && (
             <div className="mb-6">
-              <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">Description</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">
+                Description
+              </div>
               <p className="text-[13px] text-ink-soft leading-relaxed">{miti.description}</p>
             </div>
           )}

@@ -14,8 +14,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
-  ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, FileText, Zap, Plus, Grid3x3,
-  TrendingUp, type LucideIcon,
+  ShieldAlert,
+  AlertTriangle,
+  ShieldCheck,
+  CheckCircle2,
+  FileText,
+  Zap,
+  Plus,
+  Grid3x3,
+  TrendingUp,
+  type LucideIcon,
 } from 'lucide-react';
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { useUIStore } from '../../store/uiStore';
@@ -50,7 +58,15 @@ import { EstateDashboard } from './EstateDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
 import { ExecutiveDashboard } from '../analytics/ExecutiveDashboard';
 
-const Card = ({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
+const Card = ({
+  children,
+  className = '',
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) => (
   <div className={`or-card ${className}`} style={style}>
     {children}
   </div>
@@ -141,13 +157,16 @@ function PostureDashboard() {
   // tiles render a loading state, and when it FAILED they render an error state.
   // A zero that was never read is the most reassuring thing this page can print,
   // and the least true.
-  const kpis = useMemo(() => ({
-    total: stats?.total_risks ?? 0,
-    critical: (sev.CRITICAL ?? sev.critical) ?? 0,
-    mitig: stats?.in_progress_risks ?? 0,
-    resolved: stats?.mitigated_risks ?? 0,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [stats]);
+  const kpis = useMemo(
+    () => ({
+      total: stats?.total_risks ?? 0,
+      critical: sev.CRITICAL ?? sev.critical ?? 0,
+      mitig: stats?.in_progress_risks ?? 0,
+      resolved: stats?.mitigated_risks ?? 0,
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }),
+    [stats],
+  );
 
   const recent: RecentRisk[] = useMemo(() => {
     return risks.slice(0, 5).map((r) => ({
@@ -166,7 +185,10 @@ function PostureDashboard() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1320px]" style={{ animation: 'or-fadeup .4s ease' }}>
+      <div
+        className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1320px]"
+        style={{ animation: 'or-fadeup .4s ease' }}
+      >
         {/* header */}
         <div className="flex items-start justify-between flex-wrap gap-3.5 mb-[22px]">
           <div>
@@ -184,7 +206,7 @@ function PostureDashboard() {
               // question a date range changes.
               scopeNote={tr(
                 'Filtre la tendance et les risques ouverts. Les compteurs (total, critiques, en traitement, atténués) donnent l’état actuel du registre, toutes périodes confondues.',
-                'Filters the trend and risks opened. The counters (total, critical, in treatment, mitigated) show the register as it stands now, across all time.'
+                'Filters the trend and risks opened. The counters (total, critical, in treatment, mitigated) show the register as it stands now, across all time.',
               )}
             />
             <button
@@ -284,7 +306,12 @@ interface StatsQuery {
 }
 
 function KpiGrid({
-  values, fmt, lang, query, openedInPeriod, selection,
+  values,
+  fmt,
+  lang,
+  query,
+  openedInPeriod,
+  selection,
 }: {
   values: { total: number; critical: number; mitig: number; resolved: number };
   fmt: (n: number) => string;
@@ -305,24 +332,49 @@ function KpiGrid({
   // the three rows the tile counted at the top of the page, which is what the
   // user came for.
   const sort = { key: 'score', dir: 'desc' } as const;
-  const data: { label: string; val: number; icon: LucideIcon; col: string; to: string; hint: string }[] = [
+  const data: {
+    label: string;
+    val: number;
+    icon: LucideIcon;
+    col: string;
+    to: string;
+    hint: string;
+  }[] = [
     {
-      label: L.kpiTotal, val: values.total, icon: ShieldAlert, col: 'var(--accent)',
+      label: L.kpiTotal,
+      val: values.total,
+      icon: ShieldAlert,
+      col: 'var(--accent)',
       to: deepLink('risks', { sort }),
       hint: tr('Tous les risques du registre', 'Every risk in the register'),
     },
     {
-      label: L.kpiCrit, val: values.critical, icon: AlertTriangle, col: 'var(--critical)',
+      label: L.kpiCrit,
+      val: values.critical,
+      icon: AlertTriangle,
+      col: 'var(--critical)',
       to: deepLink('risks', { filters: { criticality: 'critical' }, sort }),
-      hint: tr('Registre filtré sur criticité = critique', 'Register filtered to criticality = critical'),
+      hint: tr(
+        'Registre filtré sur criticité = critique',
+        'Register filtered to criticality = critical',
+      ),
     },
     {
-      label: L.kpiMiti, val: values.mitig, icon: ShieldCheck, col: 'var(--high)',
+      label: L.kpiMiti,
+      val: values.mitig,
+      icon: ShieldCheck,
+      col: 'var(--high)',
       to: deepLink('risks', { filters: { status: 'in_progress' }, sort }),
-      hint: tr('Registre filtré sur statut = en cours', 'Register filtered to status = in progress'),
+      hint: tr(
+        'Registre filtré sur statut = en cours',
+        'Register filtered to status = in progress',
+      ),
     },
     {
-      label: L.kpiResolved, val: values.resolved, icon: CheckCircle2, col: 'var(--low)',
+      label: L.kpiResolved,
+      val: values.resolved,
+      icon: CheckCircle2,
+      col: 'var(--low)',
       to: deepLink('risks', { filters: { status: 'mitigated' }, sort }),
       hint: tr('Registre filtré sur statut = atténué', 'Register filtered to status = mitigated'),
     },
@@ -347,7 +399,7 @@ function KpiGrid({
             <TrendingUp size={13} />
             {tr(
               `${fmt(openedInPeriod)} ouvert(s) sur la période (${periodLabel(selection, lang)})`,
-              `${fmt(openedInPeriod)} opened in the selected period (${periodLabel(selection, lang)})`
+              `${fmt(openedInPeriod)} opened in the selected period (${periodLabel(selection, lang)})`,
             )}
           </div>
         </>
@@ -357,10 +409,21 @@ function KpiGrid({
 }
 
 function KpiCard({
-  label, val, icon: Icon, col, fmt, onClick, hint,
+  label,
+  val,
+  icon: Icon,
+  col,
+  fmt,
+  onClick,
+  hint,
 }: {
-  label: string; val: number; icon: LucideIcon; col: string;
-  fmt: (n: number) => string; onClick: () => void; hint: string;
+  label: string;
+  val: number;
+  icon: LucideIcon;
+  col: string;
+  fmt: (n: number) => string;
+  onClick: () => void;
+  hint: string;
 }) {
   const shown = Math.round(useCountUp(val));
   return (
@@ -373,7 +436,10 @@ function KpiCard({
       className="or-card text-left p-[18px] hover:bg-hover transition-colors"
     >
       <div className="flex items-center mb-3.5">
-        <div className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center" style={{ color: col, background: softFill(col, 14) }}>
+        <div
+          className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center"
+          style={{ color: col, background: softFill(col, 14) }}
+        >
           <Icon size={18} strokeWidth={1.75} />
         </div>
       </div>
@@ -389,9 +455,15 @@ function KpiCard({
 // empty register was shown a fully populated probability x impact matrix — the
 // single most trust-destroying thing the dashboard did.
 function HeatmapCard({
-  matrix, isLoading, error, retry,
+  matrix,
+  isLoading,
+  error,
+  retry,
 }: {
-  matrix?: MatrixCell[]; isLoading: boolean; error: unknown; retry: () => void;
+  matrix?: MatrixCell[];
+  isLoading: boolean;
+  error: unknown;
+  retry: () => void;
 }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
@@ -408,7 +480,13 @@ function HeatmapCard({
   // commented so it is never mistaken for one (see docs/scoring/SCORE_MODEL.md).
   const cellCol = (pBucket: number, iBucket: number) => {
     const v = pBucket * iBucket; // 1..25, the grid's own coordinates
-    return v >= 15 ? 'var(--critical)' : v >= 8 ? 'var(--high)' : v >= 4 ? 'var(--medium)' : 'var(--low)';
+    return v >= 15
+      ? 'var(--critical)'
+      : v >= 8
+        ? 'var(--high)'
+        : v >= 4
+          ? 'var(--medium)'
+          : 'var(--low)';
   };
   const rows = [];
   for (let i = 5; i >= 1; i--) {
@@ -426,14 +504,18 @@ function HeatmapCard({
             border: `1px solid ${c ? softFill(col, 40) : 'var(--border)'}`,
           }}
         >
-          {c ? <span className="mono text-[13px] font-bold" style={{ color: col }}>{c}</span> : null}
-        </div>
+          {c ? (
+            <span className="mono text-[13px] font-bold" style={{ color: col }}>
+              {c}
+            </span>
+          ) : null}
+        </div>,
       );
     }
     rows.push(
       <div key={i} className="grid grid-cols-5 gap-1.5">
         {cells}
-      </div>
+      </div>,
     );
   }
 
@@ -451,24 +533,34 @@ function HeatmapCard({
         emptyTitle={tr('Matrice vide', 'Empty matrix')}
         emptyDescription={tr(
           'La matrice croise la probabilité et l’impact de chaque risque pour montrer où se concentre votre exposition. Elle se remplit dès votre premier risque.',
-          'The matrix plots every risk by probability and impact to show where your exposure concentrates. It fills in with your first risk.'
+          'The matrix plots every risk by probability and impact to show where your exposure concentrates. It fills in with your first risk.',
         )}
         emptyAction={
           <div className="flex gap-2">
-            <Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />
+            <Btn
+              label={tr('Créer un risque', 'Create a risk')}
+              icon={Plus}
+              primary
+              onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+            />
             <Btn label={tr('Importer', 'Import')} onClick={() => navigate('/risks/import')} />
           </div>
         }
       >
         <div className="flex gap-2.5">
           <div className="flex items-center">
-            <span className="text-[11px] font-semibold text-ink-muted tracking-wide" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+            <span
+              className="text-[11px] font-semibold text-ink-muted tracking-wide"
+              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            >
               {L.impact}
             </span>
           </div>
           <div className="flex-1 flex flex-col gap-1.5">
             <div className="flex flex-col gap-1.5">{rows}</div>
-            <div className="text-center text-[11px] font-semibold text-ink-muted mt-2 tracking-wide">{L.proba}</div>
+            <div className="text-center text-[11px] font-semibold text-ink-muted mt-2 tracking-wide">
+              {L.proba}
+            </div>
           </div>
         </div>
       </WidgetState>
@@ -494,7 +586,13 @@ function HeatmapCard({
 // criticality per day, and inventing a per-day band would be a number nobody
 // could reconcile.
 function TrendCard({
-  trend, registerTotal, isLoading, error, retry, selection, onWidenPeriod,
+  trend,
+  registerTotal,
+  isLoading,
+  error,
+  retry,
+  selection,
+  onWidenPeriod,
 }: {
   trend?: RiskTrend;
   /**
@@ -531,7 +629,9 @@ function TrendCard({
   // remedy attached.
   const emptyBecauseOfPeriod = opened === 0 && registerTotal > 0;
 
-  const W = 300, H = 120, pad = 8;
+  const W = 300,
+    H = 120,
+    pad = 8;
   const series = useMemo(() => {
     const band = (key: string) => points.map((p) => p.opened_by_band?.[key] ?? 0);
     return { crit: band('CRITICAL'), high: band('HIGH'), med: band('MEDIUM') };
@@ -539,7 +639,9 @@ function TrendCard({
   const allMax = Math.max(1, ...series.crit, ...series.high, ...series.med);
   const line = (arr: number[]) => {
     const step = (W - pad * 2) / Math.max(1, arr.length - 1);
-    return arr.map((v, i) => `${pad + i * step},${H - pad - (v / allMax) * (H - pad * 2)}`).join(' ');
+    return arr
+      .map((v, i) => `${pad + i * step},${H - pad - (v / allMax) * (H - pad * 2)}`)
+      .join(' ');
   };
   const leg = (col: string, lbl: string) => (
     <span key={lbl} className="inline-flex items-center gap-1.5 text-[11px] text-ink-soft">
@@ -574,7 +676,7 @@ function TrendCard({
         emptyTitle={tr('Pas encore de tendance', 'No trend yet')}
         emptyDescription={tr(
           'La courbe se construit à mesure que des risques sont ouverts.',
-          'The line builds up as risks are opened.'
+          'The line builds up as risks are opened.',
         )}
       >
         <>
@@ -593,22 +695,51 @@ function TrendCard({
             // see it: totals per band over the stated window, not "a chart".
             aria-label={tr(
               `Risques ouverts sur ${periodLabel(selection, lang)} : ${series.crit.reduce((a, b) => a + b, 0)} critiques, ${series.high.reduce((a, b) => a + b, 0)} élevés, ${series.med.reduce((a, b) => a + b, 0)} moyens. Total ${opened}.`,
-              `Risks opened over ${periodLabel(selection, lang)}: ${series.crit.reduce((a, b) => a + b, 0)} critical, ${series.high.reduce((a, b) => a + b, 0)} high, ${series.med.reduce((a, b) => a + b, 0)} medium. Total ${opened}.`
+              `Risks opened over ${periodLabel(selection, lang)}: ${series.crit.reduce((a, b) => a + b, 0)} critical, ${series.high.reduce((a, b) => a + b, 0)} high, ${series.med.reduce((a, b) => a + b, 0)} medium. Total ${opened}.`,
             )}
           >
             {[1, 2, 3].map((i) => (
-              <line key={i} x1={pad} x2={W - pad} y1={pad + (i * (H - pad * 2)) / 3} y2={pad + (i * (H - pad * 2)) / 3} stroke="var(--border)" strokeWidth={1} />
+              <line
+                key={i}
+                x1={pad}
+                x2={W - pad}
+                y1={pad + (i * (H - pad * 2)) / 3}
+                y2={pad + (i * (H - pad * 2)) / 3}
+                stroke="var(--border)"
+                strokeWidth={1}
+              />
             ))}
-            <polyline points={line(series.med)} fill="none" stroke="var(--medium)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points={line(series.high)} fill="none" stroke="var(--high)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points={line(series.crit)} fill="none" stroke="var(--critical)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <polyline
+              points={line(series.med)}
+              fill="none"
+              stroke="var(--medium)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points={line(series.high)}
+              fill="none"
+              stroke="var(--high)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points={line(series.crit)}
+              fill="none"
+              stroke="var(--critical)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           {/* The stock, in words rather than as a second line that would be read
               against the same axis as the flow. */}
           <div className="text-[11.5px] text-ink-soft mt-2">
             {tr(
               `${opened} ouvert(s) · ${lastCumulative} au registre en fin de période`,
-              `${opened} opened · ${lastCumulative} in the register at the end of the period`
+              `${opened} opened · ${lastCumulative} in the register at the end of the period`,
             )}
           </div>
         </>
@@ -640,8 +771,18 @@ function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
             variant="first-use"
             icon={ShieldAlert}
             title={tr('Aucune activité récente', 'No recent activity')}
-            description={tr('Les derniers risques ajoutés ou mis à jour apparaîtront ici, du plus critique au moins critique.', 'The most recently added or updated risks appear here, most critical first.')}
-            primaryAction={<Btn label={tr('Créer un risque', 'Create a risk')} icon={Plus} primary onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))} />}
+            description={tr(
+              'Les derniers risques ajoutés ou mis à jour apparaîtront ici, du plus critique au moins critique.',
+              'The most recently added or updated risks appear here, most critical first.',
+            )}
+            primaryAction={
+              <Btn
+                label={tr('Créer un risque', 'Create a risk')}
+                icon={Plus}
+                primary
+                onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+              />
+            }
             className="py-10"
           />
         )}
@@ -655,21 +796,32 @@ function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
           >
             <span
               className="w-[9px] h-[9px] rounded-full shrink-0"
-              style={{ background: critColor[r.crit], boxShadow: r.crit === 'critical' ? '0 0 7px var(--critical)' : 'none' }}
+              style={{
+                background: critColor[r.crit],
+                boxShadow: r.crit === 'critical' ? '0 0 7px var(--critical)' : 'none',
+              }}
             />
             <div className="flex-1 min-w-0">
               <div className="text-[13px] font-medium text-ink truncate">{r.name}</div>
-              <div className="text-[11.5px] text-ink-muted mt-0.5">{r.id} · {r.meta}</div>
+              <div className="text-[11.5px] text-ink-muted mt-0.5">
+                {r.id} · {r.meta}
+              </div>
             </div>
             {r.fw !== '—' && (
               <span
                 className="text-[11px] font-semibold px-2 py-[3px] rounded-md shrink-0"
-                style={{ color: frameworkColor[r.fw] ?? 'var(--fg-secondary)', background: softFill(frameworkColor[r.fw] ?? 'var(--fg-secondary)', 14) }}
+                style={{
+                  color: frameworkColor[r.fw] ?? 'var(--fg-secondary)',
+                  background: softFill(frameworkColor[r.fw] ?? 'var(--fg-secondary)', 14),
+                }}
               >
                 {r.fw}
               </span>
             )}
-            <span className="mono text-[13px] font-bold w-[34px] text-right" style={{ color: critColor[r.crit] }}>
+            <span
+              className="mono text-[13px] font-bold w-[34px] text-right"
+              style={{ color: critColor[r.crit] }}
+            >
               {r.score.toFixed(1)}
             </span>
           </button>
@@ -683,7 +835,12 @@ function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
 // Real "incident in progress": the most recent open/in-progress incident for this
 // tenant with a live duration; an honest empty state when there is none (no more
 // hardcoded INC-2026-014).
-const SEV_COLOR = { critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)' } as const;
+const SEV_COLOR = {
+  critical: 'var(--critical)',
+  high: 'var(--high)',
+  medium: 'var(--medium)',
+  low: 'var(--low)',
+} as const;
 function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
@@ -691,7 +848,9 @@ function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
   const { incidents } = useIncidents({ limit: 20 });
   const [now, setNow] = useState(() => Date.now());
   const active = (incidents ?? []).filter((i) => i.status === 'open' || i.status === 'in_progress');
-  const inc = active.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  const inc = active
+    .slice()
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
   useEffect(() => {
     if (!inc) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -700,17 +859,33 @@ function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
 
   if (!inc) {
     return (
-      <div className="rounded-[16px] p-5 flex flex-col" style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+      <div
+        className="rounded-[16px] p-5 flex flex-col"
+        style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)' }}
+      >
         <div className="flex items-center gap-2 mb-3.5">
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--low)' }} />
-          <span className="text-[11px] font-bold tracking-[0.06em] uppercase text-ink-muted">{L.warTitle}</span>
+          <span className="text-[11px] font-bold tracking-[0.06em] uppercase text-ink-muted">
+            {L.warTitle}
+          </span>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-1.5">
           <ShieldCheck size={26} style={{ color: 'var(--low)' }} />
-          <div className="text-[13.5px] font-semibold text-ink">{tr('Aucun incident en cours', 'No active incident')}</div>
-          <div className="text-[12px] text-ink-muted">{tr('Tout est calme. Les incidents ouverts s’afficheront ici.', 'All clear. Open incidents will appear here.')}</div>
+          <div className="text-[13.5px] font-semibold text-ink">
+            {tr('Aucun incident en cours', 'No active incident')}
+          </div>
+          <div className="text-[12px] text-ink-muted">
+            {tr(
+              'Tout est calme. Les incidents ouverts s’afficheront ici.',
+              'All clear. Open incidents will appear here.',
+            )}
+          </div>
         </div>
-        <button onClick={() => onJoin()} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink transition-colors" style={{ border: '1px solid var(--border-strong)' }}>
+        <button
+          onClick={() => onJoin()}
+          className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink transition-colors"
+          style={{ border: '1px solid var(--border-strong)' }}
+        >
           {tr('Voir les incidents', 'View incidents')}
         </button>
       </div>
@@ -723,20 +898,45 @@ function WarRoomCard({ onJoin }: { onJoin: (incidentId?: number) => void }) {
   const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
   const ss = String(elapsed % 60).padStart(2, '0');
   return (
-    <div className="rounded-[16px] p-5 flex flex-col" style={{ background: `linear-gradient(135deg, color-mix(in srgb,${sevColor} 10%,transparent), color-mix(in srgb,${sevColor} 3%,transparent))`, border: `1px solid color-mix(in srgb,${sevColor} 28%,transparent)` }}>
+    <div
+      className="rounded-[16px] p-5 flex flex-col"
+      style={{
+        background: `linear-gradient(135deg, color-mix(in srgb,${sevColor} 10%,transparent), color-mix(in srgb,${sevColor} 3%,transparent))`,
+        border: `1px solid color-mix(in srgb,${sevColor} 28%,transparent)`,
+      }}
+    >
       <div className="flex items-center gap-2 mb-3.5">
-        <span className="w-2.5 h-2.5 rounded-full" style={{ background: sevColor, animation: 'or-pulsedot 1.4s infinite' }} />
-        <span className="text-[11px] font-bold tracking-[0.06em] uppercase" style={{ color: sevColor }}>{L.warTitle}</span>
+        <span
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ background: sevColor, animation: 'or-pulsedot 1.4s infinite' }}
+        />
+        <span
+          className="text-[11px] font-bold tracking-[0.06em] uppercase"
+          style={{ color: sevColor }}
+        >
+          {L.warTitle}
+        </span>
       </div>
-      <div className="text-[15px] font-semibold text-ink mb-1">INC-{inc.id} · {inc.title}</div>
-      <div className="text-[12.5px] text-ink-soft mb-4 capitalize">{inc.severity} · {inc.status === 'in_progress' ? tr('en cours', 'in progress') : tr('ouvert', 'open')}</div>
+      <div className="text-[15px] font-semibold text-ink mb-1">
+        INC-{inc.id} · {inc.title}
+      </div>
+      <div className="text-[12.5px] text-ink-soft mb-4 capitalize">
+        {inc.severity} ·{' '}
+        {inc.status === 'in_progress' ? tr('en cours', 'in progress') : tr('ouvert', 'open')}
+      </div>
       <div className="flex items-center gap-4 mb-4.5">
         <div>
-          <div className="disp mono text-[22px] font-bold text-ink">{hh}:{mm}:{ss}</div>
+          <div className="disp mono text-[22px] font-bold text-ink">
+            {hh}:{mm}:{ss}
+          </div>
           <div className="text-[11px] text-ink-muted">{tr('Durée', 'Duration')}</div>
         </div>
       </div>
-      <button onClick={() => onJoin(inc.id)} className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary" style={{ background: sevColor }}>
+      <button
+        onClick={() => onJoin(inc.id)}
+        className="mt-auto h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary"
+        style={{ background: sevColor }}
+      >
         <Zap size={16} /> {L.warJoin}
       </button>
     </div>

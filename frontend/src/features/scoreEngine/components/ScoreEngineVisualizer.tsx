@@ -5,7 +5,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Calculator, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import {
+  BarChart3,
+  TrendingUp,
+  Calculator,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   computeRiskScore,
@@ -250,7 +257,9 @@ export const ScoreEngineVisualizer = ({
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-fg-primary dark:text-fg-secondary">Distribution:</p>
+            <p className="text-xs font-semibold text-fg-primary dark:text-fg-secondary">
+              Distribution:
+            </p>
             {metrics.risk_stats.map((stat) => (
               <div key={stat.level} className="flex items-center justify-between text-sm">
                 <span className="capitalize">{stat.level}</span>
@@ -268,7 +277,7 @@ export const ScoreEngineVisualizer = ({
                     style={{
                       width: `${Math.max(
                         (stat.count / Math.max(...metrics.risk_stats.map((s) => s.count))) * 100,
-                        5
+                        5,
                       )}%`,
                     }}
                   />

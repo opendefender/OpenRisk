@@ -159,14 +159,22 @@ export default {
 
       FunctionDeclaration(node) {
         if (node.id && isFabricationName(node.id.name)) {
-          context.report({ node: node.id, messageId: 'fabricatedIdentifier', data: { name: node.id.name } });
+          context.report({
+            node: node.id,
+            messageId: 'fabricatedIdentifier',
+            data: { name: node.id.name },
+          });
         }
       },
 
       // Class fields and object properties: `const cfg = { mockRows: [...] }`.
       PropertyDefinition(node) {
         if (node.key?.type === 'Identifier' && isFabricationName(node.key.name)) {
-          context.report({ node: node.key, messageId: 'fabricatedIdentifier', data: { name: node.key.name } });
+          context.report({
+            node: node.key,
+            messageId: 'fabricatedIdentifier',
+            data: { name: node.key.name },
+          });
         }
       },
 
@@ -184,8 +192,17 @@ export default {
         }
         // Shorthand `{ mockRows }` is already reported at its declaration; only
         // flag explicit keys, to avoid double-reporting the same binding.
-        if (!node.computed && !node.shorthand && node.key.type === 'Identifier' && isFabricationName(node.key.name)) {
-          context.report({ node: node.key, messageId: 'fabricatedIdentifier', data: { name: node.key.name } });
+        if (
+          !node.computed &&
+          !node.shorthand &&
+          node.key.type === 'Identifier' &&
+          isFabricationName(node.key.name)
+        ) {
+          context.report({
+            node: node.key,
+            messageId: 'fabricatedIdentifier',
+            data: { name: node.key.name },
+          });
         }
       },
     };

@@ -29,7 +29,10 @@ import { WidgetState } from './WidgetState';
 import { DashboardShell, PersonaHeader, KpiRow, Card, type KpiSpec } from './shared';
 
 const CRIT_COL: Record<string, string> = {
-  CRITICAL: 'var(--critical)', HIGH: 'var(--high)', MEDIUM: 'var(--medium)', LOW: 'var(--low)',
+  CRITICAL: 'var(--critical)',
+  HIGH: 'var(--high)',
+  MEDIUM: 'var(--medium)',
+  LOW: 'var(--low)',
 };
 const CRIT_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
@@ -46,30 +49,46 @@ export function EstateDashboard() {
   const byCrit = stats?.by_criticality ?? {};
 
   const critical = useMemo(
-    () => [...assets]
-      .filter((a) => ['CRITICAL', 'HIGH'].includes(norm(a.criticality)))
-      .sort((a, b) => CRIT_ORDER.indexOf(norm(a.criticality)) - CRIT_ORDER.indexOf(norm(b.criticality)))
-      .slice(0, 6),
-    [assets]
+    () =>
+      [...assets]
+        .filter((a) => ['CRITICAL', 'HIGH'].includes(norm(a.criticality)))
+        .sort(
+          (a, b) =>
+            CRIT_ORDER.indexOf(norm(a.criticality)) - CRIT_ORDER.indexOf(norm(b.criticality)),
+        )
+        .slice(0, 6),
+    [assets],
   );
 
   // Each tile carries its own filter into the inventory. "Critical — 7" opens
   // the seven assets it counted, not the whole estate.
   const kpis: KpiSpec[] = [
     {
-      label: tr('Actifs', 'Assets'), val: stats?.total ?? 0, icon: Database, col: 'var(--accent)',
+      label: tr('Actifs', 'Assets'),
+      val: stats?.total ?? 0,
+      icon: Database,
+      col: 'var(--accent)',
       onClick: () => navigate(deepLink('assets')),
     },
     {
-      label: tr('Critiques', 'Critical'), val: byCrit.CRITICAL ?? 0, icon: AlertTriangle, col: 'var(--critical)',
+      label: tr('Critiques', 'Critical'),
+      val: byCrit.CRITICAL ?? 0,
+      icon: AlertTriangle,
+      col: 'var(--critical)',
       onClick: () => navigate(deepLink('assets', { filters: { criticality: 'critical' } })),
     },
     {
-      label: tr('Élevés', 'High'), val: byCrit.HIGH ?? 0, icon: ShieldAlert, col: 'var(--high)',
+      label: tr('Élevés', 'High'),
+      val: byCrit.HIGH ?? 0,
+      icon: ShieldAlert,
+      col: 'var(--high)',
       onClick: () => navigate(deepLink('assets', { filters: { criticality: 'high' } })),
     },
     {
-      label: tr('Types', 'Types'), val: stats?.distinct_types ?? 0, icon: Boxes, col: 'var(--low)',
+      label: tr('Types', 'Types'),
+      val: stats?.distinct_types ?? 0,
+      icon: Boxes,
+      col: 'var(--low)',
       onClick: () => navigate(deepLink('assets')),
     },
   ];
@@ -82,7 +101,10 @@ export function EstateDashboard() {
         <div className="flex-1 min-w-[240px]">
           <PersonaHeader
             title={tr('Patrimoine', 'Estate')}
-            subtitle={tr('Ce que vous protégez : inventaire, criticité et dépendances.', 'What you protect: inventory, criticality and dependencies.')}
+            subtitle={tr(
+              'Ce que vous protégez : inventaire, criticité et dépendances.',
+              'What you protect: inventory, criticality and dependencies.',
+            )}
             actionLabel={tr('Vue Univers', 'Universe view')}
             onAction={() => navigate('/assets/topology')}
           />
@@ -96,7 +118,7 @@ export function EstateDashboard() {
           // assets exist is not a question a date range changes.
           scopeNote={tr(
             'Filtre uniquement « ajoutés sur la période ». L’inventaire et la répartition par criticité donnent l’état actuel du parc.',
-            'Filters "added in period" only. The inventory counters and the criticality mix show the estate as it stands now.'
+            'Filters "added in period" only. The inventory counters and the criticality mix show the estate as it stands now.',
           )}
         />
       </div>
@@ -115,7 +137,7 @@ export function EstateDashboard() {
               <span>
                 {tr(
                   `${stats?.added_in_period ?? 0} ajouté(s) sur la période (${periodLabel(selection, lang)})`,
-                  `${stats?.added_in_period ?? 0} added in the selected period (${periodLabel(selection, lang)})`
+                  `${stats?.added_in_period ?? 0} added in the selected period (${periodLabel(selection, lang)})`,
                 )}
               </span>
               {/* Stated rather than dropped: these rows are part of the total
@@ -124,7 +146,7 @@ export function EstateDashboard() {
                 <span>
                   {tr(
                     `${stats.uncategorised} sans catégorie`,
-                    `${stats.uncategorised} with no category`
+                    `${stats.uncategorised} with no category`,
                   )}
                 </span>
               )}
@@ -132,7 +154,7 @@ export function EstateDashboard() {
                 <span>
                   {tr(
                     `+${stats.types_truncated} autre(s) type(s) non affiché(s)`,
-                    `+${stats.types_truncated} more type(s) not shown`
+                    `+${stats.types_truncated} more type(s) not shown`,
                   )}
                 </span>
               )}
@@ -144,9 +166,13 @@ export function EstateDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
         <Card style={{ padding: '18px 14px' }}>
           <div className="flex items-center justify-between mb-2 px-2">
-            <div className="text-[14px] font-semibold text-ink">{tr('Actifs critiques', 'Critical assets')}</div>
+            <div className="text-[14px] font-semibold text-ink">
+              {tr('Actifs critiques', 'Critical assets')}
+            </div>
             <button
-              onClick={() => navigate(deepLink('assets', { filters: { criticality: ['critical', 'high'] } }))}
+              onClick={() =>
+                navigate(deepLink('assets', { filters: { criticality: ['critical', 'high'] } }))
+              }
               className="text-[12px] font-semibold text-accent hover:underline"
             >
               {tr('Inventaire', 'Inventory')}
@@ -162,7 +188,7 @@ export function EstateDashboard() {
             emptyTitle={tr('Aucun actif critique', 'No critical asset')}
             emptyDescription={tr(
               'Les actifs classés critiques ou élevés apparaissent ici, les plus critiques en premier.',
-              'Assets rated critical or high appear here, most critical first.'
+              'Assets rated critical or high appear here, most critical first.',
             )}
             emptyAction={
               <button
@@ -178,13 +204,28 @@ export function EstateDashboard() {
               {critical.map((a) => {
                 const col = CRIT_COL[norm(a.criticality)] ?? 'var(--fg-muted)';
                 return (
-                  <button key={a.id} onClick={() => navigate(deepLink('assets', { focus: String(a.id) }))} className="w-full flex items-center gap-3 px-2 py-[11px] rounded-[10px] hover:bg-hover transition-colors text-left">
-                    <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: col }} />
+                  <button
+                    key={a.id}
+                    onClick={() => navigate(deepLink('assets', { focus: String(a.id) }))}
+                    className="w-full flex items-center gap-3 px-2 py-[11px] rounded-[10px] hover:bg-hover transition-colors text-left"
+                  >
+                    <span
+                      className="w-[9px] h-[9px] rounded-full shrink-0"
+                      style={{ background: col }}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium text-ink truncate">{a.name}</div>
-                      <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">{a.type || '—'}</div>
+                      <div className="text-[11.5px] text-ink-muted mt-0.5 truncate">
+                        {a.type || '—'}
+                      </div>
                     </div>
-                    <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ color: col, background: `color-mix(in srgb, ${col} 15%, transparent)` }}>
+                    <span
+                      className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded shrink-0"
+                      style={{
+                        color: col,
+                        background: `color-mix(in srgb, ${col} 15%, transparent)`,
+                      }}
+                    >
                       {norm(a.criticality)}
                     </span>
                   </button>
@@ -195,7 +236,9 @@ export function EstateDashboard() {
         </Card>
 
         <Card style={{ padding: '18px 20px' }}>
-          <div className="text-[14px] font-semibold text-ink mb-4">{tr('Par criticité', 'By criticality')}</div>
+          <div className="text-[14px] font-semibold text-ink mb-4">
+            {tr('Par criticité', 'By criticality')}
+          </div>
           <WidgetState
             lang={lang}
             isLoading={statsQuery.isLoading}
@@ -210,15 +253,29 @@ export function EstateDashboard() {
                 return (
                   <button
                     key={c}
-                    onClick={() => navigate(deepLink('assets', { filters: { criticality: c.toLowerCase() } }))}
+                    onClick={() =>
+                      navigate(deepLink('assets', { filters: { criticality: c.toLowerCase() } }))
+                    }
                     className="w-full text-left"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[12px] font-medium capitalize" style={{ color: col }}>{c.toLowerCase()}</span>
+                      <span className="text-[12px] font-medium capitalize" style={{ color: col }}>
+                        {c.toLowerCase()}
+                      </span>
                       <span className="mono text-[12px] font-semibold text-ink-soft">{n}</span>
                     </div>
-                    <div className="h-[6px] rounded-full overflow-hidden" style={{ background: 'var(--bg-hover)' }}>
-                      <div className="h-full rounded-full" style={{ width: `${(n / maxCrit) * 100}%`, background: col, transition: 'width .7s cubic-bezier(.2,.8,.2,1)' }} />
+                    <div
+                      className="h-[6px] rounded-full overflow-hidden"
+                      style={{ background: 'var(--bg-hover)' }}
+                    >
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(n / maxCrit) * 100}%`,
+                          background: col,
+                          transition: 'width .7s cubic-bezier(.2,.8,.2,1)',
+                        }}
+                      />
                     </div>
                   </button>
                 );

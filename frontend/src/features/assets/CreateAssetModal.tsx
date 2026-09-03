@@ -81,8 +81,7 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
   // The category defaults from the chosen type but stays overridable: the two
   // vocabularies serve different purposes (display vs. schema selection).
   const [categoryOverride, setCategoryOverride] = useState<AssetCategory | ''>('');
-  const category: AssetCategory | '' =
-    categoryOverride || CATEGORY_FOR_TYPE[selectedType] || '';
+  const category: AssetCategory | '' = categoryOverride || CATEGORY_FOR_TYPE[selectedType] || '';
   const defs = defsFor(category);
 
   const [attributes, setAttributes] = useState<AttributeBag>({});
@@ -147,93 +146,94 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
 
               <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6 scrollbar-thin">
-                <Field label={t('assets.form.name')} message={errors.name?.message} status={errors.name?.message ? 'invalid' : 'default'}>
-                  <Input
-                    {...register('name')}
-                    disabled={isSubmitting}
-                    placeholder="Production-DB-01"
-                    autoFocus
-                  />
-                </Field>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                      {t('assets.form.type')}
-                    </label>
-                    <select
-                      {...register('type')}
-                      disabled={isSubmitting}
-                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                    >
-                      {ASSET_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                      {t('assets.form.criticality')}
-                    </label>
-                    <select
-                      {...register('criticality')}
-                      disabled={isSubmitting}
-                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                    >
-                      {ASSET_CRITICALITIES.map((level) => (
-                        <option key={level} value={level}>
-                          {t(`assets.criticality.${level}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <Field label={t('assets.form.owner')}>
-                  <Input
-                    {...register('owner')}
-                    disabled={isSubmitting}
-                    placeholder="IT Dept"
-                  />
-                </Field>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                    {t('assets.form.category', 'Catégorie typée')}
-                  </label>
-                  <select
-                    value={category}
-                    disabled={isSubmitting}
-                    onChange={(e) => {
-                      setCategoryOverride(e.target.value as AssetCategory | '');
-                      // The old bag belongs to the old schema; carrying it over
-                      // would submit attributes the new category never declared.
-                      setAttributes({});
-                    }}
-                    className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  <Field
+                    label={t('assets.form.name')}
+                    message={errors.name?.message}
+                    status={errors.name?.message ? 'invalid' : 'default'}
                   >
-                    <option value="">{t('assets.form.noCategory', 'Aucune (sans attributs typés)')}</option>
-                    {ASSET_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {CATEGORY_LABELS[cat]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {category && defs.length > 0 ? (
-                  <div className="rounded-2xl border border-border p-4">
-                    <AttributeForm
-                      defs={defs}
-                      values={attributes}
-                      onChange={setAttributes}
+                    <Input
+                      {...register('name')}
                       disabled={isSubmitting}
+                      placeholder="Production-DB-01"
+                      autoFocus
                     />
-                  </div>
-                ) : null}
+                  </Field>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                        {t('assets.form.type')}
+                      </label>
+                      <select
+                        {...register('type')}
+                        disabled={isSubmitting}
+                        className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                      >
+                        {ASSET_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                        {t('assets.form.criticality')}
+                      </label>
+                      <select
+                        {...register('criticality')}
+                        disabled={isSubmitting}
+                        className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                      >
+                        {ASSET_CRITICALITIES.map((level) => (
+                          <option key={level} value={level}>
+                            {t(`assets.criticality.${level}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <Field label={t('assets.form.owner')}>
+                    <Input {...register('owner')} disabled={isSubmitting} placeholder="IT Dept" />
+                  </Field>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                      {t('assets.form.category', 'Catégorie typée')}
+                    </label>
+                    <select
+                      value={category}
+                      disabled={isSubmitting}
+                      onChange={(e) => {
+                        setCategoryOverride(e.target.value as AssetCategory | '');
+                        // The old bag belongs to the old schema; carrying it over
+                        // would submit attributes the new category never declared.
+                        setAttributes({});
+                      }}
+                      className="w-full h-10 rounded-lg border border-border bg-elevated px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                    >
+                      <option value="">
+                        {t('assets.form.noCategory', 'Aucune (sans attributs typés)')}
+                      </option>
+                      {ASSET_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {CATEGORY_LABELS[cat]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {category && defs.length > 0 ? (
+                    <div className="rounded-2xl border border-border p-4">
+                      <AttributeForm
+                        defs={defs}
+                        values={attributes}
+                        onChange={setAttributes}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-elevated px-6 py-4">

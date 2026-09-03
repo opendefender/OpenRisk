@@ -45,9 +45,18 @@ export const CompliancePage = () => {
     openControlDrawer,
   } = useComplianceUIStore();
 
-  const { frameworks, isLoading: frameworksLoading, error: frameworksError, deleteFramework } = useFrameworks();
-  const { controls, isLoading: controlsLoading, error: controlsError, updateControl } =
-    useControls(selectedFrameworkId ?? undefined);
+  const {
+    frameworks,
+    isLoading: frameworksLoading,
+    error: frameworksError,
+    deleteFramework,
+  } = useFrameworks();
+  const {
+    controls,
+    isLoading: controlsLoading,
+    error: controlsError,
+    updateControl,
+  } = useControls(selectedFrameworkId ?? undefined);
 
   const handleDeleteFramework = (id: string, name: string) => {
     if (!window.confirm(t('compliance.deleteFrameworkConfirm').replace('{name}', name))) return;
@@ -70,7 +79,7 @@ export const CompliancePage = () => {
   const handleStatusChange = (controlId: string, status: ControlStatus) => {
     updateControl.mutate(
       { id: controlId, payload: { status } },
-      { onError: () => toast.error(t('errors.failedToUpdateControl')) }
+      { onError: () => toast.error(t('errors.failedToUpdateControl')) },
     );
   };
 
@@ -81,7 +90,7 @@ export const CompliancePage = () => {
       {
         onSuccess: () => toast.success(t('compliance.report.success')),
         onError: () => toast.error(t('compliance.report.error')),
-      }
+      },
     );
   };
 
@@ -91,153 +100,191 @@ export const CompliancePage = () => {
     // controls) would be clipped with no way to scroll down.
     <div className="h-full overflow-y-auto">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-fg-primary">{t('compliance.title')}</h1>
-          <p className="text-sm text-fg-muted">{t('compliance.description')}</p>
-        </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2">
-            <Button variant="primary" onClick={openImportCatalogModal} className="gap-2">
-              <Library size={16} />
-              {t('compliance.catalog.buttonLabel')}
-            </Button>
-            <Button variant="ghost" onClick={openCreateFrameworkModal} className="gap-2">
-              <Plus size={16} />
-              {t('compliance.createFramework')}
-            </Button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-fg-primary">{t('compliance.title')}</h1>
+            <p className="text-sm text-fg-muted">{t('compliance.description')}</p>
           </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
-        {/* Framework rail */}
-        <div className="space-y-2">
-          {frameworksLoading ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-11 animate-pulse rounded-xl bg-surface-1" />
-              ))}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <Button variant="primary" onClick={openImportCatalogModal} className="gap-2">
+                <Library size={16} />
+                {t('compliance.catalog.buttonLabel')}
+              </Button>
+              <Button variant="ghost" onClick={openCreateFrameworkModal} className="gap-2">
+                <Plus size={16} />
+                {t('compliance.createFramework')}
+              </Button>
             </div>
-          ) : frameworksError ? (
-            <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
-          ) : frameworks.length === 0 ? (
-            <EmptyState
-              icon={ShieldCheck}
-              title={t('compliance.noFrameworks')}
-              description={t('compliance.noFrameworksDescription')}
-              primaryAction={isAdmin ? <Btn label={t('compliance.catalog.buttonLabel')} primary onClick={openImportCatalogModal} /> : undefined}
-            />
-          ) : (
-            frameworks.map((framework, index) => (
-              <motion.div
-                key={framework.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: Math.min(index * 0.03, 0.3) }}
-                className={`group relative rounded-xl border transition-all ${
-                  selectedFrameworkId === framework.id
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border-subtle bg-surface-0/40 hover:border-border-default'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => framework.id && selectFramework(framework.id)}
-                  className={`w-full rounded-xl px-4 py-2.5 pr-10 text-left text-sm transition-colors ${
-                    selectedFrameworkId === framework.id ? 'text-fg-primary' : 'text-fg-secondary group-hover:text-fg-primary'
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+          {/* Framework rail */}
+          <div className="space-y-2">
+            {frameworksLoading ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-11 animate-pulse rounded-xl bg-surface-1" />
+                ))}
+              </div>
+            ) : frameworksError ? (
+              <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
+            ) : frameworks.length === 0 ? (
+              <EmptyState
+                icon={ShieldCheck}
+                title={t('compliance.noFrameworks')}
+                description={t('compliance.noFrameworksDescription')}
+                primaryAction={
+                  isAdmin ? (
+                    <Btn
+                      label={t('compliance.catalog.buttonLabel')}
+                      primary
+                      onClick={openImportCatalogModal}
+                    />
+                  ) : undefined
+                }
+              />
+            ) : (
+              frameworks.map((framework, index) => (
+                <motion.div
+                  key={framework.id}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                  className={`group relative rounded-xl border transition-all ${
+                    selectedFrameworkId === framework.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border-subtle bg-surface-0/40 hover:border-border-default'
                   }`}
                 >
-                  <div className="font-medium">{framework.name}</div>
-                  {framework.version && <div className="text-xs text-fg-muted">{framework.version}</div>}
-                </button>
-                {isAdmin && framework.id && (
                   <button
                     type="button"
-                    aria-label={t('compliance.deleteFramework')}
-                    title={t('compliance.deleteFramework')}
-                    onClick={() => handleDeleteFramework(framework.id as string, framework.name)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-fg-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger-text focus:opacity-100 group-hover:opacity-100"
+                    onClick={() => framework.id && selectFramework(framework.id)}
+                    className={`w-full rounded-xl px-4 py-2.5 pr-10 text-left text-sm transition-colors ${
+                      selectedFrameworkId === framework.id
+                        ? 'text-fg-primary'
+                        : 'text-fg-secondary group-hover:text-fg-primary'
+                    }`}
                   >
-                    <Trash2 size={15} />
+                    <div className="font-medium">{framework.name}</div>
+                    {framework.version && (
+                      <div className="text-xs text-fg-muted">{framework.version}</div>
+                    )}
                   </button>
-                )}
-              </motion.div>
-            ))
-          )}
-        </div>
+                  {isAdmin && framework.id && (
+                    <button
+                      type="button"
+                      aria-label={t('compliance.deleteFramework')}
+                      title={t('compliance.deleteFramework')}
+                      onClick={() => handleDeleteFramework(framework.id as string, framework.name)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-fg-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger-text focus:opacity-100 group-hover:opacity-100"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </motion.div>
+              ))
+            )}
+          </div>
 
-        {/* Controls panel */}
-        <div className="space-y-4">
-          {!selectedFrameworkId ? (
-            <EmptyState variant="no-results" icon={ShieldCheck} title={t('compliance.selectFramework')} />
-          ) : (
-            <>
-              <ComplianceGauge progress={computeComplianceProgress(selectedFrameworkId, controls)} />
-
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-fg-muted">
-                  {t('compliance.controls')}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleDownloadReport}
-                    disabled={report.isPending}
-                    className="gap-2"
-                    title={t('compliance.report.hint')}
-                  >
-                    <FileDown size={14} />
-                    {report.isPending ? t('compliance.report.generating') : t('compliance.report.buttonLabel')}
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={openCreateControlModal} className="gap-2">
-                    <Plus size={14} />
-                    {t('compliance.addControl')}
-                  </Button>
-                </div>
-              </div>
-
-              {controlsLoading ? (
-                <SkeletonTable rows={5} columns={4} />
-              ) : controlsError ? (
-                <div className="rounded-2xl border border-red-900/40 bg-danger-surface p-6 text-center">
-                  <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
-                </div>
-              ) : controls.length === 0 ? (
-                <EmptyState
-                  icon={ClipboardList}
-                  title={t('compliance.noControls')}
-                  description={t('compliance.noControlsDescription')}
-                  primaryAction={<Btn label={t('compliance.addControl')} primary onClick={openCreateControlModal} />}
+          {/* Controls panel */}
+          <div className="space-y-4">
+            {!selectedFrameworkId ? (
+              <EmptyState
+                variant="no-results"
+                icon={ShieldCheck}
+                title={t('compliance.selectFramework')}
+              />
+            ) : (
+              <>
+                <ComplianceGauge
+                  progress={computeComplianceProgress(selectedFrameworkId, controls)}
                 />
-              ) : (
-                <ControlTable controls={controls} onOpenControl={openControlDrawer} onStatusChange={handleStatusChange} />
-              )}
-            </>
-          )}
-        </div>
-      </div>
 
-      <CreateFrameworkModal isOpen={isCreateFrameworkModalOpen} onClose={closeCreateFrameworkModal} />
-      {/* Catalog import is page-level: it creates/reuses its own framework, so it must
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-fg-muted">
+                    {t('compliance.controls')}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDownloadReport}
+                      disabled={report.isPending}
+                      className="gap-2"
+                      title={t('compliance.report.hint')}
+                    >
+                      <FileDown size={14} />
+                      {report.isPending
+                        ? t('compliance.report.generating')
+                        : t('compliance.report.buttonLabel')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={openCreateControlModal}
+                      className="gap-2"
+                    >
+                      <Plus size={14} />
+                      {t('compliance.addControl')}
+                    </Button>
+                  </div>
+                </div>
+
+                {controlsLoading ? (
+                  <SkeletonTable rows={5} columns={4} />
+                ) : controlsError ? (
+                  <div className="rounded-2xl border border-red-900/40 bg-danger-surface p-6 text-center">
+                    <p className="text-sm text-danger-text">{t('errors.networkError')}</p>
+                  </div>
+                ) : controls.length === 0 ? (
+                  <EmptyState
+                    icon={ClipboardList}
+                    title={t('compliance.noControls')}
+                    description={t('compliance.noControlsDescription')}
+                    primaryAction={
+                      <Btn
+                        label={t('compliance.addControl')}
+                        primary
+                        onClick={openCreateControlModal}
+                      />
+                    }
+                  />
+                ) : (
+                  <ControlTable
+                    controls={controls}
+                    onOpenControl={openControlDrawer}
+                    onStatusChange={handleStatusChange}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <CreateFrameworkModal
+          isOpen={isCreateFrameworkModalOpen}
+          onClose={closeCreateFrameworkModal}
+        />
+        {/* Catalog import is page-level: it creates/reuses its own framework, so it must
           work even when no framework is selected (or none exist yet). On success we
           select the imported framework so its controls show immediately. */}
-      <ImportCatalogModal
-        isOpen={isImportCatalogModalOpen}
-        onClose={closeImportCatalogModal}
-        onImported={(id) => selectFramework(id)}
-      />
-      {selectedFrameworkId && (
-        <>
-          <CreateControlModal
-            isOpen={isCreateControlModalOpen}
-            onClose={closeCreateControlModal}
-            frameworkId={selectedFrameworkId}
-          />
-          <ControlDrawer frameworkId={selectedFrameworkId} />
-        </>
-      )}
+        <ImportCatalogModal
+          isOpen={isImportCatalogModalOpen}
+          onClose={closeImportCatalogModal}
+          onImported={(id) => selectFramework(id)}
+        />
+        {selectedFrameworkId && (
+          <>
+            <CreateControlModal
+              isOpen={isCreateControlModalOpen}
+              onClose={closeCreateControlModal}
+              frameworkId={selectedFrameworkId}
+            />
+            <ControlDrawer frameworkId={selectedFrameworkId} />
+          </>
+        )}
       </div>
     </div>
   );

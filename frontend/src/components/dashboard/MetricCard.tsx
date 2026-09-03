@@ -76,7 +76,8 @@ const MetricCard: React.FC<MetricCardProps> = ({
           {trend === 'up' && <TrendingUp size={14} className={getTrendColor()} />}
           {trend === 'down' && <TrendingDown size={14} className={getTrendColor()} />}
           <span className={`text-sm font-medium ${getTrendColor()}`}>
-            {isPositive ? '+' : ''}{changePercent ?? change}
+            {isPositive ? '+' : ''}
+            {changePercent ?? change}
             {changePercent ? '%' : ''} vs last period
           </span>
         </div>

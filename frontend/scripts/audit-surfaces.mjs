@@ -96,7 +96,8 @@ function reachableFrom(graph, entry) {
 // "preview" route historically meant "we have not built this yet"; the one
 // legitimate use (the scan preview, which shows real discovered assets before
 // import) is declared below rather than pattern-matched away.
-const PLACEHOLDER_PATH = /\b(demo|mock|placeholder|coming-?soon|experimental|dummy|fixture|sandbox)\b/i;
+const PLACEHOLDER_PATH =
+  /\b(demo|mock|placeholder|coming-?soon|experimental|dummy|fixture|sandbox)\b/i;
 
 // Paths that match the pattern but are genuinely implemented. Each needs a
 // reason, so an exception is a decision recorded in review rather than a
@@ -144,7 +145,9 @@ function checkFixtureLeakage(reachable) {
     }
     for (const dir of FIXTURE_DIRS) {
       if (file.startsWith(normalize(dir) + '/')) {
-        violations.push(`${relative(ROOT, file)} is fixture/test data but is reachable from main.tsx`);
+        violations.push(
+          `${relative(ROOT, file)} is fixture/test data but is reachable from main.tsx`,
+        );
       }
     }
   }
@@ -157,7 +160,8 @@ function checkFixtureLeakage(reachable) {
 
 // Any prop that gives a button an effect. A spread (`{...props}`) may carry one,
 // so a spread counts: the alternative is flagging every wrapper component.
-const INTERACTIVE = /\bon(Click|MouseDown|PointerDown|KeyDown|Submit)\b|\btype\s*=\s*["{]?submit|\.\.\./;
+const INTERACTIVE =
+  /\bon(Click|MouseDown|PointerDown|KeyDown|Submit)\b|\btype\s*=\s*["{]?submit|\.\.\./;
 
 /**
  * Reads the opening tag of a `<button>`, tracking brace depth so a `>` inside a
@@ -176,7 +180,9 @@ function openingTag(source, from) {
 
 /** Strips comments, so a `<button>` discussed in prose is not parsed as one. */
 function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/\/\/[^\n]*/g, '');
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\/[^\n]*/g, '');
 }
 
 function checkInertActions(reachable) {

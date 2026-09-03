@@ -106,7 +106,7 @@ export function createLayout(
   edges: TopologyEdge[],
   width: number,
   height: number,
-  mode: LayoutMode = 'zones'
+  mode: LayoutMode = 'zones',
 ): LayoutState {
   const zones = [...new Set(nodes.map((n) => n.zone ?? 'unknown'))];
   const zoneAnchors = new Map<string, { x: number; y: number }>();

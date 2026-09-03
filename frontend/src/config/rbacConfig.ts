@@ -69,10 +69,7 @@ export const ROLE_TEMPLATES = {
     name: 'Viewer',
     level: 0,
     description: 'Read-only access to dashboards and reports',
-    permissions: [
-      'dashboards:read',
-      'audit-logs:read',
-    ],
+    permissions: ['dashboards:read', 'audit-logs:read'],
     features: ['audit-logs'],
   },
   ANALYST: {
@@ -145,15 +142,15 @@ export const PERMISSION_REQUIREMENTS = {
   VIEW_DASHBOARDS: ['dashboards:read'],
   CREATE_DASHBOARD: ['dashboards:create'],
   MANAGE_DASHBOARDS: ['dashboards:manage'],
-  
+
   VIEW_USERS: ['users:read'],
   MANAGE_USERS: ['users:create', 'users:update', 'users:delete'],
-  
+
   VIEW_ROLES: ['roles:read'],
   MANAGE_ROLES: ['roles:manage', 'permissions:manage'],
-  
+
   MANAGE_TENANTS: ['tenants:manage'],
-  
+
   VIEW_AUDIT_LOGS: ['audit-logs:read'],
   MANAGE_SETTINGS: ['settings:manage'],
   MANAGE_INTEGRATIONS: ['integrations:manage'],
@@ -183,14 +180,15 @@ export const buildPermission = (resource: PermissionResource, action: Permission
  * Helper to get all permissions for a role template
  */
 export const getRolePermissions = (roleLevel: number | string) => {
-  const roleKey = typeof roleLevel === 'string' 
-    ? roleLevel.toUpperCase() 
-    : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[0];
-  
+  const roleKey =
+    typeof roleLevel === 'string'
+      ? roleLevel.toUpperCase()
+      : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[0];
+
   if (!roleKey || !(roleKey in ROLE_TEMPLATES)) {
     return [];
   }
-  
+
   return ROLE_TEMPLATES[roleKey as keyof typeof ROLE_TEMPLATES].permissions;
 };
 
@@ -198,14 +196,15 @@ export const getRolePermissions = (roleLevel: number | string) => {
  * Helper to get features for a role
  */
 export const getRoleFeatures = (roleLevel: number | string) => {
-  const roleKey = typeof roleLevel === 'string' 
-    ? roleLevel.toUpperCase() 
-    : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[0];
-  
+  const roleKey =
+    typeof roleLevel === 'string'
+      ? roleLevel.toUpperCase()
+      : Object.entries(ROLE_TEMPLATES).find(([, template]) => template.level === roleLevel)?.[0];
+
   if (!roleKey || !(roleKey in ROLE_TEMPLATES)) {
     return [];
   }
-  
+
   return ROLE_TEMPLATES[roleKey as keyof typeof ROLE_TEMPLATES].features;
 };
 

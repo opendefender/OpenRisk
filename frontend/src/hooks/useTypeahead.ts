@@ -139,7 +139,7 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
         console.error('Failed to save recent search:', error);
       }
     },
-    [enableRecentSearches, storageKey]
+    [enableRecentSearches, storageKey],
   );
 
   // Debounced search function
@@ -164,20 +164,16 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
           limit: Math.min(maxResults * 2, 50), // Get more, then filter
         });
 
-        let results: TypeaheadResult[] = response.items.map(
-          (risk: Risk) => ({
-            id: risk.id,
-            title: risk.title,
-            description: risk.description,
-            score: risk.score,
-            impact: risk.impact,
-            probability: risk.probability,
-            matchScore: enableFuzzyMatch
-              ? calculateFuzzyScore(query, risk.title)
-              : 1,
-            type: 'risk' as const,
-          })
-        );
+        let results: TypeaheadResult[] = response.items.map((risk: Risk) => ({
+          id: risk.id,
+          title: risk.title,
+          description: risk.description,
+          score: risk.score,
+          impact: risk.impact,
+          probability: risk.probability,
+          matchScore: enableFuzzyMatch ? calculateFuzzyScore(query, risk.title) : 1,
+          type: 'risk' as const,
+        }));
 
         // Sort by fuzzy match score if enabled
         if (enableFuzzyMatch) {
@@ -204,7 +200,7 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
         }));
       }
     },
-    [minChars, maxResults, enableFuzzyMatch]
+    [minChars, maxResults, enableFuzzyMatch],
   );
 
   // Handle input change with debouncing
@@ -220,7 +216,7 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
         performSearch(query);
       }, debounceMs);
     },
-    [debounceMs, minChars, performSearch]
+    [debounceMs, minChars, performSearch],
   );
 
   // Handle keyboard navigation
@@ -279,7 +275,7 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
 
       return null;
     },
-    [state, enableRecentSearches, minChars, saveRecentSearch]
+    [state, enableRecentSearches, minChars, saveRecentSearch],
   );
 
   // Scroll selected item into view
@@ -295,10 +291,7 @@ export function useTypeahead(config: TypeaheadConfig = {}) {
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setState((prev) => ({ ...prev, isOpen: false }));
       }
     };

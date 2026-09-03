@@ -13,7 +13,12 @@ import { toast } from 'sonner';
 
 import { useUIStore } from '../../store/uiStore';
 import { DangerConfirm } from '../../shared/DangerConfirm';
-import { listSessions, revokeOtherSessions, revokeSession, type SessionRecord } from './authService';
+import {
+  listSessions,
+  revokeOtherSessions,
+  revokeSession,
+  type SessionRecord,
+} from './authService';
 
 const copyFor = (lang: 'fr' | 'en') =>
   lang === 'en'
@@ -27,7 +32,8 @@ const copyFor = (lang: 'fr' | 'en') =>
         revoke: 'Sign out',
         revokeOthers: 'Sign out all other devices',
         empty: 'No other device is signed in.',
-        loadError: 'Could not load your sessions. Refresh the page, or contact an administrator if it persists.',
+        loadError:
+          'Could not load your sessions. Refresh the page, or contact an administrator if it persists.',
         revoked: 'Device signed out.',
         revokedMany: (n: number) => `${n} device${n === 1 ? '' : 's'} signed out.`,
         revokeFailed: 'Could not sign that device out. Try again in a moment.',
@@ -55,7 +61,8 @@ const copyFor = (lang: 'fr' | 'en') =>
         loadError:
           'Impossible de charger vos sessions. Rechargez la page, ou contactez un administrateur si cela persiste.',
         revoked: 'Appareil déconnecté.',
-        revokedMany: (n: number) => `${n} appareil${n === 1 ? '' : 's'} déconnecté${n === 1 ? '' : 's'}.`,
+        revokedMany: (n: number) =>
+          `${n} appareil${n === 1 ? '' : 's'} déconnecté${n === 1 ? '' : 's'}.`,
         revokeFailed: 'Impossible de déconnecter cet appareil. Réessayez dans un instant.',
         confirmTitle: 'Déconnecter cet appareil ?',
         confirmBody:
@@ -146,7 +153,11 @@ export function SessionsPanel() {
       {loading && (
         <div className="space-y-2" aria-busy="true">
           {[0, 1].map((i) => (
-            <div key={i} className="h-[62px] rounded-[11px]" style={{ background: 'var(--bg-hover)' }} />
+            <div
+              key={i}
+              className="h-[62px] rounded-[11px]"
+              style={{ background: 'var(--bg-hover)' }}
+            />
           ))}
         </div>
       )}
@@ -173,7 +184,10 @@ export function SessionsPanel() {
                 key={s.id}
                 data-testid="session-row"
                 className="flex items-center gap-3 px-3.5 py-3 rounded-[11px]"
-                style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+                style={{
+                  border: '1px solid var(--border-strong)',
+                  background: 'var(--bg-elevated)',
+                }}
               >
                 <Monitor size={18} className="text-ink-muted shrink-0" />
                 <div className="min-w-0 flex-1">
@@ -206,7 +220,11 @@ export function SessionsPanel() {
                     className="shrink-0 h-8 px-3 rounded-[9px] text-[12.5px] font-medium flex items-center gap-1.5 transition-colors"
                     style={{ border: '1px solid var(--border-strong)', color: 'var(--critical)' }}
                   >
-                    {busyId === s.id ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                    {busyId === s.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <LogOut size={14} />
+                    )}
                     {t.revoke}
                   </button>
                 )}
@@ -247,7 +265,10 @@ export function SessionsPanel() {
           impact={[
             { label: t.device, value: confirming.device },
             { label: t.ipAddress, value: confirming.ip_address || t.unknown },
-            { label: t.lastUsed, value: formatWhen(confirming.last_used_at ?? confirming.created_at, lang, t.never) },
+            {
+              label: t.lastUsed,
+              value: formatWhen(confirming.last_used_at ?? confirming.created_at, lang, t.never),
+            },
           ]}
           confirmLabel={t.revoke}
           busy={busyId === confirming.id}

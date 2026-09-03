@@ -40,7 +40,14 @@ interface DetailPageProps {
 }
 
 export function DetailPage({
-  title, subtitle, actions, loading, notFound, error, backLabel, children,
+  title,
+  subtitle,
+  actions,
+  loading,
+  notFound,
+  error,
+  backLabel,
+  children,
 }: DetailPageProps) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
@@ -69,7 +76,10 @@ export function DetailPage({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1100px]" style={{ animation: 'or-fadeup .3s ease' }}>
+      <div
+        className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1100px]"
+        style={{ animation: 'or-fadeup .3s ease' }}
+      >
         {back}
 
         {loading ? (
@@ -78,22 +88,36 @@ export function DetailPage({
           <EmptyState
             variant="error"
             title={tr('Chargement impossible', 'Could not load')}
-            description={tr('Réessayez, ou contactez un administrateur si le problème persiste.', 'Retry, or contact an administrator if the problem persists.')}
-            primaryAction={<Btn label={tr('Réessayer', 'Retry')} onClick={() => window.location.reload()} />}
+            description={tr(
+              'Réessayez, ou contactez un administrateur si le problème persiste.',
+              'Retry, or contact an administrator if the problem persists.',
+            )}
+            primaryAction={
+              <Btn label={tr('Réessayer', 'Retry')} onClick={() => window.location.reload()} />
+            }
           />
         ) : notFound ? (
           <EmptyState
             variant="no-results"
             title={tr('Introuvable', 'Not found')}
-            description={tr('Cet élément n’existe plus ou ne vous est pas accessible.', 'This item no longer exists or is not accessible to you.')}
+            description={tr(
+              'Cet élément n’existe plus ou ne vous est pas accessible.',
+              'This item no longer exists or is not accessible to you.',
+            )}
             primaryAction={<Btn label={backLabel ?? tr('Retour', 'Back')} onClick={goBack} />}
           />
         ) : (
           <>
             <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
               <div className="min-w-0">
-                <h1 className="disp text-[22px] font-bold tracking-tight text-ink truncate">{title}</h1>
-                {subtitle && <div className="text-[13px] text-ink-soft mt-1.5 flex items-center gap-2 flex-wrap">{subtitle}</div>}
+                <h1 className="disp text-[22px] font-bold tracking-tight text-ink truncate">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <div className="text-[13px] text-ink-soft mt-1.5 flex items-center gap-2 flex-wrap">
+                    {subtitle}
+                  </div>
+                )}
               </div>
               {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
             </div>
@@ -110,7 +134,9 @@ export function DetailField({ label, children }: { label: string; children: Reac
   return (
     <div className="py-3" style={{ borderBottom: '1px solid var(--border)' }}>
       <div className="text-[11px] uppercase tracking-wide text-ink-muted mb-1">{label}</div>
-      <div className="text-[13.5px] text-ink">{children || <span className="text-ink-muted">—</span>}</div>
+      <div className="text-[13.5px] text-ink">
+        {children || <span className="text-ink-muted">—</span>}
+      </div>
     </div>
   );
 }

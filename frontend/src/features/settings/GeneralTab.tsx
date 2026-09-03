@@ -30,21 +30,25 @@ export const GeneralTab = () => {
       toast.success('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
-      toast.error("We couldn't save your profile changes. Please verify your information and try again.");
+      toast.error(
+        "We couldn't save your profile changes. Please verify your information and try again.",
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
     <div className="space-y-8">
       <div>
         <h3 className="text-2xl font-bold text-fg-primary mb-1">My Profile</h3>
-        <p className="text-fg-secondary text-sm">Manage your personal information and track your progress.</p>
+        <p className="text-fg-secondary text-sm">
+          Manage your personal information and track your progress.
+        </p>
       </div>
 
       {/* Gamification Section */}
@@ -57,9 +61,9 @@ export const GeneralTab = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h4 className="text-lg font-bold text-fg-primary">Account Information</h4>
-          <Button 
-            variant={isEditing ? "secondary" : "ghost"}
-            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+          <Button
+            variant={isEditing ? 'secondary' : 'ghost'}
+            onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
             disabled={isSaving}
           >
             {isEditing ? (
@@ -67,7 +71,9 @@ export const GeneralTab = () => {
                 <Save size={16} className="mr-2" />
                 Save Changes
               </>
-            ) : 'Edit Profile'}
+            ) : (
+              'Edit Profile'
+            )}
           </Button>
         </div>
 
@@ -98,11 +104,7 @@ export const GeneralTab = () => {
               />
             </Field>
             <Field label="Email Address">
-              <Input
-                value={formData.email}
-                disabled
-                className="cursor-not-allowed"
-              />
+              <Input value={formData.email} disabled className="cursor-not-allowed" />
             </Field>
           </div>
 
@@ -128,7 +130,7 @@ export const GeneralTab = () => {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-fg-primary">Bio</label>
-                <textarea 
+                <textarea
                   className="w-full bg-surface-1 border border-border rounded-lg px-4 py-3 text-sm text-fg-primary placeholder:text-fg-muted focus:ring-2 focus:ring-primary/50 outline-none resize-none"
                   placeholder="Tell us about yourself..."
                   value={formData.bio}
@@ -139,7 +141,7 @@ export const GeneralTab = () => {
 
               <div>
                 <label className="text-sm font-medium text-fg-primary block mb-2">Timezone</label>
-                <select 
+                <select
                   className="w-full bg-surface-1 border border-border rounded-lg px-4 py-2 text-sm text-fg-primary focus:ring-2 focus:ring-primary/50 outline-none"
                   value={formData.timezone}
                   onChange={(e) => handleChange('timezone', e.target.value)}
@@ -174,7 +176,7 @@ export const GeneralTab = () => {
       {/* Preferences Section */}
       <div className="space-y-6 border-t border-border-strong/10 pt-8">
         <h4 className="text-lg font-bold text-fg-primary">Preferences</h4>
-        
+
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
@@ -183,7 +185,7 @@ export const GeneralTab = () => {
             </div>
             <input type="checkbox" defaultChecked className="w-5 h-5 rounded cursor-pointer" />
           </div>
-          
+
           <div className="flex items-center justify-between p-4 bg-surface-1/5 rounded-lg border border-border-strong/5">
             <div>
               <p className="text-sm font-medium text-fg-primary">Desktop Notifications</p>
@@ -197,7 +199,9 @@ export const GeneralTab = () => {
               <p className="text-sm font-medium text-fg-primary">Two-Factor Authentication</p>
               <p className="text-xs text-fg-secondary">Enhance your account security</p>
             </div>
-            <Button variant="ghost" className="text-sm">Enable</Button>
+            <Button variant="ghost" className="text-sm">
+              Enable
+            </Button>
           </div>
         </div>
       </div>

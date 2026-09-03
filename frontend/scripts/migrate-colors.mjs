@@ -94,9 +94,15 @@ const RULES = [
  * the remaining work is visible rather than silently skipped.
  */
 const KEEP = [
-  [/\bbg-black\b/, 'scrim/backdrop — intentionally dark in both themes; use bg-surface-overlay if it is a modal scrim'],
+  [
+    /\bbg-black\b/,
+    'scrim/backdrop — intentionally dark in both themes; use bg-surface-overlay if it is a modal scrim',
+  ],
   [/\bfrom-|\bvia-|\bto-/, 'gradient stop — decorative, needs a design decision'],
-  [/-(?:purple|violet|fuchsia|pink|teal|lime)-/, 'no semantic token for this hue — chart series or brand accent'],
+  [
+    /-(?:purple|violet|fuchsia|pink|teal|lime)-/,
+    'no semantic token for this hue — chart series or brand accent',
+  ],
 ];
 
 const args = process.argv.slice(2);

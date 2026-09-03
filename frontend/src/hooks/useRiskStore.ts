@@ -20,7 +20,8 @@ export interface Mitigation {
 
 // The six ISO 31000 lifecycle phases. DERIVED server-side from lifecycle_state
 // and kept only so existing filters and pills keep working — nothing writes them.
-export type RiskPhase = 'identified' | 'analyzed' | 'evaluated' | 'treated' | 'monitored' | 'closed';
+export type RiskPhase =
+  'identified' | 'analyzed' | 'evaluated' | 'treated' | 'monitored' | 'closed';
 
 export interface Risk {
   id: string;
@@ -236,7 +237,10 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       set((state) => ({ risks: state.risks.map((r) => (r.id === tempId ? created : r)) }));
     } catch (err) {
       // rollback optimistic add
-      set((state) => ({ risks: state.risks.filter((r) => r.id !== tempId), total: Math.max(0, state.total - 1) }));
+      set((state) => ({
+        risks: state.risks.filter((r) => r.id !== tempId),
+        total: Math.max(0, state.total - 1),
+      }));
       console.error('Failed to create risk', err);
       throw err;
     } finally {
@@ -264,7 +268,9 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   transitionPhase: async (id, phase, note) => {
     const prev = get().risks.find((r) => r.id === id);
     // Optimistic: reflect the new phase immediately in the register.
-    set((state) => ({ risks: state.risks.map((r) => (r.id === id ? { ...r, lifecycle_phase: phase } : r)) }));
+    set((state) => ({
+      risks: state.risks.map((r) => (r.id === id ? { ...r, lifecycle_phase: phase } : r)),
+    }));
     try {
       const response = await api.post(`/risks/${id}/transition`, { phase, note });
       const updated = response.data as Risk;
@@ -281,7 +287,10 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     const prevList = get().risks;
     const prevTotal = get().total;
     // optimistic remove
-    set((state) => ({ risks: state.risks.filter((r) => r.id !== id), total: Math.max(0, state.total - 1) }));
+    set((state) => ({
+      risks: state.risks.filter((r) => r.id !== id),
+      total: Math.max(0, state.total - 1),
+    }));
     try {
       await api.delete(`/risks/${id}`);
     } catch (err) {
@@ -299,7 +308,12 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
   clearFilters: () => set({ filters: {} }),
 
   setSelectedIds: (ids) => set({ selectedIds: ids }),
-  toggleSelection: (id) => set((state) => ({ selectedIds: state.selectedIds.includes(id) ? state.selectedIds.filter((x) => x !== id) : [...state.selectedIds, id] })),
+  toggleSelection: (id) =>
+    set((state) => ({
+      selectedIds: state.selectedIds.includes(id)
+        ? state.selectedIds.filter((x) => x !== id)
+        : [...state.selectedIds, id],
+    })),
   clearSelection: () => set({ selectedIds: [] }),
 
   // bulk operations
@@ -307,7 +321,10 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     set({ isLoading: true });
     const prev = get().risks;
     const prevTotal = get().total;
-    set((state) => ({ risks: state.risks.filter((r) => !ids.includes(r.id)), total: Math.max(0, state.total - ids.length) }));
+    set((state) => ({
+      risks: state.risks.filter((r) => !ids.includes(r.id)),
+      total: Math.max(0, state.total - ids.length),
+    }));
     try {
       // backend may not provide bulk delete endpoint; call per-id
       await Promise.all(ids.map((id) => api.delete(`/risks/${id}`)));
@@ -326,7 +343,9 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     set({ isLoading: true });
     const prev = get().risks;
     // optimistic update
-    set((state) => ({ risks: state.risks.map((r) => (ids.includes(r.id) ? { ...r, ...payload } : r)) }));
+    set((state) => ({
+      risks: state.risks.map((r) => (ids.includes(r.id) ? { ...r, ...payload } : r)),
+    }));
     try {
       await Promise.all(ids.map((id) => api.patch(`/risks/${id}`, payload)));
     } catch (err) {
@@ -384,9 +403,14 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
           if (type === 'risk.created') {
             set((state) => ({ risks: [data, ...state.risks], total: state.total + 1 }));
           } else if (type === 'risk.updated' || type === 'risk.score_updated') {
-            set((state) => ({ risks: state.risks.map((r) => (r.id === data.id ? { ...r, ...data } : r)) }));
+            set((state) => ({
+              risks: state.risks.map((r) => (r.id === data.id ? { ...r, ...data } : r)),
+            }));
           } else if (type === 'risk.deleted') {
-            set((state) => ({ risks: state.risks.filter((r) => r.id !== data.id), total: Math.max(0, state.total - 1) }));
+            set((state) => ({
+              risks: state.risks.filter((r) => r.id !== data.id),
+              total: Math.max(0, state.total - 1),
+            }));
           }
         } catch (e) {
           // ignore parse errors
@@ -394,7 +418,9 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       };
       es.onerror = () => {
         // close on error to avoid retry storms
-        try { es.close(); } catch {};
+        try {
+          es.close();
+        } catch {}
         (get() as any)._es = null;
       };
     } catch (err) {
@@ -419,8 +445,6 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
 // must not leave them on screen for the next person (W0-05 / D9). The SSE stream
 // is torn down first: a live connection opened under the previous session would
 // otherwise keep pushing into the cleared store.
-registerTenantStore(
-  useRiskStore,
-  { ...RISK_STORE_INITIAL },
-  () => useRiskStore.getState().stopSSE(),
+registerTenantStore(useRiskStore, { ...RISK_STORE_INITIAL }, () =>
+  useRiskStore.getState().stopSSE(),
 );

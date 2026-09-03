@@ -33,7 +33,9 @@ export function AuditSection({ records, total, isLoading, error, onRetry }: Prop
     // "Retry" on a permission wall trains people to hammer a button that can
     // never work.
     if (isEntityError(error) && error.status === 403) {
-      return <PermissionDenied resource="the audit trail" requiredPermission="governance:audit:read" />;
+      return (
+        <PermissionDenied resource="the audit trail" requiredPermission="governance:audit:read" />
+      );
     }
     return (
       <ErrorState
@@ -100,7 +102,9 @@ function AuditDetail({ record }: { record: AuditRecord }) {
             <div key={field} className="flex flex-wrap items-baseline gap-1.5 font-mono text-2xs">
               <span className="text-fg-secondary">{field}</span>
               <span style={{ color: 'var(--critical)' }}>{render(record.before?.[field])}</span>
-              <span aria-hidden className="text-fg-muted">→</span>
+              <span aria-hidden className="text-fg-muted">
+                →
+              </span>
               <span style={{ color: 'var(--low)' }}>{render(record.after?.[field])}</span>
             </div>
           ))}

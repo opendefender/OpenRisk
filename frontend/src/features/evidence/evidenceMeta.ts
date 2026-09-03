@@ -54,7 +54,7 @@ export const EVIDENCE_STATUS_META: Record<
     fr: 'À relire',
     en: 'Pending review',
     hint: {
-      fr: "Pas encore acceptée : ne compte pas comme preuve.",
+      fr: 'Pas encore acceptée : ne compte pas comme preuve.',
       en: 'Not accepted yet: does not count as proof.',
     },
   },

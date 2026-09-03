@@ -5,48 +5,7 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-027 — Prettier: adopt it and take the 492-file sweep, or drop the format gate for good? · 2026-09-02
-**Context** — #341 (D-022, item 3) asked for the `type-check`, `format` and
-`format:check` scripts that `.github/workflows/ci.yml` already invoked. Two of
-the three are done. `format`/`format:check` are not, and the reason is worth a
-decision rather than an agent's judgement.
-
-Prettier has never existed in this repository: no dependency, no config, no
-script. The CI step that called it read
-
-```yaml
-run: cd frontend && npm run format:check || npm run format
-```
-
-— the `||` meant the step could not fail even once the scripts existed, so it
-gated nothing. Measured on 2026-09-02: `npx prettier --check` rewrites **492 of
-~550** frontend source files.
-
-**Options**
-- **A — adopt Prettier, sweep now.** One mechanical commit reformatting 492
-  files, then `format:check` becomes a real blocking gate.
-  *Cost:* it conflicts with essentially every open ds-v1 PR, which is the exact
-  objection D-022 raised when it declined the `any` sweep, at roughly four times
-  the file count.
-- **B — adopt Prettier, sweep at the ds-v1 boundary.** Same end state, scheduled
-  for the moment the ds-v1 PRs are merged and the tree is quiet.
-- **C — no Prettier.** ESLint already enforces the rules that change behaviour;
-  formatting stays a review-time preference and the CI step stays deleted.
-
-**Recommendation — B.** The end state in A is right and C gives up a real
-consistency win, but a 492-file diff landed mid-milestone would be resolved by
-whoever rebases, not by whoever reviews it. The gate is worth having; it is not
-worth having this week.
-
-**Interim state (shipped in #341)** — the fake Prettier step is **removed** from
-`frontend-lint`. Nothing regressed by removing it: it could never fail. The lint
-job now runs the ESLint ratchet and `npm run type-check`, both blocking.
-
-**Cost of delay** — low and non-compounding. Formatting drift is mechanical and
-a later sweep fixes it wholesale, unlike the `any` debt in D-022, which grows
-with every merge.
-
-**Blocked** — nothing. #341 ships without it.
+None. Every entry in this register is resolved as of 2026-09-02.
 
 ## Resolved
 
@@ -155,11 +114,60 @@ Recharts symbols would be work on a file no user can reach.
 
 ---
 
-### D-024 — bklit ui: a hard subset is vendored, into the lazy charts chunk · 2026-09-02
-**Decided** — Option B. A **hard subset** of `bklit/bklit-ui` charts is vendored at the
-pinned SHA `c57f66bfa7c3198edb677b567ce08cbf364ae159` (2026-07-28, tip of `main`).
-`@visx/*` is accepted as a real dependency set, in the **lazy** `charts` chunk.
-**The bundle gate is NOT raised** — see the correction below.
+### D-024 — bklit ui: declined on re-measurement; the chart layer is built in-house on visx · 2026-09-02, amended 2026-09-03
+> **AMENDMENT — 2026-09-03, and this is the decision of record. Everything below the
+> amendment box is the ORIGINAL 2026-09-02 decision, kept for the reasoning it carries
+> and SUPERSEDED on the vendoring question.**
+>
+> **Decided (owner, 2026-09-03)** — amend to Option A. No bklit source is vendored.
+> `frontend/src/shared/ds/charts/` is original work: `CartesianChart`, `PieChart` and
+> `RadarChart`, all `Copyright (c) 2026 OpenDefender Contributors`, `Apache-2.0`, built
+> on `@visx/*` as a normal npm dependency in the lazy `charts` chunk. The
+> THIRD-PARTY COMPONENTS table in `frontend/design-system/NOTICE` therefore has no rows
+> for this work, and consequence 5's "record each vendored component with its upstream
+> SHA" is void rather than outstanding.
+>
+> **Why the reversal** — the implementation reached Option A and the record was not
+> updated to match, which is the discrepancy this amendment exists to close. Measured on
+> `master` at `7c50d3c`, the outcome is better than what Option B was chosen for:
+>
+> | | Option B baseline (recharts) | shipped (visx, in-house) |
+> |---|---|---|
+> | lazy `charts` chunk, gzipped | 87.0 KB | **16.2 KB** |
+> | preloaded initial bundle | 172.1 KB | **170.6 KB** |
+>
+> The chart payload fell 81% and the preloaded bundle ended up 1.5 KB *below* master.
+> Option B's own "facts" section already recorded the maintenance case against it:
+> `@bklitui/ui` is `version: 0.0.0`, `"private": true`, never published — *"no version to
+> pin, no changelog and no upgrade path — only a SHA and a manual re-diff."* Building
+> in-house also disposes of consequences 2, 3 and 4 by construction: there is no vendored
+> source importing `motion/react`, no transitive `@base-ui/react@1.0.0-alpha.8`, and no
+> `GaugeChart` to drop. Verified on `master`: 0 files reference any of them.
+>
+> **What still binds** — consequence 1 (charts stay lazy, the budget may only ever be
+> lowered) and consequence 5's *destination* half (`frontend/src/shared/ds/`, the
+> Apache-2.0 half, per D-020). Consequence 6 (the risk matrix is built, not vendored)
+> was always the plan and shipped as `RiskMatrix.tsx`.
+>
+> **What this does NOT license** — vendoring stays governed by D-020. If bklit source is
+> ever taken, its notice is sourced and recorded first. This amendment declines the
+> vendoring; it does not pre-approve a later one.
+>
+> **Scope consequence** — #444 closes at **Recharts parity**, which is what was built.
+> The rest of its "Composants à adopter" table is split into #509 (Sankey), #510
+> (Choropleth), #511 (Candlestick + Profit/Loss), #512 (Scatter) and #513 (Brush,
+> Reference Area, Legend), each `status:needs-refinement` pending a named consuming
+> screen. They are deliberately not built speculatively.
+>
+> **Reversible** — yes. Nothing is relicensed and no upstream is now depended on, so
+> reversing means vendoring later under D-020, not undoing anything.
+
+**Superseded — the original decision, 2026-09-02:** Option B. A **hard subset** of
+`bklit/bklit-ui` charts is vendored at the pinned SHA
+`c57f66bfa7c3198edb677b567ce08cbf364ae159` (2026-07-28, tip of `main`). `@visx/*` is
+accepted as a real dependency set, in the **lazy** `charts` chunk. **The bundle gate is
+NOT raised** — see the correction below. *(The `@visx/*` and lazy-chunk halves of this
+survived the amendment; only the vendoring did not.)*
 
 **Rationale (owner)** — Chosen over the recommendation, which was A (decline and
 build in-house). The owner accepts the pre-1.0 upstream in exchange for a chart

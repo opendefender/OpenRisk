@@ -17,7 +17,12 @@ import { DangerConfirm } from '../../shared/DangerConfirm';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useAudits, useFrameworks } from './useCompliance';
-import { AUDIT_STATUS_META, AUDIT_TYPE_LABEL, AUDIT_STATUS_ORDER, formatDate } from './complianceMeta';
+import {
+  AUDIT_STATUS_META,
+  AUDIT_TYPE_LABEL,
+  AUDIT_STATUS_ORDER,
+  formatDate,
+} from './complianceMeta';
 import { useState } from 'react';
 import type { AuditStatus } from '../../types/compliance';
 
@@ -51,10 +56,12 @@ export function AuditDetailPage() {
     if (!audit) return;
     generateRemediations.mutate(audit.id, {
       onSuccess: (res) => {
-        toast.success(tr(
-          `${res.created} plan(s) créé(s), ${res.skipped} ignoré(s)`,
-          `${res.created} plan(s) created, ${res.skipped} skipped`,
-        ));
+        toast.success(
+          tr(
+            `${res.created} plan(s) créé(s), ${res.skipped} ignoré(s)`,
+            `${res.created} plan(s) created, ${res.skipped} skipped`,
+          ),
+        );
         navigate('/compliance/remediation');
       },
       onError: () => toast.error(tr('Génération échouée', 'Generation failed')),
@@ -75,16 +82,24 @@ export function AuditDetailPage() {
           <>
             <span
               className="text-[11.5px] font-semibold px-2 py-[3px] rounded-md"
-              style={{ color: status.color, background: `color-mix(in srgb, ${status.color} 14%, transparent)` }}
+              style={{
+                color: status.color,
+                background: `color-mix(in srgb, ${status.color} 14%, transparent)`,
+              }}
             >
               {status[lang]}
             </span>
-            <span className="text-ink-muted">{AUDIT_TYPE_LABEL[audit.type]?.[lang] ?? audit.type}</span>
+            <span className="text-ink-muted">
+              {AUDIT_TYPE_LABEL[audit.type]?.[lang] ?? audit.type}
+            </span>
             {framework && (
               // Cross-link to the framework, which is a sibling branch of the
               // tree rather than an ancestor — the breadcrumb cannot express it,
               // so it belongs in the body.
-              <Link to={`/compliance/frameworks/${framework.id}`} className="text-accent hover:underline">
+              <Link
+                to={`/compliance/frameworks/${framework.id}`}
+                className="text-accent hover:underline"
+              >
                 {framework.name}
               </Link>
             )}
@@ -101,7 +116,14 @@ export function AuditDetailPage() {
                 onClick={remediate}
               />
             )}
-            {canWrite && <Btn label={tr('Supprimer', 'Delete')} icon={Trash2} danger onClick={() => setConfirmDelete(true)} />}
+            {canWrite && (
+              <Btn
+                label={tr('Supprimer', 'Delete')}
+                icon={Trash2}
+                danger
+                onClick={() => setConfirmDelete(true)}
+              />
+            )}
           </>
         ) : null
       }
@@ -115,8 +137,12 @@ export function AuditDetailPage() {
             <DetailField label={tr('Référentiel', 'Framework')}>
               {framework?.name ?? tr('Programme entier', 'Programme-wide')}
             </DetailField>
-            <DetailField label={tr('Début planifié', 'Scheduled start')}>{formatDate(audit.scheduled_start, lang)}</DetailField>
-            <DetailField label={tr('Terminé le', 'Completed at')}>{formatDate(audit.completed_at, lang)}</DetailField>
+            <DetailField label={tr('Début planifié', 'Scheduled start')}>
+              {formatDate(audit.scheduled_start, lang)}
+            </DetailField>
+            <DetailField label={tr('Terminé le', 'Completed at')}>
+              {formatDate(audit.completed_at, lang)}
+            </DetailField>
             {audit.status === 'completed' && (
               <DetailField label={tr('Score de conformité', 'Compliance score')}>
                 {audit.compliance_score.toFixed(1)} %
@@ -126,7 +152,9 @@ export function AuditDetailPage() {
 
           {canWrite && (
             <div className="mt-5">
-              <div className="text-[13px] font-semibold text-ink mb-2.5">{tr('Statut', 'Status')}</div>
+              <div className="text-[13px] font-semibold text-ink mb-2.5">
+                {tr('Statut', 'Status')}
+              </div>
               <div className="flex gap-2 flex-wrap">
                 {AUDIT_STATUS_ORDER.map((s) => {
                   const m = AUDIT_STATUS_META[s];
@@ -138,7 +166,9 @@ export function AuditDetailPage() {
                       className="h-8 px-3 rounded-[9px] text-[12.5px] font-semibold transition-colors"
                       style={{
                         color: active ? 'var(--fg-on-solid)' : m.color,
-                        background: active ? m.color : `color-mix(in srgb, ${m.color} 12%, transparent)`,
+                        background: active
+                          ? m.color
+                          : `color-mix(in srgb, ${m.color} 12%, transparent)`,
                       }}
                     >
                       {m[lang]}
@@ -182,7 +212,10 @@ export function AuditDetailPage() {
           )}
           impact={[
             { label: tr('Statut', 'Status'), value: status?.[lang] ?? audit.status },
-            { label: tr('Référentiel', 'Framework'), value: framework?.name ?? tr('Programme entier', 'Programme-wide') },
+            {
+              label: tr('Référentiel', 'Framework'),
+              value: framework?.name ?? tr('Programme entier', 'Programme-wide'),
+            },
           ]}
           confirmLabel={tr('Supprimer', 'Delete')}
         />

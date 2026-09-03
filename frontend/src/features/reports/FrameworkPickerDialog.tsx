@@ -36,7 +36,11 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
   return (
     <div
       className="fixed inset-0 z-90 flex items-center justify-center p-4"
-      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(6px)', animation: 'or-fadein .16s ease' }}
+      style={{
+        background: 'var(--surface-overlay)',
+        backdropFilter: 'blur(6px)',
+        animation: 'or-fadein .16s ease',
+      }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -47,11 +51,18 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
         className="glass-strong rounded-[18px] shadow-card-lg flex flex-col"
         style={{ width: 'min(92vw,460px)', maxHeight: '80vh', animation: 'or-scalein .18s ease' }}
       >
-        <div className="shrink-0 flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div
+          className="shrink-0 flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
           <span className="text-[15px] font-semibold text-ink">
             {tr('Quel référentiel ?', 'Which framework?')}
           </span>
-          <button onClick={onClose} aria-label={tr('Fermer', 'Close')} className="p-1 rounded-md hover:bg-hover">
+          <button
+            onClick={onClose}
+            aria-label={tr('Fermer', 'Close')}
+            className="p-1 rounded-md hover:bg-hover"
+          >
             <X size={18} className="text-ink-muted" />
           </button>
         </div>
@@ -91,7 +102,10 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
           )}
         </div>
 
-        <div className="shrink-0 px-5 py-3.5 flex justify-end" style={{ borderTop: '1px solid var(--border)' }}>
+        <div
+          className="shrink-0 px-5 py-3.5 flex justify-end"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
           <Btn label={tr('Annuler', 'Cancel')} onClick={onClose} />
         </div>
       </div>

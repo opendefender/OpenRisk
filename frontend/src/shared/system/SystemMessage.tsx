@@ -24,7 +24,15 @@ interface SystemMessageProps {
   children?: ReactNode;
 }
 
-export function SystemMessage({ icon: Icon, code, title, message, actions, tone, children }: SystemMessageProps) {
+export function SystemMessage({
+  icon: Icon,
+  code,
+  title,
+  message,
+  actions,
+  tone,
+  children,
+}: SystemMessageProps) {
   return (
     <div
       role="alert"
@@ -44,7 +52,10 @@ export function SystemMessage({ icon: Icon, code, title, message, actions, tone,
         </div>
 
         {code && (
-          <div className="disp mono text-[40px] font-bold leading-none mb-2" style={{ color: tone ?? 'var(--fg-muted)' }}>
+          <div
+            className="disp mono text-[40px] font-bold leading-none mb-2"
+            style={{ color: tone ?? 'var(--fg-muted)' }}
+          >
             {code}
           </div>
         )}
@@ -54,7 +65,9 @@ export function SystemMessage({ icon: Icon, code, title, message, actions, tone,
 
         {children}
 
-        {actions && <div className="flex items-center justify-center gap-2.5 mt-5 flex-wrap">{actions}</div>}
+        {actions && (
+          <div className="flex items-center justify-center gap-2.5 mt-5 flex-wrap">{actions}</div>
+        )}
       </div>
     </div>
   );

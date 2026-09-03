@@ -9,7 +9,9 @@ describe('safeExternalUrl', () => {
     expect(safeExternalUrl('https://jira.example.com/browse/SEC-42')).toBe(
       'https://jira.example.com/browse/SEC-42',
     );
-    expect(safeExternalUrl('http://internal.local/incident/7')).toBe('http://internal.local/incident/7');
+    expect(safeExternalUrl('http://internal.local/incident/7')).toBe(
+      'http://internal.local/incident/7',
+    );
   });
 
   it('rejects the schemes React does not block', () => {

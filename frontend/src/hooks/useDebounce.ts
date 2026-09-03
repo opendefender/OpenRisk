@@ -30,7 +30,7 @@ export function useDebounce<T>(value: T, delayMs: number = 300): T {
  */
 export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
-  delayMs: number = 300
+  delayMs: number = 300,
 ): T {
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
@@ -44,7 +44,7 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 
       setTimeoutId(newTimeoutId);
     },
-    [callback, delayMs, timeoutId]
+    [callback, delayMs, timeoutId],
   ) as T;
 
   useEffect(() => {

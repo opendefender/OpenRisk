@@ -33,7 +33,13 @@ export interface FieldsetProps {
   children: ReactNode;
 }
 
-export function Fieldset({ legend, description, disabled = false, className, children }: FieldsetProps) {
+export function Fieldset({
+  legend,
+  description,
+  disabled = false,
+  className,
+  children,
+}: FieldsetProps) {
   const id = useId();
   const descriptionId = description ? `${id}-description` : undefined;
 

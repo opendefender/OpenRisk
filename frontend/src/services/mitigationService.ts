@@ -103,7 +103,7 @@ export const mitigationService = {
         title: payload.title,
         description: payload.description,
         depends_on: payload.depends_on,
-      }
+      },
     );
     return response.data;
   },
@@ -114,11 +114,11 @@ export const mitigationService = {
   updateSubAction: async (
     mitigationId: string,
     subActionId: string,
-    payload: UpdateSubActionInput
+    payload: UpdateSubActionInput,
   ): Promise<SubAction> => {
     const response = await api.patch<SubAction>(
       `/mitigations/${mitigationId}/sub-actions/${subActionId}`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -152,7 +152,7 @@ export const mitigationService = {
   rescan: async (mitigationId: string, payload: RescanInput): Promise<{ scan_job_id: string }> => {
     const response = await api.post<{ scan_job_id: string }>(
       `/mitigations/${mitigationId}/sub-actions/${payload.sub_action_id}/rescan`,
-      { asset_id: payload.asset_id }
+      { asset_id: payload.asset_id },
     );
     return response.data;
   },
@@ -179,14 +179,14 @@ export const mitigationService = {
   addEvidence: async (
     mitigationId: string,
     subActionId: string,
-    payload: FormData
+    payload: FormData,
   ): Promise<Evidence> => {
     const response = await api.post<Evidence>(
       `/mitigations/${mitigationId}/sub-actions/${subActionId}/evidence`,
       payload,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
-      }
+      },
     );
     return response.data;
   },
@@ -196,7 +196,7 @@ export const mitigationService = {
    */
   exportMitigations: async (
     params: MitigationQueryParams,
-    format: 'csv' | 'json' | 'xlsx' = 'csv'
+    format: 'csv' | 'json' | 'xlsx' = 'csv',
   ): Promise<Blob> => {
     const response = await api.get<Blob>('/mitigations/export', {
       params: { ...params, format },

@@ -32,7 +32,7 @@ export function AiAdvisor() {
     {
       role: 'ai',
       text: tr(
-        "Bonjour. Je suis votre assistant GRC OpenRisk. Je réponds à vos questions à partir de VOTRE base de connaissances (risques, contrôles de conformité, vulnérabilités). Posez-moi une question — par exemple sur vos risques critiques, votre conformité ISO 27001, ou une CVE.",
+        'Bonjour. Je suis votre assistant GRC OpenRisk. Je réponds à vos questions à partir de VOTRE base de connaissances (risques, contrôles de conformité, vulnérabilités). Posez-moi une question — par exemple sur vos risques critiques, votre conformité ISO 27001, ou une CVE.',
         'Hello. I am your OpenRisk GRC assistant. I answer from YOUR knowledge base (risks, compliance controls, vulnerabilities). Ask me a question — e.g. about your critical risks, ISO 27001 compliance, or a CVE.',
       ),
     },
@@ -49,9 +49,10 @@ export function AiAdvisor() {
     if (!t || ask.isPending) return;
 
     // Build the conversation history from the existing turns (excludes the greeting).
-    const history: ChatTurn[] = msgs
-      .slice(1)
-      .map((m) => ({ role: m.role === 'ai' ? ('assistant' as const) : ('user' as const), text: m.text }));
+    const history: ChatTurn[] = msgs.slice(1).map((m) => ({
+      role: m.role === 'ai' ? ('assistant' as const) : ('user' as const),
+      text: m.text,
+    }));
 
     setMsgs((m) => [...m, { role: 'user', text: t }]);
     setInput('');
@@ -62,7 +63,12 @@ export function AiAdvisor() {
         onSuccess: (res) =>
           setMsgs((m) => [
             ...m,
-            { role: 'ai', text: res.answer.answer, sources: res.answer.sources, retrieved: res.retrieved },
+            {
+              role: 'ai',
+              text: res.answer.answer,
+              sources: res.answer.sources,
+              retrieved: res.retrieved,
+            },
           ]),
         onError: () =>
           setMsgs((m) => [
@@ -91,7 +97,10 @@ export function AiAdvisor() {
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 58px)' }}>
       {/* Provenance badge */}
-      <div className="shrink-0 flex items-center justify-center gap-2 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div
+        className="shrink-0 flex items-center justify-center gap-2 py-2.5"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
         <span
           className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
           style={{
@@ -120,7 +129,10 @@ export function AiAdvisor() {
                   <Sparkles size={18} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[14px] leading-relaxed text-ink pt-1" style={{ whiteSpace: 'pre-line' }}>
+                  <div
+                    className="text-[14px] leading-relaxed text-ink pt-1"
+                    style={{ whiteSpace: 'pre-line' }}
+                  >
                     {x.text}
                   </div>
                   {x.sources && x.sources.length > 0 && (
@@ -129,7 +141,10 @@ export function AiAdvisor() {
                         <span
                           key={si}
                           className="text-[11px] px-2 py-0.5 rounded-md text-ink-soft"
-                          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+                          style={{
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                          }}
                           title={tr('Source utilisée', 'Source used')}
                         >
                           {s}
@@ -175,7 +190,10 @@ export function AiAdvisor() {
                   key={sq}
                   onClick={() => send(sq)}
                   className="text-[12.5px] font-medium px-3.5 py-2 rounded-full text-ink-soft hover:text-accent-strong transition-colors"
-                  style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+                  style={{
+                    border: '1px solid var(--border-strong)',
+                    background: 'var(--bg-elevated)',
+                  }}
                 >
                   {sq}
                 </button>
@@ -188,7 +206,10 @@ export function AiAdvisor() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && send()}
               disabled={ask.isPending}
-              placeholder={tr('Posez une question à votre assistant GRC…', 'Ask your GRC assistant…')}
+              placeholder={tr(
+                'Posez une question à votre assistant GRC…',
+                'Ask your GRC assistant…',
+              )}
               className="flex-1 h-12 px-[18px] rounded-[14px] text-[14px] text-ink outline-none disabled:opacity-60"
               style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
             />

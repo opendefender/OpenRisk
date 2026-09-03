@@ -6,7 +6,14 @@
 // Security in-app, etc. The taxonomy maps the backend NotificationType values
 // (domain/notification.go) onto five human contexts. New types default to Security.
 
-import { ShieldAlert, ClipboardCheck, CheckSquare, Users, CreditCard, type LucideIcon } from 'lucide-react';
+import {
+  ShieldAlert,
+  ClipboardCheck,
+  CheckSquare,
+  Users,
+  CreditCard,
+  type LucideIcon,
+} from 'lucide-react';
 
 export type NotifCategory = 'security' | 'compliance' | 'tasks' | 'collaboration' | 'billing';
 
@@ -22,21 +29,30 @@ export const NOTIF_CATEGORIES: NotifCategoryMeta[] = [
   {
     key: 'security',
     label: { fr: 'Sécurité', en: 'Security' },
-    desc: { fr: 'Risques critiques, incidents, scans, SLA.', en: 'Critical risks, incidents, scans, SLA.' },
+    desc: {
+      fr: 'Risques critiques, incidents, scans, SLA.',
+      en: 'Critical risks, incidents, scans, SLA.',
+    },
     icon: ShieldAlert,
     color: 'var(--critical)',
   },
   {
     key: 'compliance',
     label: { fr: 'Conformité', en: 'Compliance' },
-    desc: { fr: 'Revues, écarts, audits, échéances réglementaires.', en: 'Reviews, gaps, audits, regulatory deadlines.' },
+    desc: {
+      fr: 'Revues, écarts, audits, échéances réglementaires.',
+      en: 'Reviews, gaps, audits, regulatory deadlines.',
+    },
     icon: ClipboardCheck,
     color: 'var(--info)',
   },
   {
     key: 'tasks',
     label: { fr: 'Tâches', en: 'Tasks' },
-    desc: { fr: 'Ce qui vous est assigné et vos échéances.', en: 'What is assigned to you and your deadlines.' },
+    desc: {
+      fr: 'Ce qui vous est assigné et vos échéances.',
+      en: 'What is assigned to you and your deadlines.',
+    },
     icon: CheckSquare,
     color: 'var(--high)',
   },
@@ -50,7 +66,10 @@ export const NOTIF_CATEGORIES: NotifCategoryMeta[] = [
   {
     key: 'billing',
     label: { fr: 'Facturation', en: 'Billing' },
-    desc: { fr: 'Abonnement, limites de plan, factures.', en: 'Subscription, plan limits, invoices.' },
+    desc: {
+      fr: 'Abonnement, limites de plan, factures.',
+      en: 'Subscription, plan limits, invoices.',
+    },
     icon: CreditCard,
     color: 'var(--low)',
   },
@@ -98,10 +117,16 @@ export function loadNotifPrefs(): NotifChannelPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) return { ...defaultNotifPrefs(), ...JSON.parse(raw) };
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return defaultNotifPrefs();
 }
 
 export function saveNotifPrefs(prefs: NotifChannelPrefs) {
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* ignore */
+  }
 }

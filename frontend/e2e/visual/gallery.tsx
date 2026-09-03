@@ -112,13 +112,22 @@ function Controls() {
         <Button size="lg" icon={Bug} variant="primary" aria-label="Report a bug, large" />
       </Row>
       <Row label="badges">
-        {(['neutral', 'accent', 'success', 'warning', 'danger', 'info', 'experimental', 'unavailable'] as const).map(
-          (intent) => (
-            <Badge key={intent} intent={intent} dot>
-              {intent}
-            </Badge>
-          ),
-        )}
+        {(
+          [
+            'neutral',
+            'accent',
+            'success',
+            'warning',
+            'danger',
+            'info',
+            'experimental',
+            'unavailable',
+          ] as const
+        ).map((intent) => (
+          <Badge key={intent} intent={intent} dot>
+            {intent}
+          </Badge>
+        ))}
       </Row>
       <Row label="badge sizes">
         <Badge size="sm" intent="danger">
@@ -236,7 +245,11 @@ function FormControls() {
           <Checkbox label="Unchecked" />
           <Checkbox label="Checked" defaultChecked />
           <Checkbox label="Indeterminate" indeterminate />
-          <Checkbox label="With description" description="Explains the consequence of ticking it" defaultChecked />
+          <Checkbox
+            label="With description"
+            description="Explains the consequence of ticking it"
+            defaultChecked
+          />
           <Checkbox label="Disabled" disabled />
           <Checkbox label="Disabled checked" defaultChecked disabled />
         </div>
@@ -272,13 +285,21 @@ function FormControls() {
           <Switch label="On" defaultChecked />
           <Switch size="sm" label="Small, on" defaultChecked />
           <Switch label="Control first" controlFirst defaultChecked />
-          <Switch label="With description" description="Sends a digest every Monday at 08:00" defaultChecked />
+          <Switch
+            label="With description"
+            description="Sends a digest every Monday at 08:00"
+            defaultChecked
+          />
           <Switch label="Disabled" disabled />
           <Switch label="Disabled on" defaultChecked disabled />
         </div>
       </Fieldset>
 
-      <Fieldset legend="Disabled fieldset" description="Disables every control it contains" disabled>
+      <Fieldset
+        legend="Disabled fieldset"
+        description="Disables every control it contains"
+        disabled
+      >
         <div className="grid gap-3">
           <Checkbox label="Unreachable checkbox" defaultChecked />
           <Switch label="Unreachable switch" />
@@ -381,7 +402,14 @@ function Charts() {
           <line x1="0" y1="110" x2="100%" y2="110" stroke={chartAxis.stroke} />
           {categorical.map((colour, i) => (
             <g key={colour}>
-              <rect x={i * 56 + 8} y={110 - (i + 3) * 10} width="40" height={(i + 3) * 10} fill={colour} rx="3" />
+              <rect
+                x={i * 56 + 8}
+                y={110 - (i + 3) * 10}
+                width="40"
+                height={(i + 3) * 10}
+                fill={colour}
+                rx="3"
+              />
               <text x={i * 56 + 8} y={118} fill="var(--chart-label)" fontSize="10">
                 {i + 1}
               </text>
@@ -411,9 +439,31 @@ function Charts() {
         <svg width="100%" height="140" role="img" aria-label="Graph node and edge colours">
           <line x1="60" y1="70" x2="200" y2="40" stroke={graph.edge} strokeWidth="1.5" />
           <line x1="60" y1="70" x2="200" y2="100" stroke={graph.edgeActive} strokeWidth="2" />
-          <circle cx="60" cy="70" r="18" fill={graph.node} stroke={graph.nodeStroke} strokeWidth="1.5" />
-          <circle cx="200" cy="40" r="14" fill={graph.node} stroke={graph.nodeStroke} strokeWidth="1.5" opacity={graph.dimmed} />
-          <circle cx="200" cy="100" r="14" fill={severity.critical} stroke={graph.nodeStroke} strokeWidth="1.5" />
+          <circle
+            cx="60"
+            cy="70"
+            r="18"
+            fill={graph.node}
+            stroke={graph.nodeStroke}
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="200"
+            cy="40"
+            r="14"
+            fill={graph.node}
+            stroke={graph.nodeStroke}
+            strokeWidth="1.5"
+            opacity={graph.dimmed}
+          />
+          <circle
+            cx="200"
+            cy="100"
+            r="14"
+            fill={severity.critical}
+            stroke={graph.nodeStroke}
+            strokeWidth="1.5"
+          />
         </svg>
       </div>
     </div>
@@ -453,7 +503,6 @@ function Feedback() {
   );
 }
 
-
 /**
  * The language axis. #463.
  *
@@ -481,7 +530,9 @@ function I18nPressure() {
   return (
     <div className="grid max-w-2xl gap-6">
       <div>
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Buttons at their longest — Same row, both languages</p>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Buttons at their longest — Same row, both languages
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="primary">{t('common.save')}</Button>
           <Button variant="secondary">{t('common.cancel')}</Button>
@@ -492,7 +543,9 @@ function I18nPressure() {
       </div>
 
       <div>
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Badges — A chip has no room to wrap</p>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Badges — A chip has no room to wrap
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <Badge intent="neutral">{t('compliance.adminOnly')}</Badge>
           <Badge intent="info">{t('filters.tags')}</Badge>
@@ -502,7 +555,9 @@ function I18nPressure() {
       </div>
 
       <div>
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Field labels — Label, description and error, all translated</p>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Field labels — Label, description and error, all translated
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('risks.riskOwner')} description={t('risks.dragDropHint')} required>
             <Input placeholder={t('common.search')} />
@@ -518,14 +573,15 @@ function I18nPressure() {
       </div>
 
       <div>
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">Prose — The long strings, where wrapping is expected but overflow is not</p>
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-fg-muted">
+          Prose — The long strings, where wrapping is expected but overflow is not
+        </p>
         <p className="text-sm text-fg-secondary">{t('actionCenter.emptyDescription')}</p>
         <p className="mt-2 text-sm text-fg-secondary">{t('compliance.noFrameworksDescription')}</p>
       </div>
     </div>
   );
 }
-
 
 /**
  * Feedback primitives — #443 PR 2.
@@ -610,7 +666,6 @@ function Feedback2() {
   );
 }
 
-
 /**
  * Floating layers — #443 PR 3.
  *
@@ -680,11 +735,42 @@ function SpecialisedInput() {
             label="Commands"
             placeholder="Type a command or search…"
             items={[
-              { id: 'new-risk', label: 'New risk', onSelect: () => {}, group: 'Actions', icon: Plus, shortcut: '⌘N' },
-              { id: 'export', label: 'Export register', onSelect: () => {}, group: 'Actions', icon: Download },
-              { id: 'delete', label: 'Archived tenant', onSelect: () => {}, group: 'Actions', disabled: true },
-              { id: 'reg', label: 'Règlement intérieur', onSelect: () => {}, group: 'Navigation', icon: FileText },
-              { id: 'ctl', label: 'Contrôles', onSelect: () => {}, group: 'Navigation', icon: Search },
+              {
+                id: 'new-risk',
+                label: 'New risk',
+                onSelect: () => {},
+                group: 'Actions',
+                icon: Plus,
+                shortcut: '⌘N',
+              },
+              {
+                id: 'export',
+                label: 'Export register',
+                onSelect: () => {},
+                group: 'Actions',
+                icon: Download,
+              },
+              {
+                id: 'delete',
+                label: 'Archived tenant',
+                onSelect: () => {},
+                group: 'Actions',
+                disabled: true,
+              },
+              {
+                id: 'reg',
+                label: 'Règlement intérieur',
+                onSelect: () => {},
+                group: 'Navigation',
+                icon: FileText,
+              },
+              {
+                id: 'ctl',
+                label: 'Contrôles',
+                onSelect: () => {},
+                group: 'Navigation',
+                icon: Search,
+              },
             ]}
           />
         </div>

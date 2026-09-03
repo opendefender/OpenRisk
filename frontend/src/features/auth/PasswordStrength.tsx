@@ -29,13 +29,14 @@ function loadEstimator(): Promise<Estimator> {
       import('@zxcvbn-ts/language-common'),
       import('@zxcvbn-ts/language-en'),
       import('@zxcvbn-ts/language-fr'),
-    ]).then(([core, common, en, fr]) =>
-      new core.ZxcvbnFactory({
-        // Both language dictionaries: a French user may pick an English word and
-        // vice versa; the dictionary must catch it whichever language it came from.
-        graphs: common.adjacencyGraphs,
-        dictionary: { ...common.dictionary, ...en.dictionary, ...fr.dictionary },
-      }),
+    ]).then(
+      ([core, common, en, fr]) =>
+        new core.ZxcvbnFactory({
+          // Both language dictionaries: a French user may pick an English word and
+          // vice versa; the dictionary must catch it whichever language it came from.
+          graphs: common.adjacencyGraphs,
+          dictionary: { ...common.dictionary, ...en.dictionary, ...fr.dictionary },
+        }),
     );
   }
   return estimatorPromise;
@@ -69,7 +70,9 @@ export function PasswordStrength({ password, email, name, onVerdict, override }:
   // alternative — clearing it from an effect — means a synchronous setState in
   // the effect body, an extra render pass, and a window where the old verdict is
   // still on screen under the new password.
-  const [server, setServer] = useState<{ forPassword: string; result: PasswordAssessment } | null>(null);
+  const [server, setServer] = useState<{ forPassword: string; result: PasswordAssessment } | null>(
+    null,
+  );
   const abortRef = useRef<AbortController | null>(null);
 
   // --- Client estimate: instant once the estimator has loaded --------------
@@ -77,9 +80,11 @@ export function PasswordStrength({ password, email, name, onVerdict, override }:
   const [estimator, setEstimator] = useState<Estimator | null>(null);
   useEffect(() => {
     if (password && !estimator) {
-      loadEstimator().then(setEstimator).catch(() => {
-        /* offline / chunk load failed — server verdict still gates submit */
-      });
+      loadEstimator()
+        .then(setEstimator)
+        .catch(() => {
+          /* offline / chunk load failed — server verdict still gates submit */
+        });
     }
   }, [password, estimator]);
 
@@ -140,7 +145,11 @@ export function PasswordStrength({ password, email, name, onVerdict, override }:
   return (
     <div className="mt-2" aria-live="polite">
       {/* Four segments, matching zxcvbn's 0..4 scale. */}
-      <div className="flex gap-1.5" role="img" aria-label={`${copy.strengthLabel}: ${strengthLabel(copy, score)}`}>
+      <div
+        className="flex gap-1.5"
+        role="img"
+        aria-label={`${copy.strengthLabel}: ${strengthLabel(copy, score)}`}
+      >
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
@@ -168,7 +177,11 @@ export function PasswordStrength({ password, email, name, onVerdict, override }:
       {blocking.length > 0 && (
         <ul className="mt-1.5 space-y-1">
           {blocking.map((r) => (
-            <li key={r.code} className="text-[11.5px] leading-snug" style={{ color: 'var(--high)' }}>
+            <li
+              key={r.code}
+              className="text-[11.5px] leading-snug"
+              style={{ color: 'var(--high)' }}
+            >
               {reasonText(r, lang)}
             </li>
           ))}

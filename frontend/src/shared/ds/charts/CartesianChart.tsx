@@ -156,7 +156,11 @@ function Plot<Row extends object>({
       }
       for (const s of series) max = Math.max(max, toNumber(row[s.key]));
     }
-    return scaleLinear<number>({ domain: [0, max === 0 ? 1 : max], range: [innerH, 0], nice: true });
+    return scaleLinear<number>({
+      domain: [0, max === 0 ? 1 : max],
+      range: [innerH, 0],
+      nice: true,
+    });
   }, [data, series, innerH, stacked]);
 
   const bars = series.filter((s) => s.type === 'bar');
@@ -303,8 +307,7 @@ function Plot<Row extends object>({
               </Group>
             );
           }
-          const centre = (_: unknown, ri: number) =>
-            (xScale(categories[ri]) ?? 0) + bandW / 2;
+          const centre = (_: unknown, ri: number) => (xScale(categories[ri]) ?? 0) + bandW / 2;
           const value = (row: Row) => yScale(toNumber(row[s.key]));
           if (s.type === 'area') {
             return (
@@ -365,13 +368,15 @@ function Plot<Row extends object>({
   );
 }
 
-export function CartesianChart<Row extends object>(
-  props: CartesianChartProps<Row>,
-) {
+export function CartesianChart<Row extends object>(props: CartesianChartProps<Row>) {
   const { data, series, height = 300, empty, className, formatValue = (v) => String(v) } = props;
 
   if (data.length === 0) {
-    return <div className={cn('flex items-center justify-center', className)} style={{ height }}>{empty}</div>;
+    return (
+      <div className={cn('flex items-center justify-center', className)} style={{ height }}>
+        {empty}
+      </div>
+    );
   }
 
   /* The text alternative is wrapped in an sr-only DIV rather than carrying
@@ -391,9 +396,7 @@ export function CartesianChart<Row extends object>(
             race that made this gallery flaky in the visual suite. Debouncing is
             worth having on resize, not on mount. */}
         <ParentSize debounceTime={0}>
-          {({ width }) =>
-            width > 0 ? <Plot {...props} width={width} height={height} /> : null
-          }
+          {({ width }) => (width > 0 ? <Plot {...props} width={width} height={height} /> : null)}
         </ParentSize>
       </div>
       {series.length > 1 && (
@@ -426,28 +429,28 @@ export function CartesianChart<Row extends object>(
           usually sits beside its table; where it does not, this is the table. */}
       <div className="sr-only">
         <table>
-        <caption>{props.ariaLabel}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{props.x}</th>
-            {series.map((s) => (
-              <th key={s.key} scope="col">
-                {s.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, ri) => (
-            <tr key={ri}>
-              <th scope="row">{String(row[props.x])}</th>
+          <caption>{props.ariaLabel}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{props.x}</th>
               {series.map((s) => (
-                <td key={s.key}>{formatValue(toNumber(row[s.key]))}</td>
+                <th key={s.key} scope="col">
+                  {s.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((row, ri) => (
+              <tr key={ri}>
+                <th scope="row">{String(row[props.x])}</th>
+                {series.map((s) => (
+                  <td key={s.key}>{formatValue(toNumber(row[s.key]))}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -12,7 +12,9 @@ const SEEN_KEY = 'openrisk_hints_seen';
 
 function seen(id: string): boolean {
   try {
-    return (JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') as Record<string, boolean>)[id] === true;
+    return (
+      (JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') as Record<string, boolean>)[id] === true
+    );
   } catch {
     return false;
   }
@@ -50,7 +52,13 @@ export function Hint({ id, text, side = 'top', children }: HintProps) {
   };
 
   return (
-    <span className="relative inline-flex" onMouseEnter={onEnter} onMouseLeave={onLeave} onFocus={onEnter} onBlur={onLeave}>
+    <span
+      className="relative inline-flex"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onFocus={onEnter}
+      onBlur={onLeave}
+    >
       {children}
       {show && (
         <span

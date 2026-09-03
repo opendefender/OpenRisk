@@ -33,13 +33,16 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
     try {
       const { data } = await api.get('/assets');
       set({ assets: data });
-    } catch (e) { console.error(e); } 
-    finally { set({ isLoading: false }); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      set({ isLoading: false });
+    }
   },
   createAsset: async (newAsset) => {
-      await api.post('/assets', newAsset);
-      get().fetchAssets();
-  }
+    await api.post('/assets', newAsset);
+    get().fetchAssets();
+  },
 }));
 
 // Same reason as the risk store: an inventory belongs to exactly one tenant.

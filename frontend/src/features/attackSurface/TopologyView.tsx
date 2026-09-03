@@ -86,7 +86,7 @@ export default function TopologyView() {
   // drops those assets AND every edge that ends on one — a dangling edge to a
   // hidden node would draw a dependency on nothing.
   const [critFilter, setCritFilter] = useState<Set<string>>(
-    new Set(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])
+    new Set(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
   );
   const [selected, setSelected] = useState<LaidOutNode | null>(null);
   const [chainOrigin, setChainOrigin] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export default function TopologyView() {
   }, [chain]);
   const highlightedEdges = useMemo(
     () => (chain ? new Set((chain.edge_ids ?? []) as string[]) : null),
-    [chain]
+    [chain],
   );
 
   const colorOfNode = useCallback(
@@ -132,7 +132,7 @@ export default function TopologyView() {
       const crit = ((n.node.criticality ?? 'LOW') as string).toLowerCase() as Criticality;
       return critColor[crit] ?? critColor.low;
     },
-    [colorMode]
+    [colorMode],
   );
 
   // --- build / rebuild the layout when the data or the zone filter changes ---
@@ -145,11 +145,11 @@ export default function TopologyView() {
     const visibleNodes = nodes.filter(
       (n) =>
         (!zoneFilter || n.zone === zoneFilter) &&
-        critFilter.has((n.criticality ?? 'LOW') as string)
+        critFilter.has((n.criticality ?? 'LOW') as string),
     );
     const visibleIds = new Set(visibleNodes.map((n) => n.id as string));
     const visibleEdges = edges.filter(
-      (e) => visibleIds.has(e.source as string) && visibleIds.has(e.target as string)
+      (e) => visibleIds.has(e.source as string) && visibleIds.has(e.target as string),
     );
 
     const w = wrap.clientWidth || 900;
@@ -210,7 +210,7 @@ export default function TopologyView() {
     st: LayoutState,
     dpr: number,
     w: number,
-    h: number
+    h: number,
   ) => {
     const root = document.documentElement;
     const ink = resolveColor('var(--fg-primary)', root);
@@ -347,7 +347,11 @@ export default function TopologyView() {
 
   const onWheel = (e: React.WheelEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
-    zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - (rect?.left ?? 0), e.clientY - (rect?.top ?? 0));
+    zoomBy(
+      e.deltaY < 0 ? 1.12 : 1 / 1.12,
+      e.clientX - (rect?.left ?? 0),
+      e.clientY - (rect?.top ?? 0),
+    );
   };
 
   // --- export ---------------------------------------------------------------
@@ -399,11 +403,7 @@ export default function TopologyView() {
     <PageFrame wide>
       <PageHeader
         title="Topologie de la surface d'attaque"
-        count={
-          data
-            ? `${data.nodes?.length ?? 0} actifs · ${data.edges?.length ?? 0} liens`
-            : null
-        }
+        count={data ? `${data.nodes?.length ?? 0} actifs · ${data.edges?.length ?? 0} liens` : null}
         actions={
           <>
             <Btn label="SVG" icon={Download} onClick={() => void doExport('svg')} />
@@ -419,7 +419,11 @@ export default function TopologyView() {
       {data?.truncated ? (
         <div
           className="mb-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-[13px]"
-          style={{ borderColor: 'var(--high)', background: 'var(--surface-2)', color: 'var(--fg-secondary)' }}
+          style={{
+            borderColor: 'var(--high)',
+            background: 'var(--surface-2)',
+            color: 'var(--fg-secondary)',
+          }}
         >
           <AlertTriangle size={16} style={{ color: 'var(--high)' }} className="mt-0.5 shrink-0" />
           <span>
@@ -606,22 +610,20 @@ export default function TopologyView() {
             <div className="mt-3 space-y-2 text-[12.5px]" style={{ color: 'var(--fg-secondary)' }}>
               <Row label="Criticité">
                 <CritBadge
-                  crit={((selected.node.criticality ?? 'LOW') as string).toLowerCase() as Criticality}
+                  crit={
+                    ((selected.node.criticality ?? 'LOW') as string).toLowerCase() as Criticality
+                  }
                 />
               </Row>
               <Row label="Zone">{selected.zone}</Row>
-              <Row label="Exposé Internet">
-                {selected.node.internet_exposed ? 'Oui' : 'Non'}
-              </Row>
+              <Row label="Exposé Internet">{selected.node.internet_exposed ? 'Oui' : 'Non'}</Row>
               <Row label="Liens">{selected.node.degree ?? 0}</Row>
               <Row label="Risques">{selected.node.risk_count ?? 0}</Row>
               <Row label="Vulnérabilités ouvertes">{selected.node.vuln_count ?? 0}</Row>
             </div>
 
             <button
-              onClick={() =>
-                setChainOrigin(chainOrigin === selected.id ? null : selected.id)
-              }
+              onClick={() => setChainOrigin(chainOrigin === selected.id ? null : selected.id)}
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium"
               style={{
                 background: chainOrigin === selected.id ? 'var(--surface-1)' : 'var(--accent-soft)',
@@ -630,9 +632,7 @@ export default function TopologyView() {
               }}
             >
               <Crosshair size={14} />
-              {chainOrigin === selected.id
-                ? 'Masquer la chaîne'
-                : 'Si cet actif est compromis…'}
+              {chainOrigin === selected.id ? 'Masquer la chaîne' : 'Si cet actif est compromis…'}
             </button>
 
             {chainOrigin === selected.id && chainCounts ? (
@@ -729,7 +729,10 @@ function DependencyEditor({
 
   return (
     <div className="mt-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-      <div className="mb-1.5 text-[11px] font-semibold uppercase" style={{ color: 'var(--fg-muted)' }}>
+      <div
+        className="mb-1.5 text-[11px] font-semibold uppercase"
+        style={{ color: 'var(--fg-muted)' }}
+      >
         Dépendances
       </div>
 

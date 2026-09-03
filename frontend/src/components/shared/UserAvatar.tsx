@@ -79,7 +79,7 @@ export const UserAvatar = ({
         bgColor,
         sizeClasses.container,
         onClick && 'cursor-pointer',
-        className
+        className,
       )}
       onClick={onClick}
     >

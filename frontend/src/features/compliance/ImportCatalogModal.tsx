@@ -34,7 +34,7 @@ export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalo
       toast.success(
         t('compliance.catalog.importSuccess')
           .replace('{imported}', String(result.imported))
-          .replace('{skipped}', String(result.skipped))
+          .replace('{skipped}', String(result.skipped)),
       );
 
       // The head start, said at the moment the question arises rather than left
@@ -128,7 +128,10 @@ export const ImportCatalogModal = ({ isOpen, onClose, onImported }: ImportCatalo
                         </div>
                         <p className="mt-0.5 truncate text-xs text-fg-muted">
                           {catalog.available
-                            ? t('compliance.catalog.controlCount').replace('{count}', String(catalog.control_count))
+                            ? t('compliance.catalog.controlCount').replace(
+                                '{count}',
+                                String(catalog.control_count),
+                              )
                             : t('compliance.catalog.comingSoonDescription')}
                         </p>
                       </div>

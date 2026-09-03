@@ -128,7 +128,7 @@ async function seed(key: 'a' | 'b', t: Tenant): Promise<void> {
         internet_exposed: true,
       },
     },
-    token
+    token,
   );
   const assetText = await assetRes.text();
   expect(assetRes.status, `create asset: ${assetText}`).toBe(201);
@@ -143,7 +143,7 @@ async function seed(key: 'a' | 'b', t: Tenant): Promise<void> {
       probability: 0.8,
       asset_ids: [assetId],
     },
-    token
+    token,
   );
   const riskText = await riskRes.text();
   expect(riskRes.status, `create risk: ${riskText}`).toBe(201);
@@ -168,7 +168,10 @@ test.describe.configure({ mode: 'serial' });
 let page: Page;
 
 test.beforeAll(async ({ browser }) => {
-  test.skip(!(await apiReachable()), `API unreachable at ${API} — start the stack to run this suite`);
+  test.skip(
+    !(await apiReachable()),
+    `API unreachable at ${API} — start the stack to run this suite`,
+  );
 
   await register(TENANT_A);
   await register(TENANT_B);
@@ -232,7 +235,10 @@ test('a drawer link names a tab', async () => {
   await openDrawer(`/risks?drawer=risk&entity=${seeded.a.riskId}&etab=timeline`);
 
   await expect(drawer()).toBeVisible();
-  await expect(drawer().getByRole('tab', { name: 'Timeline' })).toHaveAttribute('aria-selected', 'true');
+  await expect(drawer().getByRole('tab', { name: 'Timeline' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
 });
 
 /* ------------------------------------------------------------------ *
@@ -311,7 +317,7 @@ test('Escape closes the drawer', async () => {
  * Cross-tenant (§48, §51) — the security claim
  * ------------------------------------------------------------------ */
 
-test('a drawer URL naming another tenant\'s risk does not open it', async () => {
+test("a drawer URL naming another tenant's risk does not open it", async () => {
   // Tenant A's session, tenant B's real id. This is the IDOR probe: the id is
   // genuine, so nothing about its shape gives it away.
   await openDrawer(`/risks?drawer=risk&entity=${seeded.b.riskId}`);
@@ -324,7 +330,7 @@ test('a drawer URL naming another tenant\'s risk does not open it', async () => 
   await expect(drawer()).not.toContainText(/other tenant/i);
 });
 
-test('a drawer URL naming another tenant\'s asset does not open it', async () => {
+test("a drawer URL naming another tenant's asset does not open it", async () => {
   await openDrawer(`/assets?drawer=asset&entity=${seeded.b.assetId}`);
 
   await expect(drawer()).toBeVisible();
@@ -332,7 +338,7 @@ test('a drawer URL naming another tenant\'s asset does not open it', async () =>
   await expect(drawer()).not.toContainText(seeded.b.assetName);
 });
 
-test('a forged id is indistinguishable from another tenant\'s id', async () => {
+test("a forged id is indistinguishable from another tenant's id", async () => {
   // If these two answered differently, the pair would be an oracle for
   // enumerating another tenant's records.
   await openDrawer('/risks?drawer=risk&entity=00000000-0000-4000-8000-000000000000');
@@ -345,7 +351,7 @@ test('a forged id is indistinguishable from another tenant\'s id', async () => {
   expect(foreign).toContain('Record not found');
 });
 
-test('every relation belongs to the caller\'s own tenant', async () => {
+test("every relation belongs to the caller's own tenant", async () => {
   await openDrawer(`/risks?drawer=risk&entity=${seeded.a.riskId}&etab=relations`);
   await expect(drawer()).toBeVisible();
 
@@ -415,7 +421,10 @@ test('the drawer is keyboard navigable between tabs', async () => {
   await overview.focus();
   await page.keyboard.press('ArrowRight');
 
-  await expect(drawer().getByRole('tab', { name: 'Relations' })).toHaveAttribute('aria-selected', 'true');
+  await expect(drawer().getByRole('tab', { name: 'Relations' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
 });
 
 /* ------------------------------------------------------------------ *

@@ -26,14 +26,22 @@ vi.mock('react-router', async () => {
   const actual = await vi.importActual<typeof import('react-router')>('react-router');
   return { ...actual, useNavigate: () => navigate };
 });
-vi.mock('../../../lib/api', () => ({ api: { post: (...a: unknown[]) => post(...a), defaults: { baseURL: '' } } }));
+vi.mock('../../../lib/api', () => ({
+  api: { post: (...a: unknown[]) => post(...a), defaults: { baseURL: '' } },
+}));
 vi.mock('../authService', () => ({
   setupMFA: (...a: unknown[]) => setupMFA(...a),
   verifyMFA: (...a: unknown[]) => verifyMFA(...a),
-  listSessions: vi.fn(), revokeSession: vi.fn(), revokeOtherSessions: vi.fn(),
+  listSessions: vi.fn(),
+  revokeSession: vi.fn(),
+  revokeOtherSessions: vi.fn(),
 }));
 vi.mock('../../../hooks/useAuthStore', () => {
-  const state = { user: undefined, login: (...a: unknown[]) => login(...a), adoptSession: (...a: unknown[]) => adoptSession(...a) };
+  const state = {
+    user: undefined,
+    login: (...a: unknown[]) => login(...a),
+    adoptSession: (...a: unknown[]) => adoptSession(...a),
+  };
   const useAuthStore = (sel?: (s: typeof state) => unknown) => (sel ? sel(state) : state);
   useAuthStore.getState = () => state;
   return { useAuthStore };
@@ -62,7 +70,11 @@ describe('signing up', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     post.mockResolvedValue({ data: {} });
-    setupMFA.mockResolvedValue({ secret: 'ABCDEF', qr_code: '/9j/rawbase64', backup_codes: ['AAAA1111'] });
+    setupMFA.mockResolvedValue({
+      secret: 'ABCDEF',
+      qr_code: '/9j/rawbase64',
+      backup_codes: ['AAAA1111'],
+    });
   });
 
   it('hands off to MFA enrolment instead of navigating with no session', async () => {

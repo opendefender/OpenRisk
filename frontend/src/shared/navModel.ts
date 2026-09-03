@@ -13,9 +13,26 @@
 
 import {
   FolderCheck,
-  LayoutDashboard, TrendingUp, ShieldAlert, ShieldCheck, Siren, Server,
-  ClipboardCheck, Globe, Database, Atom, FileText, Sparkles, Settings, Bug, Coins,
-  Workflow, Scale, Users, History, ListChecks,
+  LayoutDashboard,
+  TrendingUp,
+  ShieldAlert,
+  ShieldCheck,
+  Siren,
+  Server,
+  ClipboardCheck,
+  Globe,
+  Database,
+  Atom,
+  FileText,
+  Sparkles,
+  Settings,
+  Bug,
+  Coins,
+  Workflow,
+  Scale,
+  Users,
+  History,
+  ListChecks,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -89,10 +106,34 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_pilot',
     items: [
       { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', perm: 'risks:read' },
-      { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
-      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/risks/mitigations', perm: 'mitigations:read' },
-      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
-      { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
+      {
+        key: 'vulnerabilities',
+        labelKey: 'n_vulns',
+        icon: Bug,
+        path: '/vulnerabilities',
+        perm: 'vulnerabilities:read',
+      },
+      {
+        key: 'mitigations',
+        labelKey: 'n_mitigations',
+        icon: ShieldCheck,
+        path: '/risks/mitigations',
+        perm: 'mitigations:read',
+      },
+      {
+        key: 'incidents',
+        labelKey: 'n_incidents',
+        icon: Siren,
+        path: '/incidents',
+        perm: 'incidents:read',
+      },
+      {
+        key: 'automation',
+        labelKey: 'n_automation',
+        icon: Workflow,
+        path: '/automation',
+        perm: 'automation:read',
+      },
     ],
   },
   {
@@ -103,9 +144,28 @@ export const NAV_GROUPS: NavGroup[] = [
       // No `perm`: the endpoint scopes itself to what the caller's business role
       // can act on, so an empty list is the honest answer for a role with nothing
       // outstanding — not a reason to hide the entry.
-      { key: 'action-center', labelKey: 'n_actionCenter', icon: ListChecks, path: '/action-center' },
-      { key: 'analytics', labelKey: 'n_analytics', icon: TrendingUp, path: '/', href: '/?view=executive', view: 'executive', perm: 'risks:read' },
-      { key: 'financial', labelKey: 'n_financial', icon: Coins, path: '/analytics/financial', perm: 'risks:read' },
+      {
+        key: 'action-center',
+        labelKey: 'n_actionCenter',
+        icon: ListChecks,
+        path: '/action-center',
+      },
+      {
+        key: 'analytics',
+        labelKey: 'n_analytics',
+        icon: TrendingUp,
+        path: '/',
+        href: '/?view=executive',
+        view: 'executive',
+        perm: 'risks:read',
+      },
+      {
+        key: 'financial',
+        labelKey: 'n_financial',
+        icon: Coins,
+        path: '/analytics/financial',
+        perm: 'risks:read',
+      },
       { key: 'activity', labelKey: 'n_activity', icon: History, path: '/activity' },
     ],
   },
@@ -114,10 +174,28 @@ export const NAV_GROUPS: NavGroup[] = [
     groupKey: 'g_identify',
     items: [
       { key: 'assets', labelKey: 'n_assets', icon: Database, path: '/assets', perm: 'assets:read' },
-      { key: 'universe', labelKey: 'n_universe', icon: Atom, path: '/assets/topology', perm: 'assets:read' },
-      { key: 'vulnerabilities', labelKey: 'n_vulns', icon: Bug, path: '/vulnerabilities', perm: 'vulnerabilities:read' },
+      {
+        key: 'universe',
+        labelKey: 'n_universe',
+        icon: Atom,
+        path: '/assets/topology',
+        perm: 'assets:read',
+      },
+      {
+        key: 'vulnerabilities',
+        labelKey: 'n_vulns',
+        icon: Bug,
+        path: '/vulnerabilities',
+        perm: 'vulnerabilities:read',
+      },
       { key: 'cti', labelKey: 'n_cti', icon: Globe, path: '/threat-map', perm: 'risks:read' },
-      { key: 'infrastructure', labelKey: 'n_infra', icon: Server, path: '/infrastructure', perm: 'scanner:read' },
+      {
+        key: 'infrastructure',
+        labelKey: 'n_infra',
+        icon: Server,
+        path: '/infrastructure',
+        perm: 'scanner:read',
+      },
     ],
   },
   // 2 · Évaluer — « Quel est mon risque, en clair et en argent ? »
@@ -131,24 +209,72 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     groupKey: 'g_treat',
     items: [
-      { key: 'mitigations', labelKey: 'n_mitigations', icon: ShieldCheck, path: '/risks/mitigations', perm: 'mitigations:read' },
-      { key: 'incidents', labelKey: 'n_incidents', icon: Siren, path: '/incidents', perm: 'incidents:read' },
-      { key: 'automation', labelKey: 'n_automation', icon: Workflow, path: '/automation', perm: 'automation:read' },
+      {
+        key: 'mitigations',
+        labelKey: 'n_mitigations',
+        icon: ShieldCheck,
+        path: '/risks/mitigations',
+        perm: 'mitigations:read',
+      },
+      {
+        key: 'incidents',
+        labelKey: 'n_incidents',
+        icon: Siren,
+        path: '/incidents',
+        perm: 'incidents:read',
+      },
+      {
+        key: 'automation',
+        labelKey: 'n_automation',
+        icon: Workflow,
+        path: '/automation',
+        perm: 'automation:read',
+      },
     ],
   },
   // 4 · Prouver — « Comment je le démontre à un régulateur ? »
   {
     groupKey: 'g_prove',
     items: [
-      { key: 'compliance', labelKey: 'n_compliance', icon: ClipboardCheck, path: '/compliance', perm: 'compliance:read' },
+      {
+        key: 'compliance',
+        labelKey: 'n_compliance',
+        icon: ClipboardCheck,
+        path: '/compliance',
+        perm: 'compliance:read',
+      },
       // The evidence library is its own destination, not a tab inside a
       // framework: the same artifact answers controls in several frameworks, so
       // filing it under one of them would hide it from the others.
-      { key: 'evidence', labelKey: 'n_evidence', icon: FolderCheck, path: '/compliance/evidence', perm: 'compliance:evidences:read' },
-      { key: 'reports', labelKey: 'n_reports', icon: FileText, path: '/reports', perm: 'reports:board:read' },
+      {
+        key: 'evidence',
+        labelKey: 'n_evidence',
+        icon: FolderCheck,
+        path: '/compliance/evidence',
+        perm: 'compliance:evidences:read',
+      },
+      {
+        key: 'reports',
+        labelKey: 'n_reports',
+        icon: FileText,
+        path: '/reports',
+        perm: 'reports:board:read',
+      },
       { key: 'ai', labelKey: 'n_ai', icon: Sparkles, path: '/recommendations', perm: 'risks:read' },
-      { key: 'emerging', labelKey: 'n_emerging', icon: Sparkles, path: '/ai/emerging-risks', perm: 'risks:read' },
-      { key: 'governance', labelKey: 'n_governance', icon: Scale, path: '/governance', adminOnly: true },
+      {
+        key: 'emerging',
+        labelKey: 'n_emerging',
+        icon: Sparkles,
+        path: '/ai/emerging-risks',
+        perm: 'risks:read',
+      },
+      {
+        key: 'governance',
+        labelKey: 'n_governance',
+        icon: Scale,
+        path: '/governance',
+        adminOnly: true,
+      },
     ],
   },
   // Utility — hors des 5 intentions (bas de sidebar)
@@ -158,7 +284,14 @@ export const NAV_GROUPS: NavGroup[] = [
       // The members badge counts OUTSTANDING INVITATIONS, not members: a number
       // beside a nav item should mean "something is waiting for you", and the
       // headcount is not.
-      { key: 'roles', labelKey: 'n_roles', icon: Users, path: '/settings/members', adminOnly: true, badge: { count: 'pending_invitations', color: 'var(--info)' } },
+      {
+        key: 'roles',
+        labelKey: 'n_roles',
+        icon: Users,
+        path: '/settings/members',
+        adminOnly: true,
+        badge: { count: 'pending_invitations', color: 'var(--info)' },
+      },
       { key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' },
     ],
   },
@@ -180,17 +313,14 @@ export function pinnedItems(groups: NavGroup[]): NavItem[] {
  * `perm`, or (for adminOnly items) when the user is an admin. Empty groups are
  * dropped so the sidebar never renders a header with nothing under it.
  */
-export function visibleNavGroups(
-  can: (perm: string) => boolean,
-  isAdmin: boolean
-): NavGroup[] {
+export function visibleNavGroups(can: (perm: string) => boolean, isAdmin: boolean): NavGroup[] {
   const allow = (it: NavItem): boolean => {
     if (it.adminOnly) return isAdmin;
     if (it.perm) return isAdmin || can(it.perm);
     return true;
   };
   return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(allow) })).filter(
-    (g) => g.items.length > 0
+    (g) => g.items.length > 0,
   );
 }
 

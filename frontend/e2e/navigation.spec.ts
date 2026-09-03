@@ -53,7 +53,10 @@ async function apiReachable(): Promise<boolean> {
 }
 
 test.beforeAll(async ({ browser }) => {
-  test.skip(!(await apiReachable()), `API unreachable at ${API} — start the stack to run this suite`);
+  test.skip(
+    !(await apiReachable()),
+    `API unreachable at ${API} — start the stack to run this suite`,
+  );
 
   const reg = await fetch(`${API}/auth/register`, {
     method: 'POST',
@@ -80,14 +83,18 @@ test.beforeAll(async ({ browser }) => {
   // A framework with controls, so the compliance drill-downs and the report have
   // something real to render.
   const created = await api('POST', '/compliance/frameworks', {
-    name: 'ISO/IEC 27001', version: '2022', description: 'nav spec',
+    name: 'ISO/IEC 27001',
+    version: '2022',
+    description: 'nav spec',
   });
   // Read the body ONCE: a Response body is a stream, so reading it for the
   // failure message consumes it before .json() can.
   const createdBody = await created.text();
   expect(created.status, `create framework: ${createdBody}`).toBe(201);
   frameworkId = JSON.parse(createdBody).id;
-  await api('POST', `/compliance/frameworks/${frameworkId}/import-catalog`, { catalog_key: 'cis-v8' });
+  await api('POST', `/compliance/frameworks/${frameworkId}/import-catalog`, {
+    catalog_key: 'cis-v8',
+  });
 
   page = await browser.newPage();
   await page.goto('/login');
@@ -112,9 +119,7 @@ async function settled(p: Page, expectedPath?: string) {
   await p.waitForLoadState('domcontentloaded');
   await expect(p.getByTestId('app-main')).toBeVisible({ timeout: 15_000 });
   if (expectedPath) {
-    await expect
-      .poll(() => new URL(p.url()).pathname, { timeout: 10_000 })
-      .toBe(expectedPath);
+    await expect.poll(() => new URL(p.url()).pathname, { timeout: 10_000 }).toBe(expectedPath);
   }
 }
 
@@ -130,7 +135,10 @@ function deepRoutes(): Array<{ path: string; parent: string }> {
     { path: '/risks/mitigations', parent: '/risks' },
     { path: '/assets/universe', parent: '/assets' },
     { path: `/compliance/frameworks/${frameworkId}`, parent: '/compliance' },
-    { path: `/compliance/frameworks/${frameworkId}/gaps`, parent: `/compliance/frameworks/${frameworkId}` },
+    {
+      path: `/compliance/frameworks/${frameworkId}/gaps`,
+      parent: `/compliance/frameworks/${frameworkId}`,
+    },
     { path: '/compliance/gaps', parent: '/compliance' },
     { path: '/compliance/audits', parent: '/compliance' },
     { path: '/compliance/remediation', parent: '/compliance' },
@@ -275,7 +283,9 @@ test.describe('Compliance and Reports do not loop', () => {
 
     await expect(page.getByTestId('detail-back')).toBeVisible();
     const download = page.getByRole('button', { name: /télécharger|download/i });
-    await expect(download, 'the generated report offers no download').toBeVisible({ timeout: 30_000 });
+    await expect(download, 'the generated report offers no download').toBeVisible({
+      timeout: 30_000,
+    });
 
     expect(clicks, 'reaching the report took more than 4 clicks').toBeLessThanOrEqual(4);
   });
@@ -288,10 +298,17 @@ test.describe('Compliance and Reports do not loop', () => {
     // /compliance — that was the return leg of the loop.
     await complianceTemplateGenerate(page).click();
     await expect(page.getByTestId('framework-picker')).toBeVisible();
-    expect(new URL(page.url()).pathname, 'the Reports screen navigated back to Compliance').toBe('/reports');
+    expect(new URL(page.url()).pathname, 'the Reports screen navigated back to Compliance').toBe(
+      '/reports',
+    );
 
     // Picking a framework ends on the artifact.
-    await page.getByTestId('framework-picker').getByRole('button').filter({ hasText: /ISO/ }).first().click();
+    await page
+      .getByTestId('framework-picker')
+      .getByRole('button')
+      .filter({ hasText: /ISO/ })
+      .first()
+      .click();
     await page.waitForURL(/\/reports\/jobs\/[0-9a-f-]+/, { timeout: 30_000 });
   });
 
@@ -322,9 +339,11 @@ test.describe('Compliance and Reports do not loop', () => {
 test('?action=invite opens the invite dialog', async () => {
   await page.goto('/settings/members?action=invite');
   await settled(page);
-  await expect(page.getByRole('heading', { name: /inviter un membre|invite a member/i }).or(
-    page.getByText(/inviter un membre|invite a member/i).first(),
-  )).toBeVisible();
+  await expect(
+    page
+      .getByRole('heading', { name: /inviter un membre|invite a member/i })
+      .or(page.getByText(/inviter un membre|invite a member/i).first()),
+  ).toBeVisible();
 });
 
 test('Escape closes a dialog', async () => {

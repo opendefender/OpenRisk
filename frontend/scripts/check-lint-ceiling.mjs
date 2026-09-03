@@ -23,83 +23,91 @@
 // Usage:
 //   node scripts/check-lint-ceiling.mjs            check (CI)
 //   node scripts/check-lint-ceiling.mjs --update   re-freeze after improving
-import { readFileSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
-const CEILING_FILE = new URL('../.lint-ceiling.json', import.meta.url)
-const update = process.argv.includes('--update')
+const CEILING_FILE = new URL('../.lint-ceiling.json', import.meta.url);
+const update = process.argv.includes('--update');
 
 // eslint exits 1 when it reports errors, which is the normal case here, so the
 // exit code tells us nothing. Only unparseable stdout means the tool failed.
 const run = spawnSync('npx', ['eslint', '.', '-f', 'json'], {
   encoding: 'utf8',
   maxBuffer: 64 * 1024 * 1024,
-})
+});
 
-let report
+let report;
 try {
-  report = JSON.parse(run.stdout)
+  report = JSON.parse(run.stdout);
 } catch {
-  console.error('✗ Could not run ESLint or parse its JSON report.')
-  console.error(run.stderr || run.stdout || '(no output)')
-  process.exit(2)
+  console.error('✗ Could not run ESLint or parse its JSON report.');
+  console.error(run.stderr || run.stdout || '(no output)');
+  process.exit(2);
 }
 
-const counts = {}
-let total = 0
+const counts = {};
+let total = 0;
 for (const file of report) {
   for (const msg of file.messages) {
-    if (msg.severity !== 2) continue // warnings are not gated
-    const rule = msg.ruleId ?? '(parse error)'
-    counts[rule] = (counts[rule] ?? 0) + 1
-    total++
+    if (msg.severity !== 2) continue; // warnings are not gated
+    const rule = msg.ruleId ?? '(parse error)';
+    counts[rule] = (counts[rule] ?? 0) + 1;
+    total++;
   }
 }
 
-const sorted = Object.fromEntries(Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])))
+const sorted = Object.fromEntries(
+  Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+);
 
 if (update) {
-  writeFileSync(CEILING_FILE, JSON.stringify({ total, rules: sorted }, null, 2) + '\n')
-  console.log(`✓ Ceiling re-frozen at ${total} errors across ${Object.keys(sorted).length} rules.`)
-  process.exit(0)
+  writeFileSync(CEILING_FILE, JSON.stringify({ total, rules: sorted }, null, 2) + '\n');
+  console.log(`✓ Ceiling re-frozen at ${total} errors across ${Object.keys(sorted).length} rules.`);
+  process.exit(0);
 }
 
-let ceiling
+let ceiling;
 try {
-  ceiling = JSON.parse(readFileSync(CEILING_FILE, 'utf8'))
+  ceiling = JSON.parse(readFileSync(CEILING_FILE, 'utf8'));
 } catch {
-  console.error(`✗ ${CEILING_FILE.pathname} missing or invalid. Run with --update to create it.`)
-  process.exit(2)
+  console.error(`✗ ${CEILING_FILE.pathname} missing or invalid. Run with --update to create it.`);
+  process.exit(2);
 }
 
-const regressions = []
+const regressions = [];
 for (const [rule, count] of Object.entries(counts)) {
-  const max = ceiling.rules[rule] ?? 0
-  if (count > max) regressions.push({ rule, count, max })
+  const max = ceiling.rules[rule] ?? 0;
+  if (count > max) regressions.push({ rule, count, max });
 }
 
-const improvements = []
+const improvements = [];
 for (const [rule, max] of Object.entries(ceiling.rules)) {
-  const count = counts[rule] ?? 0
-  if (count < max) improvements.push({ rule, count, max })
+  const count = counts[rule] ?? 0;
+  if (count < max) improvements.push({ rule, count, max });
 }
 
-console.log(`ESLint errors: ${total} (ceiling ${ceiling.total})`)
+console.log(`ESLint errors: ${total} (ceiling ${ceiling.total})`);
 
 if (regressions.length > 0) {
-  console.error('\n✗ ESLint regressed. These rules got worse:\n')
-  for (const { rule, count, max } of regressions.sort((a, b) => b.count - b.max - (a.count - a.max))) {
-    console.error(`    ${rule}: ${count} (ceiling ${max}, +${count - max})`)
+  console.error('\n✗ ESLint regressed. These rules got worse:\n');
+  for (const { rule, count, max } of regressions.sort(
+    (a, b) => b.count - b.max - (a.count - a.max),
+  )) {
+    console.error(`    ${rule}: ${count} (ceiling ${max}, +${count - max})`);
   }
-  console.error('\nRun `npm run lint` to see the offending lines. Fix them — do not raise the ceiling.')
-  process.exit(1)
+  console.error(
+    '\nRun `npm run lint` to see the offending lines. Fix them — do not raise the ceiling.',
+  );
+  process.exit(1);
 }
 
 if (improvements.length > 0) {
-  const paid = improvements.reduce((n, i) => n + (i.max - i.count), 0)
-  console.log(`\n✓ No regression, and ${paid} error(s) paid down:\n`)
-  for (const { rule, count, max } of improvements) console.log(`    ${rule}: ${max} -> ${count}`)
-  console.log('\nTighten the ratchet in this PR: `npm run lint:ceiling -- --update` and commit .lint-ceiling.json.')
+  const paid = improvements.reduce((n, i) => n + (i.max - i.count), 0);
+  console.log(`\n✓ No regression, and ${paid} error(s) paid down:\n`);
+  for (const { rule, count, max } of improvements) console.log(`    ${rule}: ${max} -> ${count}`);
+  console.log(
+    '\nTighten the ratchet in this PR: `npm run lint:ceiling -- --update` and commit .lint-ceiling.json.',
+  );
 } else {
-  console.log('✓ No regression.')
+  console.log('✓ No regression.');
 }

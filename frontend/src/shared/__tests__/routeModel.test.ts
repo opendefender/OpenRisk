@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { describe, it, expect } from 'vitest';
-import { ROUTES, resolveRoute, routeTrail, parentHref, permissionFor, matchPath, fillPattern } from '../routeModel';
+import {
+  ROUTES,
+  resolveRoute,
+  routeTrail,
+  parentHref,
+  permissionFor,
+  matchPath,
+  fillPattern,
+} from '../routeModel';
 
 describe('matchPath', () => {
   it('matches static segments exactly', () => {
@@ -11,7 +19,9 @@ describe('matchPath', () => {
   });
 
   it('captures params and rejects arity mismatches', () => {
-    expect(matchPath('/compliance/audits/:auditId', '/compliance/audits/abc')).toEqual({ auditId: 'abc' });
+    expect(matchPath('/compliance/audits/:auditId', '/compliance/audits/abc')).toEqual({
+      auditId: 'abc',
+    });
     expect(matchPath('/compliance/audits/:auditId', '/compliance/audits')).toBeNull();
     expect(matchPath('/compliance/audits/:auditId', '/compliance/audits/a/b')).toBeNull();
   });
@@ -87,9 +97,17 @@ describe('the tree itself', () => {
 
   it('cannot loop: walking parents always terminates', () => {
     for (const r of ROUTES) {
-      const trail = routeTrail(fillPattern(r.path, Object.fromEntries(
-        r.path.split('/').filter((s) => s.startsWith(':')).map((s) => [s.slice(1), 'x']),
-      )));
+      const trail = routeTrail(
+        fillPattern(
+          r.path,
+          Object.fromEntries(
+            r.path
+              .split('/')
+              .filter((s) => s.startsWith(':'))
+              .map((s) => [s.slice(1), 'x']),
+          ),
+        ),
+      );
       expect(trail.length).toBeGreaterThan(0);
       expect(trail.length).toBeLessThan(10);
     }

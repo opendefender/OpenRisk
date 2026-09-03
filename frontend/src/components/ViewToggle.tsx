@@ -20,7 +20,7 @@ export const ViewToggle = ({ view, onViewChange }: ViewToggleProps) => {
           'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
           view === 'table'
             ? 'bg-primary/10 text-accent-strong border border-primary/30'
-            : 'text-fg-secondary hover:text-fg-primary'
+            : 'text-fg-secondary hover:text-fg-primary',
         )}
       >
         <List size={16} />
@@ -32,7 +32,7 @@ export const ViewToggle = ({ view, onViewChange }: ViewToggleProps) => {
           'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
           view === 'card'
             ? 'bg-primary/10 text-accent-strong border border-primary/30'
-            : 'text-fg-secondary hover:text-fg-primary'
+            : 'text-fg-secondary hover:text-fg-primary',
         )}
       >
         <LayoutGrid size={16} />

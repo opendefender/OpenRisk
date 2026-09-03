@@ -30,14 +30,8 @@ interface NotificationPreference {
 }
 
 export const EnhancedNotificationCenter = () => {
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-    clearAll,
-  } = useNotificationStore();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll } =
+    useNotificationStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -141,11 +135,7 @@ export const EnhancedNotificationCenter = () => {
 
   // Show desktop notification
   const showDesktopNotification = (notification: any) => {
-    if (
-      preferences.desktop &&
-      'Notification' in window &&
-      Notification.permission === 'granted'
-    ) {
+    if (preferences.desktop && 'Notification' in window && Notification.permission === 'granted') {
       new Notification(notification.title, {
         body: notification.message,
         icon: '/icon-notification.png',
@@ -262,7 +252,9 @@ export const EnhancedNotificationCenter = () => {
                     exit={{ opacity: 0, height: 0 }}
                     className="border-b border-border-default bg-surface-2/50 p-4 space-y-3"
                   >
-                    <h4 className="text-sm font-semibold text-fg-primary mb-3">Notification Preferences</h4>
+                    <h4 className="text-sm font-semibold text-fg-primary mb-3">
+                      Notification Preferences
+                    </h4>
 
                     {Object.entries(preferences).map(([key, value]) => (
                       <label
@@ -280,7 +272,9 @@ export const EnhancedNotificationCenter = () => {
                           }
                           className="w-4 h-4 rounded border-border-default cursor-pointer"
                         />
-                        <span className="text-sm text-fg-secondary capitalize">{key} notifications</span>
+                        <span className="text-sm text-fg-secondary capitalize">
+                          {key} notifications
+                        </span>
                       </label>
                     ))}
 

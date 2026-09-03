@@ -39,7 +39,9 @@ export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps
     <Drawer
       open={!!assetId}
       onClose={onClose}
-      title={asset ? t('assets.historyTitle').replace('{name}', asset.name ?? '') : t('assets.history')}
+      title={
+        asset ? t('assets.historyTitle').replace('{name}', asset.name ?? '') : t('assets.history')
+      }
     >
       {isLoading ? (
         <div className="space-y-3">
@@ -75,7 +77,11 @@ export const AssetHistoryDrawer = ({ assetId, onClose }: AssetHistoryDrawerProps
                 <User size={12} />
                 {t('assets.changedBy').replace(
                   '{who}',
-                  actorLabel(snapshot.changed_by_email, snapshot.changed_by, t('assets.changedBySystem')),
+                  actorLabel(
+                    snapshot.changed_by_email,
+                    snapshot.changed_by,
+                    t('assets.changedBySystem'),
+                  ),
                 )}
               </div>
               <div className="flex items-center justify-between">

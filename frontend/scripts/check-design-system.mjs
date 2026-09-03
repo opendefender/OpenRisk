@@ -166,12 +166,7 @@ function parseRules(css) {
     // split, a statement at-rule ahead of it (`@source ...;`,
     // `@custom-variant ...;`) is swallowed into the selector and `@theme` is
     // read as `@source` — which is how theme.css stayed unparsed.
-    const selector = clean
-      .slice(i, open)
-      .split(';')
-      .pop()
-      .trim()
-      .replace(/\s+/g, ' ');
+    const selector = clean.slice(i, open).split(';').pop().trim().replace(/\s+/g, ' ');
 
     if (selector.startsWith('@')) {
       const end = closingBrace(clean, open);

@@ -161,7 +161,12 @@ export function useOnboardingSuggestions(params?: {
   goal?: string;
 }) {
   return useQuery({
-    queryKey: [...ONBOARDING_SUGGESTIONS_KEY, params?.industry ?? '', params?.country ?? '', params?.goal ?? ''],
+    queryKey: [
+      ...ONBOARDING_SUGGESTIONS_KEY,
+      params?.industry ?? '',
+      params?.country ?? '',
+      params?.goal ?? '',
+    ],
     queryFn: () => activationService.getSuggestions(params),
     staleTime: 5 * 60_000,
   });

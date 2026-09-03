@@ -39,7 +39,7 @@ describe('Login Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLogin.mockResolvedValue(undefined);
-    
+
     vi.mocked(useAuthStore).mockImplementation((selector) => {
       const store = {
         login: mockLogin,
@@ -52,7 +52,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     expect(screen.getByText('Welcome back')).toBeInTheDocument();
@@ -66,7 +66,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const emailInput = screen.getByPlaceholderText('name@company.com') as HTMLInputElement;
@@ -80,7 +80,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const passwordInput = screen.getByPlaceholderText('••••••••') as HTMLInputElement;
@@ -94,7 +94,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const emailInput = screen.getByPlaceholderText('name@company.com');
@@ -117,7 +117,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const emailInput = screen.getByPlaceholderText('name@company.com');
@@ -140,7 +140,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const emailInput = screen.getByPlaceholderText('name@company.com');
@@ -163,7 +163,7 @@ describe('Login Page', () => {
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const emailInput = screen.getByPlaceholderText('name@company.com');
@@ -179,19 +179,19 @@ describe('Login Page', () => {
       // non-enumerable message (does not reveal whether email or password was
       // wrong) — see Login.tsx / userFriendlyErrors.ts. Assert that copy.
       expect(toast.error).toHaveBeenCalledWith(
-        'Incorrect email or password. Please check and try again.'
+        'Incorrect email or password. Please check and try again.',
       );
     });
   });
 
   it('should disable submit button while loading', async () => {
     const user = userEvent.setup();
-    mockLogin.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    mockLogin.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
 
     render(
       <BrowserRouter>
         <Login />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     const emailInput = screen.getByPlaceholderText('name@company.com');

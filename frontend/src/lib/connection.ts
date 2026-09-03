@@ -46,7 +46,11 @@ function emit(next: ConnectionStatus): void {
 
 /** A response came back from the API. */
 export function markApiSuccess(): void {
-  emit({ ...status, state: navigator.onLine === false ? 'offline' : 'online', lastSuccessAt: Date.now() });
+  emit({
+    ...status,
+    state: navigator.onLine === false ? 'offline' : 'online',
+    lastSuccessAt: Date.now(),
+  });
 }
 
 /**
@@ -55,7 +59,11 @@ export function markApiSuccess(): void {
  * backend is very much alive — so callers must only report transport faults.
  */
 export function markApiFailure(): void {
-  emit({ ...status, state: navigator.onLine === false ? 'offline' : 'degraded', lastFailureAt: Date.now() });
+  emit({
+    ...status,
+    state: navigator.onLine === false ? 'offline' : 'degraded',
+    lastFailureAt: Date.now(),
+  });
 }
 
 export function getConnectionStatus(): ConnectionStatus {

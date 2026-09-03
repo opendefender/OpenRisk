@@ -29,9 +29,8 @@ import { safeDeepLink } from '../actionLinks';
 import type { ActionCenterResponse, ActionItem } from '../actionCenterService';
 
 vi.mock('../actionCenterService', async () => {
-  const actual = await vi.importActual<typeof import('../actionCenterService')>(
-    '../actionCenterService',
-  );
+  const actual =
+    await vi.importActual<typeof import('../actionCenterService')>('../actionCenterService');
   return { ...actual, actionCenterService: { list: vi.fn() } };
 });
 
@@ -70,12 +69,28 @@ function page(items: ActionItem[], total = items.length): ActionCenterResponse {
  * one of these ever stops resolving, the test names which one.
  */
 const CONTRACT_LINKS: Array<{ type: ActionItem['type']; rank: number; deepLink: string }> = [
-  { type: 'overdue_mitigation', rank: 1, deepLink: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0' },
-  { type: 'critical_risk', rank: 2, deepLink: '/risks?drawer=risk&entity=1c2d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f' },
+  {
+    type: 'overdue_mitigation',
+    rank: 1,
+    deepLink: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0',
+  },
+  {
+    type: 'critical_risk',
+    rank: 2,
+    deepLink: '/risks?drawer=risk&entity=1c2d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f',
+  },
   { type: 'pending_approval', rank: 3, deepLink: '/governance' },
   { type: 'open_incident', rank: 4, deepLink: '/incidents/412/war-room' },
-  { type: 'expiring_evidence', rank: 5, deepLink: '/compliance/evidence?drawer=evidence&entity=aa11bb22-cc33-dd44-ee55-ff6677889900' },
-  { type: 'overdue_remediation', rank: 6, deepLink: '/compliance/remediation/9b8a7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d' },
+  {
+    type: 'expiring_evidence',
+    rank: 5,
+    deepLink: '/compliance/evidence?drawer=evidence&entity=aa11bb22-cc33-dd44-ee55-ff6677889900',
+  },
+  {
+    type: 'overdue_remediation',
+    rank: 6,
+    deepLink: '/compliance/remediation/9b8a7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d',
+  },
 ];
 
 function LocationProbe() {
@@ -91,7 +106,15 @@ function renderPanel(initialPath = '/') {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
-          <Route path="*" element={<><ActionCenterPanel /><LocationProbe /></>} />
+          <Route
+            path="*"
+            element={
+              <>
+                <ActionCenterPanel />
+                <LocationProbe />
+              </>
+            }
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -116,9 +139,27 @@ describe('ActionCenterPanel', () => {
     // "helpfully" re-sorts by rank would disagree with the server on page two.
     // Rendering this array unchanged is what proves nothing re-sorts.
     const returned = [
-      item({ id: 'incident:412', type: 'open_incident', title: 'Ransomware on the payroll server', deep_link: '/incidents/412/war-room', category_rank: 4 }),
-      item({ id: 'mitigation:1', type: 'overdue_mitigation', title: 'Patch the perimeter VPN', deep_link: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0', category_rank: 1 }),
-      item({ id: 'approval:2', type: 'pending_approval', title: 'Risk acceptance for legacy SFTP', deep_link: '/governance', category_rank: 3 }),
+      item({
+        id: 'incident:412',
+        type: 'open_incident',
+        title: 'Ransomware on the payroll server',
+        deep_link: '/incidents/412/war-room',
+        category_rank: 4,
+      }),
+      item({
+        id: 'mitigation:1',
+        type: 'overdue_mitigation',
+        title: 'Patch the perimeter VPN',
+        deep_link: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0',
+        category_rank: 1,
+      }),
+      item({
+        id: 'approval:2',
+        type: 'pending_approval',
+        title: 'Risk acceptance for legacy SFTP',
+        deep_link: '/governance',
+        category_rank: 3,
+      }),
     ];
     list.mockResolvedValue(page(returned));
 
@@ -155,7 +196,11 @@ describe('ActionCenterPanel', () => {
 
   it('renders a skeleton before the query resolves', async () => {
     let resolve: ((value: ActionCenterResponse) => void) | undefined;
-    list.mockReturnValue(new Promise<ActionCenterResponse>((r) => { resolve = r; }));
+    list.mockReturnValue(
+      new Promise<ActionCenterResponse>((r) => {
+        resolve = r;
+      }),
+    );
 
     renderPanel();
 
@@ -163,7 +208,17 @@ describe('ActionCenterPanel', () => {
     expect(screen.queryByTestId('action-center-list')).not.toBeInTheDocument();
     expect(screen.queryByTestId('action-center-empty')).not.toBeInTheDocument();
 
-    resolve?.(page([item({ id: 'approval:2', type: 'pending_approval', title: 'Risk acceptance', deep_link: '/governance', category_rank: 3 })]));
+    resolve?.(
+      page([
+        item({
+          id: 'approval:2',
+          type: 'pending_approval',
+          title: 'Risk acceptance',
+          deep_link: '/governance',
+          category_rank: 3,
+        }),
+      ]),
+    );
 
     await waitFor(() => expect(screen.getByTestId('action-center-list')).toBeInTheDocument());
     expect(screen.queryByTestId('action-center-skeleton')).not.toBeInTheDocument();
@@ -188,7 +243,13 @@ describe('ActionCenterPanel', () => {
     list.mockResolvedValue(
       page(
         CONTRACT_LINKS.map(({ type, rank, deepLink }) =>
-          item({ id: `${type}:x`, type, title: `A ${type}`, deep_link: deepLink, category_rank: rank }),
+          item({
+            id: `${type}:x`,
+            type,
+            title: `A ${type}`,
+            deep_link: deepLink,
+            category_rank: rank,
+          }),
         ),
       ),
     );
@@ -198,7 +259,9 @@ describe('ActionCenterPanel', () => {
     await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(6));
 
     const byType = new Map(
-      screen.getAllByTestId('action-center-item').map((node) => [node.getAttribute('data-action-type'), node.getAttribute('href')]),
+      screen
+        .getAllByTestId('action-center-item')
+        .map((node) => [node.getAttribute('data-action-type'), node.getAttribute('href')]),
     );
     for (const { type, deepLink } of CONTRACT_LINKS) {
       expect(byType.get(type)).toBe(deepLink);
@@ -278,10 +341,25 @@ describe('ActionCenterPanel', () => {
   it('drops an item whose deep link does not resolve, and logs why', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     list.mockResolvedValue(
-      page([
-        item({ id: 'approval:2', type: 'pending_approval', title: 'Risk acceptance', deep_link: '/governance', category_rank: 3 }),
-        item({ id: 'ghost:1', type: 'critical_risk', title: 'Points at a route that does not exist', deep_link: '/risks/00000000-0000-0000-0000-000000000000', category_rank: 2 }),
-      ], 2),
+      page(
+        [
+          item({
+            id: 'approval:2',
+            type: 'pending_approval',
+            title: 'Risk acceptance',
+            deep_link: '/governance',
+            category_rank: 3,
+          }),
+          item({
+            id: 'ghost:1',
+            type: 'critical_risk',
+            title: 'Points at a route that does not exist',
+            deep_link: '/risks/00000000-0000-0000-0000-000000000000',
+            category_rank: 2,
+          }),
+        ],
+        2,
+      ),
     );
 
     renderPanel();

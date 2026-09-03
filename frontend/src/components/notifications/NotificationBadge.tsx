@@ -11,10 +11,7 @@ export interface NotificationBadgeProps {
   onClick: () => void;
 }
 
-export const NotificationBadge: React.FC<NotificationBadgeProps> = ({
-  unreadCount,
-  onClick,
-}) => {
+export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ unreadCount, onClick }) => {
   const [displayCount, setDisplayCount] = useState(unreadCount);
   const [isAnimating, setIsAnimating] = useState(false);
 

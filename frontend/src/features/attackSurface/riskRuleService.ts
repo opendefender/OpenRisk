@@ -75,10 +75,7 @@ export const riskRuleService = {
 
   /** What the rule WOULD do against the current register. Nothing is created. */
   preview: async (rule?: VulnRiskRule): Promise<RulePreview> => {
-    const { data } = await api.post<RulePreview>(
-      '/attack-surface/risk-rule/preview',
-      rule ?? {}
-    );
+    const { data } = await api.post<RulePreview>('/attack-surface/risk-rule/preview', rule ?? {});
     return data;
   },
 
@@ -91,7 +88,7 @@ export const riskRuleService = {
 
   reviewDrafts: async (
     riskIds: string[],
-    decision: 'accept' | 'dismiss'
+    decision: 'accept' | 'dismiss',
   ): Promise<BulkReviewResult> => {
     const { data } = await api.post<BulkReviewResult>('/attack-surface/draft-risks/review', {
       risk_ids: riskIds,

@@ -49,7 +49,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       });
 
       const newNotifications = response.data.data || [];
-      
+
       if (offset === 0) {
         setNotifications(newNotifications);
       } else {
@@ -58,9 +58,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
       setHasMore(newNotifications.length === limit);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to fetch notifications'
-      );
+      setError(err instanceof Error ? err.message : 'Failed to fetch notifications');
     } finally {
       setLoading(false);
     }
@@ -81,13 +79,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       await axios.patch(
         `/api/v1/notifications/${notificationId}/read`,
         {},
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } },
       );
 
       setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notificationId ? { ...n, status: 'read' } : n
-        )
+        prev.map((n) => (n.id === notificationId ? { ...n, status: 'read' } : n)),
       );
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
@@ -99,12 +95,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       await axios.patch(
         '/api/v1/notifications/read-all',
         {},
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } },
       );
 
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, status: 'read' }))
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, status: 'read' })));
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     }
@@ -143,26 +137,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   return (
     <div className="notification-center-overlay" onClick={onClose}>
-      <div
-        className="notification-center"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="notification-center" onClick={(e) => e.stopPropagation()}>
         <div className="notification-center-header">
           <h2>Notifications</h2>
-          <button
-            className="close-button"
-            onClick={onClose}
-            aria-label="Close notifications"
-          >
+          <button className="close-button" onClick={onClose} aria-label="Close notifications">
             ✕
           </button>
         </div>
 
         {notifications.length > 0 && (
-          <button
-            className="mark-all-read-button"
-            onClick={handleMarkAllAsRead}
-          >
+          <button className="mark-all-read-button" onClick={handleMarkAllAsRead}>
             Mark all as read
           </button>
         )}
@@ -187,21 +171,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 notification.status === 'pending' ? 'unread' : 'read'
               }`}
             >
-              <div className="notification-icon">
-                {getNotificationIcon(notification.type)}
-              </div>
+              <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
 
               <div className="notification-content">
-                <div className="notification-subject">
-                  {notification.subject}
-                </div>
-                <div className="notification-message">
-                  {notification.message}
-                </div>
+                <div className="notification-subject">{notification.subject}</div>
+                <div className="notification-message">{notification.message}</div>
                 {notification.description && (
-                  <div className="notification-description">
-                    {notification.description}
-                  </div>
+                  <div className="notification-description">{notification.description}</div>
                 )}
                 <div className="notification-time">
                   {new Date(notification.created_at).toLocaleString()}
@@ -231,11 +207,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
 
         {hasMore && notifications.length > 0 && (
-          <button
-            className="load-more-button"
-            onClick={handleLoadMore}
-            disabled={loading}
-          >
+          <button className="load-more-button" onClick={handleLoadMore} disabled={loading}>
             {loading ? 'Loading...' : 'Load More'}
           </button>
         )}

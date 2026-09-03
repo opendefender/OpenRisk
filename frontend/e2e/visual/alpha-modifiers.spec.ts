@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { test, expect } from '@playwright/test';
-import { alphaModifierSites, UTILITIES, renderManifest } from '../../scripts/alpha-modifier-sites.mjs';
+import {
+  alphaModifierSites,
+  UTILITIES,
+  renderManifest,
+} from '../../scripts/alpha-modifier-sites.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -187,8 +191,7 @@ test.describe('opacity modifiers on design tokens (#427)', () => {
 
     expect(
       onDisk,
-      'e2e/visual/alpha-classes.generated.ts is stale.\n' +
-        'Run: npm run generate:alpha-classes',
+      'e2e/visual/alpha-classes.generated.ts is stale.\n' + 'Run: npm run generate:alpha-classes',
     ).toBe(expected);
   });
 });

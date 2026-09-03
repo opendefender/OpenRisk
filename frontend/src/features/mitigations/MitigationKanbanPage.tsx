@@ -5,12 +5,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  type DropResult,
-} from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { Plus, AlertCircle, Zap, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Mitigation, MitigationStatus } from '../../types/mitigation';
@@ -49,7 +44,9 @@ export const MitigationKanbanPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, OptimisticUpdate>>(new Map());
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, OptimisticUpdate>>(
+    new Map(),
+  );
 
   const store = useMitigationStore();
   const { isDrawerOpen, selectedMitigationId, viewMode } = store;
@@ -122,58 +119,61 @@ export const MitigationKanbanPage = () => {
   }, [groupedMitigations]);
 
   // Handle drag end
-  const onDragEnd = useCallback(async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+  const onDragEnd = useCallback(
+    async (result: DropResult) => {
+      const { source, destination, draggableId } = result;
 
-    if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) {
-      return;
-    }
+      if (!destination) return;
+      if (source.droppableId === destination.droppableId && source.index === destination.index) {
+        return;
+      }
 
-    const mitigationId = draggableId;
-    const mitigation = mitigations.find((m) => m.id === mitigationId);
+      const mitigationId = draggableId;
+      const mitigation = mitigations.find((m) => m.id === mitigationId);
 
-    if (!mitigation) return;
+      if (!mitigation) return;
 
-    const newStatus = destination.droppableId as MitigationStatus;
-    const previousStatus = mitigation.status as MitigationStatus;
+      const newStatus = destination.droppableId as MitigationStatus;
+      const previousStatus = mitigation.status as MitigationStatus;
 
-    // Optimistic update
-    setOptimisticUpdates((prev) => {
-      const next = new Map(prev);
-      next.set(mitigationId, { mitigationId, previousStatus, newStatus });
-      return next;
-    });
-
-    try {
-      await mitigationService.updateMitigation(mitigationId, { status: newStatus });
-      toast.success(`Mitigation déplacée vers ${newStatus}`);
-      
-      // Update local state
-      setMitigations((prev) =>
-        prev.map((m) => (m.id === mitigationId ? { ...m, status: newStatus } : m))
-      );
-
-      // Clear optimistic update
+      // Optimistic update
       setOptimisticUpdates((prev) => {
         const next = new Map(prev);
-        next.delete(mitigationId);
+        next.set(mitigationId, { mitigationId, previousStatus, newStatus });
         return next;
       });
-    } catch (err) {
-      // Rollback
-      toast.error('Erreur lors du déplacement. Tentative annulée.');
-      setOptimisticUpdates((prev) => {
-        const next = new Map(prev);
-        next.delete(mitigationId);
-        return next;
-      });
-    }
-  }, [mitigations]);
+
+      try {
+        await mitigationService.updateMitigation(mitigationId, { status: newStatus });
+        toast.success(`Mitigation déplacée vers ${newStatus}`);
+
+        // Update local state
+        setMitigations((prev) =>
+          prev.map((m) => (m.id === mitigationId ? { ...m, status: newStatus } : m)),
+        );
+
+        // Clear optimistic update
+        setOptimisticUpdates((prev) => {
+          const next = new Map(prev);
+          next.delete(mitigationId);
+          return next;
+        });
+      } catch (err) {
+        // Rollback
+        toast.error('Erreur lors du déplacement. Tentative annulée.');
+        setOptimisticUpdates((prev) => {
+          const next = new Map(prev);
+          next.delete(mitigationId);
+          return next;
+        });
+      }
+    },
+    [mitigations],
+  );
 
   const selectedMitigation = useMemo(
     () => mitigations.find((m) => m.id === selectedMitigationId) || null,
-    [mitigations, selectedMitigationId]
+    [mitigations, selectedMitigationId],
   );
 
   if (error) {
@@ -196,7 +196,9 @@ export const MitigationKanbanPage = () => {
       <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-fg-primary">Plans d'atténuation</h1>
-          <p className="text-sm text-fg-secondary mt-1">Gérez et suivez vos plans d'atténuation des risques</p>
+          <p className="text-sm text-fg-secondary mt-1">
+            Gérez et suivez vos plans d'atténuation des risques
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <ViewSwitcher />
@@ -222,7 +224,14 @@ export const MitigationKanbanPage = () => {
               icon={ClipboardList}
               title="Aucun plan d'atténuation"
               description="Un plan d'atténuation décrit comment vous réduisez un risque : les actions, qui les porte, pour quand. Créez le premier pour suivre la réduction de votre exposition."
-              primaryAction={<Btn label="Créer un plan" icon={Plus} primary onClick={() => setIsCreateOpen(true)} />}
+              primaryAction={
+                <Btn
+                  label="Créer un plan"
+                  icon={Plus}
+                  primary
+                  onClick={() => setIsCreateOpen(true)}
+                />
+              }
             />
           </div>
         ) : viewMode === 'kanban' ? (
@@ -243,22 +252,30 @@ export const MitigationKanbanPage = () => {
                     className="flex flex-col h-full min-w-72 rounded-lg overflow-hidden"
                   >
                     {/* Column Header */}
-                    <div className={cn(
-                      'px-4 py-3 border-b border-border-default',
-                      isReviewColumn ? 'bg-warning/20' : 'bg-surface-2/50'
-                    )}>
+                    <div
+                      className={cn(
+                        'px-4 py-3 border-b border-border-default',
+                        isReviewColumn ? 'bg-warning/20' : 'bg-surface-2/50',
+                      )}
+                    >
                       <div className="flex items-center justify-between">
-                        <h2 className={cn(
-                          'font-semibold text-sm',
-                          isReviewColumn ? 'text-warning-text' : 'text-fg-primary'
-                        )}>
+                        <h2
+                          className={cn(
+                            'font-semibold text-sm',
+                            isReviewColumn ? 'text-warning-text' : 'text-fg-primary',
+                          )}
+                        >
                           {column.label}
                         </h2>
                         <div className="flex items-center gap-2">
-                          <span className={cn(
-                            'text-xs font-medium px-2 py-1 rounded-full',
-                            isReviewColumn ? 'bg-warning/30 text-warning-text' : 'bg-surface-3 text-fg-secondary'
-                          )}>
+                          <span
+                            className={cn(
+                              'text-xs font-medium px-2 py-1 rounded-full',
+                              isReviewColumn
+                                ? 'bg-warning/30 text-warning-text'
+                                : 'bg-surface-3 text-fg-secondary',
+                            )}
+                          >
                             {items.length}
                           </span>
                           {hasReviewPending && (
@@ -282,7 +299,7 @@ export const MitigationKanbanPage = () => {
                           {...provided.droppableProps}
                           className={cn(
                             'flex-1 p-3 space-y-3 overflow-y-auto',
-                            snapshot.isDraggingOver ? 'bg-surface-2/30' : 'bg-surface-1/20'
+                            snapshot.isDraggingOver ? 'bg-surface-2/30' : 'bg-surface-1/20',
                           )}
                         >
                           <AnimatePresence>

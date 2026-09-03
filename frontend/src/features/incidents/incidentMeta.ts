@@ -22,7 +22,15 @@ export const STATUS: Record<IncidentStatus, { color: string; fr: string; en: str
 
 export const STATUSES: IncidentStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 export const SEVERITIES: IncidentSeverity[] = ['critical', 'high', 'medium', 'low'];
-export const TYPES = ['breach', 'attack', 'vulnerability', 'data_loss', 'phishing', 'malware', 'other'];
+export const TYPES = [
+  'breach',
+  'attack',
+  'vulnerability',
+  'data_loss',
+  'phishing',
+  'malware',
+  'other',
+];
 
 export const sevMeta = (s: IncidentSeverity) => SEV[s] ?? SEV.medium;
 export const statusMeta = (s: IncidentStatus) => STATUS[s] ?? STATUS.open;

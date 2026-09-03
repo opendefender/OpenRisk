@@ -63,7 +63,9 @@ export function ActionItemRow({ item, href }: ActionItemRowProps) {
               <>
                 {' · '}
                 <span className={overdue ? 'text-danger-text font-medium' : undefined}>
-                  {overdue ? `${t('actionCenter.overdue')} — ${due}` : interpolate(t('actionCenter.due'), { date: due })}
+                  {overdue
+                    ? `${t('actionCenter.overdue')} — ${due}`
+                    : interpolate(t('actionCenter.due'), { date: due })}
                 </span>
               </>
             )}
@@ -79,7 +81,9 @@ export function ActionItemRow({ item, href }: ActionItemRowProps) {
           aria-hidden="true"
           className="shrink-0 text-fg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
         />
-        <span className="sr-only">{interpolate(t('actionCenter.openItem'), { title: item.title })}</span>
+        <span className="sr-only">
+          {interpolate(t('actionCenter.openItem'), { title: item.title })}
+        </span>
       </Link>
     </li>
   );

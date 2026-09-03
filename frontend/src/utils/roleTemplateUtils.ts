@@ -44,7 +44,7 @@ export const getTemplateByName = (name: string): RoleTemplate | null => {
  * Get all available templates
  */
 export const getAllTemplates = (): RoleTemplate[] => {
-  return Object.values(ROLE_TEMPLATES).map(t => ({
+  return Object.values(ROLE_TEMPLATES).map((t) => ({
     ...t,
     permissions: [...t.permissions],
     features: [...t.features],
@@ -55,9 +55,7 @@ export const getAllTemplates = (): RoleTemplate[] => {
  * Get template by level
  */
 export const getTemplateByLevel = (level: number): RoleTemplate | null => {
-  const template = Object.values(ROLE_TEMPLATES).find(
-    (t) => t.level === level
-  );
+  const template = Object.values(ROLE_TEMPLATES).find((t) => t.level === level);
   if (template) {
     return {
       ...template,
@@ -76,7 +74,7 @@ export const createCustomRoleFromTemplate = (
   customName: string,
   customLevel?: number,
   additionalPermissions: string[] = [],
-  excludedPermissions: string[] = []
+  excludedPermissions: string[] = [],
 ): CustomRole | null => {
   const template = getTemplateByName(templateName);
   if (!template) return null;
@@ -106,7 +104,7 @@ export const createCustomRoleFromTemplate = (
  */
 export const compareTemplates = (
   template1: RoleTemplate,
-  template2: RoleTemplate
+  template2: RoleTemplate,
 ): {
   commonPermissions: string[];
   onlyInTemplate1: string[];
@@ -130,12 +128,10 @@ export const compareTemplates = (
  */
 export const getPermissionCoverage = (
   rolePermissions: string[],
-  allAvailablePermissions: string[]
+  allAvailablePermissions: string[],
 ): number => {
   if (allAvailablePermissions.length === 0) return 0;
-  const coverage = rolePermissions.filter((p) =>
-    allAvailablePermissions.includes(p)
-  ).length;
+  const coverage = rolePermissions.filter((p) => allAvailablePermissions.includes(p)).length;
   return Math.round((coverage / allAvailablePermissions.length) * 100);
 };
 
@@ -144,7 +140,7 @@ export const getPermissionCoverage = (
  */
 export const roleHasMinimumPermissions = (
   rolePermissions: string[],
-  minimumRequired: string[]
+  minimumRequired: string[],
 ): boolean => {
   return minimumRequired.every((perm) => rolePermissions.includes(perm));
 };
@@ -206,7 +202,9 @@ export const getRoleLevelName = (level: number): string => {
 /**
  * Validate custom role
  */
-export const validateCustomRole = (role: Partial<CustomRole>): {
+export const validateCustomRole = (
+  role: Partial<CustomRole>,
+): {
   valid: boolean;
   errors: string[];
 } => {
@@ -245,7 +243,7 @@ export const validateCustomRole = (role: Partial<CustomRole>): {
  */
 export const cloneTemplate = (
   template: RoleTemplate,
-  overrides: Partial<RoleTemplate> = {}
+  overrides: Partial<RoleTemplate> = {},
 ): RoleTemplate => {
   return {
     name: overrides.name ?? template.name,
@@ -264,7 +262,7 @@ export const mergeTemplates = (
   options?: {
     preferHigherLevel?: boolean;
     combineFeatures?: boolean;
-  }
+  },
 ): RoleTemplate => {
   if (templates.length === 0) {
     return getTemplateByName('VIEWER')!;
@@ -274,9 +272,7 @@ export const mergeTemplates = (
     return cloneTemplate(templates[0]);
   }
 
-  const allPermissions = Array.from(
-    new Set(templates.flatMap((t) => t.permissions))
-  );
+  const allPermissions = Array.from(new Set(templates.flatMap((t) => t.permissions)));
   const allFeatures = options?.combineFeatures
     ? Array.from(new Set(templates.flatMap((t) => t.features)))
     : templates[0].features;

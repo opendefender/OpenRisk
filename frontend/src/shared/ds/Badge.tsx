@@ -36,14 +36,7 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 export type BadgeIntent =
-  | 'neutral'
-  | 'accent'
-  | 'success'
-  | 'warning'
-  | 'danger'
-  | 'info'
-  | 'experimental'
-  | 'unavailable';
+  'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'experimental' | 'unavailable';
 
 export type BadgeSize = 'sm' | 'md';
 

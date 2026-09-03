@@ -37,8 +37,7 @@ export const DEFAULT_PERIOD: PeriodPreset = 'all';
 
 /** A resolved selection: either a preset or an explicit half-open range. */
 export type PeriodSelection =
-  | { kind: 'preset'; preset: PeriodPreset }
-  | { kind: 'custom'; from: string; to: string };
+  { kind: 'preset'; preset: PeriodPreset } | { kind: 'custom'; from: string; to: string };
 
 /** What goes on the wire. Sent verbatim; the server owns the resolution. */
 export type PeriodParams = { period: PeriodPreset } | { from: string; to: string };
@@ -93,7 +92,10 @@ export function periodKey(sel: PeriodSelection): string {
  * ./deepLinks.ts. A period appended to a screen that ignores it is a URL that
  * lies about what is being shown.
  */
-export function periodToSearchParams(sel: PeriodSelection, into = new URLSearchParams()): URLSearchParams {
+export function periodToSearchParams(
+  sel: PeriodSelection,
+  into = new URLSearchParams(),
+): URLSearchParams {
   if (sel.kind === 'custom') {
     into.set('from', sel.from);
     into.set('to', sel.to);
@@ -142,10 +144,10 @@ export function useDashboardPeriod() {
           out.delete('to');
           return periodToSearchParams(next, out);
         },
-        { replace: true }
+        { replace: true },
       );
     },
-    [setParams]
+    [setParams],
   );
 
   return { selection, setSelection, params: periodParams(selection), key: periodKey(selection) };

@@ -118,7 +118,9 @@ export const UserLevelCard = () => {
                 className="bg-surface-1/5 border border-border-strong/10 rounded-lg p-4 text-center"
               >
                 <div className="text-2xl font-bold text-info-text">{stats.risks_managed}</div>
-                <div className="text-xs text-fg-secondary uppercase tracking-wide mt-1">Risques Gérés</div>
+                <div className="text-xs text-fg-secondary uppercase tracking-wide mt-1">
+                  Risques Gérés
+                </div>
               </motion.div>
 
               <motion.div
@@ -128,7 +130,9 @@ export const UserLevelCard = () => {
                 className="bg-surface-1/5 border border-border-strong/10 rounded-lg p-4 text-center"
               >
                 <div className="text-2xl font-bold text-success-text">{stats.mitigations_done}</div>
-                <div className="text-xs text-fg-secondary uppercase tracking-wide mt-1">Atténuations</div>
+                <div className="text-xs text-fg-secondary uppercase tracking-wide mt-1">
+                  Atténuations
+                </div>
               </motion.div>
             </div>
           </div>
@@ -171,7 +175,9 @@ export const UserLevelCard = () => {
                   <div className={badge.unlocked ? 'text-warning-text' : 'text-fg-muted'}>
                     {getBadgeIcon(badge.icon)}
                   </div>
-                  <div className="text-xs font-semibold text-fg-primary line-clamp-2">{badge.name}</div>
+                  <div className="text-xs font-semibold text-fg-primary line-clamp-2">
+                    {badge.name}
+                  </div>
                   {badge.unlocked && (
                     <Star className="w-3 h-3 text-warning-text absolute top-1 right-1 fill-current" />
                   )}

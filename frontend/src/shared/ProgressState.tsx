@@ -19,20 +19,37 @@ interface ProgressStateProps {
   percent?: number;
 }
 
-export function ProgressState({ title, steps = [], activeStep = 0, stat, percent }: ProgressStateProps) {
+export function ProgressState({
+  title,
+  steps = [],
+  activeStep = 0,
+  stat,
+  percent,
+}: ProgressStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-6" role="status" aria-live="polite">
+    <div
+      className="flex flex-col items-center justify-center text-center py-12 px-6"
+      role="status"
+      aria-live="polite"
+    >
       <div className="w-full max-w-[360px]">
         <div className="text-[15px] font-semibold text-ink mb-1">{title}</div>
         {stat != null && <div className="text-[13px] text-ink-soft mb-4">{stat}</div>}
 
-        <div className="h-1.5 rounded-full overflow-hidden mb-4" style={{ background: 'var(--bg-hover)' }}>
+        <div
+          className="h-1.5 rounded-full overflow-hidden mb-4"
+          style={{ background: 'var(--bg-hover)' }}
+        >
           {percent == null ? (
             <div className="h-full or-skeleton" style={{ width: '100%' }} />
           ) : (
             <div
               className="h-full rounded-full"
-              style={{ width: `${Math.min(100, Math.max(0, percent))}%`, background: 'var(--accent)', transition: 'width .4s var(--ease-out, ease)' }}
+              style={{
+                width: `${Math.min(100, Math.max(0, percent))}%`,
+                background: 'var(--accent)',
+                transition: 'width .4s var(--ease-out, ease)',
+              }}
             />
           )}
         </div>
@@ -43,10 +60,27 @@ export function ProgressState({ title, steps = [], activeStep = 0, stat, percent
               const done = i < activeStep;
               const active = i === activeStep;
               return (
-                <div key={i} className="flex items-center gap-2.5 text-[12.5px]" style={{ color: active ? 'var(--fg-primary)' : done ? 'var(--fg-secondary)' : 'var(--fg-muted)' }}>
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 text-[12.5px]"
+                  style={{
+                    color: active
+                      ? 'var(--fg-primary)'
+                      : done
+                        ? 'var(--fg-secondary)'
+                        : 'var(--fg-muted)',
+                  }}
+                >
                   <span
                     className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] shrink-0"
-                    style={{ background: done ? 'var(--low)' : active ? 'var(--accent)' : 'var(--bg-hover)', color: done || active ? 'var(--fg-inverse)' : 'var(--fg-muted)' }}
+                    style={{
+                      background: done
+                        ? 'var(--low)'
+                        : active
+                          ? 'var(--accent)'
+                          : 'var(--bg-hover)',
+                      color: done || active ? 'var(--fg-inverse)' : 'var(--fg-muted)',
+                    }}
                   >
                     {done ? '✓' : i + 1}
                   </span>

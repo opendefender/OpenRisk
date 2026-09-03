@@ -31,7 +31,7 @@ export function useBoardReports() {
     mutationFn: (payload: GenerateBoardReportInput) => boardService.generate(payload),
     onSuccess: (report) => {
       queryClient.setQueryData<BoardReport[]>(BOARD_REPORTS_KEY, (prev) =>
-        prev ? [report, ...prev] : [report]
+        prev ? [report, ...prev] : [report],
       );
       queryClient.setQueryData(boardReportKey(report.id), report);
     },
@@ -52,7 +52,7 @@ export function useBoardReports() {
       generate,
       remove,
     }),
-    [query, generate, remove]
+    [query, generate, remove],
   );
 }
 
@@ -70,7 +70,7 @@ export function useBoardReport(id: string | null) {
   const sync = (report: BoardReport) => {
     queryClient.setQueryData(boardReportKey(report.id), report);
     queryClient.setQueryData<BoardReport[]>(BOARD_REPORTS_KEY, (prev) =>
-      prev ? prev.map((r) => (r.id === report.id ? report : r)) : prev
+      prev ? prev.map((r) => (r.id === report.id ? report : r)) : prev,
     );
   };
 
@@ -97,6 +97,6 @@ export function useBoardReport(id: string | null) {
       approve,
       download,
     }),
-    [query.data, query.isLoading, query.error, update, approve, download]
+    [query.data, query.isLoading, query.error, update, approve, download],
   );
 }

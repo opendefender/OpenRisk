@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { taxonomyService, type RiskCategory, type RiskControlMapping } from '../../services/taxonomyService';
+import {
+  taxonomyService,
+  type RiskCategory,
+  type RiskControlMapping,
+} from '../../services/taxonomyService';
 
 export const CATEGORIES_KEY = ['risk-categories'] as const;
 export const IMPORTED_FRAMEWORKS_KEY = ['compliance', 'frameworks', 'imported'] as const;
@@ -84,7 +88,9 @@ export function useSaveCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: Partial<RiskCategory> & { id?: string }) =>
-      input.id ? taxonomyService.updateCategory(input.id, input) : taxonomyService.createCategory(input),
+      input.id
+        ? taxonomyService.updateCategory(input.id, input)
+        : taxonomyService.createCategory(input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: CATEGORIES_KEY });
       void qc.invalidateQueries({ queryKey: ['risks'] });

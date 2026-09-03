@@ -33,14 +33,16 @@ export const MitigationGanttView = memo(function MitigationGanttView({
     const dates = mitigations.map((m) => new Date(m.due_date));
     const start = new Date(Math.min(today.getTime(), Math.min(...dates.map((d) => d.getTime()))));
     const end = new Date(Math.max(today.getTime(), Math.max(...dates.map((d) => d.getTime()))));
-    
+
     start.setDate(start.getDate() - 5);
     end.setDate(end.getDate() + 5);
-    
+
     return { start, end };
   }, [mitigations]);
 
-  const dayCount = Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
+  const dayCount = Math.ceil(
+    (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
   const getPosition = (date: string) => {
     const d = new Date(date);
@@ -82,7 +84,7 @@ export const MitigationGanttView = memo(function MitigationGanttView({
               className="absolute top-0 bottom-0 w-1 bg-danger z-10"
               style={{ left: `${getTodayPosition()}%` }}
             />
-            
+
             {/* Month markers */}
             <div className="absolute inset-0 flex">
               {Array.from({ length: dayCount }).map((_, i) => {
@@ -93,10 +95,11 @@ export const MitigationGanttView = memo(function MitigationGanttView({
                     key={i}
                     className={cn(
                       'flex-1 border-r border-border-default/50 text-xs text-fg-muted px-1 py-1',
-                      i % 7 === 0 ? 'border-r border-border-default font-semibold' : ''
+                      i % 7 === 0 ? 'border-r border-border-default font-semibold' : '',
                     )}
                   >
-                    {i % 7 === 0 && date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    {i % 7 === 0 &&
+                      date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                   </div>
                 );
               })}
@@ -125,7 +128,9 @@ export const MitigationGanttView = memo(function MitigationGanttView({
                   <motion.div
                     className={cn(
                       'absolute top-0 bottom-0 rounded transition-colors',
-                      isOverdue ? 'bg-danger/40 hover:bg-danger/50' : 'bg-accent-line hover:bg-accent-line'
+                      isOverdue
+                        ? 'bg-danger/40 hover:bg-danger/50'
+                        : 'bg-accent-line hover:bg-accent-line',
                     )}
                     style={{
                       left: `${startPos}%`,

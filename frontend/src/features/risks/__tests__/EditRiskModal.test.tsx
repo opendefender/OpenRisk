@@ -30,8 +30,12 @@ describe('EditRiskModal', () => {
     // Values on the Score Engine scales: probability 0.0-1.0, impact 0.0-10.0.
     // description must satisfy the form's Zod min(10) so submit is not blocked.
     const risk = {
-      id: '1', title: 'Old title', description: 'Old description text',
-      impact: 7, probability: 0.4, tags: [],
+      id: '1',
+      title: 'Old title',
+      description: 'Old description text',
+      impact: 7,
+      probability: 0.4,
+      tags: [],
     };
     render(<EditRiskModal isOpen={true} onClose={onClose} risk={risk} />);
 
@@ -52,8 +56,12 @@ describe('EditRiskModal', () => {
   it('saves a risk whose probability is a real Score Engine value', async () => {
     const onClose = vi.fn();
     const risk = {
-      id: '42', title: 'Fuite de données', description: 'Description suffisamment longue',
-      impact: 9.5, probability: 0.7, tags: ['rgpd'],
+      id: '42',
+      title: 'Fuite de données',
+      description: 'Description suffisamment longue',
+      impact: 9.5,
+      probability: 0.7,
+      tags: ['rgpd'],
     };
     render(<EditRiskModal isOpen={true} onClose={onClose} risk={risk} />);
 
@@ -62,8 +70,8 @@ describe('EditRiskModal', () => {
     await waitFor(() =>
       expect(updateRiskMock).toHaveBeenCalledWith(
         '42',
-        expect.objectContaining({ probability: 0.7, impact: 9.5 })
-      )
+        expect.objectContaining({ probability: 0.7, impact: 9.5 }),
+      ),
     );
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });

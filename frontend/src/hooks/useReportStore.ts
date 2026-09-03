@@ -32,7 +32,12 @@ interface ReportStore {
   pageSize: number;
   isLoading: boolean;
   error: string | null;
-  fetchReports: (params?: { page?: number; limit?: number; type?: string; status?: string }) => Promise<void>;
+  fetchReports: (params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    status?: string;
+  }) => Promise<void>;
   fetchReportStats: () => Promise<void>;
   getReport: (id: string) => Promise<Report | null>;
 }
@@ -55,7 +60,7 @@ export const useReportStore = create<ReportStore>((set) => {
         const token = useAuthStore.getState().token;
         const page = params.page ?? 1;
         const limit = params.limit ?? 10;
-        
+
         let url = `${apiBaseUrl}/reports?page=${page}&limit=${limit}`;
         if (params.type) url += `&type=${params.type}`;
         if (params.status) url += `&status=${params.status}`;

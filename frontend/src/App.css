@@ -53,7 +53,8 @@
 }
 
 @keyframes neonFlicker {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
   }
   50% {
@@ -82,7 +83,9 @@
 }
 
 /* Remove default animations from overriding */
-button, a, input {
+button,
+a,
+input {
   transition: all 0.2s ease;
 }
 
@@ -128,7 +131,7 @@ button, a, input {
 }
 
 .react-grid-item > .react-resizable-handle::after {
-  content: "";
+  content: '';
   position: absolute;
   right: 3px;
   bottom: 3px;
@@ -147,4 +150,3 @@ button, a, input {
   border-radius: 8px;
   transition: all 100ms ease;
 }
-

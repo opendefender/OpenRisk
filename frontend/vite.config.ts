@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // Backend origin for the dev proxy. Override with BACKEND_URL when the API runs
 // somewhere other than the default docker compose mapping.
-const backendURL = process.env.BACKEND_URL ?? 'http://localhost:8080'
+const backendURL = process.env.BACKEND_URL ?? 'http://localhost:8080';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -34,7 +34,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
+          if (!id.includes('node_modules')) return undefined;
           // Heavy, rarely-on-first-paint libraries: their own chunks so they load
           // only with the routes that use them and never bloat the entry.
           // @visx/* must be listed explicitly: it matches none of the other
@@ -70,19 +70,19 @@ export default defineConfig({
           if (id.includes('lodash')) return 'lodash'
           if (id.includes('date-fns')) return 'datefns'
           if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('/zod/'))
-            return 'forms'
+            return 'forms';
           if (id.includes('react-confetti') || id.includes('use-sound') || id.includes('howler'))
-            return 'celebrate'
-          if (id.includes('@floating-ui')) return 'floating'
-          if (id.includes('react-use')) return 'reactuse'
-          if (id.includes('zxcvbn')) return 'zxcvbn'
+            return 'celebrate';
+          if (id.includes('@floating-ui')) return 'floating';
+          if (id.includes('react-use')) return 'reactuse';
+          if (id.includes('zxcvbn')) return 'zxcvbn';
           if (id.includes('framer-motion') || id.includes('popmotion') || id.includes('@motionone'))
-            return 'motion'
-          if (id.includes('@tanstack')) return 'query'
-          if (id.includes('react-router')) return 'router'
-          if (id.includes('lucide-react')) return 'icons'
+            return 'motion';
+          if (id.includes('@tanstack')) return 'query';
+          if (id.includes('react-router')) return 'router';
+          if (id.includes('lucide-react')) return 'icons';
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
-            return 'react'
+            return 'react';
 
           /*
            * Transitive engines of the LAZY libraries above.
@@ -120,24 +120,24 @@ export default defineConfig({
             id.includes('node_modules/tabbable') ||
             id.includes('node_modules/eventemitter3')
           )
-            return 'lazy-engines'
+            return 'lazy-engines';
 
           /* framer-motion v11 moved its engine into these two packages; the rule
              above matches the old names only, so they were landing in `vendor`
              rather than beside the animation code that uses them. */
           if (id.includes('node_modules/motion-dom') || id.includes('node_modules/motion-utils'))
-            return 'motion'
+            return 'motion';
 
           /* The toast surface. Nothing can be toasted until the user has acted,
              so it is never needed for first paint — but left to fall through to
              `vendor` it was preloaded anyway, because vendor also holds axios and
              zustand. Same trap as the engines above: no longer *imported*
              eagerly, yet still glued to a preloaded chunk. */
-          if (id.includes('node_modules/sonner')) return 'toast'
+          if (id.includes('node_modules/sonner')) return 'toast';
 
-          return 'vendor'
+          return 'vendor';
         },
       },
     },
   },
-})
+});

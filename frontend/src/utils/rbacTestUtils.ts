@@ -75,7 +75,8 @@ export const createMockViewerUser = (overrides?: Partial<User>): User => {
 export const createUsersByRoles = (roles?: string[]): User[] => {
   const rolesArray = roles || ['Viewer', 'Analyst', 'Manager', 'Administrator'];
   return rolesArray.map((role, index) => {
-    const template = Object.values(ROLE_TEMPLATES).find((t) => t.name === role) as unknown as RoleTemplate | undefined;
+    const template = Object.values(ROLE_TEMPLATES).find((t) => t.name === role) as unknown as
+      RoleTemplate | undefined;
     return {
       id: `user-${index}`,
       email: `${role.toLowerCase()}@example.com`,
@@ -148,7 +149,7 @@ export const createMockAuditLog = (count: number = 10): MockAuditEntry[] => {
  */
 export const testPermissionMatching = (
   userPermissions: string[],
-  requiredPermission: string
+  requiredPermission: string,
 ): { allowed: boolean; matchingPermission?: string } => {
   const match = userPermissions.find((perm) => {
     // Exact match
@@ -231,7 +232,7 @@ export const createTestScenarios = (): TestScenario[] => {
  */
 export const runTestScenarios = (
   scenarios: TestScenario[],
-  checkPermissionFn: (user: User, permission: string) => boolean
+  checkPermissionFn: (user: User, permission: string) => boolean,
 ): { name: string; passed: boolean; expected: boolean; actual: boolean }[] => {
   return scenarios.map((scenario) => {
     const actual = checkPermissionFn(scenario.user, scenario.permission);
@@ -257,14 +258,10 @@ export interface CoverageReport {
 
 export const generateRoleCoverageReport = (
   template: RoleTemplate,
-  allPossiblePermissions: string[]
+  allPossiblePermissions: string[],
 ): CoverageReport => {
-  const covered = allPossiblePermissions.filter((p) =>
-    template.permissions.includes(p)
-  );
-  const missing = allPossiblePermissions.filter(
-    (p) => !template.permissions.includes(p)
-  );
+  const covered = allPossiblePermissions.filter((p) => template.permissions.includes(p));
+  const missing = allPossiblePermissions.filter((p) => !template.permissions.includes(p));
 
   return {
     roleName: template.name,

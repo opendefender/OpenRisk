@@ -95,7 +95,9 @@ export function RiskWeightsSettings() {
     return (
       <PageFrame>
         <PageHeader title={tr('Pondération des risques', 'Risk weighting')} />
-        <Card className="p-6"><SkeletonRows rows={8} /></Card>
+        <Card className="p-6">
+          <SkeletonRows rows={8} />
+        </Card>
       </PageFrame>
     );
   }
@@ -103,12 +105,16 @@ export function RiskWeightsSettings() {
     return (
       <PageFrame>
         <PageHeader title={tr('Pondération des risques', 'Risk weighting')} />
-        <ErrorState title={tr('Chargement impossible', 'Failed to load')} onRetry={() => refetch()} />
+        <ErrorState
+          title={tr('Chargement impossible', 'Failed to load')}
+          onRetry={() => refetch()}
+        />
       </PageFrame>
     );
   }
 
-  const setFactor = (k: FactorKey, val: number) => setW((prev) => (prev ? { ...prev, [k]: val } : prev));
+  const setFactor = (k: FactorKey, val: number) =>
+    setW((prev) => (prev ? { ...prev, [k]: val } : prev));
   const dirty = FACTOR_KEYS.some((k) => Math.abs((w[k] || 0) - (data?.[k] ?? 0)) > 1e-6);
 
   const save = async () => {
@@ -128,14 +134,30 @@ export function RiskWeightsSettings() {
     <PageFrame>
       <PageHeader
         title={tr('Pondération des risques', 'Risk weighting')}
-        badge={<span className="text-[12px] text-ink-soft">{tr('Calcul de risque intelligent', 'Smart risk calculation')}</span>}
+        badge={
+          <span className="text-[12px] text-ink-soft">
+            {tr('Calcul de risque intelligent', 'Smart risk calculation')}
+          </span>
+        }
         actions={
           <div className="flex gap-2">
-            <Btn label={tr('Registre des risques', 'Risk register')} icon={ArrowLeft} onClick={() => navigate('/risks')} />
-            {isAdmin && <Btn label={tr('Défauts', 'Defaults')} icon={RotateCcw} onClick={() => setW({ ...DEFAULT_WEIGHTS })} />}
+            <Btn
+              label={tr('Registre des risques', 'Risk register')}
+              icon={ArrowLeft}
+              onClick={() => navigate('/risks')}
+            />
             {isAdmin && (
               <Btn
-                label={update.isPending ? tr('Enregistrement…', 'Saving…') : tr('Enregistrer', 'Save')}
+                label={tr('Défauts', 'Defaults')}
+                icon={RotateCcw}
+                onClick={() => setW({ ...DEFAULT_WEIGHTS })}
+              />
+            )}
+            {isAdmin && (
+              <Btn
+                label={
+                  update.isPending ? tr('Enregistrement…', 'Saving…') : tr('Enregistrer', 'Save')
+                }
                 icon={Save}
                 primary
                 className={!dirty || update.isPending ? 'opacity-50 pointer-events-none' : ''}
@@ -148,7 +170,10 @@ export function RiskWeightsSettings() {
 
       <Card className="p-5 mb-4">
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: 'var(--bg-hover)' }}>
+          <div
+            className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
+            style={{ background: 'var(--bg-hover)' }}
+          >
             <SlidersHorizontal size={18} className="text-ink-soft" />
           </div>
           <p className="text-[12.5px] text-ink-soft leading-snug">
@@ -163,7 +188,10 @@ export function RiskWeightsSettings() {
       <Card className="p-5">
         {!isAdmin && (
           <div className="mb-4 text-[12.5px] text-ink-muted">
-            {tr('Lecture seule — rôle administrateur requis pour modifier.', 'Read-only — the administrator role is required to edit.')}
+            {tr(
+              'Lecture seule — rôle administrateur requis pour modifier.',
+              'Read-only — the administrator role is required to edit.',
+            )}
           </div>
         )}
         <div className="space-y-5">
@@ -174,8 +202,12 @@ export function RiskWeightsSettings() {
               <div key={k}>
                 <div className="flex items-baseline justify-between mb-1.5">
                   <div>
-                    <span className="text-[13.5px] font-semibold text-ink">{meta.label[lang === 'fr' ? 0 : 1]}</span>
-                    <span className="text-[11.5px] text-ink-muted ml-2">{meta.hint[lang === 'fr' ? 0 : 1]}</span>
+                    <span className="text-[13.5px] font-semibold text-ink">
+                      {meta.label[lang === 'fr' ? 0 : 1]}
+                    </span>
+                    <span className="text-[11.5px] text-ink-muted ml-2">
+                      {meta.hint[lang === 'fr' ? 0 : 1]}
+                    </span>
                   </div>
                   <span className="mono text-[12.5px] text-ink-soft shrink-0">
                     {(w[k] || 0).toFixed(2)}
@@ -195,8 +227,14 @@ export function RiskWeightsSettings() {
                     style={{ accentColor: 'var(--accent)' }}
                   />
                   {/* Effective-share bar */}
-                  <div className="w-24 h-1.5 rounded-full overflow-hidden shrink-0" style={{ background: 'var(--bg-hover)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${share * 100}%`, background: 'var(--accent)' }} />
+                  <div
+                    className="w-24 h-1.5 rounded-full overflow-hidden shrink-0"
+                    style={{ background: 'var(--bg-hover)' }}
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${share * 100}%`, background: 'var(--accent)' }}
+                    />
                   </div>
                 </div>
               </div>

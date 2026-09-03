@@ -32,12 +32,12 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
   });
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.email || !formData.full_name || !formData.username || !formData.password) {
       toast.error('Please fill in all required fields');
@@ -78,7 +78,10 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "We couldn't add the new user. Please verify all information is correct and try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "We couldn't add the new user. Please verify all information is correct and try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -117,9 +120,14 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
               </div>
 
               {/* Content */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+              <form
+                onSubmit={handleSubmit}
+                className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto"
+              >
                 <div>
-                  <label className="text-sm font-medium text-fg-primary block mb-2">Full Name *</label>
+                  <label className="text-sm font-medium text-fg-primary block mb-2">
+                    Full Name *
+                  </label>
                   <Input
                     placeholder="John Doe"
                     value={formData.full_name}
@@ -140,7 +148,9 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-fg-primary block mb-2">Username *</label>
+                  <label className="text-sm font-medium text-fg-primary block mb-2">
+                    Username *
+                  </label>
                   <Input
                     placeholder="johndoe"
                     value={formData.username}
@@ -150,7 +160,9 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-fg-primary block mb-2">Password *</label>
+                  <label className="text-sm font-medium text-fg-primary block mb-2">
+                    Password *
+                  </label>
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -162,7 +174,9 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-fg-primary block mb-2">Confirm Password *</label>
+                  <label className="text-sm font-medium text-fg-primary block mb-2">
+                    Confirm Password *
+                  </label>
                   <Input
                     type="password"
                     placeholder="••••••••"
@@ -200,24 +214,18 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }: CreateUserModalP
 
                 <div className="bg-accent-soft border border-accent-line rounded-lg p-3">
                   <p className="text-xs text-info-text">
-                    💡 The user will be sent an email to verify their account and set a custom password.
+                    💡 The user will be sent an email to verify their account and set a custom
+                    password.
                   </p>
                 </div>
               </form>
 
               {/* Footer */}
               <div className="bg-surface-1/5 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
-                <Button
-                  variant="ghost"
-                  onClick={onClose}
-                  disabled={isLoading}
-                >
+                <Button variant="ghost" onClick={onClose} disabled={isLoading}>
                   Cancel
                 </Button>
-                <Button variant="primary"
-                  onClick={handleSubmit}
-                  disabled={isLoading}
-                >
+                <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 size={16} className="mr-2 animate-spin" />

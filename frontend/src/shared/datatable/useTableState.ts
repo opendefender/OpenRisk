@@ -29,13 +29,20 @@ function parseSort(raw: string | null): TableState['sort'] {
   return { key, dir: dir === 'asc' ? 'asc' : 'desc' };
 }
 
-function readState(params: URLSearchParams, prefix: string, defaults: Partial<TableState>): TableState {
+function readState(
+  params: URLSearchParams,
+  prefix: string,
+  defaults: Partial<TableState>,
+): TableState {
   const k = (name: string) => `${prefix}${name}`;
   const filters: Record<string, string[]> = {};
   params.forEach((value, name) => {
     if (!name.startsWith(`${prefix}${FACET_PREFIX}`)) return;
     const key = name.slice(prefix.length + FACET_PREFIX.length);
-    const values = value.split(',').map((v) => v.trim()).filter(Boolean);
+    const values = value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
     if (key && values.length) filters[key] = values;
   });
 
@@ -45,12 +52,18 @@ function readState(params: URLSearchParams, prefix: string, defaults: Partial<Ta
     q: params.get(k('q')) ?? '',
     sort: parseSort(params.get(k('sort'))) ?? defaults.sort ?? EMPTY_TABLE_STATE.sort,
     page: Number.isFinite(page) && page > 0 ? page : 1,
-    pageSize: Number.isFinite(size) && size > 0 ? size : defaults.pageSize ?? EMPTY_TABLE_STATE.pageSize,
+    pageSize:
+      Number.isFinite(size) && size > 0 ? size : (defaults.pageSize ?? EMPTY_TABLE_STATE.pageSize),
     filters: Object.keys(filters).length ? filters : (defaults.filters ?? {}),
   };
 }
 
-function writeState(prev: URLSearchParams, next: TableState, prefix: string, defaults: Partial<TableState>): URLSearchParams {
+function writeState(
+  prev: URLSearchParams,
+  next: TableState,
+  prefix: string,
+  defaults: Partial<TableState>,
+): URLSearchParams {
   const out = new URLSearchParams(prev);
   const k = (name: string) => `${prefix}${name}`;
 
@@ -64,7 +77,8 @@ function writeState(prev: URLSearchParams, next: TableState, prefix: string, def
   if (next.q) out.set(k('q'), next.q);
   if (next.sort) out.set(k('sort'), `${next.sort.key}:${next.sort.dir}`);
   if (next.page > 1) out.set(k('page'), String(next.page));
-  if (next.pageSize !== (defaults.pageSize ?? EMPTY_TABLE_STATE.pageSize)) out.set(k('size'), String(next.pageSize));
+  if (next.pageSize !== (defaults.pageSize ?? EMPTY_TABLE_STATE.pageSize))
+    out.set(k('size'), String(next.pageSize));
   Object.entries(next.filters).forEach(([key, values]) => {
     if (values.length) out.set(`${prefix}${FACET_PREFIX}${key}`, values.join(','));
   });
@@ -107,7 +121,10 @@ export function useTableState(options: UseTableStateOptions = {}): TableStateApi
     [JSON.stringify(defaultSort), defaultPageSize, JSON.stringify(defaultFilters)],
   );
 
-  const state = useMemo(() => readState(params, urlPrefix, defaults), [params, urlPrefix, defaults]);
+  const state = useMemo(
+    () => readState(params, urlPrefix, defaults),
+    [params, urlPrefix, defaults],
+  );
 
   const patch = useCallback(
     (mutate: (prev: TableState) => TableState, replace = true) => {
@@ -123,7 +140,10 @@ export function useTableState(options: UseTableStateOptions = {}): TableStateApi
   );
 
   const setQuery = useCallback((q: string) => patch((s) => ({ ...s, q, page: 1 })), [patch]);
-  const setSort = useCallback((sort: TableState['sort']) => patch((s) => ({ ...s, sort, page: 1 })), [patch]);
+  const setSort = useCallback(
+    (sort: TableState['sort']) => patch((s) => ({ ...s, sort, page: 1 })),
+    [patch],
+  );
   const toggleSort = useCallback(
     (key: string) =>
       patch((s) => {
@@ -133,8 +153,14 @@ export function useTableState(options: UseTableStateOptions = {}): TableStateApi
       }),
     [patch],
   );
-  const setPage = useCallback((page: number) => patch((s) => ({ ...s, page: Math.max(1, page) }), false), [patch]);
-  const setPageSize = useCallback((pageSize: number) => patch((s) => ({ ...s, pageSize, page: 1 })), [patch]);
+  const setPage = useCallback(
+    (page: number) => patch((s) => ({ ...s, page: Math.max(1, page) }), false),
+    [patch],
+  );
+  const setPageSize = useCallback(
+    (pageSize: number) => patch((s) => ({ ...s, pageSize, page: 1 })),
+    [patch],
+  );
 
   const setFilter = useCallback(
     (facet: string, values: string[]) =>
@@ -152,8 +178,12 @@ export function useTableState(options: UseTableStateOptions = {}): TableStateApi
       patch((s) => {
         const current = s.filters[facet] ?? [];
         const next = single
-          ? current.includes(value) ? [] : [value]
-          : current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+          ? current.includes(value)
+            ? []
+            : [value]
+          : current.includes(value)
+            ? current.filter((v) => v !== value)
+            : [...current, value];
         const filters = { ...s.filters };
         if (next.length) filters[facet] = next;
         else delete filters[facet];
@@ -162,15 +192,33 @@ export function useTableState(options: UseTableStateOptions = {}): TableStateApi
     [patch],
   );
 
-  const clearFilters = useCallback(() => patch((s) => ({ ...s, filters: {}, q: '', page: 1 })), [patch]);
-  const apply = useCallback((partial: Partial<TableState>) => patch((s) => ({ ...s, ...partial, page: 1 })), [patch]);
+  const clearFilters = useCallback(
+    () => patch((s) => ({ ...s, filters: {}, q: '', page: 1 })),
+    [patch],
+  );
+  const apply = useCallback(
+    (partial: Partial<TableState>) => patch((s) => ({ ...s, ...partial, page: 1 })),
+    [patch],
+  );
 
   const activeFilterCount = useMemo(
     () => Object.values(state.filters).filter((v) => v.length > 0).length,
     [state.filters],
   );
 
-  return { state, setQuery, setSort, toggleSort, setPage, setPageSize, toggleFilter, setFilter, clearFilters, apply, activeFilterCount };
+  return {
+    state,
+    setQuery,
+    setSort,
+    toggleSort,
+    setPage,
+    setPageSize,
+    toggleFilter,
+    setFilter,
+    clearFilters,
+    apply,
+    activeFilterCount,
+  };
 }
 
 /* -------------------------------------------------------- local persistence */
@@ -249,13 +297,18 @@ export function useColumnPrefs(tableId: string, allKeys: string[], defaultHidden
     return [...known, ...allKeys.filter((k) => !known.includes(k))];
   }, [prefs.order, allKeys]);
 
-  const hidden = useMemo(() => prefs.hidden.filter((k) => allKeys.includes(k)), [prefs.hidden, allKeys]);
+  const hidden = useMemo(
+    () => prefs.hidden.filter((k) => allKeys.includes(k)),
+    [prefs.hidden, allKeys],
+  );
 
   const toggle = useCallback(
     (columnKey: string) =>
       update({
         order,
-        hidden: hidden.includes(columnKey) ? hidden.filter((k) => k !== columnKey) : [...hidden, columnKey],
+        hidden: hidden.includes(columnKey)
+          ? hidden.filter((k) => k !== columnKey)
+          : [...hidden, columnKey],
       }),
     [order, hidden, update],
   );
@@ -273,7 +326,10 @@ export function useColumnPrefs(tableId: string, allKeys: string[], defaultHidden
     [order, hidden, update],
   );
 
-  const reset = useCallback(() => update({ order: allKeys, hidden: defaultHidden }), [allKeys, defaultHidden, update]);
+  const reset = useCallback(
+    () => update({ order: allKeys, hidden: defaultHidden }),
+    [allKeys, defaultHidden, update],
+  );
 
   return { order, hidden, toggle, move, reset };
 }

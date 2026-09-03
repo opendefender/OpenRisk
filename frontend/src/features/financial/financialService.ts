@@ -18,12 +18,21 @@ export interface Money {
 export interface Amount {
   xaf: number;
   usd: number;
-  value: number;    // amount in `currency`
+  value: number; // amount in `currency`
   currency: string; // tenant display currency (ISO code)
 }
 
 /** Supported tenant display currencies (spec §3). */
-export const SUPPORTED_CURRENCIES = ['XAF', 'XOF', 'EUR', 'USD', 'NGN', 'MAD', 'GHS', 'ZAR'] as const;
+export const SUPPORTED_CURRENCIES = [
+  'XAF',
+  'XOF',
+  'EUR',
+  'USD',
+  'NGN',
+  'MAD',
+  'GHS',
+  'ZAR',
+] as const;
 export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number];
 
 /** FAIR-lite loss distribution: P10 / P50 (median) / P90 band + run metadata. */

@@ -86,8 +86,7 @@ export function RadarChart({
   };
   const ratio = (v: number) => (max > 0 ? Math.max(0, Math.min(1, v / max)) : 0);
 
-  const ringPoints = (r: number) =>
-    axes.map((_, i) => pointAt(i, r).join(',')).join(' ');
+  const ringPoints = (r: number) => axes.map((_, i) => pointAt(i, r).join(',')).join(' ');
 
   /* The text alternative is wrapped in an sr-only DIV rather than carrying
      sr-only itself.
@@ -102,12 +101,7 @@ export function RadarChart({
       <svg width={size} height={size} role="img" aria-label={ariaLabel} className="mx-auto block">
         {/* 1. Grid — rings and spokes, below everything. */}
         {RINGS.map((f) => (
-          <polygon
-            key={f}
-            points={ringPoints(radius * f)}
-            fill="none"
-            stroke={chartGrid.stroke}
-          />
+          <polygon key={f} points={ringPoints(radius * f)} fill="none" stroke={chartGrid.stroke} />
         ))}
         {axes.map((a, i) => {
           const [x, y] = pointAt(i, radius);
@@ -169,28 +163,28 @@ export function RadarChart({
           is the whole point of this chart — so the values must exist as text. */}
       <div className="sr-only">
         <table>
-        <caption>{ariaLabel}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Axis</th>
-            {series.map((s) => (
-              <th key={s.key} scope="col">
-                {s.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {axes.map((a, i) => (
-            <tr key={a.key}>
-              <th scope="row">{a.label}</th>
+          <caption>{ariaLabel}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Axis</th>
               {series.map((s) => (
-                <td key={s.key}>{formatValue(s.values[i] ?? 0)}</td>
+                <th key={s.key} scope="col">
+                  {s.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {axes.map((a, i) => (
+              <tr key={a.key}>
+                <th scope="row">{a.label}</th>
+                {series.map((s) => (
+                  <td key={s.key}>{formatValue(s.values[i] ?? 0)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

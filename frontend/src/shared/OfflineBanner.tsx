@@ -36,16 +36,16 @@ export function OfflineBanner() {
       aria-live="polite"
       className="flex items-center justify-center gap-2 px-4 py-1.5 text-[12.5px] font-medium"
       style={{
-        background: offline ? 'color-mix(in srgb,var(--critical) 16%,transparent)' : 'color-mix(in srgb,var(--medium) 16%,transparent)',
+        background: offline
+          ? 'color-mix(in srgb,var(--critical) 16%,transparent)'
+          : 'color-mix(in srgb,var(--medium) 16%,transparent)',
         color: offline ? 'var(--critical)' : 'var(--medium)',
         borderBottom: '1px solid var(--border)',
       }}
     >
       {offline ? <CloudOff size={14} /> : <RefreshCw size={14} />}
       <span>
-        {offline
-          ? tr('Hors ligne', 'Offline')
-          : tr('Connexion instable', 'Unstable connection')}
+        {offline ? tr('Hors ligne', 'Offline') : tr('Connexion instable', 'Unstable connection')}
         {pausedCount > 0 && (
           <>
             {' — '}

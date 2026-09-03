@@ -54,7 +54,16 @@ describe('readDrawer', () => {
   });
 
   it('accepts every supported type', () => {
-    for (const t of ['asset', 'risk', 'vulnerability', 'finding', 'control', 'incident', 'vendor', 'evidence']) {
+    for (const t of [
+      'asset',
+      'risk',
+      'vulnerability',
+      'finding',
+      'control',
+      'incident',
+      'vendor',
+      'evidence',
+    ]) {
       expect(readDrawer(`drawer=${t}&entity=x`)?.type).toBe(t);
     }
   });
@@ -92,7 +101,11 @@ describe('writeDrawer', () => {
   });
 
   it('clears a stale tab when switching back to the default', () => {
-    const params = writeDrawer(new URLSearchParams('etab=audit'), { type: 'risk', id: '42', tab: 'summary' });
+    const params = writeDrawer(new URLSearchParams('etab=audit'), {
+      type: 'risk',
+      id: '42',
+      tab: 'summary',
+    });
     expect(params.get('etab')).toBeNull();
   });
 });
@@ -111,7 +124,11 @@ describe('stripDrawer', () => {
     // This is §9 in one assertion. If it ever fails, closing a drawer drops the
     // user's filters.
     const original = 'q=log&severity=critical%2Chigh&page=3&size=50&sort=score%3Adesc';
-    const opened = writeDrawer(new URLSearchParams(original), { type: 'risk', id: '42', tab: 'timeline' });
+    const opened = writeDrawer(new URLSearchParams(original), {
+      type: 'risk',
+      id: '42',
+      tab: 'timeline',
+    });
     const closed = stripDrawer(opened);
     expect(closed.toString()).toBe(new URLSearchParams(original).toString());
   });
@@ -172,7 +189,7 @@ function mount(initial: string) {
           }
         />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
   return {
     get controller() {

@@ -107,7 +107,9 @@ export const RBACDashboardWidget = () => {
             </div>
             <div className="text-2xl font-bold text-fg-primary">{teamStats.teams_count}</div>
             <p className="text-xs text-fg-muted mt-1">
-              {teamStats.pending_invites > 0 ? `${teamStats.pending_invites} pending` : 'All accepted'}
+              {teamStats.pending_invites > 0
+                ? `${teamStats.pending_invites} pending`
+                : 'All accepted'}
             </p>
           </div>
         </div>
@@ -117,7 +119,7 @@ export const RBACDashboardWidget = () => {
       <div className="rounded-lg border border-dashed border-border bg-surface/20 p-3 text-center">
         <Shield size={16} className="inline-block mb-2 text-primary" />
         <p className="text-xs text-fg-secondary">
-          Your access level determines what actions you can perform. 
+          Your access level determines what actions you can perform.
           <a href="/settings?tab=rbac" className="text-primary hover:underline ml-1">
             View permissions →
           </a>

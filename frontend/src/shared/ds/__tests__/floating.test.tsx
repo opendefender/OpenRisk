@@ -202,8 +202,6 @@ describe('accessibility (axe-core)', () => {
     const serious = results.violations.filter(
       (v) => v.impact === 'serious' || v.impact === 'critical',
     );
-    expect(
-      serious.map((v) => `${v.id} — ${v.nodes.map((n) => n.html).join(' | ')}`),
-    ).toEqual([]);
+    expect(serious.map((v) => `${v.id} — ${v.nodes.map((n) => n.html).join(' | ')}`)).toEqual([]);
   }, 20_000);
 });

@@ -5,21 +5,43 @@
 // channels, execution + SLA statuses. Kept separate so the page/editor share it.
 
 import {
-  Bug, ShieldAlert, Activity, Siren, Hand, Radar, FilePlus2, UserCheck,
-  Ticket, Bell, Timer, CheckCircle2, XCircle, type LucideIcon,
+  Bug,
+  ShieldAlert,
+  Activity,
+  Siren,
+  Hand,
+  Radar,
+  FilePlus2,
+  UserCheck,
+  Ticket,
+  Bell,
+  Timer,
+  CheckCircle2,
+  XCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import type {
-  AutomationTrigger, AutomationActionType, NotifyChannel, ExecutionStatus, SLAStatus,
+  AutomationTrigger,
+  AutomationActionType,
+  NotifyChannel,
+  ExecutionStatus,
+  SLAStatus,
 } from './automationService';
 
 type Lang = 'fr' | 'en';
 export const pick = (m: { fr: string; en: string }, lang: Lang) => (lang === 'fr' ? m.fr : m.en);
 
-export const TRIGGER_META: Record<AutomationTrigger, { label: { fr: string; en: string }; icon: LucideIcon; hint: { fr: string; en: string } }> = {
+export const TRIGGER_META: Record<
+  AutomationTrigger,
+  { label: { fr: string; en: string }; icon: LucideIcon; hint: { fr: string; en: string } }
+> = {
   vulnerability_detected: {
     label: { fr: 'Vulnérabilité détectée', en: 'Vulnerability detected' },
     icon: Bug,
-    hint: { fr: 'Une nouvelle CVE est enregistrée (scan / flux)', en: 'A new CVE is ingested (scan / feed)' },
+    hint: {
+      fr: 'Une nouvelle CVE est enregistrée (scan / flux)',
+      en: 'A new CVE is ingested (scan / feed)',
+    },
   },
   risk_score_updated: {
     label: { fr: 'Score de risque recalculé', en: 'Risk score updated' },
@@ -43,15 +65,46 @@ export const TRIGGER_META: Record<AutomationTrigger, { label: { fr: string; en: 
   },
 };
 
-export const ACTION_META: Record<AutomationActionType, { label: { fr: string; en: string }; icon: LucideIcon; color: string }> = {
-  scan_asset: { label: { fr: 'Scanner l’actif', en: 'Scan asset' }, icon: Radar, color: 'var(--accent-500)' },
-  create_risk: { label: { fr: 'Créer un risque', en: 'Create risk' }, icon: FilePlus2, color: 'var(--high)' },
-  assign_owner: { label: { fr: 'Assigner', en: 'Assign owner' }, icon: UserCheck, color: 'var(--medium)' },
-  create_ticket: { label: { fr: 'Ouvrir un ticket', en: 'Open ticket' }, icon: Ticket, color: 'var(--iris, #5A6ACF)' },
+export const ACTION_META: Record<
+  AutomationActionType,
+  { label: { fr: string; en: string }; icon: LucideIcon; color: string }
+> = {
+  scan_asset: {
+    label: { fr: 'Scanner l’actif', en: 'Scan asset' },
+    icon: Radar,
+    color: 'var(--accent-500)',
+  },
+  create_risk: {
+    label: { fr: 'Créer un risque', en: 'Create risk' },
+    icon: FilePlus2,
+    color: 'var(--high)',
+  },
+  assign_owner: {
+    label: { fr: 'Assigner', en: 'Assign owner' },
+    icon: UserCheck,
+    color: 'var(--medium)',
+  },
+  create_ticket: {
+    label: { fr: 'Ouvrir un ticket', en: 'Open ticket' },
+    icon: Ticket,
+    color: 'var(--iris, #5A6ACF)',
+  },
   notify: { label: { fr: 'Notifier', en: 'Notify' }, icon: Bell, color: 'var(--accent-500)' },
-  start_sla: { label: { fr: 'Démarrer un SLA', en: 'Start SLA' }, icon: Timer, color: 'var(--critical)' },
-  resolve_risk: { label: { fr: 'Résoudre le risque', en: 'Resolve risk' }, icon: CheckCircle2, color: 'var(--low)' },
-  close_ticket: { label: { fr: 'Clôturer le ticket', en: 'Close ticket' }, icon: XCircle, color: 'var(--low)' },
+  start_sla: {
+    label: { fr: 'Démarrer un SLA', en: 'Start SLA' },
+    icon: Timer,
+    color: 'var(--critical)',
+  },
+  resolve_risk: {
+    label: { fr: 'Résoudre le risque', en: 'Resolve risk' },
+    icon: CheckCircle2,
+    color: 'var(--low)',
+  },
+  close_ticket: {
+    label: { fr: 'Clôturer le ticket', en: 'Close ticket' },
+    icon: XCircle,
+    color: 'var(--low)',
+  },
 };
 
 export const CHANNEL_META: Record<NotifyChannel, { label: string }> = {
@@ -63,7 +116,10 @@ export const CHANNEL_META: Record<NotifyChannel, { label: string }> = {
   sms: { label: 'SMS' },
 };
 
-export const EXEC_STATUS_META: Record<ExecutionStatus, { label: { fr: string; en: string }; color: string }> = {
+export const EXEC_STATUS_META: Record<
+  ExecutionStatus,
+  { label: { fr: string; en: string }; color: string }
+> = {
   success: { label: { fr: 'Succès', en: 'Success' }, color: 'var(--low)' },
   partial: { label: { fr: 'Partiel', en: 'Partial' }, color: 'var(--medium)' },
   failed: { label: { fr: 'Échec', en: 'Failed' }, color: 'var(--critical)' },
@@ -72,7 +128,10 @@ export const EXEC_STATUS_META: Record<ExecutionStatus, { label: { fr: string; en
   skipped: { label: { fr: 'Ignoré', en: 'Skipped' }, color: 'var(--fg-secondary)' },
 };
 
-export const SLA_STATUS_META: Record<SLAStatus, { label: { fr: string; en: string }; color: string }> = {
+export const SLA_STATUS_META: Record<
+  SLAStatus,
+  { label: { fr: string; en: string }; color: string }
+> = {
   open: { label: { fr: 'En cours', en: 'Open' }, color: 'var(--accent-500)' },
   breached: { label: { fr: 'Dépassé', en: 'Breached' }, color: 'var(--high)' },
   escalated: { label: { fr: 'Escaladé', en: 'Escalated' }, color: 'var(--critical)' },

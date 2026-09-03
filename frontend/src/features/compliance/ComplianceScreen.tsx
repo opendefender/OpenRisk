@@ -7,14 +7,37 @@
 // framework, import one from the regulatory catalog, or delete one.
 
 import { useState } from 'react';
-import { FileText, AlertTriangle, Download, ClipboardCheck, ChevronRight, Plus, Library, Trash2, CalendarClock, Wrench } from 'lucide-react';
+import {
+  FileText,
+  AlertTriangle,
+  Download,
+  ClipboardCheck,
+  ChevronRight,
+  Plus,
+  Library,
+  Trash2,
+  CalendarClock,
+  Wrench,
+} from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { PageFrame, PageHeader, Btn, Card, RingGauge, SkeletonRows, EmptyState } from '../../shared/ui';
+import {
+  PageFrame,
+  PageHeader,
+  Btn,
+  Card,
+  RingGauge,
+  SkeletonRows,
+  EmptyState,
+} from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { useComplianceOverview, frameworkColorFor, type FrameworkWithProgress } from './complianceOverview';
+import {
+  useComplianceOverview,
+  frameworkColorFor,
+  type FrameworkWithProgress,
+} from './complianceOverview';
 import { useFrameworks } from './useCompliance';
 import { useGenerateReport } from '../reports/useReportJobs';
 import { CreateFrameworkDialog, ImportFrameworkDialog } from './ComplianceModals';
@@ -40,7 +63,8 @@ export function ComplianceScreen() {
   const totalControls = fws.reduce((a, f) => a + f.total, 0);
   const gaps = fws.reduce((a, f) => a + Math.max(0, f.total - f.passed), 0);
   // Compliance COVERAGE (0–100, higher is better) — not a risk score band.
-  const overallColor = overall >= 70 ? 'var(--low)' : overall >= 40 ? 'var(--high)' : 'var(--critical)';
+  const overallColor =
+    overall >= 70 ? 'var(--low)' : overall >= 40 ? 'var(--high)' : 'var(--critical)';
 
   // Generating a report creates a job and lands the user on it
   // (/reports/jobs/:id). It used to fire a blob download from here while the
@@ -68,7 +92,12 @@ export function ComplianceScreen() {
 
   const headerActions = canCreate ? (
     <>
-      <Btn label={tr('Importer', 'Import')} icon={Library} primary onClick={() => setModal('import')} />
+      <Btn
+        label={tr('Importer', 'Import')}
+        icon={Library}
+        primary
+        onClick={() => setModal('import')}
+      />
       <Btn label={tr('Nouveau', 'New')} icon={Plus} onClick={() => setModal('create')} />
     </>
   ) : undefined;
@@ -79,25 +108,53 @@ export function ComplianceScreen() {
 
       {/* Compliance hub nav — the module's sub-areas beyond frameworks. */}
       <div className="flex items-center gap-2 flex-wrap mb-4">
-        <HubLink icon={AlertTriangle} label={tr("Analyse d'écarts", 'Gap analysis')} onClick={() => navigate('/compliance/gaps')} />
-        <HubLink icon={CalendarClock} label={tr('Audits', 'Audits')} onClick={() => navigate('/compliance/audits')} />
-        <HubLink icon={Wrench} label={tr('Plans de remédiation', 'Remediation plans')} onClick={() => navigate('/compliance/remediation')} />
+        <HubLink
+          icon={AlertTriangle}
+          label={tr("Analyse d'écarts", 'Gap analysis')}
+          onClick={() => navigate('/compliance/gaps')}
+        />
+        <HubLink
+          icon={CalendarClock}
+          label={tr('Audits', 'Audits')}
+          onClick={() => navigate('/compliance/audits')}
+        />
+        <HubLink
+          icon={Wrench}
+          label={tr('Plans de remédiation', 'Remediation plans')}
+          onClick={() => navigate('/compliance/remediation')}
+        />
       </div>
 
       {isLoading ? (
-        <Card style={{ padding: 8 }}><SkeletonRows rows={4} height={64} /></Card>
+        <Card style={{ padding: 8 }}>
+          <SkeletonRows rows={4} height={64} />
+        </Card>
       ) : fws.length === 0 ? (
         <Card>
           <EmptyState
             icon={ClipboardCheck}
             title={tr('Aucun référentiel', 'No frameworks yet')}
-            description={tr('Importez un référentiel (ISO 27001, SOC 2, BCEAO…) ou créez le vôtre pour suivre votre conformité.', 'Import a framework (ISO 27001, SOC 2, BCEAO…) or create your own to track compliance.')}
-            primaryAction={canCreate ? (
-              <div className="flex gap-2.5">
-                <Btn label={tr('Importer un référentiel', 'Import a framework')} icon={Library} primary onClick={() => setModal('import')} />
-                <Btn label={tr('Créer', 'Create')} icon={Plus} onClick={() => setModal('create')} />
-              </div>
-            ) : undefined}
+            description={tr(
+              'Importez un référentiel (ISO 27001, SOC 2, BCEAO…) ou créez le vôtre pour suivre votre conformité.',
+              'Import a framework (ISO 27001, SOC 2, BCEAO…) or create your own to track compliance.',
+            )}
+            primaryAction={
+              canCreate ? (
+                <div className="flex gap-2.5">
+                  <Btn
+                    label={tr('Importer un référentiel', 'Import a framework')}
+                    icon={Library}
+                    primary
+                    onClick={() => setModal('import')}
+                  />
+                  <Btn
+                    label={tr('Créer', 'Create')}
+                    icon={Plus}
+                    onClick={() => setModal('create')}
+                  />
+                </div>
+              ) : undefined
+            }
           />
         </Card>
       ) : (
@@ -109,11 +166,13 @@ export function ComplianceScreen() {
                 <span className="text-[11px] text-ink-muted">{tr('conforme', 'compliant')}</span>
               </RingGauge>
               <div className="flex-1 min-w-[280px]">
-                <div className="disp text-[19px] font-bold text-ink mb-1.5">{tr('Posture de conformité', 'Compliance posture')}</div>
+                <div className="disp text-[19px] font-bold text-ink mb-1.5">
+                  {tr('Posture de conformité', 'Compliance posture')}
+                </div>
                 <div className="text-[13.5px] text-ink-soft leading-relaxed mb-3.5 max-w-[520px]">
                   {tr(
                     `${totalControls} contrôles suivis sur ${fws.length} référentiel${fws.length > 1 ? 's' : ''}. ${gaps} contrôle${gaps > 1 ? 's' : ''} requièrent une action.`,
-                    `${totalControls} controls tracked across ${fws.length} framework${fws.length > 1 ? 's' : ''}. ${gaps} control${gaps > 1 ? 's' : ''} need action.`
+                    `${totalControls} controls tracked across ${fws.length} framework${fws.length > 1 ? 's' : ''}. ${gaps} control${gaps > 1 ? 's' : ''} need action.`,
                   )}
                 </div>
                 <div className="flex gap-2.5 flex-wrap">
@@ -122,30 +181,67 @@ export function ComplianceScreen() {
                       choice and this simply lists what has been generated. It
                       must never navigate to /reports as a way of "generating". */}
                   {fws.length === 1 ? (
-                    <Btn label={L.genReport} icon={FileText} primary disabled={generate.isPending} onClick={() => download(fws[0])} />
+                    <Btn
+                      label={L.genReport}
+                      icon={FileText}
+                      primary
+                      disabled={generate.isPending}
+                      onClick={() => download(fws[0])}
+                    />
                   ) : (
-                    <Btn label={tr('Rapports générés', 'Generated reports')} icon={FileText} onClick={() => navigate('/reports')} />
+                    <Btn
+                      label={tr('Rapports générés', 'Generated reports')}
+                      icon={FileText}
+                      onClick={() => navigate('/reports')}
+                    />
                   )}
-                  <Btn label={tr('Voir les écarts', 'View gaps')} icon={AlertTriangle} onClick={() => navigate('/compliance/gaps')} />
+                  <Btn
+                    label={tr('Voir les écarts', 'View gaps')}
+                    icon={AlertTriangle}
+                    onClick={() => navigate('/compliance/gaps')}
+                  />
                 </div>
               </div>
             </div>
           </Card>
 
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}
+          >
             {fws.map((f, i) => {
               const col = frameworkColorFor(f.name, i);
               return (
-                <Card key={f.id} style={{ padding: 18, animation: 'or-fadeup .4s ease both', animationDelay: `${Math.min(i * 0.04, 0.3)}s` }}>
-                  <button onClick={() => navigate(`/compliance/frameworks/${f.id}`)} className="w-full flex items-center gap-3.5 mb-3.5 text-left group">
+                <Card
+                  key={f.id}
+                  style={{
+                    padding: 18,
+                    animation: 'or-fadeup .4s ease both',
+                    animationDelay: `${Math.min(i * 0.04, 0.3)}s`,
+                  }}
+                >
+                  <button
+                    onClick={() => navigate(`/compliance/frameworks/${f.id}`)}
+                    className="w-full flex items-center gap-3.5 mb-3.5 text-left group"
+                  >
                     <RingGauge value={f.pct} size={56} color={col} thickness={6}>
                       <span className="mono text-[13px] font-bold text-ink">{f.pct}</span>
                     </RingGauge>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-semibold text-ink truncate group-hover:text-accent-strong-strong transition-colors" title={f.name}>{f.name}</div>
-                      <div className="text-[12px] text-ink-soft mt-0.5">{f.passed} / {f.total} {tr('contrôles', 'controls')}</div>
+                      <div
+                        className="text-[14px] font-semibold text-ink truncate group-hover:text-accent-strong-strong transition-colors"
+                        title={f.name}
+                      >
+                        {f.name}
+                      </div>
+                      <div className="text-[12px] text-ink-soft mt-0.5">
+                        {f.passed} / {f.total} {tr('contrôles', 'controls')}
+                      </div>
                     </div>
-                    <ChevronRight size={16} className="text-ink-muted shrink-0 group-hover:text-accent-strong-strong transition-colors" />
+                    <ChevronRight
+                      size={16}
+                      className="text-ink-muted shrink-0 group-hover:text-accent-strong-strong transition-colors"
+                    />
                   </button>
                   <div className="flex gap-2">
                     <button
@@ -168,7 +264,11 @@ export function ComplianceScreen() {
                       <button
                         onClick={() => remove(f)}
                         className="h-8 px-3 rounded-[9px] inline-flex items-center justify-center transition-colors hover:brightness-110"
-                        style={{ border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)', background: 'color-mix(in srgb,var(--critical) 10%,transparent)', color: 'var(--critical)' }}
+                        style={{
+                          border: '1px solid color-mix(in srgb,var(--critical) 30%,transparent)',
+                          background: 'color-mix(in srgb,var(--critical) 10%,transparent)',
+                          color: 'var(--critical)',
+                        }}
                         title={tr('Supprimer le référentiel', 'Delete framework')}
                       >
                         <Trash2 size={14} />
@@ -183,26 +283,46 @@ export function ComplianceScreen() {
       )}
 
       {modal === 'create' && (
-        <CreateFrameworkDialog onClose={() => setModal(null)} onCreated={(id) => navigate(`/compliance/frameworks/${id}`)} />
+        <CreateFrameworkDialog
+          onClose={() => setModal(null)}
+          onCreated={(id) => navigate(`/compliance/frameworks/${id}`)}
+        />
       )}
       {modal === 'import' && (
-        <ImportFrameworkDialog onClose={() => setModal(null)} onImported={(id) => navigate(`/compliance/frameworks/${id}`)} />
+        <ImportFrameworkDialog
+          onClose={() => setModal(null)}
+          onImported={(id) => navigate(`/compliance/frameworks/${id}`)}
+        />
       )}
 
       <ImpactDialog
         open={!!toDelete}
         title={tr('Supprimer ce référentiel ?', 'Delete this framework?')}
         subject={toDelete?.name ?? ''}
-        description={tr('Action irréversible. Voici ce qui sera supprimé :', 'This cannot be undone. Here is what will be removed:')}
+        description={tr(
+          'Action irréversible. Voici ce qui sera supprimé :',
+          'This cannot be undone. Here is what will be removed:',
+        )}
         impacts={[
-          { label: tr('Contrôles supprimés', 'Controls removed'), detail: String(toDelete?.total ?? 0) },
-          { label: tr('Preuves rattachées perdues', 'Attached evidence lost'), detail: tr('toutes', 'all') },
+          {
+            label: tr('Contrôles supprimés', 'Controls removed'),
+            detail: String(toDelete?.total ?? 0),
+          },
+          {
+            label: tr('Preuves rattachées perdues', 'Attached evidence lost'),
+            detail: tr('toutes', 'all'),
+          },
         ]}
         alternatives={[
           {
             label: tr('Exporter le rapport avant de supprimer', 'Export the report first'),
-            description: tr('Gardez une trace PDF de la conformité actuelle.', 'Keep a PDF record of the current posture.'),
-            onClick: () => { if (toDelete) download(toDelete); },
+            description: tr(
+              'Gardez une trace PDF de la conformité actuelle.',
+              'Keep a PDF record of the current posture.',
+            ),
+            onClick: () => {
+              if (toDelete) download(toDelete);
+            },
           },
         ]}
         confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
@@ -214,7 +334,15 @@ export function ComplianceScreen() {
   );
 }
 
-function HubLink({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ size?: number }>; label: string; onClick: () => void }) {
+function HubLink({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ size?: number }>;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}

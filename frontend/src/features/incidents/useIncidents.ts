@@ -66,14 +66,19 @@ export function useIncidentActions(id: number | undefined) {
   // and silently vanishes on a failed write is the kind of thing people act on.
   // The list reflects what the server stored.
   const create = useMutation({
-    mutationFn: (input: CreateIncidentActionInput) => incidentService.createAction(id as number, input),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: key }); },
+    mutationFn: (input: CreateIncidentActionInput) =>
+      incidentService.createAction(id as number, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: key });
+    },
   });
 
   const setStatus = useMutation({
     mutationFn: ({ actionId, status }: { actionId: number; status: IncidentActionStatus }) =>
       incidentService.setActionStatus(id as number, actionId, status),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: key }); },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: key });
+    },
   });
 
   return {
@@ -131,7 +136,7 @@ export function useIncidents(params: IncidentListParams = {}) {
       updateIncident,
       deleteIncident,
     }),
-    [query, createIncident, updateIncident, deleteIncident]
+    [query, createIncident, updateIncident, deleteIncident],
   );
 }
 
