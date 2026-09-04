@@ -307,6 +307,11 @@ func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose fun
 	c.Set("X-Accel-Buffering", "no")
 
 	redisClient := h.redis
+	// Read off the request before the writer starts: it runs after this returns
+	// and the Fiber context is recycled by then. Empty for a caller that carries
+	// no session jti — an agent's scoped token — which sseSessionRevoked treats
+	// as "nothing to revoke" rather than as a reason to refuse (#345).
+	jti := streamJTI(c)
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		if onClose != nil {
 			defer onClose()
@@ -343,6 +348,13 @@ func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose fun
 					return
 				}
 			case <-ticker.C:
+				// Re-authorize on the tick, bounding revocation to one interval
+				// instead of the life of the connection (#345).
+				if sseSessionRevoked(jti) {
+					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
+					_ = w.Flush()
+					return
+				}
 				fmt.Fprint(w, ": keepalive\n\n")
 				if err := w.Flush(); err != nil {
 					return

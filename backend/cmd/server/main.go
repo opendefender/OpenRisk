@@ -469,6 +469,13 @@ func main() {
 	// Closure used by middleware.Protected(rsaKeys, jtiBlacklistChecker) to check the JTI blacklist on every request
 	jtiBlacklistChecker := tokenBlacklistManager.CheckJTIBlacklist(context.Background())
 
+	// The SAME closure re-checks live SSE streams on their keepalive tick, so a
+	// revoked session stops receiving events within one interval instead of
+	// holding a connection open for the stream's whole lifetime — up to two
+	// hours on /realtime/events (#345). One predicate for both: a stream and a
+	// request must never disagree about whether a session is revoked.
+	handlers.SetSSERevocationChecker(jtiBlacklistChecker)
+
 	// Initialize Score Engine (pure, stateless)
 	scoreEngine := scoring.NewEngine()
 	log.Println("Scoring: Engine initialized (pure, zero dependencies)")
