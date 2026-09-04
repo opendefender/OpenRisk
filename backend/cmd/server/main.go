@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -702,46 +701,14 @@ func main() {
 	// every token is signed and validated by one implementation.
 	tokenManager := coreauth.NewTokenManager(database.DB, rsaKeys)
 
-	// resolveSessionForOrg re-derives a user's claims for a SPECIFIC organization,
-	// enforcing that the user is an ACTIVE member of it. It is the single
-	// authorization gate for org-scoped sessions: refresh resolves for the
-	// session's own org, and organization switching resolves for the chosen org.
-	// A user who is not an active member of orgID gets an error here, so a forged
-	// or stolen org id can never be turned into a session.
+	// Both resolvers live in session_wiring.go as named functions so they can be
+	// driven in a test without a database. They enforce ACCOUNT state as well as
+	// membership state; see the commentary there for why both are needed (#350).
 	resolveSessionForOrg := func(ctx context.Context, uid, orgID uuid.UUID) (*coreauth.SessionClaims, error) {
-		if orgID == uuid.Nil {
-			return nil, fmt.Errorf("organization is required")
-		}
-		member, err := userRepo.GetOrganizationMember(ctx, uid, orgID)
-		if err != nil {
-			return nil, err
-		}
-		if member == nil {
-			return nil, fmt.Errorf("user is not a member of this organization")
-		}
-		if !member.IsActive {
-			return nil, fmt.Errorf("membership is not active")
-		}
-		sc := &coreauth.SessionClaims{TenantID: orgID, OrgRoles: map[uuid.UUID]string{orgID: string(member.Role)}}
-		// EffectivePermissions unifies the admin wildcard, the business-role preset,
-		// and any legacy profile rules — so a business-role user keeps its
-		// permissions across a token refresh (same path as login).
-		sc.Permissions = member.EffectivePermissions()
-		return sc, nil
+		return resolveSessionClaimsForOrg(ctx, userRepo, uid, orgID)
 	}
-
-	// resolveSession re-derives a user's claims for their DEFAULT organization.
-	// Shared by IssueSession (OAuth2/SAML/MFA) and the PAT middleware, which have
-	// no notion of a chosen org.
 	resolveSession := func(ctx context.Context, uid uuid.UUID) (*coreauth.SessionClaims, error) {
-		org, err := userRepo.GetUserDefaultOrganization(ctx, uid)
-		if err != nil {
-			return nil, err
-		}
-		if org == nil {
-			return nil, fmt.Errorf("user has no organization")
-		}
-		return resolveSessionForOrg(ctx, uid, org.ID)
+		return resolveSessionClaims(ctx, userRepo, uid)
 	}
 	tokenManager.SetSessionResolver(resolveSession)
 	tokenManager.SetOrgSessionResolver(resolveSessionForOrg)
