@@ -5,7 +5,41 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-None. Every entry in this register is resolved as of 2026-09-02.
+### D-028 — where the `Idempotency-Key` record lives, and which endpoints must carry it · raised 2026-09-03 · **pending**
+**Raised by** — `po-openrisk`, splitting #335. **Issue** — #517 (`status:needs-refinement`).
+
+**The question** — #335 was one issue bundling a P0 transactional-write bug with a new
+cross-cutting mechanism. The bug is now #335 alone and ships this week. The mechanism is #517
+and cannot start until two things are decided:
+
+1. **Storage.** Redis (already in the stack, TTL for free, but a lost key silently degrades to
+   today's behaviour and the guarantee we document becomes conditional) versus a PostgreSQL
+   table (durable, commits in the same transaction as the write it protects, but a new table and
+   a migration).
+2. **Reach.** Which mutation endpoints must carry the header, and whether it is optional or
+   required. Requiring it is a breaking change for every existing client.
+
+Three further design questions — key scope (key alone, or key + tenant + body hash),
+concurrency semantics, and retention — are `tech-lead`'s to settle, not the owner's, once 1 and
+2 are answered.
+
+**Recommendation** — **PostgreSQL, and optional on every mutation endpoint.** Redis is
+attractive until you write the sentence we would have to publish: "retrying is safe unless the
+cache evicted your key", which is not a guarantee an integrator can build on. A durable record
+that commits with the write is the only version that is true. Optional-not-required because
+requiring the header breaks existing clients for a benefit only retrying clients need; make it
+honoured when present, and document it. Recommend an ADR: this touches every mutation endpoint
+and the reasoning should outlive the issue.
+
+**Cost of delay** — low and bounded, which is exactly why the split was made. #335 removes the
+cause of the duplicates users are actually reporting; what remains uncovered is the retry after
+a response that never arrived. Nothing blocks on this until an integrator asks for a retry
+guarantee, or until #239 (W8-06, Wave 8) reaches its idempotency line and finds no design. It
+should not, however, sit unanswered past Wave 8 planning.
+
+**Not urgent. Answer at the next convenient decision round, not ahead of anything on Wave 1.**
+
+---
 
 ## Resolved
 
