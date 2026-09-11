@@ -95,3 +95,91 @@ func (uc *CreateRiskUseCase) CreateStarterRisk(ctx context.Context, tenantID uui
 		// assessed risk. Step 4 of the tunnel is where they score one.
 	})
 }
+
+// ---------------------------------------------------------------------------
+// The tunnel's SCORING adapter (#643, step 4).
+//
+// Same reasoning as the write adapter above, one step later in the tunnel:
+// scoring a risk recomputes the score and its band, and a second path that did
+// its own arithmetic would be a second definition of the frozen formula. This
+// delegates to UpdateRiskUseCase so there is exactly one.
+// ---------------------------------------------------------------------------
+
+// StarterScorer satisfies domain.StarterRiskScorer.
+type StarterScorer struct {
+	riskRepo domain.RiskRepository
+	update   *UpdateRiskUseCase
+}
+
+// Compile-time proof of the port.
+var _ domain.StarterRiskScorer = (*StarterScorer)(nil)
+
+func NewStarterScorer(riskRepo domain.RiskRepository, update *UpdateRiskUseCase) *StarterScorer {
+	return &StarterScorer{riskRepo: riskRepo, update: update}
+}
+
+// FirstStarterRisk returns the earliest starter risk this tenant adopted.
+//
+// EARLIEST, not highest-scoring. Step 5 names the risk step 4 scored, and
+// ordering by score would let the user's own scoring change which risk that is —
+// so the two screens could name different risks precisely because the tunnel
+// worked.
+//
+// (nil, nil) when the tenant adopted none: that is a normal state, not an error.
+// Adoption sits on step 2 and is skippable, and the caller has to be able to
+// render "nothing to score here" rather than fail the step.
+func (s *StarterScorer) FirstStarterRisk(ctx context.Context, tenantID uuid.UUID) (*domain.Risk, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewForbiddenError("a tenant is required to read starter risks")
+	}
+	if s.riskRepo == nil {
+		return nil, nil
+	}
+
+	page, err := s.riskRepo.List(ctx, tenantID, domain.RiskQuery{
+		Source:    []string{string(domain.SourceStarter)},
+		SortBy:    "created_at",
+		SortOrder: "asc",
+		Page:      1,
+		Limit:     1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if page == nil || len(page.Data) == 0 {
+		return nil, nil
+	}
+	return &page.Data[0], nil
+}
+
+// ScoreStarterRisk applies the tunnel's likelihood and impact to one risk.
+//
+// It re-reads the row under the tenant before writing, so a risk id that belongs
+// to another tenant is a NotFound rather than a cross-tenant write — the update
+// use case scopes its own read too, and this keeps the refusal explicit here
+// rather than relying on a second layer to catch it.
+func (s *StarterScorer) ScoreStarterRisk(ctx context.Context, tenantID, riskID uuid.UUID, probability, impact float64) (*domain.Risk, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewForbiddenError("a tenant is required to score a starter risk")
+	}
+	if riskID == uuid.Nil {
+		return nil, domain.NewValidationError("a risk id is required to score a starter risk")
+	}
+	if s.update == nil {
+		return nil, domain.NewInternalError("starter risk scorer is not wired")
+	}
+	// The Score Engine's own bounds. Rejecting here rather than clamping: a
+	// slider cannot produce these, so a value outside them means the caller is
+	// not the slider, and silently clamping would hide that.
+	if probability < 0 || probability > 1 {
+		return nil, domain.NewValidationError("probability must be between 0 and 1")
+	}
+	if impact < 0 || impact > 10 {
+		return nil, domain.NewValidationError("impact must be between 0 and 10")
+	}
+
+	return s.update.Execute(ctx, tenantID, riskID, UpdateRiskInput{
+		Probability: &probability,
+		Impact:      &impact,
+	})
+}
