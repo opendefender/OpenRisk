@@ -5,32 +5,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-041 — may the backend container generate its own RS256 keypair? · raised 2026-09-09
-**Context** — #328's criterion 5 wants a one-click deploy to a third-party
-platform (Render/Railway/Fly). It cannot be built today: the backend panics at
-boot without an RS256 keypair (`internal/config/config.go:71`), and no PaaS
-blueprint can generate a PEM — Render's `generateValue` makes random strings,
-not keypairs. So any button would ask the user to paste a private key, which is
-not one click and is a bad first instruction to give someone.
-An **uncommitted** `backend/docker-entrypoint.sh` in the working tree already
-solves it: it generates a 2048-bit pair into the secrets volume on first boot,
-under `umask 077`, and never overwrites anything supplied. Nothing references
-it — no Dockerfile, no compose file.
-**Why this reaches you** — wiring it in changes an auth/crypto behaviour, not a
-bug: the failure mode moves from "refuse to boot until an operator supplies
-keys" to "quietly mint keys". That is the redesign CLAUDE.md reserves for you.
-The consequence to weigh: a key born inside an ephemeral container is lost when
-the volume is, and every token signed by it dies with it.
-**Options** — (A) wire the entrypoint in for self-host/PaaS images only, keeping
-fail-fast for production images; (B) wire it in everywhere; (C) leave it, and
-ship no one-click deploy.
-**Chosen while waiting** — (C). #328 ships without criterion 5 rather than with
-an unverifiable button; nothing was wired in.
-**Cost of delay** — the one-click acquisition channel stays closed.
-**Recommendation** — (A), plus a startup warning naming the generated key, so an
-operator who meant to supply their own finds out immediately.
-
-
 ## Resolved
 
 ### D-042 — ADR 0003's residual constants are accepted as written · decided 2026-09-10
