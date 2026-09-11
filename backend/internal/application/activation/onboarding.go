@@ -7,6 +7,8 @@ package activation
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +69,20 @@ type WizardState struct {
 	// Landing is where the wizard drops the user on completion (derived from the
 	// chosen goal).
 	Landing string `json:"landing"`
+	// ScoreTarget is the risk step 4 evaluates — resolved server-side so the
+	// step can name it, and so the client cannot nominate which risk an
+	// onboarding step rewrites (#643). Absent when the tenant adopted none.
+	ScoreTarget *ScoreTarget `json:"score_target,omitempty"`
+}
+
+// ScoreTarget is what the scoring step is about: the risk, and the values it
+// currently carries so the sliders open where the user left them rather than on
+// a hard-coded default.
+type ScoreTarget struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Probability float64 `json:"probability"`
+	Impact      float64 `json:"impact"`
 }
 
 // OnboardingUseCase serves the wizard: read state, save one step, complete.
@@ -81,7 +97,18 @@ type OnboardingUseCase struct {
 	// — showing a step the user did not need costs them a click; hiding one they
 	// did need loses their answer.
 	probe domain.OnboardingStepProbe
-	now   func() time.Time
+	// scorer applies step 4's sliders to the risk the tunnel is about (#643).
+	// Optional and nil-safe: with no scorer the step still stores its answers
+	// and the tunnel still walks, which is the behaviour that shipped — it just
+	// does not persist the score.
+	scorer domain.StarterRiskScorer
+	now    func() time.Time
+}
+
+// WithStarterRiskScorer attaches the step-4 write path (#643).
+func (uc *OnboardingUseCase) WithStarterRiskScorer(s domain.StarterRiskScorer) *OnboardingUseCase {
+	uc.scorer = s
+	return uc
 }
 
 // WithStepProbe attaches the auto-skip reader (#438 criteria 2 and 3).
@@ -180,7 +207,7 @@ func (uc *OnboardingUseCase) GetState(ctx context.Context, tenantID, userID uuid
 	// merely looked. The decision is frozen by the first SaveStep, which is the
 	// first moment there is a row to freeze it onto — and, crucially, it is taken
 	// there BEFORE that step writes anything.
-	return toWizardState(progress, uc.stepData(ctx, progress)), nil
+	return uc.withScoreTarget(ctx, tenantID, toWizardState(progress, uc.stepData(ctx, progress))), nil
 }
 
 // SaveStepInput is one step's submission.
@@ -273,6 +300,16 @@ func (uc *OnboardingUseCase) SaveStep(ctx context.Context, tenantID, userID uuid
 		}
 	case domain.OnboardingStepGoal:
 		progress.Goal = stringAnswer(input.Answers, "goal")
+
+	case domain.OnboardingStepScore:
+		// #643: this case did not exist. The sliders were stored by
+		// SetStepAnswers above and read by nothing, so a user who scored a risk
+		// at 6.30 found 2 in their register — the catalogue's default.
+		//
+		// Best-effort, like the organization step's writes above: a scoring
+		// failure must not lose the user's answers or block the tunnel. The step
+		// answers are already saved, so a retry re-applies them.
+		uc.applyScore(ctx, tenantID, input.Answers)
 	}
 
 	// Move the cursor. An explicit Next wins (including backwards); otherwise
@@ -284,7 +321,7 @@ func (uc *OnboardingUseCase) SaveStep(ctx context.Context, tenantID, userID uuid
 	if err := uc.repo.Save(ctx, progress); err != nil {
 		return nil, err
 	}
-	return toWizardState(progress, data), nil
+	return uc.withScoreTarget(ctx, tenantID, toWizardState(progress, data)), nil
 }
 
 // nextStep resolves the cursor move over the VISIBLE steps only.
@@ -375,7 +412,7 @@ func (uc *OnboardingUseCase) Complete(ctx context.Context, tenantID, userID uuid
 	if err := uc.repo.Save(ctx, progress); err != nil {
 		return nil, err
 	}
-	return toWizardState(progress, uc.stepData(ctx, progress)), nil
+	return uc.withScoreTarget(ctx, tenantID, toWizardState(progress, uc.stepData(ctx, progress))), nil
 }
 
 // Suggestions is the payload of GET /onboarding/suggestions: the sector/goal
@@ -505,4 +542,96 @@ func stringAnswer(answers domain.JSONMap, key string) string {
 		return strings.TrimSpace(v)
 	}
 	return ""
+}
+
+// floatAnswer reads a numeric wizard answer.
+//
+// JSON numbers arrive as float64 through encoding/json, but a stored answer that
+// round-tripped through the JSONMap column can come back as json.Number, and a
+// client that sent a string is not worth failing a step over. Returns ok=false
+// when the key is absent or unreadable, so a partial payload leaves the stored
+// value alone rather than resetting it to zero.
+func floatAnswer(answers domain.JSONMap, key string) (float64, bool) {
+	if answers == nil {
+		return 0, false
+	}
+	switch v := answers[key].(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return f, err == nil
+	default:
+		return 0, false
+	}
+}
+
+// applyScore writes step 4's sliders onto the risk the tunnel is about (#643).
+//
+// Best-effort by design, and deliberately silent on failure: the step's answers
+// are already persisted by the time this runs, so a transient write failure
+// costs the user nothing that a Back-and-Continue does not recover. Failing the
+// step instead would strand them on screen 4 of 5 over a risk row — the exact
+// class of dead end #438 exists to remove.
+func (uc *OnboardingUseCase) applyScore(ctx context.Context, tenantID uuid.UUID, answers domain.JSONMap) {
+	if uc.scorer == nil {
+		return
+	}
+	probability, okP := floatAnswer(answers, "probability")
+	impact, okI := floatAnswer(answers, "impact")
+	if !okP || !okI {
+		return
+	}
+
+	target, err := uc.scorer.FirstStarterRisk(ctx, tenantID)
+	if err != nil || target == nil {
+		// No adopted starter risk is a normal state — adoption sits on step 2
+		// and is skippable. There is simply nothing to score.
+		return
+	}
+	_, _ = uc.scorer.ScoreStarterRisk(ctx, tenantID, target.ID, probability, impact)
+}
+
+// scoreTarget resolves what step 4 is scoring, for the client to name on screen.
+//
+// The step used to render "Évaluez ce risque" over two sliders and no risk, so
+// the user was scoring something the screen never identified. Nil when the
+// tenant adopted nothing — the client renders that state rather than a heading
+// about a risk that does not exist.
+func (uc *OnboardingUseCase) scoreTarget(ctx context.Context, tenantID uuid.UUID) *ScoreTarget {
+	if uc.scorer == nil {
+		return nil
+	}
+	risk, err := uc.scorer.FirstStarterRisk(ctx, tenantID)
+	if err != nil || risk == nil {
+		return nil
+	}
+	return &ScoreTarget{
+		ID:          risk.ID.String(),
+		Title:       risk.Title,
+		Probability: risk.Probability,
+		Impact:      risk.Impact,
+	}
+}
+
+// withScoreTarget attaches the scoring step's subject to a state response.
+//
+// Kept out of toWizardState, which is pure and has no context: resolving the
+// target is a tenant-scoped read, and threading a database call through a
+// formatting function is how formatting functions start doing IO.
+func (uc *OnboardingUseCase) withScoreTarget(ctx context.Context, tenantID uuid.UUID, state *WizardState) *WizardState {
+	if state == nil {
+		return nil
+	}
+	state.ScoreTarget = uc.scoreTarget(ctx, tenantID)
+	return state
 }
