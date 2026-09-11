@@ -44,6 +44,15 @@
     "riskAssetCriticality": "Asset Criticality",
     "riskFramework": "Compliance Framework",
     "riskTags": "Tags",
+    "tagInput": {
+      "placeholder": "Add a tag…",
+      "hint": "Press Enter or comma to add a tag.",
+      "remove": "Remove tag {tag}",
+      "added": "Tag {tag} added.",
+      "removed": "Tag {tag} removed.",
+      "duplicate": "Tag {tag} is already present.",
+      "max": "Maximum number of tags reached. {tag} was not added."
+    },
     "riskAssets": "Affected Assets",
     "riskOwner": "Owner",
     "riskAssignedTo": "Assigned To",
