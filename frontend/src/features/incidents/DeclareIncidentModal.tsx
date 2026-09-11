@@ -317,6 +317,10 @@ export function DeclareIncidentModal({
                     <select
                       className={field}
                       style={fieldStyle}
+                      aria-label={tr(
+                        `Personne — partie prenante ${i + 1}`,
+                        `Person — stakeholder ${i + 1}`,
+                      )}
                       value={sh.user_id ?? ''}
                       onChange={(e) =>
                         setStakeholders((list) =>
@@ -336,6 +340,10 @@ export function DeclareIncidentModal({
                     <select
                       className={field}
                       style={fieldStyle}
+                      aria-label={tr(
+                        `Rôle — partie prenante ${i + 1}`,
+                        `Role — stakeholder ${i + 1}`,
+                      )}
                       value={sh.role ?? ''}
                       onChange={(e) =>
                         setStakeholders((list) =>
