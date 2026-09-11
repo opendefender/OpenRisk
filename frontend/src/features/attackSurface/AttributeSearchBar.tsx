@@ -66,10 +66,11 @@ export function AttributeSearchBar({
           className="inline-flex items-center gap-1.5 text-[12px] font-medium"
           style={{ color: 'var(--fg-muted)' }}
         >
-          <Filter size={13} /> Recherche par attribut
+          <Filter size={13} aria-hidden="true" /> {t('assets.attributeSearch.heading')}
         </span>
 
         <select
+          aria-label={t('assets.attributeSearch.categoryLabel')}
           className={inputCls}
           style={inputSty}
           value={category}
@@ -80,7 +81,7 @@ export function AttributeSearchBar({
             onChange({ category: e.target.value as AssetCategory | '', attributes: {} })
           }
         >
-          <option value="">Toutes catégories</option>
+          <option value="">{t('assets.attributeSearch.categoryPlaceholder')}</option>
           {ASSET_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {CATEGORY_LABELS[c]}
@@ -91,6 +92,7 @@ export function AttributeSearchBar({
         {category ? (
           <>
             <select
+              aria-label={t('assets.attributeSearch.attributeLabel')}
               className={inputCls}
               style={inputSty}
               value={pendingKey}
@@ -99,7 +101,7 @@ export function AttributeSearchBar({
                 setPendingValue('');
               }}
             >
-              <option value="">Attribut…</option>
+              <option value="">{t('assets.attributeSearch.attributePlaceholder')}</option>
               {defs.map((d) => (
                 <option key={d.key} value={d.key}>
                   {d.label}
@@ -109,12 +111,13 @@ export function AttributeSearchBar({
 
             {selectedDef?.type === 'enum' || selectedDef?.type === 'multi_enum' ? (
               <select
+                aria-label={t('assets.attributeSearch.valueLabel')}
                 className={inputCls}
                 style={inputSty}
                 value={pendingValue}
                 onChange={(e) => setPendingValue(e.target.value)}
               >
-                <option value="">Valeur…</option>
+                <option value="">{t('assets.attributeSearch.valueOption')}</option>
                 {(selectedDef.enum ?? []).map((v) => (
                   <option key={v} value={v}>
                     {v}
@@ -123,20 +126,22 @@ export function AttributeSearchBar({
               </select>
             ) : selectedDef?.type === 'boolean' ? (
               <select
+                aria-label={t('assets.attributeSearch.valueLabel')}
                 className={inputCls}
                 style={inputSty}
                 value={pendingValue}
                 onChange={(e) => setPendingValue(e.target.value)}
               >
-                <option value="">Valeur…</option>
-                <option value="true">Oui</option>
-                <option value="false">Non</option>
+                <option value="">{t('assets.attributeSearch.valueOption')}</option>
+                <option value="true">{t('assets.attributeSearch.yes')}</option>
+                <option value="false">{t('assets.attributeSearch.no')}</option>
               </select>
             ) : (
               <input
+                aria-label={t('assets.attributeSearch.valueLabel')}
                 className={inputCls}
                 style={inputSty}
-                placeholder="Valeur"
+                placeholder={t('assets.attributeSearch.valuePlaceholder')}
                 value={pendingValue}
                 disabled={!pendingKey}
                 onChange={(e) => setPendingValue(e.target.value)}
@@ -156,12 +161,12 @@ export function AttributeSearchBar({
               className="rounded-lg px-3 py-1.5 text-[13px] font-medium disabled:opacity-40"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
             >
-              Filtrer
+              {t('assets.attributeSearch.apply')}
             </button>
           </>
         ) : (
           <span className="text-[12px]" style={{ color: 'var(--fg-muted)' }}>
-            Choisissez une catégorie pour filtrer sur ses attributs.
+            {t('assets.attributeSearch.chooseCategory')}
           </span>
         )}
 
@@ -187,8 +192,14 @@ export function AttributeSearchBar({
                 }}
               >
                 {def?.label ?? key} = {value}
-                <button type="button" onClick={() => removeTerm(key)} aria-label="Retirer">
-                  <X size={12} />
+                <button
+                  type="button"
+                  onClick={() => removeTerm(key)}
+                  aria-label={t('assets.attributeSearch.removeTerm', {
+                    term: `${def?.label ?? key} = ${value}`,
+                  })}
+                >
+                  <X size={12} aria-hidden="true" />
                 </button>
               </span>
             );
