@@ -10,6 +10,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -22,21 +24,24 @@ import (
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
-// newTokenHarness builds a TokenManager over an in-memory sqlite refresh_tokens
+// newTokenHarness builds a TokenManager over a temporary sqlite refresh_tokens
 // table with an org resolver that yields claims for whichever org it is asked
 // about (recording the last org it saw, so tests can assert org preservation).
 func newTokenHarness(t *testing.T) (*TokenManager, *gorm.DB, *resolverSpy) {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// Use a per-test temp file instead of ":memory:" so that concurrent
+	// goroutines (TestRefresh_ConcurrentRotation_OneWinner) share a single
+	// database through WAL mode and busy_timeout, which models the real
+	// Postgres serialisation. ":memory:" with MaxOpenConns(1) was flaky
+	// under make test's inter-package parallelism.
+	dbPath := filepath.Join(t.TempDir(), "token_test.db")
+	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", dbPath)
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
-	// Pin to a single connection: sqlite ":memory:" is per-connection, so an
-	// unbounded pool would give each concurrent goroutine its OWN database and
-	// every one of them would "win" the rotation. One connection models the single
-	// logical database (Postgres) where the atomic UPDATE genuinely serialises.
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxOpenConns(4)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE refresh_tokens (
 			id TEXT PRIMARY KEY,
