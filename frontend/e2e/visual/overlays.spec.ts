@@ -41,13 +41,10 @@ const REGISTERED = ['danger-confirm', 'impact-dialog'] as const;
  * removed by registering the overlay in harness.tsx, never by adding to it.
  */
 const NOT_YET_REGISTERED = new Set<string>([
-  'frontend/src/components/gamification/EnhancedNotificationCenter.tsx',
   'frontend/src/components/layout/AppHeader.tsx',
   'frontend/src/components/layout/CommandPalette.tsx',
   'frontend/src/components/layout/GlobalShortcuts.tsx',
-  'frontend/src/components/layout/NotificationCenter.tsx',
   'frontend/src/components/layout/Sidebar.tsx',
-  'frontend/src/components/search/AdvancedSearch.tsx',
   'frontend/src/features/ai/AiAuditReportButton.tsx',
   'frontend/src/features/assets/CreateAssetModal.tsx',
   'frontend/src/features/assets/EditAssetModal.tsx',
@@ -57,10 +54,7 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/features/automation/DryRunPanel.tsx',
   'frontend/src/features/automation/RuleEditorModal.tsx',
   'frontend/src/features/compliance/ComplianceModals.tsx',
-  'frontend/src/features/compliance/CreateControlModal.tsx',
-  'frontend/src/features/compliance/CreateFrameworkModal.tsx',
   'frontend/src/features/compliance/FrameworkDetail.tsx',
-  'frontend/src/features/compliance/ImportCatalogModal.tsx',
   'frontend/src/features/cti/CveDetailDrawer.tsx',
   'frontend/src/features/evidence/CreateEvidenceModal.tsx',
   'frontend/src/features/evidence/EvidenceDrawer.tsx',
@@ -73,8 +67,6 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/features/infrastructure/AgentDeployModal.tsx',
   'frontend/src/features/infrastructure/ScanConfigDrawer.tsx',
   'frontend/src/features/mitigations/CreateMitigationModal.tsx',
-  'frontend/src/features/mitigations/MitigationDetailDrawer.tsx',
-  'frontend/src/features/mitigations/MitigationEditModal.tsx',
   'frontend/src/features/mitigations/MitigationsBoard.tsx',
   'frontend/src/features/onboarding/ProductTour.tsx',
   'frontend/src/features/organization/MembersView.tsx',
@@ -83,19 +75,21 @@ const NOT_YET_REGISTERED = new Set<string>([
   'frontend/src/features/risks/CreateRiskModal.tsx',
   'frontend/src/features/risks/RiskRegisterPage.tsx',
   'frontend/src/features/risks/components/EditRiskModal.tsx',
-  'frontend/src/features/users/CreateUserModal.tsx',
   'frontend/src/features/vulnerabilities/IngestModal.tsx',
   'frontend/src/features/vulnerabilities/IntegrationsPanel.tsx',
   'frontend/src/features/vulnerabilities/VulnerabilitiesPage.tsx',
-  'frontend/src/pages/CustomFields.tsx',
-  'frontend/src/pages/Marketplace.tsx',
-  'frontend/src/pages/RoleManagement.tsx',
   'frontend/src/shared/FieldHelp.tsx',
   'frontend/src/shared/Hint.tsx',
   'frontend/src/shared/InfoHint.tsx',
   'frontend/src/shared/ScoreExplainer.tsx',
   'frontend/src/shared/ShortcutsOverlay.tsx',
   'frontend/src/shared/UserPicker.tsx',
+  // Not laundered in to dodge a snapshot: docs/ui/overlays.md was ALREADY stale
+  // on master — `node scripts/overlay-inventory.mjs --check` fails on a clean
+  // checkout — and regenerating it for #637 surfaced an overlay that has been in
+  // the app all along and was never inventoried. It is unregistered like the
+  // rest of this list, and recorded rather than hidden.
+  'frontend/src/shared/ds/Command.tsx',
   'frontend/src/shared/ds/Drawer.tsx',
   'frontend/src/shared/ds/Modal.tsx',
 ]);
