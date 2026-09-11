@@ -669,6 +669,9 @@ function VulnDrawer({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vuln-drawer-title"
         onClick={(e) => e.stopPropagation()}
         className="h-full flex flex-col"
         style={{
@@ -685,10 +688,13 @@ function VulnDrawer({
               <div className="mono text-[12px] text-ink-muted mb-1">
                 {v.cve_id || v.external_id || '—'}
               </div>
-              <div className="disp text-[17px] font-bold text-ink leading-snug">{v.title}</div>
+              <h2 id="vuln-drawer-title" className="disp text-[17px] font-bold text-ink leading-snug">
+                {v.title}
+              </h2>
             </div>
             <button
               onClick={onClose}
+              aria-label={tr('Fermer', 'Close')}
               className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft"
               style={{ background: 'var(--bg-hover)' }}
             >

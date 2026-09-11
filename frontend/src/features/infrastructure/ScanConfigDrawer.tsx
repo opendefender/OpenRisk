@@ -100,6 +100,9 @@ export function ScanConfigDrawer({
         onClick={onClose}
       />
       <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="scan-config-title"
         className="relative h-full w-full max-w-[460px] flex flex-col glass-strong"
         style={{ borderLeft: '1px solid var(--border-strong)', animation: 'or-slidein .28s ease' }}
       >
@@ -119,9 +122,9 @@ export function ScanConfigDrawer({
               <meta.icon size={18} strokeWidth={1.8} />
             </div>
             <div>
-              <div className="text-[15px] font-semibold text-ink">
+              <h2 id="scan-config-title" className="text-[15px] font-semibold text-ink">
                 {tr('Nouvelle configuration', 'New scan config')}
-              </div>
+              </h2>
               <div className="text-[12px] text-ink-soft">{meta.short}</div>
             </div>
           </div>

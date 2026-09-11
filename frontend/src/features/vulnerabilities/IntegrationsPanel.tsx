@@ -83,6 +83,9 @@ export function IntegrationsPanel({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="integrations-title"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[640px] rounded-[16px] flex flex-col"
         style={{
@@ -105,9 +108,12 @@ export function IntegrationsPanel({
               <ChevronLeft size={18} />
             </button>
           )}
-          <div className="text-[15px] font-bold text-ink flex-1">{title}</div>
+          <h2 id="integrations-title" className="text-[15px] font-bold text-ink flex-1">
+            {title}
+          </h2>
           <button
             onClick={onClose}
+            aria-label={tr('Fermer', 'Close')}
             className="w-8 h-8 rounded-[9px] flex items-center justify-center text-ink-soft"
             style={{ background: 'var(--bg-hover)' }}
           >

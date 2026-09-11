@@ -506,6 +506,9 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
       style={{ background: 'rgba(0,0,0,.35)' }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="automation-templates-title"
         className="w-full max-w-[720px] max-h-[85vh] flex flex-col rounded-[14px] or-scalein"
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
       >
@@ -514,8 +517,11 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div>
-            <h2 className="text-[15px] font-bold text-ink inline-flex items-center gap-2">
-              <Sparkles size={16} style={{ color: 'var(--accent-500)' }} />
+            <h2
+              id="automation-templates-title"
+              className="text-[15px] font-bold text-ink inline-flex items-center gap-2"
+            >
+              <Sparkles size={16} style={{ color: 'var(--accent-500)' }} aria-hidden="true" />
               {tr('Modèles prêts à l’emploi', 'Ready-made templates')}
             </h2>
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--fg-secondary)' }}>
