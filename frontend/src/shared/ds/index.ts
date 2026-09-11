@@ -50,6 +50,7 @@ export { Popover, type PopoverProps, type PopoverPlacement } from './Popover';
 export { Menu, type MenuProps, type MenuItem } from './Menu';
 export { Command, type CommandProps, type CommandItem } from './Command';
 export { OtpField, type OtpFieldProps } from './OtpField';
+export { TagInput, type TagInputProps, type TagInputLabels, type TagRejection } from './TagInput';
 export { sanitiseCode, type OtpAlphabet } from './otpCode';
 export {
   ErrorState,
