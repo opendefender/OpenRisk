@@ -455,6 +455,9 @@ function MethodologyModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="methodology-title"
         className="or-scalein w-full max-w-lg max-h-[88vh] flex flex-col rounded-[14px] overflow-hidden"
         style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
@@ -464,12 +467,16 @@ function MethodologyModal({
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="flex items-center gap-2">
-            <BookOpen size={16} style={{ color: 'var(--accent-500)' }} />
-            <span className="text-[14px] font-semibold text-ink">
+            <BookOpen size={16} style={{ color: 'var(--accent-500)' }} aria-hidden="true" />
+            <h2 id="methodology-title" className="text-[14px] font-semibold text-ink">
               {tr('Méthodologie', 'Methodology')}
-            </span>
+            </h2>
           </div>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">
+          <button
+            onClick={onClose}
+            aria-label={tr('Fermer', 'Close')}
+            className="text-ink-muted hover:text-ink"
+          >
             <X size={18} />
           </button>
         </div>

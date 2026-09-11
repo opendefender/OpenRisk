@@ -72,6 +72,9 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-deploy-title"
         className="relative w-full max-w-[520px] max-h-[90vh] flex flex-col rounded-2xl glass-strong overflow-hidden"
         style={{ border: '1px solid var(--border-strong)', animation: 'or-scalein .22s ease' }}
       >
@@ -79,13 +82,13 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
           className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
-          <div className="text-[15px] font-semibold text-ink">
+          <h2 id="agent-deploy-title" className="text-[15px] font-semibold text-ink">
             {tr('Déployer un Agent', 'Deploy an Agent')}
-          </div>
+          </h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover"
-            aria-label="Close"
+            aria-label={tr('Fermer', 'Close')}
           >
             <X size={18} />
           </button>
