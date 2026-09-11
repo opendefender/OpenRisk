@@ -75,4 +75,52 @@ describe('EditRiskModal', () => {
     );
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
+
+  // The tag field moved from a comma-separated text box to TagInput (#631).
+  // Two things had to survive that: the tags a risk already carries must load as
+  // chips, and saving without touching them must not drop or re-split them —
+  // the previous shape round-tripped through `join(',')` and `split(',')`, so a
+  // tag containing a comma came back as two.
+  it('loads existing tags as chips and saves them unchanged', async () => {
+    const risk = {
+      id: '7',
+      title: 'Fuite de données',
+      description: 'Description suffisamment longue',
+      impact: 5,
+      probability: 0.5,
+      tags: ['rgpd', 'Sinistres, graves'],
+    };
+    render(<EditRiskModal isOpen={true} onClose={vi.fn()} risk={risk} />);
+
+    expect(screen.getByRole('button', { name: /Retirer.*rgpd/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sinistres, graves/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+
+    await waitFor(() =>
+      expect(updateRiskMock).toHaveBeenCalledWith(
+        '7',
+        expect.objectContaining({ tags: ['rgpd', 'Sinistres, graves'] }),
+      ),
+    );
+  });
+
+  it('removing a chip drops exactly that tag from the payload', async () => {
+    const risk = {
+      id: '8',
+      title: 'Fuite de données',
+      description: 'Description suffisamment longue',
+      impact: 5,
+      probability: 0.5,
+      tags: ['rgpd', 'cyber'],
+    };
+    render(<EditRiskModal isOpen={true} onClose={vi.fn()} risk={risk} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Retirer.*rgpd/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+
+    await waitFor(() =>
+      expect(updateRiskMock).toHaveBeenCalledWith('8', expect.objectContaining({ tags: ['cyber'] })),
+    );
+  });
 });

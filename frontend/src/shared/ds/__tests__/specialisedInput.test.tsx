@@ -21,6 +21,7 @@ import { useState } from 'react';
 
 import { Command, type CommandItem } from '../Command';
 import { OtpField } from '../OtpField';
+import { TagInput } from '../TagInput';
 import { Field } from '../Field';
 
 /* ---------------------------------------------------------------- Command -- */
@@ -304,5 +305,162 @@ describe('OtpField', () => {
     // The error text is associated, not merely adjacent — the failure the
     // shared wiring exists to prevent.
     expect(input.getAttribute('aria-describedby')).toBeTruthy();
+  });
+});
+
+/* --------------------------------------------------------------- TagInput -- */
+
+/**
+ * The keyboard contract and the focus contract. Both regression guards here are
+ * defects the two risk forms this replaces actually had: a comma-separated text
+ * box could not express a tag containing a comma, and neither form told the user
+ * what had been parsed until after the save.
+ */
+
+const TAG_LABELS = {
+  placeholder: 'Ajouter une étiquette…',
+  removeLabel: (tag: string) => `Retirer ${tag}`,
+  hint: 'Entrée ou virgule pour valider.',
+  addedAnnouncement: (tag: string) => `${tag} ajoutée`,
+  removedAnnouncement: (tag: string) => `${tag} retirée`,
+  rejectedAnnouncement: (reason: string, tag: string) =>
+    reason === 'duplicate' ? `${tag} est déjà présente` : `${tag} refusée`,
+};
+
+function TagHarness({
+  initial = [],
+  ...rest
+}: {
+  initial?: string[];
+  maxTags?: number;
+  validate?: (t: string) => boolean;
+}) {
+  const [tags, setTags] = useState<string[]>(initial);
+  return (
+    <TagInput
+      value={tags}
+      onValueChange={setTags}
+      aria-label="Étiquettes"
+      labels={TAG_LABELS}
+      {...rest}
+    />
+  );
+}
+
+describe('TagInput', () => {
+  it('commits on Enter and on comma, and shows each tag as its own chip', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness />);
+    const box = screen.getByRole('textbox', { name: 'Étiquettes' });
+
+    await user.type(box, 'Conformité{Enter}');
+    await user.type(box, 'RGPD,');
+
+    expect(screen.getByRole('button', { name: 'Retirer Conformité' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retirer RGPD' })).toBeInTheDocument();
+    expect(box).toHaveValue('');
+  });
+
+  it('keeps a tag containing a comma — the comma-separated input could not', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness />);
+    const box = screen.getByRole('textbox', { name: 'Étiquettes' });
+
+    // The user commits "Baloise" then types a phrase whose comma is meaningful.
+    await user.type(box, 'Baloise{Enter}');
+    await user.type(box, 'Sinistres{Enter}');
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('does not submit the surrounding form when Enter commits a tag', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <TagHarness />
+      </form>,
+    );
+
+    await user.type(screen.getByRole('textbox', { name: 'Étiquettes' }), 'Cyber{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Retirer Cyber' })).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('trims and collapses whitespace, and refuses a duplicate out loud', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness initial={['Risque majeur']} />);
+    const box = screen.getByRole('textbox', { name: 'Étiquettes' });
+
+    await user.type(box, '  Risque   majeur  {Enter}');
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByText('Risque majeur est déjà présente')).toBeInTheDocument();
+  });
+
+  it('removes the last tag on Backspace in an empty box, and announces it', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness initial={['A', 'B']} />);
+    const box = screen.getByRole('textbox', { name: 'Étiquettes' });
+
+    await user.click(box);
+    await user.keyboard('{Backspace}');
+
+    expect(screen.queryByRole('button', { name: 'Retirer B' })).not.toBeInTheDocument();
+    expect(screen.getByText('B retirée')).toBeInTheDocument();
+  });
+
+  it('does not eat a character when Backspace has a draft to delete', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness initial={['A']} />);
+    const box = screen.getByRole('textbox', { name: 'Étiquettes' });
+
+    await user.type(box, 'xy');
+    await user.keyboard('{Backspace}');
+
+    expect(box).toHaveValue('x');
+    expect(screen.getByRole('button', { name: 'Retirer A' })).toBeInTheDocument();
+  });
+
+  it('moves focus to the text box after removing the last chip, never to body', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness initial={['Seule']} />);
+
+    await user.click(screen.getByRole('button', { name: 'Retirer Seule' }));
+
+    expect(screen.getByRole('textbox', { name: 'Étiquettes' })).toHaveFocus();
+    expect(document.body).not.toHaveFocus();
+  });
+
+  it('refuses past maxTags and says so', async () => {
+    const user = userEvent.setup();
+    render(<TagHarness initial={['A']} maxTags={1} />);
+
+    await user.type(screen.getByRole('textbox', { name: 'Étiquettes' }), 'B{Enter}');
+
+    expect(screen.queryByRole('button', { name: 'Retirer B' })).not.toBeInTheDocument();
+    expect(screen.getByText('B refusée')).toBeInTheDocument();
+  });
+
+  it('names every remove button after its tag rather than "×"', async () => {
+    render(<TagHarness initial={['Conformité', 'Cyber']} />);
+
+    for (const name of ['Retirer Conformité', 'Retirer Cyber']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('takes its accessible name and description from a surrounding Field', () => {
+    render(
+      <Field label="Étiquettes" description="Classez ce risque.">
+        <TagHarness />
+      </Field>,
+    );
+
+    const box = screen.getByRole('textbox', { name: 'Étiquettes' });
+    expect(box).toHaveAccessibleDescription(/Classez ce risque\./);
+    // The control's own hint survives alongside the Field's description.
+    expect(box).toHaveAccessibleDescription(/Entrée ou virgule pour valider\./);
   });
 });
