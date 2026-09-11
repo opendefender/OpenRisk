@@ -324,6 +324,21 @@
       "MEDIUM": "Medium",
       "HIGH": "High",
       "CRITICAL": "Critical"
+    },
+    "attributeSearch": {
+      "heading": "Search by attribute",
+      "categoryLabel": "Asset category",
+      "categoryPlaceholder": "All categories",
+      "attributeLabel": "Attribute to filter on",
+      "attributePlaceholder": "Attribute…",
+      "valueLabel": "Attribute value",
+      "valuePlaceholder": "Value",
+      "valueOption": "Value…",
+      "yes": "Yes",
+      "no": "No",
+      "apply": "Filter",
+      "chooseCategory": "Pick a category to filter on its attributes.",
+      "removeTerm": "Remove the {term} filter"
     }
   },
   "actionCenter": {

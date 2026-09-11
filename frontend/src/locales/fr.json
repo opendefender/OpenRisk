@@ -324,6 +324,21 @@
       "MEDIUM": "Moyenne",
       "HIGH": "Élevée",
       "CRITICAL": "Critique"
+    },
+    "attributeSearch": {
+      "heading": "Recherche par attribut",
+      "categoryLabel": "Catégorie d’actif",
+      "categoryPlaceholder": "Toutes les catégories",
+      "attributeLabel": "Attribut à filtrer",
+      "attributePlaceholder": "Attribut…",
+      "valueLabel": "Valeur de l’attribut",
+      "valuePlaceholder": "Valeur",
+      "valueOption": "Valeur…",
+      "yes": "Oui",
+      "no": "Non",
+      "apply": "Filtrer",
+      "chooseCategory": "Choisissez une catégorie pour filtrer sur ses attributs.",
+      "removeTerm": "Retirer le filtre {term}"
     }
   },
   "actionCenter": {
