@@ -100,14 +100,20 @@ describe('fixture leakage', () => {
     expect(audit().fixtureLeakage).toEqual([]);
   });
 
-  it('the orphan count does not grow', () => {
-    // 110 modules are unreachable duplicates — old pages no route renders, and
-    // the reservoir this wave's findings were drawn from (a settings
-    // IntegrationsTab that simulates a connection with a 2s setTimeout, a
-    // scoreEngineService with nine `catch → return fixture` fallbacks). They are
-    // not user-facing, so they are not this wave's to delete; pinning the number
-    // means it can only shrink.
-    expect(audit().orphans).toBeLessThanOrEqual(110);
+  it('no module is unreachable except the justified keeps', () => {
+    // #645 deleted the ~100 modules nothing imported: old pages no route rendered,
+    // some of which faked behaviour (a settings IntegrationsTab that simulated a
+    // connection with a 2s setTimeout). What is still unreachable from main.tsx is
+    // exactly these two, each reached by a mechanism the import walk does not
+    // model:
+    //   - src/test/setup.ts — vitest `setupFiles`, referenced by vitest.config.ts
+    //   - src/types/react-grid-layout.d.ts — ambient declaration that tsc needs
+    //
+    // An exact list, not a ceiling: a `<=` lets a new orphan in whenever another
+    // one leaves. If this fails because a file appeared, wire it in or delete it;
+    // add it here only with a written reason. If it fails because a keep is gone
+    // or is now imported, remove it from the list (#303).
+    expect(audit().orphanFiles).toEqual(['src/test/setup.ts', 'src/types/react-grid-layout.d.ts']);
   });
 
   it('the settings screen no longer keeps preferences in localStorage', () => {
