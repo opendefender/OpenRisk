@@ -65,6 +65,22 @@ paths:
                   db:
                     type: string
                     example: CONNECTED
+        '503':
+          description: API is running but its database is unreachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: DOWN
+                  version:
+                    type: string
+                    example: 1.0.0
+                  db:
+                    type: string
+                    example: DISCONNECTED
 
   # ==================== AUTHENTICATION ====================
   /auth/login:

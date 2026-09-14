@@ -925,18 +925,7 @@ func main() {
 		})
 	})
 
-	api.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status":  "UP",
-			"version": Version,
-			"commit":  Commit,
-			"db":      "CONNECTED",
-			// Drives the permanent "demonstration data" banner. Served from the
-			// backend rather than a frontend build flag so the two cannot disagree
-			// about whether the data on screen is real.
-			"demo_mode": demoseed.Enabled(),
-		})
-	})
+	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled))
 
 	// Brute-force protection on credential endpoints (5 attempts / 15 min per IP).
 	// Backed by Redis so the counter is shared across every instance of a
