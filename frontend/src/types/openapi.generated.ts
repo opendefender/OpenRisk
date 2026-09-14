@@ -2721,6 +2721,22 @@ export interface operations {
                     };
                 };
             };
+            /** @description API is running but its database is unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example DOWN */
+                        status?: string;
+                        /** @example 1.0.0 */
+                        version?: string;
+                        /** @example DISCONNECTED */
+                        db?: string;
+                    };
+                };
+            };
         };
     };
     login: {

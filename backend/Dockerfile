@@ -16,8 +16,10 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /openrisk ./cmd/server
 FROM alpine:latest
 WORKDIR /app
 # Installe les certificats pour les appels HTTPS (si besoin)
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates openssl
 COPY --from=builder /openrisk /usr/local/bin/openrisk
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 EXPOSE 8080
-# Le binaire contient tout : Auth, Worker, API (Simplicité Radicale)
-ENTRYPOINT ["/usr/local/bin/openrisk"]
+# The entrypoint generates and reuses an RS256 keypair for JWT signing.
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

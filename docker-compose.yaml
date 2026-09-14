@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # =========================================================================
   # DATABASES
@@ -56,7 +54,7 @@ services:
     image: redis:7-alpine
     container_name: openrisk_redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: redis-server --appendonly yes --requirepass ""
     volumes:
       - openrisk_redis_data:/data
@@ -101,13 +99,22 @@ services:
       APP_ENV: ${APP_ENV:-development}
     ports:
       - "8080:8080"
+    volumes:
+      - openrisk_secrets:/app/secrets
     networks:
       - openrisk_network
     restart: unless-stopped
     # For development, you can override the CMD with:
     # command: go run ./cmd/server
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      # wget, not curl: the backend image is alpine + ca-certificates and ships
+      # no curl, so this probe could only fail with "executable file not found"
+      # and the container sat permanently unhealthy while answering 200 (#647).
+      #
+      # 127.0.0.1, not localhost: inside the container `localhost` resolves to
+      # ::1 first and the server listens on IPv4 only, so busybox wget got
+      # "Connection refused" from a process that was serving fine.
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:8080/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -124,10 +131,13 @@ services:
     depends_on:
       - backend
     environment:
-      # API Configuration
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api}
-      # Build
       NODE_ENV: ${NODE_ENV:-development}
+      # NOTE: VITE_API_URL is deliberately NOT set here. Vite inlines VITE_*
+      # at BUILD time, so a runtime variable on this service never reached the
+      # bundle — it only looked like it configured something (#647). The bundle
+      # calls a relative /api/v1 and nginx proxies it to the backend, which is
+      # what keeps the session cookies first-party. Splitting the origins needs
+      # a build arg AND an HTTPS story; see frontend/nginx.conf.
     ports:
       - "5173:5173"
     networks:
@@ -136,7 +146,9 @@ services:
     # For hot-reload during development:
     # command: npm run dev -- --host 0.0.0.0
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      # wget, not curl, and 127.0.0.1, not localhost — see the backend probe
+      # above for both reasons (#647).
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:5173/"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -145,6 +157,7 @@ volumes:
   openrisk_data:
   openrisk_test_data:
   openrisk_redis_data:
+  openrisk_secrets:
 
 networks:
   openrisk_network:

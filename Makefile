@@ -6,6 +6,7 @@
 VERSION    := $(shell cat VERSION 2>/dev/null | tr -d '[:space:]')
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS    := -X main.Version=$(VERSION) -X main.Commit=$(GIT_COMMIT)
+COMPOSE    ?= docker compose
 
 help:
 	@echo "╔════════════════════════════════════════════════════════════════╗"
@@ -127,10 +128,10 @@ test-unit:
 
 test-integration:
 	@echo "🧪 Running integration tests..."
-	docker-compose up -d test_db
+	$(COMPOSE) up -d test_db
 	@sleep 2
 	cd backend && DATABASE_URL="postgres://test:test@localhost:5435/openrisk_test" go test -v -tags=integration ./...
-	docker-compose stop test_db
+	$(COMPOSE) stop test_db
 
 frontend-test:
 	@echo "🧪 Running frontend tests..."
@@ -163,17 +164,17 @@ format:
 
 docker-up:
 	@echo "🐳 Starting all containers..."
-	docker-compose up -d
+	$(COMPOSE) up -d --build
 	@echo "✅ Containers started"
 	@echo ""
 	@echo "   Frontend:  http://localhost:5173"
 	@echo "   Backend:   http://localhost:8080"
 	@echo "   Postgres:  localhost:5434 (openrisk)"
-	@echo "   Redis:     localhost:6379"
+	@echo "   Redis:     localhost:6380"
 
 docker-down:
 	@echo "🐳 Stopping all containers..."
-	docker-compose down
+	$(COMPOSE) down
 
 docker-build:
 	@echo "🐳 Building Docker image..."
@@ -182,15 +183,15 @@ docker-build:
 
 docker-logs:
 	@echo "📋 Showing live container logs..."
-	docker-compose logs -f
+	$(COMPOSE) logs -f
 
 docker-status:
 	@echo "📊 Container status:"
-	docker-compose ps
+	$(COMPOSE) ps
 
 docker-clean:
 	@echo "🗑️  Removing containers and volumes (DESTRUCTIVE)..."
-	docker-compose down -v
+	$(COMPOSE) down -v
 	@echo "✅ Cleanup complete"
 
 # ============================================================================
@@ -199,14 +200,14 @@ docker-clean:
 
 migrate:
 	@echo "📊 Running database migrations..."
-	docker-compose up -d db
+	$(COMPOSE) up -d db
 	@sleep 2
 	cd backend && MIGRATIONS_DIR=../migrations go run ./cmd/server migrate up
 	@echo "✅ Migrations complete"
 
 migrate-rollback:
 	@echo "⏮️  Rolling back last migration..."
-	docker-compose up -d db
+	$(COMPOSE) up -d db
 	@sleep 2
 	cd backend && MIGRATIONS_DIR=../migrations go run ./cmd/server migrate down
 
@@ -230,11 +231,11 @@ seed:
 
 db-shell:
 	@echo "🔌 Connecting to production database..."
-	docker-compose exec db psql -U openrisk -d openrisk
+	$(COMPOSE) exec db psql -U openrisk -d openrisk
 
 db-test-shell:
 	@echo "🔌 Connecting to test database..."
-	docker-compose exec test_db psql -U test -d openrisk_test
+	$(COMPOSE) exec test_db psql -U test -d openrisk_test
 
 # ============================================================================
 # DEVELOPMENT
@@ -244,7 +245,7 @@ dev:
 	@echo "🚀 Starting development environment..."
 	@echo ""
 	@echo "   Starting Docker services (db, redis)..."
-	docker-compose up -d db redis test_db
+	$(COMPOSE) up -d db redis test_db
 	@sleep 2
 	@echo ""
 	@echo "   Frontend will be available at: http://localhost:5173"
@@ -262,11 +263,11 @@ dev:
 
 dev-docker:
 	@echo "🐳 Starting full development environment in Docker..."
-	docker-compose up
+	$(COMPOSE) up
 
 dev-logs:
 	@echo "📋 Following all container logs..."
-	docker-compose logs -f
+	$(COMPOSE) logs -f
 
 # ============================================================================
 # CLEANUP
