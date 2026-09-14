@@ -2869,7 +2869,11 @@ func main() {
 		WithProfileUpdater(userRepo).
 		// Auto-skip (criteria 2 and 3): GET /onboarding/state resolves the whole
 		// tunnel in one call, skipped steps included.
-		WithStepProbe(postureRepo)
+		WithStepProbe(postureRepo).
+		// Step 4's write path (#643). Same reasoning as step 2's writer below:
+		// the RISK use case owns scoring, so the tunnel goes through it rather
+		// than computing the frozen formula a second time.
+		WithStarterRiskScorer(risk.NewStarterScorer(riskRepo, updateRiskUseCase))
 	activationHandler := handlers.NewActivationHandler(
 		appactivation.NewGetStateUseCase(activationRepo),
 		appactivation.NewMarkCelebratedUseCase(activationRepo),
