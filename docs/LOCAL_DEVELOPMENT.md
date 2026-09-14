@@ -85,7 +85,7 @@ docker-compose ps
 **Redis** (openrisk_redis)
 - Type: Redis 7
 - Host: localhost
-- Port: 6379
+- Port: 6380
 - Database: 0 (default)
 - No password (development mode)
 
@@ -99,10 +99,11 @@ docker-compose ps
 - Health check: /api/v1/health
 
 **Frontend** (openrisk_frontend)
-- Type: React + TypeScript (Vite)
+- Type: React + TypeScript (Vite build served by nginx)
 - Port: 5173
 - Assets: http://localhost:5173
-- API calls to: http://localhost:8080/api/v1
+- API calls to: http://localhost:5173/api/v1, proxied by nginx to the backend
+  (`frontend/nginx.conf`). One origin keeps the HttpOnly session cookies first-party.
 
 ## Common Commands
 
@@ -281,10 +282,10 @@ docker-compose logs
 # Verify Docker is running
 docker ps
 
-# Check port availability (5434, 5435, 6379, 8080, 5173 must be free)
+# Check port availability (5434, 5435, 6380, 8080, 5173 must be free)
 lsof -i :5434
 lsof -i :5435
-lsof -i :6379
+lsof -i :6380
 lsof -i :8080
 lsof -i :5173
 ```
@@ -309,14 +310,13 @@ docker-compose up -d
 # Check backend is running
 curl http://localhost:8080/api/v1/health
 
-# Check CORS headers (should allow localhost:5173)
-curl -H "Origin: http://localhost:5173" \
-     -H "Access-Control-Request-Method: GET" \
-     -v http://localhost:8080/api/v1/health
-
-# Verify VITE_API_URL in .env is correct
-cat .env | grep VITE_API_URL
+# Check the frontend proxies the API — must be JSON, never text/html
+curl -i http://localhost:5173/api/v1/health
 ```
+
+If the second call returns `index.html`, the frontend image is stale: rebuild it
+with `make docker-up` (which passes `--build`). Do not set `VITE_API_URL` to
+`http://localhost:8080` — a cross-origin API loses the session cookies.
 
 ### Container Health Checks Failing
 
