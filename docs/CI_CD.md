@@ -148,7 +148,7 @@ export DATABASE_URL="postgres://openrisk:openrisk@localhost:55432/openrisk_e2e?s
   DB_HOST=localhost DB_PORT=55432 DB_USER=openrisk DB_PASSWORD=openrisk DB_NAME=openrisk_e2e \
   REDIS_HOST=localhost REDIS_PORT=56379 APP_ENV=test PORT=8080 \
   JWT_SECRET=e2e-secret-key-not-for-production CORS_ORIGINS=http://localhost:5173 \
-  INITIAL_ADMIN_PASSWORD=admin123 \
+  INITIAL_ADMIN_PASSWORD=admin123 MIGRATIONS_DIR=../migrations \
   RSA_PRIVATE_KEY_PATH=/tmp/or-e2e-keys/private.pem RSA_PUBLIC_KEY_PATH=/tmp/or-e2e-keys/public.pem
 go build -o /tmp/or-e2e-openrisk ./cmd/server && /tmp/or-e2e-openrisk &
 

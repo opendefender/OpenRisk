@@ -60,6 +60,12 @@ jobs:
       JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
       INITIAL_ADMIN_PASSWORD: admin123
+      # The backend starts from backend/, and MIGRATIONS_DIR defaults to
+      # "migrations" relative to its working directory
+      # (internal/migrations/migrator.go). The SQL migrations live at the
+      # repository root, so without this the backend exits with
+      # `failed to open source, "file://migrations"` (#297).
+      MIGRATIONS_DIR: ../migrations
       # E2E harness
       E2E_NO_WEBSERVER: '1'
       E2E_BASE_URL: http://localhost:5173
@@ -185,6 +191,12 @@ jobs:
       JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
       INITIAL_ADMIN_PASSWORD: admin123
+      # The backend starts from backend/, and MIGRATIONS_DIR defaults to
+      # "migrations" relative to its working directory
+      # (internal/migrations/migrator.go). The SQL migrations live at the
+      # repository root, so without this the backend exits with
+      # `failed to open source, "file://migrations"` (#297).
+      MIGRATIONS_DIR: ../migrations
       E2E_NO_WEBSERVER: '1'
       E2E_CROSS_BROWSER: '1'
       E2E_BASE_URL: http://localhost:5173
