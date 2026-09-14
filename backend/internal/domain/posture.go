@@ -130,6 +130,33 @@ type StarterRiskWriter interface {
 	CreateStarterRisk(ctx context.Context, tenantID uuid.UUID, draft StarterRiskDraft) (*Risk, error)
 }
 
+// StarterRiskScorer is the write side of the tunnel's scoring step (#643).
+//
+// CreateStarterRisk deliberately leaves an adopted statement at DRAFT, and its
+// own comment says why: "Step 4 of the tunnel is where they score one." Nothing
+// implemented that, so the score the user set on screen was stored as an opaque
+// wizard answer and never reached the risk.
+//
+// The target is resolved server-side rather than named in the request: the step
+// evaluates THE risk the tunnel is about, and letting a client nominate which
+// risk an onboarding step may rewrite would be a write primitive wearing an
+// onboarding label.
+//
+// Both methods MUST filter on tenantID — ABSOLUTE RULE #2.
+type StarterRiskScorer interface {
+	// FirstStarterRisk returns the earliest starter risk this tenant adopted,
+	// or (nil, nil) when none was. Earliest rather than highest-scoring: the
+	// target has to survive step 4 changing the ranking, or step 5 would name a
+	// different risk than the one just scored.
+	FirstStarterRisk(ctx context.Context, tenantID uuid.UUID) (*Risk, error)
+
+	// ScoreStarterRisk persists likelihood and impact on one starter risk and
+	// returns it rescored. It goes through the ordinary risk update path, so the
+	// score, the band and the audit trail are computed exactly once, in one
+	// place.
+	ScoreStarterRisk(ctx context.Context, tenantID, riskID uuid.UUID, probability, impact float64) (*Risk, error)
+}
+
 // StarterExternalIDPrefix marks a risk row as written by the onboarding tunnel.
 // Paired with Source == SourceStarter, which is the indexed column PR 4 of #438
 // queries; the external id carries WHICH statement, the source carries THAT it

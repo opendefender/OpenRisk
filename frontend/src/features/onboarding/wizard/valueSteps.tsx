@@ -13,20 +13,14 @@
 // Both honour prefers-reduced-motion by rendering the FINAL state directly
 // (criterion 13) — not a shorter animation, no animation.
 
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
 import { useUIStore } from '../../../store/uiStore';
 import { StepShell } from './stepPrimitives';
 import { num, useStepNav, useStoredAnswers } from './stepNav';
-import {
-  useCompleteOnboarding,
-  usePrefersReducedMotion,
-  useSaveOnboardingStep,
-  useStarterRisks,
-} from '../useActivation';
-import { i18n } from '../../../services/activationService';
+import { useOnboardingState, usePosture, usePrefersReducedMotion } from '../useActivation';
+import type { PostureRiskView } from '../../../services/activationService';
 
 // ---------------------------------------------------------------------------
 // The matrix
@@ -97,13 +91,27 @@ export function ScoreStep() {
   const { go, busy, error, retry } = useStepNav('score');
   const riskTitle = useScoredRiskTitle();
 
-  const [probability, setProbability] = useState(0.5);
-  const [impact, setImpact] = useState(6);
+  // WHICH risk this step scores, resolved by the server (#643). The step used to
+  // render "Évaluez ce risque" over two sliders and no risk at all, so the user
+  // was scoring something the screen never named — and the score was stored as
+  // an opaque answer and applied to nothing.
+  const { data: state } = useOnboardingState();
+  const target = state?.score_target;
 
-  useEffect(() => {
-    setProbability(num(stored, 'probability', 0.5));
-    setImpact(num(stored, 'impact', 6));
-  }, [stored]);
+  // Derived, not copied into state by an effect. The sliders have three possible
+  // sources in priority order — what the user is dragging right now, what they
+  // stored here last time, and the risk's own values — and an effect that copied
+  // the latter two into state would both cascade a render and race the query:
+  // the server's answer arrives after the first paint, so the effect had to fire
+  // a second time to correct what it had already shown.
+  //
+  // `edited` is null until the user touches a slider, which is exactly the
+  // "uncontrolled until interacted with" semantics this step wants.
+  const [edited, setEdited] = useState<{ probability: number; impact: number } | null>(null);
+  const probability = edited?.probability ?? num(stored, 'probability', target?.probability ?? 0.5);
+  const impact = edited?.impact ?? num(stored, 'impact', target?.impact ?? 6);
+  const setProbability = (next: number) => setEdited({ probability: next, impact });
+  const setImpact = (next: number) => setEdited({ probability, impact: next });
 
   const score = Math.round(probability * impact * 1000) / 1000;
   const band = bandOf(score);
@@ -121,11 +129,18 @@ export function ScoreStep() {
 
   return (
     <StepShell
-      title={riskTitle || tr('Évaluez ce risque', 'Score this risk')}
-      subtitle={tr(
-        'Probabilité et impact. La matrice se met à jour pendant que vous bougez les curseurs — c’est le score que le moteur calculera.',
-        'Likelihood and impact. The matrix updates as you move the sliders — this is the score the engine will compute.',
-      )}
+      title={tr('Évaluez ce risque', 'Score this risk')}
+      subtitle={
+        target
+          ? tr(
+              'Probabilité et impact. La matrice se met à jour pendant que vous bougez les curseurs — c’est le score qui sera enregistré sur ce risque.',
+              'Likelihood and impact. The matrix updates as you move the sliders — this is the score that will be saved on this risk.',
+            )
+          : tr(
+              'Probabilité et impact. La matrice se met à jour pendant que vous bougez les curseurs — c’est le score que le moteur calculera.',
+              'Likelihood and impact. The matrix updates as you move the sliders — this is the score the engine will compute.',
+            )
+      }
       onBack={() => go({ probability, impact }, -1)}
       onNext={() => go({ probability, impact }, 1)}
       nextLabel={tr('Continuer', 'Continue')}
@@ -139,6 +154,35 @@ export function ScoreStep() {
       )}
       retryLabel={tr('Réessayer', 'Try again')}
     >
+      {/* The risk being scored, named. Criterion 1 of #643: a step headed "this
+          risk" has to say which. */}
+      {target ? (
+        <div
+          className="mb-5 rounded-xl p-4"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+          data-testid="score-target"
+        >
+          <div className="text-[11px] uppercase tracking-wide text-ink-muted">
+            {tr('Risque évalué', 'Risk being scored')}
+          </div>
+          <div className="text-[14px] font-semibold text-ink mt-0.5">{target.title}</div>
+        </div>
+      ) : (
+        // Adoption sits on step 2 and is skippable, so a tenant can legitimately
+        // arrive here with nothing to score. Say so and stay passable — nobody
+        // is trapped on a step they cannot complete (#643 criterion 5).
+        <div
+          className="mb-5 rounded-xl p-4 text-[13px] text-ink-soft"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+          data-testid="score-no-target"
+        >
+          {tr(
+            'Aucun risque n’a encore été adopté, donc cette évaluation ne sera rattachée à aucun risque. Vous pourrez évaluer vos risques depuis le registre.',
+            'No risk has been adopted yet, so this scoring will not be attached to a risk. You can score your risks from the register.',
+          )}
+        </div>
+      )}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <Slider
@@ -321,74 +365,37 @@ function Matrix({
 export function CoverStep() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const stored = useStoredAnswers('cover');
-  const { go, busy: navBusy, error: navError } = useStepNav('cover');
-  const navigate = useNavigate();
+  const { go, busy, error, retry } = useStepNav('cover');
+  const user = useAuthStore((s) => s.user);
 
-  // `cover` is the LAST step, so it does not merely advance a cursor: it is the
-  // only place that can lift the route guard. Without the complete call the
-  // tunnel has no exit — and because OnboardingGuard denies /app until
-  // onboarding.completed is true, a user who reaches this screen is locked out
-  // of the product entirely. That is the failure #438's own Risk section warns
-  // about, and it is why this step does not use `go(..., 1)` like the others.
-  const save = useSaveOnboardingStep();
-  const complete = useCompleteOnboarding();
+  // The posture is read here so the residual shown is the REAL one, computed by
+  // the server from this tenant's own control mappings (ADR 0003). A number
+  // invented client-side would be the placeholder criterion 7 forbids, on the
+  // screen the whole tunnel builds towards.
+  const { data: posture, isLoading } = usePosture();
 
-  // DELIBERATELY DOES NOT FETCH /posture.
-  //
-  // It used to, so the card could show a server-computed residual. But GET
-  // /posture is what records `posture.revealed` — the Aha moment itself (D-010)
-  // — so fetching it here fired the Aha one step early: the metric behind the
-  // eight-minute promise was measured before the user had seen anything, and
-  // `first_reveal` was already false by the time the reveal mounted, so the
-  // reveal never celebrated.
-  //
-  // The screen therefore shows the score the user just set in step 4, which it
-  // owns, and says plainly that the residual is computed on the next screen.
-  // Nothing here is invented: the number comes from their own answers.
-  const scored = useStoredAnswers('score');
-  const riskTitle = useScoredRiskTitle();
-  const [accepted, setAccepted] = useState(false);
-
-  useEffect(() => {
-    setAccepted(stored.accepted === true);
-  }, [stored]);
-
-  // Score Engine arithmetic on the user's own step-4 answers: P × I. Asset
-  // criticality is the engine's third factor and is not known at this point,
-  // which the step-4 copy already says.
-  const inherent = useMemo(
-    () => Math.round(num(scored, 'probability', 0) * num(scored, 'impact', 0) * 100) / 100,
-    [scored],
-  );
-
-  /**
-   * Save, then lift the guard, then land on the reveal.
-   *
-   * `onSuccess`, not `onSettled`: completing after a failed save would lift the
-   * guard on an answer that was never stored. And the tunnel ends on /posture
-   * because that is the whole point of #438 — five screens collected facts, and
-   * this is the screen that returns something computed in exchange.
-   */
-  const finish = () => {
-    save.mutate(
-      { step: 'cover', answers: { accepted } },
-      { onSuccess: () => complete.mutate(undefined, { onSuccess: () => navigate('/posture') }) },
-    );
-  };
-
-  const busy = navBusy || save.isPending || complete.isPending;
-  const error = navError || save.isError || complete.isError;
+  // The SAME risk step 4 scored (#643 criterion 4). This used to be
+  // `top_risks[0]` — ordered by score — so the user's own scoring could change
+  // which risk step 5 named, and the two screens could disagree precisely
+  // because the tunnel worked. Falls back to the top risk when the tenant
+  // adopted nothing, which is the state that produced the old behaviour anyway.
+  const { data: state } = useOnboardingState();
+  const targetId = state?.score_target?.id;
+  const risk: PostureRiskView | undefined = useMemo(() => {
+    const top = posture?.top_risks;
+    if (!top?.length) return undefined;
+    return (targetId && top.find((r) => r.id === targetId)) || top[0];
+  }, [posture, targetId]);
 
   return (
     <StepShell
-      title={tr('Couvrez ce risque', 'Cover this risk')}
+      title={tr('Ce que vos contrôles couvrent déjà', 'What your controls already cover')}
       subtitle={tr(
-        'Acceptez le contrôle proposé : le risque résiduel est recalculé à partir de vos propres contrôles.',
-        'Accept the proposed control: the residual risk is recomputed from your own controls.',
+        'Le référentiel que vous venez d’importer couvre déjà une partie de ce risque. Voici l’écart entre son score inhérent et son score résiduel, calculé par le serveur à partir de vos propres contrôles.',
+        'The framework you just imported already covers part of this risk. Here is the gap between its inherent score and its residual score, computed by the server from your own controls.',
       )}
-      onBack={() => go({ accepted }, -1)}
-      onNext={finish}
+      onBack={() => go({}, -1)}
+      onNext={() => go({ by: user?.id ?? '' }, 1)}
       nextLabel={tr('Voir ma posture', 'See my posture')}
       busy={busy}
       error={error}
@@ -400,47 +407,54 @@ export function CoverStep() {
       )}
       retryLabel={tr('Réessayer', 'Try again')}
     >
-      <InherentCard inherent={inherent} title={riskTitle} tr={tr} />
+      {isLoading && <div className="h-28 rounded-xl or-skeleton" />}
 
-      <label
-        className="mt-5 flex items-start gap-3 cursor-pointer"
-        style={{ userSelect: 'none' }}
-      >
-        <input
-          type="checkbox"
-          data-testid="cover-accept"
-          checked={accepted}
-          onChange={(e) => setAccepted(e.target.checked)}
-          className="mt-0.5"
-        />
-        <span className="text-[13.5px] text-ink">
+      {/* The degraded case the DoD names: the posture is not computable yet
+          (no framework imported, or the import failed). The step still works —
+          it stores the acceptance — and says plainly that the number is not
+          available rather than showing a zero that would read as "no risk". */}
+      {!isLoading && !risk && (
+        <div
+          className="rounded-xl p-4 text-[13px] text-ink-soft"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
+          data-testid="cover-unavailable"
+        >
           {tr(
-            'J’accepte le contrôle proposé pour ce risque.',
-            'I accept the proposed control for this risk.',
+            'Le résiduel sera calculé dès qu’un référentiel sera importé — nous vous le montrerons à l’écran suivant.',
+            'The residual is computed as soon as a framework is imported — we will show it on the next screen.',
           )}
-        </span>
-      </label>
+        </div>
+      )}
+
+      {!isLoading && risk && <ResidualCard risk={risk} tr={tr} />}
+
+      {/* #639: there used to be a checkbox here reading "J'accepte le contrôle
+          proposé pour ce risque." Ticking it created nothing — no control, no
+          mapping, and no backend path read the answer. It also drove which
+          number the card labelled "Résiduel", so leaving it unticked displayed
+          the INHERENT score under the residual label. Both are gone: the step
+          now shows what the imported framework has actually earned, which is
+          true and is the payoff the tunnel was built for. Proposing a real
+          control is still open on #639 and is a product decision. */}
     </StepShell>
   );
 }
 
-/**
- * What the user has, and what comes next.
- *
- * No residual number here: computing one would need the tenant's control
- * mappings, and the only endpoint that returns them is the reveal — which
- * records the Aha. Showing a client-computed figure instead would be the
- * placeholder criterion 7 forbids, on the screen that leads into the reveal.
- */
-function InherentCard({
-  inherent,
-  title,
+function ResidualCard({
+  risk,
   tr,
 }: {
-  inherent: number;
-  title: string;
+  risk: PostureRiskView;
   tr: (fr: string, en: string) => string;
 }) {
+  const reduced = usePrefersReducedMotion();
+
+  // Both numbers come from the server and neither is conditional. A checkbox
+  // used to choose which of the two sat under the "Résiduel" label, so an
+  // unticked box showed the INHERENT score labelled as the residual (#639).
+  const shown = risk.residual.value;
+  const band = bandOf(shown);
+
   return (
     <div
       className="rounded-xl p-5"
@@ -449,15 +463,37 @@ function InherentCard({
     >
       {title && <div className="text-[13.5px] font-semibold text-ink mb-3">{title}</div>}
       <div className="flex items-end gap-5">
-        <Figure label={tr('Inhérent', 'Inherent')} value={inherent} />
-        <ShieldCheck size={18} aria-hidden="true" style={{ color: 'var(--fg-muted)', marginBottom: 6 }} />
-        <div>
-          <div className="text-[10.5px] uppercase tracking-wide text-ink-muted">
-            {tr('Résiduel', 'Residual')}
-          </div>
-          <div className="text-[13px] text-ink-soft mt-1" data-testid="cover-residual-pending">
-            {tr('calculé à l’écran suivant', 'computed on the next screen')}
-          </div>
+        <Figure label={tr('Inhérent', 'Inherent')} value={risk.residual.inherent} muted />
+        <ShieldCheck
+          size={18}
+          aria-hidden="true"
+          style={{
+            color: risk.residual.coverage.measured ? 'var(--low)' : 'var(--fg-muted)',
+            marginBottom: 6,
+          }}
+        />
+        <Figure
+          label={tr('Résiduel', 'Residual')}
+          value={shown}
+          color={bandColor(band)}
+          testId="cover-residual-value"
+          reduced={reduced}
+        />
+      </div>
+
+      {risk.residual.coverage.measured ? (
+        <div className="text-[12px] text-ink-soft mt-3" role="status" aria-live="polite">
+          {tr(
+            `${risk.residual.coverage.applicable} contrôle(s) rattaché(s) — réduction de ${risk.residual.reduction}`,
+            `${risk.residual.coverage.applicable} control(s) mapped — down by ${risk.residual.reduction}`,
+          )}
+        </div>
+      ) : (
+        <div className="text-[12px] text-ink-muted mt-3">
+          {tr(
+            'Aucun contrôle rattaché pour l’instant — le résiduel égale l’inhérent.',
+            'No control mapped yet — the residual equals the inherent score.',
+          )}
         </div>
       </div>
     </div>

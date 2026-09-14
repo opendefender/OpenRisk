@@ -44,6 +44,15 @@
     "riskAssetCriticality": "Criticité de l'asset",
     "riskFramework": "Cadre de conformité",
     "riskTags": "Étiquettes",
+    "tagInput": {
+      "placeholder": "Ajouter une étiquette…",
+      "hint": "Entrée ou virgule pour valider une étiquette.",
+      "remove": "Retirer l’étiquette {tag}",
+      "added": "Étiquette {tag} ajoutée.",
+      "removed": "Étiquette {tag} retirée.",
+      "duplicate": "L’étiquette {tag} est déjà présente.",
+      "max": "Nombre maximum d’étiquettes atteint. {tag} n’a pas été ajoutée."
+    },
     "riskAssets": "Assets impactés",
     "riskOwner": "Propriétaire",
     "riskAssignedTo": "Assigné à",
@@ -341,6 +350,21 @@
       "MEDIUM": "Moyenne",
       "HIGH": "Élevée",
       "CRITICAL": "Critique"
+    },
+    "attributeSearch": {
+      "heading": "Recherche par attribut",
+      "categoryLabel": "Catégorie d’actif",
+      "categoryPlaceholder": "Toutes les catégories",
+      "attributeLabel": "Attribut à filtrer",
+      "attributePlaceholder": "Attribut…",
+      "valueLabel": "Valeur de l’attribut",
+      "valuePlaceholder": "Valeur",
+      "valueOption": "Valeur…",
+      "yes": "Oui",
+      "no": "Non",
+      "apply": "Filtrer",
+      "chooseCategory": "Choisissez une catégorie pour filtrer sur ses attributs.",
+      "removeTerm": "Retirer le filtre {term}"
     }
   },
   "actionCenter": {

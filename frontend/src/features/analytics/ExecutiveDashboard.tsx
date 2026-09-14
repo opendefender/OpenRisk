@@ -453,7 +453,16 @@ function TopRisksCard({
       {risks.length === 0 ? (
         <ChartEmpty label={tr('Aucun risque', 'No risks')} />
       ) : (
-        <div className="overflow-x-auto">
+        // The table is wider than a phone, so this box scrolls at 393px and a
+        // keyboard user could not reach it (axe scrollable-region-focusable,
+        // #589). tabIndex makes it reachable; role + name stop it from being an
+        // anonymous tab stop that announces nothing.
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label={tr('Top 10 des risques', 'Top 10 risks')}
+        >
           <table className="w-full text-left" style={{ minWidth: 420 }}>
             <thead>
               <tr className="text-[11px] text-ink-muted uppercase tracking-wide">
