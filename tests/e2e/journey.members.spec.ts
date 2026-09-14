@@ -19,16 +19,28 @@ test.use({ storageState: authFileFor('admin') });
 
 /** An API context carrying the admin's bearer token.
  *
- *  page.request cannot be used for this: the app authenticates with a bearer
- *  token held in localStorage, not with a cookie, so a request made through
- *  the page context arrives unauthenticated. */
-async function adminApi(): Promise<APIRequestContext> {
-  const raw = await pwRequest.newContext({ baseURL: API_BASE });
-  const login = await apiLogin(raw, ADMIN.email, ADMIN.password);
-  return pwRequest.newContext({
-    baseURL: API_BASE,
-    extraHTTPHeaders: { Authorization: `Bearer ${login.token_pair.access_token}` },
-  });
+ *  page.request would ride the session cookie from the storageState, and a
+ *  cookie-authenticated POST must pass the CSRF double-submit check (or_csrf
+ *  cookie echoed in X-CSRF-Token), which a bare API call does not do. A bearer
+ *  header is exempt from that check by design (backend/internal/middleware/
+ *  auth.go), so provisioning goes through its own bearer context.
+ *
+ *  One sign-in per worker, not one per test. /auth/login allows 15 requests per
+ *  IP every 5 minutes (cmd/server/main.go, authRateLimit), and CI runs every
+ *  spec from one IP: four tests signing in on two projects, on top of
+ *  global-setup and the other specs, answered 429 before any screen was checked
+ *  (#297). The access token outlives this file's run by a wide margin. */
+let adminApiContext: Promise<APIRequestContext> | undefined;
+function adminApi(): Promise<APIRequestContext> {
+  adminApiContext ??= (async () => {
+    const raw = await pwRequest.newContext({ baseURL: API_BASE });
+    const login = await apiLogin(raw, ADMIN.email, ADMIN.password);
+    return pwRequest.newContext({
+      baseURL: API_BASE,
+      extraHTTPHeaders: { Authorization: `Bearer ${login.token_pair.access_token}` },
+    });
+  })();
+  return adminApiContext;
 }
 
 /** A fresh address per run: re-inviting an existing member is correctly a 409,
@@ -73,7 +85,15 @@ test('invite → the invitation appears, and its link opens a usable acceptance 
   // legitimate; what is NOT legitimate is claiming a send that did not happen,
   // so the assertion accepts either and then checks the two are not confused.
   const confirmation = page.getByRole('dialog');
-  await expect(confirmation).toBeVisible({ timeout: 15_000 });
+  // The invite form is itself the dialog until the request settles, and is then
+  // replaced by the outcome (MembersView.tsx, InviteDialog → ManualLinkDialog).
+  // Wait for an outcome heading — either one — before reading, or the text read
+  // is the form's and neither outcome is found.
+  await expect(
+    confirmation.getByRole('heading', {
+      name: /invitation envoyée|invitation sent|transmettre vous-même|deliver it yourself/i,
+    }),
+  ).toBeVisible({ timeout: 15_000 });
   const text = (await confirmation.innerText()).toLowerCase();
   const claimedSent = /invitation envoyée|invitation sent/.test(text);
   const claimedManual = /transmettre vous-même|deliver it yourself/.test(text);
@@ -105,7 +125,9 @@ test('invite → the invitation appears, and its link opens a usable acceptance 
     const guestPage = await guest.newPage();
     await guestPage.goto(acceptUrl, { waitUntil: 'domcontentloaded' });
     await expect(guestPage.getByRole('heading').first()).toBeVisible({ timeout: 20_000 });
-    await expect(guestPage.getByText(email)).toBeVisible();
+    // The acceptance page names the address more than once; the definition-list
+    // entry is the one that states who the invitation is for.
+    await expect(guestPage.getByText(email, { exact: true })).toBeVisible();
     await expect(
       guestPage.getByRole('button', { name: /créer mon compte|create my account|rejoindre|join/i }),
     ).toBeVisible();
@@ -156,14 +178,24 @@ test('withdrawing a member’s access asks first and offers the reversible optio
   const acceptUrl: string | undefined = (await created.json()).accept_url;
   test.skip(!acceptUrl, 'needs the acceptance link, which is returned only when mail is unavailable');
 
-  const accepted = await api.post('invitations/accept', {
+  // Accepted as the invitee would: signed out. A signed-in caller may only accept
+  // an invitation issued to their own address, and is refused otherwise
+  // (backend/internal/application/membership/invitations.go). The empty
+  // storageState is required: without it this context inherits the file's
+  // `test.use({ storageState: admin })` session cookie, and the accept arrives
+  // authenticated as the admin.
+  const invitee = await pwRequest.newContext({
+    baseURL: API_BASE,
+    storageState: { cookies: [], origins: [] },
+  });
+  const accepted = await invitee.post('invitations/accept', {
     data: {
       token: new URL(acceptUrl!).searchParams.get('token'),
       full_name: 'E2E Member',
       password: 'e2e-member-passphrase-2026!',
     },
   });
-  expect(accepted.status()).toBe(201);
+  expect(accepted.status(), `accept answered: ${await accepted.text()}`).toBe(201);
 
   await openMembers(page);
   await page.getByLabel(/rechercher un membre|search members/i).fill(email);
@@ -205,7 +237,8 @@ test('the sidebar badge counts real outstanding invitations', async ({ page }) =
   const pending: number = (await counts.json()).pending_invitations;
 
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  const item = page.locator('nav button', { hasText: /rôles|roles|membres|members/i }).first();
+  // Nav entries are links, not buttons (components/layout/Sidebar.tsx).
+  const item = page.locator('nav a', { hasText: /rôles|roles|membres|members/i }).first();
   await item.waitFor({ state: 'visible', timeout: 20_000 });
   const badge = item.locator('span').filter({ hasText: /^\d+$/ });
 
