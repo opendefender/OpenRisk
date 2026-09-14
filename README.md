@@ -61,6 +61,38 @@ OpenRisk allows every organization to:
 - ⚙️ **Custom Fields** - Flexible schema for organizational needs
 - 📈 **Gamification** - Engagement and incentive system
 
+### 💶 Financial Risk Quantification (CRQ)
+
+![Financial Quantification dashboard, on demonstration data](./docs/assets/crq-dashboard.png)
+
+*The Financial Quantification dashboard (`/analytics/financial`), shown on the built-in
+demonstration dataset (`DEMO_MODE=true`), not on a customer's data. Available from the
+**Pro** plan.*
+
+Each risk is quantified FAIR-style: single loss expectancy (SLE), annual rate of occurrence
+(ARO), annualised loss expectancy (ALE = SLE × ARO), residual ALE and return on security
+investment (ROSI). Amounts are computed in XAF and presented in XAF, XOF, EUR, USD, NGN, MAD,
+GHS or ZAR. The dashboard aggregates them into one view for the CFO and the CISO
+(`backend/pkg/crq`).
+
+### 🌍 African Regulatory Catalogues
+
+| Catalogue | Source instrument | Controls |
+|---|---|---|
+| **COBAC (CEMAC)**: internal control of credit institutions | Règlement COBAC R-2016/04 | 45 |
+| **BCEAO / UEMOA**: payment systems | Règlement n°15/2002/CM/UEMOA | 35 |
+| **ANTIC (Cameroon)**: cybersecurity | Loi n°2010/012 | 25 |
+
+Every control cites the article it derives from (`backend/pkg/compliance/catalog_*.go`). The
+control descriptions are synthesised rewordings, not the regulatory text. Have them reviewed
+by a qualified professional before relying on them in a real audit.
+
+### 🔎 Asset Discovery
+
+**10 collectors**: AWS, Azure, Google Cloud, Kubernetes, Docker, VMware vCenter, Active
+Directory, Microsoft 365, GitHub and GitLab. **Plus an on-premise Agent** (nmap) for networks
+the platform cannot reach directly (`backend/internal/scanner`).
+
 ---
 
 ## 🚀 Quick Start (5 Minutes)
