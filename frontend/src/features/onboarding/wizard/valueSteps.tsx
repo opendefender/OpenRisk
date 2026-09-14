@@ -17,7 +17,6 @@ import { useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
 import { useUIStore } from '../../../store/uiStore';
-import { useAuthStore } from '../../../hooks/useAuthStore';
 import { StepShell } from './stepPrimitives';
 import { num, useStepNav, useStoredAnswers } from './stepNav';
 import { useOnboardingState, usePosture, usePrefersReducedMotion } from '../useActivation';
@@ -34,6 +33,31 @@ import type { PostureRiskView } from '../../../services/activationService';
 
 const PROBABILITY_BANDS = [0.1, 0.3, 0.5, 0.7, 0.9];
 const IMPACT_BANDS = [2, 4, 6, 8, 10];
+
+/**
+ * The risk these two steps are about.
+ *
+ * Both screens said "this risk" without ever naming one, on the step right after
+ * the user picked THREE — so they were scoring and covering an anonymous thing.
+ * The name comes from the selection stored in step 2 plus the catalogue the
+ * server already served; nothing is fetched that could record anything.
+ *
+ * Returns '' rather than a placeholder when the selection is not there yet: a
+ * made-up title on a screen about the user's own register is exactly what
+ * criterion 7 forbids.
+ */
+function useScoredRiskTitle(): string {
+  const lang = useUIStore((s) => s.lang);
+  const goalAnswers = useStoredAnswers('goal');
+  const { data: offer } = useStarterRisks();
+
+  return useMemo(() => {
+    const picked = goalAnswers.starter_risks;
+    if (!Array.isArray(picked) || picked.length === 0 || !offer) return '';
+    const first = offer.risks.find((r) => r.key === picked[0]);
+    return first ? i18n(first.title_i18n, lang) : '';
+  }, [goalAnswers, offer, lang]);
+}
 
 /** Score Engine bands, on the P×I×AC scale with AC unknown (so 0–10 here). */
 function bandOf(score: number): 'low' | 'medium' | 'high' | 'critical' {
@@ -65,6 +89,7 @@ export function ScoreStep() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const stored = useStoredAnswers('score');
   const { go, busy, error, retry } = useStepNav('score');
+  const riskTitle = useScoredRiskTitle();
 
   // WHICH risk this step scores, resolved by the server (#643). The step used to
   // render "Évaluez ce risque" over two sliders and no risk at all, so the user
@@ -212,7 +237,7 @@ export function ScoreStep() {
           </p>
         </div>
 
-        <Matrix pIndex={pIndex} iIndex={iIndex} tr={tr} />
+        <Matrix pIndex={pIndex} iIndex={iIndex} score={score} tr={tr} />
       </div>
     </StepShell>
   );
@@ -271,10 +296,13 @@ function Slider({
 function Matrix({
   pIndex,
   iIndex,
+  score,
   tr,
 }: {
   pIndex: number;
   iIndex: number;
+  /** The live P × I the sliders produce — what the readout shows. */
+  score: number;
   tr: (fr: string, en: string) => string;
 }) {
   const reduced = usePrefersReducedMotion();
@@ -313,7 +341,12 @@ function Matrix({
                       transition: reduced ? 'none' : 'background .18s ease, outline .18s ease',
                     }}
                   >
-                    {active ? (p * impact).toFixed(1) : ''}
+                    {/* The score the user actually set, not this cell's own
+                        band product. The cell marks WHERE they are; the number
+                        is WHAT they scored. Showing the band's arithmetic put
+                        two different figures on screen for one thing — the
+                        readout said 6.30 beside a cell saying 5.6. */}
+                    {active ? score.toFixed(1) : ''}
                   </td>
                 );
               })}
@@ -366,7 +399,7 @@ export function CoverStep() {
       nextLabel={tr('Voir ma posture', 'See my posture')}
       busy={busy}
       error={error}
-      onRetry={retry}
+      onRetry={finish}
       errorLabel={tr("Impossible d'enregistrer cette étape.", 'This step could not be saved.')}
       errorHint={tr(
         'Vos réponses sont conservées — réessayez, rien n’est perdu.',
@@ -428,8 +461,7 @@ function ResidualCard({
       style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
       data-testid="cover-residual"
     >
-      <div className="text-[13.5px] font-semibold text-ink mb-3 truncate">{risk.title}</div>
-
+      {title && <div className="text-[13.5px] font-semibold text-ink mb-3">{title}</div>}
       <div className="flex items-end gap-5">
         <Figure label={tr('Inhérent', 'Inherent')} value={risk.residual.inherent} muted />
         <ShieldCheck
@@ -463,7 +495,7 @@ function ResidualCard({
             'No control mapped yet — the residual equals the inherent score.',
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

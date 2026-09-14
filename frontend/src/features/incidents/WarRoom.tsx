@@ -457,7 +457,13 @@ export function WarRoom() {
           }}
           onClick={() => setConfirmClose(false)}
         >
+          {/* alertdialog, not dialog: a question with exactly two answers is
+              announced whole on open rather than waiting to be explored. */}
           <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="warroom-close-title"
+            aria-describedby="warroom-close-body"
             onClick={(e) => e.stopPropagation()}
             className="glass-strong rounded-[18px] shadow-card-lg p-[26px]"
             style={{ width: 'min(90vw,420px)', animation: 'or-scalein .18s ease' }}
@@ -471,10 +477,13 @@ export function WarRoom() {
             >
               <AlertTriangle size={24} />
             </div>
-            <div className="disp text-[18px] font-bold text-ink mb-2">
+            <h2 id="warroom-close-title" className="disp text-[18px] font-bold text-ink mb-2">
               {tr('Clore cet incident ?', 'Close this incident?')}
-            </div>
-            <div className="text-[13.5px] text-ink-soft leading-relaxed mb-[22px]">
+            </h2>
+            <div
+              id="warroom-close-body"
+              className="text-[13.5px] text-ink-soft leading-relaxed mb-[22px]"
+            >
               {tr(
                 'Le statut passera à « Clos » et l’incident sortira des incidents actifs.',
                 'The status will be set to "Closed" and it will leave the active incidents.',

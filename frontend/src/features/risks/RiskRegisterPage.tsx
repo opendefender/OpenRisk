@@ -1363,6 +1363,9 @@ function RiskDrawer({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="risk-drawer-title"
         onClick={(e) => e.stopPropagation()}
         className="h-full flex flex-col"
         style={{
@@ -1377,10 +1380,13 @@ function RiskDrawer({
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-1">
               <div className="mono text-[11px] text-ink-muted mb-[5px]">#{r.id.slice(0, 8)}</div>
-              <div className="disp text-[18px] font-bold text-ink leading-snug">{r.name}</div>
+              <h2 id="risk-drawer-title" className="disp text-[18px] font-bold text-ink leading-snug">
+                {r.name}
+              </h2>
             </div>
             <button
               onClick={onClose}
+              aria-label={tr('Fermer', 'Close')}
               className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft"
               style={{ background: 'var(--bg-hover)' }}
             >

@@ -186,6 +186,9 @@ export function RuleEditorModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rule-editor-title"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[640px] rounded-[16px] flex flex-col or-scalein"
         style={{
@@ -199,14 +202,19 @@ export function RuleEditorModal({
           className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
-          <div className="flex items-center gap-2 text-[15px] font-bold text-ink">
-            <Workflow size={17} />{' '}
+          {/* A dialog's name should come from a heading, not a styled div. */}
+          <h2
+            id="rule-editor-title"
+            className="flex items-center gap-2 text-[15px] font-bold text-ink"
+          >
+            <Workflow size={17} aria-hidden="true" />{' '}
             {rule
               ? tr('Modifier la règle', 'Edit rule')
               : tr('Nouvelle automatisation', 'New automation')}
-          </div>
+          </h2>
           <button
             onClick={onClose}
+            aria-label={tr('Fermer', 'Close')}
             className="w-8 h-8 rounded-[9px] flex items-center justify-center text-ink-soft"
             style={{ background: 'var(--bg-hover)' }}
           >
