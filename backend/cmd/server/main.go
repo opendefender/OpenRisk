@@ -925,7 +925,50 @@ func main() {
 		})
 	})
 
-	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled))
+	// Liveness/readiness. This is what docker-compose, the Helm probes and the
+	// E2E webServer wait on, so it must PROBE rather than assert.
+	//
+	// It used to return a hardcoded {"status":"UP","db":"CONNECTED"} — twelve
+	// lines below /status, whose own comment says it probes "so the public status
+	// page reflects reality, not a hardcoded UP". With Postgres stopped, this
+	// endpoint went on reporting a healthy database while every query failed with
+	// connection refused: an orchestrator would keep a dead instance in rotation
+	// and an operator debugging an outage would be told the database is fine.
+	//
+	// A failed probe answers 503, because a readiness probe that cannot fail is
+	// not a readiness probe.
+	api.Get("/health", func(c *fiber.Ctx) error {
+		dbUp := true
+		if sqlDB, err := database.DB.DB(); err != nil {
+			dbUp = false
+		} else {
+			// Bounded: a probe that blocks on a wedged connection turns a health
+			// check into an outage of its own.
+			ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
+			defer cancel()
+			if sqlDB.PingContext(ctx) != nil {
+				dbUp = false
+			}
+		}
+
+		status := "UP"
+		code := fiber.StatusOK
+		if !dbUp {
+			status = "DOWN"
+			code = fiber.StatusServiceUnavailable
+		}
+
+		return c.Status(code).JSON(fiber.Map{
+			"status":  status,
+			"version": Version,
+			"commit":  Commit,
+			"db":      map[bool]string{true: "CONNECTED", false: "DISCONNECTED"}[dbUp],
+			// Drives the permanent "demonstration data" banner. Served from the
+			// backend rather than a frontend build flag so the two cannot disagree
+			// about whether the data on screen is real.
+			"demo_mode": demoseed.Enabled(),
+		})
+	})
 
 	// Brute-force protection on credential endpoints (5 attempts / 15 min per IP).
 	// Backed by Redis so the counter is shared across every instance of a
@@ -2858,7 +2901,11 @@ func main() {
 		WithProfileUpdater(userRepo).
 		// Auto-skip (criteria 2 and 3): GET /onboarding/state resolves the whole
 		// tunnel in one call, skipped steps included.
-		WithStepProbe(postureRepo)
+		WithStepProbe(postureRepo).
+		// Step 4's write path (#643). Same reasoning as step 2's writer below:
+		// the RISK use case owns scoring, so the tunnel goes through it rather
+		// than computing the frozen formula a second time.
+		WithStarterRiskScorer(risk.NewStarterScorer(riskRepo, updateRiskUseCase))
 	activationHandler := handlers.NewActivationHandler(
 		appactivation.NewGetStateUseCase(activationRepo),
 		appactivation.NewMarkCelebratedUseCase(activationRepo),
@@ -2887,7 +2934,16 @@ func main() {
 	protected.Post("/onboarding/complete", activationHandler.CompleteOnboarding)
 	protected.Get("/onboarding/recognition", activationHandler.GetRecognition)
 	protected.Get("/onboarding/starter-risks", activationHandler.GetStarterRisks)
-	protected.Post("/onboarding/starter-risks", activationHandler.AdoptStarterRisks)
+	// The POST WRITES REAL RISKS into the tenant's register, so it carries the
+	// same permission as every other risk-creation path. The tunnel is walked by
+	// invited members too, and one without `risks:create` must not be able to
+	// put three rows in a register they may not write to.
+	//
+	// The client treats the resulting 403 the way it treats a 409: the step
+	// advances without adopting. A blocking tunnel that refuses to advance
+	// because of a permission the user will never have would lock them out of
+	// the product — the failure #438's Risk section names.
+	protected.Post("/onboarding/starter-risks", riskCreate, activationHandler.AdoptStarterRisks)
 	protected.Put("/onboarding/steps/:step", activationHandler.SaveOnboardingStep)
 
 	// The Posture Reveal (#438). Outside the /onboarding group on purpose: it is

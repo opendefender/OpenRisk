@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldAlert } from 'lucide-react';
@@ -14,7 +14,9 @@ import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
-import { Button, Field, Input } from '../../../shared/ds';
+import { Button, Field, Input, TagInput } from '../../../shared/ds';
+import { useI18n } from '../../../hooks/useI18n';
+import { useRiskTagLabels } from '../useRiskTagLabels';
 
 const riskSchema = z.object({
   title: z.string().min(5).max(100),
@@ -28,10 +30,11 @@ const riskSchema = z.object({
   // scale — the two forms simply disagreed.
   impact: z.number().min(0).max(10),
   probability: z.number().min(0).max(1),
-  // Bound to a comma-separated text input; split into an array on submit. The
-  // schema previously declared z.array here while the input produced a string,
-  // so zodResolver rejected EVERY save (the Edit form's Save was broken).
-  tags: z.string(),
+  // TagInput holds the parsed array directly (#631). This used to be a
+  // comma-separated string split on submit — and before that, a z.array bound to
+  // a string input, which made zodResolver reject EVERY save. Holding one shape
+  // end to end is what stops that class of defect recurring.
+  tags: z.array(z.string()),
   asset_ids: z.array(z.string()).optional(),
   frameworks: z.array(z.string()).optional(),
 });
@@ -47,13 +50,18 @@ interface EditRiskModalProps {
 
 export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModalProps) => {
   const { updateRisk, isLoading } = useRiskStore();
+  const { t } = useI18n();
   const { assets, fetchAssets } = useAssetStore();
+
+  const { t } = useI18n();
+  const tagLabels = useRiskTagLabels();
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<RiskFormData>({
@@ -62,7 +70,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       impact: 5,
       probability: 0.5,
       asset_ids: [],
-      tags: '',
+      tags: [],
       frameworks: [],
     },
   });
@@ -74,7 +82,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       setValue('description', risk.description || '');
       setValue('impact', typeof risk.impact === 'number' ? risk.impact : 5);
       setValue('probability', typeof risk.probability === 'number' ? risk.probability : 0.5);
-      setValue('tags', (risk.tags || []).join(','));
+      setValue('tags', risk.tags || []);
       setValue(
         'asset_ids',
         (risk.assets || []).map((a: any) => a.id),
@@ -133,22 +141,18 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const onSubmit = async (data: RiskFormData) => {
     if (!risk) return;
     try {
-      // Split the comma-separated tags text into the array the API expects.
       const payload = {
         ...data,
-        tags: data.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
+        tags: data.tags,
       };
       await updateRisk(risk.id, payload);
-      toast.success('Risque mis à jour');
+      toast.success(t('risks.updated'));
       onClose();
       onSuccess?.();
     } catch (err) {
       // Show what the server actually said. A generic message hides the one
       // sentence that names the offending field.
-      toast.error(apiErrorMessage(err) || 'Erreur lors de la mise à jour');
+      toast.error(apiErrorMessage(err) || t('risks.updateFailed'));
     }
   };
 
@@ -174,17 +178,25 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-risk-title"
             className="fixed inset-0 m-auto w-full max-w-lg h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-90 overflow-hidden"
           >
             <div className="flex justify-between items-center mb-6 border-b border-border-strong/5 pb-4">
-              <h2 className="text-xl font-bold text-fg-primary flex items-center gap-2">
-                <ShieldAlert className="text-primary" size={20} /> Modifier le Risque
+              <h2
+                id="edit-risk-title"
+                className="text-xl font-bold text-fg-primary flex items-center gap-2"
+              >
+                <ShieldAlert className="text-primary" size={20} aria-hidden="true" />{' '}
+                {t('risks.editRisk')}
               </h2>
               <button
                 onClick={handleClose}
+                aria-label={t('common.close')}
                 className="text-fg-muted hover:text-fg-primary transition-colors"
               >
-                <X size={24} />
+                <X size={24} aria-hidden="true" />
               </button>
             </div>
 
@@ -193,7 +205,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
               className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]"
             >
               <Field
-                label="Titre"
+                label={t('risks.fieldTitle')}
                 message={errors.title?.message}
                 status={errors.title?.message ? 'invalid' : 'default'}
               >
@@ -201,10 +213,14 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
               </Field>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
-                  Description
+                <label
+                  htmlFor="edit-risk-description"
+                  className="text-xs font-medium text-fg-secondary uppercase tracking-wider"
+                >
+                  {t('risks.fieldDescription')}
                 </label>
                 <textarea
+                  id="edit-risk-description"
                   {...register('description')}
                   rows={4}
                   disabled={isLoading}
@@ -217,15 +233,22 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
-                    Impact (0 – 10)
+                  <label
+                    htmlFor="edit-risk-impact"
+                    className="text-xs font-medium text-fg-secondary uppercase tracking-wider"
+                  >
+                    {t('risks.impact')} (0 – 10)
                   </label>
+                  {/* The visible value sits in a separate row below, which is read
+                      as loose text rather than as the slider's value. */}
                   <input
+                    id="edit-risk-impact"
                     type="range"
                     min={0}
                     max={10}
                     step={0.5}
                     disabled={isLoading}
+                    aria-valuetext={(watch('impact') ?? 0).toFixed(1)}
                     {...register('impact', { valueAsNumber: true })}
                     className="w-full"
                   />
@@ -242,15 +265,20 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider">
-                    Probabilité (0 – 1)
+                  <label
+                    htmlFor="edit-risk-probability"
+                    className="text-xs font-medium text-fg-secondary uppercase tracking-wider"
+                  >
+                    {t('risks.probability')} (0 – 1)
                   </label>
                   <input
+                    id="edit-risk-probability"
                     type="range"
                     min={0}
                     max={1}
                     step={0.05}
                     disabled={isLoading}
+                    aria-valuetext={(watch('probability') ?? 0).toFixed(2)}
                     {...register('probability', { valueAsNumber: true })}
                     className="w-full"
                   />
@@ -269,16 +297,21 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               {/* Assets selector */}
               <div className="space-y-2 pt-2">
-                <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider flex justify-between">
-                  Assets Affectés
+                {/* A <label> with no control names nothing. These are toggle
+                    buttons, so the set is a group named by its own text. */}
+                <div
+                  id="edit-risk-assets-label"
+                  className="text-xs font-medium text-fg-secondary uppercase tracking-wider flex justify-between"
+                >
+                  {t('risks.affectedAssets')}
                   <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">
-                    {selectedAssetIds.length} sélectionné(s)
+                    {t('risks.selectedCount', { count: selectedAssetIds.length })}
                   </span>
-                </label>
+                </div>
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg bg-surface-1/30">
                   {assets.length === 0 ? (
                     <div className="text-fg-muted text-xs w-full text-center py-2">
-                      Aucun asset.
+                      {t('risks.noAssets')}
                     </div>
                   ) : (
                     assets.map((a) => (
@@ -287,6 +320,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                         type="button"
                         onClick={() => toggleAsset(a.id)}
                         disabled={isLoading}
+                        aria-pressed={selectedAssetIds.includes(a.id)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedAssetIds.includes(a.id) ? 'bg-accent-soft border-accent text-info-text' : 'bg-surface-2 border-border-default text-fg-secondary'} ${isLoading ? 'opacity-70' : ''}`}
                       >
                         {a.name}
@@ -296,22 +330,32 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
               </div>
 
-              <Field label="Tags (séparés par des virgules)">
-                <Input
-                  {...register('tags')}
-                  placeholder="ex: critical, web-app, legacy"
-                  disabled={isLoading}
+              <Field label={t('risks.riskTags')}>
+                <Controller
+                  name="tags"
+                  control={control}
+                  render={({ field }) => (
+                    <TagInput
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      labels={tagLabels}
+                      disabled={isLoading}
+                    />
+                  )}
                 />
               </Field>
 
               {/* Frameworks selector */}
               <div className="space-y-2 pt-2">
-                <label className="text-xs font-medium text-fg-secondary uppercase tracking-wider flex justify-between">
-                  Frameworks
+                <div
+                  id="edit-risk-frameworks-label"
+                  className="text-xs font-medium text-fg-secondary uppercase tracking-wider flex justify-between"
+                >
+                  {t('risks.frameworks')}
                   <span className="text-[10px] bg-surface-2 px-2 py-0.5 rounded-full">
-                    {selectedFrameworks.length} sélectionné(s)
+                    {t('risks.selectedCount', { count: selectedFrameworks.length })}
                   </span>
-                </label>
+                </div>
                 <div className="flex flex-wrap gap-2 p-2">
                   {frameworksList.map((f) => (
                     <button
@@ -319,6 +363,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                       type="button"
                       onClick={() => toggleFramework(f)}
                       disabled={isLoading}
+                      aria-pressed={selectedFrameworks.includes(f)}
                       className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${selectedFrameworks.includes(f) ? 'bg-success/20 border-success text-success-text' : 'bg-surface-2 border-border-default text-fg-secondary hover:border-border-strong'}`}
                     >
                       {f}
@@ -329,10 +374,10 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-strong/5 sticky bottom-0 bg-surface">
                 <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>
-                  Annuler
+                  {t('common.cancel')}
                 </Button>
                 <Button variant="primary" type="submit" loading={isLoading || isSubmitting}>
-                  Enregistrer
+                  {t('common.save')}
                 </Button>
               </div>
             </form>

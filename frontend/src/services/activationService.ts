@@ -54,6 +54,14 @@ export interface ActivationState {
  */
 export type OnboardingStepKey = 'organization' | 'goal' | 'framework' | 'score' | 'cover';
 
+/** What the scoring step is about, and where its sliders open. */
+export interface ScoreTarget {
+  id: string;
+  title: string;
+  probability: number;
+  impact: number;
+}
+
 export interface OnboardingState {
   current_step: OnboardingStepKey;
   /**
@@ -76,6 +84,14 @@ export interface OnboardingState {
   goal?: string;
   /** Raw per-step answers, so a resumed wizard repopulates exactly as left. */
   answers: Record<string, Record<string, unknown>>;
+  /**
+   * The risk step 4 scores (#643). Resolved server-side — the step evaluates THE
+   * risk the tunnel is about, and letting the client nominate one would make an
+   * onboarding step a general write primitive. Absent when the tenant adopted no
+   * starter risk, which is a normal state: adoption sits on step 2 and is
+   * skippable.
+   */
+  score_target?: ScoreTarget;
   /** Where to land after the wizard, derived from the chosen goal. */
   landing: string;
 }
@@ -308,9 +324,19 @@ export const activationService = {
    *
    * A 409 means this tenant already adopted — the tunnel is resumable, so that
    * is an expected answer and not a failure to retry.
+   *
+   * `lang` decides the language the rows are WRITTEN in. Getting it wrong writes
+   * statements a customer's colleagues may not read into their own register.
    */
-  async adoptStarterRisks(keys: string[]): Promise<AdoptStarterRisksResult> {
-    const { data } = await api.post<AdoptStarterRisksResult>('/onboarding/starter-risks', { keys });
+  async adoptStarterRisks(keys: string[], lang: Lang): Promise<AdoptStarterRisksResult> {
+    const { data } = await api.post<AdoptStarterRisksResult>('/onboarding/starter-risks', {
+      keys,
+      // Which of the two SERVER-AUTHORED strings to store. A preference, not
+      // content: it cannot introduce text of our own, and the server falls back
+      // to French on anything it does not recognise. Sent because the client is
+      // the only party that knows which language the person is reading.
+      lang,
+    });
     return data;
   },
 };

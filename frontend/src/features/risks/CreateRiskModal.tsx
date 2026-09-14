@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Zap, Database, ShieldAlert, Sparkles } from 'lucide-react';
@@ -17,7 +17,8 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input } from '../../shared/ds';
+import { Button, Field, Input, TagInput } from '../../shared/ds';
+import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
 import { FieldHelp } from '../../shared/FieldHelp';
@@ -71,11 +72,14 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const sector = suggestions?.industry ?? '';
   const refreshActivation = useInvalidateActivation();
 
+  const tagLabels = useRiskTagLabels();
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<CreateRiskForm>({
@@ -97,7 +101,6 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const watchedCriticality = watch('assetCriticality');
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
-  const watchedTags = watch('tags') ?? [];
   // Mappings live OUTSIDE the zod form: they are written after the risk exists
   // (they reference its id), and the import drawer must be able to open over
   // the form without unmounting it.
@@ -203,6 +206,14 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
             exit={{ opacity: 0, scale: 0.96, y: 40 }}
             transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            // The app's primary creation flow was a bare <div>: no dialog role,
+            // no aria-modal, no accessible name. Assistive technology never
+            // announced it as a dialog and never trapped into it, so a screen
+            // reader could walk straight out into the register behind it while
+            // the form sat open on top.
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-risk-title"
           >
             {/* Bounded height + scrollable body so a tall form never pushes the header
                 or the submit button off-screen (the modal used to be vertically centered
@@ -210,10 +221,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
             <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
               <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
-                  <h2 className="text-2xl font-semibold text-ink">{t('risks.createRisk')}</h2>
-                  <p className="text-sm text-ink-muted">
-                    Créez un risque avec score en temps réel.
-                  </p>
+                  <h2 id="create-risk-title" className="text-2xl font-semibold text-ink">
+                    {t('risks.createRisk')}
+                  </h2>
+                  <p className="text-sm text-ink-muted">{t('risks.createRiskSubtitle')}</p>
                 </div>
                 <button
                   type="button"
@@ -272,7 +283,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
 
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      <label
+                        htmlFor="create-risk-probability"
+                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
+                      >
                         {t('risks.probability')}
                         <FieldHelp field="probability" lang={lang} sector={sector} />
                       </label>
@@ -281,7 +295,12 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                         min={0}
                         max={1}
                         step={0.05}
+                        id="create-risk-probability"
                         {...register('probability', { valueAsNumber: true })}
+                        // The visible value sits in a separate row below, which a
+                        // screen reader reads as loose text rather than as this
+                        // slider's value.
+                        aria-valuetext={watchedProbability.toFixed(2)}
                         className="w-full"
                       />
                       <div className="flex items-center justify-between text-xs text-ink-muted">
@@ -292,7 +311,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     </div>
 
                     <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      <label
+                        htmlFor="create-risk-impact"
+                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
+                      >
                         {t('risks.impact')}
                         <FieldHelp field="impact" lang={lang} sector={sector} />
                       </label>
@@ -301,7 +323,12 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                         min={1}
                         max={10}
                         step={1}
+                        id="create-risk-impact"
                         {...register('impact', { valueAsNumber: true })}
+                        // The visible value sits in a separate row below, which a
+                        // screen reader reads as loose text rather than as this
+                        // slider's value.
+                        aria-valuetext={String(watchedImpact)}
                         className="w-full"
                       />
                       <div className="flex items-center justify-between text-xs text-ink-muted">
@@ -312,7 +339,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     </div>
 
                     <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      <label
+                        htmlFor="create-risk-asset-criticality"
+                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
+                      >
                         {t('risks.riskAssetCriticality')}
                         <FieldHelp field="asset_criticality" lang={lang} sector={sector} />
                       </label>
@@ -321,7 +351,12 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                         min={0.1}
                         max={3}
                         step={0.1}
+                        id="create-risk-asset-criticality"
                         {...register('assetCriticality', { valueAsNumber: true })}
+                        // The visible value sits in a separate row below, which a
+                        // screen reader reads as loose text rather than as this
+                        // slider's value.
+                        aria-valuetext={watchedCriticality.toFixed(1)}
                         className="w-full"
                       />
                       <div className="flex items-center justify-between text-xs text-ink-muted">
@@ -365,15 +400,19 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     fields. Conflating them is what put a user's label in the
                     "Référentiel" column wearing a framework badge. */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                      Catégorie
+                    <label
+                      htmlFor="create-risk-category"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
+                    >
+                      {t('risks.category')}
                     </label>
                     <select
+                      id="create-risk-category"
                       {...register('category_id')}
                       className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
                       disabled={isSubmitting}
                     >
-                      <option value="">Non classé</option>
+                      <option value="">{t('risks.uncategorised')}</option>
                       {(categories ?? []).map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -384,6 +423,32 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                       Vocabulaire contrôlé, configuré par votre organisation — à ne pas confondre
                       avec les étiquettes libres.
                     </p>
+                  </div>
+
+                  {/* The free tags the note above refers to. This form declared
+                      `tags` in its schema and watched the value, but rendered no
+                      control at all — so every risk created here was submitted
+                      with an empty array (#631). */}
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="create-risk-tags"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
+                    >
+                      {t('risks.riskTags')}
+                    </label>
+                    <Controller
+                      name="tags"
+                      control={control}
+                      render={({ field }) => (
+                        <TagInput
+                          id="create-risk-tags"
+                          value={field.value ?? []}
+                          onValueChange={field.onChange}
+                          labels={tagLabels}
+                          disabled={isSubmitting}
+                        />
+                      )}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -405,9 +470,9 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                       </label>
                       <div className="rounded-3xl border border-border bg-app p-3 min-h-[120px] overflow-y-auto">
                         {assetsLoading ? (
-                          <p className="text-xs text-ink-muted">Chargement des assets...</p>
+                          <p className="text-xs text-ink-muted">{t('common.loading')}</p>
                         ) : assets.length === 0 ? (
-                          <p className="text-xs text-ink-muted">Aucun asset disponible</p>
+                          <p className="text-xs text-ink-muted">{t('assets.noAssets')}</p>
                         ) : (
                           <div className="grid gap-2">
                             {assets.map((asset) => (

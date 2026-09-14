@@ -117,7 +117,12 @@ export function IncidentDrawer({
         }}
         onClick={onClose}
       >
+        {/* Announced as a dialog and named by the incident it shows; the list
+            behind it stays in the accessibility tree otherwise. */}
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="incident-drawer-title"
           onClick={(e) => e.stopPropagation()}
           className="h-full flex flex-col"
           style={{
@@ -159,9 +164,12 @@ export function IncidentDrawer({
                     {tr(statusMeta(status).fr, statusMeta(status).en)}
                   </span>
                 </div>
-                <div className="disp text-[16px] font-bold text-ink leading-snug">
+                <h2
+                  id="incident-drawer-title"
+                  className="disp text-[16px] font-bold text-ink leading-snug"
+                >
                   {incident.title}
-                </div>
+                </h2>
                 <div className="text-[11.5px] text-ink-muted mt-1">
                   {tr('Signalé par', 'Reported by')} {incident.reported_by || '—'} ·{' '}
                   {relTime(incident.created_at, lang)}
@@ -171,7 +179,7 @@ export function IncidentDrawer({
                 onClick={onClose}
                 className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0 text-ink-soft hover:text-ink transition-colors"
                 style={{ background: 'var(--bg-hover)' }}
-                aria-label="Close"
+                aria-label={tr('Fermer', 'Close')}
               >
                 <X size={18} />
               </button>

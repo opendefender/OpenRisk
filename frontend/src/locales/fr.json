@@ -44,6 +44,15 @@
     "riskAssetCriticality": "Criticité de l'asset",
     "riskFramework": "Cadre de conformité",
     "riskTags": "Étiquettes",
+    "tagInput": {
+      "placeholder": "Ajouter une étiquette…",
+      "hint": "Entrée ou virgule pour valider une étiquette.",
+      "remove": "Retirer l’étiquette {tag}",
+      "added": "Étiquette {tag} ajoutée.",
+      "removed": "Étiquette {tag} retirée.",
+      "duplicate": "L’étiquette {tag} est déjà présente.",
+      "max": "Nombre maximum d’étiquettes atteint. {tag} n’a pas été ajoutée."
+    },
     "riskAssets": "Assets impactés",
     "riskOwner": "Propriétaire",
     "riskAssignedTo": "Assigné à",
@@ -73,7 +82,7 @@
     "acceptanceReason": "Justification de l'acceptation",
     "duplicateRisk": "Dupliquer le risque",
     "bulkActions": "Actions en masse",
-    "selectedCount": "{count} risque(s) sélectionné(s)",
+    "selectedCount": "{count} sélectionné(s)",
     "bulkDelete": "Supprimer",
     "bulkChangeStatus": "Changer le statut",
     "bulkAssignTo": "Assigner à",
@@ -93,7 +102,18 @@
     "templateDownload": "Télécharger le modèle CSV",
     "noRisks": "Aucun risque trouvé",
     "noRisksDescription": "Commencez par créer votre premier risque pour le gérer ici.",
-    "createFirstRisk": "Créer mon premier risque"
+    "createFirstRisk": "Créer mon premier risque",
+    "createRiskSubtitle": "Créez un risque avec score en temps réel.",
+    "category": "Catégorie",
+    "uncategorised": "Non classé",
+    "fieldTitle": "Titre",
+    "tags": "Étiquettes (séparées par des virgules)",
+    "frameworks": "Référentiels",
+    "affectedAssets": "Actifs affectés",
+    "noAssets": "Aucun actif.",
+    "updated": "Risque mis à jour",
+    "updateFailed": "Erreur lors de la mise à jour",
+    "fieldDescription": "Description"
   },
   "statuses": {
     "open": "Ouvert",
@@ -222,7 +242,13 @@
     "closeDrawer": "Fermer",
     "save": "Sauvegarder",
     "dragHint": "Glissez des plans ici",
-    "reviewPending": "en retard"
+    "reviewPending": "en retard",
+    "createTitle": "Créer un plan d'atténuation",
+    "createSubtitle": "Créez un plan pour atténuer un risque",
+    "fieldTitle": "Titre",
+    "fieldDescription": "Description",
+    "fieldDeadline": "Échéance",
+    "fieldPriority": "Priorité"
   },
   "compliance": {
     "title": "Conformité",
@@ -324,6 +350,21 @@
       "MEDIUM": "Moyenne",
       "HIGH": "Élevée",
       "CRITICAL": "Critique"
+    },
+    "attributeSearch": {
+      "heading": "Recherche par attribut",
+      "categoryLabel": "Catégorie d’actif",
+      "categoryPlaceholder": "Toutes les catégories",
+      "attributeLabel": "Attribut à filtrer",
+      "attributePlaceholder": "Attribut…",
+      "valueLabel": "Valeur de l’attribut",
+      "valuePlaceholder": "Valeur",
+      "valueOption": "Valeur…",
+      "yes": "Oui",
+      "no": "Non",
+      "apply": "Filtrer",
+      "chooseCategory": "Choisissez une catégorie pour filtrer sur ses attributs.",
+      "removeTerm": "Retirer le filtre {term}"
     }
   },
   "actionCenter": {
@@ -462,7 +503,8 @@
         "inherent": "Risque inhérent",
         "residual": "Risque résiduel",
         "reduction": "Réduction de {value}"
-      }
+      },
+      "back": "Retour"
     },
     "posture": {
       "title": "Votre posture",
@@ -491,7 +533,8 @@
         "body": "Partagez ce lien. Les rôles se choisissent dans Paramètres › Membres.",
         "copy": "Copier le lien",
         "copied": "Copié"
-      }
+      },
+      "continue": "Continuer dans OpenRisk"
     },
     "recognition": {
       "title": "Ce qu'OpenRisk sait déjà de vous",
@@ -503,7 +546,8 @@
       "members": "membres",
       "action": "Voir ma posture",
       "loading": "Lecture de vos données…",
-      "error": "Impossible de lire vos données."
+      "error": "Impossible de lire vos données.",
+      "completeFailed": "Impossible de terminer. Réessayez."
     },
     "checklist": {
       "close": "Masquer la liste de démarrage",

@@ -432,6 +432,9 @@ function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void 
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="governance-event-title"
         onClick={(ev) => ev.stopPropagation()}
         className="h-full flex flex-col"
         style={{
@@ -453,9 +456,12 @@ function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void 
             >
               {e.action}
             </span>
-            <div className="disp text-[16px] font-bold text-ink leading-snug mt-2">
+            <h2
+              id="governance-event-title"
+              className="disp text-[16px] font-bold text-ink leading-snug mt-2"
+            >
               {e.summary || `${e.action} ${e.entity_type}`}
-            </div>
+            </h2>
             <div className="text-[12px] mt-1" style={{ color: 'var(--fg-secondary)' }}>
               {e.entity_type} ·{' '}
               {e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('système', 'system'))} ·{' '}
@@ -1496,6 +1502,9 @@ function ModalShell({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="governance-modal-title"
         className="or-scalein w-full max-w-lg flex flex-col rounded-[14px]"
         style={{
           maxHeight: '90vh',
@@ -1508,8 +1517,10 @@ function ModalShell({
           className="flex items-center justify-between px-5 py-3.5"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
-          <span className="text-[15px] font-semibold">{title}</span>
-          <button onClick={onClose}>
+          <h2 id="governance-modal-title" className="text-[15px] font-semibold">
+            {title}
+          </h2>
+          <button onClick={onClose} aria-label={tr('Fermer', 'Close')}>
             <X size={18} />
           </button>
         </div>

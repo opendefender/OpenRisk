@@ -44,6 +44,15 @@
     "riskAssetCriticality": "Asset Criticality",
     "riskFramework": "Compliance Framework",
     "riskTags": "Tags",
+    "tagInput": {
+      "placeholder": "Add a tag…",
+      "hint": "Press Enter or comma to add a tag.",
+      "remove": "Remove tag {tag}",
+      "added": "Tag {tag} added.",
+      "removed": "Tag {tag} removed.",
+      "duplicate": "Tag {tag} is already present.",
+      "max": "Maximum number of tags reached. {tag} was not added."
+    },
     "riskAssets": "Affected Assets",
     "riskOwner": "Owner",
     "riskAssignedTo": "Assigned To",
@@ -73,7 +82,7 @@
     "acceptanceReason": "Acceptance Reason",
     "duplicateRisk": "Duplicate Risk",
     "bulkActions": "Bulk Actions",
-    "selectedCount": "{count} risk(s) selected",
+    "selectedCount": "{count} selected",
     "bulkDelete": "Delete",
     "bulkChangeStatus": "Change Status",
     "bulkAssignTo": "Assign To",
@@ -93,7 +102,18 @@
     "templateDownload": "Download CSV Template",
     "noRisks": "No Risks Found",
     "noRisksDescription": "Start by creating your first risk to manage it here.",
-    "createFirstRisk": "Create My First Risk"
+    "createFirstRisk": "Create My First Risk",
+    "createRiskSubtitle": "Create a risk with its score computed as you type.",
+    "category": "Category",
+    "uncategorised": "Uncategorised",
+    "fieldTitle": "Title",
+    "tags": "Tags (comma separated)",
+    "frameworks": "Frameworks",
+    "affectedAssets": "Affected assets",
+    "noAssets": "No asset.",
+    "updated": "Risk updated",
+    "updateFailed": "Update failed",
+    "fieldDescription": "Description"
   },
   "statuses": {
     "open": "Open",
@@ -222,7 +242,13 @@
     "closeDrawer": "Close",
     "save": "Save",
     "dragHint": "Drag plans here",
-    "reviewPending": "overdue"
+    "reviewPending": "overdue",
+    "createTitle": "Create a mitigation plan",
+    "createSubtitle": "Create a plan to mitigate a risk",
+    "fieldTitle": "Title",
+    "fieldDescription": "Description",
+    "fieldDeadline": "Deadline",
+    "fieldPriority": "Priority"
   },
   "compliance": {
     "title": "Compliance",
@@ -324,6 +350,21 @@
       "MEDIUM": "Medium",
       "HIGH": "High",
       "CRITICAL": "Critical"
+    },
+    "attributeSearch": {
+      "heading": "Search by attribute",
+      "categoryLabel": "Asset category",
+      "categoryPlaceholder": "All categories",
+      "attributeLabel": "Attribute to filter on",
+      "attributePlaceholder": "Attribute…",
+      "valueLabel": "Attribute value",
+      "valuePlaceholder": "Value",
+      "valueOption": "Value…",
+      "yes": "Yes",
+      "no": "No",
+      "apply": "Filter",
+      "chooseCategory": "Pick a category to filter on its attributes.",
+      "removeTerm": "Remove the {term} filter"
     }
   },
   "actionCenter": {
@@ -462,7 +503,8 @@
         "inherent": "Inherent risk",
         "residual": "Residual risk",
         "reduction": "Down by {value}"
-      }
+      },
+      "back": "Back"
     },
     "posture": {
       "title": "Your posture",
@@ -491,7 +533,8 @@
         "body": "Share this link. Roles are chosen in Settings › Members.",
         "copy": "Copy link",
         "copied": "Copied"
-      }
+      },
+      "continue": "Continue into OpenRisk"
     },
     "recognition": {
       "title": "What OpenRisk already knows about you",
@@ -503,7 +546,8 @@
       "members": "members",
       "action": "See my posture",
       "loading": "Reading your data…",
-      "error": "Your data could not be read."
+      "error": "Your data could not be read.",
+      "completeFailed": "Could not finish. Try again."
     },
     "checklist": {
       "close": "Hide the getting-started list",
