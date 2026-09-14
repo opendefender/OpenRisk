@@ -93,6 +93,38 @@ optional keys:
 - **Public URL / CORS:** `APP_BASE_URL`, `CORS_ORIGINS`, `VITE_API_URL` when you
   put OpenRisk behind a real domain / reverse proxy.
 
+## Capabilities
+
+<!-- BEGIN GENERATED: entitlements matrix -->
+<!-- Generated from backend/pkg/entitlements/entitlements.go.
+     Do not edit by hand: `go test ./pkg/entitlements/ -run TestSelfHostDoc -update`. -->
+
+| Capability | Free | Pro | Business | Enterprise |
+|---|---|---|---|---|
+| Users | 2 | 10 | 50 | unlimited |
+| Risks | 50 | 500 | unlimited | unlimited |
+| Assets | 50 | unlimited | unlimited | unlimited |
+| Integrations | 1 | 10 | unlimited | unlimited |
+| REST API | limited | yes | yes | yes |
+| Automation rules | — | yes | advanced | advanced |
+| AI advisor | — | yes | advanced | advanced |
+| Compliance frameworks | basic | standard | advanced | custom |
+| SSO (SAML / OIDC) | — | — | yes | advanced |
+| Multi-tenant | — | — | — | yes |
+| On-premise entitlement | — | — | — | yes |
+| Financial quantification | — | yes | yes | yes |
+| SmartScore | — | yes | yes | yes |
+| Executive dashboard | — | yes | yes | yes |
+| Scanner | — | yes | yes | yes |
+| Threat intelligence (CTI) | — | — | yes | advanced |
+| Governance | — | — | yes | advanced |
+| SLA | — | — | 99.5% | 99.9% |
+| Support | community | email | priority | dedicated |
+
+A self-hosted instance registers its first organisation with no plan set, so it resolves to **Free**: 2 users, 50 risks, 50 assets, 1 integration(s).
+
+<!-- END GENERATED: entitlements matrix -->
+
 ## Upgrade
 
 ```bash

@@ -153,7 +153,11 @@ export function PostMortemPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,.35)' }}>
+      {/* Announced as a dialog and named by its heading. */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="post-mortem-title"
         className="w-full max-w-[760px] h-full overflow-y-auto or-slidein"
         style={{ background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-strong)' }}
       >
@@ -163,6 +167,7 @@ export function PostMortemPanel({
         >
           <div>
             <h2
+              id="post-mortem-title"
               className="text-[15px] font-bold inline-flex items-center gap-2"
               style={{ color: 'var(--fg-primary)' }}
             >

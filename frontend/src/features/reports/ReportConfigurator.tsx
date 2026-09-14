@@ -98,12 +98,21 @@ export function ReportConfigurator({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-[620px] max-h-[90vh] flex flex-col rounded-xl bg-surface border border-line or-scalein">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-configurator-title"
+        className="relative w-full max-w-[620px] max-h-[90vh] flex flex-col rounded-xl bg-surface border border-line or-scalein"
+      >
         <header className="px-5 py-4 border-b border-line flex items-center justify-between shrink-0">
-          <h2 className="text-ink font-semibold text-[15px]">
+          <h2 id="report-configurator-title" className="text-ink font-semibold text-[15px]">
             {tr('Générer un rapport', 'Generate a report')}
           </h2>
-          <button className="p-1.5 rounded-md hover:bg-surface-3 text-ink-muted" onClick={onClose}>
+          <button
+            aria-label={tr('Fermer', 'Close')}
+            className="p-1.5 rounded-md hover:bg-surface-3 text-ink-muted"
+            onClick={onClose}
+          >
             <X size={16} />
           </button>
         </header>

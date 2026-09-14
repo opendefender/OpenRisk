@@ -45,10 +45,15 @@ export function EvidenceDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="relative w-full max-w-[560px] h-full bg-surface border-l border-line overflow-y-auto or-slidein">
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="evidence-drawer-title"
+        className="relative w-full max-w-[560px] h-full bg-surface border-l border-line overflow-y-auto or-slidein"
+      >
         <header className="sticky top-0 bg-surface border-b border-line px-5 py-4 flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-ink font-semibold text-[15px] truncate">
+            <h2 id="evidence-drawer-title" className="text-ink font-semibold text-[15px] truncate">
               {isLoading ? tr('Chargement…', 'Loading…') : evidence?.title}
             </h2>
             {evidence && meta ? (
@@ -71,7 +76,11 @@ export function EvidenceDrawer({
               </div>
             ) : null}
           </div>
-          <button className="p-1.5 rounded-md hover:bg-surface-3 text-ink-muted" onClick={onClose}>
+          <button
+            aria-label={tr('Fermer', 'Close')}
+            className="p-1.5 rounded-md hover:bg-surface-3 text-ink-muted"
+            onClick={onClose}
+          >
             <X size={16} />
           </button>
         </header>

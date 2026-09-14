@@ -235,6 +235,9 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,.35)' }}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dry-run-title"
         className="w-full max-w-[760px] h-full overflow-y-auto or-slidein"
         style={{ background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-strong)' }}
       >
@@ -245,7 +248,11 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <FlaskConical size={16} style={{ color: 'var(--accent-500)' }} />
-              <h2 className="text-[15px] font-bold truncate" style={{ color: 'var(--fg-primary)' }}>
+              <h2
+                id="dry-run-title"
+                className="text-[15px] font-bold truncate"
+                style={{ color: 'var(--fg-primary)' }}
+              >
                 {tr('Tester', 'Test')} — {rule.name}
               </h2>
             </div>
