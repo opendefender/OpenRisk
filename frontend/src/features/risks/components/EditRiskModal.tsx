@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldAlert } from 'lucide-react';
@@ -14,7 +14,9 @@ import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
-import { Button, Field, Input } from '../../../shared/ds';
+import { Button, Field, Input, TagInput } from '../../../shared/ds';
+import { useI18n } from '../../../hooks/useI18n';
+import { useRiskTagLabels } from '../useRiskTagLabels';
 
 const riskSchema = z.object({
   title: z.string().min(5).max(100),
@@ -28,10 +30,11 @@ const riskSchema = z.object({
   // scale — the two forms simply disagreed.
   impact: z.number().min(0).max(10),
   probability: z.number().min(0).max(1),
-  // Bound to a comma-separated text input; split into an array on submit. The
-  // schema previously declared z.array here while the input produced a string,
-  // so zodResolver rejected EVERY save (the Edit form's Save was broken).
-  tags: z.string(),
+  // TagInput holds the parsed array directly (#631). This used to be a
+  // comma-separated string split on submit — and before that, a z.array bound to
+  // a string input, which made zodResolver reject EVERY save. Holding one shape
+  // end to end is what stops that class of defect recurring.
+  tags: z.array(z.string()),
   asset_ids: z.array(z.string()).optional(),
   frameworks: z.array(z.string()).optional(),
 });
@@ -49,11 +52,15 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const { updateRisk, isLoading } = useRiskStore();
   const { assets, fetchAssets } = useAssetStore();
 
+  const { t } = useI18n();
+  const tagLabels = useRiskTagLabels();
+
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<RiskFormData>({
@@ -62,7 +69,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       impact: 5,
       probability: 0.5,
       asset_ids: [],
-      tags: '',
+      tags: [],
       frameworks: [],
     },
   });
@@ -74,7 +81,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       setValue('description', risk.description || '');
       setValue('impact', typeof risk.impact === 'number' ? risk.impact : 5);
       setValue('probability', typeof risk.probability === 'number' ? risk.probability : 0.5);
-      setValue('tags', (risk.tags || []).join(','));
+      setValue('tags', risk.tags || []);
       setValue(
         'asset_ids',
         (risk.assets || []).map((a: any) => a.id),
@@ -133,13 +140,9 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
   const onSubmit = async (data: RiskFormData) => {
     if (!risk) return;
     try {
-      // Split the comma-separated tags text into the array the API expects.
       const payload = {
         ...data,
-        tags: data.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
+        tags: data.tags,
       };
       await updateRisk(risk.id, payload);
       toast.success('Risque mis à jour');
@@ -296,11 +299,18 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 </div>
               </div>
 
-              <Field label="Tags (séparés par des virgules)">
-                <Input
-                  {...register('tags')}
-                  placeholder="ex: critical, web-app, legacy"
-                  disabled={isLoading}
+              <Field label={t('risks.riskTags')}>
+                <Controller
+                  name="tags"
+                  control={control}
+                  render={({ field }) => (
+                    <TagInput
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      labels={tagLabels}
+                      disabled={isLoading}
+                    />
+                  )}
                 />
               </Field>
 

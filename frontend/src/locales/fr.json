@@ -44,6 +44,15 @@
     "riskAssetCriticality": "Criticité de l'asset",
     "riskFramework": "Cadre de conformité",
     "riskTags": "Étiquettes",
+    "tagInput": {
+      "placeholder": "Ajouter une étiquette…",
+      "hint": "Entrée ou virgule pour valider une étiquette.",
+      "remove": "Retirer l’étiquette {tag}",
+      "added": "Étiquette {tag} ajoutée.",
+      "removed": "Étiquette {tag} retirée.",
+      "duplicate": "L’étiquette {tag} est déjà présente.",
+      "max": "Nombre maximum d’étiquettes atteint. {tag} n’a pas été ajoutée."
+    },
     "riskAssets": "Assets impactés",
     "riskOwner": "Propriétaire",
     "riskAssignedTo": "Assigné à",

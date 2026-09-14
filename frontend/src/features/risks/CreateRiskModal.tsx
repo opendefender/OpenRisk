@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Zap, Database, ShieldAlert, Sparkles } from 'lucide-react';
@@ -17,7 +17,8 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input } from '../../shared/ds';
+import { Button, Field, Input, TagInput } from '../../shared/ds';
+import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
 import { FieldHelp } from '../../shared/FieldHelp';
@@ -71,11 +72,14 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const sector = suggestions?.industry ?? '';
   const refreshActivation = useInvalidateActivation();
 
+  const tagLabels = useRiskTagLabels();
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<CreateRiskForm>({
@@ -97,7 +101,6 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const watchedCriticality = watch('assetCriticality');
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
-  const watchedTags = watch('tags') ?? [];
   // Mappings live OUTSIDE the zod form: they are written after the risk exists
   // (they reference its id), and the import drawer must be able to open over
   // the form without unmounting it.
@@ -384,6 +387,32 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                       Vocabulaire contrôlé, configuré par votre organisation — à ne pas confondre
                       avec les étiquettes libres.
                     </p>
+                  </div>
+
+                  {/* The free tags the note above refers to. This form declared
+                      `tags` in its schema and watched the value, but rendered no
+                      control at all — so every risk created here was submitted
+                      with an empty array (#631). */}
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="create-risk-tags"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
+                    >
+                      {t('risks.riskTags')}
+                    </label>
+                    <Controller
+                      name="tags"
+                      control={control}
+                      render={({ field }) => (
+                        <TagInput
+                          id="create-risk-tags"
+                          value={field.value ?? []}
+                          onValueChange={field.onChange}
+                          labels={tagLabels}
+                          disabled={isSubmitting}
+                        />
+                      )}
+                    />
                   </div>
 
                   <div className="space-y-2">
