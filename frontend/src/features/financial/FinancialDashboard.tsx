@@ -712,7 +712,14 @@ function TopExposuresCard({
       <div className="text-[14px] font-semibold text-ink mb-3">
         {tr('Principales expositions financières', 'Top financial exposures')}
       </div>
-      <div className="overflow-x-auto">
+      {/* Same as ExecutiveDashboard's top-10 table: wider than a phone, so it
+          scrolls at 393px and needs to be reachable by keyboard (#589). */}
+      <div
+        className="overflow-x-auto"
+        tabIndex={0}
+        role="region"
+        aria-label={tr('Principales expositions financières', 'Top financial exposures')}
+      >
         <table className="w-full text-[12.5px]" style={{ minWidth: 520 }}>
           <thead>
             <tr className="text-ink-muted text-[11px] uppercase tracking-[.04em]">
