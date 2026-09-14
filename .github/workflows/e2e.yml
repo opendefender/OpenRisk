@@ -85,6 +85,19 @@ jobs:
       - name: Build backend
         run: cd backend && go build -o openrisk ./cmd/server
 
+      # The backend refuses to boot without RS256 keys (internal/config/config.go),
+      # and this job used to give it none: it panicked before Playwright ran a
+      # single test (#297). The pair is generated per run in the runner's temp
+      # dir — never committed, never printed, and outside tests/e2e/.artifacts,
+      # which is the only path uploaded.
+      - name: Generate ephemeral RS256 key pair
+        run: |
+          mkdir -p "$RUNNER_TEMP/e2e-keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/e2e-keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/e2e-keys/private.pem" -pubout -out "$RUNNER_TEMP/e2e-keys/public.pem" 2>/dev/null
+          echo "RSA_PRIVATE_KEY_PATH=$RUNNER_TEMP/e2e-keys/private.pem" >> "$GITHUB_ENV"
+          echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/e2e-keys/public.pem" >> "$GITHUB_ENV"
+
       - name: Start backend (:8080)
         run: |
           cd backend && ./openrisk &
@@ -191,10 +204,26 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             frontend/package-lock.json
+      # Same key pair as the PR job, same reason (#297).
+      - name: Generate ephemeral RS256 key pair
+        run: |
+          mkdir -p "$RUNNER_TEMP/e2e-keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/e2e-keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/e2e-keys/private.pem" -pubout -out "$RUNNER_TEMP/e2e-keys/public.pem" 2>/dev/null
+          echo "RSA_PRIVATE_KEY_PATH=$RUNNER_TEMP/e2e-keys/private.pem" >> "$GITHUB_ENV"
+          echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/e2e-keys/public.pem" >> "$GITHUB_ENV"
+      # The build runs in the foreground and the wait fails loudly: this step used
+      # to background the build itself and `break` out of the loop either way, so a
+      # backend that never came up surfaced later as unrelated test failures.
       - name: Build & start backend
         run: |
-          cd backend && go build -o openrisk ./cmd/server && ./openrisk &
-          for i in $(seq 1 60); do curl -fsS http://localhost:8080/api/v1/health >/dev/null && break; sleep 1; done
+          cd backend && go build -o openrisk ./cmd/server
+          ./openrisk &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8080/api/v1/health >/dev/null && { echo "✅ backend ready"; exit 0; }
+            sleep 1
+          done
+          echo "❌ backend failed to start"; exit 1
       - name: Start frontend
         run: |
           npm --prefix frontend ci
