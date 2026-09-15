@@ -1076,6 +1076,34 @@ func main() {
 		return invitationPublicHandler.AcceptInvitation(c)
 	})
 
+	// TPRM v1 — the public vendor questionnaire (#670, ADR 0004 D4). Mounted on
+	// `app` BEFORE the JWT gate with NO auth middleware of any kind: the vendor
+	// contact holds no account, and the token IS the credential. It travels in the
+	// X-Vendor-Assessment-Token header — never in the path or the query string,
+	// which access logs and proxies record — and the tenant comes from the token
+	// row alone. 60 requests/min per IP here; 300/h per token and 10 submits/h per
+	// token in the handler. Every counter is prefixed, because middleware.RateLimit
+	// keys by raw IP and the Redis store is shared with the login throttle.
+	// Assigned in the TPRM section below.
+	var vendorAssessmentPublicHandler *handlers.PublicVendorAssessmentHandler
+	vendorPublicRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		MaxRequests: 60,
+		WindowSize:  time.Minute,
+		Store: handlers.PrefixedRateLimitBackend{
+			Prefix: "vendor-questionnaire-ip:",
+			Inner:  middleware.NewRedisRateLimitStore(redisClientInstance),
+		},
+	})
+	app.Get("/api/v1/public/vendor-assessment", vendorPublicRateLimit, func(c *fiber.Ctx) error {
+		return vendorAssessmentPublicHandler.Get(c)
+	})
+	app.Put("/api/v1/public/vendor-assessment/answers", vendorPublicRateLimit, func(c *fiber.Ctx) error {
+		return vendorAssessmentPublicHandler.SaveAnswers(c)
+	})
+	app.Post("/api/v1/public/vendor-assessment/submit", vendorPublicRateLimit, func(c *fiber.Ctx) error {
+		return vendorAssessmentPublicHandler.Submit(c)
+	})
+
 	// Vulnerability scanner webhook — external tools (Nessus/Qualys/Defender/…) POST
 	// findings here authenticated by the integration's opaque webhook token (NOT a
 	// user JWT). Mounted on `app` BEFORE the /api/v1 JWT gate for the same reason as
@@ -1798,8 +1826,10 @@ func main() {
 	// the tested ones. Gated to Business and Enterprise (D-044): featVendor
 	// answers 402 on Free and Pro.
 	vendorRepo := repository.NewGormVendorRepository(database.DB)
+	vendorAssessmentRepo := repository.NewGormVendorAssessmentRepository(database.DB)
 	vendorHandler := handlers.NewVendorHandler(
-		tprmapp.NewListVendorsUseCase(vendorRepo, assetDepRepo),
+		// The register reports each vendor's latest assessment (#669 criterion 2).
+		tprmapp.NewListVendorsUseCase(vendorRepo, assetDepRepo).WithLatestAssessments(vendorAssessmentRepo),
 		tprmapp.NewGetVendorChainUseCase(vendorRepo, assetDepRepo),
 		tprmapp.NewLinkVendorAssetUseCase(vendorRepo, assetRepo, assetapp.NewCreateAssetDependencyUseCase(assetDepRepo, assetRepo)),
 		tprmapp.NewUnlinkVendorAssetUseCase(vendorRepo, assetDepRepo),
@@ -1810,6 +1840,38 @@ func main() {
 	protected.Get("/vendors/:id/chain", vendorRead, featVendor, vendorHandler.GetVendorChain)
 	protected.Post("/vendors/:id/assets", vendorManage, featVendor, vendorHandler.LinkVendorAsset)
 	protected.Delete("/vendors/:id/assets/:linkId", vendorManage, featVendor, vendorHandler.UnlinkVendorAsset)
+
+	// Questionnaires and vendor assessments (#670, ADR 0004 D3/D4). One set of
+	// dependencies builds every use case, authenticated and public alike.
+	vendorAssessmentDeps := tprmapp.AssessmentDeps{
+		Vendors:     vendorRepo,
+		Templates:   vendorAssessmentRepo,
+		Assessments: vendorAssessmentRepo,
+		Features:    entitlementService,
+		Orgs:        orgRepo,
+		Mailer:      authmail.NewVendorQuestionnaireMailer(emailTransport),
+		Audit:       governance.NewAuditRecorder(auditChainRepo),
+		Throttle: handlers.PrefixedRateLimitBackend{
+			Prefix: "vendor-questionnaire-audit:",
+			Inner:  middleware.NewRedisRateLimitStore(redisClientInstance),
+		},
+		BaseURL: appBaseURL,
+	}
+	vendorAssessmentHandler := handlers.NewVendorAssessmentHandler(vendorAssessmentDeps)
+	vendorAssessmentPublicHandler = handlers.NewPublicVendorAssessmentHandler(vendorAssessmentDeps, handlers.PrefixedRateLimitBackend{
+		Prefix: "vendor-questionnaire-token:",
+		Inner:  middleware.NewRedisRateLimitStore(redisClientInstance),
+	})
+	protected.Get("/vendor-questionnaire-templates", vendorRead, featVendor, vendorAssessmentHandler.ListTemplates)
+	protected.Post("/vendor-questionnaire-templates", vendorManage, featVendor, vendorAssessmentHandler.CreateTemplate)
+	protected.Get("/vendor-questionnaire-templates/:id", vendorRead, featVendor, vendorAssessmentHandler.GetTemplate)
+	protected.Put("/vendor-questionnaire-templates/:id", vendorManage, featVendor, vendorAssessmentHandler.UpdateTemplate)
+	protected.Post("/vendor-questionnaire-templates/:id/archive", vendorManage, featVendor, vendorAssessmentHandler.ArchiveTemplate)
+	protected.Get("/vendors/:id/assessments", vendorRead, featVendor, vendorAssessmentHandler.ListAssessments)
+	protected.Post("/vendors/:id/assessments", vendorManage, featVendor, vendorAssessmentHandler.SendAssessment)
+	protected.Get("/vendor-assessments/:id", vendorRead, featVendor, vendorAssessmentHandler.GetAssessment)
+	protected.Post("/vendor-assessments/:id/revoke", vendorManage, featVendor, vendorAssessmentHandler.RevokeAssessment)
+	protected.Post("/vendor-assessments/:id/resend", vendorManage, featVendor, vendorAssessmentHandler.ResendAssessment)
 
 	// Attack Surface — typed attribute schemas. Reading is open to anyone who
 	// can read assets (the form generator needs it); editing the schema is an
