@@ -143,6 +143,16 @@ const RemediationPage = lazy(() =>
 const InventoryPage = lazy(() =>
   import('./features/assets/InventoryPage').then((m) => ({ default: m.InventoryPage })),
 );
+const QuestionnaireTemplatesPage = lazy(() =>
+  import('./features/tprm/QuestionnaireTemplatesPage').then((m) => ({
+    default: m.QuestionnaireTemplatesPage,
+  })),
+);
+const QuestionnaireTemplateEditorPage = lazy(() =>
+  import('./features/tprm/QuestionnaireTemplateEditorPage').then((m) => ({
+    default: m.QuestionnaireTemplateEditorPage,
+  })),
+);
 const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
 const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
 const UnassignedVulnerabilitiesPage = lazy(
@@ -670,6 +680,14 @@ function App() {
               on its replacement rather than a 404. */}
             <Route path="assets/universe" element={<Navigate to="/assets/topology" replace />} />
             <Route path="assets/schemas" element={<AssetSchemaSettings />} />
+
+            {/* ---------------- Vendors (TPRM v1) ---------------- */}
+            <Route path="vendors/questionnaires" element={<QuestionnaireTemplatesPage />} />
+            <Route path="vendors/questionnaires/new" element={<QuestionnaireTemplateEditorPage />} />
+            <Route
+              path="vendors/questionnaires/:templateId"
+              element={<QuestionnaireTemplateEditorPage />}
+            />
             <Route path="assets/topology" element={<TopologyView />} />
             <Route path="infrastructure" element={<InfrastructurePage />} />
             <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />

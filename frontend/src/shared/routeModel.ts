@@ -96,6 +96,27 @@ export const ROUTES: RouteNode[] = [
 
   /* ---------------- Vulnerabilities / threats ---------------- */
   { path: '/vulnerabilities', labelKey: 'n_vulns', perm: 'vulnerabilities:read' },
+
+  /* ---------------- Vendors (TPRM v1, ADR 0004) ---------------- */
+  { path: '/vendors', label: { fr: 'Fournisseurs', en: 'Vendors' }, perm: 'vendors:read' },
+  {
+    path: '/vendors/questionnaires',
+    label: { fr: 'Questionnaires', en: 'Questionnaires' },
+    parent: '/vendors',
+    perm: 'vendors:read',
+  },
+  {
+    path: '/vendors/questionnaires/new',
+    label: { fr: 'Nouveau questionnaire', en: 'New questionnaire' },
+    parent: '/vendors/questionnaires',
+    perm: 'vendors:manage',
+  },
+  {
+    path: '/vendors/questionnaires/:templateId',
+    label: { fr: 'Questionnaire', en: 'Questionnaire' },
+    parent: '/vendors/questionnaires',
+    perm: 'vendors:read',
+  },
   { path: '/threat-map', labelKey: 'n_cti', perm: 'risks:read' },
   { path: '/ai/emerging-risks', labelKey: 'n_emerging', perm: 'risks:read', topLevel: true },
   { path: '/simulations', labelKey: 'n_simulations', perm: 'risks:read' },
