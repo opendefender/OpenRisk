@@ -544,6 +544,17 @@ var decisions = []Decision{
 		"repository/gorm_saved_view_repository_test TestSavedViewRepo_ListVisible_IsTenantAndVisibilityScoped seeds views in two tenants and asserts the listing returns only the caller's tenant, and within it only the caller's own views plus the tenant's shared ones; the caller's tenant and user id come from the JWT (savedViewCaller), never from the query string, which carries only table_id"},
 	{"/api/v1/asset-dependencies", Covered,
 		"repository/gorm_asset_dependency_repository_test TestDepRepo_CreateAndListByTenant_Isolation"},
+	// TPRM v1 (#669, ADR 0004). A vendor is an asset of category vendor; the
+	// tenant comes from the JWT (handler.tenantID), never from the path, query or
+	// body.
+	{"/api/v1/vendors", Covered,
+		"repository/gorm_vendor_repository_test TestVendorRepo_ListVendors_ScopedToTenantAndCategory seeds vendors in two tenants plus a non-vendor asset and asserts each tenant reads only its own vendors; application/tprm TestListVendors_CrossTenant_SeesNeitherForeignVendorsNorForeignLinks proves a foreign edge cannot inflate a linked-asset count"},
+	{"/api/v1/vendors/{id}/chain", Covered,
+		"repository/gorm_vendor_repository_test TestVendorRepo_GetVendor_RefusesForeignAndNonVendorRows and TestVendorRepo_RisksByAssetIDs_GatedThroughTheParentRisk (risk_assets has no tenant_id: a join row pointing our asset at another tenant's risk returns nothing, through both risk_assets and the legacy risks.asset_id); application/tprm TestGetVendorChain_CrossTenant covers a foreign vendor, a link to a foreign asset, and a foreign risk"},
+	{"/api/v1/vendors/{id}/assets", Covered,
+		"application/tprm TestLinkVendorAsset_CrossTenant: another tenant's vendor or asset answers ErrNotFound and no edge is written. The edge is created by CreateAssetDependencyUseCase, whose own cross-tenant guard is covered on /asset-dependencies"},
+	{"/api/v1/vendors/{id}/assets/{id}", Covered,
+		"application/tprm TestUnlinkVendorAsset_CrossTenant_ForeignLinkIsNotFoundAndSurvives, plus TestUnlinkVendorAsset_NotFound: another vendor's link and a plain dependency edge are both not-found, so only a vendor link of the caller's own vendor can be deleted"},
 	{"/api/v1/attack-surface/topology/edge-types", PublicByDesign,
 		"returns domain.TopologyEdgeTypes, a compiled-in vocabulary of edge kinds. No table is read"},
 	// Same shape as edge-types above: a compiled-in vocabulary, not tenant data.
