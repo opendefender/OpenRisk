@@ -16,16 +16,20 @@ on:
     - cron: '17 3 * * *'
 
 concurrency:
-  group: e2e-${{ github.ref }}
+  # The event is part of the key so a push to master cannot cancel the nightly
+  # full-suite run on the same ref.
+  group: e2e-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ==================== PR-BLOCKING E2E (chromium + Mobile Chrome) ============
+  # D-043 (option B): pull requests and pushes run the curated blocking set in
+  # tests/e2e/pr-gate.txt within 25 minutes; the scheduled run executes the whole
+  # suite on the same browsers, which takes well over an hour on one worker.
   e2e:
     name: E2E (chromium + Mobile Chrome)
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: ${{ github.event_name == 'schedule' && 120 || 25 }}
 
     services:
       postgres:
@@ -137,8 +141,22 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium chromium-headless-shell
 
+      # D-043: the schedule runs every spec; pushes and PRs run pr-gate.txt only.
       - name: Run E2E (chromium + Mobile Chrome)
-        run: npx playwright test --project=chromium --project="Mobile Chrome"
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            npx playwright test --project=chromium --project="Mobile Chrome"
+            exit
+          fi
+          mapfile -t specs < <(grep -Ev '^[[:space:]]*(#|$)' tests/e2e/pr-gate.txt)
+          [ "${#specs[@]}" -gt 0 ] || { echo "❌ tests/e2e/pr-gate.txt lists no spec"; exit 1; }
+          for s in "${specs[@]}"; do
+            [ -f "$s" ] || { echo "❌ tests/e2e/pr-gate.txt lists a missing spec: $s"; exit 1; }
+          done
+          echo "PR gate: ${#specs[@]} spec files"
+          npx playwright test "${specs[@]}" --project=chromium --project="Mobile Chrome"
 
       - name: Route coverage → job summary
         if: always()

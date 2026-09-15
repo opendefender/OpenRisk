@@ -1,0 +1,29 @@
+# PR-blocking E2E set — D-043 (option B), decided 2026-09-15.
+#
+# On pull requests and pushes, the "E2E (chromium + Mobile Chrome)" job runs only
+# the specs listed here. The nightly scheduled run executes the whole suite.
+# One path per line, relative to the repository root. A listed path that does not
+# exist fails the job, so a rename cannot silently shrink the gate.
+#
+# Admission: a spec is listed once it passes in CI on both projects. A spec is held
+# out only with an issue number, and re-admitted when that issue makes it green.
+
+tests/e2e/dead-controls.spec.ts
+tests/e2e/deceptive-ui.spec.ts
+tests/e2e/journey.members.spec.ts
+tests/e2e/journey.newcomer.spec.ts
+tests/e2e/journey.rbac.spec.ts
+tests/e2e/journey.settings.spec.ts
+tests/e2e/mfa-deferred.spec.ts
+tests/e2e/risk-lifecycle.spec.ts
+tests/e2e/workflows.spec.ts
+
+# Not yet screened — CI state unknown, never reached before #297:
+#   tests/e2e/smoke.routes.spec.ts  #297  84 tests on its own; admitted once a CI run
+#                                         shows it passing within the 25-minute budget
+
+# Held out — failing in CI, re-admitted when green:
+#   tests/e2e/a11y.spec.ts          #662
+#   tests/e2e/activation.spec.ts    #662
+#   tests/e2e/auth.login.spec.ts    #662
+#   tests/e2e/datatable.spec.ts     #662
