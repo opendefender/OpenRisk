@@ -50,7 +50,6 @@ interface EditRiskModalProps {
 
 export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModalProps) => {
   const { updateRisk, isLoading } = useRiskStore();
-  const { t } = useI18n();
   const { assets, fetchAssets } = useAssetStore();
 
   const { t } = useI18n();
