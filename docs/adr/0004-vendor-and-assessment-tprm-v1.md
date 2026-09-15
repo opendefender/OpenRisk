@@ -3,6 +3,7 @@
 Status: **accepted**
 Proposed: 2026-09-15, on #668
 Accepted: 2026-09-15 by the owner, as written — D-045 (`docs/DECISIONS.md`)
+Amended: 2026-09-15, D6 (no-transport reminders; audit after commit) — D-046 (`docs/DECISIONS.md`)
 Decided by: D-044 (`docs/DECISIONS.md`) — the order, the public-link model, the scoring
 boundary and the plan. This ADR specifies the shapes inside those four answers.
 Epic: #214 · Canonical model: #541 · Scope spike: #495
@@ -378,9 +379,19 @@ boot.
   - The vendor contact gets an e-mail in `contact_language`, with a **new** token (D4, reason
     `reminder`) that supersedes the previous one.
   - The owner gets an in-app notification through the existing notification use case.
-- **Idempotence.** Minting the token, stamping the reminder and the audit event are one
-  transaction. The e-mail is sent after commit. A failed send is logged with the assessment id,
-  never the token, and is not retried by stamping.
+  - **No mail transport configured (amended, D-046).** The reminder is stamped, but **no token
+    is minted**. The vendor's current link keeps working, and the owner's notification says
+    the reminder could not be mailed (`mail_unavailable`), so they chase by hand. Minting a
+    token nobody receives would turn a working link into a 410.
+- **Idempotence.** Minting the token and stamping the reminder are one conditional transaction:
+  the assessment is still open and this reminder is not yet stamped. Overlapping sweeps
+  therefore send one reminder. The e-mail is sent after commit. A failed send is logged with
+  the assessment id, never the token, and is not retried by stamping.
+
+  **Audit (amended, D-046).** The audit event is written best-effort immediately after that
+  commit, like every other TPRM audit event. The hash-chained audit store cannot join the TPRM
+  transaction. The accepted cost: a crash between the commit and the audit write loses that
+  reminder's audit event. The stamp, the mail and the owner's notification are unaffected.
 
   The consequence, stated: a lost e-mail means a missed reminder. It never means a duplicate,
   and the vendor's previous link then answers 410 while the new one never arrived. The owner's

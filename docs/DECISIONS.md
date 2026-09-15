@@ -7,6 +7,52 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-046 — ADR 0004 D6: the reminder worker's two departures are accepted as built · decided 2026-09-15
+**Decided (owner)** — **Keep both departures that PR #679 flagged, and amend D6 to match.** Both
+answers match the recommendation.
+
+**Context** — Building #672 (PR #679), two sentences of ADR 0004 D6 could not be honoured as
+written. The implementation departed from them and flagged both for confirmation instead of
+deciding alone:
+1. D6 says every reminder mints a new token that supersedes the previous one. On a server with
+   no mail transport, that token reaches nobody, and the vendor's working link would answer 410.
+2. D6 says minting the token, stamping the reminder and writing the audit event are one
+   transaction. The audit recorder writes to its own hash-chained store, which cannot join a
+   TPRM transaction.
+
+**Options put to the owner**
+- On 1:
+  - **A.** Keep the link: stamp the reminder, mint nothing, and tell the owner in-app
+    (`mail_unavailable`).
+  - **B.** Follow D6 literally: mint anyway, which strands the vendor until someone resends.
+  - **C.** Skip the reminder entirely without mail: no stamp and no owner notice.
+- On 2:
+  - **A.** Write the audit event best-effort immediately after the commit, as every other TPRM
+    audit event is.
+  - **B.** Guarantee it through an outbox in the TPRM transaction, relayed to the audit store:
+    an audit redesign, which needs its own ADR.
+
+**Decided** — 1 → **A**, 2 → **A**.
+
+**Rationale**
+- **On 1:** a reminder exists to get an answer, and superseding the one link the vendor can use
+  works against that. The owner still learns that a chase is needed.
+- **On 2:** it matches every other TPRM audit event and needs no change to the audit design. The
+  accepted cost, stated: a crash between the commit and the audit write loses that one
+  reminder's audit event. The reminder itself stays stamped, and the mail and the owner's
+  notice are unaffected.
+
+**Reversibility, stated** — both are reversible.
+- **On 1:** a later change only affects reminders sent after it.
+- **On 2:** an outbox can be added later without changing stored data.
+
+**Consequence**
+- ADR 0004 D6 is amended in place to describe the built behaviour.
+- No code change: PR #679 already implements both, and its tests pin them.
+- #672 is not blocked.
+
+**Unblocked** — nothing was blocked; this confirms PR #679 as reviewable against its ADR.
+
 ### D-045 — ADR 0004 (Vendor and Assessment, TPRM v1) is accepted as written · decided 2026-09-15
 **Decided (owner)** — **A.** Accepted as written, with no amendment. Matches the recommendation.
 
