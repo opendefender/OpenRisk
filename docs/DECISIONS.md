@@ -5,7 +5,15 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-043 — what the PR-blocking E2E gate should be, now that it can run · raised 2026-09-14
+## Resolved
+
+### D-043 — what the PR-blocking E2E gate should be, now that it can run · decided 2026-09-15
+**Decided (owner)** — **B.** Pull requests run a curated blocking set,
+`journey.members` included, within the 25-minute budget; the full suite runs nightly.
+The set lives in `tests/e2e/pr-gate.txt`. A spec joins it once it passes in CI, is held
+out only with an issue number, and is re-admitted when that issue makes it green.
+Implemented on #297 / PR #661.
+
 **Context** — `E2E (chromium + Mobile Chrome)` in `.github/workflows/e2e.yml` has been
 blocking every PR without running a single test. Its backend could not start: first it had
 no RS256 keys, then no migrations directory. #297 (PR #661) fixes both. On the PR's own run
@@ -50,8 +58,6 @@ before #661. #297 cannot meet its criteria 1–2 (a CI run proving `journey.memb
 the current 25-minute gate.
 
 **Blocks** — #297 / PR #661 criteria 1–2.
-
-## Resolved
 
 ### D-042 — ADR 0003's residual constants are accepted as written · decided 2026-09-10
 **Decided (owner)** — the credit table and both scaling constants stand:
