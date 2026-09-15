@@ -362,6 +362,70 @@ func (a *VendorAssessment) AcceptsAnswers(now time.Time) bool {
 	return s == VendorAssessmentSent || s == VendorAssessmentInProgress
 }
 
+// VendorReminderOffsets are the days before the due date at which a vendor
+// contact is reminded (ADR 0004 D6), largest first.
+var VendorReminderOffsets = []int{7, 3, 1}
+
+// DaysUntilDue is ADR 0004 D6's clock: ceil((due_at − now) / 24h), in UTC.
+func (a *VendorAssessment) DaysUntilDue(now time.Time) int {
+	return int(math.Ceil(a.DueAt.Sub(now).Hours() / 24))
+}
+
+func (a *VendorAssessment) reminderStamp(offset int) **time.Time {
+	switch offset {
+	case 7:
+		return &a.ReminderD7SentAt
+	case 3:
+		return &a.ReminderD3SentAt
+	case 1:
+		return &a.ReminderD1SentAt
+	}
+	return nil
+}
+
+// ReminderDue reports the reminder to send at now — 7, 3 or 1 — and false when
+// none is (ADR 0004 D6).
+//
+// The rule is "past the threshold and not yet sent", not "exactly on the day",
+// so a sweep that missed ticks still reminds. But it sends AT MOST ONE reminder:
+// when several thresholds have passed (an outage, or a questionnaire sent two
+// days before its deadline), only the MOST IMMINENT is due, and sending it
+// stamps the larger ones too. A vendor never receives J-7, J-3 and J-1 in the
+// same hour.
+//
+// Only an open assessment, before its due date, is reminded: the grace period
+// accepts late answers but is not chased.
+func (a *VendorAssessment) ReminderDue(now time.Time) (int, bool) {
+	if !a.AcceptsAnswers(now) || !now.Before(a.DueAt) {
+		return 0, false
+	}
+	days := a.DaysUntilDue(now)
+	imminent := 0
+	for _, offset := range VendorReminderOffsets {
+		if days <= offset {
+			imminent = offset // offsets are largest first, so the last match is the smallest
+		}
+	}
+	if imminent == 0 || *a.reminderStamp(imminent) != nil {
+		return 0, false
+	}
+	return imminent, true
+}
+
+// MarkRemindersSent stamps offset and every larger offset not already stamped.
+// An earlier stamp is kept: it records when that reminder really went out.
+func (a *VendorAssessment) MarkRemindersSent(offset int, at time.Time) {
+	for _, o := range VendorReminderOffsets {
+		if o < offset {
+			continue
+		}
+		if stamp := a.reminderStamp(o); stamp != nil && *stamp == nil {
+			t := at
+			*stamp = &t
+		}
+	}
+}
+
 // MissingRequired returns the positions of required items with no answer, so a
 // refused submission can say which questions to complete.
 func (a *VendorAssessment) MissingRequired() []int {
