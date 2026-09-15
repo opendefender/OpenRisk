@@ -62,6 +62,7 @@ var featureLabels = map[Feature]string{
 	FeatScanner:            "Scanner",
 	FeatCTI:                "Threat intelligence (CTI)",
 	FeatGovernance:         "Governance",
+	FeatVendorRisk:         "Vendor risk (TPRM)",
 	FeatSLA:                "SLA",
 	FeatSupport:            "Support",
 }

@@ -77,6 +77,9 @@ const (
 	FeatGovernance         Feature = "governance"
 	FeatSLA                Feature = "sla"
 	FeatSupport            Feature = "support"
+	// FeatVendorRisk gates TPRM: the vendor register, questionnaires, vendor
+	// scores and reminders (ADR 0004 D7). Business and Enterprise only (D-044).
+	FeatVendorRisk Feature = "vendor_risk"
 )
 
 // AllFeatures is every gate key, so the resolver can report even disabled
@@ -84,8 +87,8 @@ const (
 var AllFeatures = []Feature{
 	FeatAPI, FeatAutomation, FeatAIAdvisor, FeatCompliance, FeatSSO,
 	FeatMultiTenant, FeatOnPremise, FeatFinancialQuant, FeatSmartScore,
-	FeatExecutiveDashboard, FeatScanner, FeatCTI, FeatGovernance, FeatSLA,
-	FeatSupport,
+	FeatExecutiveDashboard, FeatScanner, FeatCTI, FeatGovernance, FeatVendorRisk,
+	FeatSLA, FeatSupport,
 }
 
 // Level is the depth at which a feature is granted. Empty ("off") means the
@@ -157,7 +160,7 @@ type PlanEntitlements struct {
 // financial_quantification / smart_score / executive_dashboard / scanner are the
 // marquee paid analytics; they open at Pro (task §2: "la quantification financière
 // Monte-Carlo est disponible à partir du plan Pro"). CTI and governance open at
-// Business.
+// Business, and so does vendor risk (TPRM), by owner decision D-044.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
 		Plan:   PlanFree,
@@ -198,6 +201,7 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatScanner:            LevelOn,
 			FeatCTI:                LevelOn,
 			FeatGovernance:         LevelOn,
+			FeatVendorRisk:         LevelOn,
 			FeatSLA:                Level("99.5"),
 			FeatSupport:            LevelPriority,
 		},
@@ -219,6 +223,7 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatScanner:            LevelOn,
 			FeatCTI:                LevelAdvanced,
 			FeatGovernance:         LevelAdvanced,
+			FeatVendorRisk:         LevelOn,
 			FeatSLA:                Level("99.9"),
 			FeatSupport:            LevelDedicated,
 		},
