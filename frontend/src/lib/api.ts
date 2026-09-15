@@ -65,6 +65,16 @@ const TOKEN_ERROR_CODES = new Set([
   'UNAUTHORIZED',
 ]);
 
+// The 401s a refresh can recover from (#691).
+//
+// TOKEN_EXPIRED alone is not enough. The access cookie expires together with the
+// token it carries (15 minutes), so once it lapses the browser stops sending it
+// and the API answers UNAUTHORIZED ("Missing authorization header"), never
+// TOKEN_EXPIRED. Refreshing only on TOKEN_EXPIRED signed every user out 15
+// minutes after login while their 30-day refresh cookie was still valid.
+// A revoked or invalid token is not recoverable and still goes to /login.
+const REFRESHABLE_CODES = new Set(['TOKEN_EXPIRED', 'UNAUTHORIZED']);
+
 // A single in-flight refresh shared by every request that 401s at once, so a
 // dashboard full of widgets that all expire together triggers ONE /auth/refresh,
 // not one per widget. Cleared when it settles so a later expiry can refresh
@@ -126,7 +136,7 @@ api.interceptors.response.use(
     // Retry at most once per request, and never for the refresh call itself.
     if (
       status === 401 &&
-      code === 'TOKEN_EXPIRED' &&
+      REFRESHABLE_CODES.has(code) &&
       original &&
       !original._retried &&
       !String(original.url ?? '').includes('/auth/refresh')
@@ -141,7 +151,9 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // A revoked/invalid token (or a bare UNAUTHORIZED) is not refreshable.
+    // A revoked or invalid token is not refreshable, and a request that is
+    // still refused after its one refresh-and-replay is not either: go to
+    // /login once, never loop.
     if (status === 401 && TOKEN_ERROR_CODES.has(code)) {
       window.location.href = '/login'; // Redirection forcée
     }
