@@ -55,9 +55,11 @@ const CATEGORY_FOR_TYPE: Partial<Record<(typeof ASSET_TYPES)[number], AssetCateg
 interface CreateAssetModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Preselected type, e.g. 'Supplier' from the vendor register (#673). */
+  initialType?: (typeof ASSET_TYPES)[number];
 }
 
-export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => {
+export const CreateAssetModal = ({ isOpen, onClose, initialType }: CreateAssetModalProps) => {
   // Esc closes this overlay (spec §2).
   useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
@@ -74,7 +76,12 @@ export const CreateAssetModal = ({ isOpen, onClose }: CreateAssetModalProps) => 
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', type: ASSET_TYPES[0], criticality: 'MEDIUM', owner: '' },
+    defaultValues: {
+      name: '',
+      type: initialType ?? ASSET_TYPES[0],
+      criticality: 'MEDIUM',
+      owner: '',
+    },
   });
 
   const selectedType = watch('type');

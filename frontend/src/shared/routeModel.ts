@@ -98,7 +98,20 @@ export const ROUTES: RouteNode[] = [
   { path: '/vulnerabilities', labelKey: 'n_vulns', perm: 'vulnerabilities:read' },
 
   /* ---------------- Vendors (TPRM v1, ADR 0004) ---------------- */
-  { path: '/vendors', label: { fr: 'Fournisseurs', en: 'Vendors' }, perm: 'vendors:read' },
+  { path: '/vendors', labelKey: 'n_vendors', perm: 'vendors:read' },
+  {
+    path: '/vendors/:vendorId',
+    label: { fr: 'Fournisseur', en: 'Vendor' },
+    parent: '/vendors',
+    perm: 'vendors:read',
+    dynamic: true,
+  },
+  {
+    path: '/vendors/:vendorId/assessments/:assessmentId',
+    label: { fr: 'Évaluation', en: 'Assessment' },
+    parent: '/vendors/:vendorId',
+    perm: 'vendors:read',
+  },
   {
     path: '/vendors/questionnaires',
     label: { fr: 'Questionnaires', en: 'Questionnaires' },
