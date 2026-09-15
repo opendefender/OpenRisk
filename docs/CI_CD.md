@@ -95,7 +95,15 @@ docker run -p 8080:8080 openrisk:latest
 
 Located in `.github/workflows/e2e.yml`. Two jobs:
 
-- **E2E (chromium + Mobile Chrome)** runs on every push and PR to `master`/`develop`.
+- **E2E (chromium + Mobile Chrome)** runs on every push and PR to `master`/`develop`, and
+  on the nightly schedule.
+  - **On pushes and PRs** it runs only the curated blocking set listed in
+    `tests/e2e/pr-gate.txt`, within 25 minutes.
+  - **On the schedule** it runs the whole suite, with a 120-minute budget.
+
+  This is owner decision D-043 (option B). A spec joins the blocking set once it passes
+  in CI on both projects. It is held out only with an issue number, and re-admitted when
+  that issue makes it green. A path in the list that does not exist fails the job.
 - **E2E nightly (firefox + webkit)** runs on the schedule only.
 
 ### What the PR job does
@@ -108,8 +116,9 @@ Located in `.github/workflows/e2e.yml`. Two jobs:
    and never printed, and it is outside `tests/e2e/.artifacts`, the only uploaded path.
 3. **Readiness:** it starts the backend on `:8080` and the Vite dev server on `:5173`, then
    waits for both. A backend that never becomes healthy fails the job.
-4. **Tests:** it runs `npx playwright test --project=chromium --project="Mobile Chrome"`.
-   The CI settings are one worker and two retries (`playwright.config.ts`).
+4. **Tests:** it runs the specs listed in `tests/e2e/pr-gate.txt` with
+   `--project=chromium --project="Mobile Chrome"`, or every spec on the schedule. The CI
+   settings are one worker and two retries (`playwright.config.ts`).
 
 `tests/e2e/global-setup.ts` does the rest before any spec:
 
@@ -159,6 +168,10 @@ npm --prefix frontend run dev -- --port 5173 --strictPort &
 export E2E_NO_WEBSERVER=1 E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://localhost:8080/api/v1 \
   E2E_ADMIN_EMAIL=admin@opendefender.io E2E_ADMIN_PASSWORD=admin123
 npx playwright test tests/e2e/journey.members.spec.ts --project=chromium --project="Mobile Chrome" --workers=1
+
+# The whole PR blocking set, as the PR job selects it
+npx playwright test $(grep -Ev '^[[:space:]]*(#|$)' tests/e2e/pr-gate.txt) \
+  --project=chromium --project="Mobile Chrome" --workers=1
 ```
 
 Several runs in a row exhaust the sign-in budget above. Wait five minutes, or reset the
