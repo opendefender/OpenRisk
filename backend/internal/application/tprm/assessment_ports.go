@@ -80,7 +80,7 @@ type AssessmentStore interface {
 	IssueToken(ctx context.Context, tok *domain.VendorAssessmentToken) (bool, error)
 	FindTokenByHash(ctx context.Context, hash string) (*domain.VendorAssessmentToken, error)
 	SaveAnswers(ctx context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, at time.Time) (bool, error)
-	SubmitAssessment(ctx context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, provenance domain.JSONMap, at time.Time) (bool, error)
+	SubmitAssessment(ctx context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, provenance domain.JSONMap, scoring domain.VendorAssessmentScoring, at time.Time) (bool, error)
 }
 
 // AssessmentDeps is what every questionnaire and assessment use case is built

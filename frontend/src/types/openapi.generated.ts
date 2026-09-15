@@ -2738,6 +2738,17 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
+        VendorScoreContribution: {
+            /** Format: uuid */
+            item_id: string;
+            weight: number;
+            /** @description The chosen option's points; 0 when unanswered */
+            points: number;
+            /** @description Not applicable — excluded from both sums, contribution 0 */
+            na: boolean;
+            /** @description 100 × weight × (1 − points) / Σ weight */
+            contribution: number;
+        };
         VendorQuestionOption: {
             value: string;
             label: string;
@@ -2827,9 +2838,17 @@ export interface components {
             submitted_at?: string | null;
             /** Format: date-time */
             revoked_at?: string | null;
-            /** @description Written on submission by the scoring step (#671) */
+            /** @description Vendor score, 0–100, higher is riskier (ADR 0004 D5). Written on submission. Null until then, and null when nothing was scorable. Never an input to a risk's score. */
             score: number | null;
-            tier: string | null;
+            /**
+             * @description critical ≥ 70 · high ≥ 40 · medium ≥ 20 · low < 20
+             * @enum {string|null}
+             */
+            tier: "critical" | "high" | "medium" | "low" | null;
+            /** @description The arithmetic of the score. Contributions sum to it. */
+            score_breakdown?: components["schemas"]["VendorScoreContribution"][] | null;
+            /** @description The formula that produced the score, e.g. vendorscore/1 */
+            scoring_version?: string | null;
             source: string;
             source_id?: string;
             source_version?: string;

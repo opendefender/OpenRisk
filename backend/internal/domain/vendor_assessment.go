@@ -136,6 +136,15 @@ func (b VendorScoreBreakdown) Value() (driver.Value, error) {
 
 func (b *VendorScoreBreakdown) Scan(value interface{}) error { return jsonbScan(value, b) }
 
+// VendorAssessmentScoring is what the scoring step stores on submission (#671,
+// ADR 0004 D5). Score and Tier are nil when nothing was scorable.
+type VendorAssessmentScoring struct {
+	Score     *float64
+	Tier      *string
+	Breakdown VendorScoreBreakdown
+	Version   string
+}
+
 func jsonbValue(v interface{}) (driver.Value, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {

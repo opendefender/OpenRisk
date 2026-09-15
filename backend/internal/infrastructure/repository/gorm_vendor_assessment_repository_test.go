@@ -235,11 +235,16 @@ func TestVendorAssessmentRepo_SaveAndSubmit_AreConditionalAndTenantScoped(t *tes
 	assert.Equal(t, "yes", *saved.Items[0].AnswerValue)
 
 	prov := domain.JSONMap{"channel": "public_link", "submitted_with_token_id": uuid.New().String()}
-	ok, err = repo.SubmitAssessment(ctx, tenantA, a.ID, saved.Items, prov, now)
+	score, tier := 37.5, "medium"
+	scoring := domain.VendorAssessmentScoring{
+		Score: &score, Tier: &tier, Version: "vendorscore/1",
+		Breakdown: domain.VendorScoreBreakdown{{ItemID: a.Items[0].ID, Weight: 5, Points: 0.25, Contribution: 37.5}},
+	}
+	ok, err = repo.SubmitAssessment(ctx, tenantA, a.ID, saved.Items, prov, scoring, now)
 	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = repo.SubmitAssessment(ctx, tenantA, a.ID, saved.Items, prov, now)
+	ok, err = repo.SubmitAssessment(ctx, tenantA, a.ID, saved.Items, prov, scoring, now)
 	require.NoError(t, err)
 	assert.False(t, ok, "a second submission is a clean false, not a second write")
 
@@ -252,6 +257,25 @@ func TestVendorAssessmentRepo_SaveAndSubmit_AreConditionalAndTenantScoped(t *tes
 	assert.Equal(t, domain.VendorAssessmentSubmitted, final.Status)
 	require.NotNil(t, final.SubmittedAt)
 	require.NotNil(t, final.ObservedAt, "observed_at is set when the vendor states their posture")
+
+	// #671: the score is stored by the submission itself, and round-trips.
+	require.NotNil(t, final.Score)
+	assert.Equal(t, 37.5, *final.Score)
+	require.NotNil(t, final.Tier)
+	assert.Equal(t, "medium", *final.Tier)
+	require.NotNil(t, final.ScoringVersion)
+	assert.Equal(t, "vendorscore/1", *final.ScoringVersion)
+	require.Len(t, final.ScoreBreakdown, 1)
+	assert.Equal(t, a.Items[0].ID, final.ScoreBreakdown[0].ItemID)
+	assert.Equal(t, 0.25, final.ScoreBreakdown[0].Points)
+
+	// The register reads it through LatestByVendor (#669 criterion 2).
+	latest, err := repo.LatestByVendor(ctx, tenantA, []uuid.UUID{a.VendorAssetID})
+	require.NoError(t, err)
+	require.NotNil(t, latest[a.VendorAssetID].Score)
+	assert.Equal(t, 37.5, *latest[a.VendorAssetID].Score)
+	assert.Equal(t, "medium", *latest[a.VendorAssetID].Tier)
+	assert.Equal(t, string(domain.VendorAssessmentSubmitted), latest[a.VendorAssetID].Status)
 }
 
 func TestVendorAssessmentRepo_LatestByVendor_NewestPerVendorWithEffectiveStatus(t *testing.T) {
