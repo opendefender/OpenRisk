@@ -465,6 +465,8 @@
       "answersKept": "Your answers are kept — try again, nothing is lost.",
       "loading": "Loading your setup…",
       "loadFailed": "Your setup could not be loaded.",
+      "switchToLight": "Switch to light theme",
+      "switchToDark": "Switch to dark theme",
       "organization": {
         "heading": "Your organisation",
         "lead": "Your sector and country decide which framework we propose.",

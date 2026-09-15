@@ -465,6 +465,8 @@
       "answersKept": "Vos réponses sont conservées — réessayez, rien n'est perdu.",
       "loading": "Chargement de votre configuration…",
       "loadFailed": "Impossible de charger votre configuration.",
+      "switchToLight": "Passer au thème clair",
+      "switchToDark": "Passer au thème sombre",
       "organization": {
         "heading": "Votre organisation",
         "lead": "Le secteur et le pays déterminent le référentiel que nous vous proposons.",
