@@ -1,7 +1,8 @@
 # 0004 — Vendor and Assessment: the TPRM v1 slice of the canonical model
 
-Status: **proposed**
+Status: **accepted**
 Proposed: 2026-09-15, on #668
+Accepted: 2026-09-15 by the owner, as written — D-045 (`docs/DECISIONS.md`)
 Decided by: D-044 (`docs/DECISIONS.md`) — the order, the public-link model, the scoring
 boundary and the plan. This ADR specifies the shapes inside those four answers.
 Epic: #214 · Canonical model: #541 · Scope spike: #495

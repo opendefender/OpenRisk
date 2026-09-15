@@ -7,6 +7,37 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-045 — ADR 0004 (Vendor and Assessment, TPRM v1) is accepted as written · decided 2026-09-15
+**Decided (owner)** — **A.** Accepted as written, with no amendment. Matches the recommendation.
+
+**Context** — D-030 forbids code on `Vendor` and `Assessment` before their ADR. ADR 0004 (#668,
+PR #675) specified both inside D-044's four answers. It also made choices of its own, which were
+put to the owner explicitly:
+- score thresholds 70 / 40 / 20;
+- an unanswered question counts as unfavourable, and N/A is excluded;
+- every reminder issues a new link, and the previous one answers 410;
+- 7 days of grace after the due date;
+- no IP address or user agent stored;
+- no pre-filled regulatory questionnaire in v1.
+
+All six stand as written.
+
+**Rationale** — every choice follows from D-044 or from a pattern already in the code: ADR 0001's
+vendor-as-asset, the invitation token, and `MitigationDueWorker`.
+
+**Reversibility, stated** — the ADR can still be amended cheaply until #670 merges. After that,
+two things are partly irreversible:
+- **mailed link format** — once the link format has been sent to vendors, links already in their mailboxes keep it;
+- **stored scores** — scores stored as `vendorscore/1` are never silently recomputed, so a formula change needs a new version.
+
+**Consequence**
+- ADR 0004 status becomes `accepted`.
+- #669 and #670 move to `status:ready`: their only block was this ADR.
+- #671, #672, #673 and #674 stay `status:blocked`, now only on sibling issues, as listed in epic #214.
+- Epic #214 moves to `status:in-progress`.
+
+**Unblocked** — #669 · #670.
+
 ### D-044 — TPRM v1 is built, and its slice of the canonical model is specified first · decided 2026-09-15
 **Decided (owner)** — four answers, given together:
 1. **Order: ADR first.** `Vendor` and `Assessment` are specified in ADR 0004 (#668) before any
