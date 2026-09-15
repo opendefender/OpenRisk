@@ -62,10 +62,34 @@ function renderWizard() {
   );
 }
 
-describe('OnboardingWizard theme toggle', () => {
+describe('OnboardingWizard theme and language toggles', () => {
   beforeEach(() => {
     getOnboardingState.mockReset();
     useUIStore.getState().setTheme('dark');
+    useUIStore.getState().setLang('fr');
+  });
+
+  it('switches the tunnel to the other language without leaving the step', async () => {
+    getOnboardingState.mockResolvedValue(state());
+
+    renderWizard();
+
+    const toggle = screen.getByTestId('wizard-lang-toggle');
+    expect(toggle).toHaveAccessibleName('Passer en anglais');
+    expect(toggle).toHaveTextContent('fr');
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-step-of')).toHaveTextContent('Étape 1 sur 5'),
+    );
+
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-step-of')).toHaveTextContent('Step 1 of 5'),
+    );
+    expect(document.documentElement).toHaveAttribute('lang', 'en');
+    expect(useUIStore.getState().lang).toBe('en');
+    expect(toggle).toHaveAccessibleName('Switch to French');
+    expect(toggle).toHaveTextContent('en');
   });
 
   it('is available while the tunnel state is still loading', () => {

@@ -19,7 +19,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router';
-import { Check, Moon, Sun } from 'lucide-react';
+import { Check, Languages, Moon, Sun } from 'lucide-react';
 
 import { useI18n } from '../../../hooks/useI18n';
 import { useUIStore } from '../../../store/uiStore';
@@ -30,6 +30,7 @@ import { WIZARD_STEPS, WIZARD_STEP_LABELS, stepPath } from './wizardSteps';
 
 export function OnboardingWizard() {
   const lang = useUIStore((s) => s.lang);
+  const toggleLang = useUIStore((s) => s.toggleLang);
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
   const { t } = useI18n();
@@ -79,10 +80,22 @@ export function OnboardingWizard() {
           <div className="text-[12.5px] text-ink-soft" data-testid="wizard-step-of">
             {t('onboarding.tunnel.stepOf', { current: activeIndex + 1, total: steps.length })}
           </div>
-          {/* The theme is reachable on the sign-in screens and in the app header;
-              the tunnel sits between the two and has no way out until it is
-              finished, so without this a user could not change it at all (#666).
-              A preference, not a dismiss: it does not leave the step. */}
+          {/* Language and theme are reachable on the sign-in screens and in the
+              app header; the tunnel sits between the two and has no way out until
+              it is finished, so without these a user could not change either at
+              all (#666). Preferences, not dismisses: neither leaves the step. */}
+          <button
+            type="button"
+            onClick={toggleLang}
+            data-testid="wizard-lang-toggle"
+            className="h-9 px-2.5 rounded-[10px] flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+            aria-label={t('onboarding.tunnel.switchLanguage')}
+            title={t('onboarding.tunnel.switchLanguage')}
+          >
+            <Languages size={16} aria-hidden="true" />
+            <span className="mono text-[12px] font-semibold uppercase">{lang}</span>
+          </button>
           <button
             type="button"
             onClick={toggleTheme}
