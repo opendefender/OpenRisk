@@ -2791,6 +2791,23 @@ func main() {
 		}, zeroLogger)
 	go mitigationDueWorker.Start(context.Background())
 
+	// Vendor questionnaires: J-7 / J-3 / J-1 reminders (#672, ADR 0004 D6). Same
+	// hourly, "past the threshold and not yet sent" rule as the mitigation nudges;
+	// at most one reminder per questionnaire per sweep. The sweep reads across
+	// tenants by necessity, and every notice below is addressed with the ROW's
+	// tenant. The owner is told in-app what the reminder did — or that it could
+	// not, and what to do.
+	vendorReminderWorker := workers.NewVendorAssessmentReminderWorker(
+		tprmapp.NewSendVendorAssessmentRemindersUseCase(vendorAssessmentDeps, vendorAssessmentRepo,
+			func(ctx context.Context, tenantID, userID, assessmentID uuid.UUID, subject, message string) {
+				if err := notificationUseCase.NotifyInApp(userID, tenantID,
+					domain.NotificationTypeVendorAssessmentReminder, subject, message, &assessmentID, "vendor_assessment"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
+					zeroLogger.Warn().Err(err).Str("assessment_id", assessmentID.String()).Msg("vendor reminders: in-app notification failed")
+				}
+			}),
+		zeroLogger)
+	go vendorReminderWorker.Start(context.Background())
+
 	// Evidence expiry: warn the owner before proof goes stale. Without this, the
 	// first person to notice a lapsed certificate is the auditor reading the
 	// register — the register is still honest (the control shows as unevidenced),
