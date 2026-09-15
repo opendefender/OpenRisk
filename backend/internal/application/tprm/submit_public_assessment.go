@@ -48,8 +48,13 @@ func (uc *SubmitPublicAssessmentUseCase) Execute(ctx context.Context, token stri
 	provenance["channel"] = "public_link"
 	provenance["submitted_with_token_id"] = access.token.ID.String()
 
+	// The score is computed here and stored by the same conditional write that
+	// locks the answers (#671): a submitted assessment without its score, or a
+	// score for answers that were not the ones locked, cannot exist.
+	scoring := scoreAssessment(a)
+
 	now := uc.deps.now()
-	submitted, err := uc.deps.Assessments.SubmitAssessment(ctx, a.TenantID, a.ID, a.Items, provenance, now)
+	submitted, err := uc.deps.Assessments.SubmitAssessment(ctx, a.TenantID, a.ID, a.Items, provenance, scoring, now)
 	if err != nil {
 		return nil, domain.NewInternalError(err.Error())
 	}
@@ -61,9 +66,20 @@ func (uc *SubmitPublicAssessmentUseCase) Execute(ctx context.Context, token stri
 	a.SubmittedAt = &now
 	a.ObservedAt = &now
 	a.Provenance = provenance
+	a.Score = scoring.Score
+	a.Tier = scoring.Tier
+	a.ScoreBreakdown = scoring.Breakdown
+	version := scoring.Version
+	a.ScoringVersion = &version
 
 	uc.deps.record(ctx, a.TenantID, uuid.Nil, domain.AuditActionSubmit, "vendor_assessment", a.ID.String(),
 		"The vendor contact submitted the questionnaire",
-		domain.JSONMap{"actor": vendorContactActor(a), "status": string(domain.VendorAssessmentSubmitted)})
+		domain.JSONMap{
+			"actor":           vendorContactActor(a),
+			"status":          string(domain.VendorAssessmentSubmitted),
+			"score":           scoring.Score,
+			"tier":            scoring.Tier,
+			"scoring_version": scoring.Version,
+		})
 	return uc.deps.publicView(ctx, a), nil
 }

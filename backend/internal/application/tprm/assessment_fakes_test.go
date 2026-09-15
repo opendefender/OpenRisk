@@ -191,7 +191,7 @@ func (s *assessmentStore) SaveAnswers(_ context.Context, tenantID, assessmentID 
 	return true, nil
 }
 
-func (s *assessmentStore) SubmitAssessment(_ context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, provenance domain.JSONMap, at time.Time) (bool, error) {
+func (s *assessmentStore) SubmitAssessment(_ context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, provenance domain.JSONMap, scoring domain.VendorAssessmentScoring, at time.Time) (bool, error) {
 	a, ok := s.assessments[assessmentID]
 	if !ok || a.TenantID != tenantID || !isOpen(a) {
 		return false, nil
@@ -202,6 +202,11 @@ func (s *assessmentStore) SubmitAssessment(_ context.Context, tenantID, assessme
 	a.SubmittedAt = &at
 	a.ObservedAt = &at
 	a.Provenance = provenance
+	a.Score = scoring.Score
+	a.Tier = scoring.Tier
+	a.ScoreBreakdown = scoring.Breakdown
+	version := scoring.Version
+	a.ScoringVersion = &version
 	s.assessments[assessmentID] = a
 	return true, nil
 }

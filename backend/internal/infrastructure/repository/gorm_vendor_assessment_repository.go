@@ -346,7 +346,10 @@ func (r *GormVendorAssessmentRepository) SaveAnswers(ctx context.Context, tenant
 // SubmitAssessment writes the final answers and locks the assessment, only while
 // it is open. The conditional update is what makes a second submission, or a
 // submission racing a revocation, a clean false rather than a double write.
-func (r *GormVendorAssessmentRepository) SubmitAssessment(ctx context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, provenance domain.JSONMap, at time.Time) (bool, error) {
+//
+// The score (#671) is written by the same conditional update, so a submitted
+// assessment always carries the score of exactly the answers it locked.
+func (r *GormVendorAssessmentRepository) SubmitAssessment(ctx context.Context, tenantID, assessmentID uuid.UUID, items []domain.VendorAssessmentItem, provenance domain.JSONMap, scoring domain.VendorAssessmentScoring, at time.Time) (bool, error) {
 	if tenantID == uuid.Nil {
 		return false, errVendorAssessmentRepoNoTenant
 	}
@@ -355,11 +358,15 @@ func (r *GormVendorAssessmentRepository) SubmitAssessment(ctx context.Context, t
 		res := tx.Model(&domain.VendorAssessment{}).
 			Where("id = ? AND tenant_id = ? AND status IN ?", assessmentID, tenantID, openAssessmentStatuses).
 			Updates(map[string]interface{}{
-				"status":       domain.VendorAssessmentSubmitted,
-				"submitted_at": at,
-				"observed_at":  at,
-				"provenance":   provenance,
-				"updated_at":   at,
+				"status":          domain.VendorAssessmentSubmitted,
+				"submitted_at":    at,
+				"observed_at":     at,
+				"provenance":      provenance,
+				"score":           scoring.Score,
+				"tier":            scoring.Tier,
+				"score_breakdown": scoring.Breakdown,
+				"scoring_version": scoring.Version,
+				"updated_at":      at,
 			})
 		if res.Error != nil {
 			return fmt.Errorf("submit assessment: %w", res.Error)

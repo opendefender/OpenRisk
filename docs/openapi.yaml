@@ -4517,6 +4517,25 @@ components:
           type: string
           format: date-time
 
+    VendorScoreContribution:
+      type: object
+      required: [item_id, weight, points, na, contribution]
+      properties:
+        item_id:
+          type: string
+          format: uuid
+        weight:
+          type: number
+        points:
+          type: number
+          description: The chosen option's points; 0 when unanswered
+        na:
+          type: boolean
+          description: Not applicable — excluded from both sums, contribution 0
+        contribution:
+          type: number
+          description: 100 × weight × (1 − points) / Σ weight
+
     VendorQuestionOption:
       type: object
       required: [value, label, points]
@@ -4709,10 +4728,27 @@ components:
         score:
           type: number
           nullable: true
-          description: Written on submission by the scoring step (#671)
+          minimum: 0
+          maximum: 100
+          description: >-
+            Vendor score, 0–100, higher is riskier (ADR 0004 D5). Written on
+            submission. Null until then, and null when nothing was scorable. Never an
+            input to a risk's score.
         tier:
           type: string
           nullable: true
+          enum: [critical, high, medium, low, null]
+          description: critical ≥ 70 · high ≥ 40 · medium ≥ 20 · low < 20
+        score_breakdown:
+          type: array
+          nullable: true
+          description: The arithmetic of the score. Contributions sum to it.
+          items:
+            $ref: '#/components/schemas/VendorScoreContribution'
+        scoring_version:
+          type: string
+          nullable: true
+          description: The formula that produced the score, e.g. vendorscore/1
         source:
           type: string
         source_id:
