@@ -18,7 +18,7 @@ import { useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { OnboardingStepKey } from '../../../services/activationService';
-import { useOnboardingState, useSaveOnboardingStep } from '../useActivation';
+import { useCompleteOnboarding, useOnboardingState, useSaveOnboardingStep } from '../useActivation';
 import { WIZARD_STEPS, stepPath } from './wizardSteps';
 
 /** The one input shape every tunnel field uses. Shared so a field added later
@@ -57,10 +57,19 @@ export function str(answers: Record<string, unknown>, key: string, fallback = ''
  *   • A FAILURE KEEPS THE USER ON THE STEP WITH THEIR ANSWERS AND A RETRY. The
  *     last attempt is held so `retry()` replays it verbatim; nothing is cleared,
  *     nothing is re-typed.
+ *   • FORWARD FROM THE LAST VISIBLE STEP IS THE EXIT, NOT A CURSOR MOVE (#685).
+ *     The server clamps the cursor to the last step, so "advance" alone reloads
+ *     the same screen, and the guard keeps every route pointing at it until
+ *     onboarding.completed is true. The step is saved, THEN the tunnel is
+ *     completed, THEN the user lands on the posture reveal. "Last" is read from
+ *     the server's visible steps, so it holds when `cover` is auto-skipped.
+ *     The exit was first written in cd190a1 and lost in the merge c12bc37; it
+ *     lives here now so no single step can drop it again.
  */
 export function useStepNav(step: OnboardingStepKey) {
   const navigate = useNavigate();
   const save = useSaveOnboardingStep();
+  const complete = useCompleteOnboarding();
   const { data: state } = useOnboardingState();
   const lastAttempt = useRef<{ answers: Record<string, unknown>; direction: 1 | -1 } | null>(null);
 
@@ -75,14 +84,26 @@ export function useStepNav(step: OnboardingStepKey) {
   const run = (answers: Record<string, unknown>, direction: 1 | -1) => {
     lastAttempt.current = { answers, direction };
     const target = visible[Math.min(visible.length - 1, Math.max(0, index + direction))];
+    const finishing = direction === 1 && visible[index] === step && index === visible.length - 1;
+    // A retry after a failed completion must not keep showing that failure
+    // while the replay is in flight.
+    complete.reset();
 
     save.mutate(
       { step, answers, next: target },
       {
-        // The server's own cursor wins. It has already snapped the move onto the
-        // visible sequence, so this cannot land on a step the shell refuses to
-        // draw — which a client-side target can.
-        onSuccess: (saved) => navigate(stepPath(saved.current_step ?? target)),
+        onSuccess: (saved) => {
+          if (finishing) {
+            // `onSuccess` of the save, not `onSettled`: completing after a
+            // failed save would lift the guard on answers that were never stored.
+            complete.mutate(undefined, { onSuccess: () => navigate('/posture') });
+            return;
+          }
+          // The server's own cursor wins. It has already snapped the move onto
+          // the visible sequence, so this cannot land on a step the shell
+          // refuses to draw — which a client-side target can.
+          navigate(stepPath(saved.current_step ?? target));
+        },
         // No toast. A toast is transient and carries no retry, and criterion 4
         // asks for a control the user can actually press. StepShell renders it
         // from `error` below.
@@ -98,8 +119,8 @@ export function useStepNav(step: OnboardingStepKey) {
   return {
     go: run,
     retry,
-    busy: save.isPending,
-    error: save.isError,
+    busy: save.isPending || complete.isPending,
+    error: save.isError || complete.isError,
     index,
     total: visible.length,
   };
