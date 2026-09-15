@@ -1165,6 +1165,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/vendors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the vendor register
+         * @description A vendor is an asset of category vendor (ADR 0004 D1). Requires vendors:read and the vendor_risk entitlement, which Business and Enterprise include; other plans answer 402. latest_assessment is null until the assessment module (#670) is wired.
+         */
+        get: operations["listVendors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/chain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the vendor→asset→risk chain, one hop deep */
+        get: operations["getVendorChain"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link an asset to the vendor
+         * @description Creates an asset dependency edge. managed_by, hosted_by and depends_on are stored asset → vendor; processes_data_of is stored vendor → asset.
+         */
+        post: operations["linkVendorAsset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/assets/{linkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a link of the vendor */
+        delete: operations["unlinkVendorAsset"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -2481,6 +2555,73 @@ export interface components {
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        VendorLatestAssessment: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            score: number | null;
+            tier: string | null;
+            /** Format: date-time */
+            due_at: string;
+        };
+        VendorRegisterEntry: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            legal_name: string;
+            country: string;
+            service_provided: string;
+            service_criticality: string;
+            contract_end: string;
+            criticality: string;
+            owner: string;
+            /** @description Distinct assets linked to the vendor */
+            linked_assets: number;
+            latest_assessment: components["schemas"]["VendorLatestAssessment"] | null;
+        };
+        VendorPage: {
+            items: components["schemas"]["VendorRegisterEntry"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        VendorChainRisk: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            score: number;
+            criticality: string;
+            status: string;
+        };
+        VendorChainAsset: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            category: string;
+            criticality: string;
+        };
+        VendorChainLink: {
+            /** Format: uuid */
+            link_id: string;
+            /** @enum {string} */
+            verb: "managed_by" | "hosted_by" | "hosted_on" | "depends_on" | "processes_data_of" | "stores_data_in";
+            asset: components["schemas"]["VendorChainAsset"];
+            risks: components["schemas"]["VendorChainRisk"][];
+        };
+        VendorChain: {
+            /** Format: uuid */
+            vendor_id: string;
+            vendor_name: string;
+            links: components["schemas"]["VendorChainLink"][];
+        };
+        CreateVendorLinkInput: {
+            /** Format: uuid */
+            asset_id: string;
+            /** @enum {string} */
+            verb: "managed_by" | "hosted_by" | "processes_data_of" | "depends_on";
+            description?: string;
         };
         CreateAssetDependencyInput: {
             /** Format: uuid */
@@ -5050,6 +5191,179 @@ export interface operations {
                 content?: never;
             };
             /** @description Dependency not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listVendors: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive match on the name or the legal_name attribute */
+                search?: string;
+                /** @description Exact match on the service_criticality attribute */
+                service_criticality?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the register */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorPage"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing vendors:read */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getVendorChain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chain */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorChain"];
+                };
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Vendor not found — unknown, malformed, another tenant's, or an asset that is not a vendor */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    linkVendorAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVendorLinkInput"];
+            };
+        };
+        responses: {
+            /** @description Link created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetDependency"];
+                };
+            };
+            /** @description Invalid verb, or the asset is itself a vendor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Vendor or asset not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Identical link already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unlinkVendorAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                linkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a vendor link of this vendor in this tenant */
             404: {
                 headers: {
                     [name: string]: unknown;

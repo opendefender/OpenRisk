@@ -56,6 +56,7 @@ import (
 	savedviewapp "github.com/opendefender/openrisk/internal/application/savedview"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	searchapp "github.com/opendefender/openrisk/internal/application/search"
+	tprmapp "github.com/opendefender/openrisk/internal/application/tprm"
 	vulnapp "github.com/opendefender/openrisk/internal/application/vulnerability"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/config"
@@ -1202,6 +1203,7 @@ func main() {
 	featSmartScore := middleware.RequireFeature(entitlementService, ent.FeatSmartScore)
 	featExecutive := middleware.RequireFeature(entitlementService, ent.FeatExecutiveDashboard)
 	featAI := middleware.RequireFeature(entitlementService, ent.FeatAIAdvisor)
+	featVendor := middleware.RequireFeature(entitlementService, ent.FeatVendorRisk)
 	capRisks := middleware.RequireCapacity(entitlementService, ent.LimitRisks)
 	capAssets := middleware.RequireCapacity(entitlementService, ent.LimitAssets)
 
@@ -1777,6 +1779,27 @@ func main() {
 	protected.Patch("/assets/:id", assetUpdate, assetHandler.UpdateAsset)
 	protected.Delete("/assets/:id", assetDelete, assetHandler.DeleteAsset)
 	protected.Get("/assets/:id/history", assetRead, assetHandler.GetAssetHistory)
+
+	// TPRM v1 — the vendor register and the vendor→asset→risk chain (#669,
+	// ADR 0004 D1, D2, D7). A vendor is an asset of category vendor, so there is
+	// no vendors table: the register reads assets, a vendor link IS an asset
+	// dependency edge, and linking goes through the same create use case as
+	// /asset-dependencies so its tenant, self-reference and duplicate guards are
+	// the tested ones. Gated to Business and Enterprise (D-044): featVendor
+	// answers 402 on Free and Pro.
+	vendorRepo := repository.NewGormVendorRepository(database.DB)
+	vendorHandler := handlers.NewVendorHandler(
+		tprmapp.NewListVendorsUseCase(vendorRepo, assetDepRepo),
+		tprmapp.NewGetVendorChainUseCase(vendorRepo, assetDepRepo),
+		tprmapp.NewLinkVendorAssetUseCase(vendorRepo, assetRepo, assetapp.NewCreateAssetDependencyUseCase(assetDepRepo, assetRepo)),
+		tprmapp.NewUnlinkVendorAssetUseCase(vendorRepo, assetDepRepo),
+	)
+	vendorRead := middleware.RequirePermission("vendors:read")
+	vendorManage := middleware.RequirePermission("vendors:manage")
+	protected.Get("/vendors", vendorRead, featVendor, vendorHandler.ListVendors)
+	protected.Get("/vendors/:id/chain", vendorRead, featVendor, vendorHandler.GetVendorChain)
+	protected.Post("/vendors/:id/assets", vendorManage, featVendor, vendorHandler.LinkVendorAsset)
+	protected.Delete("/vendors/:id/assets/:linkId", vendorManage, featVendor, vendorHandler.UnlinkVendorAsset)
 
 	// Attack Surface — typed attribute schemas. Reading is open to anyone who
 	// can read assets (the form generator needs it); editing the schema is an

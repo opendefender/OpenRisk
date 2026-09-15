@@ -59,6 +59,7 @@ var docFeatures = map[string]Feature{
 	"Compliance":                     FeatCompliance,
 	"Threat intel (CTI)":             FeatCTI,
 	"Governance / approvals":         FeatGovernance,
+	"Vendor risk (TPRM)":             FeatVendorRisk,
 	"SSO / SAML":                     FeatSSO,
 	"Multi-tenant":                   FeatMultiTenant,
 	"On-premise":                     FeatOnPremise,

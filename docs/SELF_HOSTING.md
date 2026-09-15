@@ -117,6 +117,7 @@ the code ever disagree. It is not a marketing table; it is the code.
 | Scanner | — | yes | yes | yes |
 | Threat intelligence (CTI) | — | — | yes | advanced |
 | Governance | — | — | yes | advanced |
+| Vendor risk (TPRM) | — | — | yes | yes |
 | SLA | — | — | 99.5% | 99.9% |
 | Support | community | email | priority | dedicated |
 
