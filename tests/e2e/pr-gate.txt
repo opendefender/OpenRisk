@@ -7,23 +7,25 @@
 #
 # Admission: a spec is listed once it passes in CI on both projects. A spec is held
 # out only with an issue number, and re-admitted when that issue makes it green.
+#
+# Screened on CI job 104296442608 (#297, PR #661): 84 tests, 16.2 min.
 
-tests/e2e/dead-controls.spec.ts
-tests/e2e/deceptive-ui.spec.ts
 tests/e2e/journey.members.spec.ts
-tests/e2e/journey.newcomer.spec.ts
 tests/e2e/journey.rbac.spec.ts
-tests/e2e/journey.settings.spec.ts
-tests/e2e/mfa-deferred.spec.ts
-tests/e2e/risk-lifecycle.spec.ts
-tests/e2e/workflows.spec.ts
-
-# Not yet screened — CI state unknown, never reached before #297:
-#   tests/e2e/smoke.routes.spec.ts  #297  84 tests on its own; admitted once a CI run
-#                                         shows it passing within the 25-minute budget
 
 # Held out — failing in CI, re-admitted when green:
-#   tests/e2e/a11y.spec.ts          #662
-#   tests/e2e/activation.spec.ts    #662
-#   tests/e2e/auth.login.spec.ts    #662
-#   tests/e2e/datatable.spec.ts     #662
+#   tests/e2e/a11y.spec.ts              #662
+#   tests/e2e/activation.spec.ts        #662
+#   tests/e2e/auth.login.spec.ts        #662
+#   tests/e2e/datatable.spec.ts         #662
+#   tests/e2e/dead-controls.spec.ts     #664
+#   tests/e2e/deceptive-ui.spec.ts      #664
+#   tests/e2e/journey.newcomer.spec.ts  #664
+#   tests/e2e/journey.settings.spec.ts  #664  (Mobile Chrome only)
+#   tests/e2e/mfa-deferred.spec.ts      #664  (429: sign-in budget)
+#   tests/e2e/risk-lifecycle.spec.ts    #664  (429: sign-in budget)
+#   tests/e2e/workflows.spec.ts         #664
+#
+# Not yet screened — never run in CI:
+#   tests/e2e/smoke.routes.spec.ts      #664  84 tests on its own; screen it alone
+#                                             against the 25-minute budget
