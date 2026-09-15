@@ -190,6 +190,14 @@ async function withProfile(request: APIRequestContext, session: LoginResult): Pr
  * Those are the credential. `auth_user` is only what the SPA paints from before
  * its first request returns, and what its route guard reads to decide it has a
  * session at all.
+ *
+ * `openrisk_tour_seen_v1` marks the product tour as already seen. A fresh
+ * persona otherwise gets the tour on its first page, and its coach-mark card sits
+ * over whatever it points at: journey.members failed four of six tests on it
+ * (clicks landing on the card, a second `role="dialog"` on screen) the first time
+ * the suite could run again (#297). The flag is cosmetic client state by the
+ * tour's own definition (ProductTour.tsx), and no spec asserts the tour appears
+ * for a persona. A spec that tests the tour builds its own storageState.
  */
 export async function storageStateFor(request: APIRequestContext, login: LoginResult) {
   const state = await request.storageState();
@@ -198,7 +206,10 @@ export async function storageStateFor(request: APIRequestContext, login: LoginRe
     origins: [
       {
         origin: FRONTEND_ORIGIN,
-        localStorage: [{ name: 'auth_user', value: JSON.stringify(buildAuthUser(login)) }],
+        localStorage: [
+          { name: 'auth_user', value: JSON.stringify(buildAuthUser(login)) },
+          { name: 'openrisk_tour_seen_v1', value: '1' },
+        ],
       },
     ],
   };

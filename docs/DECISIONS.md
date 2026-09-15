@@ -7,6 +7,58 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-043 — what the PR-blocking E2E gate should be, now that it can run · decided 2026-09-15
+**Decided (owner)** — **B.** Pull requests run a curated blocking set,
+`journey.members` included, within the 25-minute budget; the full suite runs nightly.
+The set lives in `tests/e2e/pr-gate.txt`. A spec joins it once it passes in CI, is held
+out only with an issue number, and is re-admitted when that issue makes it green.
+Implemented on #297 / PR #661.
+
+**Context** — `E2E (chromium + Mobile Chrome)` in `.github/workflows/e2e.yml` has been
+blocking every PR without running a single test. Its backend could not start: first it had
+no RS256 keys, then no migrations directory. #297 (PR #661) fixes both. On the PR's own run
+(job 104040601377, `ec52b0b`), the backend and frontend came up and `global-setup` seeded,
+and Playwright started **284 tests with 1 worker and 2 retries**. After 20 min 43 s the job
+hit its **25-minute budget** (`timeout-minutes: 25`) and was cancelled. By then it had
+reached only 4 spec files, with **24 passed and 16 failed** as the final state of each test
+(73 result lines including retries, 14.8 s average).
+
+At that rate the suite needs well over an hour. `journey.members.spec.ts`, the spec #297
+must prove, is alphabetically later and was never reached. Locally, on a CI-equivalent
+stack, it passes 12/12 on both projects. The failures sit in specs that had not been
+running either, so they are drift that nobody saw, not regressions from #661.
+
+So merging #661 turns the check from "red at startup" into "red, or cancelled at 25
+minutes". Deciding what blocks a merge, and how many CI minutes it may cost, is a
+merge-policy and budget question, not an implementation detail.
+
+**Options**
+- **A — Merge #661 as it is.** The whole suite stays the PR gate. The check stays red until
+  every failing spec is fixed, and journey coverage further down the alphabet stays
+  unproven meanwhile. Cheapest now. A permanently red required check teaches people to
+  ignore it.
+- **B — A curated blocking set on PRs, the full suite nightly.** PRs run the specs that pass
+  today, `journey.members` included, within the 25-minute budget. The full suite moves to
+  the scheduled job, which already exists. Each failing spec is fixed under its own issue
+  and re-admitted to the PR set when green. The PR gate becomes meaningful immediately.
+  Risk: a spec left out of the PR set can regress unnoticed until the nightly run.
+- **C — Raise the timeout (about 90 min) and drop PR retries to 0.** Everything runs on
+  every PR. Slow feedback, the check is still red until every spec is fixed, and it costs
+  more CI minutes.
+- **D — Shard the suite across parallel jobs.** Each shard needs its own Postgres, Redis,
+  backend and frontend. Full coverage within the budget, at several times the CI minutes,
+  which is money, plus workflow complexity.
+
+**Recommendation** — **B.** It is the only option where a red E2E check means "this PR broke
+a journey that worked" from day one. A gate that is red for other reasons protects nothing.
+The re-admission rule keeps the blocking set growing, not frozen.
+
+**Cost of delay** — every PR merged meanwhile is still unchecked in a browser, exactly as
+before #661. #297 cannot meet its criteria 1–2 (a CI run proving `journey.members`) under
+the current 25-minute gate.
+
+**Blocks** — #297 / PR #661 criteria 1–2.
+
 ### D-042 — ADR 0003's residual constants are accepted as written · decided 2026-09-10
 **Decided (owner)** — the credit table and both scaling constants stand:
 `implemented` with evidence **1.00**, `implemented` without **0.70**,

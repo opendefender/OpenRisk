@@ -91,6 +91,93 @@ docker build -t openrisk:latest .
 docker run -p 8080:8080 openrisk:latest
 ```
 
+## End-to-end tests (Playwright)
+
+Located in `.github/workflows/e2e.yml`. Two jobs:
+
+- **E2E (chromium + Mobile Chrome)** runs on every push and PR to `master`/`develop`, and
+  on the nightly schedule.
+  - **On pushes and PRs** it runs only the curated blocking set listed in
+    `tests/e2e/pr-gate.txt`, within 25 minutes.
+  - **On the schedule** it runs the whole suite, with a 120-minute budget.
+
+  This is owner decision D-043 (option B). A spec joins the blocking set once it passes
+  in CI on both projects. It is held out only with an issue number, and re-admitted when
+  that issue makes it green. A path in the list that does not exist fails the job.
+- **E2E nightly (firefox + webkit)** runs on the schedule only.
+
+### What the PR job does
+
+1. **Services:** it starts PostgreSQL 16 and Redis 7 as job services.
+2. **Backend:** it builds `backend/` and generates an **ephemeral RS256 key pair** in
+   `$RUNNER_TEMP/e2e-keys`, whose paths go to the backend as `RSA_PRIVATE_KEY_PATH` /
+   `RSA_PUBLIC_KEY_PATH`. The backend refuses to boot without RS256 keys: before #297 this
+   job gave it none, and it panicked before a single test ran. The pair is never committed
+   and never printed, and it is outside `tests/e2e/.artifacts`, the only uploaded path.
+3. **Readiness:** it starts the backend on `:8080` and the Vite dev server on `:5173`, then
+   waits for both. A backend that never becomes healthy fails the job.
+4. **Tests:** it runs the specs listed in `tests/e2e/pr-gate.txt` with
+   `--project=chromium --project="Mobile Chrome"`, or every spec on the schedule. The CI
+   settings are one worker and two retries (`playwright.config.ts`).
+
+`tests/e2e/global-setup.ts` does the rest before any spec:
+
+- **Seed:** it runs `scripts/seed-e2e.mjs`, which also enrols the admin in MFA and records
+  the TOTP secret in `tests/e2e/.seed-ids.json`.
+- **Sessions:** it signs each persona in through the API (`tests/e2e/support/auth.ts`).
+  That helper completes the MFA challenge with a built-in RFC 6238 TOTP, and stores the
+  real HttpOnly session cookies as a `storageState` in `tests/e2e/.auth/`.
+- **Product tour:** the `storageState` marks the tour as seen
+  (`openrisk_tour_seen_v1`), because its coach-mark card otherwise sits over the screens
+  the specs drive.
+
+**Sign-in budget.** `/auth/login` and `/auth/register` allow **15 requests per IP every
+5 minutes** (`backend/cmd/server/main.go`, `authRateLimit`), and the whole suite runs from
+one IP. A spec should sign in once per worker, not once per test:
+`journey.members.spec.ts` memoises its admin API context for that reason. A test failing
+with `login failed … 429 Rate limit exceeded` has hit this budget, not a login bug.
+
+### Running one spec locally, as CI does
+
+Ports 5432 and 6379 are often taken by host services, so this uses other ports:
+
+```bash
+# Services
+docker run -d --name or-e2e-pg -e POSTGRES_USER=openrisk -e POSTGRES_PASSWORD=openrisk \
+  -e POSTGRES_DB=openrisk_e2e -p 55432:5432 postgres:16-alpine
+docker run -d --name or-e2e-redis -p 56379:6379 redis:7-alpine
+
+# Throwaway key pair, outside the repository
+mkdir -p /tmp/or-e2e-keys
+( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/or-e2e-keys/private.pem )
+openssl rsa -in /tmp/or-e2e-keys/private.pem -pubout -out /tmp/or-e2e-keys/public.pem
+
+# Backend (:8080), from backend/
+export DATABASE_URL="postgres://openrisk:openrisk@localhost:55432/openrisk_e2e?sslmode=disable" \
+  DB_HOST=localhost DB_PORT=55432 DB_USER=openrisk DB_PASSWORD=openrisk DB_NAME=openrisk_e2e \
+  REDIS_HOST=localhost REDIS_PORT=56379 APP_ENV=test PORT=8080 \
+  JWT_SECRET=e2e-secret-key-not-for-production CORS_ORIGINS=http://localhost:5173 \
+  INITIAL_ADMIN_PASSWORD=admin123 MIGRATIONS_DIR=../migrations \
+  RSA_PRIVATE_KEY_PATH=/tmp/or-e2e-keys/private.pem RSA_PUBLIC_KEY_PATH=/tmp/or-e2e-keys/public.pem
+go build -o /tmp/or-e2e-openrisk ./cmd/server && /tmp/or-e2e-openrisk &
+
+# Frontend (:5173), from the repository root
+npm --prefix frontend run dev -- --port 5173 --strictPort &
+
+# One spec, both PR projects, one worker, as CI
+export E2E_NO_WEBSERVER=1 E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://localhost:8080/api/v1 \
+  E2E_ADMIN_EMAIL=admin@opendefender.io E2E_ADMIN_PASSWORD=admin123
+npx playwright test tests/e2e/journey.members.spec.ts --project=chromium --project="Mobile Chrome" --workers=1
+
+# The whole PR blocking set, as the PR job selects it
+npx playwright test $(grep -Ev '^[[:space:]]*(#|$)' tests/e2e/pr-gate.txt) \
+  --project=chromium --project="Mobile Chrome" --workers=1
+```
+
+Several runs in a row exhaust the sign-in budget above. Wait five minutes, or reset the
+limiter with `docker exec or-e2e-redis redis-cli FLUSHALL`. Only do that on this
+throwaway Redis.
+
 ## GitHub Actions Workflow
 
 Located in `.github/workflows/ci.yml`

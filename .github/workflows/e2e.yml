@@ -16,16 +16,20 @@ on:
     - cron: '17 3 * * *'
 
 concurrency:
-  group: e2e-${{ github.ref }}
+  # The event is part of the key so a push to master cannot cancel the nightly
+  # full-suite run on the same ref.
+  group: e2e-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ==================== PR-BLOCKING E2E (chromium + Mobile Chrome) ============
+  # D-043 (option B): pull requests and pushes run the curated blocking set in
+  # tests/e2e/pr-gate.txt within 25 minutes; the scheduled run executes the whole
+  # suite on the same browsers, which takes well over an hour on one worker.
   e2e:
     name: E2E (chromium + Mobile Chrome)
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: ${{ github.event_name == 'schedule' && 120 || 25 }}
 
     services:
       postgres:
@@ -60,6 +64,12 @@ jobs:
       JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
       INITIAL_ADMIN_PASSWORD: admin123
+      # The backend starts from backend/, and MIGRATIONS_DIR defaults to
+      # "migrations" relative to its working directory
+      # (internal/migrations/migrator.go). The SQL migrations live at the
+      # repository root, so without this the backend exits with
+      # `failed to open source, "file://migrations"` (#297).
+      MIGRATIONS_DIR: ../migrations
       # E2E harness
       E2E_NO_WEBSERVER: '1'
       E2E_BASE_URL: http://localhost:5173
@@ -84,6 +94,19 @@ jobs:
 
       - name: Build backend
         run: cd backend && go build -o openrisk ./cmd/server
+
+      # The backend refuses to boot without RS256 keys (internal/config/config.go),
+      # and this job used to give it none: it panicked before Playwright ran a
+      # single test (#297). The pair is generated per run in the runner's temp
+      # dir — never committed, never printed, and outside tests/e2e/.artifacts,
+      # which is the only path uploaded.
+      - name: Generate ephemeral RS256 key pair
+        run: |
+          mkdir -p "$RUNNER_TEMP/e2e-keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/e2e-keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/e2e-keys/private.pem" -pubout -out "$RUNNER_TEMP/e2e-keys/public.pem" 2>/dev/null
+          echo "RSA_PRIVATE_KEY_PATH=$RUNNER_TEMP/e2e-keys/private.pem" >> "$GITHUB_ENV"
+          echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/e2e-keys/public.pem" >> "$GITHUB_ENV"
 
       - name: Start backend (:8080)
         run: |
@@ -118,8 +141,22 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium chromium-headless-shell
 
+      # D-043: the schedule runs every spec; pushes and PRs run pr-gate.txt only.
       - name: Run E2E (chromium + Mobile Chrome)
-        run: npx playwright test --project=chromium --project="Mobile Chrome"
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            npx playwright test --project=chromium --project="Mobile Chrome"
+            exit
+          fi
+          mapfile -t specs < <(grep -Ev '^[[:space:]]*(#|$)' tests/e2e/pr-gate.txt)
+          [ "${#specs[@]}" -gt 0 ] || { echo "❌ tests/e2e/pr-gate.txt lists no spec"; exit 1; }
+          for s in "${specs[@]}"; do
+            [ -f "$s" ] || { echo "❌ tests/e2e/pr-gate.txt lists a missing spec: $s"; exit 1; }
+          done
+          echo "PR gate: ${#specs[@]} spec files"
+          npx playwright test "${specs[@]}" --project=chromium --project="Mobile Chrome"
 
       - name: Route coverage → job summary
         if: always()
@@ -172,6 +209,12 @@ jobs:
       JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
       INITIAL_ADMIN_PASSWORD: admin123
+      # The backend starts from backend/, and MIGRATIONS_DIR defaults to
+      # "migrations" relative to its working directory
+      # (internal/migrations/migrator.go). The SQL migrations live at the
+      # repository root, so without this the backend exits with
+      # `failed to open source, "file://migrations"` (#297).
+      MIGRATIONS_DIR: ../migrations
       E2E_NO_WEBSERVER: '1'
       E2E_CROSS_BROWSER: '1'
       E2E_BASE_URL: http://localhost:5173
@@ -191,10 +234,26 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             frontend/package-lock.json
+      # Same key pair as the PR job, same reason (#297).
+      - name: Generate ephemeral RS256 key pair
+        run: |
+          mkdir -p "$RUNNER_TEMP/e2e-keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/e2e-keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/e2e-keys/private.pem" -pubout -out "$RUNNER_TEMP/e2e-keys/public.pem" 2>/dev/null
+          echo "RSA_PRIVATE_KEY_PATH=$RUNNER_TEMP/e2e-keys/private.pem" >> "$GITHUB_ENV"
+          echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/e2e-keys/public.pem" >> "$GITHUB_ENV"
+      # The build runs in the foreground and the wait fails loudly: this step used
+      # to background the build itself and `break` out of the loop either way, so a
+      # backend that never came up surfaced later as unrelated test failures.
       - name: Build & start backend
         run: |
-          cd backend && go build -o openrisk ./cmd/server && ./openrisk &
-          for i in $(seq 1 60); do curl -fsS http://localhost:8080/api/v1/health >/dev/null && break; sleep 1; done
+          cd backend && go build -o openrisk ./cmd/server
+          ./openrisk &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8080/api/v1/health >/dev/null && { echo "✅ backend ready"; exit 0; }
+            sleep 1
+          done
+          echo "❌ backend failed to start"; exit 1
       - name: Start frontend
         run: |
           npm --prefix frontend ci
