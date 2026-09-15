@@ -62,6 +62,18 @@ func TestVendorRoutes_EveryRouteCarriesItsPermissionAndTheEntitlement(t *testing
 	require.Equal(t, len(want), mounted, "a TPRM route was added or removed; update this test and ADR 0004")
 }
 
+// TestVendorReminderWorker_IsStarted pins #672's wiring: a reminder use case
+// that is fully tested but never started reminds nobody.
+func TestVendorReminderWorker_IsStarted(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "cmd", "server", "main.go"))
+	require.NoError(t, err)
+	src := string(raw)
+
+	require.Contains(t, src, `tprmapp.NewSendVendorAssessmentRemindersUseCase(vendorAssessmentDeps, vendorAssessmentRepo,`)
+	require.Contains(t, src, `domain.NotificationTypeVendorAssessmentReminder`)
+	require.Contains(t, src, `go vendorReminderWorker.Start(context.Background())`)
+}
+
 // TestPublicVendorAssessmentRoutes_AreMountedBeforeTheGateWithNoAuth pins
 // ADR 0004 D4's mounting: on `app`, rate-limited per IP, and with NO auth
 // middleware — the vendor holds no account.

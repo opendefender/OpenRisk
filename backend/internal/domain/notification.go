@@ -24,6 +24,11 @@ const (
 	NotificationTypeRiskReview         NotificationType = "risk_review"
 	NotificationTypeAutomation         NotificationType = "automation" // SOAR engine alert (spec §10)
 	NotificationTypeSLABreach          NotificationType = "sla_breach" // SLA escalation notice
+	// NotificationTypeVendorAssessmentReminder tells a questionnaire's owner that
+	// a J-7 / J-3 / J-1 reminder went to the vendor, or could not (#672). In-app
+	// only, with no per-event preference column: Allows lets it through unless
+	// the user silenced everything, as it does risk_review and automation.
+	NotificationTypeVendorAssessmentReminder NotificationType = "vendor_assessment_reminder"
 )
 
 const (
@@ -121,8 +126,8 @@ type NotificationPreference struct {
 
 	// Slack preferences
 	SlackEnabled              bool   `gorm:"default:false" json:"slack_enabled"`
-	SlackWebhookURL           string `gorm:"-" json:"-"`                                    // never stored, never returned
-	SlackChannelOverride      string `gorm:"default:null" json:"slack_channel_override"`    // Override default channel
+	SlackWebhookURL           string `gorm:"-" json:"-"`                                 // never stored, never returned
+	SlackChannelOverride      string `gorm:"default:null" json:"slack_channel_override"` // Override default channel
 	SlackOnMitigationDeadline bool   `gorm:"default:true" json:"slack_on_mitigation_deadline"`
 	SlackOnCriticalRisk       bool   `gorm:"default:true" json:"slack_on_critical_risk"`
 	SlackOnActionAssigned     bool   `gorm:"default:true" json:"slack_on_action_assigned"`
