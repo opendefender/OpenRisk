@@ -19,7 +19,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router';
-import { Check } from 'lucide-react';
+import { Check, Languages, Moon, Sun } from 'lucide-react';
 
 import { useI18n } from '../../../hooks/useI18n';
 import { useUIStore } from '../../../store/uiStore';
@@ -30,6 +30,9 @@ import { WIZARD_STEPS, WIZARD_STEP_LABELS, stepPath } from './wizardSteps';
 
 export function OnboardingWizard() {
   const lang = useUIStore((s) => s.lang);
+  const toggleLang = useUIStore((s) => s.toggleLang);
+  const theme = useUIStore((s) => s.theme);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
   const { t } = useI18n();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
@@ -73,8 +76,49 @@ export function OnboardingWizard() {
           <OpenRiskLogo size={26} />
           <span className="text-[15px] font-bold text-ink">OpenRisk</span>
         </div>
-        <div className="text-[12.5px] text-ink-soft" data-testid="wizard-step-of">
-          {t('onboarding.tunnel.stepOf', { current: activeIndex + 1, total: steps.length })}
+        <div className="flex items-center gap-3">
+          <div className="text-[12.5px] text-ink-soft" data-testid="wizard-step-of">
+            {t('onboarding.tunnel.stepOf', { current: activeIndex + 1, total: steps.length })}
+          </div>
+          {/* Language and theme are reachable on the sign-in screens and in the
+              app header; the tunnel sits between the two and has no way out until
+              it is finished, so without these a user could not change either at
+              all (#666). Preferences, not dismisses: neither leaves the step. */}
+          <button
+            type="button"
+            onClick={toggleLang}
+            data-testid="wizard-lang-toggle"
+            className="h-9 px-2.5 rounded-[10px] flex items-center gap-1.5 text-ink-muted hover:text-ink transition-colors"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+            aria-label={t('onboarding.tunnel.switchLanguage')}
+            title={t('onboarding.tunnel.switchLanguage')}
+          >
+            <Languages size={16} aria-hidden="true" />
+            <span className="mono text-[12px] font-semibold uppercase">{lang}</span>
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            data-testid="wizard-theme-toggle"
+            className="w-9 h-9 rounded-[10px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
+            style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
+            aria-label={t(
+              theme === 'dark'
+                ? 'onboarding.tunnel.switchToLight'
+                : 'onboarding.tunnel.switchToDark',
+            )}
+            title={t(
+              theme === 'dark'
+                ? 'onboarding.tunnel.switchToLight'
+                : 'onboarding.tunnel.switchToDark',
+            )}
+          >
+            {theme === 'dark' ? (
+              <Sun size={16} aria-hidden="true" />
+            ) : (
+              <Moon size={16} aria-hidden="true" />
+            )}
+          </button>
         </div>
       </header>
 
@@ -136,7 +180,11 @@ export function OnboardingWizard() {
                         : active
                           ? 'var(--accent)'
                           : 'var(--bg-hover)',
-                      color: done ? 'var(--low)' : active ? 'var(--fg-on-solid)' : 'var(--fg-muted)',
+                      color: done
+                        ? 'var(--low)'
+                        : active
+                          ? 'var(--fg-on-solid)'
+                          : 'var(--fg-muted)',
                     }}
                   >
                     {done ? <Check size={11} strokeWidth={3} /> : i + 1}
