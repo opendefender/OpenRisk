@@ -7,6 +7,43 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-044 — TPRM v1 is built, and its slice of the canonical model is specified first · decided 2026-09-15
+**Decided (owner)** — four answers, given together:
+1. **Order: ADR first.** `Vendor` and `Assessment` are specified in ADR 0004 (#668) before any
+   code. This respects D-030 without waiting for all 17 entities of #541.
+2. **Public link: an opaque token, and nothing else.** 256 random bits, **stored hashed
+   only**, bound to one assessment, with expiry, revocation and rate limiting. No vendor
+   accounts and no one-time code.
+3. **Scoring: a separate vendor score** from 0 to 100, from weighted answers. It is **never** an
+   input to `Risk.Score`, SmartScore or asset criticality, so the frozen Score Engine does not
+   change and needs no ADR.
+4. **Plan: Business and Enterprise.** Free and Pro do not get TPRM.
+
+Choices 1 to 3 match the recommendation. No recommendation was made on the plan: it is a
+pricing decision.
+
+**Context** — the request was "TPRM v1: registre fournisseurs, questionnaire envoyable par lien
+public, scoring, relances J-7/J-3/J-1, lien fournisseur→actif→risque". The spike meant to decide
+whether OpenRisk has TPRM at all (#495) was open with no answer. #214 already held this scope
+under a retired Wave milestone (D-029). `Vendor` and `Assessment` are canonical entities of
+#541, which D-030 forbids coding before its ADR.
+
+What exists was read, not assumed:
+- A vendor is already an asset of category `vendor`, with an attribute schema
+  (`backend/internal/domain/asset_schema_defaults.go`) and a drawer type (ADR 0001, D5b).
+- Asset-to-asset edges exist (`AssetDependency`), and risks link to assets through `risk_assets`.
+- **Nothing exists** for questionnaires, assessments, public links, vendor scores, reminders,
+  or plan gating of TPRM.
+
+**Consequence**
+- #495 is answered.
+- ADR 0004 is proposed on #668.
+- Six implementation issues are opened `status:blocked` on its acceptance, under epic #214.
+- #541 must adopt or explicitly supersede ADR 0004's shapes; it must not define competing ones.
+
+**Not decided here** — the content of ADR 0004. It needs its own acceptance.
+**Unblocked** — #668.
+
 ### D-043 — what the PR-blocking E2E gate should be, now that it can run · decided 2026-09-15
 **Decided (owner)** — **B.** Pull requests run a curated blocking set,
 `journey.members` included, within the 25-minute budget; the full suite runs nightly.
