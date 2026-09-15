@@ -377,6 +377,16 @@ func main() {
 		// arrives through AutoMigrate alone and carries no .sql file (see
 		// internal/migrations/migrator.go:64-66 on which layer owns the schema).
 		&domain.SavedView{},
+		// TPRM v1 (#670, ADR 0004 D3/D4): questionnaire templates, vendor
+		// assessments with their snapshotted items, and the hash-only public link
+		// tokens. Additive tables, so AutoMigrate owns them; migration 0062 adds
+		// the one constraint AutoMigrate cannot express (one active token per
+		// assessment, a partial unique index).
+		&domain.VendorQuestionnaireTemplate{},
+		&domain.VendorQuestionnaireQuestion{},
+		&domain.VendorAssessment{},
+		&domain.VendorAssessmentItem{},
+		&domain.VendorAssessmentToken{},
 	); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
