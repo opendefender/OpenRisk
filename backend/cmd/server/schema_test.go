@@ -41,7 +41,8 @@ var knownMissingTables = map[string]string{
 	// read or written. The feature itself is broken, see the issue.
 	"APIToken": "#709",
 	// The marketplace is not built (ROADMAP 14.18): its models carry no gorm
-	// tags and cannot be migrated as they stand.
+	// tags and cannot be migrated as they stand, and its routes are not
+	// mounted (main.go), so no request reaches these tables.
 	"Connector":      "#392",
 	"MarketplaceApp": "#392",
 	"MarketplaceLog": "#392",
