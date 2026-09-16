@@ -665,7 +665,7 @@ function VulnDrawer({
   return (
     <div
       className="fixed inset-0 z-70 flex justify-end"
-      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
       <div
