@@ -47,7 +47,7 @@ func (s *deadAssessmentStore) FindTokenByHash(_ context.Context, hash string) (*
 func (s *deadAssessmentStore) SaveAnswers(context.Context, uuid.UUID, uuid.UUID, []domain.VendorAssessmentItem, time.Time) (bool, error) {
 	return false, nil
 }
-func (s *deadAssessmentStore) SubmitAssessment(context.Context, uuid.UUID, uuid.UUID, []domain.VendorAssessmentItem, domain.JSONMap, time.Time) (bool, error) {
+func (s *deadAssessmentStore) SubmitAssessment(context.Context, uuid.UUID, uuid.UUID, []domain.VendorAssessmentItem, domain.JSONMap, domain.VendorAssessmentScoring, time.Time) (bool, error) {
 	return false, nil
 }
 
