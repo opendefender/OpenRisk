@@ -1,6 +1,11 @@
 {
   "common": {
     "loading": "Loading...",
+    "orgRole": {
+      "root": "Owner",
+      "admin": "Administrator",
+      "user": "Member"
+    },
     "error": "Error",
     "success": "Success",
     "cancel": "Cancel",

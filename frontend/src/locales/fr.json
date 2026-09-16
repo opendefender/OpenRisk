@@ -1,6 +1,11 @@
 {
   "common": {
     "loading": "Chargement...",
+    "orgRole": {
+      "root": "Propriétaire",
+      "admin": "Administrateur",
+      "user": "Membre"
+    },
     "error": "Erreur",
     "success": "Succès",
     "cancel": "Annuler",
