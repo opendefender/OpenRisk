@@ -33,6 +33,7 @@ import {
   Users,
   History,
   ListChecks,
+  Handshake,
   type LucideIcon,
 } from 'lucide-react';
 import type { UIStrings } from './uiStrings';
@@ -180,6 +181,15 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Atom,
         path: '/assets/topology',
         perm: 'assets:read',
+      },
+      // TPRM v1: a vendor is an asset of category vendor (ADR 0004 D1), so the
+      // register sits with the inventory. Free and Pro see the upsell screen.
+      {
+        key: 'vendors',
+        labelKey: 'n_vendors',
+        icon: Handshake,
+        path: '/vendors',
+        perm: 'vendors:read',
       },
       {
         key: 'vulnerabilities',

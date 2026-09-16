@@ -143,6 +143,27 @@ const RemediationPage = lazy(() =>
 const InventoryPage = lazy(() =>
   import('./features/assets/InventoryPage').then((m) => ({ default: m.InventoryPage })),
 );
+const QuestionnaireTemplatesPage = lazy(() =>
+  import('./features/tprm/QuestionnaireTemplatesPage').then((m) => ({
+    default: m.QuestionnaireTemplatesPage,
+  })),
+);
+const QuestionnaireTemplateEditorPage = lazy(() =>
+  import('./features/tprm/QuestionnaireTemplateEditorPage').then((m) => ({
+    default: m.QuestionnaireTemplateEditorPage,
+  })),
+);
+const VendorsPage = lazy(() =>
+  import('./features/tprm/VendorsPage').then((m) => ({ default: m.VendorsPage })),
+);
+const VendorDetailPage = lazy(() =>
+  import('./features/tprm/VendorDetailPage').then((m) => ({ default: m.VendorDetailPage })),
+);
+const VendorAssessmentPage = lazy(() =>
+  import('./features/tprm/VendorAssessmentPage').then((m) => ({
+    default: m.VendorAssessmentPage,
+  })),
+);
 const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
 const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
 const UnassignedVulnerabilitiesPage = lazy(
@@ -670,6 +691,20 @@ function App() {
               on its replacement rather than a 404. */}
             <Route path="assets/universe" element={<Navigate to="/assets/topology" replace />} />
             <Route path="assets/schemas" element={<AssetSchemaSettings />} />
+
+            {/* ---------------- Vendors (TPRM v1) ---------------- */}
+            <Route path="vendors" element={<VendorsPage />} />
+            <Route path="vendors/:vendorId" element={<VendorDetailPage />} />
+            <Route
+              path="vendors/:vendorId/assessments/:assessmentId"
+              element={<VendorAssessmentPage />}
+            />
+            <Route path="vendors/questionnaires" element={<QuestionnaireTemplatesPage />} />
+            <Route path="vendors/questionnaires/new" element={<QuestionnaireTemplateEditorPage />} />
+            <Route
+              path="vendors/questionnaires/:templateId"
+              element={<QuestionnaireTemplateEditorPage />}
+            />
             <Route path="assets/topology" element={<TopologyView />} />
             <Route path="infrastructure" element={<InfrastructurePage />} />
             <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />

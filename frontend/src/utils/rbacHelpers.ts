@@ -18,7 +18,8 @@ export type PermissionResource =
   | 'connector'
   | 'assets'
   | 'incidents'
-  | 'risks';
+  | 'risks'
+  | 'vendors';
 
 /**
  * Check if a permission string matches a pattern
@@ -87,6 +88,9 @@ export const getResourceActions = (resource: PermissionResource): PermissionActi
     assets: ['read', 'create', 'update', 'delete'],
     incidents: ['read', 'create', 'update', 'delete'],
     risks: ['read', 'create', 'update', 'delete', 'manage'],
+    // TPRM v1 (ADR 0004): vendors:read mirrors assets:read, vendors:manage
+    // mirrors assets:update (backend domain/business_roles.go).
+    vendors: ['read', 'manage'],
   };
 
   return actions[resource] || ['read'];
@@ -167,6 +171,7 @@ export const rolePermissionSets = {
     'reports:read',
     'audit:read',
     'assets:read',
+    'vendors:read',
     'incidents:read',
     'risks:read',
   ] as const,
@@ -192,6 +197,7 @@ const managerPerms = [
   'tenants:read',
   'assets:create',
   'assets:update',
+  'vendors:manage',
 ] as const;
 
 const adminPerms = ['*'] as const;
