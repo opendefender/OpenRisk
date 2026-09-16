@@ -24,7 +24,8 @@
     "name": "Nom",
     "description": "Description",
     "noResults": "Aucun résultat trouvé",
-    "emptyState": "Rien à afficher ici"
+    "emptyState": "Rien à afficher ici",
+    "planName": "Plan {plan}"
   },
   "risks": {
     "title": "Registre des Risques",
