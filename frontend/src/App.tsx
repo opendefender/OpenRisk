@@ -153,6 +153,17 @@ const QuestionnaireTemplateEditorPage = lazy(() =>
     default: m.QuestionnaireTemplateEditorPage,
   })),
 );
+const VendorsPage = lazy(() =>
+  import('./features/tprm/VendorsPage').then((m) => ({ default: m.VendorsPage })),
+);
+const VendorDetailPage = lazy(() =>
+  import('./features/tprm/VendorDetailPage').then((m) => ({ default: m.VendorDetailPage })),
+);
+const VendorAssessmentPage = lazy(() =>
+  import('./features/tprm/VendorAssessmentPage').then((m) => ({
+    default: m.VendorAssessmentPage,
+  })),
+);
 const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
 const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
 const UnassignedVulnerabilitiesPage = lazy(
@@ -682,6 +693,12 @@ function App() {
             <Route path="assets/schemas" element={<AssetSchemaSettings />} />
 
             {/* ---------------- Vendors (TPRM v1) ---------------- */}
+            <Route path="vendors" element={<VendorsPage />} />
+            <Route path="vendors/:vendorId" element={<VendorDetailPage />} />
+            <Route
+              path="vendors/:vendorId/assessments/:assessmentId"
+              element={<VendorAssessmentPage />}
+            />
             <Route path="vendors/questionnaires" element={<QuestionnaireTemplatesPage />} />
             <Route path="vendors/questionnaires/new" element={<QuestionnaireTemplateEditorPage />} />
             <Route

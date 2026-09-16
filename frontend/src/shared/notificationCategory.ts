@@ -80,6 +80,7 @@ export function categoryForType(type: string): NotifCategory {
   switch (type) {
     case 'action_assigned':
     case 'mitigation_deadline':
+    case 'vendor_assessment_reminder':
       return 'tasks';
     case 'risk_review':
       return 'compliance';
