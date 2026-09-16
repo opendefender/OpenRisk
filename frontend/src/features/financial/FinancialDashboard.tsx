@@ -47,8 +47,8 @@ import type {
 } from './financialService';
 import { SUPPORTED_CURRENCIES } from './financialService';
 
-const C_LOSS = '#ff2d92'; // exposure without controls
-const C_RESID = '#30d158'; // residual with controls
+const C_LOSS = 'var(--chart-5)'; // exposure without controls
+const C_RESID = 'var(--chart-3)'; // residual with controls
 const C_BAND = 'var(--accent)';
 const CRIT_COLOR: Record<string, string> = {
   critical: 'var(--critical)',
