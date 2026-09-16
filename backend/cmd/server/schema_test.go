@@ -11,9 +11,10 @@ package main
 // the handler tests built their own schema and never noticed.
 //
 // This test needs no database, so it runs in every CI job. It reads the
-// repository package's source, collects every domain table model used there
-// (a struct with TableName() or a primaryKey field), and fails when one is
-// missing from schemaModels().
+// production source under internal/, collects every domain table model used
+// there (a struct with TableName() or a primaryKey field), resolves its table
+// name as GORM does, and fails when that table is not built by schemaModels()
+// and no recorded decision covers it (#707).
 
 import (
 	"go/ast"
@@ -22,29 +23,53 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
+
+	"gorm.io/gorm/schema"
 )
 
-// knownMissingTables are models a repository references that the startup
-// schema does not build yet. Each is tracked; the entry is removed when the
-// issue lands. Adding a name here requires an issue number.
+// knownMissingTables are table models production code references that the
+// startup schema does not build, each with the decision recorded in #707 and
+// the issue that owns it. Adding a name requires an issue number (enforced
+// below); an entry must go as soon as its table is built (also enforced).
 var knownMissingTables = map[string]string{
-	// Read by gorm_organization_role_repository.go; its DDL is database/0027,
-	// which only the SQL layer applies (#611). Decision tracked in #707.
-	"OrganizationRole": "#707",
+	// Stored in an in-process map by service.TokenService; the table is never
+	// read or written. The feature itself is broken, see the issue.
+	"APIToken": "#709",
+	// The marketplace is not built (ROADMAP 14.18): its models carry no gorm
+	// tags and cannot be migrated as they stand.
+	"Connector":      "#392",
+	"MarketplaceApp": "#392",
+	"MarketplaceLog": "#392",
+	// Used only by code no production path constructs.
+	"NotificationLog":   "#710",
+	"OrganizationRole":  "#710",
+	"Profile":           "#710",
+	"ProfilePermission": "#710",
+	"UserSession":       "#710",
+}
+
+// notPersisted are domain structs with a primaryKey tag that are never stored:
+// they are computed and returned in memory. A reason is required.
+var notPersisted = map[string]string{
+	"TrendAnalysis":       "computed in memory by service.TrendAnalysisService",
+	"TrendForecast":       "computed in memory by service.TrendAnalysisService",
+	"TrendRecommendation": "computed in memory by service.TrendAnalysisService",
 }
 
 // domainTableModels returns the domain structs GORM persists as a table of
 // their own: those with a TableName() method, or with a field tagged
 // primaryKey. Projections the repositories scan query results into (counts,
 // statistics, joined views) have neither, and are not tables.
-func domainTableModels(t *testing.T) map[string]bool {
+func domainTableModels(t *testing.T) map[string]string {
 	t.Helper()
 	fset := token.NewFileSet()
 	structs := map[string]*ast.StructType{}
-	withTableName := map[string]bool{}
+	withTableName := map[string]string{}
 	files, err := filepath.Glob(filepath.Join("..", "..", "internal", "domain", "*.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -76,20 +101,24 @@ func domainTableModels(t *testing.T) map[string]bool {
 					recv = star.X
 				}
 				if id, ok := recv.(*ast.Ident); ok {
-					withTableName[id.Name] = true
+					withTableName[id.Name] = tableNameLiteral(d)
 				}
 			}
 		}
 	}
-	models := map[string]bool{}
+	naming := schema.NamingStrategy{}
+	models := map[string]string{}
 	for name, st := range structs {
-		if withTableName[name] {
-			models[name] = true
+		if table, ok := withTableName[name]; ok {
+			if table == "" {
+				table = naming.TableName(name)
+			}
+			models[name] = table
 			continue
 		}
 		for _, field := range st.Fields.List {
 			if field.Tag != nil && strings.Contains(field.Tag.Value, "primaryKey") {
-				models[name] = true
+				models[name] = naming.TableName(name)
 				break
 			}
 		}
@@ -97,15 +126,50 @@ func domainTableModels(t *testing.T) map[string]bool {
 	return models
 }
 
-// repositoryModels returns the domain structs the repository package uses as
-// values: composite literals (&domain.X{}), declared variables and slices
-// (var x domain.X, []domain.X). Types that only appear as parameters or in
-// signatures are not queried by the repository itself and are left out.
-func repositoryModels(t *testing.T, structs map[string]bool) map[string][]string {
+// tableNameLiteral returns the string a `TableName() string { return "x" }`
+// method returns, or "" when it is not a single string literal.
+func tableNameLiteral(fn *ast.FuncDecl) string {
+	if fn.Body == nil || len(fn.Body.List) != 1 {
+		return ""
+	}
+	ret, ok := fn.Body.List[0].(*ast.ReturnStmt)
+	if !ok || len(ret.Results) != 1 {
+		return ""
+	}
+	lit, ok := ret.Results[0].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return ""
+	}
+	return strings.Trim(lit.Value, "\"`")
+}
+
+// productionModels returns the domain table models production code under
+// internal/ uses as values: composite literals (&domain.X{}), declared
+// variables and slices (var x domain.X, []domain.X). Types that only appear as
+// parameters or in signatures are left out. Widened from the repository
+// package to all of internal/ by #707: services and handlers query GORM too.
+func productionModels(t *testing.T, structs map[string]string) map[string][]string {
 	t.Helper()
 	fset := token.NewFileSet()
-	dir := filepath.Join("..", "..", "internal", "infrastructure", "repository")
-	entries, err := os.ReadDir(dir)
+	root := filepath.Join("..", "..", "internal")
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == "domain" && filepath.Dir(path) == root {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// test_helpers.go files are test support compiled into their package;
+		// no production path calls them.
+		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") && filepath.Base(path) != "test_helpers.go" {
+			files = append(files, path)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,19 +184,16 @@ func repositoryModels(t *testing.T, structs map[string]bool) map[string][]string
 				expr = e.Elt
 				continue
 			case *ast.SelectorExpr:
-				if pkg, ok := e.X.(*ast.Ident); ok && pkg.Name == "domain" && structs[e.Sel.Name] {
+				if pkg, ok := e.X.(*ast.Ident); ok && pkg.Name == "domain" && structs[e.Sel.Name] != "" {
 					used[e.Sel.Name] = append(used[e.Sel.Name], file)
 				}
 			}
 			return
 		}
 	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		f, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, 0)
+	for _, path := range files {
+		name, _ := filepath.Rel(root, path)
+		f, err := parser.ParseFile(fset, path, nil, 0)
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
@@ -153,36 +214,39 @@ func repositoryModels(t *testing.T, structs map[string]bool) map[string][]string
 	return used
 }
 
-func TestSchemaModels_CoverEveryRepositoryModel(t *testing.T) {
-	built := map[string]bool{}
+func TestSchemaModels_CoverEveryTableModelInUse(t *testing.T) {
+	builtTables := map[string]bool{}
 	for _, m := range schemaModels() {
-		typ := reflect.TypeOf(m)
-		for typ.Kind() == reflect.Ptr {
-			typ = typ.Elem()
+		sch, err := schema.Parse(m, &sync.Map{}, schema.NamingStrategy{})
+		if err != nil {
+			t.Fatalf("parse %T: %v", m, err)
 		}
-		if strings.HasSuffix(typ.PkgPath(), "/internal/domain") {
-			built[typ.Name()] = true
-		}
+		builtTables[sch.Table] = true
 	}
 
-	used := repositoryModels(t, domainTableModels(t))
+	tables := domainTableModels(t)
+	used := productionModels(t, tables)
 	var missing []string
 	for model, files := range used {
-		if built[model] || knownMissingTables[model] != "" {
+		if builtTables[tables[model]] || knownMissingTables[model] != "" || notPersisted[model] != "" {
 			continue
 		}
-		missing = append(missing, model+" (used in "+strings.Join(uniq(files), ", ")+")")
+		missing = append(missing, model+" → "+tables[model]+" (used in "+strings.Join(uniq(files), ", ")+")")
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
-		t.Fatalf("repository models with no table in schemaModels() — add them there, "+
-			"or track it in knownMissingTables with its issue:\n  %s", strings.Join(missing, "\n  "))
+		t.Fatalf("table models used by production code with no table in schemaModels() — add them there, "+
+			"or record the decision in knownMissingTables (with its issue) or notPersisted:\n  %s", strings.Join(missing, "\n  "))
 	}
 
 	// A stale exception is a lie about the schema: once a model is built, its
 	// entry must go.
+	issueRef := regexp.MustCompile(`^#[0-9]+$`)
 	for model, issue := range knownMissingTables {
-		if built[model] {
+		if !issueRef.MatchString(issue) {
+			t.Errorf("knownMissingTables[%s] = %q: must be an issue reference like #707", model, issue)
+		}
+		if builtTables[tables[model]] {
 			t.Errorf("%s is built by schemaModels() now; remove it from knownMissingTables (%s)", model, issue)
 		}
 	}
