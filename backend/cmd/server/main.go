@@ -831,7 +831,9 @@ func main() {
 		WithMFAPolicies(mfaPolicyRepo)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
-		WithActivation(activationRecorder)
+		WithActivation(activationRecorder).
+		// Organization + owner + root membership in one transaction (#687).
+		WithAccounts(repository.NewGormRegistrationRepository(database.DB))
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
 

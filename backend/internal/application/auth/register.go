@@ -7,7 +7,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -15,6 +17,34 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/notify"
 )
+
+const (
+	// How long the welcome email may take once the request has been answered.
+	welcomeEmailTimeout = 30 * time.Second
+	// Bounded searches: a free username, and a free organization slug. The slug
+	// search used to be unbounded and retried a FAILING lookup for ever, so a
+	// database blip hung the request and spun a core.
+	usernameAttempts = 20
+	slugAttempts     = 20
+)
+
+// The two conflicts registration can answer with (#687).
+//
+// They are separate errors because they are separate problems for the person at
+// the screen: "you already have an account" is something they can act on, while
+// "a stranger took that username" is not the same statement. Reporting the
+// second as the first told new users something false and left them nowhere.
+var (
+	ErrEmailAlreadyRegistered = errors.New("an account already exists for this email address")
+	ErrUsernameTaken          = errors.New("username is already taken")
+)
+
+// AccountCreator writes the organization, its owner and the owner's membership
+// in ONE transaction (ABSOLUTE RULE #7). Satisfied by
+// repository.GormRegistrationRepository.
+type AccountCreator interface {
+	CreateAccount(ctx context.Context, org *domain.Organization, user *domain.User, member *domain.OrganizationMember) error
+}
 
 // RegisterInput represents the input for user registration
 type RegisterInput struct {
@@ -48,11 +78,20 @@ type RegisterUseCase struct {
 	notifyService  notify.Service
 	passwordHasher PasswordHasher
 	activation     ActivationRecorder
+	accounts       AccountCreator
 }
 
 // WithActivation attaches the optional activation recorder.
 func (uc *RegisterUseCase) WithActivation(rec ActivationRecorder) *RegisterUseCase {
 	uc.activation = rec
+	return uc
+}
+
+// WithAccounts attaches the transactional writer. Registration refuses to run
+// without it rather than fall back to the three independent writes that used to
+// leave half-made accounts behind.
+func (uc *RegisterUseCase) WithAccounts(a AccountCreator) *RegisterUseCase {
+	uc.accounts = a
 	return uc
 }
 
@@ -71,93 +110,87 @@ func NewRegisterUseCase(
 	}
 }
 
-// Execute performs user registration
+// Execute performs user registration.
+//
+// The organization, its owner and the owner's root membership are written in one
+// transaction (#687). They used to be three independent writes: a failed user
+// insert deleted the organization best-effort, and a failed membership insert
+// was printed and ignored — leaving an account that could sign in but belonged
+// to nothing, with no permissions and no way to repair itself.
 func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*RegisterOutput, error) {
-	// Validate input
 	if err := uc.validateInput(input); err != nil {
 		return nil, err
 	}
+	if uc.accounts == nil {
+		return nil, domain.NewInternalError("registration is not configured: no account writer")
+	}
 
-	// Check if user already exists
-	existingUser, err := uc.userRepo.GetByEmail(ctx, input.Email)
+	// One spelling of an address, everywhere. Password reset already normalised;
+	// registration did not, so Alex@Example.com and alex@example.com could each
+	// hold an account for one mailbox, and which one a reset or a login reached
+	// depended on the casing typed that day.
+	email := domain.NormaliseEmail(input.Email)
+
+	existingUser, err := uc.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
 	if existingUser != nil {
-		return nil, domain.NewConflictError("user", "email")
+		return nil, ErrEmailAlreadyRegistered
 	}
 
-	// Check if username is taken
-	existingUser, err = uc.userRepo.GetByUsername(ctx, input.Username)
+	username, err := uc.resolveUsername(ctx, input.Username, email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check existing username: %w", err)
-	}
-	if existingUser != nil {
-		return nil, domain.NewConflictError("user", "username")
+		return nil, err
 	}
 
-	// Hash password
 	hashedPassword, err := uc.passwordHasher.Hash(input.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Create organization first
+	slug, err := uc.generateSlug(ctx, input.CompanyName)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	// The user's id is assigned here so the organization carries its real owner
+	// from the first insert, rather than a placeholder corrected by a later
+	// update whose failure used to be printed and ignored.
+	userID := uuid.New()
 	org := &domain.Organization{
+		ID:        uuid.New(),
 		Name:      input.CompanyName,
-		Slug:      uc.generateSlug(input.CompanyName),
-		OwnerID:   uuid.New(), // Will be updated after user creation
+		Slug:      slug,
+		OwnerID:   userID,
 		IsActive:  true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
-
-	if err := uc.orgRepo.Create(ctx, org); err != nil {
-		return nil, fmt.Errorf("failed to create organization: %w", err)
-	}
-
-	// Create user
 	user := &domain.User{
-		Email:        input.Email,
-		Username:     input.Username,
+		ID:           userID,
+		Email:        email,
+		Username:     username,
 		Password:     hashedPassword,
 		FullName:     input.FullName,
 		DefaultOrgID: &org.ID,
 		IsActive:     true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
-
-	if err := uc.userRepo.Create(ctx, user); err != nil {
-		// Clean up organization if user creation fails
-		if delErr := uc.orgRepo.Delete(ctx, org.ID); delErr != nil {
-			fmt.Printf("Warning: failed to roll back organization %s after user creation failure: %v\n", org.ID, delErr)
-		}
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	// Update organization owner
-	org.OwnerID = user.ID
-	org.Owner = user
-	if err := uc.orgRepo.Update(ctx, org); err != nil {
-		// This is not critical, log and continue
-		fmt.Printf("Warning: failed to update organization owner: %v\n", err)
-	}
-
-	// Create organization membership
 	member := &domain.OrganizationMember{
 		OrganizationID: org.ID,
 		UserID:         user.ID,
 		Role:           domain.RoleRoot,
 		IsActive:       true,
-		JoinedAt:       time.Now(),
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		JoinedAt:       now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
-	if err := uc.userRepo.CreateOrganizationMember(ctx, member); err != nil {
-		// This is not critical for registration success, log and continue
-		fmt.Printf("Warning: failed to create organization membership: %v\n", err)
+	if err := uc.accounts.CreateAccount(ctx, org, user, member); err != nil {
+		return nil, fmt.Errorf("failed to create account: %w", err)
 	}
 
 	// Anchor t0 for time-to-Aha. Recorded here rather than at first login so the
@@ -169,12 +202,16 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 		})
 	}
 
-	// Send welcome email
+	// The welcome email outlives the request. It used to run on the request's own
+	// context, which the handler cancels the moment it answers, so the send could
+	// be aborted halfway. The address is never logged; the user id is.
 	if uc.notifyService != nil {
+		mailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), welcomeEmailTimeout)
+		recipient, name, id := user.Email, user.FullName, user.ID
 		go func() {
-			err := uc.notifyService.SendWelcomeEmail(ctx, user.Email, user.FullName)
-			if err != nil {
-				fmt.Printf("Warning: failed to send welcome email: %v\n", err)
+			defer cancel()
+			if err := uc.notifyService.SendWelcomeEmail(mailCtx, recipient, name); err != nil {
+				log.Printf("register: welcome email failed for user %s: %v", id, err)
 			}
 		}()
 	}
@@ -186,13 +223,73 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 	}, nil
 }
 
+// resolveUsername returns a username that is free.
+//
+// A username the CLIENT chose is refused when taken: that caller can choose
+// again. A username nobody chose — the sign-up screen sends none (#687) — is
+// derived from the address and made unique here, because the person never saw
+// the field and cannot act on a collision with a stranger.
+func (uc *RegisterUseCase) resolveUsername(ctx context.Context, requested, email string) (string, error) {
+	if chosen := strings.TrimSpace(requested); chosen != "" {
+		taken, err := uc.usernameTaken(ctx, chosen)
+		if err != nil {
+			return "", err
+		}
+		if taken {
+			return "", ErrUsernameTaken
+		}
+		return chosen, nil
+	}
+
+	base := usernameFromEmail(email)
+	candidate := base
+	for attempt := 1; attempt <= usernameAttempts; attempt++ {
+		taken, err := uc.usernameTaken(ctx, candidate)
+		if err != nil {
+			return "", err
+		}
+		if !taken {
+			return candidate, nil
+		}
+		candidate = fmt.Sprintf("%s%d", base, attempt+1)
+	}
+	// Still colliding after a bounded search: take a random suffix rather than
+	// search for ever.
+	return fmt.Sprintf("%s-%s", base, uuid.NewString()[:8]), nil
+}
+
+func (uc *RegisterUseCase) usernameTaken(ctx context.Context, username string) (bool, error) {
+	existing, err := uc.userRepo.GetByUsername(ctx, username)
+	if err != nil {
+		return false, fmt.Errorf("failed to check existing username: %w", err)
+	}
+	return existing != nil, nil
+}
+
+// usernameFromEmail keeps the address's local part, minus anything a username
+// may not carry, and pads a very short one so it clears the 3-character floor.
+func usernameFromEmail(email string) string {
+	local, _, _ := strings.Cut(email, "@")
+	var b strings.Builder
+	for _, r := range strings.ToLower(local) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_', r == '.', r == '-':
+			b.WriteRune(r)
+		}
+	}
+	name := strings.Trim(b.String(), ".-")
+	if len(name) < 3 {
+		name = "user" + name
+	}
+	return name
+}
+
 func (uc *RegisterUseCase) validateInput(input RegisterInput) error {
 	if input.Email == "" {
 		return domain.NewValidationError("email is required")
 	}
-	if input.Username == "" {
-		return domain.NewValidationError("username is required")
-	}
+	// No username check: the field is optional (#687) and resolveUsername
+	// derives a free one when the client sends none.
 	// Single source of truth for the policy (domain.ValidatePassword) so the
 	// rules cannot drift between entry points — they already had, with the code
 	// enforcing 8 characters while the README promised 12 (audit finding F-05).
@@ -208,27 +305,31 @@ func (uc *RegisterUseCase) validateInput(input RegisterInput) error {
 	return nil
 }
 
-func (uc *RegisterUseCase) generateSlug(companyName string) string {
-	// Simple slug generation - in production, use a proper slug library
-	slug := strings.ToLower(strings.ReplaceAll(companyName, " ", "-"))
-	// Ensure uniqueness by checking database
-	counter := 0
-	originalSlug := slug
-	for {
-		exists, err := uc.orgRepo.SlugExists(context.Background(), slug)
+// generateSlug finds a free slug for the organization, on the request's own
+// context and in a bounded number of tries.
+//
+// The previous loop had neither: a failing lookup was retried for ever, so a
+// database blip turned one registration into a hung request spinning a core, and
+// it ran on context.Background() where a cancelled request could not stop it.
+func (uc *RegisterUseCase) generateSlug(ctx context.Context, companyName string) (string, error) {
+	base := strings.ToLower(strings.TrimSpace(companyName))
+	base = strings.ReplaceAll(base, " ", "-")
+	if base == "" {
+		base = "organisation"
+	}
+
+	slug := base
+	for attempt := 1; attempt <= slugAttempts; attempt++ {
+		exists, err := uc.orgRepo.SlugExists(ctx, slug)
 		if err != nil {
-			// If check fails, append counter
-			counter++
-			slug = fmt.Sprintf("%s-%d", originalSlug, counter)
-			continue
+			return "", fmt.Errorf("failed to check organization slug: %w", err)
 		}
 		if !exists {
-			break
+			return slug, nil
 		}
-		counter++
-		slug = fmt.Sprintf("%s-%d", originalSlug, counter)
+		slug = fmt.Sprintf("%s-%d", base, attempt+1)
 	}
-	return slug
+	return fmt.Sprintf("%s-%s", base, uuid.NewString()[:8]), nil
 }
 
 // OrganizationRepository interface for organization operations
